@@ -1,8 +1,8 @@
 use fm::FileId;
 use lsp_types::{
-    CompletionOptions, DeclarationCapability, DefinitionOptions, DocumentSymbolOptions,
-    HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions, SignatureHelpOptions,
-    TypeDefinitionProviderCapability,
+    CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
+    DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
+    SignatureHelpOptions, TypeDefinitionProviderCapability,
 };
 use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::OpCodesCount, Location};
@@ -165,6 +165,10 @@ pub(crate) struct ServerCapabilities {
     /// The server provides signature help support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) signature_help_provider: Option<OneOf<bool, SignatureHelpOptions>>,
+
+    /// The server provides code action support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) code_action_provider: Option<OneOf<bool, CodeActionOptions>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
