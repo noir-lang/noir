@@ -163,7 +163,10 @@ impl Block {
                 // even if we don't have a known address? If not we'll have to invalidate all
                 // known references if this reference is ever stored to.
             }
-        }
+        } 
+        // else {
+        //     self.references.insert(result, ReferenceValue::Known(address));
+        // }
     }
 
     /// Iterate through each known alias of the given address and apply the function `f` to each.

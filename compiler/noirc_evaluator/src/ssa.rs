@@ -117,6 +117,11 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+    // TODO: mem2reg and DIE were put here to delete any stores that can be removes following die removing loads.
+    // Decide whether we want to run mem2reg once more or just have it able to handle this case on its own
+    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    // The extra mem2reg requires another DIE as we can have allocates we do not want
+    .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
