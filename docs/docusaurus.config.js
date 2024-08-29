@@ -351,8 +351,8 @@ const config = {
             title: "Community",
             items: [
               {
-                label: "Discourse",
-                href: "https://discourse.aztec.network",
+                label: "Forum",
+                href: "https://forum.aztec.network",
               },
               {
                 label: "Discord",
@@ -361,10 +361,6 @@ const config = {
               {
                 label: "X (Twitter)",
                 href: "https://x.com/aztecnetwork",
-              },
-              {
-                label: "Plonk Cafe",
-                href: "https://www.plonk.cafe/",
               },
             ],
           },

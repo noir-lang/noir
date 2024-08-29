@@ -182,7 +182,7 @@ Functionally similar to `get_note`, but executed unconstrained and can be used b
 
 `PrivateSet` is used for managing a collection of notes. All notes in a `PrivateSet` are of the same `NoteType`. But whether these notes all belong to one entity, or are accessible and editable by different entities, is up to the developer. The set is a collection of notes inserted into the data-tree, but notes are never removed from the tree itself, they are only nullified.
 
-You can view the implementation [here (GitHub link)](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/set.nr).
+You can view the implementation [here (GitHub link)](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/private_set.nr).
 
 And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for public -> private communication).
 
