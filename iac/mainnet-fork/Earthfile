@@ -4,23 +4,29 @@ build:
     FROM ubuntu:focal
 
     # Install nginx
-    RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
-    RUN apt-get update && apt install -y git curl nginx
-
-    # Copy nginx config
-    COPY . .
-    COPY nginx/gateway.conf /etc/nginx/gateway.conf
-    COPY nginx/nginx.conf /etc/nginx/nginx.conf
+    COPY ./scripts/install_nginx.sh ./scripts/install_nginx.sh
+    RUN ./scripts/install_nginx.sh
 
     # Install foundry
+    COPY ./scripts/install_foundry.sh ./scripts/install_foundry.sh
     RUN ./scripts/install_foundry.sh
     ENV PATH="./foundry/bin:${PATH}"
+
+    # Copy nginx config
+    COPY ./scripts ./scripts
+    COPY ./redeploy ./redeploy
+    COPY ./nginx/ /etc/nginx/
+    COPY --chmod 640 ./etc/anvil.logrotate.conf /etc/logrotate.d/anvil
 
     # Expose port 80
     EXPOSE 80
 
     # Set entrypoint.
     ENTRYPOINT ["sh", "-c", "./scripts/run_nginx_anvil.sh"]
+
+export-local:
+    FROM +build
+    SAVE IMAGE aztecprotocol/mainnet-fork
 
 export-mainnet-fork:
     FROM +build

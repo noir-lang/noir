@@ -10,6 +10,10 @@ variable "API_KEY" {
   type = string
 }
 
+variable "PUBLIC_API_KEY" {
+  type = string
+}
+
 variable "DOCKERHUB_ACCOUNT" {
   type = string
 }

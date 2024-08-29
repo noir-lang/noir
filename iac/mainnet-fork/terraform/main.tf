@@ -119,26 +119,12 @@ resource "aws_ecs_task_definition" "aztec_mainnet_fork" {
       image     = "${var.DOCKERHUB_ACCOUNT}/mainnet-fork:${var.DEPLOY_TAG}"
       essential = true
       environment = [
-        {
-          name  = "API_KEY"
-          value = "${var.API_KEY}"
-        },
-        {
-          name  = "MNEMONIC"
-          value = "${var.FORK_MNEMONIC}"
-        },
-        {
-          name  = "INFURA_API_KEY"
-          value = "${var.INFURA_API_KEY}"
-        },
-        {
-          name  = "L1_CHAIN_ID"
-          value = "${var.L1_CHAIN_ID}"
-        },
-        {
-          name  = "SNAPSHOT_FREQUENCY"
-          value = "15"
-        }
+        { name = "API_KEY", value = "${var.API_KEY}" },
+        { name = "PUBLIC_API_KEY", value = "${var.PUBLIC_API_KEY}" },
+        { name = "MNEMONIC", value = "${var.FORK_MNEMONIC}" },
+        { name = "INFURA_API_KEY", value = "${var.INFURA_API_KEY}" },
+        { name = "L1_CHAIN_ID", value = "${var.L1_CHAIN_ID}" },
+        { name = "SNAPSHOT_FREQUENCY", value = "15" }
       ]
       mountPoints = [
         {

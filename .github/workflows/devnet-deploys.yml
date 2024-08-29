@@ -33,6 +33,7 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   API_KEY: ${{ secrets.DEVNET_API_KEY }}
+  PUBLIC_API_KEY: ${{ secrets.DEVNET_API_KEY }}
   FORK_MNEMONIC: ${{ secrets.FORK_MNEMONIC }}
   CONTRACT_PUBLISHER_PRIVATE_KEY: ${{ secrets.CONTRACT_PUBLISHER_PRIVATE_KEY }}
   CONTRACT_S3_BUCKET: s3://static.aztec.network
@@ -64,6 +65,7 @@ env:
   # Anvil
   TF_VAR_FORK_MNEMONIC: ${{ secrets.FORK_MNEMONIC }}
   TF_VAR_INFURA_API_KEY: ${{ secrets.INFURA_API_KEY }}
+  TF_VAR_PUBLIC_API_KEY: ${{ secrets.DEVNET_API_KEY }}
 
   # Faucet
   TF_VAR_FAUCET_ACCOUNT_INDEX: 9
@@ -105,6 +107,7 @@ jobs:
       deploy_tag: ${{ steps.set_network_vars.outputs.deploy_tag }}
       branch_name: ${{ steps.set_network_vars.outputs.branch_name }}
       network_api_key: ${{ steps.set_network_vars.outputs.network_api_key }}
+      network_public_api_key: ${{ steps.set_network_vars.outputs.network_public_api_key }}
       agents_per_prover: ${{ steps.set_network_vars.outputs.agents_per_prover }}
       bot_interval: ${{ steps.set_network_vars.outputs.bot_interval }}
       node_tcp_range_start: ${{ steps.set_network_vars.outputs.node_tcp_range_start }}
@@ -131,6 +134,7 @@ jobs:
               echo "deploy_tag=devnet" >> $GITHUB_OUTPUT
               echo "branch_name=devnet" >> $GITHUB_OUTPUT
               echo "network_api_key=DEVNET_API_KEY" >> $GITHUB_OUTPUT
+              echo "network_public_api_key=DEVNET_API_KEY" >> $GITHUB_OUTPUT
               echo "agents_per_prover=4" >> $GITHUB_OUTPUT
               echo "bot_interval=180" >> $GITHUB_OUTPUT
               echo "node_tcp_range_start=40100" >> $GITHUB_OUTPUT
@@ -151,6 +155,7 @@ jobs:
               echo "deploy_tag=provernet" >> $GITHUB_OUTPUT
               echo "branch_name=provernet" >> $GITHUB_OUTPUT
               echo "network_api_key=PROVERNET_API_KEY" >> $GITHUB_OUTPUT
+              echo "network_public_api_key=PROVERNET_PUBLIC_API_KEY" >> $GITHUB_OUTPUT
               echo "agents_per_prover=4" >> $GITHUB_OUTPUT
               echo "bot_interval=300" >> $GITHUB_OUTPUT
               echo "node_tcp_range_start=40200" >> $GITHUB_OUTPUT
@@ -171,6 +176,7 @@ jobs:
               echo "deploy_tag=alphanet" >> $GITHUB_OUTPUT
               echo "branch_name=alphanet" >> $GITHUB_OUTPUT
               echo "network_api_key=ALPHANET_API_KEY" >> $GITHUB_OUTPUT
+              echo "network_public_api_key=ALPHANET_API_KEY" >> $GITHUB_OUTPUT
               echo "agents_per_prover=1" >> $GITHUB_OUTPUT
               echo "bot_interval=30" >> $GITHUB_OUTPUT
               echo "node_tcp_range_start=40000" >> $GITHUB_OUTPUT
@@ -200,6 +206,8 @@ jobs:
       TF_VAR_DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
       API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
       TF_VAR_API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      PUBLIC_API_KEY: ${{ secrets[needs.set-network.outputs.network_public_api_key] }}
+      TF_VAR_PUBLIC_API_KEY: ${{ secrets[needs.set-network.outputs.network_public_api_key] }}
       API_KEY_NAME: ${{ needs.set-network.outputs.network_api_key }}
     runs-on: ${{ github.actor }}-x86
     steps:
@@ -443,6 +451,8 @@ jobs:
       TF_VAR_DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
       API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
       TF_VAR_API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      PUBLIC_API_KEY: ${{ secrets[needs.set-network.outputs.network_public_api_key] }}
+      TF_VAR_PUBLIC_API_KEY: ${{ secrets[needs.set-network.outputs.network_public_api_key] }}
       TF_VAR_AGENTS_PER_PROVER: ${{ needs.set-network.outputs.agents_per_prover }}
       TF_VAR_BOT_TX_INTERVAL_SECONDS: ${{ needs.set-network.outputs.bot_interval }}
       TF_VAR_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.node_lb_priority_range_start }}
