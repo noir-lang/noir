@@ -410,18 +410,27 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn convert_expression_type(&mut self, length: UnresolvedTypeExpression, span: Span) -> Type {
+    pub(super) fn convert_expression_type(
+        &mut self,
+        length: UnresolvedTypeExpression,
+        span: Span,
+    ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                let resolved_length = self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
-                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                    Type::Constant(0)
-                });
+                let resolved_length =
+                    self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
+                        self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                        Type::Constant(0)
+                    });
 
                 if let Type::NamedGeneric(ref _type_var, ref _name, ref kind) = resolved_length {
                     if !kind.is_numeric() {
                         self.push_err(TypeCheckError::TypeKindMismatch {
-                            expected_kind: Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))).to_string(),
+                            expected_kind: Kind::Numeric(Box::new(Type::Integer(
+                                Signedness::Unsigned,
+                                IntegerBitSize::ThirtyTwo,
+                            )))
+                            .to_string(),
                             expr_kind: kind.to_string(),
                             expr_span: span,
                         });

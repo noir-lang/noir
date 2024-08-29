@@ -1144,7 +1144,6 @@ impl<'context> Elaborator<'context> {
             let fields_len = fields.len();
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
-
             });
 
             for field_index in 0..fields_len {
