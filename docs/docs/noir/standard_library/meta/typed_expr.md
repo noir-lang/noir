@@ -8,6 +8,6 @@ title: TypedExpr
 
 ### as_function_definition
 
-#include_code as_function_definition noir_stdlib/src/meta/expr.nr rust
+#include_code as_function_definition noir_stdlib/src/meta/typed_expr.nr rust
 
 If this expression refers to a function definitions, returns it. Otherwise returns `Option::none()`.
