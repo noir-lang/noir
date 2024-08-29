@@ -1142,27 +1142,6 @@ impl<'context> Elaborator<'context> {
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
 
-                // // TODO cleanup
-                // // This is only necessary for resolving named types when implicit numeric generics are used.
-                // let mut found_names = Vec::new();
-                // struct_def.find_numeric_generics_in_fields(&mut found_names);
-                // for generic in struct_def.generics.iter_mut() {
-                //     for found_generic in found_names.iter() {
-                //         if found_generic == generic.name.as_str() {
-                //             if matches!(generic.kind, Kind::Normal) {
-                //                 let ident = Ident::new(generic.name.to_string(), generic.span);
-                //                 self.errors.push((
-                //                     CompilationError::ResolverError(
-                //                         ResolverError::UseExplicitNumericGeneric { ident },
-                //                     ),
-                //                     self.file,
-                //                 ));
-                //                 generic.kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                //             }
-                //             break;
-                //         }
-                //     }
-                // }
             });
 
             for field_index in 0..fields_len {
