@@ -2,7 +2,7 @@
 title: TypedExpr
 ---
 
-`std::meta::typed_expr` contains methods on the built-in `TypedExpr` type for type-checked expressions.
+`std::meta::typed_expr` contains methods on the built-in `TypedExpr` type for resolved and type-checked expressions.
 
 ## Methods
 
