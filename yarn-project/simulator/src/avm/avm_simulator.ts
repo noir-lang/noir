@@ -54,7 +54,7 @@ export class AvmSimulator {
    */
   public async executeBytecode(bytecode: Buffer): Promise<AvmContractCallResult> {
     const decompressedBytecode = await decompressBytecodeIfCompressed(bytecode);
-    assert(isAvmBytecode(decompressedBytecode), "AVM simulator can't execute non-AVM bytecode");
+    assert(await isAvmBytecode(decompressedBytecode), "AVM simulator can't execute non-AVM bytecode");
 
     this.bytecode = decompressedBytecode;
     return await this.executeInstructions(decodeFromBytecode(decompressedBytecode));
