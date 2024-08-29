@@ -49,7 +49,7 @@ comptime fn mutate_add_one(f: FunctionDefinition) {
     assert_eq(f.return_type(), type_of(0));
 
     // fn add_one(x: Field) -> Field { x + 1 }
-    f.set_body(quote { x + 1 });
+    f.set_body(quote { x + 1 }.as_expr().unwrap());
 }
 
 fn main() {

@@ -24,7 +24,7 @@ ark-bn254.workspace = true
 ark-bls12-381 = { workspace = true, optional = true }
 ark-ff.workspace = true
 
-cfg-if = "1.0.0"
+cfg-if.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

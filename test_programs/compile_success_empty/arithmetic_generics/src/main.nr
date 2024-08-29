@@ -7,6 +7,9 @@ fn main() {
     let _ = split_first([1, 2, 3]);
 
     let _ = push_multiple([1, 2, 3]);
+
+    test_constant_folding::<10>();
+    test_non_constant_folding::<10, 20>();
 }
 
 fn split_first<T, let N: u32>(array: [T; N]) -> (T, [T; N - 1]) {
@@ -100,4 +103,32 @@ fn demo_proof<let N: u32>() -> Equiv<W<(N * (N + 1))>, (Equiv<W<N>, (), W<N>, ()
     let p3_sub: Equiv<W<N>, (), W<N>, ()> = mul_one_r();
     let p3: Equiv<W<N * N + N>, (), W<N * N + N>, ()> = add_equiv_r::<N * N, N, N, _, _>(p3_sub);
     equiv_trans(equiv_trans(p1, p2), p3)
+}
+
+fn test_constant_folding<let N: u32>() {
+    // N + C1 - C2 = N + (C1 - C2)
+    let _: W<N + 5 - 2> = W::<N + 3> {};
+
+    // N - C1 + C2 = N - (C1 - C2)
+    let _: W<N - 3 + 2> = W::<N - 1> {};
+
+    // N * C1 / C2 = N * (C1 / C2)
+    let _: W<N * 10 / 2> = W::<N * 5> {};
+
+    // N / C1 * C2 = N / (C1 / C2)
+    let _: W<N / 10 * 2> = W::<N / 5> {};
+}
+
+fn test_non_constant_folding<let N: u32, let M: u32>() {
+    // N + M - M = N
+    let _: W<N + M - M> = W::<N> {};
+
+    // N - M + M = N
+    let _: W<N - M + M> = W::<N> {};
+
+    // N * M / M = N
+    let _: W<N * M / M> = W::<N> {};
+
+    // N / M * M = N
+    let _: W<N / M * M> = W::<N> {};
 }

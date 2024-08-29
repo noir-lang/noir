@@ -733,11 +733,15 @@ impl Instruction {
                     }
                 }
 
+                let then_value = dfg.resolve(*then_value);
+                let else_value = dfg.resolve(*else_value);
+                if then_value == else_value {
+                    return SimplifiedTo(then_value);
+                }
+
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
-                    let then_value = *then_value;
                     let else_condition = *else_condition;
-                    let else_value = *else_value;
 
                     let result = ValueMerger::merge_numeric_values(
                         dfg,

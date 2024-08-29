@@ -40,6 +40,7 @@ pub(super) fn parse_type_inner<'a>(
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser.clone()),
         as_trait_path_type(recursive_type_parser),
+        interned_unresolved_type(),
     ))
 }
 
@@ -165,6 +166,15 @@ pub(super) fn resolved_type() -> impl NoirParser<UnresolvedType> {
     token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
         Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
         _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
+    })
+}
+
+pub(super) fn interned_unresolved_type() -> impl NoirParser<UnresolvedType> {
+    token_kind(TokenKind::InternedUnresolvedTypeData).map_with_span(|token, span| match token {
+        Token::InternedUnresolvedTypeData(id) => UnresolvedTypeData::Interned(id).with_span(span),
+        _ => unreachable!(
+            "token_kind(InternedUnresolvedTypeData) guarantees we parse an interned unresolved type"
+        ),
     })
 }
 

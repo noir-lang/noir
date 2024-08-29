@@ -104,6 +104,9 @@ impl super::FmtVisitor<'_> {
             StatementKind::Break => self.push_rewrite("break;".into(), span),
             StatementKind::Continue => self.push_rewrite("continue;".into(), span),
             StatementKind::Comptime(statement) => self.visit_stmt(statement.kind, span, is_last),
+            StatementKind::Interned(_) => unreachable!(
+                "StatementKind::Resolved should only emitted by the comptime interpreter"
+            ),
         }
     }
 }
