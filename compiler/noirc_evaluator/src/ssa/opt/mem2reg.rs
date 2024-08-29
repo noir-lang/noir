@@ -195,7 +195,7 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         self.handle_terminator(block, &mut references);
-        
+
         // If there's only 1 block in the function total, we can remove any remaining last stores
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
@@ -271,7 +271,7 @@ impl<'f> PerFunctionContext<'f> {
                 // function calls in-between, we can remove the previous store.
                 if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
-                } 
+                }
 
                 if let Some(last_load) = self.last_loads.get(&address) {
                     let load_result = self.inserter.function.dfg.instruction_results(*last_load)[0];
@@ -281,7 +281,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
 
                 references.set_known_value(address, value);
-                references.last_stores.insert(address, instruction);                
+                references.last_stores.insert(address, instruction);
             }
             Instruction::Allocate => {
                 // Register the new reference
