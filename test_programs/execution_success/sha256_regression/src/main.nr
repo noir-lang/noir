@@ -1,4 +1,4 @@
-// A bunch of different test tastes for sha256_var in the stdlib
+// A bunch of different test cases for sha256_var in the stdlib
 fn main(
     msg_just_over_block: [u8; 68],
     result_just_over_block: pub [u8; 32],
