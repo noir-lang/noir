@@ -1,15 +1,11 @@
 #pragma once
 
+#include "barretenberg/common/serialize.hpp"
 #include "barretenberg/vm/avm/generated/relations/range_check.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
 #include <cstdint>
 
-enum class EventEmitter {
-    ALU,
-    MEMORY,
-    GAS_L2,
-    GAS_DA,
-};
+enum class EventEmitter { ALU, MEMORY, GAS_L2, GAS_DA, CMP_LO, CMP_HI };
 
 namespace bb::avm_trace {
 class AvmRangeCheckBuilder {
@@ -40,6 +36,11 @@ class AvmRangeCheckBuilder {
         bool is_alu_sel;
         bool is_gas_l2_sel;
         bool is_gas_da_sel;
+        bool is_cmp_lo;
+        bool is_cmp_hi;
+
+        // Need this for sorting
+        bool operator<(RangeCheckEntry const& other) const { return clk < other.clk; }
     };
 
     std::array<std::unordered_map<uint16_t, uint32_t>, 8> u16_range_chk_counters;
@@ -48,6 +49,8 @@ class AvmRangeCheckBuilder {
 
     // This function just enqueues a range check event, we handle processing them later in finalize.
     bool assert_range(uint128_t value, uint8_t num_bits, EventEmitter e, uint64_t clk);
+
+    void combine_range_builders(AvmRangeCheckBuilder const& other);
 
     // Turns range check events into real entries
     std::vector<RangeCheckEntry> finalize();
@@ -88,9 +91,12 @@ class AvmRangeCheckBuilder {
         row.range_check_u16_r6 = entry.fixed_slice_registers[6];
         row.range_check_u16_r7 = entry.dynamic_slice_register;
 
+        row.range_check_alu_rng_chk = entry.is_alu_sel;
         row.range_check_mem_rng_chk = entry.is_mem_sel;
         row.range_check_gas_l2_rng_chk = entry.is_gas_l2_sel;
         row.range_check_gas_da_rng_chk = entry.is_gas_da_sel;
+        row.range_check_cmp_lo_bits_rng_chk = entry.is_cmp_lo;
+        row.range_check_cmp_hi_bits_rng_chk = entry.is_cmp_hi;
     }
 
   private:

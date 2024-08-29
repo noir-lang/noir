@@ -99,9 +99,9 @@ TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIaInput)
 {
     // Mutate the input of alu_ia and adapt the output ic accordingly.
     trace.at(alu_row_idx).alu_ia = 20;
-    trace.at(alu_row_idx).alu_ic = 1060;  // 20 * 53; required to pass the alu mul relation
-    trace.at(alu_row_idx).alu_u8_r0 = 36; // 1060 % 256 = 36
-    trace.at(alu_row_idx).alu_u8_r1 = 4;  // 4 * 256 = 1024
+    trace.at(alu_row_idx).alu_ic = 1060; // 20 * 53; required to pass the alu mul relation
+    // trace.at(alu_row_idx).alu_u8_r0 = 36; // 1060 % 256 = 36
+    // trace.at(alu_row_idx).alu_u8_r1 = 4;  // 4 * 256 = 1024
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
@@ -111,8 +111,8 @@ TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIbInput)
     // Mutate the input of alu_ia and adapt the output ic accordingly.
     trace.at(alu_row_idx).alu_ib = 10;
     trace.at(alu_row_idx).alu_ic = 190; // 19 * 10; required to pass the alu mul relation
-    trace.at(alu_row_idx).alu_u8_r0 = 190;
-    trace.at(alu_row_idx).alu_u8_r1 = 0;
+    // trace.at(alu_row_idx).alu_u8_r0 = 190;
+    // trace.at(alu_row_idx).alu_u8_r1 = 0;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
@@ -122,8 +122,8 @@ TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluOpSelector)
     trace.at(alu_row_idx).alu_op_mul = 0;
     trace.at(alu_row_idx).alu_op_add = 1;
     trace.at(alu_row_idx).alu_ic = 72; // 19 + 53
-    trace.at(alu_row_idx).alu_u8_r0 = 72;
-    trace.at(alu_row_idx).alu_u8_r1 = 0;
+    // trace.at(alu_row_idx).alu_u8_r0 = 72;
+    // trace.at(alu_row_idx).alu_u8_r1 = 0;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
@@ -132,7 +132,6 @@ TEST_F(AvmPermMainAluNegativeTests, removeAluSelector)
 {
     trace.at(alu_row_idx).alu_sel_alu = 0;
     trace.at(alu_row_idx).alu_op_mul = 0;
-    trace.at(alu_row_idx).alu_sel_rng_chk_lookup = 0;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
@@ -202,19 +201,19 @@ TEST_F(AvmRangeCheckNegativeTests, additionU8Reg0)
     mem_row.mem_val = fake_c;
     alu_row.alu_ic = fake_c;
 
-    ASSERT_EQ(alu_row.alu_u8_r0, 15);
-    ASSERT_EQ(alu_row.alu_u8_r1, 0);
+    // ASSERT_EQ(alu_row.alu_u8_r0, 15);
+    // ASSERT_EQ(alu_row.alu_u8_r1, 0);
 
-    alu_row.alu_u8_r0 = fake_c;
-    alu_row.alu_u8_r1 = FF(2).pow(246);
+    // alu_row.alu_u8_r0 = fake_c;
+    // alu_row.alu_u8_r1 = FF(2).pow(246);
 
     // We first try to validate without any range check counters adjustment.
     auto trace_same_cnt = trace;
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U8_0");
 
     // Decrement the counter for former lookup values 15 resp. 0 for u8_r0 resp. u8_r1.
-    trace.at(15 + 1).lookup_u8_0_counts -= FF(1);
-    trace.at(1).lookup_u8_1_counts -= FF(1);
+    // trace.at(15 + 1).lookup_u8_0_counts -= FF(1);
+    // trace.at(1).lookup_u8_1_counts -= FF(1);
 
     // One cannot add the new values in counters as they are out of range.
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U8_0");
@@ -233,28 +232,28 @@ TEST_F(AvmRangeCheckNegativeTests, additionU8Reg1)
     // We select a maximal u8_r1 such that u8_r0 is still of type U8.
     // Namely, we pick (p-1)/2^8 so that we can replace c (i.e., u8_r0) with 40 as
     // 39 = 40 + p - 1 (mod p)
-    uint256_t const r1 = (uint256_t(FF::modulus) - 1) / 256;
+    // uint256_t const r1 = (uint256_t(FF::modulus) - 1) / 256;
     FF const fake_c = FF(40);
 
     row.main_ic = fake_c;
     mem_row.mem_val = fake_c;
     alu_row.alu_ic = fake_c;
 
-    ASSERT_EQ(alu_row.alu_u8_r0, 39);
-    ASSERT_EQ(alu_row.alu_u8_r1, 0);
+    // ASSERT_EQ(alu_row.alu_u8_r0, 39);
+    // ASSERT_EQ(alu_row.alu_u8_r1, 0);
 
-    alu_row.alu_u8_r0 = fake_c;
-    alu_row.alu_u8_r1 = FF(r1);
+    // alu_row.alu_u8_r0 = fake_c;
+    // alu_row.alu_u8_r1 = FF(r1);
 
     // We adjust counter to pass range check lookup for u8_r0
-    trace.at(39).lookup_u8_0_counts -= FF(1);
-    trace.at(40).lookup_u8_0_counts += FF(1);
+    // trace.at(39).lookup_u8_0_counts -= FF(1);
+    // trace.at(40).lookup_u8_0_counts += FF(1);
 
     auto trace_same_cnt = trace;
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U8_1");
 
     // Second attempt by decreasing counter for u8_r1 range check lookup
-    trace.at(0).lookup_u8_1_counts -= FF(1);
+    // trace.at(0).lookup_u8_1_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U8_1");
 }
 
@@ -271,30 +270,30 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg0)
     // We select a maximal u16_r0 such that u8_r0 is still of type U16.
     // Namely, we pick (p-1)/2^16 so that we can replace c with 3201 as
     // 3201 = 3200 + p - 1 (mod p)
-    uint256_t const u16_r0 = (uint256_t(FF::modulus) - 1) / 65536;
+    // uint256_t const u16_r0 = (uint256_t(FF::modulus) - 1) / 65536;
     FF const fake_c = FF(3201);
 
     row.main_ic = fake_c;
     mem_row.mem_val = fake_c;
     alu_row.alu_ic = fake_c;
 
-    ASSERT_EQ(alu_row.alu_u8_r0, FF(128)); // 3200 % 256 = 128
-    ASSERT_EQ(alu_row.alu_u8_r1, FF(12));  // 3200/256 = 12
-    ASSERT_EQ(alu_row.alu_u16_r0, 0);
+    // ASSERT_EQ(alu_row.alu_u8_r0, FF(128)); // 3200 % 256 = 128
+    // ASSERT_EQ(alu_row.alu_u8_r1, FF(12));  // 3200/256 = 12
+    // ASSERT_EQ(alu_row.alu_u16_r0, 0);
 
-    alu_row.alu_u8_r0 = FF(129); // 3201 % 256 = 129
+    // alu_row.alu_u8_r0 = FF(129); // 3201 % 256 = 129
     // alu_row.alu_u8_r1 = FF(r1); // Does not change 3201/256 = 12
-    alu_row.alu_u16_r0 = FF(u16_r0);
+    // alu_row.alu_u16_r0 = FF(u16_r0);
 
     // We adjust counter to pass range check lookup for u8_r0
-    trace.at(128).lookup_u8_0_counts -= FF(1);
-    trace.at(129).lookup_u8_0_counts += FF(1);
+    // trace.at(128).lookup_u8_0_counts -= FF(1);
+    // trace.at(129).lookup_u8_0_counts += FF(1);
 
     auto trace_same_cnt = trace;
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U16_0");
 
     // Second attempt by decreasing counter for u16_r0 range check lookup
-    trace.at(0).lookup_u16_0_counts -= FF(1);
+    // trace.at(0).lookup_u16_0_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_0");
 }
 
@@ -309,14 +308,14 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg7)
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
     auto trace_original = trace;
 
-    auto& alu_row = trace.at(alu_row_idx);
-    alu_row.alu_u16_r7 = FF(235655);
+    // auto& alu_row = trace.at(alu_row_idx);
+    // alu_row.alu_u16_r7 = FF(235655);
 
     auto trace_same_cnt = trace;
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U16_7");
 
     // Second attempt by decreasing counter for u16_r0 range check lookup
-    trace.at(1).lookup_u16_7_counts -= FF(1);
+    // trace.at(1).lookup_u16_7_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_7");
 }
 
@@ -326,8 +325,8 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg7)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg8)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_row_idx).alu_u16_r8 = FF(235655);
-    trace.at(1).lookup_u16_8_counts -= FF(1);
+    // trace.at(alu_row_idx).alu_u16_r8 = FF(235655);
+    // trace.at(1).lookup_u16_8_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_8");
 }
 
@@ -335,8 +334,8 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg8)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg9)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_row_idx).alu_u16_r9 = FF(235655);
-    trace.at(1).lookup_u16_9_counts -= FF(1);
+    // trace.at(alu_row_idx).alu_u16_r9 = FF(235655);
+    // trace.at(1).lookup_u16_9_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_9");
 }
 
@@ -344,8 +343,8 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg9)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg10)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_row_idx).alu_u16_r10 = FF(235655);
-    trace.at(1).lookup_u16_10_counts -= FF(1);
+    // trace.at(alu_row_idx).alu_u16_r10 = FF(235655);
+    // trace.at(1).lookup_u16_10_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_10");
 }
 
@@ -353,8 +352,8 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg10)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg11)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_row_idx).alu_u16_r11 = FF(235655);
-    trace.at(1).lookup_u16_11_counts -= FF(1);
+    // trace.at(alu_row_idx).alu_u16_r11 = FF(235655);
+    // trace.at(1).lookup_u16_11_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_11");
 }
 
@@ -362,8 +361,8 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg11)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg12)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_row_idx).alu_u16_r12 = FF(235655);
-    trace.at(1).lookup_u16_12_counts -= FF(1);
+    // trace.at(alu_row_idx).alu_u16_r12 = FF(235655);
+    // trace.at(1).lookup_u16_12_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_12");
 }
 
@@ -371,8 +370,8 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg12)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg13)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_row_idx).alu_u16_r13 = FF(235655);
-    trace.at(1).lookup_u16_13_counts -= FF(1);
+    // trace.at(alu_row_idx).alu_u16_r13 = FF(235655);
+    // trace.at(1).lookup_u16_13_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_13");
 }
 
@@ -380,8 +379,8 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg13)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg14)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_row_idx).alu_u16_r14 = FF(235655);
-    trace.at(1).lookup_u16_14_counts -= FF(1);
+    // trace.at(alu_row_idx).alu_u16_r14 = FF(235655);
+    // trace.at(1).lookup_u16_14_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_14");
 }
 

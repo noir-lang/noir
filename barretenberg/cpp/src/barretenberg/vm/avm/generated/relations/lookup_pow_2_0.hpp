@@ -40,7 +40,7 @@ class lookup_pow_2_0_lookup_settings {
                                      in.alu_sel_shift_which,
                                      in.main_sel_rng_8,
                                      in.alu_ib,
-                                     in.alu_two_pow_s,
+                                     in.alu_b_pow,
                                      in.main_clk,
                                      in.powers_power_of_2);
     }
@@ -52,7 +52,7 @@ class lookup_pow_2_0_lookup_settings {
                                      in.alu_sel_shift_which,
                                      in.main_sel_rng_8,
                                      in.alu_ib,
-                                     in.alu_two_pow_s,
+                                     in.alu_b_pow,
                                      in.main_clk,
                                      in.powers_power_of_2);
     }

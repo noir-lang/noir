@@ -224,8 +224,7 @@ std::tuple<std::vector<Row>, std::string> gen_mutated_trace_shift(std::vector<Ro
     std::string failure;
     switch (fail_mode) {
     case IncorrectShiftPastBitLength:
-        alu_row->alu_shift_lt_bit_len = FF(0);
-        update_slice_registers(*alu_row, uint256_t{ 0 });
+        // update_slice_registers(*alu_row, uint256_t{ 0 });
         alu_row->alu_a_lo = FF(0);
         alu_row->alu_a_hi = FF(0);
         failure = "SHIFT_LT_BIT_LEN";
@@ -243,7 +242,7 @@ std::tuple<std::vector<Row>, std::string> gen_mutated_trace_shift(std::vector<Ro
             alu_row->alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
             alu_row->alu_a_hi = a_hi;
             // Update slice registers
-            update_slice_registers(*alu_row, a_lo + (a_hi << 128));
+            // update_slice_registers(*alu_row, a_lo + (a_hi << 128));
             failure = "SHR_INPUT_DECOMPOSITION";
             return std::make_tuple(trace, failure);
         }
@@ -252,7 +251,7 @@ std::tuple<std::vector<Row>, std::string> gen_mutated_trace_shift(std::vector<Ro
         alu_row->alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
         alu_row->alu_a_hi = a_hi;
         // Update slice registers
-        update_slice_registers(*alu_row, a_lo + (a_hi << 128));
+        // update_slice_registers(*alu_row, a_lo + (a_hi << 128));
         failure = "SHL_INPUT_DECOMPOSITION";
         return std::make_tuple(trace, failure);
     }

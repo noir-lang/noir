@@ -209,33 +209,33 @@ std::vector<Row> gen_mutated_trace_cmp(
     auto main_clk = main_trace_row->main_clk;
     // The corresponding row in the alu trace as well as the row where start = 1
     auto alu_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.alu_clk == main_clk; });
+        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.cmp_clk == main_clk; });
     // The corresponding row in the alu trace where the computation ends.
-    auto range_check_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.alu_cmp_rng_ctr > FF(0); });
+    // auto range_check_row =
+    //     std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.alu_cmp_rng_ctr > FF(0); });
     switch (fail_mode) {
     case IncorrectInputDecomposition:
         alu_row->alu_a_lo = alu_row->alu_a_lo + FF(1);
         break;
     case SubLoCheckFailed:
-        alu_row->alu_p_a_borrow = FF::one() - alu_row->alu_p_a_borrow;
+        alu_row->cmp_p_a_borrow = FF::one() - alu_row->cmp_p_a_borrow;
         break;
     case ResLoCheckFailed:
-        alu_row->alu_res_lo = alu_row->alu_res_lo - FF(1);
+        alu_row->cmp_res_lo = alu_row->cmp_res_lo - FF(1);
         break;
     case ResHiCheckFailed:
-        alu_row->alu_res_hi = FF(1);
+        alu_row->cmp_res_hi = FF(1);
         break;
     case CounterRelationFailed:
-        range_check_row->alu_cmp_rng_ctr = FF(0);
-        break;
+        // range_check_row->alu_cmp_rng_ctr = FF(0);
+        // break;
     case CounterNonZeroCheckFailed:
-        range_check_row->alu_sel_rng_chk = FF(0);
-        range_check_row->alu_sel_rng_chk_lookup = FF(0);
+        // range_check_row->alu_sel_rng_chk = FF(0);
+        // range_check_row->cmp_sel_rng_chk = FF(0);
         break;
     case ShiftRelationFailed:
-        range_check_row->alu_a_lo = range_check_row->alu_res_lo;
-        range_check_row->alu_a_hi = range_check_row->alu_res_hi;
+        // range_check_row->alu_a_lo = range_check_row->cmp_res_lo;
+        // range_check_row->alu_a_hi = range_check_row->cmp_res_hi;
         break;
     case RangeCheckFailed: // Canonicalisation check failure
         // TODO: We can probably refactor this to another function later as it is a bit verbose
@@ -247,35 +247,35 @@ std::vector<Row> gen_mutated_trace_cmp(
         mutate_ic_in_trace(trace, std::move(select_row), c_mutated, true);
 
         // Now we have to also update the value of res_lo = (A_SUB_B_LO * IS_GT + B_SUB_A_LO * (1 - IS_GT))
-        alu_row->alu_borrow = FF(0);
-        FF mutated_res_lo = alu_row->alu_b_lo - alu_row->alu_a_lo + alu_row->alu_borrow * (uint256_t(1) << 128);
-        FF mutated_res_hi = alu_row->alu_b_hi - alu_row->alu_a_hi - alu_row->alu_borrow;
+        alu_row->cmp_borrow = FF(0);
+        FF mutated_res_lo = alu_row->alu_b_lo - alu_row->alu_a_lo + alu_row->cmp_borrow * (uint256_t(1) << 128);
+        FF mutated_res_hi = alu_row->alu_b_hi - alu_row->alu_a_hi - alu_row->cmp_borrow;
 
         if (is_lte) {
             mutated_res_lo =
-                alu_row->alu_a_lo - alu_row->alu_b_lo - FF::one() + alu_row->alu_borrow * (uint256_t(1) << 128);
-            mutated_res_hi = alu_row->alu_a_hi - alu_row->alu_b_hi - alu_row->alu_borrow;
+                alu_row->alu_a_lo - alu_row->alu_b_lo - FF::one() + alu_row->cmp_borrow * (uint256_t(1) << 128);
+            mutated_res_hi = alu_row->alu_a_hi - alu_row->alu_b_hi - alu_row->cmp_borrow;
         }
-        alu_row->alu_res_lo = mutated_res_lo;
-        alu_row->alu_res_hi = mutated_res_hi;
+        alu_row->cmp_res_lo = mutated_res_lo;
+        alu_row->cmp_res_hi = mutated_res_hi;
         // For each subsequent row that involve the range check, we need to update the shifted values
         auto next_row = alu_row + 1;
-        next_row->alu_p_sub_b_lo = mutated_res_lo;
-        next_row->alu_p_sub_b_hi = mutated_res_hi;
+        next_row->cmp_p_sub_b_lo = mutated_res_lo;
+        next_row->cmp_p_sub_b_hi = mutated_res_hi;
 
         next_row = alu_row + 2;
-        next_row->alu_p_sub_a_lo = mutated_res_lo;
-        next_row->alu_p_sub_a_hi = mutated_res_hi;
+        next_row->cmp_p_sub_a_lo = mutated_res_lo;
+        next_row->cmp_p_sub_a_hi = mutated_res_hi;
         next_row = alu_row + 3;
 
-        next_row->alu_b_lo = mutated_res_lo;
-        next_row->alu_b_hi = mutated_res_hi;
+        next_row->cmp_b_lo = mutated_res_lo;
+        next_row->cmp_b_hi = mutated_res_hi;
 
         // The final row contains the mutated res_x values at the a_x slots that will be range check.
         auto final_row = alu_row + 4;
         // To prevent a trivial range check failure, we need to clear the lookup counters for the
         // current value of res_lo stored in a_lo
-        clear_range_check_counters(trace, final_row->alu_a_lo);
+        // clear_range_check_counters(trace, final_row->alu_a_lo);
         final_row->alu_a_lo = mutated_res_lo;
         final_row->alu_a_hi = mutated_res_hi;
 
@@ -283,25 +283,25 @@ std::vector<Row> gen_mutated_trace_cmp(
         // We update range check lookup counters and the registers here
 
         // Assign the new u8 value that goes into the first slice register.
-        final_row->alu_u8_r0 = static_cast<uint8_t>(mutated_res_lo_u256);
+        // final_row->alu_u8_r0 = static_cast<uint8_t>(mutated_res_lo_u256);
         // Find the main row where the new u8 value in the first register WILL be looked up
-        auto new_lookup_row = std::ranges::find_if(trace.begin(), trace.end(), [final_row](Row r) {
-            return r.main_clk == final_row->alu_u8_r0 && r.main_sel_rng_8 == FF(1);
-        });
-        // Increment the counter
-        new_lookup_row->lookup_u8_0_counts = new_lookup_row->lookup_u8_0_counts + 1;
+        // auto new_lookup_row = std::ranges::find_if(trace.begin(), trace.end(), [final_row](Row r) {
+        //     return r.main_clk == final_row->alu_u8_r0 && r.main_sel_rng_8 == FF(1);
+        // });
+        // // Increment the counter
+        // new_lookup_row->lookup_u8_0_counts = new_lookup_row->lookup_u8_0_counts + 1;
         mutated_res_lo_u256 >>= 8;
 
         // Assign the new u8 value that goes into the second slice register.
-        final_row->alu_u8_r1 = static_cast<uint8_t>(mutated_res_lo_u256);
-        new_lookup_row = std::ranges::find_if(trace.begin(), trace.end(), [final_row](Row r) {
-            return r.main_clk == final_row->alu_u8_r1 && r.main_sel_rng_8 == FF(1);
-        });
-        new_lookup_row->lookup_u8_1_counts = new_lookup_row->lookup_u8_1_counts + 1;
+        // final_row->alu_u8_r1 = static_cast<uint8_t>(mutated_res_lo_u256);
+        // new_lookup_row = std::ranges::find_if(trace.begin(), trace.end(), [final_row](Row r) {
+        //     return r.main_clk == final_row->alu_u8_r1 && r.main_sel_rng_8 == FF(1);
+        // });
+        // new_lookup_row->lookup_u8_1_counts = new_lookup_row->lookup_u8_1_counts + 1;
         mutated_res_lo_u256 >>= 8;
 
         // Set the remaining bits (that are > 16) to the first u16 register to trigger the overflow
-        final_row->alu_u16_r0 = mutated_res_lo_u256;
+        // final_row->alu_u16_r0 = mutated_res_lo_u256;
 
         break;
     }

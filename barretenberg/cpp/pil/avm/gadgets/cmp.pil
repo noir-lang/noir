@@ -1,0 +1,238 @@
+include "./range_check.pil";
+// This module handles comparisons (equality and GT)
+// GT also enables us to support LT (by swapping the inputs of GT) and LTE (by inverting the result of GT)
+
+// TODO: See if we can make this faster for non-FF GT ops
+
+namespace cmp(256);
+    pol commit clk;
+
+    // ========= Initialize Range Check Gadget ===============================
+    // We need this as a unique key to the range check gadget
+    pol commit range_chk_clk;
+    sel_rng_chk * (range_chk_clk  - (clk * 2**8 + cmp_rng_ctr)) = 0;
+    // These are the i/o for the gadget
+    pol commit input_a;
+    pol commit input_b;
+    pol commit result;
+
+    // We range check two columns per row of the cmp gadget, the lo and hi bit ranges resp.
+    #[PERM_RNG_CMP_LO]
+    range_check.cmp_lo_bits_rng_chk {range_check.clk, range_check.value}
+    is
+    sel_rng_chk {range_chk_clk, a_lo};
+
+    #[PERM_RNG_CMP_HI]
+    range_check.cmp_hi_bits_rng_chk {range_check.clk, range_check.value}
+    is
+    sel_rng_chk {range_chk_clk, a_hi};
+
+    // These are the selectors that will be useful
+    pol commit sel_cmp;
+    pol commit op_eq;
+    pol commit op_gt;
+
+    sel_cmp = op_eq + op_gt;
+
+    // There are some standardised constraints on this gadget
+    // The result is always a boolean
+    #[CMP_RES_IS_BOOL]
+    (result * (1 - result)) = 0;
+
+    // ========= EQUALITY Operation Constraints ===============================
+    // TODO: Note this method differs from the approach taken for "equality to zero" checks
+    // in handling the error tags found in main and mem files. The predicted relation difference
+    // is minor and when we optimise we will harmonise the methods based on actual performance.
+
+    // Equality of two elements is found by performing an "equality to zero" check.
+    // This relies on the fact that the inverse of a field element exists for all elements except zero
+    // 1) Given two values x & y, find the difference z = x - y
+    // 2) If x & y are equal, z == 0 otherwise z != 0
+    // 3) Field equality to zero can be done as follows
+    //   a) z(e(x - w) + w) - 1 + e = 0;
+    //   b) where w = z^-1 and e is a boolean value indicating if z == 0
+    //   c) if e == 0; zw = 1 && z has an inverse. If e == 1; z == 0 and we set w = 0;
+
+    // Registers input_a and input_b hold the values that equality is to be tested on
+    pol DIFF = input_a - input_b;
+
+    // Need an additional helper that holds the inverse of the difference;
+    pol commit op_eq_diff_inv;
+
+    #[CMP_OP_EQ]
+    op_eq * (DIFF * (result * (1 - op_eq_diff_inv) + op_eq_diff_inv) - 1 + result) = 0;
+
+
+    // ========= GT Operation Constraints ===============================
+    // There are two routines that we utilise as part of this GT check
+    // (1) Decomposition into two 128-bit limbs, lo and hi respectively and a borrow (1 or 0);
+    // (2) 128 bit-range checks when checking an arithmetic operation has not overflowed the field.
+
+    // ========= COMPARISON OPERATION - EXPLANATIONS =================================================
+    // To simplify the comparison circuit, we implement a GreaterThan(GT) circuit. This is ideal since
+    // if we need a LT operation, we just swap the inputs and if we need the LTE operation, we just NOT the GT constraint
+    // Given the inputs x, y and q where x & y are integers in the range [0,...,p-1] and q is the boolean result to the query (x > y).
+    // Then there are two scenarios:
+    //    (1) (x > y) -> x - y - 1 = result, where 0 <= result. i.e. the result does not underflow the field.
+    //    (2)!(x > y) -> (x <= y) = y - x = result, where the same applies as above.
+
+    // Check the result of input_a > input_b;
+    pol POW_128 = 2 ** 128;
+    pol P_LO = 53438638232309528389504892708671455232; // Lower 128 bits of (p - 1)
+    pol P_HI = 64323764613183177041862057485226039389; // Upper 128 bits of (p - 1)
+
+    pol commit borrow;
+    pol commit a_lo;
+    pol commit a_hi;
+    #[INPUT_DECOMP_1]
+    op_gt * ( input_a - (a_lo + POW_128 * a_hi)) = 0;
+
+    pol commit b_lo;
+    pol commit b_hi;
+    #[INPUT_DECOMP_2]
+    op_gt * ( input_b - (b_lo + POW_128 * b_hi)) = 0;
+
+    pol commit p_sub_a_lo; // p_lo - a_lo
+    pol commit p_sub_a_hi; // p_hi - a_hi
+    pol commit p_a_borrow;
+    p_a_borrow * (1 - p_a_borrow) = 0;
+
+    // Check that decomposition of a into lo and hi limbs do not overflow p.
+    // This is achieved by checking a does not underflow p: (p_lo > a_lo && p_hi >= ahi) || (p_lo <= a_lo && p_hi > a_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1
+    // This underflow check is done by the 128-bit check that is performed on each of these lo and hi limbs.
+    #[SUB_LO_1]
+    op_gt * (p_sub_a_lo - (P_LO - a_lo + p_a_borrow * POW_128)) = 0;
+    #[SUB_HI_1]
+    op_gt * (p_sub_a_hi - (P_HI - a_hi - p_a_borrow)) = 0;
+
+    pol commit p_sub_b_lo;
+    pol commit p_sub_b_hi;
+    pol commit p_b_borrow;
+    p_b_borrow * (1 - p_b_borrow) = 0;
+
+    // Check that decomposition of b into lo and hi limbs do not overflow/underflow p.
+    // This is achieved by checking (p_lo > b_lo && p_hi >= bhi) || (p_lo <= b_lo && p_hi > b_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1;
+    #[SUB_LO_2]
+    op_gt * (p_sub_b_lo - (P_LO - b_lo + p_b_borrow * POW_128)) = 0;
+    #[SUB_HI_2]
+    op_gt * (p_sub_b_hi - (P_HI - b_hi - p_b_borrow)) = 0;
+
+    // Calculate the combined relation: (a - b - 1) * q + (b -a ) * (1-q)
+    // Check that (a > b) by checking (a_lo > b_lo && a_hi >= bhi) || (alo <= b_lo && a_hi > b_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1;
+    pol A_SUB_B_LO = a_lo - b_lo - 1 + borrow * POW_128;
+    pol A_SUB_B_HI = a_hi - b_hi - borrow;
+
+    // Check that (a <= b) by checking (b_lo >= a_lo && b_hi >= a_hi) || (b_lo < a_lo && b_hi > a_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1;
+    pol B_SUB_A_LO = b_lo - a_lo + borrow * POW_128;
+    pol B_SUB_A_HI = b_hi - a_hi - borrow;
+
+    pol IS_GT = op_gt * result;
+    // When IS_GT = 1, we enforce the condition that a > b and thus a - b - 1 does not underflow.
+    // When IS_GT = 0, we enforce the condition that a <= b and thus b - a does not underflow.
+    // ========= Analysing res_lo and res_hi scenarios for LTE =================================
+    // (1) Assume a proof satisfies the constraints for LTE(x,y,1), i.e., x <= y
+    //     Therefore ia = x, ib = y and ic = 1.
+    //    (a) We do not swap the operands, so a = x and b = y,
+    //    (b) IS_GT = 1 - ic = 0
+    //    (c) res_lo = B_SUB_A_LO and res_hi = B_SUB_A_HI
+    //    (d) res_lo = y_lo - x_lo + borrow * 2**128 and res_hi = y_hi - x_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, x_hi, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> y_lo >= x_lo && y_hi >= x_hi
+    //         (ii) borrow == 1 ==> y_hi >= x_hi + 1 ==> y_hi > x_hi
+    //        This concludes the proof as for both cases, we must have: y >= x
+    //
+    // (2) Assume a proof satisfies the constraints for LTE(x,y,0), i.e. x > y.
+    //     Therefore ia = x, ib = y and ic = 0.
+    //    (a) We do not swap the operands, so a = x and b = y,
+    //    (b) IS_GT = 1 - ic = 1
+    //    (c) res_lo = A_SUB_B_LO and res_hi = A_SUB_B_HI
+    //    (d) res_lo = x_lo - y_lo - 1 + borrow * 2**128 and res_hi = x_hi - y_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, x_hi, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> x_lo > y_lo && x_hi >= y_hi
+    //         (ii) borrow == 1 ==> x_hi > y_hi
+    //        This concludes the proof as for both cases, we must have: x > y
+    //
+
+    // ========= Analysing res_lo and res_hi scenarios for LT ==================================
+    // (1) Assume a proof satisfies the constraints for LT(x,y,1), i.e. x < y.
+    //     Therefore ia = x, ib = y and ic = 1.
+    //    (a) We DO swap the operands, so a = y and b = x,
+    //    (b) IS_GT = ic = 1
+    //    (c) res_lo = A_SUB_B_LO and res_hi = A_SUB_B_HI, **remember we have swapped inputs**
+    //    (d) res_lo = y_lo - x_lo - 1 + borrow * 2**128 and res_hi = y_hi - x_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, x_hi, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> y_lo > x_lo && y_hi >= x_hi
+    //         (ii) borrow == 1 ==> y_hi > x_hi
+    //        This concludes the proof as for both cases, we must have: x < y
+    //
+    // (2) Assume a proof satisfies the constraint for LT(x,y,0), i.e. x >= y.
+    //     Therefore ia = x, ib = y and ic = 0.
+    //    (a) We DO swap the operands, so a = y and b = x,
+    //    (b) IS_GT = ic = 0
+    //    (c) res_lo = B_SUB_A_LO and res_hi = B_SUB_A_HI, **remember we have swapped inputs**
+    //    (d) res_lo = a_lo - y_lo + borrow * 2**128 and res_hi = a_hi - y_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, x_hi, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> x_lo >= y_lo && x_hi >= y_hi
+    //         (ii) borrow == 1 ==> x_hi > y_hi
+    //        This concludes the proof as for both cases, we must have: x >= y
+    pol commit res_lo;
+    pol commit res_hi;
+    #[RES_LO]
+    op_gt * (res_lo - (A_SUB_B_LO * IS_GT + B_SUB_A_LO * (1 - IS_GT))) = 0;
+    #[RES_HI]
+    op_gt * (res_hi - (A_SUB_B_HI * IS_GT + B_SUB_A_HI * (1 - IS_GT))) = 0;
+
+    // ========= RANGE OPERATIONS ===============================
+    // We need to dispatch to the range check gadget
+    pol commit sel_rng_chk;
+    sel_rng_chk * (1 - sel_rng_chk) = 0;
+    sel_rng_chk' = shift_sel + op_gt';
+
+    // Each call to GT requires 5x 256-bit range checks. We keep track of how many are left here.
+    pol commit cmp_rng_ctr;
+
+    // the number of range checks must decrement by 1 until it is equal to 0;
+    #[CMP_CTR_REL_1]
+    (cmp_rng_ctr' - cmp_rng_ctr + 1) * cmp_rng_ctr = 0;
+    // if this row is a comparison operation, the next range_check_remaining value is set to 5
+    #[CMP_CTR_REL_2]
+    op_gt * (cmp_rng_ctr - 4) = 0;
+
+    // shift_sel = 1 when cmp_rng_ctr != 0 and shift_sel = 0 when cmp_rng_ctr = 0;
+    #[CTR_NON_ZERO_REL]
+    cmp_rng_ctr * ((1 - shift_sel) * (1 -  op_eq_diff_inv) +  op_eq_diff_inv) - shift_sel = 0;
+
+    // Shift all elements "across" by 2 columns
+    // TODO: there is an optimisation where we are able to do 1 less range check as the range check on
+    // P_SUB_B is implied by the other range checks.
+    // Briefly: given a > b and p > a and p > a - b - 1, it is sufficient confirm that p > b without a range check
+    // To accomplish this we would likely change the order of the range_check so we can skip p_sub_b
+    // TODO: SKIP these shift constraints
+    pol commit shift_sel;
+
+    #[SHIFT_RELS_0]
+    (a_lo' - b_lo) * shift_sel = 0;
+    (a_hi' - b_hi) * shift_sel = 0;
+    #[SHIFT_RELS_1]
+    (b_lo' - p_sub_a_lo) * shift_sel = 0;
+    (b_hi' - p_sub_a_hi) * shift_sel = 0;
+    #[SHIFT_RELS_2]
+    (p_sub_a_lo' - p_sub_b_lo) * shift_sel = 0;
+    (p_sub_a_hi' - p_sub_b_hi) * shift_sel = 0;
+    #[SHIFT_RELS_3]
+    (p_sub_b_lo' - res_lo) * shift_sel = 0;
+    (p_sub_b_hi' - res_hi) * shift_sel = 0;
+
+

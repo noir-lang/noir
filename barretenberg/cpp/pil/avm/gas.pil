@@ -1,4 +1,5 @@
 include "fixed/gas.pil";
+include "./gadgets/range_check.pil";
 
 // This is a "virtual" trace. Things are only in a separate file for modularity.
 // That is, this trace is expected to be in 1-1 relation with the main trace.
@@ -73,3 +74,16 @@ namespace main(256);
     sel_execution_row {opcode_val, base_l2_gas_op_cost, base_da_gas_op_cost, dyn_l2_gas_op_cost, dyn_da_gas_op_cost}
     in
     gas.sel_gas_cost {clk, gas.base_l2_gas_fixed_table, gas.base_da_gas_fixed_table, gas.dyn_l2_gas_fixed_table, gas.dyn_da_gas_fixed_table};
+
+    // ========= Initialize Range Check Gadget ===============================
+    // We range check that the absolute value of the differences between each row of l2 and da gas are 32 bits.
+    #[PERM_RNG_GAS_L2]
+    range_check.gas_l2_rng_chk {range_check.clk, range_check.value}
+    is
+    main.sel_execution_row {main.clk, main.abs_l2_rem_gas };
+
+    #[PERM_RNG_GAS_DA]
+    range_check.gas_da_rng_chk {range_check.clk, range_check.value}
+    is
+    main.sel_execution_row {main.clk, main.abs_da_rem_gas };
+

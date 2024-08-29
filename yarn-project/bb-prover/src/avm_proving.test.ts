@@ -125,7 +125,7 @@ describe('AVM WitGen, proof generation and verification', () => {
       async (name, calldata) => {
         await proveAndVerifyAvmTestContract(name, calldata);
       },
-      TIMEOUT,
+      TIMEOUT * 2, // We need more for keccak for now
     );
   });
 

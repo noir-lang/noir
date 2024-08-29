@@ -39,8 +39,8 @@ class lookup_pow_2_1_lookup_settings {
                                      in.lookup_pow_2_1_counts,
                                      in.alu_sel_shift_which,
                                      in.main_sel_rng_8,
-                                     in.alu_t_sub_s_bits,
-                                     in.alu_two_pow_t_sub_s,
+                                     in.alu_max_bits_sub_b_bits,
+                                     in.alu_max_bits_sub_b_pow,
                                      in.main_clk,
                                      in.powers_power_of_2);
     }
@@ -51,8 +51,8 @@ class lookup_pow_2_1_lookup_settings {
                                      in.lookup_pow_2_1_counts,
                                      in.alu_sel_shift_which,
                                      in.main_sel_rng_8,
-                                     in.alu_t_sub_s_bits,
-                                     in.alu_two_pow_t_sub_s,
+                                     in.alu_max_bits_sub_b_bits,
+                                     in.alu_max_bits_sub_b_pow,
                                      in.main_clk,
                                      in.powers_power_of_2);
     }
