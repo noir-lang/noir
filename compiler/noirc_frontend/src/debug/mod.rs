@@ -322,6 +322,9 @@ impl DebugInstrumenter {
                         ast::LValue::Dereference(_ref, _span) => {
                             unimplemented![]
                         }
+                        ast::LValue::Interned(..) => {
+                            unimplemented![]
+                        }
                     }
                 }
                 build_assign_member_stmt(

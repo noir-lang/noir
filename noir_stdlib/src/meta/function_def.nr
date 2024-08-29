@@ -1,4 +1,9 @@
 impl FunctionDefinition {
+    #[builtin(function_def_body)]
+    // docs:start:body
+    fn body(self) -> Expr {}
+    // docs:end:body
+
     #[builtin(function_def_name)]
     // docs:start:name
     fn name(self) -> Quoted {}
@@ -16,7 +21,7 @@ impl FunctionDefinition {
 
     #[builtin(function_def_set_body)]
     // docs:start:set_body
-    fn set_body(self, body: Quoted) {}
+    fn set_body(self, body: Expr) {}
     // docs:end:set_body
 
     #[builtin(function_def_set_parameters)]

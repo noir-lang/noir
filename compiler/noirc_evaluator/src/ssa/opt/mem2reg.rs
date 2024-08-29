@@ -425,7 +425,7 @@ impl<'f> PerFunctionContext<'f> {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use acvm::{acir::AcirField, FieldElement};
     use im::vector;
@@ -454,11 +454,11 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let v0 = builder.insert_allocate(Type::Array(Rc::new(vec![Type::field()]), 2));
+        let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
 
-        let element_type = Rc::new(vec![Type::field()]);
+        let element_type = Arc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
         let array = builder.array_constant(vector![one, two], array_type.clone());
 
@@ -672,7 +672,7 @@ mod tests {
         let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
-        let v2 = builder.insert_allocate(Type::Reference(Rc::new(Type::field())));
+        let v2 = builder.insert_allocate(Type::Reference(Arc::new(Type::field())));
         builder.insert_store(v2, v0);
 
         let v3 = builder.insert_load(v2, Type::field());

@@ -1,5 +1,5 @@
 use fxhash::FxHashMap as HashMap;
-use std::{collections::VecDeque, rc::Rc};
+use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
     acir::{AcirField, BlackBoxFunc},
@@ -561,7 +561,7 @@ fn simplify_black_box_func(
 fn make_constant_array(dfg: &mut DataFlowGraph, results: Vec<FieldElement>, typ: Type) -> ValueId {
     let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
 
-    let typ = Type::Array(Rc::new(vec![typ]), result_constants.len());
+    let typ = Type::Array(Arc::new(vec![typ]), result_constants.len());
     dfg.make_array(result_constants.into(), typ)
 }
 
@@ -572,7 +572,7 @@ fn make_constant_slice(
 ) -> (ValueId, ValueId) {
     let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
 
-    let typ = Type::Slice(Rc::new(vec![typ]));
+    let typ = Type::Slice(Arc::new(vec![typ]));
     let length = FieldElement::from(result_constants.len() as u128);
     (dfg.make_constant(length, Type::length_type()), dfg.make_array(result_constants.into(), typ))
 }

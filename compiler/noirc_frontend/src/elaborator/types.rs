@@ -157,6 +157,10 @@ impl<'context> Elaborator<'context> {
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
             AsTraitPath(path) => self.resolve_as_trait_path(*path),
+            Interned(id) => {
+                let typ = self.interner.get_unresolved_type_data(id).clone();
+                return self.resolve_type_inner(UnresolvedType { typ, span }, kind);
+            }
         };
 
         let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);

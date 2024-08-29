@@ -4,7 +4,10 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{BlockExpression, IntegerBitSize, Signedness, UnresolvedTypeData},
+    ast::{
+        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Signedness, StatementKind,
+        UnresolvedTypeData,
+    },
     hir::{
         comptime::{
             errors::IResult,
@@ -142,9 +145,33 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     }
 }
 
-pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExprValue> {
+pub(crate) fn get_u64((value, location): (Value, Location)) -> IResult<u64> {
     match value {
-        Value::Expr(expr) => Ok(expr),
+        Value::U64(value) => Ok(value),
+        value => {
+            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
+            type_mismatch(value, expected, location)
+        }
+    }
+}
+
+pub(crate) fn get_expr(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<ExprValue> {
+    match value {
+        Value::Expr(expr) => match expr {
+            ExprValue::Expression(ExpressionKind::Interned(id)) => {
+                Ok(ExprValue::Expression(interner.get_expression_kind(id).clone()))
+            }
+            ExprValue::Statement(StatementKind::Interned(id)) => {
+                Ok(ExprValue::Statement(interner.get_statement_kind(id).clone()))
+            }
+            ExprValue::LValue(LValue::Interned(id, _)) => {
+                Ok(ExprValue::LValue(interner.get_lvalue(id, location.span).clone()))
+            }
+            _ => Ok(expr),
+        },
         value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
     }
 }
@@ -208,10 +235,18 @@ pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec
 }
 
 pub(crate) fn get_unresolved_type(
+    interner: &NodeInterner,
     (value, location): (Value, Location),
 ) -> IResult<UnresolvedTypeData> {
     match value {
-        Value::UnresolvedType(typ) => Ok(typ),
+        Value::UnresolvedType(typ) => {
+            if let UnresolvedTypeData::Interned(id) = typ {
+                let typ = interner.get_unresolved_type_data(id).clone();
+                Ok(typ)
+            } else {
+                Ok(typ)
+            }
+        }
         value => type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
     }
 }

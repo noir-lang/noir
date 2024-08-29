@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;
@@ -45,7 +45,7 @@ pub(super) fn simplify_ec_add(
             let result_y = dfg.make_constant(result_y, Type::field());
             let result_is_infinity = dfg.make_constant(result_is_infinity, Type::bool());
 
-            let typ = Type::Array(Rc::new(vec![Type::field()]), 3);
+            let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
             let result_array =
                 dfg.make_array(im::vector![result_x, result_y, result_is_infinity], typ);
 

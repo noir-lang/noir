@@ -218,7 +218,10 @@ fn empty_statement(statement: &mut Statement) {
         StatementKind::For(for_loop_statement) => empty_for_loop_statement(for_loop_statement),
         StatementKind::Comptime(statement) => empty_statement(statement),
         StatementKind::Semi(expression) => empty_expression(expression),
-        StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
+        StatementKind::Break
+        | StatementKind::Continue
+        | StatementKind::Interned(_)
+        | StatementKind::Error => (),
     }
 }
 
@@ -271,12 +274,15 @@ fn empty_expression(expression: &mut Expression) {
         ExpressionKind::Unsafe(block_expression, _span) => {
             empty_block_expression(block_expression);
         }
-        ExpressionKind::Quote(..) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
         ExpressionKind::AsTraitPath(path) => {
             empty_unresolved_type(&mut path.typ);
             empty_path(&mut path.trait_path);
             empty_ident(&mut path.impl_item);
         }
+        ExpressionKind::Quote(..)
+        | ExpressionKind::Resolved(_)
+        | ExpressionKind::Interned(_)
+        | ExpressionKind::Error => (),
     }
 }
 
@@ -353,6 +359,7 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
         | UnresolvedTypeData::Unit
         | UnresolvedTypeData::Quoted(_)
         | UnresolvedTypeData::Resolved(_)
+        | UnresolvedTypeData::Interned(_)
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => (),
     }
@@ -531,6 +538,7 @@ fn empty_lvalue(lvalue: &mut LValue) {
             empty_expression(index);
         }
         LValue::Dereference(lvalue, _) => empty_lvalue(lvalue),
+        LValue::Interned(..) => (),
     }
 }
 
