@@ -81,7 +81,7 @@ fn check_package(
     allow_overwrite: bool,
 ) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.

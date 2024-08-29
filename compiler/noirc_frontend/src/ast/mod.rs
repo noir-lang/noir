@@ -463,9 +463,9 @@ pub enum ItemVisibility {
 impl std::fmt::Display for ItemVisibility {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ItemVisibility::Public => write!(f, "{}", "pub"),
+            ItemVisibility::Public => write!(f, "pub"),
             ItemVisibility::Private => Ok(()),
-            ItemVisibility::PublicCrate => write!(f, "{}", "pub(crate)"),
+            ItemVisibility::PublicCrate => write!(f, "pub(crate)"),
         }
     }
 }

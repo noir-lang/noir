@@ -360,6 +360,7 @@ impl NodeInterner {
         ));
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn get_auto_import_names(
         &self,
     ) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>> {
