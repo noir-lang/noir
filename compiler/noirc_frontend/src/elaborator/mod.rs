@@ -169,7 +169,7 @@ pub struct Elaborator<'context> {
     /// Temporary flag to enable the experimental arithmetic generics feature
     enable_arithmetic_generics: bool,
 
-    pub(crate) interpreter_call_stack: &'context mut im::Vector<Location>,
+    pub(crate) interpreter_call_stack: im::Vector<Location>,
 }
 
 #[derive(Default)]
@@ -193,7 +193,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
-        interpreter_call_stack: &'context mut im::Vector<Location>,
+        interpreter_call_stack: im::Vector<Location>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -226,7 +226,6 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
-        interpreter_call_stack: &'context mut im::Vector<Location>,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -234,7 +233,7 @@ impl<'context> Elaborator<'context> {
             crate_id,
             debug_comptime_in_file,
             enable_arithmetic_generics,
-            interpreter_call_stack,
+            im::Vector::new(),
         )
     }
 
@@ -244,7 +243,6 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
-        interpreter_call_stack: &'context mut im::Vector<Location>,
     ) -> Vec<(CompilationError, FileId)> {
         Self::elaborate_and_return_self(
             context,
@@ -252,7 +250,6 @@ impl<'context> Elaborator<'context> {
             items,
             debug_comptime_in_file,
             enable_arithmetic_generics,
-            interpreter_call_stack,
         )
         .errors
     }
@@ -263,14 +260,12 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
-        interpreter_call_stack: &'context mut im::Vector<Location>,
     ) -> Self {
         let mut this = Self::from_context(
             context,
             crate_id,
             debug_comptime_in_file,
             enable_arithmetic_generics,
-            interpreter_call_stack,
         );
         this.elaborate_items(items);
         this.check_and_pop_function_context();

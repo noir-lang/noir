@@ -44,15 +44,8 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
-    let interpreter_call_stack = &mut im::Vector::new();
-    let mut elaborator = Elaborator::elaborate_and_return_self(
-        &mut context,
-        krate,
-        collector.items,
-        None,
-        false,
-        interpreter_call_stack,
-    );
+    let mut elaborator =
+        Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None, false);
     assert_eq!(elaborator.errors.len(), 0);
 
     let mut interpreter = elaborator.setup_interpreter();

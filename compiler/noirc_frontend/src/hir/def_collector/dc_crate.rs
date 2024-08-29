@@ -395,14 +395,12 @@ impl DefCollector {
             })
         });
 
-        let interpreter_call_stack = &mut im::Vector::new();
         let mut more_errors = Elaborator::elaborate(
             context,
             crate_id,
             def_collector.items,
             debug_comptime_in_file,
             enable_arithmetic_generics,
-            interpreter_call_stack,
         );
 
         errors.append(&mut more_errors);
