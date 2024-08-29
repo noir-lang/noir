@@ -93,6 +93,7 @@ describe('e2e_fees/private_refunds', () => {
     // should be able to add the note to our PXE. Just calling `pxe.addNote(...)` is enough of a check that the note
     // hash was emitted because the endpoint will compute the hash and then it will try to find it in the note hash
     // tree. If the note hash is not found in the tree, an error is thrown.
+    // TODO(#8238): Implement proper note delivery
     await t.aliceWallet.addNote(
       new ExtendedNote(
         aliceRefundNote,
@@ -112,6 +113,7 @@ describe('e2e_fees/private_refunds', () => {
     const bobFeeNote = new Note([new Fr(transactionFee!), bobNpkMHash, bobRandomness]);
 
     // 7. Once again we add the note to PXE which computes the note hash and checks that it is in the note hash tree.
+    // TODO(#8238): Implement proper note delivery
     await t.bobWallet.addNote(
       new ExtendedNote(
         bobFeeNote,

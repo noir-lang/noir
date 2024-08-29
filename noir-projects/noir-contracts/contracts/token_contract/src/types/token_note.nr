@@ -47,6 +47,7 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
         poseidon2_hash_with_separator([note_hash_for_nullify, secret],GENERATOR_INDEX__NOTE_NULLIFIER)
     }
 
+    // docs:start:compute_note_hiding_point
     fn compute_note_hiding_point(self) -> Point {
         // We use the unsafe version because the multi_scalar_mul will constrain the scalars.
         let amount_scalar = from_field_unsafe(self.amount.to_integer());
@@ -62,6 +63,7 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
             [amount_scalar, npk_m_hash_scalar, randomness_scalar, slot_scalar]
         )
     }
+    // docs:end:compute_note_hiding_point
 }
 
 impl TokenNote {

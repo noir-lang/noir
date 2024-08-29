@@ -30,6 +30,7 @@ contract PrivateFPC {
         // We emit fee payer randomness as nullifier to ensure FPC admin can reconstruct their fee note - note that
         // protocol circuits will perform the siloing as was done above and hence the final nullifier will be correct
         // fee payer randomness.
+        // TODO(#8238): Implement proper note delivery
         context.push_nullifier(user_randomness);
 
         Token::at(asset).setup_refund(
