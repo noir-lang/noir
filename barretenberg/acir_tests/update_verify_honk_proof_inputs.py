@@ -1,11 +1,13 @@
 import json
+import shutil
 
 # Paths to the input files
 proof_file_path = "acir_tests/assert_statement_recursive/proofs/honk_proof_a_fields.json"
 vk_file_path = "acir_tests/assert_statement_recursive/target/honk_vk_fields.json"
 
 # Path to the output TOML file
-output_toml_path = "../../noir/noir-repo/test_programs/execution_success/verify_honk_proof/Prover.toml"
+output_toml_path = "../../noir/verify_honk_proof/Prover.toml"
+output_toml_path_2 = "../../noir/noir-repo/test_programs/execution_success/verify_honk_proof/Prover.toml"
 
 # Read the proof from the JSON file
 with open(proof_file_path, "r") as proof_file:
@@ -37,5 +39,7 @@ toml_content = (
 # Write the content to the output TOML file
 with open(output_toml_path, "w") as output_toml_file:
     output_toml_file.write(toml_content)
+
+shutil.copy(output_toml_path, output_toml_path_2)
 
 print(f"Prover.toml has been successfully created at {output_toml_path}")
