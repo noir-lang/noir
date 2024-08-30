@@ -277,18 +277,6 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                // NOTE: This causes issues for brillig_cow_assign, and uhashmap
-                // if let Some((last_load, last_load_block)) = self.last_loads.get(&address) {
-                //     let load_result = self.inserter.function.dfg.instruction_results(*last_load)[0];
-                //     //  NOTE: Checking !contains_array fixes brillig_cow_assign but not uhashmap
-                //     // let contains_array =
-                //         // self.inserter.function.dfg.type_of_value(value).contains_an_array();
-                //     if load_result == value && *last_load_block == block_id {
-                //         self.instructions_to_remove.insert(instruction);
-                //     }
-                // }
-
-                // // NOTE: This causes the same failures as the last_loads approach
                 if let Some(known_value) = references.get_known_value(value) {
                     if known_value == address && !from_rc {
                         self.instructions_to_remove.insert(instruction);
