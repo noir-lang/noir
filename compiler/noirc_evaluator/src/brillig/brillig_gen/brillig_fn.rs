@@ -2,7 +2,7 @@ use iter_extended::vecmap;
 
 use crate::{
     brillig::brillig_ir::{
-        artifact::{BrilligParameter, Label},
+        artifact::BrilligParameter,
         brillig_variable::{get_bit_size_from_ssa_type, BrilligVariable},
     },
     ssa::ir::{
@@ -42,11 +42,6 @@ impl FunctionContext {
             blocks: reverse_post_order,
             liveness: VariableLiveness::from_function(function),
         }
-    }
-
-    /// Creates a function label from a given SSA function id.
-    pub(crate) fn function_id_to_function_label(function_id: FunctionId) -> Label {
-        function_id.to_string()
     }
 
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
