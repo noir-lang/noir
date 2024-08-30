@@ -57,7 +57,7 @@ fn mapping_function(expr: Expr, f: FunctionDefinition) -> Option<Expr> {
     )
 }
 
-fn     main() {
+fn main() {
     let context = Context { value: 42 };
     foo(context, 20);
 }
