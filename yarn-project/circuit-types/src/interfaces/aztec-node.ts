@@ -327,8 +327,9 @@ export interface AztecNode {
    * made invalid by *other* transactions if e.g. they emit the same nullifiers, or come become invalid
    * due to e.g. the max_block_number property.
    * @param tx - The transaction to validate for correctness.
+   * @param isSimulation - True if the transaction is a simulated one without generated proofs. (Optional)
    */
-  isValidTx(tx: Tx): Promise<boolean>;
+  isValidTx(tx: Tx, isSimulation?: boolean): Promise<boolean>;
 
   /**
    * Updates the configuration of this node.

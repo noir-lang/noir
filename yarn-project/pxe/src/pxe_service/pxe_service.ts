@@ -532,7 +532,7 @@ export class PXEService implements PXE {
     txRequest: TxExecutionRequest,
     simulatePublic: boolean,
     msgSender: AztecAddress | undefined = undefined,
-    skipTxValidation: boolean = true, // TODO(#7956): make the default be false
+    skipTxValidation: boolean = false,
     scopes?: AztecAddress[],
   ): Promise<SimulatedTx> {
     return await this.jobQueue.put(async () => {
@@ -542,7 +542,7 @@ export class PXEService implements PXE {
       }
 
       if (!skipTxValidation) {
-        if (!(await this.node.isValidTx(simulatedTx.tx))) {
+        if (!(await this.node.isValidTx(simulatedTx.tx, true))) {
           throw new Error('The simulated transaction is unable to be added to state and is invalid.');
         }
       }

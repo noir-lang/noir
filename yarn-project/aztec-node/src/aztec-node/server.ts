@@ -15,6 +15,7 @@ import {
   LogType,
   MerkleTreeId,
   NullifierMembershipWitness,
+  type ProcessedTx,
   type ProverConfig,
   PublicDataWitness,
   PublicSimulationOutput,
@@ -25,6 +26,7 @@ import {
   type TxHash,
   TxReceipt,
   TxStatus,
+  type TxValidator,
   partitionReverts,
 } from '@aztec/circuit-types';
 import {
@@ -762,7 +764,7 @@ export class AztecNodeService implements AztecNode {
     );
   }
 
-  public async isValidTx(tx: Tx): Promise<boolean> {
+  public async isValidTx(tx: Tx, isSimulation: boolean = false): Promise<boolean> {
     const blockNumber = (await this.blockSource.getBlockNumber()) + 1;
 
     const newGlobalVariables = await this.globalVariableBuilder.buildGlobalVariables(
@@ -775,12 +777,17 @@ export class AztecNodeService implements AztecNode {
     // These validators are taken from the sequencer, and should match.
     // The reason why `phases` and `gas` tx validator is in the sequencer and not here is because
     // those tx validators are customizable by the sequencer.
-    const txValidator = new AggregateTxValidator(
+    const txValidators: TxValidator<Tx | ProcessedTx>[] = [
       new DataTxValidator(),
       new MetadataTxValidator(newGlobalVariables),
       new DoubleSpendTxValidator(new WorldStateDB(this.worldStateSynchronizer.getLatest())),
-      new TxProofValidator(this.proofVerifier),
-    );
+    ];
+
+    if (!isSimulation) {
+      txValidators.push(new TxProofValidator(this.proofVerifier));
+    }
+
+    const txValidator = new AggregateTxValidator(...txValidators);
 
     const [_, invalidTxs] = await txValidator.validateTxs([tx]);
     if (invalidTxs.length > 0) {
