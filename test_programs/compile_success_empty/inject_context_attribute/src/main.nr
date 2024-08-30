@@ -6,7 +6,7 @@ struct Context {
 fn foo(x: Field) {
     if true {
         // 20 + 1 => 21
-        bar(qux(x + 1));
+        bar(qux(x + 1) + zero());
     } else {
         assert(false);
     }
@@ -24,6 +24,10 @@ fn qux(x: Field) -> Field {
     x * 2
 }
 
+fn zero() -> Field {
+    0
+}
+
 fn inject_context(f: FunctionDefinition) {
     // Add a `_context: Context` parameter to the function
     let parameters = f.parameters();
@@ -31,15 +35,15 @@ fn inject_context(f: FunctionDefinition) {
     f.set_parameters(parameters);
 
     // Create a new body where every function call has `_context` added to the list of arguments.
-    let body = f.body().modify(mapping_function);
+    let body = f.body().modify(|expr| mapping_function(expr, f));
     f.set_body(body);
 }
 
-fn mapping_function(expr: Expr) -> Option<Expr> {
+fn mapping_function(expr: Expr, f: FunctionDefinition) -> Option<Expr> {
     expr.as_function_call().and_then(
         |func_call: (Expr, [Expr])| {
         let (name, arguments) = func_call;
-        name.resolve().as_function_definition().and_then(
+        name.resolve(Option::some(f)).as_function_definition().and_then(
             |function_definition: FunctionDefinition| {
             if function_definition.has_named_attribute(quote { inject_context }) {
                 let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());

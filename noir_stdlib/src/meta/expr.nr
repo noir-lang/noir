@@ -154,7 +154,7 @@ impl Expr {
 
     #[builtin(expr_resolve)]
     // docs:start:resolve
-    fn resolve(self) -> TypedExpr {}
+    fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr {}
     // docs:end:resolve
 }
 

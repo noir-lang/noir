@@ -1416,36 +1416,53 @@ where
     option(return_type, option_value)
 }
 
-// fn resolve(self) -> TypedExpr
+// fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr
 fn expr_resolve(
     interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
+    let (self_argument, func) = check_two_arguments(arguments, location)?;
     let self_argument_location = self_argument.1;
     let expr_value = get_expr(interpreter.elaborator.interner, self_argument)?;
     let expr_value = unwrap_expr_value(interpreter.elaborator.interner, expr_value);
 
-    let value =
-        interpreter.elaborate_item(interpreter.current_function, |elaborator| match expr_value {
-            ExprValue::Expression(expression_kind) => {
-                let expr = Expression { kind: expression_kind, span: self_argument_location.span };
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Value::TypedExpr(TypedExpr::ExprId(expr_id))
-            }
-            ExprValue::Statement(statement_kind) => {
-                let statement =
-                    Statement { kind: statement_kind, span: self_argument_location.span };
-                let (stmt_id, _) = elaborator.elaborate_statement(statement);
-                Value::TypedExpr(TypedExpr::StmtId(stmt_id))
-            }
-            ExprValue::LValue(lvalue) => {
-                let expr = lvalue.as_expression();
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Value::TypedExpr(TypedExpr::ExprId(expr_id))
-            }
-        });
+    let Value::Struct(fields, _) = func.0 else {
+        panic!("Expected second argument to be a struct");
+    };
+
+    let is_some = fields.get(&Rc::new("_is_some".to_string())).unwrap();
+    let Value::Bool(is_some) = is_some else {
+        panic!("Expected is_some to be a boolean");
+    };
+
+    let function_to_resolve_in = if *is_some {
+        let value = fields.get(&Rc::new("_value".to_string())).unwrap();
+        let Value::FunctionDefinition(func_id) = value else {
+            panic!("Expected option value to be a FunctionDefinition");
+        };
+        Some(*func_id)
+    } else {
+        interpreter.current_function
+    };
+
+    let value = interpreter.elaborate_item(function_to_resolve_in, |elaborator| match expr_value {
+        ExprValue::Expression(expression_kind) => {
+            let expr = Expression { kind: expression_kind, span: self_argument_location.span };
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Value::TypedExpr(TypedExpr::ExprId(expr_id))
+        }
+        ExprValue::Statement(statement_kind) => {
+            let statement = Statement { kind: statement_kind, span: self_argument_location.span };
+            let (stmt_id, _) = elaborator.elaborate_statement(statement);
+            Value::TypedExpr(TypedExpr::StmtId(stmt_id))
+        }
+        ExprValue::LValue(lvalue) => {
+            let expr = lvalue.as_expression();
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Value::TypedExpr(TypedExpr::ExprId(expr_id))
+        }
+    });
 
     Ok(value)
 }
