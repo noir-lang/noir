@@ -192,7 +192,7 @@ Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.
 
 Resolves and type-checks this expression and returns the result as a `TypedExpr`. 
 
-The `in_function` argument specifies where there expression is resolved:
+The `in_function` argument specifies where the expression is resolved:
 - If it's `none`, the expression is resolved in the function where `resolve` was called
 - If it's `some`, the expression is resolved in the given function
 
