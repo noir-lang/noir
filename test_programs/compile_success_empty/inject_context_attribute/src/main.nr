@@ -36,18 +36,24 @@ fn inject_context(f: FunctionDefinition) {
 }
 
 fn mapping_function(expr: Expr) -> Option<Expr> {
-    expr.as_function_call().map(
+    expr.as_function_call().and_then(
         |func_call: (Expr, [Expr])| {
         let (name, arguments) = func_call;
-        let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());
-        let arguments = arguments.map(|arg: Expr| arg.quoted()).join(quote { , });
-        quote { $name($arguments) }.as_expr().unwrap()
-    }
+        name.resolve().as_function_definition().and_then(
+            |function_definition: FunctionDefinition| {
+            if function_definition.has_named_attribute(quote { inject_context }) {
+                let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());
+                let arguments = arguments.map(|arg: Expr| arg.quoted()).join(quote { , });
+                Option::some(quote { $name($arguments) }.as_expr().unwrap())
+            } else {
+                Option::none()
+            }
+        }
+        )}
     )
 }
 
-fn main() {
+fn     main() {
     let context = Context { value: 42 };
     foo(context, 20);
 }
-

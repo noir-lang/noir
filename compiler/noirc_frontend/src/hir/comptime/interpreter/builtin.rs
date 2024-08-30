@@ -25,6 +25,7 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
+    elaborator::Elaborator,
     hir::comptime::{
         errors::IResult,
         value::{ExprValue, TypedExpr},
@@ -94,6 +95,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_body" => function_def_body(interner, arguments, location),
+            "function_def_has_named_attribute" => {
+                function_def_has_named_attribute(interner, arguments, location)
+            }
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
@@ -1485,6 +1489,40 @@ fn function_def_body(
     } else {
         Err(InterpreterError::FunctionAlreadyResolved { location })
     }
+}
+
+// fn has_named_attribute(self, name: Quoted) -> bool
+fn function_def_has_named_attribute(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let name = get_quoted(name)?;
+    let func_meta = interner.function_meta(&func_id);
+    let Some(attributes) = &func_meta.custom_attributes else {
+        return Ok(Value::Bool(false));
+    };
+
+    let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
+
+    for attribute in attributes {
+        let parse_result = Elaborator::parse_attribute(attribute, location.file);
+        let Ok(Some((function, _arguments))) = parse_result else {
+            continue;
+        };
+
+        let ExpressionKind::Variable(path) = function.kind else {
+            continue;
+        };
+
+        if path.last_name() == &name {
+            return Ok(Value::Bool(true));
+        }
+    }
+
+    Ok(Value::Bool(false))
 }
 
 // fn name(self) -> Quoted
