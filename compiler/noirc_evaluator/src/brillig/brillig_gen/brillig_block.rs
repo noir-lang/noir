@@ -315,7 +315,7 @@ impl<'block> BrilligBlock<'block> {
                     }
                 }
             }
-            Instruction::Store { address, value } => {
+            Instruction::Store { address, value , .. } => {
                 let address_var = self.convert_ssa_single_addr_value(*address, dfg);
                 let source_variable = self.convert_ssa_value(*value, dfg);
 

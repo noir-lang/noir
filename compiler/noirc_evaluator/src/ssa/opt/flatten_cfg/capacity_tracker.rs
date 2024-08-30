@@ -133,7 +133,7 @@ impl<'a> SliceCapacityTracker<'a> {
                     }
                 }
             }
-            Instruction::Store { address, value } => {
+            Instruction::Store { address, value, .. } => {
                 let value_typ = self.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
                     self.compute_slice_capacity(*value, slice_sizes);

@@ -13,15 +13,6 @@ unconstrained fn main() -> pub Field {
         assert_eq(emulated_enum.a.unwrap(), 1);
     }
 
-    // let foo = &mut 0;
-    // let alias = foo;
-
-    // let foo_load1 = *foo;
-    // *alias = 7;
-    // *foo = foo_load1; // This looks like it'd be optimized out
-
-    // assert_eq(*foo, 7);
-
     emulated_enum.a = Option::some(2);
     emulated_enum.a.unwrap()
 }

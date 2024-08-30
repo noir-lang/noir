@@ -215,7 +215,7 @@ pub(crate) enum Instruction {
     Load { address: ValueId },
 
     /// Writes a value to memory.
-    Store { address: ValueId, value: ValueId },
+    Store { address: ValueId, value: ValueId, from_rc: bool },
 
     /// Provides a context for all instructions that follow up until the next
     /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
@@ -484,8 +484,8 @@ impl Instruction {
             },
             Instruction::Allocate => Instruction::Allocate,
             Instruction::Load { address } => Instruction::Load { address: f(*address) },
-            Instruction::Store { address, value } => {
-                Instruction::Store { address: f(*address), value: f(*value) }
+            Instruction::Store { address, value, from_rc } => {
+                Instruction::Store { address: f(*address), value: f(*value), from_rc: *from_rc }
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
@@ -548,7 +548,7 @@ impl Instruction {
                 }
             }
 
-            Instruction::Store { address, value } => {
+            Instruction::Store { address, value, .. } => {
                 f(*address);
                 f(*value);
             }

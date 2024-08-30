@@ -173,8 +173,8 @@ fn display_instruction_inner(
         }
         Instruction::Allocate => writeln!(f, "allocate"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
-        Instruction::Store { address, value } => {
-            writeln!(f, "store {} at {}", show(*value), show(*address))
+        Instruction::Store { address, value, from_rc } => {
+            writeln!(f, "store {} at {}, from_rc {}", show(*value), show(*address), *from_rc)
         }
         Instruction::EnableSideEffectsIf { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
