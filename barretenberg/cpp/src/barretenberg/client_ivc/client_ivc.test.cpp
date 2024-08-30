@@ -26,9 +26,9 @@ class ClientIVCTests : public ::testing::Test {
     using DeciderProver = ClientIVC::DeciderProver;
     using DeciderVerifier = ClientIVC::DeciderVerifier;
     using ProverInstances = ProverInstances_<Flavor>;
-    using FoldingProver = ProtoGalaxyProver_<ProverInstances>;
+    using FoldingProver = ProtogalaxyProver_<ProverInstances>;
     using VerifierInstances = VerifierInstances_<Flavor>;
-    using FoldingVerifier = ProtoGalaxyVerifier_<VerifierInstances>;
+    using FoldingVerifier = ProtogalaxyVerifier_<VerifierInstances>;
 
     /**
      * @brief Prove and verify the IVC scheme

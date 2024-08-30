@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/flavor/flavor.hpp"
-#include "barretenberg/polynomials/pow.hpp"
+#include "barretenberg/polynomials/gate_separator.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include <tuple>
 #include <utility>

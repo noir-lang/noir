@@ -9,7 +9,7 @@
 #include "barretenberg/stdlib_circuit_builders/ultra_recursive_flavor.hpp"
 
 namespace bb::stdlib::recursion::honk {
-template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
+template <class VerifierInstances> class ProtogalaxyRecursiveVerifier_ {
   public:
     using Flavor = typename VerifierInstances::Flavor;
     using NativeFlavor = typename Flavor::NativeFlavor;
@@ -43,14 +43,14 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
     std::shared_ptr<Transcript> transcript;
     VerifierInstances instances;
 
-    ProtoGalaxyRecursiveVerifier_(Builder* builder,
+    ProtogalaxyRecursiveVerifier_(Builder* builder,
                                   const std::shared_ptr<Instance>& accumulator,
                                   const std::vector<std::shared_ptr<VerificationKey>>& instance_vks)
         : builder(builder)
         , instances(VerifierInstances(builder, accumulator, instance_vks)){};
 
     /**
-     * @brief Given a new round challenge δ for each iteration of the full ProtoGalaxy protocol, compute the vector
+     * @brief Given a new round challenge δ for each iteration of the full Protogalaxy protocol, compute the vector
      * [δ, δ^2,..., δ^t] where t = logn and n is the size of the instance.
      */
     static std::vector<FF> compute_round_challenge_pows(size_t log_instance_size, FF round_challenge)

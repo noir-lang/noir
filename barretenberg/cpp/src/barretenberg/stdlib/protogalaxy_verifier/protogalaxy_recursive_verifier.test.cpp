@@ -15,7 +15,7 @@
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 namespace bb::stdlib::recursion::honk {
-template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public testing::Test {
+template <typename RecursiveFlavor> class ProtogalaxyRecursiveTests : public testing::Test {
   public:
     // Define types for the inner circuit, i.e. the circuit whose proof will be recursively verified
     using InnerFlavor = typename RecursiveFlavor::NativeFlavor;
@@ -39,14 +39,14 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
     using RecursiveVerifierInstances = ::bb::stdlib::recursion::honk::RecursiveVerifierInstances_<RecursiveFlavor, 2>;
     using RecursiveVerifierInstance = RecursiveVerifierInstances::Instance;
     using RecursiveVerificationKey = RecursiveVerifierInstances::VerificationKey;
-    using FoldingRecursiveVerifier = ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
+    using FoldingRecursiveVerifier = ProtogalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
     using DeciderRecursiveVerifier = DeciderRecursiveVerifier_<RecursiveFlavor>;
     using InnerDeciderProver = DeciderProver_<InnerFlavor>;
     using InnerDeciderVerifier = DeciderVerifier_<InnerFlavor>;
     using InnerVerifierInstances = VerifierInstances_<InnerFlavor, 2>;
     using InnerProverInstances = ProverInstances_<InnerFlavor>;
-    using InnerFoldingVerifier = ProtoGalaxyVerifier_<InnerVerifierInstances>;
-    using InnerFoldingProver = ProtoGalaxyProver_<InnerProverInstances>;
+    using InnerFoldingVerifier = ProtogalaxyVerifier_<InnerVerifierInstances>;
+    using InnerFoldingProver = ProtogalaxyProver_<InnerProverInstances>;
 
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
     /**
@@ -391,35 +391,35 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
 
 using FlavorTypes =
     testing::Types<MegaRecursiveFlavor_<MegaCircuitBuilder>, MegaRecursiveFlavor_<CircuitSimulatorBN254>>;
-TYPED_TEST_SUITE(ProtoGalaxyRecursiveTests, FlavorTypes);
+TYPED_TEST_SUITE(ProtogalaxyRecursiveTests, FlavorTypes);
 
-TYPED_TEST(ProtoGalaxyRecursiveTests, InnerCircuit)
+TYPED_TEST(ProtogalaxyRecursiveTests, InnerCircuit)
 {
     TestFixture::test_circuit();
 }
 
-TYPED_TEST(ProtoGalaxyRecursiveTests, NewEvaluate)
+TYPED_TEST(ProtogalaxyRecursiveTests, NewEvaluate)
 {
     TestFixture::test_new_evaluate();
 }
 
-TYPED_TEST(ProtoGalaxyRecursiveTests, RecursiveFoldingTest)
+TYPED_TEST(ProtogalaxyRecursiveTests, RecursiveFoldingTest)
 {
     TestFixture::test_recursive_folding();
 }
 
-TYPED_TEST(ProtoGalaxyRecursiveTests, FullProtogalaxyRecursiveTest)
+TYPED_TEST(ProtogalaxyRecursiveTests, FullProtogalaxyRecursiveTest)
 {
 
     TestFixture::test_full_protogalaxy_recursive();
 }
 
-TYPED_TEST(ProtoGalaxyRecursiveTests, TamperedDeciderProof)
+TYPED_TEST(ProtogalaxyRecursiveTests, TamperedDeciderProof)
 {
     TestFixture::test_tampered_decider_proof();
 }
 
-TYPED_TEST(ProtoGalaxyRecursiveTests, TamperedAccumulator)
+TYPED_TEST(ProtogalaxyRecursiveTests, TamperedAccumulator)
 {
     TestFixture::test_tampered_accumulator();
 }

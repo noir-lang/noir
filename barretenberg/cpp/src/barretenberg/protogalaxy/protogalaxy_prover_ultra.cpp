@@ -4,5 +4,5 @@
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/1076) Remove this instantiation.
 namespace bb {
-template class ProtoGalaxyProver_<ProverInstances_<UltraFlavor, 2>>;
+template class ProtogalaxyProver_<ProverInstances_<UltraFlavor, 2>>;
 } // namespace bb

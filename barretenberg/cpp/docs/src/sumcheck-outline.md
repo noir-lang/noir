@@ -142,7 +142,7 @@ and computed \f$\sigma_d = \tilde{S}^{d-1}(u_{d-1})\f$.
 ### Final Verification Step {#NonZKSumcheckVerification}
 
 - Extract claimed evaluations of prover polynomials \f$P_1,\ldots, P_N\f$ at the challenge point \f$
- (u_0,\ldots,u_{d-1}) \f$ from the transcript and \ref bb::SumcheckVerifierRound< Flavor >::compute_full_honk_relation_purported_value "compute evaluation:"
+ (u_0,\ldots,u_{d-1}) \f$ from the transcript and \ref bb::SumcheckVerifierRound< Flavor >::compute_full_relation_purported_value "compute evaluation:"
   \f{align}{\tilde{F}\left( P_1(u_0,\ldots, u_{d-1}), \ldots, P_N(u_0,\ldots, u_{d-1}) \right)\f}
 
 - Compare \f$ \sigma_d \f$ against the evaluation of \f$ \tilde{F} \f$ at \f$P_1(u_0,\ldots, u_{d-1}), \ldots,
@@ -171,11 +171,11 @@ To prevent the witness information leakage through the Round Univariates determi
 \f{align}{
 	G \gets \sum_{i=0}^{d-1} g_{i}(X_i),
 \f}
-where \f$ d \f$ is the number of Sumcheck rounds, and the <b>Libra univariates</b> are given by the formula 
+where \f$ d \f$ is the number of Sumcheck rounds, and the <b>Libra univariates</b> are given by the formula
 \f{align}{
 	g_{i} = \sum_{j=0}^{\tilde{D}} g_{i,j} \cdot L_{j,\{0,\ldots, \tilde{D}\}}(X_i) \quad  \text{for } (g_{i,j}) \gets_{\$} \mathbb{F}^{d\cdot (\tilde{D}+1)}
 \f}
-and \f$L_{j, \{0,\ldots, \tilde{D}\}}\f$ is the \f$j\f$th univariate Lagrange polynomial for the domain \f$\{0,\ldots, \tilde{D}\}\f$. Recall that \f$\deg_{X_i} \left(L_{j, \{0,\ldots, \tilde{D}\}} (X_i)\right) = \tilde{D}\f$. 
+and \f$L_{j, \{0,\ldots, \tilde{D}\}}\f$ is the \f$j\f$th univariate Lagrange polynomial for the domain \f$\{0,\ldots, \tilde{D}\}\f$. Recall that \f$\deg_{X_i} \left(L_{j, \{0,\ldots, \tilde{D}\}} (X_i)\right) = \tilde{D}\f$.
 
 Set
 \f{align}{
@@ -197,7 +197,7 @@ Observe that \f$ G \f$ has several important properties
 
 The first two properties imply that the evaluations of Sumcheck Round Univariates for \f$G\f$  are independent and uniformly distributed. We call them Libra Round Univarites.
 
-Consider Round Univariates for \f$ \tilde{F} + \texttt{libra_challenge}\cdot G\f$ which are the sums of the Sumcheck Round Univariates for \f$ \tilde{F} \f$ and Libra Round Univarites multiplied by the challenge. 
+Consider Round Univariates for \f$ \tilde{F} + \texttt{libra_challenge}\cdot G\f$ which are the sums of the Sumcheck Round Univariates for \f$ \tilde{F} \f$ and Libra Round Univarites multiplied by the challenge.
 The fact that the degrees of Libra Round Univariates are big enough (i.e. \f$ \tilde{D}\geq D \f$) and that their evaluations are random imply that the evaluations \f$ \tilde{S}^i(0),\ldots,\tilde{S}^i(\tilde D)\f$ defined in [Compute Round Univariates](#ComputeRoundUnivariates) are now masked by the evaluations of Libra Round Univariates. These evaluations are described explicitly [below](#LibraRoundUnivariates).
 
 ### Example {#LibraPolynomialExample}
@@ -221,7 +221,7 @@ Since \f$G\f$ is a polynomial of a very special form, the computation of \f$\tex
 \f}
 since the evaluations of \f$ g_i \f$ at \f$\vec \ell \in \{0,1\}^{d}\f$ depend only on \f$ \ell_i \f$, and therefore, there are \f$2^{d-1}\f$ summands \f$ g_i(0) \f$ corresponding to the points \f$\vec \ell\f$ with \f$\ell_i=0\f$ and \f$2^{d-1}\f$ summands \f$ g_i(1) \f$ corresponding to \f$\vec \ell\f$ with \f$\ell_i=1\f$.
 
-The prover computes 
+The prover computes
 \f{align}{
 	\texttt{libra_total_sum} \gets 2^{d-1} \sum_{i = 0}^{d-1} \left( g_i(0) + g_i(1) \right).
 \f}
@@ -232,8 +232,8 @@ As in [Sumcheck Book-keeping](#BookKeepingTable), we use a table of evaluations 
 Namely, before entering the first round, the prover updates the vector of Libra univariates in place
 \f{align}{
 	\texttt{libra_univariates}_{j}(k) \gets \texttt{libra_challenge} \cdot 2^{d-1} \cdot g_{j}(k) \text{ for } j= i,\ldots, d-1, \text{ and } k=0,\ldots, \tilde{D}
-\f} 
-and computes the term 
+\f}
+and computes the term
 \f{align}{
 	\texttt{libra_running_sum} \gets 2^{-1} \left( \texttt{libra_challenge} \cdot \texttt{libra_total_sum} - \left(\texttt{libra_univariates}_{0}(0) + \texttt{libra_univariates}_{0}(1)\right) \right).
 \f}
@@ -255,12 +255,12 @@ By design of the method \ref bb::SumcheckProver< Flavor >::setup_zk_sumcheck_dat
 \f}
 for \f$k=0,\ldots, \tilde{D}\f$. It is done by the method \ref bb::SumcheckProverRound< Flavor >::compute_libra_round_univariate "compute_libra_round_univariate" called inside  \ref bb::SumcheckProverRound< Flavor >::compute_univariate "Sumcheck Round Univariate computation", which also takes care of adding \f$\texttt{libra_round_univariate}\f$ to the \f$\texttt{round_unviariate}\f$.
 
-When the prover receives the challenge \f$u_0\f$, it \ref  bb::SumcheckProver< Flavor >::update_libra_data "updates Libra data": 
+When the prover receives the challenge \f$u_0\f$, it \ref  bb::SumcheckProver< Flavor >::update_libra_data "updates Libra data":
 
 -  updates the table of Libra univariates by multiplying every term by \f$1/2\f$.
--  computes the value \f$2^{d-2} \cdot \texttt{libra_challenge} \cdot g_0(u_0)\f$ applying \ref bb::Univariate::evaluate "evaluate" method to the first univariate in the table \f$\texttt{libra_univariates}\f$ 
+-  computes the value \f$2^{d-2} \cdot \texttt{libra_challenge} \cdot g_0(u_0)\f$ applying \ref bb::Univariate::evaluate "evaluate" method to the first univariate in the table \f$\texttt{libra_univariates}\f$
 -  places the value \f$ g_0(u_0)\f$ to the vector \f$ \texttt{libra_evaluations}\f$
--  updates the running sum  
+-  updates the running sum
 \f{align}{
 	\texttt{libra_running_sum} \gets  2^{d-2} \cdot \texttt{libra_challenge} \cdot g_0(u_0) +  2^{-1} \cdot \left( \texttt{libra_running_sum} - (\texttt{libra_univariates}_{1}(0) + \texttt{libra_univariates}_{1}(1)) \right)
 \f}
@@ -270,7 +270,7 @@ In Round \f$ i \f$, the prover computes \f$ i \f$-th Libra round univariate
 \f{align}{
 \texttt{libra_univariate}_i(X_i) = \texttt{libra_challenge} \cdot \sum_{\vec \ell \in \{0,1\}^{d-1 - i}} G(u_0,\ldots, u_{i-1}, X_{i}, \vec \ell) =
 \texttt{libra_challenge} \cdot 2^{d-1 - i} \left( \sum_{j = 0}^{i-1} g_j(u_{j}) + g_{i}(X_i) + \sum_{j=i+1}^{d-1} \left(g_{j,0} + g_{j,1}\right) \right)
-\f}  
+\f}
 
 By design of the method \ref bb::SumcheckProver< Flavor >::update_zk_sumcheck_data "update_zk_sumcheck_data", the latter could be expressed as follows
 \f{align}{
@@ -284,13 +284,13 @@ for \f$k=0,\ldots, \tilde{D}\f$. This computation is done by the method \ref bb:
 When the prover receives new challenge \f$u_i\f$, it \ref  bb::SumcheckProver< Flavor >::update_libra_data "updates Libra data". If \f$ i < d-1\f$, the prover
 
 -  updates the table of Libra univariates by multiplying every term by \f$1/2\f$.
--  computes the value \f$2^{d-i - 2} \cdot \texttt{libra_challenge} \cdot g_0(u_0)\f$ applying \ref bb::Univariate::evaluate "evaluate" method to the first univariate in the table \f$\texttt{libra_univariates}\f$ 
+-  computes the value \f$2^{d-i - 2} \cdot \texttt{libra_challenge} \cdot g_0(u_0)\f$ applying \ref bb::Univariate::evaluate "evaluate" method to the first univariate in the table \f$\texttt{libra_univariates}\f$
 -  places the value \f$ g_0(u_0)\f$ to the vector \f$ \texttt{libra_evaluations}\f$
--  updates the running sum  
+-  updates the running sum
 \f{align}{
 	\texttt{libra_running_sum} \gets  2^{d-i-2} \cdot \texttt{libra_challenge} \cdot g_0(u_0) +  2^{-1} \cdot \left( \texttt{libra_running_sum} - (\texttt{libra_univariates}_{i+1}(0) + \texttt{libra_univariates}_{i+1}(1)) \right)
 \f}
-If \f$ i = d-1\f$, the prover 
+If \f$ i = d-1\f$, the prover
 -  computes the value \f$ g_{d-1}(u_{d-1})\f$ applying \ref bb::Univariate::evaluate "evaluate" method to the last univariate in the table \f$\texttt{libra_univariates}\f$ and dividing the result by \f$ \texttt{libra_challenge} \f$.
 -  updates the table of Libra univariates by multiplying every term by \f$\texttt{libra_challenge}^{-1}\f$.
 
@@ -385,13 +385,13 @@ Note that \f$ \tilde{D} \f$ <b> sets up </b> the corresponding parameter of [Lib
 The random scalars \f$ \rho_1,\ldots, \rho_{N_w}\f$ are created by the method \ref bb::SumcheckProver< Flavor >::setup_zk_sumcheck_data "setup_zk_sumcheck_data" and are stored as \f$ \texttt{eval_masking_scalars} \f$.
 
 ### Book-keeping {#BookKeepingMaskingWitnesses}
-To faciliate the computation of Sumcheck Round Univariates, the prover \ref bb::SumcheckProver< Flavor >::create_evaluation_masking_table "creates the vector" of univariates 
+To faciliate the computation of Sumcheck Round Univariates, the prover \ref bb::SumcheckProver< Flavor >::create_evaluation_masking_table "creates the vector" of univariates
 \f{align}{
 \texttt{masking_terms_evaluations}_j(k)\gets \texttt{eval_masking_scalars}_j \cdot (1-k) k
 \f}
 of the same size as the ExtendedEdges created by the ZK Flavor running Sumcheck.
 
-When the prover receives the challenge \f$ u_i \f$, this vector is \ref  bb::SumcheckProver< Flavor >::update_masking_terms_evaluations "updated" as follows 
+When the prover receives the challenge \f$ u_i \f$, this vector is \ref  bb::SumcheckProver< Flavor >::update_masking_terms_evaluations "updated" as follows
 
 \f{align}{
 	\texttt{masking_terms_evaluations}_j(k) \gets \texttt{eval_masking_scalars}_j \cdot u_i \cdot (1-u_i)
@@ -408,9 +408,9 @@ which reduces to computing at most \f$ (D+ D_w + 1) \times N \times 2^{d-1 - i}\
 &\ P_j(u_0,\ldots, u_{i-1}, k, \vec \ell) + \rho_j \cdot \sum_{k=0}^{i-1} u_k(1-u_k) + \rho_j\cdot (1-k) k \quad \text{ for } j=1,\ldots, N_w\\
 &\ P_j(u_0,\ldots, u_{i-1}, k, \vec \ell) \quad \text { for } j= N_w+1,\ldots, N
 \f}
-By design, we have  
-\f{align}{ 
-	\texttt{masking_terms_evaluations}_j(k) = \rho_j \cdot \sum_{k=0}^{i-1} u_k(1-u_k) + \rho_j\cdot (1-k) k.  
+By design, we have
+\f{align}{
+	\texttt{masking_terms_evaluations}_j(k) = \rho_j \cdot \sum_{k=0}^{i-1} u_k(1-u_k) + \rho_j\cdot (1-k) k.
 \f}
 
 Then the method \ref bb::SumcheckProverRound< Flavor >::extend_zk_edges	"extend_zk_edges" gets the \f$j\f$-th edge corresponding to the witness polynomial and corrects it with the univariate \f$ \texttt{masking_terms_evaluations}_j\f$. The non-witness polynomials are treated as in \ref bb::SumcheckProverRound< Flavor >::extend_edges	"extend_edges" used in non-ZK Flavors.
@@ -460,10 +460,10 @@ The total costs of ZK Sumcheck are obtained from [Libra Costs](#LibraCosts) and 
 <tr>		<td> <b> Group Operations </b> </td>
 			<td><p> \f$+ d\f$ MSMs of size \f$(D+D_w)\f$ = [Libra Commitments](#LibraCommitments) </p>
 			    <p> \f$+ \left(2 \cdot (D+D_w) D+1\right)\f$ group ops = <b>shplonk</b> </p>
-			    <p> \f$+ N_w\f$  MSMs of size \f$2^d\f$ (same group element multiplied by \f$\rho_1,\ldots,\rho_{N_w}\f$) </p> 
+			    <p> \f$+ N_w\f$  MSMs of size \f$2^d\f$ (same group element multiplied by \f$\rho_1,\ldots,\rho_{N_w}\f$) </p>
 			</td>
 			<td><p> \f$ + (d + 3) \f$ group ops </p>
-				<p> \f$ + N_w\f$ MSMs of size \f$2\f$</p>  
+				<p> \f$ + N_w\f$ MSMs of size \f$2\f$</p>
 			</td>
 		</tr>
 <tr>
@@ -478,7 +478,7 @@ The total costs of ZK Sumcheck are obtained from [Libra Costs](#LibraCosts) and 
 </tr>
 <tr>
 			<td> <b> Communication </b> </td>
-			<td colspan="2"> <p> \f$+ (d+ 2)\f$ group elements for Libra;  \f$+N_w\f$ group elements for witness masking</p> 
+			<td colspan="2"> <p> \f$+ (d+ 2)\f$ group elements for Libra;  \f$+N_w\f$ group elements for witness masking</p>
 							 <p> \f$+ D_w \cdot d \f$ field elements </p></td>
 </tr>
 </table>
@@ -486,7 +486,7 @@ The total costs of ZK Sumcheck are obtained from [Libra Costs](#LibraCosts) and 
 ## Theoretic Field Operations vs. Implementation
 
 The table above sets a reasonable upper bound on the amount of prover's field operations.
-However, in the implementation, the relation \f$ F \f$ is computed as a vector of its subrelations, which allows us to decrease the costs of computing the round univariates. Namely, for a given subrelation \f$ F_j \f$, its maximum partial degree \f$D_j\f$ and its witness degree \f$D_{w,j} \f$ are generally less than \f$ D\f$ and \f$ D_w \f$, respectively. 
+However, in the implementation, the relation \f$ F \f$ is computed as a vector of its subrelations, which allows us to decrease the costs of computing the round univariates. Namely, for a given subrelation \f$ F_j \f$, its maximum partial degree \f$D_j\f$ and its witness degree \f$D_{w,j} \f$ are generally less than \f$ D\f$ and \f$ D_w \f$, respectively.
 Therefore, we compute \f$ F_j \f$'s contribution to Sumcheck Round Univariates by evaluating the univariate polynomial
 \f{align}{
 \sum_{\vec \ell\in \{0,1\}^{d-1-i}} pow_{\beta}(u_0,\ldots, u_{i-1}, X_i, \vec \ell) \cdot F_j(u_0,\ldots, u_{i-1}, X_i,\vec \ell)

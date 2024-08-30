@@ -1,5 +1,5 @@
 #include "barretenberg/goblin/mock_circuits.hpp"
-#include "barretenberg/polynomials/pow.hpp"
+#include "barretenberg/polynomials/gate_separator.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover_internal.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_verifier.hpp"
@@ -16,14 +16,14 @@ namespace {
 
 auto& engine = numeric::get_debug_randomness();
 
-template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
+template <typename Flavor> class ProtogalaxyTests : public testing::Test {
   public:
     using VerificationKey = typename Flavor::VerificationKey;
     using ProverInstance = ProverInstance_<Flavor>;
     using ProverInstances = ProverInstances_<Flavor, 2>;
     using VerifierInstance = VerifierInstance_<Flavor>;
     using VerifierInstances = VerifierInstances_<Flavor, 2>;
-    using ProtoGalaxyProver = ProtoGalaxyProver_<ProverInstances>;
+    using ProtogalaxyProver = ProtogalaxyProver_<ProverInstances>;
     using FF = typename Flavor::FF;
     using Affine = typename Flavor::Commitment;
     using Projective = typename Flavor::GroupElement;
@@ -33,11 +33,11 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
     using RelationParameters = bb::RelationParameters<FF>;
     using WitnessCommitments = typename Flavor::WitnessCommitments;
     using CommitmentKey = typename Flavor::CommitmentKey;
-    using PowPolynomial = bb::PowPolynomial<FF>;
+    using GateSeparatorPolynomial = bb::GateSeparatorPolynomial<FF>;
     using DeciderProver = DeciderProver_<Flavor>;
     using DeciderVerifier = DeciderVerifier_<Flavor>;
-    using FoldingProver = ProtoGalaxyProver_<ProverInstances>;
-    using FoldingVerifier = ProtoGalaxyVerifier_<VerifierInstances>;
+    using FoldingProver = ProtogalaxyProver_<ProverInstances>;
+    using FoldingVerifier = ProtogalaxyVerifier_<VerifierInstances>;
     using Fun = ProtogalaxyProverInternal<ProverInstances>;
 
     using TupleOfInstances =
@@ -95,15 +95,16 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
     static void check_accumulator_target_sum_manual(std::shared_ptr<ProverInstance>& accumulator, bool expected_result)
     {
         auto instance_size = accumulator->proving_key.circuit_size;
-        auto expected_honk_evals = Fun::compute_full_honk_evaluations(
+        auto expected_honk_evals = Fun::compute_row_evaluations(
             accumulator->proving_key.polynomials, accumulator->alphas, accumulator->relation_parameters);
         // Construct pow(\vec{betas*}) as in the paper
-        PowPolynomial expected_pows(accumulator->gate_challenges, accumulator->gate_challenges.size());
+        GateSeparatorPolynomial expected_gate_separators(accumulator->gate_challenges,
+                                                         accumulator->gate_challenges.size());
 
         // Compute the corresponding target sum and create a dummy accumulator
         auto expected_target_sum = FF(0);
         for (size_t i = 0; i < instance_size; i++) {
-            expected_target_sum += expected_honk_evals[i] * expected_pows[i];
+            expected_target_sum += expected_honk_evals[i] * expected_gate_separators[i];
         }
         EXPECT_EQ(accumulator->target_sum == expected_target_sum, expected_result);
     }
@@ -147,7 +148,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         for (auto& alpha : instance->alphas) {
             alpha = FF::random_element();
         }
-        auto full_honk_evals = Fun::compute_full_honk_evaluations(
+        auto full_honk_evals = Fun::compute_row_evaluations(
             instance->proving_key.polynomials, instance->alphas, instance->relation_parameters);
 
         // Evaluations should be 0 for valid circuit
@@ -196,19 +197,19 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
             alpha = FF::random_element();
         }
 
-        auto full_honk_evals = Fun::compute_full_honk_evaluations(full_polynomials, alphas, relation_parameters);
+        auto full_honk_evals = Fun::compute_row_evaluations(full_polynomials, alphas, relation_parameters);
         std::vector<FF> betas(log_instance_size);
         for (size_t idx = 0; idx < log_instance_size; idx++) {
             betas[idx] = FF::random_element();
         }
 
         // Construct pow(\vec{betas}) as in the paper
-        bb::PowPolynomial pow_beta(betas, log_instance_size);
+        bb::GateSeparatorPolynomial gate_separators(betas, log_instance_size);
 
         // Compute the corresponding target sum and create a dummy accumulator
         auto target_sum = FF(0);
         for (size_t i = 0; i < instance_size; i++) {
-            target_sum += full_honk_evals[i] * pow_beta[i];
+            target_sum += full_honk_evals[i] * gate_separators[i];
         }
 
         auto accumulator = std::make_shared<ProverInstance>();
@@ -550,8 +551,8 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         constexpr size_t total_insts = k + 1;
         TupleOfInstances insts = construct_instances(total_insts);
 
-        ProtoGalaxyProver_<ProverInstances_<Flavor, total_insts>> folding_prover(get<0>(insts));
-        ProtoGalaxyVerifier_<VerifierInstances_<Flavor, total_insts>> folding_verifier(get<1>(insts));
+        ProtogalaxyProver_<ProverInstances_<Flavor, total_insts>> folding_prover(get<0>(insts));
+        ProtogalaxyVerifier_<VerifierInstances_<Flavor, total_insts>> folding_verifier(get<1>(insts));
 
         auto [prover_accumulator, folding_proof] = folding_prover.prove();
         auto verifier_accumulator = folding_verifier.verify_folding_proof(folding_proof);
@@ -563,74 +564,74 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 } // namespace
 
 using FlavorTypes = testing::Types<MegaFlavor>;
-TYPED_TEST_SUITE(ProtoGalaxyTests, FlavorTypes);
+TYPED_TEST_SUITE(ProtogalaxyTests, FlavorTypes);
 
-TYPED_TEST(ProtoGalaxyTests, PerturbatorCoefficients)
+TYPED_TEST(ProtogalaxyTests, PerturbatorCoefficients)
 {
     TestFixture::test_pertubator_coefficients();
 }
 
-TYPED_TEST(ProtoGalaxyTests, FullHonkEvaluationsValidCircuit)
+TYPED_TEST(ProtogalaxyTests, FullHonkEvaluationsValidCircuit)
 {
     TestFixture::test_full_honk_evaluations_valid_circuit();
 }
 
-TYPED_TEST(ProtoGalaxyTests, PerturbatorPolynomial)
+TYPED_TEST(ProtogalaxyTests, PerturbatorPolynomial)
 {
     TestFixture::test_pertubator_polynomial();
 }
 
-TYPED_TEST(ProtoGalaxyTests, CombinerQuotient)
+TYPED_TEST(ProtogalaxyTests, CombinerQuotient)
 {
     TestFixture::test_combiner_quotient();
 }
 
-TYPED_TEST(ProtoGalaxyTests, CombineRelationParameters)
+TYPED_TEST(ProtogalaxyTests, CombineRelationParameters)
 {
     TestFixture::test_compute_extended_relation_parameters();
 }
 
-TYPED_TEST(ProtoGalaxyTests, CombineAlphas)
+TYPED_TEST(ProtogalaxyTests, CombineAlphas)
 {
     TestFixture::test_compute_and_extend_alphas();
 }
 
-TYPED_TEST(ProtoGalaxyTests, ProtogalaxyInhomogeneous)
+TYPED_TEST(ProtogalaxyTests, ProtogalaxyInhomogeneous)
 {
     TestFixture::test_protogalaxy_inhomogeneous();
 }
 
-TYPED_TEST(ProtoGalaxyTests, FullProtogalaxyTest)
+TYPED_TEST(ProtogalaxyTests, FullProtogalaxyTest)
 {
     TestFixture::test_full_protogalaxy();
 }
 
-TYPED_TEST(ProtoGalaxyTests, FullProtogalaxyStructuredTrace)
+TYPED_TEST(ProtogalaxyTests, FullProtogalaxyStructuredTrace)
 {
     TestFixture::test_full_protogalaxy_structured_trace();
 }
-TYPED_TEST(ProtoGalaxyTests, FullProtogalaxyStructuredTraceInhomogeneous)
+TYPED_TEST(ProtogalaxyTests, FullProtogalaxyStructuredTraceInhomogeneous)
 {
     TestFixture::test_full_protogalaxy_structured_trace_inhomogeneous_circuits();
 }
 
-TYPED_TEST(ProtoGalaxyTests, TamperedCommitment)
+TYPED_TEST(ProtogalaxyTests, TamperedCommitment)
 {
     TestFixture::test_tampered_commitment();
 }
 
-TYPED_TEST(ProtoGalaxyTests, TamperedAccumulatorPolynomial)
+TYPED_TEST(ProtogalaxyTests, TamperedAccumulatorPolynomial)
 {
     TestFixture::test_tampered_accumulator_polynomial();
 }
 
-TYPED_TEST(ProtoGalaxyTests, BadLookupFailure)
+TYPED_TEST(ProtogalaxyTests, BadLookupFailure)
 {
     TestFixture::test_protogalaxy_bad_lookup_failure();
 }
 
 // We only fold one instance currently due to significant compile time added by multiple instances
-TYPED_TEST(ProtoGalaxyTests, Fold1Instance)
+TYPED_TEST(ProtogalaxyTests, Fold1Instance)
 {
     TestFixture::template test_fold_k_instances<1>();
 }

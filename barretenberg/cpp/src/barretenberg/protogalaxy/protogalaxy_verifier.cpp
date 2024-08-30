@@ -6,7 +6,7 @@
 namespace bb {
 
 template <class VerifierInstances>
-void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(const std::shared_ptr<Instance>& inst,
+void ProtogalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(const std::shared_ptr<Instance>& inst,
                                                                             const std::string& domain_separator)
 {
     OinkVerifier<Flavor> oink_verifier{ inst, transcript, domain_separator + '_' };
@@ -14,7 +14,7 @@ void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(cons
 }
 
 template <class VerifierInstances>
-void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(const std::vector<FF>& fold_data)
+void ProtogalaxyVerifier_<VerifierInstances>::prepare_for_folding(const std::vector<FF>& fold_data)
 {
     transcript = std::make_shared<Transcript>(fold_data);
     auto index = 0;
@@ -35,7 +35,7 @@ void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(const std::vec
 }
 
 template <class VerifierInstances>
-std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<VerifierInstances>::verify_folding_proof(
+std::shared_ptr<typename VerifierInstances::Instance> ProtogalaxyVerifier_<VerifierInstances>::verify_folding_proof(
     const std::vector<FF>& fold_data)
 {
     prepare_for_folding(fold_data);
@@ -171,7 +171,7 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
     return next_accumulator;
 }
 
-template class ProtoGalaxyVerifier_<VerifierInstances_<UltraFlavor, 2>>;
-template class ProtoGalaxyVerifier_<VerifierInstances_<MegaFlavor, 2>>;
+template class ProtogalaxyVerifier_<VerifierInstances_<UltraFlavor, 2>>;
+template class ProtogalaxyVerifier_<VerifierInstances_<MegaFlavor, 2>>;
 
 } // namespace bb

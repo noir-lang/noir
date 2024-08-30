@@ -178,14 +178,14 @@ template <typename RelationImpl> class Relation : public RelationImpl {
         *std::max_element(ZK_PARTIAL_LENGTHS.begin(), ZK_PARTIAL_LENGTHS.end());
 
     template <size_t NUM_INSTANCES>
-    using ProtogalaxyTupleOfUnivariatesOverSubrelations =
+    using ProtogalaxyTupleOfUnivariatesOverSubrelationsNoOptimisticSkipping =
         TupleOfUnivariates<FF, compute_composed_subrelation_partial_lengths<NUM_INSTANCES>(SUBRELATION_TOTAL_LENGTHS)>;
     template <size_t NUM_INSTANCES>
-    using OptimisedProtogalaxyTupleOfUnivariatesOverSubrelations =
-        OptimisedTupleOfUnivariates<FF,
-                                    compute_composed_subrelation_partial_lengths<NUM_INSTANCES>(
-                                        SUBRELATION_TOTAL_LENGTHS),
-                                    NUM_INSTANCES - 1>;
+    using ProtogalaxyTupleOfUnivariatesOverSubrelations =
+        TupleOfUnivariatesWithOptimisticSkipping<FF,
+                                                 compute_composed_subrelation_partial_lengths<NUM_INSTANCES>(
+                                                     SUBRELATION_TOTAL_LENGTHS),
+                                                 NUM_INSTANCES - 1>;
     using SumcheckTupleOfUnivariatesOverSubrelations =
         TupleOfUnivariates<FF, RelationImpl::SUBRELATION_PARTIAL_LENGTHS>;
     // The containter constructor for sumcheck univariates corresponding to each subrelation in ZK Flavor's relations

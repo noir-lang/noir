@@ -26,9 +26,9 @@ class AztecIVCTests : public ::testing::Test {
     using DeciderProver = AztecIVC::DeciderProver;
     using DeciderVerifier = AztecIVC::DeciderVerifier;
     using ProverInstances = ProverInstances_<Flavor>;
-    using FoldingProver = ProtoGalaxyProver_<ProverInstances>;
+    using FoldingProver = ProtogalaxyProver_<ProverInstances>;
     using VerifierInstances = VerifierInstances_<Flavor>;
-    using FoldingVerifier = ProtoGalaxyVerifier_<VerifierInstances>;
+    using FoldingVerifier = ProtogalaxyVerifier_<VerifierInstances>;
 
     /**
      * @brief Construct mock circuit with arithmetic gates and goblin ops

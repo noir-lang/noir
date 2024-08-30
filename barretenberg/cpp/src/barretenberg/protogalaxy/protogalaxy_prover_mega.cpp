@@ -5,5 +5,5 @@
 #include "protogalaxy_prover_impl.hpp"
 namespace bb {
 
-template class ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 2>>;
+template class ProtogalaxyProver_<ProverInstances_<MegaFlavor, 2>>;
 } // namespace bb

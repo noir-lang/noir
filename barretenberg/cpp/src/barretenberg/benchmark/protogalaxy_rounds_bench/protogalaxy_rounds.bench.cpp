@@ -10,12 +10,12 @@ using namespace benchmark;
 namespace bb {
 
 template <typename Flavor>
-void _bench_round(::benchmark::State& state, void (*F)(ProtoGalaxyProver_<ProverInstances_<Flavor, 2>>&))
+void _bench_round(::benchmark::State& state, void (*F)(ProtogalaxyProver_<ProverInstances_<Flavor, 2>>&))
 {
     using Builder = typename Flavor::CircuitBuilder;
     using ProverInstance = ProverInstance_<Flavor>;
     using Instances = ProverInstances_<Flavor, 2>;
-    using ProtoGalaxyProver = ProtoGalaxyProver_<Instances>;
+    using ProtogalaxyProver = ProtogalaxyProver_<Instances>;
 
     bb::srs::init_crs_factory("../srs_db/ignition");
     auto log2_num_gates = static_cast<size_t>(state.range(0));
@@ -31,7 +31,7 @@ void _bench_round(::benchmark::State& state, void (*F)(ProtoGalaxyProver_<Prover
     std::shared_ptr<ProverInstance> prover_instance_1 = construct_instance();
     std::shared_ptr<ProverInstance> prover_instance_2 = construct_instance();
 
-    ProtoGalaxyProver folding_prover({ prover_instance_1, prover_instance_2 });
+    ProtogalaxyProver folding_prover({ prover_instance_1, prover_instance_2 });
 
     // prepare the prover state
     folding_prover.state.accumulator = prover_instance_1;
@@ -46,7 +46,7 @@ void _bench_round(::benchmark::State& state, void (*F)(ProtoGalaxyProver_<Prover
     }
 }
 
-void bench_round_mega(::benchmark::State& state, void (*F)(ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 2>>&))
+void bench_round_mega(::benchmark::State& state, void (*F)(ProtogalaxyProver_<ProverInstances_<MegaFlavor, 2>>&))
 {
     _bench_round<MegaFlavor>(state, F);
 }

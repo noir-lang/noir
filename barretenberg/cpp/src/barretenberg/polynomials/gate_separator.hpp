@@ -8,7 +8,7 @@
 #include <vector>
 namespace bb {
 
-template <typename FF> struct PowPolynomial {
+template <typename FF> struct GateSeparatorPolynomial {
     /**
      * @brief The challenges \f$(\beta_0,\ldots, \beta_{d-1}) \f$
      *
@@ -20,7 +20,7 @@ template <typename FF> struct PowPolynomial {
      * identified with the integers \f$\ell = 0,\ldots, 2^d-1\f$
      *
      */
-    std::vector<FF> pow_betas;
+    std::vector<FF> beta_products;
     /**
      * @brief In Round \f$ i\f$ of Sumcheck, it points to the \f$ i \f$-th element in \f$ \vec \beta \f$
      *
@@ -28,7 +28,7 @@ template <typename FF> struct PowPolynomial {
     size_t current_element_idx = 0;
     /**
      * @brief In Round \f$ i\f$ of Sumcheck, the periodicity equals to \f$ 2^{i+1}\f$ and represents the fixed interval
-     * at which elements not containing either of \f$ (\beta_0,\ldots ,β_i)\f$ appear in #pow_betas.
+     * at which elements not containing either of \f$ (\beta_0,\ldots ,β_i)\f$ appear in #beta_products.
      *
      */
     size_t periodicity = 2;
@@ -42,33 +42,33 @@ template <typename FF> struct PowPolynomial {
     FF partial_evaluation_result = FF(1);
 
     /**
-     * @brief Construct a new PowPolynomial
+     * @brief Construct a new GateSeparatorPolynomial
      *
      * @param betas
      * @param log_num_monomials
      */
-    PowPolynomial(const std::vector<FF>& betas, const size_t log_num_monomials)
+    GateSeparatorPolynomial(const std::vector<FF>& betas, const size_t log_num_monomials)
         : betas(betas)
-        , pow_betas(compute_pow_betas(betas, log_num_monomials))
+        , beta_products(compute_beta_products(betas, log_num_monomials))
     {}
 
     /**
-     * @brief Construct a new PowPolynomial object without expanding to a vector of monomials
-     * @details The sumcheck verifier does not use pow_betas
+     * @brief Construct a new GateSeparatorPolynomial object without expanding to a vector of monomials
+     * @details The sumcheck verifier does not use beta_products
      *
      * @param betas
      */
-    PowPolynomial(const std::vector<FF>& betas)
+    GateSeparatorPolynomial(const std::vector<FF>& betas)
         : betas(betas)
     {}
 
     /**
-     * @brief Retruns the element in #pow_betas at place #idx.
+     * @brief Retruns the element in #beta_products at place #idx.
      *
      * @param idx
      * @return FF const&
      */
-    FF const& operator[](size_t idx) const { return pow_betas[idx]; }
+    FF const& operator[](size_t idx) const { return beta_products[idx]; }
     /**
      * @brief Computes the component  at index #current_element_idx in #betas.
      *
@@ -134,15 +134,16 @@ template <typename FF> struct PowPolynomial {
      * @brief Given \f$ \vec\beta = (\beta_0,...,\beta_{d-1})\f$ compute \f$ pow_{\ell}(\vec \beta) = pow_{\beta}(\vec
      * \ell)\f$ for \f$ \ell =0,\ldots,2^{d}-1\f$.
      *
-     * @param log_num_monomials Determines the number of beta challenges used to compute pow_betas (required because
+     * @param log_num_monomials Determines the number of beta challenges used to compute beta_products (required because
      * when we generate CONST_SIZE_PROOF_LOG_N, currently 28, challenges but the real circuit size is less than 1 <<
-     * CONST_SIZE_PROOF_LOG_N, we should compute unnecessarily a vector of pow_betas of length 1 << 28 )
+     * CONST_SIZE_PROOF_LOG_N, we should compute unnecessarily a vector of beta_products of length 1 << 28 )
      */
-    BB_PROFILE static std::vector<FF> compute_pow_betas(const std::vector<FF>& betas, const size_t log_num_monomials)
+    BB_PROFILE static std::vector<FF> compute_beta_products(const std::vector<FF>& betas,
+                                                            const size_t log_num_monomials)
     {
 
         size_t pow_size = 1 << log_num_monomials;
-        std::vector<FF> pow_betas(pow_size);
+        std::vector<FF> beta_products(pow_size);
 
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
@@ -169,20 +170,20 @@ template <typename FF> struct PowPolynomial {
                         res *= betas[beta_idx];
                     }
                 }
-                pow_betas[i] = res;
+                beta_products[i] = res;
             }
         });
 
-        return pow_betas;
+        return beta_products;
     }
 };
 /**<
- * @struct PowPolynomial
- * @brief Implementation of the methods for the \f$pow_{\ell}\f$-polynomials used in ProtoGalaxy and
+ * @struct GateSeparatorPolynomial
+ * @brief Implementation of the methods for the \f$pow_{\ell}\f$-polynomials used in Protogalaxy and
 \f$pow_{\beta}\f$-polynomials used in Sumcheck.
  *
  * @details
- * ## PowPolynomial in Protogalaxy
+ * ## GateSeparatorPolynomial in Protogalaxy
  *
  * \todo Expand this while completing PG docs.
  *
@@ -235,12 +236,12 @@ S^i_{\ell}( X_i )
  * Define
  \f{align} T^{i}( X_i ) =  \sum_{\ell = 0}^{2^{d-i-1}-1} \beta_{i+1}^{\ell_{i+1}} \cdot \ldots \cdot
 \beta_{d-1}^{\ell_{d-1}} \cdot S^{i}_{\ell}( X_i ) \f} then \f$ \deg_{X_i} (T^i) \leq \deg_{X_i} S^i \f$.
- ### Features of PowPolynomial used by Sumcheck Prover
+ ### Features of GateSeparatorPolynomial used by Sumcheck Prover
  - The factor \f$ c_i \f$ is the #partial_evaluation_result, it is updated by \ref partially_evaluate.
  - The challenges \f$(\beta_0,\ldots, \beta_{d-1}) \f$ are recorded in #betas.
  - The consecutive evaluations \f$ pow_{\ell}(\vec \beta) = pow_{\beta}(\vec \ell) \f$ for \f$\vec \ell\f$ identified
 with the integers \f$\ell = 0,\ldots, 2^d-1\f$ represented in binary are pre-computed by \ref compute_values and stored
-in #pow_betas.
+in #beta_products.
  *
  */
 

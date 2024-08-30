@@ -44,7 +44,7 @@ using TupleOfUnivariates = typename TupleOfContainersOverArray<bb::Univariate, F
 
 // Types needed for sumcheck and folding.
 template <typename FF, auto LENGTHS, size_t SKIP_COUNT>
-using OptimisedTupleOfUnivariates =
+using TupleOfUnivariatesWithOptimisticSkipping =
     typename TupleOfContainersOverArray<bb::Univariate, FF, LENGTHS, 0, SKIP_COUNT>::type;
 
 template <typename FF, auto LENGTHS>

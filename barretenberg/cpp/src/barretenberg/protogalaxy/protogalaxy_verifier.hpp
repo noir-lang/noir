@@ -7,7 +7,7 @@
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
-template <class VerifierInstances> class ProtoGalaxyVerifier_ {
+template <class VerifierInstances> class ProtogalaxyVerifier_ {
   public:
     using Flavor = typename VerifierInstances::Flavor;
     using Transcript = typename Flavor::Transcript;
@@ -27,9 +27,9 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
 
     CommitmentLabels commitment_labels;
 
-    ProtoGalaxyVerifier_(const std::vector<std::shared_ptr<Instance>>& insts)
+    ProtogalaxyVerifier_(const std::vector<std::shared_ptr<Instance>>& insts)
         : instances(VerifierInstances(insts)){};
-    ~ProtoGalaxyVerifier_() = default;
+    ~ProtogalaxyVerifier_() = default;
 
     std::shared_ptr<Instance> get_accumulator() { return instances[0]; }
 

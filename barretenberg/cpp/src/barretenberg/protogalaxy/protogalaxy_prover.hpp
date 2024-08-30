@@ -4,16 +4,16 @@
 
 namespace bb {
 
-template <class ProverInstances_> class ProtoGalaxyProver_ {
+template <class ProverInstances_> class ProtogalaxyProver_ {
   public:
     using ProverInstance = typename ProverInstances_::Instance;
     using Flavor = typename ProverInstances_::Flavor;
     using FF = typename ProverInstances_::Flavor::FF;
     static constexpr size_t NUM_INSTANCES = ProverInstances_::NUM;
     using CombinerQuotient = Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, NUM_INSTANCES>;
+    using TupleOfTuplesOfUnivariatesNoOptimisticSkipping =
+        typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariatesNoOptimisticSkipping<NUM_INSTANCES>;
     using TupleOfTuplesOfUnivariates = typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
-    using OptimisedTupleOfTuplesOfUnivariates =
-        typename Flavor::template OptimisedProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
     using UnivariateRelationParameters =
         bb::RelationParameters<Univariate<FF, ProverInstances_::EXTENDED_LENGTH, 0, /*skip_count=*/NUM_INSTANCES - 1>>;
     using UnivariateRelationSeparator =
@@ -40,11 +40,15 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     std::shared_ptr<CommitmentKey> commitment_key;
     State state;
 
-    ProtoGalaxyProver_() = default;
-    ProtoGalaxyProver_(const std::vector<std::shared_ptr<Instance>>& insts)
+    ProtogalaxyProver_() = default;
+    ProtogalaxyProver_(const std::vector<std::shared_ptr<Instance>>& insts)
         : instances(ProverInstances_(insts))
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/878)
         , commitment_key(instances[1]->proving_key.commitment_key){};
+
+    // Returns the accumulator, which is the first element in ProverInstances. The accumulator is assumed to have the
+    // FoldingParameters set and be the result of a previous round of folding.
+    std::shared_ptr<Instance> get_accumulator() { return instances[0]; }
 
     /**
      * @brief For each instance produced by a circuit, prior to folding, we need to complete the computation of its
@@ -54,20 +58,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * @param domain_separator  separates the same type of data coming from difference instances by instance
      * index
      */
-    void finalise_and_send_instance(std::shared_ptr<Instance>, const std::string& domain_separator);
-
-    /**
-     * @brief Execute the folding prover.
-     *
-     * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/753): fold goblin polynomials
-     * @return FoldingResult is a pair consisting of an accumulator and a folding proof, which is a proof that the
-     * accumulator was computed correctly.
-     */
-    BB_PROFILE FoldingResult<Flavor> prove();
-
-    // Returns the accumulator, which is the first element in ProverInstances. The accumulator is assumed to have the
-    // FoldingParameters set and be the result of a previous round of folding.
-    std::shared_ptr<Instance> get_accumulator() { return instances[0]; }
+    void run_oink_prover_on_instance(std::shared_ptr<Instance>, const std::string& domain_separator);
 
     /**
      * @brief Create inputs to folding protocol (an Oink interaction).
@@ -90,7 +81,6 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * @details Compute combiner (G polynomial in the paper) and then its quotient (K polynomial), whose coefficient
      * will be sent to the verifier.
      */
-    /*gate_challenges, alphas, optimised_relation_parameters, perturbator_evaluation, combiner_quotient */
     std::tuple<std::vector<FF>, UnivariateRelationSeparator, UnivariateRelationParameters, FF, CombinerQuotient>
     combiner_quotient_round(const std::vector<FF>& gate_challenges,
                             const std::vector<FF>& deltas,
@@ -108,5 +98,13 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                                                      const UnivariateRelationSeparator& alphas,
                                                      const UnivariateRelationParameters& univariate_relation_parameters,
                                                      const FF& perturbator_evaluation);
+
+    /**
+     * @brief Execute the folding prover.
+     *
+     * @return FoldingResult is a pair consisting of an accumulator and a folding proof, which is a proof that the
+     * accumulator was computed correctly.
+     */
+    BB_PROFILE FoldingResult<Flavor> prove();
 };
 } // namespace bb

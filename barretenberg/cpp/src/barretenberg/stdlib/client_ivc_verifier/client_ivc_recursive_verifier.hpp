@@ -11,7 +11,7 @@ class ClientIVCRecursiveVerifier {
     using RecursiveVerifierInstance = RecursiveVerifierInstances::Instance;
     using RecursiveVerificationKey = RecursiveVerifierInstances::VerificationKey;
     using DeciderVerifier = DeciderRecursiveVerifier_<RecursiveFlavor>;
-    using FoldingVerifier = ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
+    using FoldingVerifier = ProtogalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
     using GoblinVerifier = GoblinRecursiveVerifier;
 
   public:
