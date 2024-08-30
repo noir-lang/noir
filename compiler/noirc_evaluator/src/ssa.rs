@@ -96,7 +96,6 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::inline_functions, "After Inlining:")
     // Run mem2reg with the CFG separated into blocks
     .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-    // .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
     .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
     .try_run_pass(
         Ssa::evaluate_static_assert_and_assert_constant,
@@ -121,6 +120,13 @@ pub(crate) fn optimize_into_acir(
     // TODO: mem2reg and DIE were put here to delete any stores that can be removes following die removing loads.
     // Decide whether we want to run mem2reg once more or just have it able to handle this case on its own
     // NOTE: Running these two passes causes uhashmap to fail with a type mismatch:
+    // ```
+    //     error: Assertion failed: 'Bit size for lhs 0 does not match op bit size 32'
+    //     ┌─ std/collections/umap.nr:358:12
+    //     │
+    // 358 │         if self.len() + 1 >= self.capacity() / 2 {
+    // ```
+    //
     // .run_pass(Ssa::mem2reg, "After Mem2Reg:")
     // The extra mem2reg requires another DIE as we can have allocates we do not want
     // .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
