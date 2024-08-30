@@ -288,7 +288,7 @@ impl<'f> PerFunctionContext<'f> {
                 //     }
                 // }
 
-                // NOTE: This causes the same failures as the last_loads approach
+                // // NOTE: This causes the same failures as the last_loads approach
                 if let Some(known_value) = references.get_known_value(value) {
                     if known_value == address && !from_rc {
                         self.instructions_to_remove.insert(instruction);
