@@ -1,6 +1,6 @@
 use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder;
 
-fn unshift_empty_item<T, N>(vec: &mut BoundedVec<T, N>) {
+fn unshift_empty_item<T, let N: u32>(vec: &mut BoundedVec<T, N>) {
     let len = vec.len();
     let empty_item = vec.storage[len];
     let first_item = vec.get(0);

@@ -4,12 +4,12 @@ use dep::types::{
     traits::{Empty, is_empty}
 };
 
-trait NonMembershipHint<TREE_HEIGHT, LEAF_PREIMAGE> where LEAF_PREIMAGE: IndexedTreeLeafPreimage {
+trait NonMembershipHint<let TREE_HEIGHT: u32, LEAF_PREIMAGE> where LEAF_PREIMAGE: IndexedTreeLeafPreimage {
     fn low_leaf_preimage(self) -> LEAF_PREIMAGE;
     fn membership_witness(self) -> MembershipWitness<TREE_HEIGHT>;
 }
 
-fn check_no_matching_pending_value<T, N>(
+fn check_no_matching_pending_value<T, let N: u32>(
     read_request: ScopedReadRequest,
     sorted_pending_values: BoundedVec<T, N>,
     next_value_index: u32
@@ -30,7 +30,7 @@ fn check_no_matching_pending_value<T, N>(
     }
 }
 
-fn check_is_read_before_pending_value<T, N>(
+fn check_is_read_before_pending_value<T, let N: u32>(
     read_request: ScopedReadRequest,
     sorted_pending_values: BoundedVec<T, N>,
     next_value_index: u32
@@ -51,14 +51,14 @@ fn check_is_read_before_pending_value<T, N>(
 // Unlike regular read requests, which can be reset at any time between two function executions.
 // Non existent read requests can only be verified at the end, after all pending values are present.
 // The values in read_requests and in sorted_pending_values should've been siloed before calling this.
-pub fn reset_non_existent_read_requests<T, N, M, NON_MEMBERSHIP_HINT, TREE_HEIGHT, LEAF_PREIMAGE>(
+pub fn reset_non_existent_read_requests<T, let N: u32, let M: u32, NON_MEMBERSHIP_HINT, let TREE_HEIGHT: u32, LEAF_PREIMAGE>(
     siloed_read_requests: [ScopedReadRequest; N],
     non_membership_hints: [NON_MEMBERSHIP_HINT; N],
     tree_root: Field,
     sorted_pending_values: BoundedVec<T, M>,
     next_pending_value_indices: [u32; N]
-) where 
-    T: OrderedValue<Field>, 
+) where
+    T: OrderedValue<Field>,
     NON_MEMBERSHIP_HINT: NonMembershipHint<TREE_HEIGHT, LEAF_PREIMAGE>,
     LEAF_PREIMAGE: IndexedTreeLeafPreimage {
     for i in 0..siloed_read_requests.len() {
@@ -176,7 +176,7 @@ mod tests {
         )
     }
 
-    fn get_non_membership_hints<N>(leaf_indices: [Field; N]) -> ([TestNonMembershipHint; N], Field) {
+    fn get_non_membership_hints<let N: u32>(leaf_indices: [Field; N]) -> ([TestNonMembershipHint; N], Field) {
         let tree = build_tree();
         let hints = leaf_indices.map(
             |leaf_index| TestNonMembershipHint {

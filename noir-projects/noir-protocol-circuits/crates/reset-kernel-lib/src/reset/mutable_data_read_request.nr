@@ -15,7 +15,7 @@ impl LeafDataReadHint {
     }
 }
 
-fn validate_pending_read_requests<READ_REQUEST_LEN, PENDING_VALUE_LEN, NUM_PENDING_READS>(
+fn validate_pending_read_requests<let READ_REQUEST_LEN: u32, let PENDING_VALUE_LEN: u32, let NUM_PENDING_READS: u32>(
     read_requests: [PublicDataRead; READ_REQUEST_LEN],
     data_writes: [PublicDataUpdateRequest; PENDING_VALUE_LEN],
     hints: [PendingReadHint; NUM_PENDING_READS]
@@ -40,7 +40,7 @@ fn validate_pending_read_requests<READ_REQUEST_LEN, PENDING_VALUE_LEN, NUM_PENDI
     }
 }
 
-fn validate_leaf_data_read_requests<READ_REQUEST_LEN, NUM_LEAF_DATA_HINTS, H, NUM_LEAF_DATA_READS>(
+fn validate_leaf_data_read_requests<let READ_REQUEST_LEN: u32, let NUM_LEAF_DATA_HINTS: u32, H, let NUM_LEAF_DATA_READS: u32>(
     read_requests: [PublicDataRead; READ_REQUEST_LEN],
     leaf_data_hints: [H; NUM_LEAF_DATA_HINTS],
     hints: [LeafDataReadHint; NUM_LEAF_DATA_READS]
@@ -60,7 +60,7 @@ fn validate_leaf_data_read_requests<READ_REQUEST_LEN, NUM_LEAF_DATA_HINTS, H, NU
     }
 }
 
-fn ensure_all_read_requests_are_verified<READ_REQUEST_LEN, NUM_PENDING_READS, NUM_LEAF_DATA_READS>(
+fn ensure_all_read_requests_are_verified<let READ_REQUEST_LEN: u32, let NUM_PENDING_READS: u32, let NUM_LEAF_DATA_READS: u32>(
     read_requests: [PublicDataRead; READ_REQUEST_LEN],
     read_request_statuses: [ReadRequestStatus; READ_REQUEST_LEN],
     pending_read_hints: [PendingReadHint; NUM_PENDING_READS],
@@ -85,7 +85,14 @@ fn ensure_all_read_requests_are_verified<READ_REQUEST_LEN, NUM_PENDING_READS, NU
     }
 }
 
-pub fn reset_mutable_data_read_requests<READ_REQUEST_LEN, PENDING_VALUE_LEN, H, NUM_LEAF_DATA_HINTS, NUM_PENDING_READS, NUM_LEAF_DATA_READS>(
+pub fn reset_mutable_data_read_requests<
+    let READ_REQUEST_LEN: u32,
+    let PENDING_VALUE_LEN: u32,
+    H,
+    let NUM_LEAF_DATA_HINTS: u32,
+    let NUM_PENDING_READS: u32,
+    let NUM_LEAF_DATA_READS: u32
+>(
     read_requests: [PublicDataRead; READ_REQUEST_LEN],
     read_request_statuses: [ReadRequestStatus; READ_REQUEST_LEN],
     data_writes: [PublicDataUpdateRequest; PENDING_VALUE_LEN],
@@ -150,7 +157,7 @@ mod tests {
         TestLeafDataHint { leaf_slot: 5, value: 50 },
     ];
 
-    fn create_pending_read_requests<N>(data_write_indices: [u32; N]) -> ([PublicDataRead; N], [PendingReadHint; N]) {
+    fn create_pending_read_requests<let N: u32>(data_write_indices: [u32; N]) -> ([PublicDataRead; N], [PendingReadHint; N]) {
         let read_requests = data_write_indices.map(
             |data_write_index: u32| PublicDataRead { leaf_slot: data_writes[data_write_index].leaf_slot, value: data_writes[data_write_index].new_value }
         );
@@ -161,7 +168,7 @@ mod tests {
         (read_requests, hints.storage)
     }
 
-    fn create_leaf_data_read_requests<N>(data_hint_indices: [u32; N]) -> ([PublicDataRead; N], [LeafDataReadHint; N]) {
+    fn create_leaf_data_read_requests<let N: u32>(data_hint_indices: [u32; N]) -> ([PublicDataRead; N], [LeafDataReadHint; N]) {
         let read_requests = data_hint_indices.map(
             |data_hint_index: u32| PublicDataRead { leaf_slot: leaf_data_hints[data_hint_index].leaf_slot, value: leaf_data_hints[data_hint_index].value }
         );
