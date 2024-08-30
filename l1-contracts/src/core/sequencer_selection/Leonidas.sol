@@ -78,11 +78,6 @@ contract Leonidas is Ownable, ILeonidas {
 
   constructor(address _ares) Ownable(_ares) {
     GENESIS_TIME = block.timestamp;
-
-    // We will setup the initial epoch value
-    uint256 seed = _computeNextSeed(0);
-    epochs[0] = Epoch({committee: new address[](0), sampleSeed: type(uint256).max, nextSeed: seed});
-    lastSeed = seed;
   }
 
   /**
@@ -135,10 +130,6 @@ contract Leonidas is Ownable, ILeonidas {
 
   function getCommitteeAt(uint256 _ts) internal view returns (address[] memory) {
     uint256 epochNumber = getEpochAt(_ts);
-    if (epochNumber == 0) {
-      return new address[](0);
-    }
-
     Epoch storage epoch = epochs[epochNumber];
 
     if (epoch.sampleSeed != 0) {
@@ -156,7 +147,7 @@ contract Leonidas is Ownable, ILeonidas {
 
     // Emulate a sampling of the validators
     uint256 sampleSeed = _getSampleSeed(epochNumber);
-    return _sampleValidators(epochNumber, sampleSeed);
+    return _sampleValidators(sampleSeed);
   }
 
   /**
@@ -224,12 +215,11 @@ contract Leonidas is Ownable, ILeonidas {
     uint256 epochNumber = getCurrentEpoch();
     Epoch storage epoch = epochs[epochNumber];
 
-    // For epoch 0 the sampleSeed == type(uint256).max, so we will never enter this
     if (epoch.sampleSeed == 0) {
       epoch.sampleSeed = _getSampleSeed(epochNumber);
       epoch.nextSeed = lastSeed = _computeNextSeed(epochNumber);
 
-      epoch.committee = _sampleValidators(epochNumber, epoch.sampleSeed);
+      epoch.committee = _sampleValidators(epoch.sampleSeed);
     }
   }
 
@@ -326,7 +316,7 @@ contract Leonidas is Ownable, ILeonidas {
 
     // Emulate a sampling of the validators
     uint256 sampleSeed = _getSampleSeed(epochNumber);
-    address[] memory committee = _sampleValidators(epochNumber, sampleSeed);
+    address[] memory committee = _sampleValidators(sampleSeed);
     return committee[_computeProposerIndex(epochNumber, slot, sampleSeed, committee.length)];
   }
 
@@ -415,23 +405,9 @@ contract Leonidas is Ownable, ILeonidas {
    * @dev     Only used internally, should never be called for anything but the "next" epoch
    *          Allowing us to always use `lastSeed`.
    *
-   * @dev     The first epoch will always return an empty list
-   *          If the validator set is empty, we return an empty list
-   *          If the validator set is smaller than the target committee size, we return the full set
-   *          If the validator set is larger than the target committee size, we sample the validators
-   *          by using the seed of the previous epoch to compute an offset for the validator set and then
-   *          we take the next `TARGET_COMMITTEE_SIZE` validators from that offset (wrapping around).
-   *
-   * @param _epoch - The epoch to sample the validators for
-   *
    * @return The validators for the given epoch
    */
-  function _sampleValidators(uint256 _epoch, uint256 _seed) private view returns (address[] memory) {
-    // If we are in the first epoch, we just return an empty list
-    if (_epoch == 0) {
-      return new address[](0);
-    }
-
+  function _sampleValidators(uint256 _seed) private view returns (address[] memory) {
     uint256 validatorSetSize = validatorSet.length();
     if (validatorSetSize == 0) {
       return new address[](0);
@@ -467,6 +443,9 @@ contract Leonidas is Ownable, ILeonidas {
    * @return The sample seed for the epoch
    */
   function _getSampleSeed(uint256 _epoch) private view returns (uint256) {
+    if (_epoch == 0) {
+      return type(uint256).max;
+    }
     uint256 sampleSeed = epochs[_epoch].sampleSeed;
     if (sampleSeed != 0) {
       return sampleSeed;

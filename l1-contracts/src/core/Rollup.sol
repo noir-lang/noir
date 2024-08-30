@@ -104,6 +104,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     for (uint256 i = 0; i < _validators.length; i++) {
       _addValidator(_validators[i]);
     }
+    setupEpoch();
   }
 
   /**

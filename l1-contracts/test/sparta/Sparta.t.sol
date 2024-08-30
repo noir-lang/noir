@@ -59,6 +59,14 @@ contract SpartaTest is DecoderBase {
       vm.warp(initialTime);
     }
 
+    address[] memory initialValidators = new address[](_validatorCount);
+    for (uint256 i = 1; i < _validatorCount + 1; i++) {
+      uint256 privateKey = uint256(keccak256(abi.encode("validator", i)));
+      address validator = vm.addr(privateKey);
+      privateKeys[validator] = privateKey;
+      initialValidators[i - 1] = validator;
+    }
+
     registry = new Registry(address(this));
     availabilityOracle = new AvailabilityOracle();
     portalERC20 = new PortalERC20();
@@ -68,7 +76,7 @@ contract SpartaTest is DecoderBase {
       IFeeJuicePortal(address(0)),
       bytes32(0),
       address(this),
-      new address[](0)
+      initialValidators
     );
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
@@ -78,13 +86,28 @@ contract SpartaTest is DecoderBase {
     merkleTestUtil = new MerkleTestUtil();
     txsHelper = new TxsDecoderHelper();
 
-    for (uint256 i = 1; i < _validatorCount + 1; i++) {
-      uint256 privateKey = uint256(keccak256(abi.encode("validator", i)));
-      address validator = vm.addr(privateKey);
-      privateKeys[validator] = privateKey;
-      rollup.addValidator(validator);
-    }
     _;
+  }
+
+  mapping(address => bool) internal _seenValidators;
+  mapping(address => bool) internal _seenCommittee;
+
+  function testInitialCommitteMatch() public setup(4) {
+    address[] memory validators = rollup.getValidators();
+    address[] memory committee = rollup.getCurrentEpochCommittee();
+    assertEq(rollup.getCurrentEpoch(), 0);
+    assertEq(validators.length, 4, "Invalid validator set size");
+    assertEq(committee.length, 4, "invalid committee set size");
+
+    for (uint256 i = 0; i < validators.length; i++) {
+      _seenValidators[validators[i]] = true;
+    }
+
+    for (uint256 i = 0; i < committee.length; i++) {
+      assertTrue(_seenValidators[committee[i]]);
+      assertFalse(_seenCommittee[committee[i]]);
+      _seenCommittee[committee[i]] = true;
+    }
   }
 
   function testProposerForNonSetupEpoch(uint8 _epochsToJump) public setup(4) {
