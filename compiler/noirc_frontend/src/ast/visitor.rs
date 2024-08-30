@@ -448,19 +448,19 @@ impl Item {
             ItemKind::Impl(type_impl) => type_impl.accept(self.span, visitor),
             ItemKind::Global(let_statement) => {
                 if visitor.visit_global(let_statement, self.span) {
-                    let_statement.accept(visitor)
+                    let_statement.accept(visitor);
                 }
             }
             ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
             ItemKind::Import(use_tree) => {
                 if visitor.visit_import(use_tree) {
-                    use_tree.accept(visitor)
+                    use_tree.accept(visitor);
                 }
             }
             ItemKind::TypeAlias(noir_type_alias) => noir_type_alias.accept(self.span, visitor),
             ItemKind::Struct(noir_struct) => noir_struct.accept(self.span, visitor),
             ItemKind::ModuleDecl(module_declaration) => {
-                module_declaration.accept(self.span, visitor)
+                module_declaration.accept(self.span, visitor);
             }
         }
     }
@@ -522,7 +522,7 @@ impl TraitImplItem {
         match self {
             TraitImplItem::Function(noir_function) => {
                 if visitor.visit_trait_impl_item_function(noir_function) {
-                    noir_function.accept(None, visitor)
+                    noir_function.accept(None, visitor);
                 }
             }
             TraitImplItem::Constant(name, unresolved_type, expression) => {
@@ -942,7 +942,7 @@ impl ArrayLiteral {
         match self {
             ArrayLiteral::Standard(expressions) => {
                 if visitor.visit_array_literal_standard(expressions) {
-                    visit_expressions(expressions, visitor)
+                    visit_expressions(expressions, visitor);
                 }
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -1062,7 +1062,7 @@ impl LValue {
             LValue::Ident(ident) => visitor.visit_lvalue_ident(ident),
             LValue::MemberAccess { object, field_name, span } => {
                 if visitor.visit_lvalue_member_access(object, field_name, *span) {
-                    object.accept(visitor)
+                    object.accept(visitor);
                 }
             }
             LValue::Index { array, index, span } => {
@@ -1073,7 +1073,7 @@ impl LValue {
             }
             LValue::Dereference(lvalue, span) => {
                 if visitor.visit_lvalue_dereference(lvalue, *span) {
-                    lvalue.accept(visitor)
+                    lvalue.accept(visitor);
                 }
             }
             LValue::Interned(id, span) => visitor.visit_lvalue_interned(*id, *span),
@@ -1182,7 +1182,7 @@ impl UnresolvedType {
             UnresolvedTypeData::Quoted(typ) => visitor.visit_quoted_type(typ, self.span),
             UnresolvedTypeData::FieldElement => visitor.visit_field_element_type(self.span),
             UnresolvedTypeData::Integer(signdness, size) => {
-                visitor.visit_integer_type(*signdness, *size, self.span)
+                visitor.visit_integer_type(*signdness, *size, self.span);
             }
             UnresolvedTypeData::Bool => visitor.visit_bool_type(self.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.span),
