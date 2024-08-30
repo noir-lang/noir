@@ -31,7 +31,7 @@ fn inject_context(f: FunctionDefinition) {
     f.set_parameters(parameters);
 
     // Create a new body where every function call has `_context` added to the list of arguments.
-    let body = f.body().mutate(mapping_function);
+    let body = f.body().modify(mapping_function);
     f.set_body(body);
 }
 

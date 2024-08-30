@@ -956,13 +956,13 @@ impl<'a> Context<'a> {
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             arguments,
             BrilligFunctionContext::return_values(func),
-            BrilligFunctionContext::function_id_to_function_label(func.id()),
+            func.id(),
         );
         entry_point.name = func.name().to_string();
 
         // Link the entry point with all dependencies
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-            let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone());
+            let artifact = &brillig.find_by_label(unresolved_fn_label);
             let artifact = match artifact {
                 Some(artifact) => artifact,
                 None => {

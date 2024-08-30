@@ -1,4 +1,4 @@
-use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
+use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::BigIntSolver;
 use acvm_blackbox_solver::{
@@ -6,6 +6,7 @@ use acvm_blackbox_solver::{
     keccakf1600, sha256, sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 use num_bigint::BigUint;
+use num_traits::Zero;
 
 use crate::memory::MemoryValue;
 use crate::Memory;
@@ -366,7 +367,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write_slice(memory.read_ref(output.pointer), &state);
             Ok(())
         }
-        BlackBoxOp::ToRadix { input, radix, output } => {
+        BlackBoxOp::ToRadix { input, radix, output, output_bits } => {
             let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
@@ -376,7 +377,15 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
 
             for _ in 0..output.size {
                 let limb = &input % &radix;
-                limbs.push(MemoryValue::new_field(F::from_be_bytes_reduce(&limb.to_bytes_be())));
+                if *output_bits {
+                    limbs.push(MemoryValue::new_integer(
+                        if limb.is_zero() { 0 } else { 1 },
+                        IntegerBitSize::U1,
+                    ));
+                } else {
+                    let limb: u8 = limb.try_into().unwrap();
+                    limbs.push(MemoryValue::new_integer(limb as u128, IntegerBitSize::U8));
+                };
                 input /= &radix;
             }
 

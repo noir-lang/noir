@@ -4,11 +4,11 @@ use super::SignatureFinder;
 
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, AssignStatement, BlockExpression, CastExpression, ConstrainStatement,
-        ConstructorExpression, Expression, ExpressionKind, ForLoopStatement, ForRange,
-        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-        MemberAccessExpression, NoirFunction, NoirTrait, NoirTraitImpl, Statement, StatementKind,
-        TraitImplItem, TraitItem, TypeImpl,
+        ArrayLiteral, AssignStatement, BlockExpression, CastExpression, ConstructorExpression,
+        Expression, ExpressionKind, ForLoopStatement, ForRange, IfExpression, IndexExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
+        NoirFunction, NoirTrait, NoirTraitImpl, Statement, StatementKind, TraitImplItem, TraitItem,
+        TypeImpl,
     },
     parser::{Item, ItemKind},
     ParsedModule,
@@ -134,14 +134,6 @@ impl<'a> SignatureFinder<'a> {
 
     pub(super) fn find_in_let_statement(&mut self, let_statement: &LetStatement) {
         self.find_in_expression(&let_statement.expression);
-    }
-
-    pub(super) fn find_in_constrain_statement(&mut self, constrain_statement: &ConstrainStatement) {
-        self.find_in_expression(&constrain_statement.0);
-
-        if let Some(exp) = &constrain_statement.1 {
-            self.find_in_expression(exp);
-        }
     }
 
     pub(super) fn find_in_assign_statement(&mut self, assign_statement: &AssignStatement) {
