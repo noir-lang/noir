@@ -68,6 +68,10 @@ runs:
         ec2_key_name: "build-instance"
         ec2_instance_tags: "[]"
 
+    - name: Print Startup Log
+      shell: bash
+      run: cat /run/log.out || true # don't fail
+
     # Set up a context for this run
     - name: Copy Repo to Tester
       shell: bash
