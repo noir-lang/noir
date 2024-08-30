@@ -446,7 +446,7 @@ void IndexedTree<Store, HashingPolicy>::perform_insertions(size_t total_leaves,
 
     // We now kick off multiple workers to perform the low leaf updates
     // We create set of signals to coordinate the workers as the move up the tree
-    std::shared_ptr<std::vector<Signal>> signals = std::make_shared<std::vector<Signal>>();
+    auto signals = std::make_shared<std::vector<Signal>>();
     std::shared_ptr<Status> status = std::make_shared<Status>();
     // The first signal is set to 0. This ensures the first worker up the tree is not impeded
     signals->emplace_back(0);

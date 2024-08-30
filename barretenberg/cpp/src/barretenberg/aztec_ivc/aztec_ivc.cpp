@@ -14,7 +14,7 @@ void AztecIVC::complete_kernel_circuit_logic(ClientCircuit& circuit)
 {
     circuit.databus_propagation_data.is_kernel = true;
 
-    // Peform recursive verification and databus consistency checks for each entry in the verification queue
+    // Perform recursive verification and databus consistency checks for each entry in the verification queue
     for (auto& [proof, vkey, type] : verification_queue) {
         // Construct stdlib verification key and proof
         auto stdlib_proof = bb::convert_proof_to_witness(&circuit, proof);

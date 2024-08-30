@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 #include "barretenberg/common/serialize.hpp"

@@ -3,7 +3,6 @@
 #include "barretenberg/vm/avm/trace/helper.hpp"
 #include "barretenberg/vm/constants.hpp"
 #include "common.test.hpp"
-#include <bits/utility.h>
 
 namespace tests_avm {
 
