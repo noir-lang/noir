@@ -1534,7 +1534,7 @@ fn function_def_has_named_attribute(
             continue;
         };
 
-        if path.last_name() == &name {
+        if path.last_name() == name {
             return Ok(Value::Bool(true));
         }
     }
