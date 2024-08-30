@@ -140,6 +140,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
             "type_as_slice" => type_as_slice(arguments, return_type, location),
+            "type_as_string" => type_as_string(arguments, return_type, location),
             "type_as_struct" => type_as_struct(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
@@ -533,6 +534,21 @@ fn type_as_slice(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Slice(slice_type) = typ {
             Some(Value::Type(*slice_type))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_string(self) -> Option<Type>
+fn type_as_string(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::String(n) = typ {
+            Some(Value::Type(*n))
         } else {
             None
         }

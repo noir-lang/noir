@@ -45,6 +45,12 @@ if the type is signed, as well as the number of bits of this integer type.
 
 If this is a slice type, return the element type of the slice.
 
+### as_string
+
+#include_code as_string noir_stdlib/src/meta/typ.nr rust
+
+If this is a string type, returns its length as a type.
+
 ### as_struct
 
 #include_code as_struct noir_stdlib/src/meta/typ.nr rust
