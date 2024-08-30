@@ -14,6 +14,11 @@ use crate::{
     ParsedModule,
 };
 
+use super::{
+    FunctionReturnType, GenericTypeArgs, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+};
+
 /// Implements the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) for Noir's AST.
 ///
 /// In this implementation, methods must return a bool:
@@ -57,6 +62,29 @@ pub trait Visitor {
         true
     }
 
+    fn visit_trait_item_function(
+        &mut self,
+        _name: &Ident,
+        _generics: &UnresolvedGenerics,
+        _parameters: &[(Ident, UnresolvedType)],
+        _return_type: &FunctionReturnType,
+        _where_clause: &[UnresolvedTraitConstraint],
+        _body: &Option<BlockExpression>,
+    ) -> bool {
+        true
+    }
+
+    fn visit_trait_item_constant(
+        &mut self,
+        _name: &Ident,
+        _typ: &UnresolvedType,
+        _default_value: &Option<Expression>,
+    ) -> bool {
+        true
+    }
+
+    fn visit_trait_item_type(&mut self, _: &Ident) {}
+
     fn visit_use_tree(&mut self, _: &UseTree) -> bool {
         true
     }
@@ -67,9 +95,13 @@ pub trait Visitor {
         true
     }
 
-    fn visit_noir_struct(&mut self, _: &NoirStruct, _: Span) {}
+    fn visit_noir_struct(&mut self, _: &NoirStruct, _: Span) -> bool {
+        true
+    }
 
-    fn visit_noir_type_alias(&mut self, _: &NoirTypeAlias, _: Span) {}
+    fn visit_noir_type_alias(&mut self, _: &NoirTypeAlias, _: Span) -> bool {
+        true
+    }
 
     fn visit_module_declaration(&mut self, _: &ModuleDeclaration, _: Span) {}
 
@@ -141,7 +173,9 @@ pub trait Visitor {
         true
     }
 
-    fn visit_variable(&mut self, _: &Path, _: Span) {}
+    fn visit_variable(&mut self, _: &Path, _: Span) -> bool {
+        true
+    }
 
     fn visit_lambda(&mut self, _: &Lambda, _: Span) -> bool {
         true
@@ -152,6 +186,10 @@ pub trait Visitor {
     }
 
     fn visit_statement(&mut self, _: &Statement) -> bool {
+        true
+    }
+
+    fn visit_import(&mut self, _: &UseTree) -> bool {
         true
     }
 
@@ -189,7 +227,71 @@ pub trait Visitor {
         true
     }
 
-    fn visit_as_trait_path(&mut self, _: &AsTraitPath, _: Span) {}
+    fn visit_as_trait_path(&mut self, _: &AsTraitPath, _: Span) -> bool {
+        true
+    }
+
+    fn visit_unresolved_type(&mut self, _: &UnresolvedType) -> bool {
+        true
+    }
+
+    fn visit_array_type(
+        &mut self,
+        _: &UnresolvedTypeExpression,
+        _: &UnresolvedType,
+        _: Span,
+    ) -> bool {
+        true
+    }
+
+    fn visit_slice_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+        true
+    }
+
+    fn visit_parenthesized_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+        true
+    }
+
+    fn visit_named_type(&mut self, _: &Path, _: &GenericTypeArgs, _: Span) -> bool {
+        true
+    }
+
+    fn visit_trait_as_type(&mut self, _: &Path, _: &GenericTypeArgs, _: Span) -> bool {
+        true
+    }
+
+    fn visit_mutable_reference_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+        true
+    }
+
+    fn visit_tuple_type(&mut self, _: &[UnresolvedType], _: Span) -> bool {
+        true
+    }
+
+    fn visit_function_type(
+        &mut self,
+        _args: &[UnresolvedType],
+        _ret: &UnresolvedType,
+        _env: &UnresolvedType,
+        _unconstrained: bool,
+        _span: Span,
+    ) -> bool {
+        true
+    }
+
+    fn visit_as_trait_path_type(&mut self, _: &AsTraitPath, _: Span) -> bool {
+        true
+    }
+
+    fn visit_path(&mut self, _: &Path) {}
+
+    fn visit_generic_type_args(&mut self, _: &GenericTypeArgs) -> bool {
+        true
+    }
+
+    fn visit_function_return_type(&mut self, _: &FunctionReturnType) -> bool {
+        true
+    }
 }
 
 impl ParsedModule {
@@ -229,7 +331,11 @@ impl Item {
                 }
             }
             ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
-            ItemKind::Import(use_tree) => use_tree.accept(visitor),
+            ItemKind::Import(use_tree) => {
+                if visitor.visit_import(use_tree) {
+                    use_tree.accept(visitor)
+                }
+            }
             ItemKind::TypeAlias(noir_type_alias) => noir_type_alias.accept(self.span, visitor),
             ItemKind::Struct(noir_struct) => noir_struct.accept(self.span, visitor),
             ItemKind::ModuleDecl(module_declaration) => {
@@ -259,6 +365,10 @@ impl NoirFunction {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for param in &self.def.parameters {
+            param.typ.accept(visitor);
+        }
+
         self.def.body.accept(None, visitor);
     }
 }
@@ -271,6 +381,9 @@ impl NoirTraitImpl {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.trait_name.accept(visitor);
+        self.object_type.accept(visitor);
+
         for item in &self.items {
             item.accept(visitor);
         }
@@ -301,6 +414,8 @@ impl TypeImpl {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.object_type.accept(visitor);
+
         for (method, span) in &self.methods {
             method.accept(Some(*span), visitor);
         }
@@ -330,24 +445,40 @@ impl TraitItem {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            TraitItem::Function {
-                name: _,
-                generics: _,
-                parameters: _,
-                return_type: _,
-                where_clause: _,
-                body,
-            } => {
-                if let Some(body) = body {
-                    body.accept(None, visitor);
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+                if visitor.visit_trait_item_function(
+                    name,
+                    generics,
+                    parameters,
+                    return_type,
+                    where_clause,
+                    body,
+                ) {
+                    for (_name, unresolved_type) in parameters {
+                        unresolved_type.accept(visitor);
+                    }
+
+                    return_type.accept(visitor);
+
+                    for unresolved_trait_constraint in where_clause {
+                        unresolved_trait_constraint.typ.accept(visitor);
+                    }
+
+                    if let Some(body) = body {
+                        body.accept(None, visitor);
+                    }
                 }
             }
-            TraitItem::Constant { name: _, typ: _, default_value } => {
-                if let Some(default_value) = default_value {
-                    default_value.accept(visitor);
+            TraitItem::Constant { name, typ, default_value } => {
+                if visitor.visit_trait_item_constant(name, typ, default_value) {
+                    typ.accept(visitor);
+
+                    if let Some(default_value) = default_value {
+                        default_value.accept(visitor);
+                    }
                 }
             }
-            TraitItem::Type { name: _ } => (),
+            TraitItem::Type { name } => visitor.visit_trait_item_type(name),
         }
     }
 }
@@ -375,13 +506,27 @@ impl UseTree {
 
 impl NoirStruct {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
-        visitor.visit_noir_struct(self, span);
+        if visitor.visit_noir_struct(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for (_name, unresolved_type) in &self.fields {
+            unresolved_type.accept(visitor);
+        }
     }
 }
 
 impl NoirTypeAlias {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
-        visitor.visit_noir_type_alias(self, span);
+        if visitor.visit_noir_type_alias(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.typ.accept(visitor);
     }
 }
 
@@ -458,7 +603,9 @@ impl Expression {
                 }
             }
             ExpressionKind::Variable(path) => {
-                visitor.visit_variable(path, self.span);
+                if visitor.visit_variable(path, self.span) {
+                    path.accept(visitor);
+                }
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
                 as_trait_path.accept(self.span, visitor);
@@ -566,6 +713,8 @@ impl ConstructorExpression {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.type_name.accept(visitor);
+
         for (_field_name, expression) in &self.fields {
             expression.accept(visitor);
         }
@@ -633,6 +782,10 @@ impl Lambda {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for (_, unresolved_type) in &self.parameters {
+            unresolved_type.accept(visitor);
+        }
+
         self.body.accept(visitor);
     }
 }
@@ -703,6 +856,7 @@ impl LetStatement {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.r#type.accept(visitor);
         self.expression.accept(visitor);
     }
 }
@@ -790,12 +944,138 @@ impl ForRange {
 
 impl AsTraitPath {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
-        visitor.visit_as_trait_path(self, span);
+        if visitor.visit_as_trait_path(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.trait_path.accept(visitor);
+        self.trait_generics.accept(visitor);
+    }
+}
+
+impl UnresolvedType {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_unresolved_type(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        match &self.typ {
+            UnresolvedTypeData::Array(unresolved_type_expression, unresolved_type) => {
+                if visitor.visit_array_type(unresolved_type_expression, unresolved_type, self.span)
+                {
+                    unresolved_type.accept(visitor);
+                }
+            }
+            UnresolvedTypeData::Slice(unresolved_type) => {
+                if visitor.visit_slice_type(unresolved_type, self.span) {
+                    unresolved_type.accept(visitor);
+                }
+            }
+            UnresolvedTypeData::Parenthesized(unresolved_type) => {
+                if visitor.visit_parenthesized_type(unresolved_type, self.span) {
+                    unresolved_type.accept(visitor);
+                }
+            }
+            UnresolvedTypeData::Named(path, generic_type_args, _) => {
+                if visitor.visit_named_type(path, generic_type_args, self.span) {
+                    path.accept(visitor);
+                    generic_type_args.accept(visitor);
+                }
+            }
+            UnresolvedTypeData::TraitAsType(path, generic_type_args) => {
+                if visitor.visit_trait_as_type(path, generic_type_args, self.span) {
+                    path.accept(visitor);
+                    generic_type_args.accept(visitor);
+                }
+            }
+            UnresolvedTypeData::MutableReference(unresolved_type) => {
+                if visitor.visit_mutable_reference_type(unresolved_type, self.span) {
+                    unresolved_type.accept(visitor);
+                }
+            }
+            UnresolvedTypeData::Tuple(unresolved_types) => {
+                if visitor.visit_tuple_type(unresolved_types, self.span) {
+                    visit_unresolved_types(unresolved_types, visitor);
+                }
+            }
+            UnresolvedTypeData::Function(args, ret, env, unconstrained) => {
+                if visitor.visit_function_type(args, ret, env, *unconstrained, self.span) {
+                    visit_unresolved_types(args, visitor);
+                    ret.accept(visitor);
+                    env.accept(visitor);
+                }
+            }
+            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+                if visitor.visit_as_trait_path_type(as_trait_path, self.span) {
+                    as_trait_path.accept(self.span, visitor);
+                }
+            }
+            UnresolvedTypeData::Expression(_)
+            | UnresolvedTypeData::FormatString(_, _)
+            | UnresolvedTypeData::String(_)
+            | UnresolvedTypeData::Unspecified
+            | UnresolvedTypeData::Quoted(_)
+            | UnresolvedTypeData::FieldElement
+            | UnresolvedTypeData::Integer(_, _)
+            | UnresolvedTypeData::Bool
+            | UnresolvedTypeData::Unit
+            | UnresolvedTypeData::Resolved(_)
+            | UnresolvedTypeData::Interned(_)
+            | UnresolvedTypeData::Error => (),
+        }
+    }
+}
+
+impl Path {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        visitor.visit_path(self);
+    }
+}
+
+impl GenericTypeArgs {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_generic_type_args(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        visit_unresolved_types(&self.ordered_args, visitor);
+        for (_name, typ) in &self.named_args {
+            typ.accept(visitor);
+        }
+    }
+}
+
+impl FunctionReturnType {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_function_return_type(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        match self {
+            FunctionReturnType::Default(_) => (),
+            FunctionReturnType::Ty(unresolved_type) => {
+                unresolved_type.accept(visitor);
+            }
+        }
     }
 }
 
 fn visit_expressions(expressions: &[Expression], visitor: &mut impl Visitor) {
     for expression in expressions {
         expression.accept(visitor);
+    }
+}
+
+fn visit_unresolved_types(unresolved_type: &[UnresolvedType], visitor: &mut impl Visitor) {
+    for unresolved_type in unresolved_type {
+        unresolved_type.accept(visitor);
     }
 }
