@@ -869,7 +869,7 @@ impl<'f> Context<'f> {
         for (address, store) in store_values {
             let address = *address;
             let value = store.old_value;
-            let instruction = Instruction::Store { address, value, from_rc: false, };
+            let instruction = Instruction::Store { address, value, from_rc: false };
             // Considering the location of undoing a store to be the same as the original store.
             self.insert_instruction_with_typevars(instruction, None, store.call_stack.clone());
         }
