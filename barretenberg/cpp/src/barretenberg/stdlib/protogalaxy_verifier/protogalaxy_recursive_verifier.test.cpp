@@ -161,7 +161,7 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
             coeffs.emplace_back(el);
             coeffs_ct.emplace_back(fr_ct(&builder, el));
         }
-        LegacyPolynomial<fr> poly(coeffs);
+        Polynomial<fr> poly(coeffs);
         fr point = fr::random_element();
         fr_ct point_ct(fr_ct(&builder, point));
         auto res1 = poly.evaluate(point);

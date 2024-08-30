@@ -6,61 +6,45 @@ namespace bb {
 
 template <class ProverInstances_> class ProtoGalaxyProver_ {
   public:
-    struct State {
-        using FF = typename ProverInstances_::FF;
-        using ProverInstance = typename ProverInstances_::Instance;
-        using Flavor = typename ProverInstances_::Flavor;
-        static constexpr size_t NUM_INSTANCES = ProverInstances_::NUM;
-        using CombinerQuotient = Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, NUM_INSTANCES>;
-        using TupleOfTuplesOfUnivariates =
-            typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
-        using OptimisedTupleOfTuplesOfUnivariates =
-            typename Flavor::template OptimisedProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
-        using RelationParameters = bb::RelationParameters<Univariate<FF, ProverInstances_::EXTENDED_LENGTH>>;
-        using OptimisedRelationParameters = bb::RelationParameters<
-            Univariate<FF, ProverInstances_::EXTENDED_LENGTH, 0, /*skip_count=*/NUM_INSTANCES - 1>>;
-        using CombinedRelationSeparator =
-            std::array<Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH>, Flavor::NUM_SUBRELATIONS - 1>;
+    using ProverInstance = typename ProverInstances_::Instance;
+    using Flavor = typename ProverInstances_::Flavor;
+    using FF = typename ProverInstances_::Flavor::FF;
+    static constexpr size_t NUM_INSTANCES = ProverInstances_::NUM;
+    using CombinerQuotient = Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, NUM_INSTANCES>;
+    using TupleOfTuplesOfUnivariates = typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
+    using OptimisedTupleOfTuplesOfUnivariates =
+        typename Flavor::template OptimisedProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
+    using UnivariateRelationParameters =
+        bb::RelationParameters<Univariate<FF, ProverInstances_::EXTENDED_LENGTH, 0, /*skip_count=*/NUM_INSTANCES - 1>>;
+    using UnivariateRelationSeparator =
+        std::array<Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH>, Flavor::NUM_SUBRELATIONS - 1>;
 
+    struct State {
         std::shared_ptr<ProverInstance> accumulator;
-        LegacyPolynomial<FF> perturbator;
-        std::vector<FF> gate_challenges;
+        Polynomial<FF> perturbator;
         std::vector<FF> deltas;
         CombinerQuotient combiner_quotient;
-        FF compressed_perturbator;
-        RelationParameters relation_parameters;
-        CombinedRelationSeparator alphas; // a univariate interpolation of challenges for each subrelation
-        OptimisedRelationParameters optimised_relation_parameters;
-        OptimisedTupleOfTuplesOfUnivariates optimised_univariate_accumulators;
-        TupleOfTuplesOfUnivariates univariate_accumulators;
-        FoldingResult<typename ProverInstances_::Flavor> result;
+        FF perturbator_evaluation;
+        UnivariateRelationParameters relation_parameters;
+        UnivariateRelationSeparator alphas;
     };
-
-    using ProverInstances = ProverInstances_;
-    using Flavor = typename ProverInstances::Flavor;
     using Transcript = typename Flavor::Transcript;
-    using FF = typename Flavor::FF;
-    using Instance = typename ProverInstances::Instance;
+    using Instance = typename ProverInstances_::Instance;
     using CommitmentKey = typename Flavor::CommitmentKey;
+    using ProverInstances = ProverInstances_;
 
-    static constexpr size_t NUM_SUBRELATIONS = ProverInstances::NUM_SUBRELATIONS;
+    static constexpr size_t NUM_SUBRELATIONS = ProverInstances_::NUM_SUBRELATIONS;
 
-    ProverInstances instances;
+    ProverInstances_ instances;
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
     std::shared_ptr<CommitmentKey> commitment_key;
     State state;
 
     ProtoGalaxyProver_() = default;
     ProtoGalaxyProver_(const std::vector<std::shared_ptr<Instance>>& insts)
-        : instances(ProverInstances(insts))
+        : instances(ProverInstances_(insts))
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/878)
         , commitment_key(instances[1]->proving_key.commitment_key){};
-
-    /**
-     * @brief Prior to folding, we need to finalize the given instances and add all their public data ϕ to the
-     * transcript, labelled by their corresponding instance index for domain separation.
-     */
-    void prepare_for_folding();
 
     /**
      * @brief For each instance produced by a circuit, prior to folding, we need to complete the computation of its
@@ -86,51 +70,43 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     std::shared_ptr<Instance> get_accumulator() { return instances[0]; }
 
     /**
-     * @brief Compute the next accumulator (ϕ*, ω*, \vec{\beta*}, e*), send the public data ϕ*  and the folding
-     * parameters
-     * (\vec{\beta*}, e*) to the verifier and return the complete accumulator
-     *
-     * @details At this stage, we assume that the instances have the same size and the same number of public
-     * parameter.s
-     * @param instances
-     * @param combiner_quotient polynomial K in the paper
-     * @param challenge
-     * @param compressed_perturbator
-     *
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/796): optimise the construction of the new
-     * accumulator
-     */
-    std::shared_ptr<Instance> compute_next_accumulator(ProverInstances&,
-                                                       State::CombinerQuotient&,
-                                                       State::OptimisedRelationParameters&,
-                                                       FF& challenge,
-                                                       const FF& compressed_perturbator);
-
-    /**
-     * @brief Finalise the prover instances that will be folded: complete computation of all the witness polynomials
+     * @brief Create inputs to folding protocol (an Oink interaction).
+     * @details Finalise the prover instances that will be folded: complete computation of all the witness polynomials
      * and compute commitments. Send commitments to the verifier and retrieve challenges.
-     *
      */
-    void preparation_round();
+    void run_oink_prover_on_each_instance();
 
     /**
-     * @brief Compute perturbator (F polynomial in paper). Send all but the constant coefficient to verifier.
+     * @brief Steps 2 - 5 of the paper.
+     * @details Compute perturbator (F polynomial in paper). Send all but the constant coefficient to verifier.
      *
+     * @param accumulator
+     * @return std::tuple<std::vector<FF>, Polynomial<FF>> deltas, perturbator
      */
-    void perturbator_round();
+    std::tuple<std::vector<FF>, Polynomial<FF>> perturbator_round(const std::shared_ptr<const Instance>& accumulator);
 
     /**
-     * @brief Compute combiner (G polynomial in the paper) and then its quotient (K polynomial), whose coefficient
+     * @brief Steps 6 - 11 of the paper.
+     * @details Compute combiner (G polynomial in the paper) and then its quotient (K polynomial), whose coefficient
      * will be sent to the verifier.
-     *
      */
-    void combiner_quotient_round();
+    /*gate_challenges, alphas, optimised_relation_parameters, perturbator_evaluation, combiner_quotient */
+    std::tuple<std::vector<FF>, UnivariateRelationSeparator, UnivariateRelationParameters, FF, CombinerQuotient>
+    combiner_quotient_round(const std::vector<FF>& gate_challenges,
+                            const std::vector<FF>& deltas,
+                            const ProverInstances_& instances);
 
     /**
-     * @brief Compute the next prover accumulator (ω* in the paper), encapsulated in a ProverInstance with folding
-     * parameters set.
-     *
+     * @brief Steps 12 - 13 of the paper plus the prover folding work.
+     * @details Compute \f$ e^* \f$ plus, then update the prover accumulator by taking a Lagrange-linear combination of
+     * the current accumulator and the instances to be folded. In our mental model, we are doing a scalar multipliation
+     * of matrices whose columns are polynomials, as well as taking similar linear combinations of the relation
+     * parameters.
      */
-    void accumulator_update_round();
+    FoldingResult<Flavor> update_target_sum_and_fold(const ProverInstances_& instances,
+                                                     const CombinerQuotient& combiner_quotient,
+                                                     const UnivariateRelationSeparator& alphas,
+                                                     const UnivariateRelationParameters& univariate_relation_parameters,
+                                                     const FF& perturbator_evaluation);
 };
 } // namespace bb

@@ -25,7 +25,12 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Relations = typename Flavor::Relations;
     using RelationSeparator = typename Flavor::RelationSeparator;
-    using CombinedRelationSeparator =
+    static constexpr size_t NUM_INSTANCES = ProverInstances_::NUM;
+    using UnivariateRelationParametersNoOptimisticSkipping =
+        bb::RelationParameters<Univariate<FF, ProverInstances_::EXTENDED_LENGTH>>;
+    using UnivariateRelationParameters =
+        bb::RelationParameters<Univariate<FF, ProverInstances_::EXTENDED_LENGTH, 0, /*skip_count=*/NUM_INSTANCES - 1>>;
+    using UnivariateRelationSeparator =
         std::array<Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH>, Flavor::NUM_SUBRELATIONS - 1>;
 
     // The length of ExtendedUnivariate is the largest length (==max_relation_degree + 1) of a univariate polynomial
@@ -69,7 +74,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
         BB_OP_COUNT_TIME_NAME("ProtoGalaxyProver_::compute_full_honk_evaluations");
         auto instance_size = instance_polynomials.get_polynomial_size();
         std::vector<FF> full_honk_evaluations(instance_size);
-        std::vector<FF> linearly_dependent_contribution_accumulators = parallel_for_heuristic(
+        const std::vector<FF> linearly_dependent_contribution_accumulators = parallel_for_heuristic(
             instance_size,
             /*accumulator default*/ FF(0),
             [&](size_t row, FF& linearly_dependent_contribution_accumulator) {
@@ -160,16 +165,15 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
      *
      *
      */
-    static LegacyPolynomial<FF> compute_perturbator(std::shared_ptr<Instance> accumulator,
-                                                    const std::vector<FF>& deltas)
+    static Polynomial<FF> compute_perturbator(const std::shared_ptr<const Instance>& accumulator,
+                                              const std::vector<FF>& deltas)
     {
         BB_OP_COUNT_TIME();
         auto full_honk_evaluations = compute_full_honk_evaluations(
             accumulator->proving_key.polynomials, accumulator->alphas, accumulator->relation_parameters);
         const auto betas = accumulator->gate_challenges;
-        assert(betas.size() == deltas.size());
-        auto coeffs = construct_perturbator_coefficients(betas, deltas, full_honk_evaluations);
-        return LegacyPolynomial<FF>(coeffs);
+        ASSERT(betas.size() == deltas.size());
+        return Polynomial<FF>(construct_perturbator_coefficients(betas, deltas, full_honk_evaluations));
     }
 
     /**
@@ -187,7 +191,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
         const ProverInstances& instances,
         const size_t row_idx)
     {
-        auto base_univariates = instances.template row_to_univariates<skip_count>(row_idx);
+        const auto base_univariates = instances.template row_to_univariates<skip_count>(row_idx);
         for (auto [extended_univariate, base_univariate] : zip_view(extended_univariates.get_all(), base_univariates)) {
             extended_univariate = base_univariate.template extend_to<ExtendedUnivariate::LENGTH, skip_count>();
         }
@@ -259,7 +263,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
     static ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances,
                                                                 const PowPolynomial<FF>& pow_betas,
                                                                 const Parameters& relation_parameters,
-                                                                const CombinedRelationSeparator& alphas,
+                                                                const UnivariateRelationSeparator& alphas,
                                                                 TupleOfTuples& univariate_accumulators)
     {
         BB_OP_COUNT_TIME();
@@ -267,18 +271,19 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
         // Whether to use univariates whose operators ignore some values which an honest prover would compute to be zero
         constexpr bool skip_zero_computations = std::same_as<TupleOfTuples, OptimisedTupleOfTuplesOfUnivariates>;
 
-        size_t common_instance_size = instances[0]->proving_key.circuit_size;
+        const size_t common_instance_size = instances[0]->proving_key.circuit_size;
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
         // on a specified minimum number of iterations per thread. This eventually leads to the use of a
         // single thread. For now we use a power of 2 number of threads simply to ensure the round size is evenly
         // divided.
-        size_t max_num_threads = get_num_cpus_pow2(); // number of available threads (power of 2)
-        size_t min_iterations_per_thread = 1 << 6; // min number of iterations for which we'll spin up a unique thread
-        size_t desired_num_threads = common_instance_size / min_iterations_per_thread;
-        size_t num_threads = std::min(desired_num_threads, max_num_threads); // fewer than max if justified
-        num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
-        size_t iterations_per_thread = common_instance_size / num_threads;   // actual iterations per thread
+        const size_t max_num_threads = get_num_cpus_pow2(); // number of available threads (power of 2)
+        const size_t min_iterations_per_thread =
+            1 << 6; // min number of iterations for which we'll spin up a unique thread
+        const size_t desired_num_threads = common_instance_size / min_iterations_per_thread;
+        size_t num_threads = std::min(desired_num_threads, max_num_threads);     // fewer than max if justified
+        num_threads = num_threads > 0 ? num_threads : 1;                         // ensure num threads is >= 1
+        const size_t iterations_per_thread = common_instance_size / num_threads; // actual iterations per thread
 
         // Univariates are optimised for usual PG, but we need the unoptimised version for tests (it's a version that
         // doesn't skip computation), so we need to define types depending on the template instantiation
@@ -299,8 +304,8 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
 
         // Accumulate the contribution from each sub-relation
         parallel_for(num_threads, [&](size_t thread_idx) {
-            size_t start = thread_idx * iterations_per_thread;
-            size_t end = (thread_idx + 1) * iterations_per_thread;
+            const size_t start = thread_idx * iterations_per_thread;
+            const size_t end = (thread_idx + 1) * iterations_per_thread;
 
             for (size_t idx = start; idx < end; idx++) {
                 // Instantiate univariates, possibly with skipping toto ignore computation in those indices (they are
@@ -309,7 +314,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
                 constexpr size_t skip_count = skip_zero_computations ? ProverInstances::NUM - 1 : 0;
                 extend_univariates<skip_count>(extended_univariates[thread_idx], instances, idx);
 
-                FF pow_challenge = pow_betas[idx];
+                const FF pow_challenge = pow_betas[idx];
 
                 // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to
                 // this function have already been folded. Moreover, linear-dependent relations that act over the
@@ -333,6 +338,29 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
     }
 
     /**
+     * @brief Compute combiner using univariates that do not avoid zero computation in case of valid incoming indices.
+     * @details This is only used for testing the combiner calculation.
+     */
+    static ExtendedUnivariateWithRandomization compute_combiner_no_optimistic_skipping(
+        const ProverInstances& instances,
+        const PowPolynomial<FF>& pow_betas,
+        const UnivariateRelationParametersNoOptimisticSkipping& relation_parameters,
+        const UnivariateRelationSeparator& alphas)
+    {
+        TupleOfTuplesOfUnivariates accumulators;
+        return compute_combiner(instances, pow_betas, relation_parameters, alphas, accumulators);
+    }
+
+    static ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances,
+                                                                const PowPolynomial<FF>& pow_betas,
+                                                                const UnivariateRelationParameters& relation_parameters,
+                                                                const UnivariateRelationSeparator& alphas)
+    {
+        OptimisedTupleOfTuplesOfUnivariates accumulators;
+        return compute_combiner(instances, pow_betas, relation_parameters, alphas, accumulators);
+    }
+
+    /**
      * @brief Convert univariates from optimised form to regular
      *
      * @details We need to convert before we batch relations, since optimised versions don't have enough information to
@@ -349,7 +377,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
             return tup;
         }
 
-        auto deoptimise = [&]<size_t outer_idx, size_t inner_idx>(auto& element) {
+        const auto deoptimise = [&]<size_t outer_idx, size_t inner_idx>(auto& element) {
             auto& optimised_element = std::get<inner_idx>(std::get<outer_idx>(tup));
             element = optimised_element.convert();
         };
@@ -360,12 +388,12 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
     }
 
     static ExtendedUnivariateWithRandomization batch_over_relations(TupleOfTuplesOfUnivariates& univariate_accumulators,
-                                                                    const CombinedRelationSeparator& alpha)
+                                                                    const UnivariateRelationSeparator& alpha)
     {
         auto result = std::get<0>(std::get<0>(univariate_accumulators))
                           .template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
         size_t idx = 0;
-        auto scale_and_sum = [&]<size_t outer_idx, size_t inner_idx>(auto& element) {
+        const auto scale_and_sum = [&]<size_t outer_idx, size_t inner_idx>(auto& element) {
             auto extended = element.template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
             extended *= alpha[idx];
             result += extended;
@@ -415,7 +443,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
      *
      */
     static Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM> compute_combiner_quotient(
-        FF compressed_perturbator, ExtendedUnivariateWithRandomization combiner)
+        FF perturbator_evaluation, ExtendedUnivariateWithRandomization combiner)
     {
         std::array<FF, ProverInstances::BATCHED_EXTENDED_LENGTH - ProverInstances::NUM> combiner_quotient_evals = {};
 
@@ -438,12 +466,10 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
             static_assert(ProverInstances::NUM < 5);
 
             combiner_quotient_evals[idx] =
-                (combiner.value_at(point) - compressed_perturbator * lagrange_0) * vanishing_polynomial.invert();
+                (combiner.value_at(point) - perturbator_evaluation * lagrange_0) * vanishing_polynomial.invert();
         }
 
-        Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM> combiner_quotient(
-            combiner_quotient_evals);
-        return combiner_quotient;
+        return Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM>(combiner_quotient_evals);
     }
 
     /**
@@ -473,9 +499,9 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
      * @brief Combine the relation batching parameters (alphas) from each instance into a univariate, used in the
      * computation of combiner.
      */
-    static CombinedRelationSeparator compute_and_extend_alphas(const ProverInstances& instances)
+    static UnivariateRelationSeparator compute_and_extend_alphas(const ProverInstances& instances)
     {
-        CombinedRelationSeparator result;
+        UnivariateRelationSeparator result;
         size_t alpha_idx = 0;
         for (auto& alpha : result) {
             Univariate<FF, ProverInstances::NUM> tmp;

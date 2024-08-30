@@ -473,7 +473,7 @@ template <class Fr, size_t domain_end, size_t domain_start = 0, size_t skip_coun
      * @param f
      * @return Fr
      */
-    Fr evaluate(const Fr& u)
+    Fr evaluate(const Fr& u) const
     {
         using Data = BarycentricData<Fr, domain_end, LENGTH, domain_start>;
         Fr full_numerator_value = 1;

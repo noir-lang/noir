@@ -45,6 +45,11 @@ template <typename T> struct RelationParameters {
         return RefArray{ eta, eta_two, eta_three, beta, gamma, public_input_delta, lookup_grand_product_delta };
     }
 
+    RefArray<const T, NUM_TO_FOLD> get_to_fold() const
+    {
+        return RefArray{ eta, eta_two, eta_three, beta, gamma, public_input_delta, lookup_grand_product_delta };
+    }
+
     static RelationParameters get_random()
     {
         RelationParameters result;

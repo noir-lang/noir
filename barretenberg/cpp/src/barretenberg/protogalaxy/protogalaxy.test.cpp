@@ -232,23 +232,23 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
      */
     static void test_combiner_quotient()
     {
-        auto compressed_perturbator = FF(2); // F(\alpha) in the paper
+        auto perturbator_evaluation = FF(2); // F(\alpha) in the paper
         auto combiner = bb::Univariate<FF, 12>(std::array<FF, 12>{ 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 });
-        auto combiner_quotient = Fun::compute_combiner_quotient(compressed_perturbator, combiner);
+        auto combiner_quotient = Fun::compute_combiner_quotient(perturbator_evaluation, combiner);
 
         // K(i) = (G(i) - ( L_0(i) * F(\alpha)) / Z(i), i = {2,.., 13} for ProverInstances::NUM = 2
         // K(i) = (G(i) - (1 - i) * F(\alpha)) / i * (i - 1)
         auto expected_evals = bb::Univariate<FF, 12, 2>(std::array<FF, 10>{
-            (FF(22) - (FF(1) - FF(2)) * compressed_perturbator) / (FF(2) * FF(2 - 1)),
-            (FF(23) - (FF(1) - FF(3)) * compressed_perturbator) / (FF(3) * FF(3 - 1)),
-            (FF(24) - (FF(1) - FF(4)) * compressed_perturbator) / (FF(4) * FF(4 - 1)),
-            (FF(25) - (FF(1) - FF(5)) * compressed_perturbator) / (FF(5) * FF(5 - 1)),
-            (FF(26) - (FF(1) - FF(6)) * compressed_perturbator) / (FF(6) * FF(6 - 1)),
-            (FF(27) - (FF(1) - FF(7)) * compressed_perturbator) / (FF(7) * FF(7 - 1)),
-            (FF(28) - (FF(1) - FF(8)) * compressed_perturbator) / (FF(8) * FF(8 - 1)),
-            (FF(29) - (FF(1) - FF(9)) * compressed_perturbator) / (FF(9) * FF(9 - 1)),
-            (FF(30) - (FF(1) - FF(10)) * compressed_perturbator) / (FF(10) * FF(10 - 1)),
-            (FF(31) - (FF(1) - FF(11)) * compressed_perturbator) / (FF(11) * FF(11 - 1)),
+            (FF(22) - (FF(1) - FF(2)) * perturbator_evaluation) / (FF(2) * FF(2 - 1)),
+            (FF(23) - (FF(1) - FF(3)) * perturbator_evaluation) / (FF(3) * FF(3 - 1)),
+            (FF(24) - (FF(1) - FF(4)) * perturbator_evaluation) / (FF(4) * FF(4 - 1)),
+            (FF(25) - (FF(1) - FF(5)) * perturbator_evaluation) / (FF(5) * FF(5 - 1)),
+            (FF(26) - (FF(1) - FF(6)) * perturbator_evaluation) / (FF(6) * FF(6 - 1)),
+            (FF(27) - (FF(1) - FF(7)) * perturbator_evaluation) / (FF(7) * FF(7 - 1)),
+            (FF(28) - (FF(1) - FF(8)) * perturbator_evaluation) / (FF(8) * FF(8 - 1)),
+            (FF(29) - (FF(1) - FF(9)) * perturbator_evaluation) / (FF(9) * FF(9 - 1)),
+            (FF(30) - (FF(1) - FF(10)) * perturbator_evaluation) / (FF(10) * FF(10 - 1)),
+            (FF(31) - (FF(1) - FF(11)) * perturbator_evaluation) / (FF(11) * FF(11 - 1)),
         });
 
         for (size_t idx = 2; idx < 7; idx++) {
@@ -273,18 +273,18 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         instance2->relation_parameters.eta = 3;
 
         ProverInstances instances{ { instance1, instance2 } };
+        auto relation_parameters_no_optimistic_skipping = Fun::template compute_extended_relation_parameters<
+            typename Fun::UnivariateRelationParametersNoOptimisticSkipping>(instances);
         auto relation_parameters =
-            Fun::template compute_extended_relation_parameters<typename FoldingProver::State::RelationParameters>(
+            Fun::template compute_extended_relation_parameters<typename FoldingProver::UnivariateRelationParameters>(
                 instances);
-        auto optimised_relation_parameters = Fun::template compute_extended_relation_parameters<
-            typename FoldingProver::State::OptimisedRelationParameters>(instances);
 
         bb::Univariate<FF, 11> expected_eta{ { 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21 } };
-        EXPECT_EQ(relation_parameters.eta, expected_eta);
+        EXPECT_EQ(relation_parameters_no_optimistic_skipping.eta, expected_eta);
         // Optimised relation parameters are the same, we just don't compute any values for non-used indices when
         // deriving values from them
         for (size_t i = 0; i < 11; i++) {
-            EXPECT_EQ(optimised_relation_parameters.eta.evaluations[i], expected_eta.evaluations[i]);
+            EXPECT_EQ(relation_parameters.eta.evaluations[i], expected_eta.evaluations[i]);
         }
     }
 

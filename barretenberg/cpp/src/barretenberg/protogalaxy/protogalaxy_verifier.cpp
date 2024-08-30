@@ -54,7 +54,7 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
     }
 
     perturbator_coeffs[0] = accumulator->target_sum;
-    auto perturbator = LegacyPolynomial<FF>(perturbator_coeffs);
+    Polynomial<FF> perturbator(perturbator_coeffs);
     FF perturbator_challenge = transcript->template get_challenge<FF>("perturbator_challenge");
     auto perturbator_at_challenge = perturbator.evaluate(perturbator_challenge);
 
