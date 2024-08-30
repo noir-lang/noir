@@ -13,11 +13,14 @@ import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
 import { jest } from '@jest/globals';
 
-import { publicDeployAccounts, setup } from '../fixtures/utils.js';
+import { type EndToEndContext, publicDeployAccounts, setup } from '../fixtures/utils.js';
+import { FeeJuicePortalTestingHarnessFactory } from '../shared/gas_portal_test_harness.js';
 
 jest.setTimeout(100_000);
 
 describe('benchmarks/tx_size_fees', () => {
+  let ctx: EndToEndContext;
+
   let aliceWallet: AccountWalletWithSecretKey;
   let bobAddress: AztecAddress;
   let sequencerAddress: AztecAddress;
@@ -27,17 +30,17 @@ describe('benchmarks/tx_size_fees', () => {
 
   // setup the environment
   beforeAll(async () => {
-    const { wallets, aztecNode } = await setup(3, {}, {}, true);
+    ctx = await setup(3, {}, {}, true);
 
-    aliceWallet = wallets[0];
-    bobAddress = wallets[1].getAddress();
-    sequencerAddress = wallets[2].getAddress();
+    aliceWallet = ctx.wallets[0];
+    bobAddress = ctx.wallets[1].getAddress();
+    sequencerAddress = ctx.wallets[2].getAddress();
 
-    await aztecNode.setConfig({
+    await ctx.aztecNode.setConfig({
       feeRecipient: sequencerAddress,
     });
 
-    await publicDeployAccounts(aliceWallet, wallets);
+    await publicDeployAccounts(aliceWallet, ctx.wallets);
   });
 
   // deploy the contracts
@@ -49,9 +52,29 @@ describe('benchmarks/tx_size_fees', () => {
 
   // mint tokens
   beforeAll(async () => {
+    const feeJuiceBridgeTestHarness = await FeeJuicePortalTestingHarnessFactory.create({
+      aztecNode: ctx.aztecNode,
+      pxeService: ctx.pxe,
+      publicClient: ctx.deployL1ContractsValues.publicClient,
+      walletClient: ctx.deployL1ContractsValues.walletClient,
+      wallet: ctx.wallets[0],
+      logger: ctx.logger,
+    });
+
+    const { secret: fpcSecret } = await feeJuiceBridgeTestHarness.prepareTokensOnL1(
+      100_000_000_000n,
+      100_000_000_000n,
+      fpc.address,
+    );
+    const { secret: aliceSecret } = await feeJuiceBridgeTestHarness.prepareTokensOnL1(
+      100_000_000_000n,
+      100_000_000_000n,
+      aliceWallet.getAddress(),
+    );
+
     await Promise.all([
-      feeJuice.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait(),
-      feeJuice.methods.mint_public(fpc.address, 100e9).send().wait(),
+      feeJuice.methods.claim(fpc.address, 100e9, fpcSecret).send().wait(),
+      feeJuice.methods.claim(aliceWallet.getAddress(), 100e9, aliceSecret).send().wait(),
     ]);
     await token.methods.privately_mint_private_note(100e9).send().wait();
     await token.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait();
