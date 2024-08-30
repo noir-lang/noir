@@ -113,13 +113,6 @@ contract RollupTest is DecoderBase {
   }
 
   function testRevertPrune() public setUpFor("mixed_block_1") {
-    if (rollup.isDevNet()) {
-      vm.expectRevert(abi.encodeWithSelector(Errors.DevNet__NoPruningAllowed.selector));
-      rollup.prune();
-
-      return;
-    }
-
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__NothingToPrune.selector));
     rollup.prune();
 
@@ -136,10 +129,6 @@ contract RollupTest is DecoderBase {
   }
 
   function testPrune() public setUpFor("mixed_block_1") {
-    if (rollup.isDevNet()) {
-      return;
-    }
-
     _testBlock("mixed_block_1", false);
 
     assertEq(inbox.inProgress(), 3, "Invalid in progress");

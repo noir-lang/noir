@@ -67,10 +67,6 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
 
   bytes32 public vkTreeRoot;
 
-  // @note  This should not exists, but we have it now to ensure we will not be killing the devnet with our
-  //        timeliness requirements.
-  bool public isDevNet = Constants.IS_DEV_NET == 1;
-
   // @note  Assume that all blocks up to this value are automatically proven. Speeds up bootstrapping.
   //        Testing only. This should be removed eventually.
   uint256 private assumeProvenUntilBlockNumber;
@@ -111,12 +107,10 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    * @notice  Prune the pending chain up to the last proven block
    *
    * @dev     Will revert if there is nothing to prune or if the chain is not ready to be pruned
+   *
+   * @dev     While in devnet, this will be guarded behind an `onlyOwner`
    */
-  function prune() external override(IRollup) {
-    if (isDevNet) {
-      revert Errors.DevNet__NoPruningAllowed();
-    }
-
+  function prune() external override(IRollup) onlyOwner {
     if (pendingBlockCount == provenBlockCount) {
       revert Errors.Rollup__NothingToPrune();
     }
@@ -153,17 +147,6 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       provenBlockCount = blockNumber;
     }
     assumeProvenUntilBlockNumber = blockNumber;
-  }
-
-  /**
-   * @notice  Set the devnet mode
-   *
-   * @dev     This is only needed for testing, and should be removed
-   *
-   * @param _devNet - Whether or not the contract is in devnet mode
-   */
-  function setDevNet(bool _devNet) external override(ITestRollup) onlyOwner {
-    isDevNet = _devNet;
   }
 
   /**
@@ -412,13 +395,9 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       revert Errors.Rollup__InvalidArchive(tipArchive, _archive);
     }
 
-    if (isDevNet) {
-      _devnetSequencerSubmissionChecks(_proposer);
-    } else {
-      address proposer = getProposerAt(_ts);
-      if (proposer != address(0) && proposer != _proposer) {
-        revert Errors.Leonidas__InvalidProposer(proposer, _proposer);
-      }
+    address proposer = getProposerAt(_ts);
+    if (proposer != address(0) && proposer != _proposer) {
+      revert Errors.Leonidas__InvalidProposer(proposer, _proposer);
     }
 
     return (slot, pendingBlockCount);
@@ -568,8 +547,6 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *            This might be relaxed for allow consensus set to better handle short-term bursts of L1 congestion
    *          - The slot MUST be in the current epoch
    *
-   * @dev     While in isDevNet, we allow skipping all of the checks as we simply assume only TRUSTED sequencers
-   *
    * @param _slot - The slot of the header to validate
    * @param _signatures - The signatures to validate
    * @param _digest - The digest that signatures sign over
@@ -581,19 +558,6 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     uint256 _currentTime,
     DataStructures.ExecutionFlags memory _flags
   ) internal view {
-    if (isDevNet) {
-      // @note  If we are running in a devnet, we don't want to perform all the consensus
-      //        checks, we instead simply require that either there are NO validators or
-      //        that the proposer is a validator.
-      //
-      //        This means that we relaxes the condition that the block must land in the
-      //        correct slot and epoch to make it more fluid for the devnet launch
-      //        or for testing.
-
-      _devnetSequencerSubmissionChecks(msg.sender);
-      return;
-    }
-
     // Ensure that the slot proposed is NOT in the future
     uint256 currentSlot = getSlotAt(_currentTime);
     if (_slot != currentSlot) {
@@ -686,16 +650,5 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     ) {
       revert Errors.Rollup__UnavailableTxs(_header.contentCommitment.txsEffectsHash);
     }
-  }
-
-  function _devnetSequencerSubmissionChecks(address _proposer) internal view {
-    if (getValidatorCount() == 0) {
-      return;
-    }
-
-    if (!isValidator(_proposer)) {
-      revert Errors.DevNet__InvalidProposer(getValidatorAt(0), _proposer);
-    }
-    return;
   }
 }

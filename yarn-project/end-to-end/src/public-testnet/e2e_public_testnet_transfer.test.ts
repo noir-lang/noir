@@ -35,7 +35,6 @@ describe(`deploys and transfers a private only token`, () => {
       { skipProtocolContracts: true, stateLoad: undefined },
       {},
       false,
-      false,
       chain,
     ));
     proverConfig = getProverNodeConfigFromEnv();

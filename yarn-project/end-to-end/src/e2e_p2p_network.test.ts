@@ -1,12 +1,24 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { type AztecNodeConfig, type AztecNodeService } from '@aztec/aztec-node';
-import { CompleteAddress, type DebugLogger, Fr, GrumpkinScalar, type SentTx, TxStatus, sleep } from '@aztec/aztec.js';
-import { EthAddress, IS_DEV_NET } from '@aztec/circuits.js';
+import {
+  CompleteAddress,
+  type DebugLogger,
+  type DeployL1Contracts,
+  EthCheatCodes,
+  Fr,
+  GrumpkinScalar,
+  type SentTx,
+  TxStatus,
+  sleep,
+} from '@aztec/aztec.js';
+import { EthAddress } from '@aztec/circuits.js';
+import { RollupAbi } from '@aztec/l1-artifacts';
 import { type BootstrapNode } from '@aztec/p2p';
 import { type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 
 import { jest } from '@jest/globals';
 import fs from 'fs';
+import { getContract } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 import {
@@ -32,6 +44,7 @@ describe('e2e_p2p_network', () => {
   let teardown: () => Promise<void>;
   let bootstrapNode: BootstrapNode;
   let bootstrapNodeEnr: string;
+  let deployL1ContractsValues: DeployL1Contracts;
 
   beforeEach(async () => {
     // If we want to test with interval mining, we can use the local host and start `anvil --block-time 12`
@@ -47,21 +60,32 @@ describe('e2e_p2p_network', () => {
 
     const initialValidators = [EthAddress.fromString(account.address)];
 
-    // Add 1 extra validator if in devnet or NUM_NODES if not.
-    // Each of these will become a validator and sign attestations.
-    const limit = IS_DEV_NET ? 1 : NUM_NODES;
-    for (let i = 0; i < limit; i++) {
-      const account = privateKeyToAccount(`0x${getPrivateKeyFromIndex(i + 1)!.toString('hex')}`);
-      initialValidators.push(EthAddress.fromString(account.address));
-    }
-
-    ({ teardown, config, logger } = await setup(0, { initialValidators, ...options }));
+    ({ teardown, config, logger, deployL1ContractsValues } = await setup(0, { initialValidators, ...options }));
 
     bootstrapNode = await createBootstrapNode(BOOT_NODE_UDP_PORT);
     bootstrapNodeEnr = bootstrapNode.getENR().encodeTxt();
 
     config.minTxsPerBlock = NUM_TXS_PER_BLOCK;
     config.maxTxsPerBlock = NUM_TXS_PER_BLOCK;
+
+    const rollup = getContract({
+      address: deployL1ContractsValues.l1ContractAddresses.rollupAddress.toString(),
+      abi: RollupAbi,
+      client: deployL1ContractsValues.walletClient,
+    });
+
+    for (let i = 0; i < NUM_NODES; i++) {
+      const account = privateKeyToAccount(`0x${getPrivateKeyFromIndex(i + 1)!.toString('hex')}`);
+      await rollup.write.addValidator([account.address]);
+    }
+
+    //@note   Now we jump ahead to the next epoch such that the validator committee is picked
+    //        INTERVAL MINING: If we are using anvil interval mining this will NOT progress the time!
+    //        Which means that the validator set will still be empty! So anyone can propose.
+    const slotsInEpoch = await rollup.read.EPOCH_DURATION();
+    const timestamp = await rollup.read.getTimestampForSlot([slotsInEpoch]);
+    const cheatCodes = new EthCheatCodes(config.l1RpcUrl);
+    await cheatCodes.warp(Number(timestamp));
   });
 
   afterEach(() => teardown());
@@ -88,7 +112,6 @@ describe('e2e_p2p_network', () => {
       bootstrapNodeEnr,
       NUM_NODES,
       BOOT_NODE_UDP_PORT,
-      /*activate validators=*/ !IS_DEV_NET,
     );
 
     // wait a bit for peers to discover each other
@@ -149,7 +172,6 @@ describe('e2e_p2p_network', () => {
         i + 1 + BOOT_NODE_UDP_PORT,
         undefined,
         i,
-        /*validators*/ !IS_DEV_NET,
         `./data-${i}`,
       );
       logger.info(`Node ${i} restarted`);

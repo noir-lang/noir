@@ -34,18 +34,10 @@ export async function createNodes(
   bootstrapNodeEnr: string,
   numNodes: number,
   bootNodePort: number,
-  activateValidators: boolean = false,
 ): Promise<AztecNodeService[]> {
   const nodes = [];
   for (let i = 0; i < numNodes; i++) {
-    const node = await createNode(
-      config,
-      peerIdPrivateKeys[i],
-      i + 1 + bootNodePort,
-      bootstrapNodeEnr,
-      i,
-      activateValidators,
-    );
+    const node = await createNode(config, peerIdPrivateKeys[i], i + 1 + bootNodePort, bootstrapNodeEnr, i);
     nodes.push(node);
   }
   return nodes;
@@ -58,7 +50,6 @@ export async function createNode(
   tcpListenPort: number,
   bootstrapNode: string | undefined,
   publisherAddressIndex: number,
-  activateValidators: boolean = false,
   dataDirectory?: string,
 ) {
   // We use different L1 publisher accounts in order to avoid duplicate tx nonces. We start from
@@ -66,11 +57,8 @@ export async function createNode(
   const publisherPrivKey = getPrivateKeyFromIndex(publisherAddressIndex + 1);
   config.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
 
-  if (activateValidators) {
-    const validatorPrivKey = getPrivateKeyFromIndex(1 + publisherAddressIndex);
-    config.validatorPrivateKey = `0x${validatorPrivKey!.toString('hex')}`;
-    config.disableValidator = false;
-  }
+  const validatorPrivKey = getPrivateKeyFromIndex(1 + publisherAddressIndex);
+  config.validatorPrivateKey = `0x${validatorPrivKey!.toString('hex')}`;
 
   const newConfig: AztecNodeConfig = {
     ...config,

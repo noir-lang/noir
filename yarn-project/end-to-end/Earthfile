@@ -110,6 +110,9 @@ NETWORK_TEST:
 e2e-p2p:
   DO +E2E_TEST --test=./src/e2e_p2p_network.test.ts
 
+e2e-l1-with-wall-time:
+  DO +E2E_TEST --test=./src/e2e_l1_with_wall_time.test.ts
+
 e2e-2-pxes:
   DO +E2E_TEST --test=./src/e2e_2_pxes.test.ts
 

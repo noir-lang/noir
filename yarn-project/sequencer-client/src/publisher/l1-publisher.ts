@@ -1,8 +1,8 @@
 import { type L2Block, type Signature } from '@aztec/circuit-types';
 import { type L1PublishBlockStats, type L1PublishProofStats } from '@aztec/circuit-types/stats';
-import { ETHEREUM_SLOT_DURATION, EthAddress, GENESIS_ARCHIVE_ROOT, type Header, type Proof } from '@aztec/circuits.js';
+import { ETHEREUM_SLOT_DURATION, EthAddress, type Header, type Proof } from '@aztec/circuits.js';
 import { createEthereumChain } from '@aztec/ethereum';
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
@@ -183,27 +183,37 @@ export class L1Publisher {
     return [slot, blockNumber];
   }
 
+  /**
+   * @notice  Will call `validateHeader` to make sure that it is possible to propose
+   *
+   * @dev     Throws if unable to propose
+   *
+   * @param header - The header to propose
+   * @param digest - The digest that attestations are signing over
+   *
+   */
   public async validateBlockForSubmission(
     header: Header,
-    digest: Buffer = new Fr(GENESIS_ARCHIVE_ROOT).toBuffer(),
-    attestations: Signature[] = [],
-  ): Promise<boolean> {
+    attestationData: { digest: Buffer; signatures: Signature[] } = {
+      digest: Buffer.alloc(32),
+      signatures: [],
+    },
+  ): Promise<void> {
     const ts = BigInt((await this.publicClient.getBlock()).timestamp + BigInt(ETHEREUM_SLOT_DURATION));
 
-    const formattedAttestations = attestations.map(attest => attest.toViemSignature());
-    const flags = { ignoreDA: true, ignoreSignatures: attestations.length == 0 };
+    const formattedSignatures = attestationData.signatures.map(attest => attest.toViemSignature());
+    const flags = { ignoreDA: true, ignoreSignatures: formattedSignatures.length == 0 };
 
     const args = [
       `0x${header.toBuffer().toString('hex')}`,
-      formattedAttestations,
-      `0x${digest.toString('hex')}`,
+      formattedSignatures,
+      `0x${attestationData.digest.toString('hex')}`,
       ts,
       flags,
     ] as const;
 
     try {
       await this.rollupContract.read.validateHeader(args, { account: this.account });
-      return true;
     } catch (error: unknown) {
       // Specify the type of error
       if (error instanceof ContractFunctionRevertedError) {
@@ -212,7 +222,7 @@ export class L1Publisher {
       } else {
         this.log.debug(`Unexpected error during validation: ${error}`);
       }
-      return false;
+      throw error;
     }
   }
 
@@ -271,14 +281,6 @@ export class L1Publisher {
       blockHash: block.hash().toString(),
     };
 
-    // @note  This will make sure that we are passing the checks for our header ASSUMING that the data is also made available
-    //        This means that we can avoid the simulation issues in later checks.
-    //        By simulation issue, I mean the fact that the block.timestamp is equal to the last block, not the next, which
-    //        make time consistency checks break.
-    if (!(await this.validateBlockForSubmission(block.header, block.archive.root.toBuffer(), attestations))) {
-      return false;
-    }
-
     const processTxArgs = {
       header: block.header.toBuffer(),
       archive: block.archive.root.toBuffer(),
@@ -292,7 +294,18 @@ export class L1Publisher {
       let txHash;
       const timer = new Timer();
 
-      if (await this.checkIfTxsAreAvailable(block)) {
+      const isAvailable = await this.checkIfTxsAreAvailable(block);
+
+      // @note  This will make sure that we are passing the checks for our header ASSUMING that the data is also made available
+      //        This means that we can avoid the simulation issues in later checks.
+      //        By simulation issue, I mean the fact that the block.timestamp is equal to the last block, not the next, which
+      //        make time consistency checks break.
+      await this.validateBlockForSubmission(block.header, {
+        digest: block.archive.root.toBuffer(),
+        signatures: attestations ?? [],
+      });
+
+      if (isAvailable) {
         this.log.verbose(`Transaction effects of block ${block.number} already published.`, ctx);
         txHash = await this.sendProposeWithoutBodyTx(processTxArgs);
       } else {

@@ -9,7 +9,6 @@ import {SignatureLib} from "../sequencer_selection/SignatureLib.sol";
 import {DataStructures} from "../libraries/DataStructures.sol";
 
 interface ITestRollup {
-  function setDevNet(bool _devNet) external;
   function setVerifier(address _verifier) external;
   function setVkTreeRoot(bytes32 _vkTreeRoot) external;
   function setAssumeProvenUntilBlockNumber(uint256 blockNumber) external;

@@ -214,20 +214,11 @@ describe('L1Publisher', () => {
 
   it('does not retry if simulating a publish and propose tx fails', async () => {
     rollupContractRead.archive.mockResolvedValue(l2Block.header.lastArchive.root.toString() as `0x${string}`);
-    rollupContractSimulate.propose.mockRejectedValueOnce(new Error());
+    rollupContractRead.validateHeader.mockRejectedValueOnce(new Error('Test error'));
 
-    if (L1Publisher.SKIP_SIMULATION) {
-      rollupContractRead.validateHeader.mockRejectedValueOnce(new Error('Test error'));
-    }
+    await expect(publisher.processL2Block(l2Block)).rejects.toThrow();
 
-    const result = await publisher.processL2Block(l2Block);
-
-    expect(result).toEqual(false);
-    if (!L1Publisher.SKIP_SIMULATION) {
-      expect(rollupContractSimulate.propose).toHaveBeenCalledTimes(1);
-    }
     expect(rollupContractRead.validateHeader).toHaveBeenCalledTimes(1);
-
     expect(rollupContractWrite.propose).toHaveBeenCalledTimes(0);
   });
 

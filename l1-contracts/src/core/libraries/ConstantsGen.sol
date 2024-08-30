@@ -104,7 +104,6 @@ library Constants {
   uint256 internal constant ETHEREUM_SLOT_DURATION = 12;
   uint256 internal constant AZTEC_SLOT_DURATION = 12;
   uint256 internal constant AZTEC_EPOCH_DURATION = 48;
-  uint256 internal constant IS_DEV_NET = 1;
   uint256 internal constant GENESIS_ARCHIVE_ROOT =
     8142738430000951296386584486068033372964809139261822027365426310856631083550;
   uint256 internal constant FEE_JUICE_INITIAL_MINT = 20000000000;

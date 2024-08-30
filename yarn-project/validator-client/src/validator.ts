@@ -86,9 +86,11 @@ export class ValidatorClient implements Validator {
 
     this.log.info(`Waiting for ${numberOfRequiredAttestations} attestations for slot: ${slot}`);
 
-    let attestations: BlockAttestation[] = [await this.attestToProposal(proposal)];
+    const myAttestation = await this.attestToProposal(proposal);
+
+    let attestations: BlockAttestation[] = [];
     while (attestations.length < numberOfRequiredAttestations) {
-      attestations = await this.p2pClient.getAttestationsForSlot(slot);
+      attestations = [myAttestation, ...(await this.p2pClient.getAttestationsForSlot(slot))];
 
       if (attestations.length < numberOfRequiredAttestations) {
         this.log.verbose(`Waiting ${this.attestationPoolingIntervalMs}ms for more attestations...`);

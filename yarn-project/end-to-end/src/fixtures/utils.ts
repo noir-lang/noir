@@ -300,6 +300,8 @@ type SetupOptions = {
   salt?: number;
   /** An initial set of validators */
   initialValidators?: EthAddress[];
+  /** Anvil block time (interval) */
+  l1BlockTime?: number;
 } & Partial<AztecNodeConfig>;
 
 /** Context for an end-to-end test as returned by the `setup` function */
@@ -337,7 +339,6 @@ export async function setup(
   opts: SetupOptions = {},
   pxeOpts: Partial<PXEServiceConfig> = {},
   enableGas = false,
-  enableValidators = false,
   chain: Chain = foundry,
 ): Promise<EndToEndContext> {
   const config = { ...getConfigEnvVars(), ...opts };
@@ -355,7 +356,7 @@ export async function setup(
       );
     }
 
-    const res = await startAnvil();
+    const res = await startAnvil(opts.l1BlockTime);
     anvil = res.anvil;
     config.l1RpcUrl = res.rpcUrl;
   }
@@ -404,11 +405,8 @@ export async function setup(
   config.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
 
   // Run the test with validators enabled
-  if (enableValidators) {
-    const validatorPrivKey = getPrivateKeyFromIndex(1);
-    config.validatorPrivateKey = `0x${validatorPrivKey!.toString('hex')}`;
-  }
-  config.disableValidator = !enableValidators;
+  const validatorPrivKey = getPrivateKeyFromIndex(1);
+  config.validatorPrivateKey = `0x${validatorPrivKey!.toString('hex')}`;
 
   logger.verbose('Creating and synching an aztec node...');
 
@@ -508,7 +506,7 @@ export function getL1WalletClient(rpcUrl: string, index: number) {
  * Ensures there's a running Anvil instance and returns the RPC URL.
  * @returns
  */
-export async function startAnvil(): Promise<{ anvil: Anvil; rpcUrl: string }> {
+export async function startAnvil(l1BlockTime?: number): Promise<{ anvil: Anvil; rpcUrl: string }> {
   let rpcUrl: string | undefined = undefined;
 
   // Start anvil.
@@ -517,7 +515,11 @@ export async function startAnvil(): Promise<{ anvil: Anvil; rpcUrl: string }> {
     async () => {
       const ethereumHostPort = await getPort();
       rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
-      const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
+      const anvil = createAnvil({
+        anvilBinary: './scripts/anvil_kill_wrapper.sh',
+        port: ethereumHostPort,
+        blockTime: l1BlockTime,
+      });
       await anvil.start();
       return anvil;
     },
