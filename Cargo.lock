@@ -451,6 +451,7 @@ version = "0.33.0"
 dependencies = [
  "acvm",
  "convert_case 0.6.0",
+ "im",
  "iter-extended",
  "noirc_errors",
  "noirc_frontend",
@@ -3004,6 +3005,7 @@ version = "0.33.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
+ "cfg-if 1.0.0",
  "chrono",
  "fxhash",
  "im",
@@ -3012,6 +3014,7 @@ dependencies = [
  "noirc_frontend",
  "num-bigint",
  "proptest",
+ "rayon",
  "serde",
  "serde_json",
  "serde_with",

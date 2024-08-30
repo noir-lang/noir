@@ -245,6 +245,7 @@ impl DefCollector {
     /// Collect all of the definitions in a given crate into a CrateDefMap
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
+    #[allow(clippy::too_many_arguments)]
     pub fn collect_crate_and_dependencies(
         mut def_map: CrateDefMap,
         context: &mut Context,
@@ -252,6 +253,7 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         enable_arithmetic_generics: bool,
+        error_on_unused_imports: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -265,11 +267,13 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
+            let error_on_unused_imports = false;
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
                 debug_comptime_in_file,
                 enable_arithmetic_generics,
+                error_on_unused_imports,
                 macro_processors,
             ));
 
@@ -413,7 +417,25 @@ impl DefCollector {
             );
         }
 
+        if error_on_unused_imports {
+            Self::check_unused_imports(context, crate_id, &mut errors);
+        }
+
         errors
+    }
+
+    fn check_unused_imports(
+        context: &Context,
+        crate_id: CrateId,
+        errors: &mut Vec<(CompilationError, FileId)>,
+    ) {
+        errors.extend(context.def_maps[&crate_id].modules().iter().flat_map(|(_, module)| {
+            module.unused_imports().iter().map(|ident| {
+                let ident = ident.clone();
+                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                (error, module.location.file)
+            })
+        }));
     }
 }
 

@@ -301,6 +301,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let meta = self.interner.function_meta(&f).clone();
+
         let mut func_sig = meta.function_signature();
         // Follow the bindings of the function signature for entry points
         // which are not `main` such as foldable functions.
@@ -843,6 +844,14 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
             return self.resolve_trait_method_expr(expr_id, typ, method);
+        }
+
+        // Ensure all instantiation bindings are bound.
+        // This ensures even unused type variables like `fn foo<T>() {}` have concrete types
+        if let Some(bindings) = self.interner.try_get_instantiation_bindings(expr_id) {
+            for (_, binding) in bindings.values() {
+                Self::check_type(binding, ident.location)?;
+            }
         }
 
         let definition = self.interner.definition(ident.id);
@@ -1950,6 +1959,7 @@ pub fn resolve_trait_method(
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
+
             match interner.lookup_trait_implementation(
                 &object_type,
                 method.trait_id,

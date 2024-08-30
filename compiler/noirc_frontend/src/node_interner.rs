@@ -13,7 +13,11 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::ast::ExpressionKind;
 use crate::ast::Ident;
+use crate::ast::LValue;
+use crate::ast::StatementKind;
+use crate::ast::UnresolvedTypeData;
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -207,6 +211,15 @@ pub struct NodeInterner {
     /// and creating a `Token::QuotedType(id)` from this id. We cannot create a token holding
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
+
+    // Interned `ExpressionKind`s during comptime code.
+    interned_expression_kinds: noirc_arena::Arena<ExpressionKind>,
+
+    // Interned `StatementKind`s during comptime code.
+    interned_statement_kinds: noirc_arena::Arena<StatementKind>,
+
+    // Interned `UnresolvedTypeData`s during comptime code.
+    interned_unresolved_type_datas: noirc_arena::Arena<UnresolvedTypeData>,
 
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
@@ -580,6 +593,15 @@ pub struct GlobalInfo {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedTypeId(noirc_arena::Index);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedExpressionKind(noirc_arena::Index);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedStatementKind(noirc_arena::Index);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedUnresolvedTypeData(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -617,6 +639,9 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
+            interned_expression_kinds: Default::default(),
+            interned_statement_kinds: Default::default(),
+            interned_unresolved_type_datas: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -1287,6 +1312,10 @@ impl NodeInterner {
 
     pub fn get_instantiation_bindings(&self, expr_id: ExprId) -> &TypeBindings {
         &self.instantiation_bindings[&expr_id]
+    }
+
+    pub fn try_get_instantiation_bindings(&self, expr_id: ExprId) -> Option<&TypeBindings> {
+        self.instantiation_bindings.get(&expr_id)
     }
 
     pub fn get_field_index(&self, expr_id: ExprId) -> usize {
@@ -2036,6 +2065,41 @@ impl NodeInterner {
 
     pub fn get_quoted_type(&self, id: QuotedTypeId) -> &Type {
         &self.quoted_types[id.0]
+    }
+
+    pub fn push_expression_kind(&mut self, expr: ExpressionKind) -> InternedExpressionKind {
+        InternedExpressionKind(self.interned_expression_kinds.insert(expr))
+    }
+
+    pub fn get_expression_kind(&self, id: InternedExpressionKind) -> &ExpressionKind {
+        &self.interned_expression_kinds[id.0]
+    }
+
+    pub fn push_statement_kind(&mut self, statement: StatementKind) -> InternedStatementKind {
+        InternedStatementKind(self.interned_statement_kinds.insert(statement))
+    }
+
+    pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
+        &self.interned_statement_kinds[id.0]
+    }
+
+    pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
+        self.push_expression_kind(lvalue.as_expression().kind)
+    }
+
+    pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
+        LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+    }
+
+    pub fn push_unresolved_type_data(
+        &mut self,
+        typ: UnresolvedTypeData,
+    ) -> InternedUnresolvedTypeData {
+        InternedUnresolvedTypeData(self.interned_unresolved_type_datas.insert(typ))
+    }
+
+    pub fn get_unresolved_type_data(&self, id: InternedUnresolvedTypeData) -> &UnresolvedTypeData {
+        &self.interned_unresolved_type_datas[id.0]
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.

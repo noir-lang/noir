@@ -202,9 +202,10 @@ impl<'a> InlayHintCollector<'a> {
             }
             StatementKind::Comptime(statement) => self.collect_in_statement(statement),
             StatementKind::Semi(expression) => self.collect_in_expression(expression),
-            StatementKind::Break => (),
-            StatementKind::Continue => (),
-            StatementKind::Error => (),
+            StatementKind::Break
+            | StatementKind::Continue
+            | StatementKind::Interned(_)
+            | StatementKind::Error => (),
         }
     }
 
@@ -303,6 +304,7 @@ impl<'a> InlayHintCollector<'a> {
             | ExpressionKind::Variable(..)
             | ExpressionKind::Quote(..)
             | ExpressionKind::Resolved(..)
+            | ExpressionKind::Interned(..)
             | ExpressionKind::Error => (),
         }
     }
@@ -692,6 +694,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Unquote(..)
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
+        | ExpressionKind::Interned(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,

@@ -3,7 +3,10 @@ use noirc_frontend::token::Keyword;
 use strum::IntoEnumIterator;
 
 use super::{
-    completion_items::{simple_completion_item, snippet_completion_item},
+    completion_items::{
+        completion_item_with_trigger_parameter_hints_command, simple_completion_item,
+        snippet_completion_item,
+    },
     kinds::FunctionCompletionKind,
     name_matches, NodeFinder,
 };
@@ -31,12 +34,16 @@ impl<'a> NodeFinder<'a> {
                         }
                     }
 
-                    self.completion_items.push(snippet_completion_item(
-                        label,
-                        CompletionItemKind::FUNCTION,
-                        insert_text,
-                        description,
-                    ));
+                    self.completion_items.push(
+                        completion_item_with_trigger_parameter_hints_command(
+                            snippet_completion_item(
+                                label,
+                                CompletionItemKind::FUNCTION,
+                                insert_text,
+                                description,
+                            ),
+                        ),
+                    );
                 }
             }
         }
@@ -90,10 +97,12 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
+        Keyword::Quoted => Some("Quoted"),
         Keyword::StructDefinition => Some("StructDefinition"),
         Keyword::TraitConstraint => Some("TraitConstraint"),
         Keyword::TraitDefinition => Some("TraitDefinition"),
         Keyword::TraitImpl => Some("TraitImpl"),
+        Keyword::TypedExpr => Some("TypedExpr"),
         Keyword::TypeType => Some("Type"),
         Keyword::UnresolvedType => Some("UnresolvedType"),
 
@@ -122,7 +131,6 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Module
         | Keyword::Mut
         | Keyword::Pub
-        | Keyword::Quoted
         | Keyword::Return
         | Keyword::ReturnData
         | Keyword::String
@@ -200,6 +208,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::TraitDefinition
         | Keyword::TraitImpl
         | Keyword::Type
+        | Keyword::TypedExpr
         | Keyword::TypeType
         | Keyword::Unchecked
         | Keyword::Unconstrained

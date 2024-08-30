@@ -232,6 +232,7 @@ The following is an incomplete list of some `comptime` types along with some use
     - `fn fields(self) -> [(Quoted, Type)]`
       - Return the name and type of each field
 - `TraitConstraint`: A trait constraint such as `From<Field>`
+- `TypedExpr`: A type-checked expression.
 - `UnresolvedType`: A syntactic notation that refers to a Noir type that hasn't been resolved yet
 
 There are many more functions available by exploring the `std::meta` module and its submodules.
