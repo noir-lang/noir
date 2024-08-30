@@ -111,9 +111,9 @@ fn main() {
 
         let _trait_impl = struct_implements_some_trait.get_trait_impl(some_trait_i32).unwrap();
 
-        // Check Type::as_string
+        // Check Type::as_str
         let str_type = quote { str<10> }.as_type();
-        let constant = str_type.as_string().unwrap();
+        let constant = str_type.as_str().unwrap();
         assert_eq(constant.as_constant().unwrap(), 10);
     }
 }

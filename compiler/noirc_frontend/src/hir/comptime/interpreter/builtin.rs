@@ -140,7 +140,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
             "type_as_slice" => type_as_slice(arguments, return_type, location),
-            "type_as_string" => type_as_string(arguments, return_type, location),
+            "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_struct" => type_as_struct(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
@@ -540,8 +540,8 @@ fn type_as_slice(
     })
 }
 
-// fn as_string(self) -> Option<Type>
-fn type_as_string(
+// fn as_str(self) -> Option<Type>
+fn type_as_str(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,

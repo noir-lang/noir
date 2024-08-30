@@ -22,10 +22,10 @@ impl Type {
     fn as_slice(self) -> Option<Type> {}
     // docs:end:as_slice
 
-    #[builtin(type_as_string)]
-// docs:start:as_string
-    fn as_string(self) -> Option<Type> {}
-    // docs:end:as_string
+    #[builtin(type_as_str)]
+// docs:start:as_str
+    fn as_str(self) -> Option<Type> {}
+    // docs:end:as_str
 
     #[builtin(type_as_struct)]
 // docs:start:as_struct
