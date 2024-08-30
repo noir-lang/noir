@@ -185,3 +185,9 @@ for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`
 #include_code quoted noir_stdlib/src/meta/expr.nr rust
 
 Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.
+
+### resolve
+
+#include_code resolve noir_stdlib/src/meta/expr.nr rust
+
+Resolves and type-checks this expression and returns the result as a `TypedExpr`. If any names used by this expression are not in scope or if there are any type errors, this will give compiler errors as if the expression was written directly into the current `comptime` function.

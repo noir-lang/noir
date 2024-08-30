@@ -48,7 +48,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+    pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         let span = statement.span;
         let (hir_statement, typ) = self.elaborate_statement_value(statement);
         let id = self.interner.push_stmt(hir_statement);
