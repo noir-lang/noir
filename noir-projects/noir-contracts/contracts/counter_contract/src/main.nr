@@ -55,7 +55,7 @@ contract Counter {
         let initial_value: Field = 5;
         env.impersonate(owner);
 
-        // Deploy contract and initialize 
+        // Deploy contract and initialize
         let initializer = Counter::interface().initialize(initial_value as u64, owner, outgoing_viewer);
         let counter_contract = env.deploy_self("Counter").with_private_initializer(initializer);
         let contract_address = counter_contract.to_address();

@@ -222,7 +222,7 @@ impl PrivateContext {
         let cached_request = self.last_key_validation_requests[key_index].unwrap_or(KeyValidationRequest::empty());
 
         if cached_request.pk_m.hash() == pk_m_hash {
-            // We get a match so the cached request is the latest one 
+            // We get a match so the cached request is the latest one
             cached_request.sk_app
         } else {
             // We didn't get a match meaning the cached result is stale. We fetch new values from oracle and instruct
@@ -323,7 +323,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, args_hash, false, true)
     }
 
-    pub fn call_private_function_no_args<RETURNS_COUNT>(
+    pub fn call_private_function_no_args(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector
@@ -331,7 +331,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, 0, false, false)
     }
 
-    pub fn static_call_private_function_no_args<RETURNS_COUNT>(
+    pub fn static_call_private_function_no_args(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector
@@ -339,7 +339,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, 0, true, false)
     }
 
-    pub fn delegate_call_private_function_no_args<let ARGS_COUNT: u32>(
+    pub fn delegate_call_private_function_no_args(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector
@@ -347,7 +347,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, 0, false, true)
     }
 
-    pub fn call_private_function_with_packed_args<RETURNS_COUNT>(
+    pub fn call_private_function_with_packed_args(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -511,7 +511,7 @@ impl PrivateContext {
         self.set_public_teardown_function_with_packed_args(contract_address, function_selector, args_hash, false, false)
     }
 
-    pub fn set_public_teardown_function_with_packed_args<let ARGS_COUNT: u32>(
+    pub fn set_public_teardown_function_with_packed_args(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,

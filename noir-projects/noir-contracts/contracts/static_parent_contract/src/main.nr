@@ -1,7 +1,7 @@
 
 // A contract used along with `StaticChild` contract to test static calls.
 contract StaticParent {
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, Deserialize};
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector};
     use dep::aztec::context::gas::GasOpts;
     use dep::static_child_contract::StaticChild;
 

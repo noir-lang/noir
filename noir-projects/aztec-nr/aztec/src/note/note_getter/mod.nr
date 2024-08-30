@@ -14,7 +14,7 @@ fn extract_property_value_from_selector<let N: u32>(
     serialized_note: [Field; N],
     selector: PropertySelector
 ) -> Field {
-    // Selectors use PropertySelectors in order to locate note properties inside the serialized note. 
+    // Selectors use PropertySelectors in order to locate note properties inside the serialized note.
     // This allows easier packing and custom (de)serialization schemas. A note property is located
     // inside the serialized note using the index inside the array, a byte offset and a length.
     let value = serialized_note[selector.index].to_be_bytes(32);
@@ -113,7 +113,7 @@ pub fn get_notes<Note, let N: u32, let M: u32, PREPROCESSOR_ARGS, FILTER_ARGS>(
     constrain_get_notes_internal(context, storage_slot, opt_notes, options)
 }
 
-unconstrained fn apply_preprocessor<Note, let N: u32, let M: u32, PREPROCESSOR_ARGS>(
+unconstrained fn apply_preprocessor<Note, PREPROCESSOR_ARGS>(
     notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     preprocessor: fn([Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL], PREPROCESSOR_ARGS) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     preprocessor_args: PREPROCESSOR_ARGS
@@ -264,7 +264,7 @@ unconstrained pub fn view_notes<Note, let N: u32, let M: u32>(
     notes
 }
 
-unconstrained fn flatten_options<Note, let N: u32>(
+unconstrained fn flatten_options<let N: u32>(
     selects: BoundedVec<Option<Select>, N>,
     sorts: BoundedVec<Option<Sort>, N>
 ) -> (u8, [u8; N], [u8; N], [u8; N], [Field; N], [u8; N], [u8; N], [u8; N], [u8; N], [u8; N]) {

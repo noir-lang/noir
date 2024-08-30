@@ -33,7 +33,7 @@ unconstrained pub fn get_membership_witness<let N: u32, let M: u32>(
 
 // Note: get_nullifier_membership_witness function is implemented in get_nullifier_membership_witness.nr
 
-unconstrained pub fn get_note_hash_membership_witness<let N: u32, let M: u32>(
+unconstrained pub fn get_note_hash_membership_witness(
     block_number: u32,
     leaf_value: Field
 ) -> MembershipWitness<NOTE_HASH_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT + 1> {

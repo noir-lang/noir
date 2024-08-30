@@ -1,5 +1,5 @@
 #[oracle(packReturns)]
-unconstrained fn pack_returns_oracle<let N: u32>(_returns: [Field]) -> Field {}
+unconstrained fn pack_returns_oracle(_returns: [Field]) -> Field {}
 
 unconstrained pub fn pack_returns(returns: [Field]) {
     let _unused = pack_returns_oracle(returns);

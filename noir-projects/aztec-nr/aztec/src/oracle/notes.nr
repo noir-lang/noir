@@ -22,13 +22,9 @@ unconstrained pub fn notify_created_note<let N: u32>(
 }
 
 #[oracle(notifyNullifiedNote)]
-unconstrained fn notify_nullified_note_oracle<let N: u32>(_nullifier: Field, _note_hash: Field, _counter: u32) -> Field {}
+unconstrained fn notify_nullified_note_oracle(_nullifier: Field, _note_hash: Field, _counter: u32) -> Field {}
 
-unconstrained pub fn notify_nullified_note<let N: u32>(
-    nullifier: Field,
-    note_hash: Field,
-    counter: u32
-) -> Field {
+unconstrained pub fn notify_nullified_note(nullifier: Field, note_hash: Field, counter: u32) -> Field {
     notify_nullified_note_oracle(nullifier, note_hash, counter)
 }
 

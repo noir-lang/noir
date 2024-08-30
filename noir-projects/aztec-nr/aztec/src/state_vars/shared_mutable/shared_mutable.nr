@@ -62,16 +62,6 @@ impl<T, let INITIAL_DELAY: u32, Context> SharedMutable<T, INITIAL_DELAY, Context
         Self { context, storage_slot }
     }
 
-    fn hash_scheduled_data(
-        value_change: ScheduledValueChange<T>,
-        delay_change: ScheduledDelayChange<INITIAL_DELAY>
-    ) -> Field {
-        // TODO(#5491 and https://github.com/noir-lang/noir/issues/4784): update this so that we don't need to rely on
-        // ScheduledValueChange serializing to 3 and ScheduledDelayChange serializing to 1
-        let concatenated: [Field; 4] = concat_arrays(value_change.serialize(), delay_change.serialize());
-        poseidon2_hash(concatenated)
-    }
-
     // Since we can't rely on the native storage allocation scheme, we hash the storage slot to get a unique location in
     // which we can safely store as much data as we need.
     // See https://github.com/AztecProtocol/aztec-packages/issues/5492 and
@@ -227,6 +217,16 @@ impl<T, let INITIAL_DELAY: u32> SharedMutable<T, INITIAL_DELAY, &mut PrivateCont
         // historical public value matches the current one, since it can only change after the horizon.
         self.context.set_tx_max_block_number(block_horizon);
         value_change.get_current_at(historical_block_number)
+    }
+
+    fn hash_scheduled_data(
+        value_change: ScheduledValueChange<T>,
+        delay_change: ScheduledDelayChange<INITIAL_DELAY>
+    ) -> Field {
+        // TODO(#5491 and https://github.com/noir-lang/noir/issues/4784): update this so that we don't need to rely on
+        // ScheduledValueChange serializing to 3 and ScheduledDelayChange serializing to 1
+        let concatenated: [Field; 4] = concat_arrays(value_change.serialize(), delay_change.serialize());
+        poseidon2_hash(concatenated)
     }
 }
 

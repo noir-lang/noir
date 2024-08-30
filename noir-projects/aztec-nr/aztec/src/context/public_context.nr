@@ -391,15 +391,17 @@ impl<let N: u32> FunctionReturns<N> {
         FunctionReturns { values }
     }
 
-    pub fn assert_empty(returns: FunctionReturns<0>) {
-        assert(returns.values.len() == 0);
-    }
-
     pub fn raw(self) -> [Field; N] {
         self.values
     }
 
     pub fn deserialize_into<T>(self) -> T where T: Deserialize<N> {
         Deserialize::deserialize(self.raw())
+    }
+}
+
+impl FunctionReturns<0> {
+    pub fn assert_empty(self) {
+        assert(self.values.len() == 0);
     }
 }

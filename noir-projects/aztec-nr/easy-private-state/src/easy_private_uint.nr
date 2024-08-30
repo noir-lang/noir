@@ -21,7 +21,7 @@ impl<Context> EasyPrivateUint<Context> {
     }
 }
 
-impl<Context> EasyPrivateUint<&mut PrivateContext> {
+impl EasyPrivateUint<&mut PrivateContext> {
     // Very similar to `value_note::utils::increment`.
     pub fn add(self, addend: u64, owner: AztecAddress, outgoing_viewer: AztecAddress) {
         let owner_keys = get_current_public_keys(self.context, owner);
