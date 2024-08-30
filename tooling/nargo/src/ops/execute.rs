@@ -117,7 +117,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         _ => None,
                     };
 
-                    let brillig_function_id =  match &error {
+                    let brillig_function_id = match &error {
                         OpcodeResolutionError::BrilligFunctionFailed { function_id, .. } => {
                             Some(*function_id)
                         }
