@@ -10,7 +10,7 @@ import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-export { sequencerClientConfigMappings, SequencerClientConfig } from '@aztec/sequencer-client';
+export { sequencerClientConfigMappings, SequencerClientConfig };
 
 /**
  * The configuration the aztec node.
