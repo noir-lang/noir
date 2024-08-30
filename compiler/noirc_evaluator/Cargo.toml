@@ -29,6 +29,7 @@ tracing.workspace = true
 chrono = "0.4.37"
 plonky2 = { git = "https://github.com/metacraft-labs/plonky2" }
 plonky2_u32 = { git = "https://github.com/metacraft-labs/plonky2-u32" }
+rayon.workspace = true
 cfg-if.workspace = true
 
 [dev-dependencies]

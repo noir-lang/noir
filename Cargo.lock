@@ -453,6 +453,7 @@ version = "0.33.0"
 dependencies = [
  "acvm",
  "convert_case 0.6.0",
+ "im",
  "iter-extended",
  "noirc_errors",
  "noirc_frontend",
@@ -3093,6 +3094,7 @@ dependencies = [
  "plonky2",
  "plonky2_u32",
  "proptest",
+ "rayon",
  "serde",
  "serde_json",
  "serde_with",

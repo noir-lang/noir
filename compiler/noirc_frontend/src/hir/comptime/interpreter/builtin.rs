@@ -8,9 +8,9 @@ use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
     check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_field,
     get_function_def, get_module, get_quoted, get_slice, get_struct, get_trait_constraint,
-    get_trait_def, get_trait_impl, get_tuple, get_type, get_u32, get_unresolved_type,
-    hir_pattern_to_tokens, mutate_func_meta_type, parse, replace_func_meta_parameters,
-    replace_func_meta_return_type,
+    get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr, get_u32,
+    get_unresolved_type, hir_pattern_to_tokens, mutate_func_meta_type, parse,
+    replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use chumsky::{prelude::choice, Parser};
 use im::Vector;
@@ -21,11 +21,15 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, Expression, ExpressionKind, FunctionKind,
+        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, FunctionKind,
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{errors::IResult, value::ExprValue, InterpreterError, Value},
+    hir::comptime::{
+        errors::IResult,
+        value::{ExprValue, TypedExpr},
+        InterpreterError, Value,
+    },
     hir_def::function::FunctionBody,
     macros_api::{HirExpression, HirLiteral, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
@@ -48,12 +52,14 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         location: Location,
     ) -> IResult<Value> {
         let interner = &mut self.elaborator.interner;
+        let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "assert_constant" => Ok(Value::Bool(true)),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
+            "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
             "expr_as_assign" => expr_as_assign(interner, arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(interner, arguments, return_type, location),
             "expr_as_block" => expr_as_block(interner, arguments, return_type, location),
@@ -85,6 +91,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_has_semicolon" => expr_has_semicolon(interner, arguments, location),
             "expr_is_break" => expr_is_break(interner, arguments, location),
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
+            "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
@@ -109,11 +116,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
-            "slice_pop_back" => slice_pop_back(interner, arguments, location),
-            "slice_pop_front" => slice_pop_front(interner, arguments, location),
+            "slice_pop_back" => slice_pop_back(interner, arguments, location, call_stack),
+            "slice_pop_front" => slice_pop_front(interner, arguments, location, call_stack),
             "slice_push_back" => slice_push_back(interner, arguments, location),
             "slice_push_front" => slice_push_front(interner, arguments, location),
-            "slice_remove" => slice_remove(interner, arguments, location),
+            "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
@@ -143,6 +150,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
+            "typed_expr_as_function_definition" => {
+                typed_expr_as_function_definition(interner, arguments, return_type, location)
+            }
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
@@ -153,8 +163,16 @@ impl<'local, 'context> Interpreter<'local, 'context> {
     }
 }
 
-fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
-    Err(InterpreterError::FailingConstraint { message: Some(message.into()), location })
+fn failing_constraint<T>(
+    message: impl Into<String>,
+    location: Location,
+    call_stack: &im::Vector<Location>,
+) -> IResult<T> {
+    Err(InterpreterError::FailingConstraint {
+        message: Some(message.into()),
+        location,
+        call_stack: call_stack.clone(),
+    })
 }
 
 fn array_len(
@@ -286,6 +304,7 @@ fn slice_remove(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let (slice, index) = check_two_arguments(arguments, location)?;
 
@@ -293,7 +312,7 @@ fn slice_remove(
     let index = get_u32(index)? as usize;
 
     if values.is_empty() {
-        return failing_constraint("slice_remove called on empty slice", location);
+        return failing_constraint("slice_remove called on empty slice", location, call_stack);
     }
 
     if index >= values.len() {
@@ -301,7 +320,7 @@ fn slice_remove(
             "slice_remove: index {index} is out of bounds for a slice of length {}",
             values.len()
         );
-        return failing_constraint(message, location);
+        return failing_constraint(message, location, call_stack);
     }
 
     let element = values.remove(index);
@@ -324,13 +343,14 @@ fn slice_pop_front(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_front() {
         Some(element) => Ok(Value::Tuple(vec![element, Value::Slice(values, typ)])),
-        None => failing_constraint("slice_pop_front called on empty slice", location),
+        None => failing_constraint("slice_pop_front called on empty slice", location, call_stack),
     }
 }
 
@@ -338,13 +358,14 @@ fn slice_pop_back(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_back() {
         Some(element) => Ok(Value::Tuple(vec![Value::Slice(values, typ), element])),
-        None => failing_constraint("slice_pop_back called on empty slice", location),
+        None => failing_constraint("slice_pop_back called on empty slice", location, call_stack),
     }
 }
 
@@ -750,6 +771,23 @@ fn trait_impl_trait_generic_args(
     Ok(Value::Slice(trait_generics, slice_type))
 }
 
+fn typed_expr_as_function_definition(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typed_expr = get_typed_expr(self_argument)?;
+    let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
+        let func_id = interner.lookup_function_from_expr(&expr_id);
+        func_id.map(Value::FunctionDefinition)
+    } else {
+        None
+    };
+    option(return_type, option_value)
+}
+
 // fn is_field(self) -> bool
 fn unresolved_type_is_field(
     interner: &NodeInterner,
@@ -857,6 +895,38 @@ fn expr_as_array(
             let exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(exprs, typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_assert(self) -> Option<(Expr, Option<Expr>)>
+fn expr_as_assert(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
+            if constrain.2 == ConstrainKind::Assert {
+                let predicate = Value::expression(constrain.0.kind);
+
+                let option_type = extract_option_generic_type(return_type);
+                let Type::Tuple(mut tuple_types) = option_type else {
+                    panic!("Expected the return type option generic arg to be a tuple");
+                };
+                assert_eq!(tuple_types.len(), 2);
+
+                let option_type = tuple_types.pop().unwrap();
+                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = option(option_type, message).ok()?;
+
+                Some(Value::Tuple(vec![predicate, message]))
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -1335,7 +1405,48 @@ where
     F: FnOnce(ExprValue) -> Option<Value>,
 {
     let self_argument = check_one_argument(arguments, location)?;
-    let mut expr_value = get_expr(interner, self_argument)?;
+    let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
+
+    let option_value = f(expr_value);
+    option(return_type, option_value)
+}
+
+// fn resolve(self) -> TypedExpr
+fn expr_resolve(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let self_argument_location = self_argument.1;
+    let expr_value = get_expr(interpreter.elaborator.interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interpreter.elaborator.interner, expr_value);
+
+    let value =
+        interpreter.elaborate_item(interpreter.current_function, |elaborator| match expr_value {
+            ExprValue::Expression(expression_kind) => {
+                let expr = Expression { kind: expression_kind, span: self_argument_location.span };
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Value::TypedExpr(TypedExpr::ExprId(expr_id))
+            }
+            ExprValue::Statement(statement_kind) => {
+                let statement =
+                    Statement { kind: statement_kind, span: self_argument_location.span };
+                let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                Value::TypedExpr(TypedExpr::StmtId(stmt_id))
+            }
+            ExprValue::LValue(lvalue) => {
+                let expr = lvalue.as_expression();
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Value::TypedExpr(TypedExpr::ExprId(expr_id))
+            }
+        });
+
+    Ok(value)
+}
+
+fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
     loop {
         match expr_value {
             ExprValue::Expression(ExpressionKind::Parenthesized(expression)) => {
@@ -1357,9 +1468,7 @@ where
             _ => break,
         }
     }
-
-    let option_value = f(expr_value);
-    option(return_type, option_value)
+    expr_value
 }
 
 // fn body(self) -> Expr

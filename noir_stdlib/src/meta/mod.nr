@@ -7,6 +7,7 @@ mod trait_constraint;
 mod trait_def;
 mod trait_impl;
 mod typ;
+mod typed_expr;
 mod quoted;
 mod unresolved_type;
 

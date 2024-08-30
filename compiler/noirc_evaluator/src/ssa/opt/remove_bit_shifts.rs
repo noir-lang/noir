@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, sync::Arc};
 
 use acvm::{acir::AcirField, FieldElement};
 
@@ -174,7 +174,7 @@ impl Context<'_> {
             let to_bits = self.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
             let length = self.field_constant(FieldElement::from(bit_size as i128));
             let result_types =
-                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
+                vec![Type::field(), Type::Array(Arc::new(vec![Type::bool()]), bit_size as usize)];
             let rhs_bits = self.insert_call(to_bits, vec![rhs, length], result_types);
 
             let rhs_bits = rhs_bits[1];
