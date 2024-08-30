@@ -9,11 +9,12 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         CallExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
-        FunctionReturnType, MethodCallExpression, Visitor,
+        FunctionReturnType, MethodCallExpression, Statement, Visitor,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::NodeInterner,
     node_interner::ReferenceId,
+    parser::Item,
     ParsedModule, Type,
 };
 
@@ -315,6 +316,18 @@ impl<'a> SignatureFinder<'a> {
 }
 
 impl<'a> Visitor for SignatureFinder<'a> {
+    fn visit_item(&mut self, item: &Item) -> bool {
+        self.includes_span(item.span)
+    }
+
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        self.includes_span(statement.span)
+    }
+
+    fn visit_expression(&mut self, expression: &Expression) -> bool {
+        self.includes_span(expression.span)
+    }
+
     fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
         call_expression.accept_children(self);
 

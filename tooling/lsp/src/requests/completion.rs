@@ -805,11 +805,7 @@ impl<'a> Visitor for NodeFinder<'a> {
             }
         }
 
-        if !self.includes_span(item.span) {
-            return false;
-        }
-
-        true
+        self.includes_span(item.span)
     }
 
     fn visit_import(&mut self, use_tree: &UseTree) -> bool {
