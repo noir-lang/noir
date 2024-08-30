@@ -337,6 +337,39 @@ describe('e2e_block_building', () => {
       const account = getSchnorrAccount(pxe, Fr.random(), Fq.random(), Fr.random());
       await account.waitSetup();
     });
+
+    // Regression for https://github.com/AztecProtocol/aztec-packages/issues/8306
+    it.skip('can simulate public txs while building a block', async () => {
+      ({
+        teardown,
+        pxe,
+        logger,
+        aztecNode,
+        wallet: owner,
+      } = await setup(1, {
+        minTxsPerBlock: 1,
+        skipProtocolContracts: true,
+      }));
+
+      logger.info('Deploying token contract');
+      const token = await TokenContract.deploy(owner, owner.getCompleteAddress(), 'TokenName', 'TokenSymbol', 18)
+        .send()
+        .deployed();
+
+      logger.info('Updating min txs per block to 4');
+      await aztecNode.setConfig({ minTxsPerBlock: 4 });
+
+      logger.info('Spamming the network with public txs');
+      const txs = [];
+      for (let i = 0; i < 30; i++) {
+        const tx = token.methods.mint_public(owner.getAddress(), 10n);
+        await tx.create({ skipPublicSimulation: false });
+        txs.push(tx.send());
+      }
+
+      logger.info('Waiting for txs to be mined');
+      await Promise.all(txs.map(tx => tx.wait()));
+    });
   });
 });
 
