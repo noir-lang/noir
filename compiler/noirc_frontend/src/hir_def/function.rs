@@ -166,7 +166,7 @@ pub struct FuncMeta {
     pub self_type: Option<Type>,
 
     /// Custom attributes attached to this function.
-    pub custom_attributes: Option<Vec<String>>,
+    pub custom_attributes: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

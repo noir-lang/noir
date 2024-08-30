@@ -1518,7 +1518,8 @@ fn function_def_has_named_attribute(
     let func_id = get_function_def(self_argument)?;
     let name = get_quoted(name)?;
     let func_meta = interner.function_meta(&func_id);
-    let Some(attributes) = &func_meta.custom_attributes else {
+    let attributes = &func_meta.custom_attributes;
+    if attributes.is_empty() {
         return Ok(Value::Bool(false));
     };
 

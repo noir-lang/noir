@@ -817,15 +817,9 @@ impl<'context> Elaborator<'context> {
         };
 
         let attributes = func.secondary_attributes().iter();
-        let attributes = attributes.filter_map(|secondary_attribute| {
-            if let SecondaryAttribute::Custom(name) = secondary_attribute {
-                Some(name.clone())
-            } else {
-                None
-            }
-        });
-        let attributes: Vec<_> = attributes.collect();
-        let attributes = if attributes.is_empty() { None } else { Some(attributes) };
+        let attributes =
+            attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
+        let attributes = attributes.map(|str| str.to_string()).collect();
 
         let meta = FuncMeta {
             name: name_ident,
