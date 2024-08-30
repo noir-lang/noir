@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    FunctionReturnType, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGenerics,
+    FunctionReturnType, GenericTypeArgs, IntegerBitSize, Pattern, Signedness, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 
@@ -411,6 +411,24 @@ pub trait Visitor {
     }
 
     fn visit_function_return_type(&mut self, _: &FunctionReturnType) -> bool {
+        true
+    }
+
+    fn visit_pattern(&mut self, _: &Pattern) -> bool {
+        true
+    }
+
+    fn visit_identifier_pattern(&mut self, _: &Ident) {}
+
+    fn visit_mutable_pattern(&mut self, _: &Pattern, _: Span, _is_synthesized: bool) -> bool {
+        true
+    }
+
+    fn visit_tuple_pattern(&mut self, _: &[Pattern], _: Span) -> bool {
+        true
+    }
+
+    fn visit_struct_pattern(&mut self, _: &Path, _: &[(Ident, Pattern)], _: Span) -> bool {
         true
     }
 }
@@ -1003,6 +1021,7 @@ impl LetStatement {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.pattern.accept(visitor);
         self.r#type.accept(visitor);
         self.expression.accept(visitor);
     }
@@ -1226,6 +1245,40 @@ impl FunctionReturnType {
             FunctionReturnType::Default(_) => (),
             FunctionReturnType::Ty(unresolved_type) => {
                 unresolved_type.accept(visitor);
+            }
+        }
+    }
+}
+
+impl Pattern {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_pattern(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        match self {
+            Pattern::Identifier(ident) => visitor.visit_identifier_pattern(ident),
+            Pattern::Mutable(pattern, span, is_synthesized) => {
+                if visitor.visit_mutable_pattern(pattern, *span, *is_synthesized) {
+                    pattern.accept(visitor);
+                }
+            }
+            Pattern::Tuple(patterns, span) => {
+                if visitor.visit_tuple_pattern(patterns, *span) {
+                    for pattern in patterns {
+                        pattern.accept(visitor);
+                    }
+                }
+            }
+            Pattern::Struct(path, fields, span) => {
+                if visitor.visit_struct_pattern(path, fields, *span) {
+                    path.accept(visitor);
+                    for (_, pattern) in fields {
+                        pattern.accept(visitor);
+                    }
+                }
             }
         }
     }
