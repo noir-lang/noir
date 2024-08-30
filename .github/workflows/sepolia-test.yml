@@ -60,4 +60,34 @@ jobs:
           --ETHEREUM_HOST="https://sepolia.infura.io/v3/${{ secrets.SEPOLIA_API_KEY }}" \
           --L1_CHAIN_ID="11155111"
 
+  success-check:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-and-test
+    if: always()
+    steps:
+      - name: Report overall success
+        env:
+          # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          if [[ $FAIL == true ]]; then
+              echo "Test failed."
+              exit 1
+          fi
 
+  notify:
+    needs:
+      - success-check
+    runs-on: ubuntu-20.04
+    if: ${{ github.ref == 'refs/heads/master' && failure() }}
+    steps:
+      - name: Send notification to aztec3-ci channel if workflow failed on master
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY_WORKFLOW_TRIGGER_URL }}
