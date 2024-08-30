@@ -173,6 +173,7 @@ fn module_id_path(
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
+
         loop {
             let Some(parent_local_id) = current_attributes.parent else {
                 break;
@@ -202,7 +203,7 @@ fn module_id_path(
     }
 
     if !is_relative {
-        // We don't record module attriubtes for the root module,
+        // We don't record module attributes for the root module,
         // so we handle that case separately
         if let CrateId::Root(_) = target_module_id.krate {
             segments.push("crate");

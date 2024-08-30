@@ -1,11 +1,11 @@
 use acvm::{acir::brillig::MemoryAddress, AcirField};
 
 use super::{
-    brillig_variable::BrilligVariable, debug_show::DebugToString, BrilligBinaryOp, BrilligContext,
-    ReservedRegisters,
+    brillig_variable::BrilligVariable, debug_show::DebugToString, registers::RegisterAllocator,
+    BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Saves all of the registers that have been used up until this point.
     fn codegen_save_registers_of_vars(&mut self, vars: &[BrilligVariable]) -> Vec<MemoryAddress> {
         // Save all of the used registers at this point in memory
@@ -66,8 +66,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         //
         // This means that the arguments will be in the first `n` registers after
         // the number of reserved registers.
-        let (sources, destinations): (Vec<_>, Vec<_>) =
-            arguments.iter().enumerate().map(|(i, argument)| (*argument, self.register(i))).unzip();
+        let (sources, destinations): (Vec<_>, Vec<_>) = arguments
+            .iter()
+            .enumerate()
+            .map(|(i, argument)| (*argument, self.stack_register(i)))
+            .unzip();
         destinations
             .iter()
             .for_each(|destination| self.registers.ensure_register_is_allocated(*destination));
@@ -88,7 +91,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         let (sources, destinations): (Vec<_>, Vec<_>) = result_registers
             .iter()
             .enumerate()
-            .map(|(i, result_register)| (self.register(i), *result_register))
+            .map(|(i, result_register)| (self.stack_register(i), *result_register))
             .unzip();
         sources.iter().for_each(|source| self.registers.ensure_register_is_allocated(*source));
         self.codegen_mov_registers_to_registers(sources, destinations);

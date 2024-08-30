@@ -58,6 +58,13 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        let then_value = self.dfg.resolve(then_value);
+        let else_value = self.dfg.resolve(else_value);
+
+        if then_value == else_value {
+            return then_value;
+        }
+
         match self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Self::merge_numeric_values(
                 self.dfg,

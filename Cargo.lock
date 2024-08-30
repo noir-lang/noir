@@ -451,6 +451,7 @@ version = "0.33.0"
 dependencies = [
  "acvm",
  "convert_case 0.6.0",
+ "im",
  "iter-extended",
  "noirc_errors",
  "noirc_frontend",
@@ -3013,6 +3014,7 @@ dependencies = [
  "noirc_frontend",
  "num-bigint",
  "proptest",
+ "rayon",
  "serde",
  "serde_json",
  "serde_with",

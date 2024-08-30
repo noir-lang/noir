@@ -1425,6 +1425,30 @@ impl<F: AcirField> AcirContext<F> {
                 output_count = input_size + (16 - input_size % 16);
                 (vec![], vec![F::from(output_count as u128)])
             }
+            BlackBoxFunc::RecursiveAggregation => {
+                let proof_type_var = match inputs.pop() {
+                    Some(domain_var) => domain_var.into_var()?,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "verify proof".to_string(),
+                            arg: "proof type".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                let proof_type_constant = match self.vars[&proof_type_var].as_constant() {
+                    Some(proof_type_constant) => proof_type_constant,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "proof type".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                (vec![*proof_type_constant], Vec::new())
+            }
             _ => (vec![], vec![]),
         };
         // Allow constant inputs for most blackbox
@@ -1434,7 +1458,6 @@ impl<F: AcirField> AcirContext<F> {
             name,
             BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::Sha256Compression
                 | BlackBoxFunc::Blake2s
                 | BlackBoxFunc::Blake3
                 | BlackBoxFunc::AND

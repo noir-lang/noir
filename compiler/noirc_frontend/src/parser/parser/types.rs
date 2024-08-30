@@ -40,6 +40,7 @@ pub(super) fn parse_type_inner<'a>(
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser.clone()),
         as_trait_path_type(recursive_type_parser),
+        interned_unresolved_type(),
     ))
 }
 
@@ -87,6 +88,7 @@ pub(super) fn comptime_type() -> impl NoirParser<UnresolvedType> {
         type_of_quoted_types(),
         top_level_item_type(),
         quoted_type(),
+        typed_expr_type(),
     ))
 }
 
@@ -158,6 +160,12 @@ fn quoted_type() -> impl NoirParser<UnresolvedType> {
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Quoted).with_span(span))
 }
 
+/// This is the type of a typed/resolved expression.
+fn typed_expr_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TypedExpr)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TypedExpr).with_span(span))
+}
+
 /// This is the type of an already resolved type.
 /// The only way this can appear in the token input is if an already resolved `Type` object
 /// was spliced into a macro's token stream via the `$` operator.
@@ -165,6 +173,15 @@ pub(super) fn resolved_type() -> impl NoirParser<UnresolvedType> {
     token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
         Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
         _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
+    })
+}
+
+pub(super) fn interned_unresolved_type() -> impl NoirParser<UnresolvedType> {
+    token_kind(TokenKind::InternedUnresolvedTypeData).map_with_span(|token, span| match token {
+        Token::InternedUnresolvedTypeData(id) => UnresolvedTypeData::Interned(id).with_span(span),
+        _ => unreachable!(
+            "token_kind(InternedUnresolvedTypeData) guarantees we parse an interned unresolved type"
+        ),
     })
 }
 

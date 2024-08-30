@@ -168,6 +168,8 @@ pub struct Elaborator<'context> {
 
     /// Temporary flag to enable the experimental arithmetic generics feature
     enable_arithmetic_generics: bool,
+
+    pub(crate) interpreter_call_stack: im::Vector<Location>,
 }
 
 #[derive(Default)]
@@ -191,6 +193,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
+        interpreter_call_stack: im::Vector<Location>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -214,6 +217,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             enable_arithmetic_generics,
             current_trait: None,
+            interpreter_call_stack,
         }
     }
 
@@ -229,6 +233,7 @@ impl<'context> Elaborator<'context> {
             crate_id,
             debug_comptime_in_file,
             enable_arithmetic_generics,
+            im::Vector::new(),
         )
     }
 
