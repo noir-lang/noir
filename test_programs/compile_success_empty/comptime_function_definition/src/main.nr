@@ -32,6 +32,8 @@ comptime fn function_attr(f: FunctionDefinition) {
 
     // Check FunctionDefinition::name
     assert_eq(f.name(), quote { foo });
+
+    assert(f.has_named_attribute(quote { function_attr }));
 }
 
 #[mutate_add_one]
