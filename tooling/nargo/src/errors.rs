@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use acvm::{
     acir::circuit::{
-        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload, ResolvedOpcodeLocation
+        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload,
+        ResolvedAssertionPayload, ResolvedOpcodeLocation,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
     AcirField, FieldElement,
@@ -89,7 +90,11 @@ impl<F: AcirField> NargoError<F> {
 #[derive(Debug, Error)]
 pub enum ExecutionError<F: AcirField> {
     #[error("Failed assertion")]
-    AssertionFailed(ResolvedAssertionPayload<F>, Vec<ResolvedOpcodeLocation>, Option<BrilligFunctionId>),
+    AssertionFailed(
+        ResolvedAssertionPayload<F>,
+        Vec<ResolvedOpcodeLocation>,
+        Option<BrilligFunctionId>,
+    ),
 
     #[error("Failed to solve program: '{}'", .0)]
     SolvingError(OpcodeResolutionError<F>, Option<Vec<ResolvedOpcodeLocation>>),
