@@ -299,10 +299,8 @@ impl<'a> Visitor for InlayHintCollector<'a> {
         true
     }
 
-    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Option<Span>) -> bool {
-        if let Some(span) = span {
-            self.show_closing_brace_hint(span, || format!(" fn {}", noir_function.def.name));
-        }
+    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
+        self.show_closing_brace_hint(span, || format!(" fn {}", noir_function.def.name));
 
         true
     }

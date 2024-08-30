@@ -843,7 +843,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
-    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Option<Span>) -> bool {
+    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
         let old_type_parameters = self.type_parameters.clone();
         self.collect_type_parameters_in_generics(&noir_function.def.generics);
 
@@ -858,7 +858,7 @@ impl<'a> Visitor for NodeFinder<'a> {
             self.collect_local_variables(&param.pattern);
         }
 
-        noir_function.def.body.accept(span, self);
+        noir_function.def.body.accept(Some(span), self);
 
         self.type_parameters = old_type_parameters;
 
@@ -888,7 +888,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.collect_type_parameters_in_generics(&type_impl.generics);
 
         for (method, span) in &type_impl.methods {
-            method.accept(Some(*span), self);
+            method.accept(*span, self);
 
             // Optimization: stop looking in functions past the completion cursor
             if span.end() as usize > self.byte_index {

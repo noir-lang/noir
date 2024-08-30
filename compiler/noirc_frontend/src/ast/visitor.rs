@@ -44,7 +44,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_noir_function(&mut self, _: &NoirFunction, _: Option<Span>) -> bool {
+    fn visit_noir_function(&mut self, _: &NoirFunction, _: Span) -> bool {
         true
     }
 
@@ -60,7 +60,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_trait_impl_item_function(&mut self, _: &NoirFunction) -> bool {
+    fn visit_trait_impl_item_function(&mut self, _: &NoirFunction, _span: Span) -> bool {
         true
     }
 
@@ -459,7 +459,7 @@ impl Item {
             ItemKind::Submodules(parsed_sub_module) => {
                 parsed_sub_module.accept(self.span, visitor);
             }
-            ItemKind::Function(noir_function) => noir_function.accept(Some(self.span), visitor),
+            ItemKind::Function(noir_function) => noir_function.accept(self.span, visitor),
             ItemKind::TraitImpl(noir_trait_impl) => {
                 noir_trait_impl.accept(self.span, visitor);
             }
@@ -497,7 +497,7 @@ impl ParsedSubModule {
 }
 
 impl NoirFunction {
-    pub fn accept(&self, span: Option<Span>, visitor: &mut impl Visitor) {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_noir_function(self, span) {
             self.accept_children(visitor);
         }
@@ -539,8 +539,12 @@ impl TraitImplItem {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
             TraitImplItem::Function(noir_function) => {
-                if visitor.visit_trait_impl_item_function(noir_function) {
-                    noir_function.accept(None, visitor);
+                let span = Span::from(
+                    noir_function.name_ident().span().start()..noir_function.span().end(),
+                );
+
+                if visitor.visit_trait_impl_item_function(noir_function, span) {
+                    noir_function.accept(span, visitor);
                 }
             }
             TraitImplItem::Constant(name, unresolved_type, expression) => {
@@ -569,7 +573,7 @@ impl TypeImpl {
         self.object_type.accept(visitor);
 
         for (method, span) in &self.methods {
-            method.accept(Some(*span), visitor);
+            method.accept(*span, visitor);
         }
     }
 }

@@ -136,11 +136,7 @@ impl<'a> DocumentSymbolCollector<'a> {
 }
 
 impl<'a> Visitor for DocumentSymbolCollector<'a> {
-    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Option<Span>) -> bool {
-        let Some(span) = span else {
-            return false;
-        };
-
+    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
         let Some(location) = self.to_lsp_location(span) else {
             return false;
         };
@@ -375,13 +371,6 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         false
     }
 
-    fn visit_trait_impl_item_function(&mut self, noir_function: &NoirFunction) -> bool {
-        let span =
-            Span::from(noir_function.name_ident().span().start()..noir_function.span().end());
-        noir_function.accept(Some(span), self);
-        false
-    }
-
     fn visit_trait_impl_item_constant(
         &mut self,
         name: &Ident,
@@ -416,7 +405,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.accept(Some(*noir_function_span), self);
+            noir_function.accept(*noir_function_span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);
