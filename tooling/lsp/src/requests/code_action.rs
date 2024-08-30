@@ -27,6 +27,9 @@ use crate::{
 
 use super::{process_request, to_lsp_location};
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) fn on_code_action_request(
     state: &mut LspState,
     params: CodeActionParams,
