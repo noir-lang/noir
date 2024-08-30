@@ -223,6 +223,11 @@ pub enum BrilligOpcode<F> {
         bit_size: BitSize,
         value: F,
     },
+    IndirectConst {
+        destination_pointer: MemoryAddress,
+        bit_size: BitSize,
+        value: F,
+    },
     Return,
     /// Used to get data from an outside source.
     /// Also referred to as an Oracle. However, we don't use that name as
