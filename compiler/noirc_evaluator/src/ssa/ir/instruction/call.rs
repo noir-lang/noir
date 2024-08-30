@@ -50,6 +50,7 @@ pub(super) fn simplify_call(
 
     match intrinsic {
         Intrinsic::ToBits(endian) => {
+            // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) =
                 (constant_args, ctrl_typevars.map(|return_types| return_types.first().cloned()))
             {
@@ -67,6 +68,7 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ToRadix(endian) => {
+            // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) =
                 (constant_args, ctrl_typevars.map(|return_types| return_types.first().cloned()))
             {
