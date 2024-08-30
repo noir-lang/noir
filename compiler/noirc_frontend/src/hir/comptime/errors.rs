@@ -56,6 +56,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
+        call_stack: im::Vector<Location>,
     },
     NoMethodFound {
         name: String,
@@ -353,12 +354,20 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::FailingConstraint { message, location } => {
+            InterpreterError::FailingConstraint { message, location, call_stack } => {
                 let (primary, secondary) = match message {
                     Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                CustomDiagnostic::simple_error(primary, secondary, location.span)
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary, secondary, location.span);
+
+                // Only take at most 3 frames starting from the top of the stack to avoid producing too much output
+                for frame in call_stack.iter().rev().take(3) {
+                    diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
+                }
+
+                diagnostic
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");

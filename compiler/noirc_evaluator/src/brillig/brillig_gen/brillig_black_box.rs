@@ -6,14 +6,15 @@ use acvm::{
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
+    registers::RegisterAllocator,
     BrilligContext,
 };
 
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
 /// Extracting arguments and results from the SSA function call
 /// And making any necessary type conversions to adapt noir's blackbox calls to brillig's
-pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
-    brillig_context: &mut BrilligContext<F>,
+pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
     bb_func: &BlackBoxFunc,
     function_arguments: &[BrilligVariable],
     function_results: &[BrilligVariable],
@@ -397,8 +398,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
     }
 }
 
-fn convert_array_or_vector<F: AcirField + DebugToString>(
-    brillig_context: &mut BrilligContext<F>,
+fn convert_array_or_vector<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
     array_or_vector: &BrilligVariable,
     bb_func: &BlackBoxFunc,
 ) -> BrilligVector {

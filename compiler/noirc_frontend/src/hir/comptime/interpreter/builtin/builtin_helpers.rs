@@ -11,7 +11,7 @@ use crate::{
     hir::{
         comptime::{
             errors::IResult,
-            value::{add_token_spans, ExprValue},
+            value::{add_token_spans, ExprValue, TypedExpr},
             Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
@@ -224,6 +224,13 @@ pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
         value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
+    }
+}
+
+pub(crate) fn get_typed_expr((value, location): (Value, Location)) -> IResult<TypedExpr> {
+    match value {
+        Value::TypedExpr(typed_expr) => Ok(typed_expr),
+        value => type_mismatch(value, Type::Quoted(QuotedType::TypedExpr), location),
     }
 }
 

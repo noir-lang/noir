@@ -1,3 +1,4 @@
+// A bunch of different test cases for sha256_var in the stdlib
 fn main(
     msg_just_over_block: [u8; 68],
     result_just_over_block: pub [u8; 32],
@@ -7,7 +8,13 @@ fn main(
     msg_just_under_block: [u8; 60],
     result_just_under_block: pub [u8; 32],
     msg_big_not_block_multiple: [u8; 472],
-    result_big: pub [u8; 32]
+    result_big: pub [u8; 32],
+    // This message is only 297 elements and we want to hash only a variable amount
+    msg_big_with_padding: [u8; 700],
+    // This is the same as `msg_big_with_padding` but with no padding
+    msg_big_no_padding: [u8; 297],
+    message_size: u64,
+    result_big_with_padding: pub [u8; 32]
 ) {
     let hash = std::hash::sha256_var(msg_just_over_block, msg_just_over_block.len() as u64);
     assert_eq(hash, result_just_over_block);
@@ -23,4 +30,10 @@ fn main(
         msg_big_not_block_multiple.len() as u64
     );
     assert_eq(hash, result_big);
+
+    let hash_padding = std::hash::sha256_var(msg_big_with_padding, message_size);
+    assert_eq(hash_padding, result_big_with_padding);
+
+    let hash_no_padding = std::hash::sha256_var(msg_big_no_padding, message_size);
+    assert_eq(hash_no_padding, result_big_with_padding);
 }
