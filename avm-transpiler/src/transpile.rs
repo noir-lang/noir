@@ -982,7 +982,7 @@ fn handle_storage_write(
     inputs: &Vec<ValueOrArray>,
 ) {
     assert!(inputs.len() == 2);
-    assert!(destinations.len() == 0);
+    assert!(destinations.is_empty());
 
     let slot_offset_maybe = inputs[0];
     let slot_offset = match slot_offset_maybe {
