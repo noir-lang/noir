@@ -64,7 +64,7 @@ constexpr size_t get_num_rounds(const size_t num_points)
 }
 
 template <typename Curve> struct affine_product_runtime_state {
-    typename Curve::AffineElement* points;
+    const typename Curve::AffineElement* points;
     typename Curve::AffineElement* point_pairs_1;
     typename Curve::AffineElement* point_pairs_2;
     typename Curve::BaseField* scratch_space;

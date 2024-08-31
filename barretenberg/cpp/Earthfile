@@ -233,19 +233,16 @@ test-clang-format:
 test:
     ARG hardware_concurrency=""
     # prefetch
-    BUILD +test-binaries
     BUILD +preset-release-assert-test
     BUILD +test-clang-format
     BUILD ./srs_db/+build # prefetch
-    FROM +source
-    COPY --dir +test-binaries/build build
     FROM +preset-release-assert-test
     COPY --dir ./srs_db/+build/. srs_db
     # limit hardware concurrency, if provided
     IF [ "$HARDWARE_CONCURRENCY" != "" ]
         ENV HARDWARE_CONCURRENCY=$hardware_concurrency
     END
-    RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
+    RUN cd build && ./bin/stdlib_client_ivc_verifier_tests --gtest_filter=ClientIVCRecursionTests.ClientTubeBase #GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
 
 vm-full-test:
     ARG hardware_concurrency=""

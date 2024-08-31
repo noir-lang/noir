@@ -130,7 +130,7 @@ template <typename FF, typename CommitmentKey_> class ProvingKey_ {
     {
         if (commitment_key == nullptr) {
             ZoneScopedN("init commitment key");
-            this->commitment_key = std::make_shared<CommitmentKey_>(circuit_size + 1);
+            this->commitment_key = std::make_shared<CommitmentKey_>(circuit_size);
         } else {
             // Don't create another commitment key if we already have one
             this->commitment_key = commitment_key;
@@ -439,7 +439,7 @@ MegaRecursiveFlavor_<CircuitSimulatorBN254>,
 TranslatorRecursiveFlavor_<UltraCircuitBuilder>,
 TranslatorRecursiveFlavor_<MegaCircuitBuilder>,
 TranslatorRecursiveFlavor_<CircuitSimulatorBN254>,
-ECCVMRecursiveFlavor_<UltraCircuitBuilder>, 
+ECCVMRecursiveFlavor_<UltraCircuitBuilder>,
 AvmRecursiveFlavor_<UltraCircuitBuilder>>;
 
 template <typename T> concept IsECCVMRecursiveFlavor = IsAnyOf<T, ECCVMRecursiveFlavor_<UltraCircuitBuilder>>;

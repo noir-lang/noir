@@ -36,7 +36,6 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger<curve::BN254>(
             { poly_coefficients[i].get(), circuit_proving_key->circuit_size },
             circuit_proving_key->reference_string->get_monomial_points(),
-            circuit_proving_key->circuit_size,
             state));
     }
 

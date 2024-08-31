@@ -87,7 +87,8 @@ template <typename Curve> class IO {
         file.read((char*)&manifest, sizeof(Manifest));
         if (!file) {
             ptrdiff_t read = file.gcount();
-            throw_or_abort(format("Only read ", read, " bytes from file but expected ", sizeof(Manifest), "."));
+            throw_or_abort(format(
+                "Only read ", read, " bytes from manifest file ", filename, " but expected ", sizeof(Manifest), "."));
         }
         file.close();
 
@@ -130,7 +131,8 @@ template <typename Curve> class IO {
         file.read(buffer, (int)size);
         if (!file) {
             ptrdiff_t read = file.gcount();
-            throw_or_abort(format("Only read ", read, " bytes from file but expected ", size, "."));
+            throw_or_abort(
+                format("Only read ", read, " bytes from transcript file ", filename, " but expected ", size, "."));
         }
 
         file.close();

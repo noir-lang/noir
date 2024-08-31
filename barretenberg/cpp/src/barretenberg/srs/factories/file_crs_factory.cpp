@@ -55,8 +55,7 @@ FileCrsFactory<Curve>::FileCrsFactory(std::string path, size_t initial_degree)
 template <typename Curve>
 std::shared_ptr<bb::srs::factories::ProverCrs<Curve>> FileCrsFactory<Curve>::get_prover_crs(size_t degree)
 {
-    if (degree != degree_ || !prover_crs_) {
-        ZoneScopedN("get_prover_crs");
+    if (degree_ < degree || !prover_crs_) {
         prover_crs_ = std::make_shared<FileProverCrs<Curve>>(degree, path_);
         degree_ = degree;
     }
@@ -66,7 +65,7 @@ std::shared_ptr<bb::srs::factories::ProverCrs<Curve>> FileCrsFactory<Curve>::get
 template <typename Curve>
 std::shared_ptr<bb::srs::factories::VerifierCrs<Curve>> FileCrsFactory<Curve>::get_verifier_crs(size_t degree)
 {
-    if (degree != degree_ || !verifier_crs_) {
+    if (degree_ < degree || !verifier_crs_) {
         verifier_crs_ = std::make_shared<FileVerifierCrs<Curve>>(path_, degree);
         degree_ = degree;
     }
