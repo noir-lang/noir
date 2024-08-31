@@ -242,7 +242,7 @@ test:
     IF [ "$HARDWARE_CONCURRENCY" != "" ]
         ENV HARDWARE_CONCURRENCY=$hardware_concurrency
     END
-    RUN cd build && ./bin/stdlib_client_ivc_verifier_tests --gtest_filter=ClientIVCRecursionTests.ClientTubeBase #GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
+    RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
 
 vm-full-test:
     ARG hardware_concurrency=""
