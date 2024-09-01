@@ -3,7 +3,7 @@ use crate::{notifications::on_did_open_text_document, test_utils};
 use lsp_types::{
     CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     DidOpenTextDocumentParams, PartialResultParams, Position, Range, TextDocumentIdentifier,
-    TextDocumentItem, WorkDoneProgressParams,
+    TextDocumentItem, TextEdit, WorkDoneProgressParams,
 };
 use tokio::test;
 
@@ -49,8 +49,49 @@ async fn get_code_action(src: &str) -> CodeActionResponse {
     .unwrap()
 }
 
+async fn assert_code_action(title: &str, src: &str, expected: &str) {
+    let actions = get_code_action(src).await;
+    let action = actions
+        .iter()
+        .filter_map(|action| {
+            if let CodeActionOrCommand::CodeAction(action) = action {
+                if action.title == title {
+                    Some(action)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .next()
+        .expect("Couldn't find an action with the given title");
+
+    let workspace_edit = action.edit.as_ref().unwrap();
+    let text_edits = workspace_edit.changes.as_ref().unwrap().iter().next().unwrap().1;
+    assert_eq!(text_edits.len(), 1);
+
+    let result = apply_text_edit(&src.replace(">|<", ""), &text_edits[0]);
+    assert_eq!(result, expected);
+}
+
+fn apply_text_edit(src: &str, text_edit: &TextEdit) -> String {
+    let mut lines: Vec<_> = src.lines().collect();
+    assert_eq!(text_edit.range.start.line, text_edit.range.end.line);
+
+    let mut line = lines[text_edit.range.start.line as usize].to_string();
+    line.replace_range(
+        text_edit.range.start.character as usize..text_edit.range.end.character as usize,
+        &text_edit.new_text,
+    );
+    lines[text_edit.range.start.line as usize] = &line;
+    lines.join("\n")
+}
+
 #[test]
-async fn test_code_action_for_unresolved_path_for_struct() {
+async fn test_qualify_code_action_for_struct() {
+    let title = "Qualify as foo::bar::SomeTypeInBar";
+
     let src = r#"
         mod foo {
             mod bar {
@@ -61,49 +102,48 @@ async fn test_code_action_for_unresolved_path_for_struct() {
         fn foo(x: SomeType>|<InBar) {}
         "#;
 
-    let actions = get_code_action(src).await;
-    assert_eq!(actions.len(), 2);
+    let expected = r#"
+        mod foo {
+            mod bar {
+                struct SomeTypeInBar {}
+            }
+        }
 
-    let action = &actions[0];
-    let CodeActionOrCommand::CodeAction(action) = action else {
-        panic!("Expected an action");
-    };
+        fn foo(x: foo::bar::SomeTypeInBar) {}
+        "#;
 
-    assert_eq!(action.title, "Import foo::bar::SomeTypeInBar");
-
-    let workspace_edit = action.edit.as_ref().unwrap();
-    let text_edits = workspace_edit.changes.as_ref().unwrap().iter().next().unwrap().1;
-    assert_eq!(text_edits.len(), 1);
-
-    let text_edit = &text_edits[0];
-    assert_eq!(text_edit.new_text, "use foo::bar::SomeTypeInBar;\n");
-    assert_eq!(text_edit.range.start.line, 0);
-    assert_eq!(text_edit.range.start.character, 0);
-    assert_eq!(text_edit.range.end.line, 0);
-    assert_eq!(text_edit.range.end.character, 0);
-
-    let action = &actions[1];
-    let CodeActionOrCommand::CodeAction(action) = action else {
-        panic!("Expected an action");
-    };
-
-    assert_eq!(action.title, "Qualify as foo::bar::SomeTypeInBar");
-
-    let workspace_edit = action.edit.as_ref().unwrap();
-    let text_edits = workspace_edit.changes.as_ref().unwrap().iter().next().unwrap().1;
-    assert_eq!(text_edits.len(), 1);
-
-    let text_edit = &text_edits[0];
-    assert_eq!(text_edit.new_text, "foo::bar::");
-
-    assert_eq!(text_edit.range.start.line, 7);
-    assert_eq!(text_edit.range.start.character, 18);
-    assert_eq!(text_edit.range.end.line, 7);
-    assert_eq!(text_edit.range.end.character, 18);
+    assert_code_action(title, src, expected).await;
 }
 
 #[test]
-async fn test_code_action_for_unresolved_path_for_module() {
+async fn test_import_code_action_for_struct() {
+    let title = "Import foo::bar::SomeTypeInBar";
+
+    let src = r#"mod foo {
+    mod bar {
+        struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeType>|<InBar) {}"#;
+
+    let expected = r#"use foo::bar::SomeTypeInBar;
+
+mod foo {
+    mod bar {
+        struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeTypeInBar) {}"#;
+
+    assert_code_action(title, src, expected).await;
+}
+
+#[test]
+async fn test_qualify_code_action_for_module() {
+    let title = "Qualify as foo::bar::some_module_in_bar";
+
     let src = r#"
         mod foo {
             mod bar {
@@ -116,43 +156,46 @@ async fn test_code_action_for_unresolved_path_for_module() {
         }
         "#;
 
-    let actions = get_code_action(src).await;
-    assert_eq!(actions.len(), 2);
+    let expected = r#"
+        mod foo {
+            mod bar {
+                mod some_module_in_bar {}
+            }
+        }
 
-    let action = &actions[0];
-    let CodeActionOrCommand::CodeAction(action) = action else {
-        panic!("Expected an action");
-    };
+        fn main() {
+          foo::bar::some_module_in_bar
+        }
+        "#;
 
-    assert_eq!(action.title, "Import foo::bar::some_module_in_bar");
+    assert_code_action(title, src, expected).await;
+}
 
-    let workspace_edit = action.edit.as_ref().unwrap();
-    let text_edits = workspace_edit.changes.as_ref().unwrap().iter().next().unwrap().1;
-    assert_eq!(text_edits.len(), 1);
+#[test]
+async fn test_import_code_action_for_module() {
+    let title = "Import foo::bar::some_module_in_bar";
 
-    let text_edit = &text_edits[0];
-    assert_eq!(text_edit.new_text, "use foo::bar::some_module_in_bar;\n");
-    assert_eq!(text_edit.range.start.line, 0);
-    assert_eq!(text_edit.range.start.character, 0);
-    assert_eq!(text_edit.range.end.line, 0);
-    assert_eq!(text_edit.range.end.character, 0);
+    let src = r#"mod foo {
+    mod bar {
+        mod some_module_in_bar {}
+    }
+}
 
-    let action = &actions[1];
-    let CodeActionOrCommand::CodeAction(action) = action else {
-        panic!("Expected an action");
-    };
+fn main() {
+    some_mod>|<ule_in_bar
+}"#;
 
-    assert_eq!(action.title, "Qualify as foo::bar::some_module_in_bar");
+    let expected = r#"use foo::bar::some_module_in_bar;
 
-    let workspace_edit = action.edit.as_ref().unwrap();
-    let text_edits = workspace_edit.changes.as_ref().unwrap().iter().next().unwrap().1;
-    assert_eq!(text_edits.len(), 1);
+mod foo {
+    mod bar {
+        mod some_module_in_bar {}
+    }
+}
 
-    let text_edit = &text_edits[0];
-    assert_eq!(text_edit.new_text, "foo::bar::");
+fn main() {
+    some_module_in_bar
+}"#;
 
-    assert_eq!(text_edit.range.start.line, 8);
-    assert_eq!(text_edit.range.start.character, 10);
-    assert_eq!(text_edit.range.end.line, 8);
-    assert_eq!(text_edit.range.end.character, 10);
+    assert_code_action(title, src, expected).await;
 }
