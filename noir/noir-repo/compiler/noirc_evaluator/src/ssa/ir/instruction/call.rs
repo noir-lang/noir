@@ -1,7 +1,10 @@
 use fxhash::FxHashMap as HashMap;
-use std::{collections::VecDeque, rc::Rc};
+use std::{collections::VecDeque, sync::Arc};
 
-use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use acvm::{
+    acir::{AcirField, BlackBoxFunc},
+    BlackBoxResolutionError, FieldElement,
+};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -19,6 +22,8 @@ use crate::ssa::{
 };
 
 use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
+
+mod blackbox;
 
 /// Try to simplify this call instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
@@ -468,11 +473,17 @@ fn simplify_black_box_func(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "bn254")] {
+            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
+        } else {
+            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+        }
+    };
     match bb_func {
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
         BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
-        BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => SimplifyResult::None,
         BlackBoxFunc::Keccakf1600 => {
             if let Some((array_input, _)) = dfg.get_array_constant(arguments[0]) {
                 if array_is_constant(dfg, &array_input) {
@@ -503,20 +514,26 @@ fn simplify_black_box_func(
         BlackBoxFunc::Keccak256 => {
             unreachable!("Keccak256 should have been replaced by calls to Keccakf1600")
         }
-        BlackBoxFunc::Poseidon2Permutation => SimplifyResult::None, //TODO(Guillaume)
-        BlackBoxFunc::EcdsaSecp256k1 => {
-            simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256k1_verify)
+        BlackBoxFunc::Poseidon2Permutation => {
+            blackbox::simplify_poseidon2_permutation(dfg, solver, arguments)
         }
-        BlackBoxFunc::EcdsaSecp256r1 => {
-            simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
-        }
+        BlackBoxFunc::EcdsaSecp256k1 => blackbox::simplify_signature(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::ecdsa_secp256k1_verify,
+        ),
+        BlackBoxFunc::EcdsaSecp256r1 => blackbox::simplify_signature(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::ecdsa_secp256r1_verify,
+        ),
 
-        BlackBoxFunc::MultiScalarMul
-        | BlackBoxFunc::SchnorrVerify
-        | BlackBoxFunc::EmbeddedCurveAdd => {
-            // Currently unsolvable here as we rely on an implementation in the backend.
-            SimplifyResult::None
-        }
+        BlackBoxFunc::PedersenCommitment
+        | BlackBoxFunc::PedersenHash
+        | BlackBoxFunc::MultiScalarMul => SimplifyResult::None,
+        BlackBoxFunc::EmbeddedCurveAdd => blackbox::simplify_ec_add(dfg, solver, arguments),
+        BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
+
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
@@ -544,7 +561,7 @@ fn simplify_black_box_func(
 fn make_constant_array(dfg: &mut DataFlowGraph, results: Vec<FieldElement>, typ: Type) -> ValueId {
     let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
 
-    let typ = Type::Array(Rc::new(vec![typ]), result_constants.len());
+    let typ = Type::Array(Arc::new(vec![typ]), result_constants.len());
     dfg.make_array(result_constants.into(), typ)
 }
 
@@ -555,7 +572,7 @@ fn make_constant_slice(
 ) -> (ValueId, ValueId) {
     let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
 
-    let typ = Type::Slice(Rc::new(vec![typ]));
+    let typ = Type::Slice(Arc::new(vec![typ]));
     let length = FieldElement::from(result_constants.len() as u128);
     (dfg.make_constant(length, Type::length_type()), dfg.make_array(result_constants.into(), typ))
 }

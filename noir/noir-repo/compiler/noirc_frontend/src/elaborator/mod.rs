@@ -11,7 +11,7 @@ use crate::{
             UnresolvedTypeAlias,
         },
         def_map::DefMaps,
-        resolution::{errors::ResolverError, path_resolver::PathResolver},
+        resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
     },
@@ -36,7 +36,7 @@ use crate::{
     hir::{
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::{import::PathResolution, path_resolver::StandardPathResolver},
+        resolution::import::PathResolution,
         Context,
     },
     hir_def::function::{FuncMeta, HirFunction},
@@ -168,6 +168,8 @@ pub struct Elaborator<'context> {
 
     /// Temporary flag to enable the experimental arithmetic generics feature
     enable_arithmetic_generics: bool,
+
+    pub(crate) interpreter_call_stack: im::Vector<Location>,
 }
 
 #[derive(Default)]
@@ -191,6 +193,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
+        interpreter_call_stack: im::Vector<Location>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -214,6 +217,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             enable_arithmetic_generics,
             current_trait: None,
+            interpreter_call_stack,
         }
     }
 
@@ -229,6 +233,7 @@ impl<'context> Elaborator<'context> {
             crate_id,
             debug_comptime_in_file,
             enable_arithmetic_generics,
+            im::Vector::new(),
         )
     }
 
@@ -630,10 +635,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn resolve_module_by_path(&self, path: Path) -> Option<ModuleId> {
-        let path_resolver = StandardPathResolver::new(self.module_id());
-
-        match path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
+    pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
+        match self.resolve_path(path.clone()) {
             Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
                 if error.is_some() {
                     None
@@ -646,9 +649,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let path_resolver = StandardPathResolver::new(self.module_id());
-
-        let error = match path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
+        let error = match self.resolve_path(path.clone()) {
             Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
                 if let Some(error) = error {
                     self.push_err(error);
@@ -815,6 +816,11 @@ impl<'context> Elaborator<'context> {
             None
         };
 
+        let attributes = func.secondary_attributes().iter();
+        let attributes =
+            attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
+        let attributes = attributes.map(|str| str.to_string()).collect();
+
         let meta = FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -838,6 +844,7 @@ impl<'context> Elaborator<'context> {
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
             self_type: self.self_type.clone(),
             source_file: self.file,
+            custom_attributes: attributes,
         };
 
         self.interner.push_fn_meta(meta, func_id);

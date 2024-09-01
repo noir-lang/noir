@@ -200,14 +200,11 @@ fn compile_programs(
         Ok(((), warnings))
     };
 
-    let program_results: Vec<CompilationResult<()>> = if compile_options.sequential {
-        binary_packages.iter().map(compile_package).collect()
-    } else {
-        // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
-        // Default is 2MB.
-        let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
-        pool.install(|| binary_packages.par_iter().map(compile_package).collect())
-    };
+    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // Default is 2MB.
+    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    let program_results: Vec<CompilationResult<()>> =
+        pool.install(|| binary_packages.par_iter().map(compile_package).collect());
 
     // Collate any warnings/errors which were encountered during compilation.
     collect_errors(program_results).map(|(_, warnings)| ((), warnings))

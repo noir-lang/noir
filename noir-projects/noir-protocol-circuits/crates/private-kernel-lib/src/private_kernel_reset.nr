@@ -149,12 +149,12 @@ mod tests {
         encrypted_log_siloing_amount: u32,
     }
 
-    impl<let NUM_INDEX_HINTS: u32> PrivateKernelResetInputsBuilder<NUM_INDEX_HINTS> {
-        pub fn new() -> PrivateKernelResetInputsBuilder<6> {
+    impl PrivateKernelResetInputsBuilder<6> {
+        pub fn new() -> Self {
             let mut previous_kernel = FixtureBuilder::new().in_vk_tree(PRIVATE_KERNEL_INNER_INDEX);
             previous_kernel.set_first_nullifier();
 
-            PrivateKernelResetInputsBuilder {
+            Self {
                 previous_kernel,
                 transient_data_index_hints: [TransientDataIndexHint::nada(MAX_NULLIFIERS_PER_TX, MAX_NOTE_HASHES_PER_TX); 6],
                 note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder::new(),
@@ -165,7 +165,9 @@ mod tests {
                 encrypted_log_siloing_amount: 0
             }
         }
+    }
 
+    impl<let NUM_INDEX_HINTS: u32> PrivateKernelResetInputsBuilder<NUM_INDEX_HINTS> {
         pub fn with_siloing(&mut self) -> Self {
             self.note_hash_siloing_amount = 6;
             self.nullifier_siloing_amount = 6;

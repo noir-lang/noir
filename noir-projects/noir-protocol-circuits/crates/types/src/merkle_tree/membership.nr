@@ -34,7 +34,7 @@ pub fn assert_check_non_membership<let TREE_HEIGHT: u32, LEAF_PREIMAGE>(
     low_leaf_preimage: LEAF_PREIMAGE,
     low_leaf_membership_witness: MembershipWitness<TREE_HEIGHT>,
     tree_root: Field
-) where 
+) where
     LEAF_PREIMAGE: IndexedTreeLeafPreimage {
     assert_check_valid_low_leaf(key, low_leaf_preimage);
 
@@ -55,7 +55,7 @@ pub fn conditionally_assert_check_membership<let TREE_HEIGHT: u32, LEAF_PREIMAGE
     leaf_preimage: LEAF_PREIMAGE,
     membership_witness: MembershipWitness<TREE_HEIGHT>,
     tree_root: Field
-) where 
+) where
     LEAF_PREIMAGE: IndexedTreeLeafPreimage {
     if exists {
         assert(key == leaf_preimage.get_key(), "Key does not match the key of the leaf preimage");
@@ -120,7 +120,7 @@ mod tests {
         TestLeafPreimage { value: 30, next_value: 40 },
     ];
 
-    fn build_tree<let N: u32>() -> NonEmptyMerkleTree<4, 3, 1, 2> {
+    fn build_tree() -> NonEmptyMerkleTree<4, 3, 1, 2> {
         NonEmptyMerkleTree::new(
             leaf_preimages.map(|leaf_preimage: TestLeafPreimage| leaf_preimage.as_leaf()),
             [0; 3],

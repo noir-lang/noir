@@ -15,7 +15,7 @@ struct ResetOutputValidator<
     let NH_RR_SETTLED: u32,
     let NLL_RR_PENDING: u32,
     let NLL_RR_SETTLED: u32,
-    let KEY_VALIDATION_REQUESTS: u32, 
+    let KEY_VALIDATION_REQUESTS: u32,
     let NUM_TRANSIENT_DATA_INDEX_HINTS: u32
 > {
     output: PrivateKernelCircuitPublicInputs,
@@ -33,7 +33,7 @@ impl<
     let NH_RR_SETTLED: u32,
     let NLL_RR_PENDING: u32,
     let NLL_RR_SETTLED: u32,
-    let KEY_VALIDATION_REQUESTS: u32, 
+    let KEY_VALIDATION_REQUESTS: u32,
     let NUM_TRANSIENT_DATA_INDEX_HINTS: u32
 > ResetOutputValidator<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS, NUM_TRANSIENT_DATA_INDEX_HINTS> {
     pub fn new(
@@ -182,9 +182,9 @@ impl<
 
     fn validate_sorted_note_logs(self) {
         // This will be called together with validate_sorted_siloed_note_hashes().
-        // Same as validate_sorted_siloed_note_hashes, it will only be run once. 
+        // Same as validate_sorted_siloed_note_hashes, it will only be run once.
         // This is fine because we don't allow emitting logs for notes emitted in another function at the moment.
-        // All the note logs emitted in a function call must link to note hashes emitted in the same call. 
+        // All the note logs emitted in a function call must link to note hashes emitted in the same call.
         // This is checked in PrivateCallDataValidator > validate_note_logs.
 
         // note_hash_counter was used when squashing the note log along with its corresponding note hash.

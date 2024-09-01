@@ -16,11 +16,10 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, ForLoopStatement, Ident, IfExpression, ItemVisibility, LValue, Lambda,
-        LetStatement, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct,
-        NoirTraitImpl, Path, PathKind, PathSegment, Pattern, Statement, StatementKind, TraitItem,
-        TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
-        UseTree, UseTreeKind,
+        ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression, ItemVisibility,
+        Lambda, LetStatement, MemberAccessExpression, MethodCallExpression, NoirFunction,
+        NoirStruct, NoirTraitImpl, Path, PathKind, PathSegment, Pattern, Statement, TypeImpl,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -33,7 +32,7 @@ use noirc_frontend::{
     hir_def::traits::Trait,
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
-    parser::{Item, ItemKind},
+    parser::{Item, ItemKind, ParsedSubModule},
     ParsedModule, StructType, Type,
 };
 use sort_text::underscore_sort_text;
@@ -48,7 +47,6 @@ mod completion_items;
 mod kinds;
 mod sort_text;
 mod tests;
-mod traversal;
 
 pub(crate) fn on_completion_request(
     state: &mut LspState,
@@ -163,7 +161,7 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find(&mut self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
-        self.find_in_parsed_module(parsed_module);
+        parsed_module.accept(self);
 
         if self.completion_items.is_empty() {
             None
@@ -178,433 +176,6 @@ impl<'a> NodeFinder<'a> {
             }
 
             Some(CompletionResponse::Array(items))
-        }
-    }
-
-    fn find_in_item(&mut self, item: &Item) {
-        if let ItemKind::Import(..) = &item.kind {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
-                self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
-            }
-        }
-
-        if !self.includes_span(item.span) {
-            return;
-        }
-
-        match &item.kind {
-            ItemKind::Import(use_tree) => {
-                let mut prefixes = Vec::new();
-                self.find_in_use_tree(use_tree, &mut prefixes);
-            }
-            ItemKind::Submodules(parsed_sub_module) => {
-                // Switch `self.module_id` to the submodule
-                let previous_module_id = self.module_id;
-
-                let def_map = &self.def_maps[&self.module_id.krate];
-                let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) else {
-                    return;
-                };
-                if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
-                    self.module_id =
-                        ModuleId { krate: self.module_id.krate, local_id: *child_module };
-                }
-
-                let old_auto_import_line = self.auto_import_line;
-                self.nesting += 1;
-
-                if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
-                    self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
-                }
-
-                self.find_in_parsed_module(&parsed_sub_module.contents);
-
-                // Restore the old module before continuing
-                self.module_id = previous_module_id;
-                self.nesting -= 1;
-                self.auto_import_line = old_auto_import_line;
-            }
-            ItemKind::Function(noir_function) => self.find_in_noir_function(noir_function),
-            ItemKind::TraitImpl(noir_trait_impl) => self.find_in_noir_trait_impl(noir_trait_impl),
-            ItemKind::Impl(type_impl) => self.find_in_type_impl(type_impl),
-            ItemKind::Global(let_statement) => self.find_in_let_statement(let_statement, false),
-            ItemKind::TypeAlias(noir_type_alias) => self.find_in_noir_type_alias(noir_type_alias),
-            ItemKind::Struct(noir_struct) => self.find_in_noir_struct(noir_struct),
-            ItemKind::Trait(noir_trait) => self.find_in_noir_trait(noir_trait),
-            ItemKind::ModuleDecl(_) => (),
-        }
-    }
-
-    fn find_in_noir_function(&mut self, noir_function: &NoirFunction) {
-        let old_type_parameters = self.type_parameters.clone();
-        self.collect_type_parameters_in_generics(&noir_function.def.generics);
-
-        for param in &noir_function.def.parameters {
-            self.find_in_unresolved_type(&param.typ);
-        }
-
-        self.find_in_function_return_type(&noir_function.def.return_type);
-
-        self.local_variables.clear();
-        for param in &noir_function.def.parameters {
-            self.collect_local_variables(&param.pattern);
-        }
-
-        self.find_in_block_expression(&noir_function.def.body);
-
-        self.type_parameters = old_type_parameters;
-    }
-
-    fn find_in_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl) {
-        self.find_in_path(&noir_trait_impl.trait_name, RequestedItems::OnlyTypes);
-        self.find_in_unresolved_type(&noir_trait_impl.object_type);
-
-        self.type_parameters.clear();
-        self.collect_type_parameters_in_generics(&noir_trait_impl.impl_generics);
-
-        for item in &noir_trait_impl.items {
-            self.find_in_trait_impl_item(item);
-        }
-
-        self.type_parameters.clear();
-    }
-
-    fn find_in_type_impl(&mut self, type_impl: &TypeImpl) {
-        self.find_in_unresolved_type(&type_impl.object_type);
-
-        self.type_parameters.clear();
-        self.collect_type_parameters_in_generics(&type_impl.generics);
-
-        for (method, span) in &type_impl.methods {
-            self.find_in_noir_function(method);
-
-            // Optimization: stop looking in functions past the completion cursor
-            if span.end() as usize > self.byte_index {
-                break;
-            }
-        }
-
-        self.type_parameters.clear();
-    }
-
-    fn find_in_noir_struct(&mut self, noir_struct: &NoirStruct) {
-        self.type_parameters.clear();
-        self.collect_type_parameters_in_generics(&noir_struct.generics);
-
-        for (_name, unresolved_type) in &noir_struct.fields {
-            self.find_in_unresolved_type(unresolved_type);
-        }
-
-        self.type_parameters.clear();
-    }
-
-    fn find_in_trait_item(&mut self, trait_item: &TraitItem) {
-        match trait_item {
-            TraitItem::Function {
-                name: _,
-                generics,
-                parameters,
-                return_type,
-                where_clause,
-                body,
-            } => {
-                let old_type_parameters = self.type_parameters.clone();
-                self.collect_type_parameters_in_generics(generics);
-
-                for (_name, unresolved_type) in parameters {
-                    self.find_in_unresolved_type(unresolved_type);
-                }
-
-                self.find_in_function_return_type(return_type);
-
-                for unresolved_trait_constraint in where_clause {
-                    self.find_in_unresolved_type(&unresolved_trait_constraint.typ);
-                }
-
-                if let Some(body) = body {
-                    self.local_variables.clear();
-                    for (name, _) in parameters {
-                        self.local_variables.insert(name.to_string(), name.span());
-                    }
-                    self.find_in_block_expression(body);
-                };
-
-                self.type_parameters = old_type_parameters;
-            }
-            TraitItem::Constant { name: _, typ, default_value } => {
-                self.find_in_unresolved_type(typ);
-
-                if let Some(default_value) = default_value {
-                    self.find_in_expression(default_value);
-                }
-            }
-            TraitItem::Type { name: _ } => (),
-        }
-    }
-
-    pub(super) fn find_in_call_expression(&mut self, call_expression: &CallExpression) {
-        // Check if it's this case:
-        //
-        // foo::b>|<(...)
-        //
-        // In this case we want to suggest items in foo but if they are functions
-        // we don't want to insert arguments, because they are already there (even if
-        // they could be wrong) just because inserting them would lead to broken code.
-        if let ExpressionKind::Variable(path) = &call_expression.func.kind {
-            if self.includes_span(path.span) {
-                self.find_in_path_impl(path, RequestedItems::AnyItems, true);
-                return;
-            }
-        }
-
-        // Check if it's this case:
-        //
-        // foo.>|<(...)
-        //
-        // "foo." is actually broken, but it's parsed as "foo", so this is seen
-        // as "foo(...)" but if we are at a dot right after "foo" it means it's
-        // the above case and we want to suggest methods of foo's type.
-        let after_dot = self.byte == Some(b'.');
-        if after_dot && call_expression.func.span.end() as usize == self.byte_index - 1 {
-            let location = Location::new(call_expression.func.span, self.file);
-            if let Some(typ) = self.interner.type_at_location(location) {
-                let typ = typ.follow_bindings();
-                let prefix = "";
-                self.complete_type_fields_and_methods(&typ, prefix, FunctionCompletionKind::Name);
-                return;
-            }
-        }
-
-        self.find_in_expression(&call_expression.func);
-        self.find_in_expressions(&call_expression.arguments);
-    }
-
-    pub(super) fn find_in_method_call_expression(
-        &mut self,
-        method_call_expression: &MethodCallExpression,
-    ) {
-        // Check if it's this case:
-        //
-        // foo.b>|<(...)
-        //
-        // In this case we want to suggest items in foo but if they are functions
-        // we don't want to insert arguments, because they are already there (even if
-        // they could be wrong) just because inserting them would lead to broken code.
-        if self.includes_span(method_call_expression.method_name.span()) {
-            let location = Location::new(method_call_expression.object.span, self.file);
-            if let Some(typ) = self.interner.type_at_location(location) {
-                let typ = typ.follow_bindings();
-                let prefix = method_call_expression.method_name.to_string();
-                let offset =
-                    self.byte_index - method_call_expression.method_name.span().start() as usize;
-                let prefix = prefix[0..offset].to_string();
-                self.complete_type_fields_and_methods(&typ, &prefix, FunctionCompletionKind::Name);
-                return;
-            }
-        }
-
-        self.find_in_expression(&method_call_expression.object);
-        self.find_in_expressions(&method_call_expression.arguments);
-    }
-
-    fn find_in_block_expression(&mut self, block_expression: &BlockExpression) {
-        let old_local_variables = self.local_variables.clone();
-        for statement in &block_expression.statements {
-            self.find_in_statement(statement);
-
-            // Optimization: stop looking in statements past the completion cursor
-            if statement.span.end() as usize > self.byte_index {
-                break;
-            }
-        }
-        self.local_variables = old_local_variables;
-    }
-
-    fn find_in_statement(&mut self, statement: &Statement) {
-        match &statement.kind {
-            StatementKind::Let(let_statement) => {
-                self.find_in_let_statement(let_statement, true);
-            }
-            StatementKind::Constrain(constrain_statement) => {
-                self.find_in_constrain_statement(constrain_statement);
-            }
-            StatementKind::Expression(expression) => {
-                self.find_in_expression(expression);
-            }
-            StatementKind::Assign(assign_statement) => {
-                self.find_in_assign_statement(assign_statement);
-            }
-            StatementKind::For(for_loop_statement) => {
-                self.find_in_for_loop_statement(for_loop_statement);
-            }
-            StatementKind::Comptime(statement) => {
-                // When entering a comptime block, regular local variables shouldn't be offered anymore
-                let old_local_variables = self.local_variables.clone();
-                self.local_variables.clear();
-
-                self.find_in_statement(statement);
-
-                self.local_variables = old_local_variables;
-            }
-            StatementKind::Semi(expression) => {
-                self.find_in_expression(expression);
-            }
-            StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
-        }
-    }
-
-    fn find_in_let_statement(
-        &mut self,
-        let_statement: &LetStatement,
-        collect_local_variables: bool,
-    ) {
-        self.find_in_unresolved_type(&let_statement.r#type);
-        self.find_in_expression(&let_statement.expression);
-
-        if collect_local_variables {
-            self.collect_local_variables(&let_statement.pattern);
-        }
-    }
-
-    fn find_in_for_loop_statement(&mut self, for_loop_statement: &ForLoopStatement) {
-        let old_local_variables = self.local_variables.clone();
-        let ident = &for_loop_statement.identifier;
-        self.local_variables.insert(ident.to_string(), ident.span());
-
-        self.find_in_for_range(&for_loop_statement.range);
-        self.find_in_expression(&for_loop_statement.block);
-
-        self.local_variables = old_local_variables;
-    }
-
-    fn find_in_lvalue(&mut self, lvalue: &LValue) {
-        match lvalue {
-            LValue::Ident(ident) => {
-                if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
-                    let location = Location::new(ident.span(), self.file);
-                    if let Some(ReferenceId::Local(definition_id)) =
-                        self.interner.find_referenced(location)
-                    {
-                        let typ = self.interner.definition_type(definition_id);
-                        let prefix = "";
-                        self.complete_type_fields_and_methods(
-                            &typ,
-                            prefix,
-                            FunctionCompletionKind::NameAndParameters,
-                        );
-                    }
-                }
-            }
-            LValue::MemberAccess { object, field_name: _, span: _ } => self.find_in_lvalue(object),
-            LValue::Index { array, index, span: _ } => {
-                self.find_in_lvalue(array);
-                self.find_in_expression(index);
-            }
-            LValue::Dereference(lvalue, _) => self.find_in_lvalue(lvalue),
-        }
-    }
-
-    fn find_in_expression(&mut self, expression: &Expression) {
-        match &expression.kind {
-            ExpressionKind::Literal(literal) => self.find_in_literal(literal),
-            ExpressionKind::Block(block_expression) => {
-                self.find_in_block_expression(block_expression);
-            }
-            ExpressionKind::Prefix(prefix_expression) => {
-                self.find_in_expression(&prefix_expression.rhs);
-            }
-            ExpressionKind::Index(index_expression) => {
-                self.find_in_index_expression(index_expression);
-            }
-            ExpressionKind::Call(call_expression) => {
-                self.find_in_call_expression(call_expression);
-            }
-            ExpressionKind::MethodCall(method_call_expression) => {
-                self.find_in_method_call_expression(method_call_expression);
-            }
-            ExpressionKind::Constructor(constructor_expression) => {
-                self.find_in_constructor_expression(constructor_expression);
-            }
-            ExpressionKind::MemberAccess(member_access_expression) => {
-                self.find_in_member_access_expression(member_access_expression);
-            }
-            ExpressionKind::Cast(cast_expression) => {
-                self.find_in_cast_expression(cast_expression);
-            }
-            ExpressionKind::Infix(infix_expression) => {
-                self.find_in_infix_expression(infix_expression);
-            }
-            ExpressionKind::If(if_expression) => {
-                self.find_in_if_expression(if_expression);
-            }
-            ExpressionKind::Variable(path) => {
-                self.find_in_path(path, RequestedItems::AnyItems);
-            }
-            ExpressionKind::Tuple(expressions) => {
-                self.find_in_expressions(expressions);
-            }
-            ExpressionKind::Lambda(lambda) => self.find_in_lambda(lambda),
-            ExpressionKind::Parenthesized(expression) => {
-                self.find_in_expression(expression);
-            }
-            ExpressionKind::Unquote(expression) => {
-                self.find_in_expression(expression);
-            }
-            ExpressionKind::Comptime(block_expression, _) => {
-                // When entering a comptime block, regular local variables shouldn't be offered anymore
-                let old_local_variables = self.local_variables.clone();
-                self.local_variables.clear();
-
-                self.find_in_block_expression(block_expression);
-
-                self.local_variables = old_local_variables;
-            }
-            ExpressionKind::Unsafe(block_expression, _) => {
-                self.find_in_block_expression(block_expression);
-            }
-            ExpressionKind::AsTraitPath(as_trait_path) => {
-                self.find_in_as_trait_path(as_trait_path);
-            }
-            ExpressionKind::Quote(_) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
-        }
-
-        // "foo." (no identifier afterwards) is parsed as the expression on the left hand-side of the dot.
-        // Here we check if there's a dot at the completion position, and if the expression
-        // ends right before the dot. If so, it means we want to complete the expression's type fields and methods.
-        // We only do this after visiting nested expressions, because in an expression like `foo & bar.` we want
-        // to complete for `bar`, not for `foo & bar`.
-        if self.completion_items.is_empty()
-            && self.byte == Some(b'.')
-            && expression.span.end() as usize == self.byte_index - 1
-        {
-            let location = Location::new(expression.span, self.file);
-            if let Some(typ) = self.interner.type_at_location(location) {
-                let typ = typ.follow_bindings();
-                let prefix = "";
-                self.complete_type_fields_and_methods(
-                    &typ,
-                    prefix,
-                    FunctionCompletionKind::NameAndParameters,
-                );
-            }
-        }
-    }
-
-    fn find_in_constructor_expression(&mut self, constructor_expression: &ConstructorExpression) {
-        self.find_in_path(&constructor_expression.type_name, RequestedItems::OnlyTypes);
-
-        // Check if we need to autocomplete the field name
-        if constructor_expression
-            .fields
-            .iter()
-            .any(|(field_name, _)| field_name.span().end() as usize == self.byte_index)
-        {
-            self.complete_constructor_field_name(constructor_expression);
-            return;
-        }
-
-        for (_field_name, expression) in &constructor_expression.fields {
-            self.find_in_expression(expression);
         }
     }
 
@@ -632,114 +203,6 @@ impl<'a> NodeFinder<'a> {
 
         for (field, typ) in fields {
             self.completion_items.push(struct_field_completion_item(field, typ));
-        }
-    }
-
-    fn find_in_member_access_expression(
-        &mut self,
-        member_access_expression: &MemberAccessExpression,
-    ) {
-        let ident = &member_access_expression.rhs;
-
-        if self.byte_index == ident.span().end() as usize {
-            // Assuming member_access_expression is of the form `foo.bar`, we are right after `bar`
-            let location = Location::new(member_access_expression.lhs.span, self.file);
-            if let Some(typ) = self.interner.type_at_location(location) {
-                let typ = typ.follow_bindings();
-                let prefix = ident.to_string().to_case(Case::Snake);
-                self.complete_type_fields_and_methods(
-                    &typ,
-                    &prefix,
-                    FunctionCompletionKind::NameAndParameters,
-                );
-                return;
-            }
-        }
-
-        self.find_in_expression(&member_access_expression.lhs);
-    }
-
-    fn find_in_if_expression(&mut self, if_expression: &IfExpression) {
-        self.find_in_expression(&if_expression.condition);
-
-        let old_local_variables = self.local_variables.clone();
-        self.find_in_expression(&if_expression.consequence);
-        self.local_variables = old_local_variables;
-
-        if let Some(alternative) = &if_expression.alternative {
-            let old_local_variables = self.local_variables.clone();
-            self.find_in_expression(alternative);
-            self.local_variables = old_local_variables;
-        }
-    }
-
-    fn find_in_lambda(&mut self, lambda: &Lambda) {
-        for (_, unresolved_type) in &lambda.parameters {
-            self.find_in_unresolved_type(unresolved_type);
-        }
-
-        let old_local_variables = self.local_variables.clone();
-        for (pattern, _) in &lambda.parameters {
-            self.collect_local_variables(pattern);
-        }
-
-        self.find_in_expression(&lambda.body);
-
-        self.local_variables = old_local_variables;
-    }
-
-    fn find_in_as_trait_path(&mut self, as_trait_path: &AsTraitPath) {
-        self.find_in_path(&as_trait_path.trait_path, RequestedItems::OnlyTypes);
-    }
-
-    fn find_in_unresolved_type(&mut self, unresolved_type: &UnresolvedType) {
-        if !self.includes_span(unresolved_type.span) {
-            return;
-        }
-
-        match &unresolved_type.typ {
-            UnresolvedTypeData::Array(_, unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type);
-            }
-            UnresolvedTypeData::Slice(unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type);
-            }
-            UnresolvedTypeData::Parenthesized(unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type);
-            }
-            UnresolvedTypeData::Named(path, unresolved_types, _) => {
-                self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_type_args(unresolved_types);
-            }
-            UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
-                self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_type_args(unresolved_types);
-            }
-            UnresolvedTypeData::MutableReference(unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type);
-            }
-            UnresolvedTypeData::Tuple(unresolved_types) => {
-                self.find_in_unresolved_types(unresolved_types);
-            }
-            UnresolvedTypeData::Function(args, ret, env, _) => {
-                self.find_in_unresolved_types(args);
-                self.find_in_unresolved_type(ret);
-                self.find_in_unresolved_type(env);
-            }
-            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
-                self.find_in_as_trait_path(as_trait_path);
-            }
-            UnresolvedTypeData::Expression(_)
-            | UnresolvedTypeData::FormatString(_, _)
-            | UnresolvedTypeData::String(_)
-            | UnresolvedTypeData::Unspecified
-            | UnresolvedTypeData::Quoted(_)
-            | UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Bool
-            | UnresolvedTypeData::Unit
-            | UnresolvedTypeData::Resolved(_)
-            | UnresolvedTypeData::Error => (),
         }
     }
 
@@ -1331,6 +794,443 @@ impl<'a> NodeFinder<'a> {
 
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
+    }
+}
+
+impl<'a> Visitor for NodeFinder<'a> {
+    fn visit_item(&mut self, item: &Item) -> bool {
+        if let ItemKind::Import(..) = &item.kind {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+                self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
+            }
+        }
+
+        self.includes_span(item.span)
+    }
+
+    fn visit_import(&mut self, use_tree: &UseTree) -> bool {
+        let mut prefixes = Vec::new();
+        self.find_in_use_tree(use_tree, &mut prefixes);
+        false
+    }
+
+    fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
+        // Switch `self.module_id` to the submodule
+        let previous_module_id = self.module_id;
+
+        let def_map = &self.def_maps[&self.module_id.krate];
+        let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) else {
+            return false;
+        };
+        if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
+            self.module_id = ModuleId { krate: self.module_id.krate, local_id: *child_module };
+        }
+
+        let old_auto_import_line = self.auto_import_line;
+        self.nesting += 1;
+
+        if let Some(lsp_location) = to_lsp_location(self.files, self.file, span) {
+            self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
+        }
+
+        parsed_sub_module.accept_children(self);
+
+        // Restore the old module before continuing
+        self.module_id = previous_module_id;
+        self.nesting -= 1;
+        self.auto_import_line = old_auto_import_line;
+
+        false
+    }
+
+    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
+        let old_type_parameters = self.type_parameters.clone();
+        self.collect_type_parameters_in_generics(&noir_function.def.generics);
+
+        for param in &noir_function.def.parameters {
+            param.typ.accept(self);
+        }
+
+        noir_function.def.return_type.accept(self);
+
+        self.local_variables.clear();
+        for param in &noir_function.def.parameters {
+            self.collect_local_variables(&param.pattern);
+        }
+
+        noir_function.def.body.accept(Some(span), self);
+
+        self.type_parameters = old_type_parameters;
+
+        false
+    }
+
+    fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, _: Span) -> bool {
+        self.find_in_path(&noir_trait_impl.trait_name, RequestedItems::OnlyTypes);
+        noir_trait_impl.object_type.accept(self);
+
+        self.type_parameters.clear();
+        self.collect_type_parameters_in_generics(&noir_trait_impl.impl_generics);
+
+        for item in &noir_trait_impl.items {
+            item.accept(self);
+        }
+
+        self.type_parameters.clear();
+
+        false
+    }
+
+    fn visit_type_impl(&mut self, type_impl: &TypeImpl, _: Span) -> bool {
+        type_impl.object_type.accept(self);
+
+        self.type_parameters.clear();
+        self.collect_type_parameters_in_generics(&type_impl.generics);
+
+        for (method, span) in &type_impl.methods {
+            method.accept(*span, self);
+
+            // Optimization: stop looking in functions past the completion cursor
+            if span.end() as usize > self.byte_index {
+                break;
+            }
+        }
+
+        self.type_parameters.clear();
+
+        false
+    }
+
+    fn visit_noir_struct(&mut self, noir_struct: &NoirStruct, _: Span) -> bool {
+        self.type_parameters.clear();
+        self.collect_type_parameters_in_generics(&noir_struct.generics);
+
+        for (_name, unresolved_type) in &noir_struct.fields {
+            unresolved_type.accept(self);
+        }
+
+        self.type_parameters.clear();
+
+        false
+    }
+
+    fn visit_trait_item_function(
+        &mut self,
+        _name: &Ident,
+        generics: &UnresolvedGenerics,
+        parameters: &[(Ident, UnresolvedType)],
+        return_type: &noirc_frontend::ast::FunctionReturnType,
+        where_clause: &[noirc_frontend::ast::UnresolvedTraitConstraint],
+        body: &Option<BlockExpression>,
+    ) -> bool {
+        let old_type_parameters = self.type_parameters.clone();
+        self.collect_type_parameters_in_generics(generics);
+
+        for (_name, unresolved_type) in parameters {
+            unresolved_type.accept(self);
+        }
+
+        return_type.accept(self);
+
+        for unresolved_trait_constraint in where_clause {
+            unresolved_trait_constraint.typ.accept(self);
+        }
+
+        if let Some(body) = body {
+            self.local_variables.clear();
+            for (name, _) in parameters {
+                self.local_variables.insert(name.to_string(), name.span());
+            }
+            body.accept(None, self);
+        };
+
+        self.type_parameters = old_type_parameters;
+
+        false
+    }
+
+    fn visit_call_expression(&mut self, call_expression: &CallExpression, _: Span) -> bool {
+        //
+        // foo::b>|<(...)
+        //
+        // In this case we want to suggest items in foo but if they are functions
+        // we don't want to insert arguments, because they are already there (even if
+        // they could be wrong) just because inserting them would lead to broken code.
+        if let ExpressionKind::Variable(path) = &call_expression.func.kind {
+            if self.includes_span(path.span) {
+                self.find_in_path_impl(path, RequestedItems::AnyItems, true);
+                return false;
+            }
+        }
+
+        // Check if it's this case:
+        //
+        // foo.>|<(...)
+        //
+        // "foo." is actually broken, but it's parsed as "foo", so this is seen
+        // as "foo(...)" but if we are at a dot right after "foo" it means it's
+        // the above case and we want to suggest methods of foo's type.
+        let after_dot = self.byte == Some(b'.');
+        if after_dot && call_expression.func.span.end() as usize == self.byte_index - 1 {
+            let location = Location::new(call_expression.func.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = "";
+                self.complete_type_fields_and_methods(&typ, prefix, FunctionCompletionKind::Name);
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn visit_method_call_expression(
+        &mut self,
+        method_call_expression: &MethodCallExpression,
+        _: Span,
+    ) -> bool {
+        // Check if it's this case:
+        //
+        // foo.b>|<(...)
+        //
+        // In this case we want to suggest items in foo but if they are functions
+        // we don't want to insert arguments, because they are already there (even if
+        // they could be wrong) just because inserting them would lead to broken code.
+        if self.includes_span(method_call_expression.method_name.span()) {
+            let location = Location::new(method_call_expression.object.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = method_call_expression.method_name.to_string();
+                let offset =
+                    self.byte_index - method_call_expression.method_name.span().start() as usize;
+                let prefix = prefix[0..offset].to_string();
+                self.complete_type_fields_and_methods(&typ, &prefix, FunctionCompletionKind::Name);
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn visit_block_expression(
+        &mut self,
+        block_expression: &BlockExpression,
+        _: Option<Span>,
+    ) -> bool {
+        let old_local_variables = self.local_variables.clone();
+        for statement in &block_expression.statements {
+            statement.accept(self);
+
+            // Optimization: stop looking in statements past the completion cursor
+            if statement.span.end() as usize > self.byte_index {
+                break;
+            }
+        }
+        self.local_variables = old_local_variables;
+
+        false
+    }
+
+    fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
+        let_statement.accept_children(self);
+        self.collect_local_variables(&let_statement.pattern);
+        false
+    }
+
+    fn visit_global(&mut self, let_statement: &LetStatement, _: Span) -> bool {
+        let_statement.accept_children(self);
+        false
+    }
+
+    fn visit_comptime_statement(&mut self, statement: &Statement) -> bool {
+        // When entering a comptime block, regular local variables shouldn't be offered anymore
+        let old_local_variables = self.local_variables.clone();
+        self.local_variables.clear();
+
+        statement.accept(self);
+
+        self.local_variables = old_local_variables;
+
+        false
+    }
+
+    fn visit_for_loop_statement(&mut self, for_loop_statement: &ForLoopStatement) -> bool {
+        let old_local_variables = self.local_variables.clone();
+        let ident = &for_loop_statement.identifier;
+        self.local_variables.insert(ident.to_string(), ident.span());
+
+        for_loop_statement.accept_children(self);
+
+        self.local_variables = old_local_variables;
+
+        false
+    }
+
+    fn visit_lvalue_ident(&mut self, ident: &Ident) {
+        if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
+            let location = Location::new(ident.span(), self.file);
+            if let Some(ReferenceId::Local(definition_id)) = self.interner.find_referenced(location)
+            {
+                let typ = self.interner.definition_type(definition_id);
+                let prefix = "";
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                );
+            }
+        }
+    }
+
+    fn visit_variable(&mut self, path: &Path, _: Span) -> bool {
+        self.find_in_path(path, RequestedItems::AnyItems);
+        false
+    }
+
+    fn visit_expression(&mut self, expression: &Expression) -> bool {
+        expression.accept_children(self);
+
+        // "foo." (no identifier afterwards) is parsed as the expression on the left hand-side of the dot.
+        // Here we check if there's a dot at the completion position, and if the expression
+        // ends right before the dot. If so, it means we want to complete the expression's type fields and methods.
+        // We only do this after visiting nested expressions, because in an expression like `foo & bar.` we want
+        // to complete for `bar`, not for `foo & bar`.
+        if self.completion_items.is_empty()
+            && self.byte == Some(b'.')
+            && expression.span.end() as usize == self.byte_index - 1
+        {
+            let location = Location::new(expression.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = "";
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                );
+            }
+        }
+
+        false
+    }
+
+    fn visit_comptime_expression(
+        &mut self,
+        block_expression: &BlockExpression,
+        span: Span,
+    ) -> bool {
+        // When entering a comptime block, regular local variables shouldn't be offered anymore
+        let old_local_variables = self.local_variables.clone();
+        self.local_variables.clear();
+
+        block_expression.accept(Some(span), self);
+
+        self.local_variables = old_local_variables;
+
+        false
+    }
+
+    fn visit_constructor_expression(
+        &mut self,
+        constructor_expression: &ConstructorExpression,
+        _: Span,
+    ) -> bool {
+        self.find_in_path(&constructor_expression.type_name, RequestedItems::OnlyTypes);
+
+        // Check if we need to autocomplete the field name
+        if constructor_expression
+            .fields
+            .iter()
+            .any(|(field_name, _)| field_name.span().end() as usize == self.byte_index)
+        {
+            self.complete_constructor_field_name(constructor_expression);
+            return false;
+        }
+
+        for (_field_name, expression) in &constructor_expression.fields {
+            expression.accept(self);
+        }
+
+        false
+    }
+
+    fn visit_member_access_expression(
+        &mut self,
+        member_access_expression: &MemberAccessExpression,
+        _: Span,
+    ) -> bool {
+        let ident = &member_access_expression.rhs;
+
+        if self.byte_index == ident.span().end() as usize {
+            // Assuming member_access_expression is of the form `foo.bar`, we are right after `bar`
+            let location = Location::new(member_access_expression.lhs.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = ident.to_string().to_case(Case::Snake);
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    &prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                );
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn visit_if_expression(&mut self, if_expression: &IfExpression, _: Span) -> bool {
+        if_expression.condition.accept(self);
+
+        let old_local_variables = self.local_variables.clone();
+        if_expression.consequence.accept(self);
+        self.local_variables = old_local_variables;
+
+        if let Some(alternative) = &if_expression.alternative {
+            let old_local_variables = self.local_variables.clone();
+            alternative.accept(self);
+            self.local_variables = old_local_variables;
+        }
+
+        false
+    }
+
+    fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
+        for (_, unresolved_type) in &lambda.parameters {
+            unresolved_type.accept(self);
+        }
+
+        let old_local_variables = self.local_variables.clone();
+        for (pattern, _) in &lambda.parameters {
+            self.collect_local_variables(pattern);
+        }
+
+        lambda.body.accept(self);
+
+        self.local_variables = old_local_variables;
+
+        false
+    }
+
+    fn visit_as_trait_path(&mut self, as_trait_path: &AsTraitPath, _: Span) -> bool {
+        self.find_in_path(&as_trait_path.trait_path, RequestedItems::OnlyTypes);
+
+        false
+    }
+
+    fn visit_unresolved_type(&mut self, unresolved_type: &UnresolvedType) -> bool {
+        self.includes_span(unresolved_type.span)
+    }
+
+    fn visit_named_type(
+        &mut self,
+        path: &Path,
+        unresolved_types: &GenericTypeArgs,
+        _: Span,
+    ) -> bool {
+        self.find_in_path(path, RequestedItems::OnlyTypes);
+        unresolved_types.accept(self);
+        false
     }
 }
 

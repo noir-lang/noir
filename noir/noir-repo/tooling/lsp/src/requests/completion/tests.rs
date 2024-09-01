@@ -470,19 +470,19 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![
-                snippet_completion_item(
+                completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
                     "assert(…)",
                     CompletionItemKind::FUNCTION,
                     "assert(${1:predicate})",
                     Some("fn(T)".to_string()),
-                ),
+                )),
                 function_completion_item("assert_constant(…)", "assert_constant(${1:x})", "fn(T)"),
-                snippet_completion_item(
+                completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
                     "assert_eq(…)",
                     CompletionItemKind::FUNCTION,
                     "assert_eq(${1:lhs}, ${2:rhs})",
                     Some("fn(T, T)".to_string()),
-                ),
+                )),
             ],
         )
         .await;

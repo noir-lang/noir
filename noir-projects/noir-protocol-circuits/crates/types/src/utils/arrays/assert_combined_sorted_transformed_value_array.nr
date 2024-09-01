@@ -151,8 +151,8 @@ mod tests {
         hints: [CombinedOrderHint; N],
     }
 
-    impl<let N: u32> TestDataBuilder<TestItem, TestValue, N> {
-        pub fn new() -> TestDataBuilder<TestItem, TestValue, 12> {
+    impl TestDataBuilder<TestItem, TestValue, 12> {
+        pub fn new() -> Self {
             let original_array_lt = pad_end(
                 [
                 TestItem { name: 7, price: 40, tax: 7, counter: 0 },
@@ -206,8 +206,10 @@ mod tests {
 
             TestDataBuilder { original_array_lt, original_array_gte, sorted_transformed_value_array, hints }
         }
+    }
 
-        pub fn new_without_prepended() -> TestDataBuilder<TestItem, TestValue, 8> {
+    impl TestDataBuilder<TestItem, TestValue, 8> {
+        pub fn new_without_prepended() -> Self {
             let original_array_lt = pad_end(
                 [
                 TestItem { name: 6, price: 80, tax: 1, counter: 22 },
@@ -249,7 +251,9 @@ mod tests {
 
             TestDataBuilder { original_array_lt, original_array_gte, sorted_transformed_value_array, hints }
         }
+    }
 
+    impl<let N: u32> TestDataBuilder<TestItem, TestValue, N> {
         pub fn swap_items(&mut self, from: u32, to: u32) {
             let tmp = self.sorted_transformed_value_array[from];
             self.sorted_transformed_value_array[from] = self.sorted_transformed_value_array[to];

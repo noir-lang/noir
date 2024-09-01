@@ -99,7 +99,7 @@ pub fn verify_squashed_transient_data_with_hint_indexes<
         // - For non-empty logs, their note_hash_counter can't be 0. It must match the counter of a note hash, which is verified in private_call_data_validator.
         //   Therefor, is_propagated will be false if index_hint incorrectly points to an empty expected_note_hash and fails the check inside the else statement.
         // - For empty logs, we expect is_propagated to be true, making them part of the note_logs_kept.
-        //   index_hint might point them to the same empty note. This doesn't matter because we increment the value of 
+        //   index_hint might point them to the same empty note. This doesn't matter because we increment the value of
         //   note_logs_kept and ensure that the correct number of empty logs are present in the expected_note_logs.
         let is_propagated = expected_note_hashes[hint_index].counter() == log.note_hash_counter;
         let expected_index = if is_propagated {
@@ -203,8 +203,8 @@ mod tests {
         split_counter: u32,
     }
 
-    impl<let NUM_NOTE_HASHES: u32, let NUM_NULLIFIERS: u32, let NUM_LOGS: u32, let NUM_INDEX_HINTS: u32> TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS, NUM_INDEX_HINTS> {
-        pub fn new() -> TestDataBuilder<5, 4, 3, 2> {
+    impl TestDataBuilder<5, 4, 3, 2> {
+        pub fn new() -> Self {
             let note_hashes = [
                 NoteHash { value: 11, counter: 100 }.scope(contract_address),
                 NoteHash { value: 22, counter: 200 }.scope(contract_address),
@@ -251,8 +251,10 @@ mod tests {
                 split_counter: 0
             }
         }
+    }
 
-        pub fn new_clear_all() -> TestDataBuilder<3, 3, 4, 3> {
+    impl TestDataBuilder<3, 3, 4, 3> {
+        pub fn new_clear_all() -> Self {
             let note_hashes = [
                 NoteHash { value: 11, counter: 100 }.scope(contract_address),
                 NoteHash { value: 22, counter: 200 }.scope(contract_address),
@@ -296,8 +298,10 @@ mod tests {
                 split_counter: 0
             }
         }
+    }
 
-        pub fn new_identical_note_hashes() -> TestDataBuilder<3, 3, 4, 3> {
+    impl TestDataBuilder<3, 3, 4, 3> {
+        pub fn new_identical_note_hashes() -> Self {
             let note_hashes = [
                 NoteHash { value: 11, counter: 100 }.scope(contract_address),
                 NoteHash { value: 11, counter: 200 }.scope(contract_address),
@@ -340,6 +344,9 @@ mod tests {
                 split_counter: 0
             }
         }
+    }
+
+    impl<let NUM_NOTE_HASHES: u32, let NUM_NULLIFIERS: u32, let NUM_LOGS: u32, let NUM_INDEX_HINTS: u32> TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS, NUM_INDEX_HINTS> {
 
         pub fn get_nada_index_hint(_self: Self) -> TransientDataIndexHint {
             TransientDataIndexHint { nullifier_index: NUM_NULLIFIERS, note_hash_index: NUM_NOTE_HASHES }

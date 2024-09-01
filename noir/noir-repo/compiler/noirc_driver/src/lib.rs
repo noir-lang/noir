@@ -129,11 +129,18 @@ pub struct CompileOptions {
     /// This check should always be run on production code.
     #[arg(long)]
     pub skip_underconstrained_check: bool,
+}
 
-    /// A workspace is compiled in parallel by default. This flag will compile it sequentially.
-    /// This flag is useful to reduce memory consumption or to avoid using rayon threads for compilation (which don't have dynamic stacks).
-    #[arg(long)]
-    pub sequential: bool,
+#[derive(Clone, Debug, Default)]
+pub struct CheckOptions {
+    pub compile_options: CompileOptions,
+    pub error_on_unused_imports: bool,
+}
+
+impl CheckOptions {
+    pub fn new(compile_options: &CompileOptions, error_on_unused_imports: bool) -> Self {
+        Self { compile_options: compile_options.clone(), error_on_unused_imports }
+    }
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -283,8 +290,10 @@ pub fn add_dep(
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
-    options: &CompileOptions,
+    check_options: &CheckOptions,
 ) -> CompilationResult<()> {
+    let options = &check_options.compile_options;
+
     let macros: &[&dyn MacroProcessor] =
         if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
 
@@ -294,6 +303,7 @@ pub fn check_crate(
         context,
         options.debug_comptime_in_file.as_deref(),
         options.arithmetic_generics,
+        check_options.error_on_unused_imports,
         macros,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
@@ -327,7 +337,10 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(context, crate_id, options)?;
+    let error_on_unused_imports = true;
+    let check_options = CheckOptions::new(options, error_on_unused_imports);
+
+    let (_, mut warnings) = check_crate(context, crate_id, &check_options)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -362,7 +375,9 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options)?;
+    let error_on_unused_imports = true;
+    let check_options = CheckOptions::new(options, error_on_unused_imports);
+    let (_, warnings) = check_crate(context, crate_id, &check_options)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);

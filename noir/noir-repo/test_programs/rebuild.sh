@@ -79,7 +79,7 @@ fi
 parallel -j7  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
 
 # Process directories in parallel
-parallel -j0 process_dir {} "$current_dir" ::: "${dirs_to_process[@]}"
+parallel -j7  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
 
 # Check rebuild.log for failures
 if [ -f "$current_dir/rebuild.log" ]; then

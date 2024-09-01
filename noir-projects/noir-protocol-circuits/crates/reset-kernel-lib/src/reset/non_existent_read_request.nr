@@ -167,7 +167,7 @@ mod tests {
         TestLeafPreimage { value: 10, next_value: 20 },
     ];
 
-    fn build_tree<N>() -> NonEmptyMerkleTree<4, 3, 1, 2> {
+    fn build_tree() -> NonEmptyMerkleTree<4, 3, 1, 2> {
         NonEmptyMerkleTree::new(
             leaf_preimages.map(|leaf_preimage: TestLeafPreimage| leaf_preimage.as_leaf()),
             [0; 3],

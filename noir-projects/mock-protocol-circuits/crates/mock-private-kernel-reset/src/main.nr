@@ -1,7 +1,4 @@
-use dep::mock_types::{
-    PrivateKernelPublicInputs, PrivateKernelPublicInputsBuilder, MAX_COMMITMENT_READ_REQUESTS_PER_TX,
-    MAX_COMMITMENTS_PER_TX
-};
+use dep::mock_types::{PrivateKernelPublicInputs, MAX_COMMITMENT_READ_REQUESTS_PER_TX, MAX_COMMITMENTS_PER_TX};
 
 // Mock reset kernel that reset read requests.
 // It needs hints to locate the commitment that matches the read requests.

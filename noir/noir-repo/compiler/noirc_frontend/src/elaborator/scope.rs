@@ -2,6 +2,7 @@ use noirc_errors::{Location, Spanned};
 
 use crate::ast::{PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::resolution::import::{PathResolution, PathResolutionResult};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::macros_api::Ident;
@@ -29,7 +30,7 @@ type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 impl<'context> Elaborator<'context> {
     pub(super) fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
-        let id = self.resolve_path(path)?;
+        let id = self.resolve_path_or_error(path)?;
         T::try_from(id).ok_or_else(|| ResolverError::Expected {
             expected: T::description(),
             got: id.as_str().to_owned(),
@@ -42,15 +43,37 @@ impl<'context> Elaborator<'context> {
         ModuleId { krate: self.crate_id, local_id: self.local_module }
     }
 
-    pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
+    pub(super) fn resolve_path_or_error(
+        &mut self,
+        path: Path,
+    ) -> Result<ModuleDefId, ResolverError> {
+        let path_resolution = self.resolve_path(path)?;
+
+        if let Some(error) = path_resolution.error {
+            self.push_err(error);
+        }
+
+        Ok(path_resolution.module_def_id)
+    }
+
+    pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
         let mut module_id = self.module_id();
         let mut path = path;
+
+        if path.kind == PathKind::Plain {
+            let def_map = self.def_maps.get_mut(&self.crate_id).unwrap();
+            let module_data = &mut def_map.modules[module_id.local_id.0];
+            module_data.use_import(&path.segments[0].ident);
+        }
 
         if path.kind == PathKind::Plain && path.first_name() == SELF_TYPE_NAME {
             if let Some(Type::Struct(struct_type, _)) = &self.self_type {
                 let struct_type = struct_type.borrow();
                 if path.segments.len() == 1 {
-                    return Ok(ModuleDefId::TypeId(struct_type.id));
+                    return Ok(PathResolution {
+                        module_def_id: ModuleDefId::TypeId(struct_type.id),
+                        error: None,
+                    });
                 }
 
                 module_id = struct_type.id.module_id();
@@ -65,11 +88,7 @@ impl<'context> Elaborator<'context> {
         self.resolve_path_in_module(path, module_id)
     }
 
-    fn resolve_path_in_module(
-        &mut self,
-        path: Path,
-        module_id: ModuleId,
-    ) -> Result<ModuleDefId, ResolverError> {
+    fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
         let resolver = StandardPathResolver::new(module_id);
         let path_resolution;
 
@@ -99,11 +118,7 @@ impl<'context> Elaborator<'context> {
             path_resolution = resolver.resolve(self.def_maps, path, &mut None)?;
         }
 
-        if let Some(error) = path_resolution.error {
-            self.push_err(error);
-        }
-
-        Ok(path_resolution.module_def_id)
+        Ok(path_resolution)
     }
 
     pub(super) fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
@@ -150,7 +165,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
         let span = path.span();
-        let id = self.resolve_path(path)?;
+        let id = self.resolve_path_or_error(path)?;
 
         if let Some(function) = TryFromModuleDefId::try_from(id) {
             return Ok(self.interner.function_definition_id(function));

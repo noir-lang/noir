@@ -1,7 +1,4 @@
-use dep::mock_types::{
-    PrivateKernelPublicInputs, PrivateKernelPublicInputsBuilder, KernelPublicInputs,
-    MAX_COMMITMENT_READ_REQUESTS_PER_TX
-};
+use dep::mock_types::{PrivateKernelPublicInputs, KernelPublicInputs, MAX_COMMITMENT_READ_REQUESTS_PER_TX};
 
 // The tail kernel finishes the client IVC chain exposing the final public inputs with no remaining calls or unfulfilled read requests.
 fn main(prev_kernel_public_inputs: PrivateKernelPublicInputs) -> pub KernelPublicInputs {

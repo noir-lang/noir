@@ -132,7 +132,7 @@ impl TestEnvironment {
         PackedReturns::new(public_inputs.returns_hash).unpack_into()
     }
 
-    fn call_private_void<C, let M: u32, Env, let N: u32>(
+    fn call_private_void<C, let M: u32, Env>(
         _self: Self,
         call_interface: C
     ) where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env> {
@@ -154,7 +154,7 @@ impl TestEnvironment {
         PackedReturns::new(public_inputs.returns_hash).assert_empty();
     }
 
-    fn call_public<C, let M: u32, T, Env, let N: u32>(
+    fn call_public<C, let M: u32, T, Env>(
         _self: Self,
         call_interface: C
     ) -> T where C: CallInterface<M, PublicContextInputs, T, Env> {
@@ -179,7 +179,7 @@ impl TestEnvironment {
         result
     }
 
-    fn assert_public_call_fails<C, let M: u32, T, Env, let N: u32>(
+    fn assert_public_call_fails<C, let M: u32, T, Env>(
         _self: Self,
         call_interface: C
     ) where C: CallInterface<M, PublicContextInputs, T, Env> {
@@ -190,7 +190,7 @@ impl TestEnvironment {
         );
     }
 
-    fn assert_private_call_fails<C, let M: u32, T, Env, let N: u32>(
+    fn assert_private_call_fails<C, let M: u32, T, Env>(
         _self: Self,
         call_interface: C
     ) where C: CallInterface<M, PrivateContextInputs, T, Env> {

@@ -42,23 +42,27 @@ mod tests {
         combined_indexes: [u32; N]
     }
 
-    impl<let N: u32> TestBuilder<N> {
-        pub fn new() -> TestBuilder<7> {
+    impl TestBuilder<7> {
+        pub fn new() -> Self {
             let original_array_lt = [6, 3, 8, 1, 0, 0, 0];
             let original_array_gte = [4, 9, 5, 0, 0, 0, 0];
             let permuted_array = [5, 8, 9, 3, 1, 6, 4];
             let combined_indexes = [5, 3, 1, 4, 6, 2, 0];
             TestBuilder { original_array_lt, original_array_gte, permuted_array, combined_indexes }
         }
+    }
 
-        pub fn new_with_padded_zeros() -> TestBuilder<10> {
+    impl TestBuilder<10> {
+        pub fn new_with_padded_zeros() -> Self {
             let original_array_lt = [6, 3, 8, 1, 0, 0, 0, 0, 0, 0];
             let original_array_gte = [4, 9, 5, 0, 0, 0, 0, 0, 0, 0];
             let permuted_array = [5, 8, 9, 3, 1, 6, 4, 0, 0, 0];
             let combined_indexes = [5, 3, 1, 4, 6, 2, 0, 7, 8, 9];
             TestBuilder { original_array_lt, original_array_gte, permuted_array, combined_indexes }
         }
+    }
 
+    impl<let N: u32> TestBuilder<N> {
         pub fn verify(self) {
             assert_combined_permuted_array(
                 self.original_array_lt,

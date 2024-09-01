@@ -10,7 +10,6 @@ use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockId, BlockType, MemOp};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
-use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
     acir::AcirField,
@@ -1459,7 +1458,6 @@ impl<F: AcirField> AcirContext<F> {
             name,
             BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::Sha256Compression
                 | BlackBoxFunc::Blake2s
                 | BlackBoxFunc::Blake3
                 | BlackBoxFunc::AND
@@ -2152,7 +2150,11 @@ fn execute_brillig<F: AcirField>(
     }
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    let mut vm = VM::new(calldata, code, Vec::new(), &blackbox_solver::StubbedBlackBoxSolver);
+    //
+    // We pass a stubbed solver here as a concrete solver implies a field choice which conflicts with this function
+    // being generic.
+    let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+    let mut vm = VM::new(calldata, code, Vec::new(), &solver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

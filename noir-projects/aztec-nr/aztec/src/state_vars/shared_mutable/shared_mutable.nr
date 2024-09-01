@@ -123,6 +123,7 @@ impl<T, let INITIAL_DELAY: u32, Context> SharedMutable<T, INITIAL_DELAY, Context
 }
 
 impl<T, let INITIAL_DELAY: u32> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> where T: ToField + FromField + Eq {
+
     pub fn schedule_value_change(self, new_value: T) {
         let mut value_change = self.read_value_change();
         let delay_change = self.read_delay_change();

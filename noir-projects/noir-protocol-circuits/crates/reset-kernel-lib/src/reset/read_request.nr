@@ -80,8 +80,8 @@ fn validate_settled_read_requests<let READ_REQUEST_LEN: u32, let NUM_SETTLED_REA
     read_requests: [ScopedReadRequest; READ_REQUEST_LEN],
     hints: [H; NUM_SETTLED_READS],
     tree_root: Field
-) where 
-    H: SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> + ReadValueHint, 
+) where
+    H: SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> + ReadValueHint,
     LEAF_PREIMAGE: LeafPreimage + Readable {
     for i in 0..NUM_SETTLED_READS {
         let hint = hints[i];
@@ -143,8 +143,8 @@ pub fn verify_reset_read_requests<
     settled_read_hints: [H; NUM_SETTLED_READS],
     tree_root: Field,
     propagated_read_requests: [ScopedReadRequest; READ_REQUEST_LEN]
-) where 
-    P: Readable, 
+) where
+    P: Readable,
     H: SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> + ReadValueHint,
     LEAF_PREIMAGE: LeafPreimage + Readable {
     validate_pending_read_requests(read_requests, pending_values, pending_read_hints);
@@ -271,8 +271,8 @@ mod tests {
         leaf_preimages: [TestLeafPreimage; NUM_SETTLED_READS],
     }
 
-    impl<let READ_REQUEST_LEN: u32, let PENDING_VALUE_LEN: u32, let NUM_PENDING_READS: u32, let NUM_SETTLED_READS: u32> TestBuilder<READ_REQUEST_LEN, PENDING_VALUE_LEN, NUM_PENDING_READS, NUM_SETTLED_READS> {
-        pub fn new() -> TestBuilder<4, 2, 2, 2> {
+    impl TestBuilder<4, 2, 2, 2> {
+        pub fn new() -> Self {
             let contract_address = AztecAddress::from_field(123);
 
             // Create 4 values. 10 and 11 are settled. 12 and 13 are pending.
@@ -310,8 +310,10 @@ mod tests {
 
             TestBuilder { read_requests, read_request_statuses, pending_values, pending_read_hints, leaf_preimages }
         }
+    }
 
-        fn build_tree<N>(self) -> NonEmptyMerkleTree<2, 3, 2, 1> {
+    impl<let READ_REQUEST_LEN: u32, let PENDING_VALUE_LEN: u32, let NUM_PENDING_READS: u32, let NUM_SETTLED_READS: u32> TestBuilder<READ_REQUEST_LEN, PENDING_VALUE_LEN, NUM_PENDING_READS, NUM_SETTLED_READS> {
+        fn build_tree(self) -> NonEmptyMerkleTree<2, 3, 2, 1> {
             NonEmptyMerkleTree::new(
                 [self.leaf_preimages[0].as_leaf(), self.leaf_preimages[1].as_leaf()],
                 [0; 3],
