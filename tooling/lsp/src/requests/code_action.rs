@@ -150,22 +150,13 @@ impl<'a> CodeActionFinder<'a> {
             }
         }
 
+        let title = format!("Import {}", full_path);
         let text_edit = TextEdit {
             range: Range { start: Position { line, character }, end: Position { line, character } },
             new_text: format!("use {};{}{}", full_path, newlines, indent),
         };
 
-        let mut changes = HashMap::new();
-        changes.insert(self.uri.clone(), vec![text_edit]);
-
-        let workspace_edit = WorkspaceEdit {
-            changes: Some(changes),
-            document_changes: None,
-            change_annotations: None,
-        };
-
-        let title = format!("Import {}", full_path);
-        let code_action = new_quick_fix(title, workspace_edit);
+        let code_action = self.new_quick_fix(title, text_edit);
         self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
     }
 
@@ -178,7 +169,14 @@ impl<'a> CodeActionFinder<'a> {
             return;
         };
 
+        let title = format!("Qualify as {}", full_path);
         let text_edit = TextEdit { range, new_text: format!("{}::", prefix) };
+
+        let code_action = self.new_quick_fix(title, text_edit);
+        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+    }
+
+    fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeAction {
         let mut changes = HashMap::new();
         changes.insert(self.uri.clone(), vec![text_edit]);
 
@@ -188,9 +186,16 @@ impl<'a> CodeActionFinder<'a> {
             change_annotations: None,
         };
 
-        let title = format!("Qualify as {}", full_path);
-        let code_action = new_quick_fix(title, workspace_edit);
-        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+        CodeAction {
+            title,
+            kind: Some(CodeActionKind::QUICKFIX),
+            diagnostics: None,
+            edit: Some(workspace_edit),
+            command: None,
+            is_preferred: None,
+            disabled: None,
+            data: None,
+        }
     }
 
     fn includes_span(&self, span: Span) -> bool {
@@ -291,18 +296,5 @@ impl<'a> Visitor for CodeActionFinder<'a> {
                 self.push_qualify_code_action(ident, &qualify_prefix, &full_path);
             }
         }
-    }
-}
-
-fn new_quick_fix(title: String, workspace_edit: WorkspaceEdit) -> CodeAction {
-    CodeAction {
-        title,
-        kind: Some(CodeActionKind::QUICKFIX),
-        diagnostics: None,
-        edit: Some(workspace_edit),
-        command: None,
-        is_preferred: None,
-        disabled: None,
-        data: None,
     }
 }
