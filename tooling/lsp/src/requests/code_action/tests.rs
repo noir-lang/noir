@@ -199,3 +199,123 @@ fn main() {
 
     assert_code_action(title, src, expected).await;
 }
+
+#[test]
+async fn test_fill_struct_fields_code_action_no_space() {
+    let title = "Fill struct fields";
+
+    let src = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+        }
+
+        fn main() {
+            Foo {>|<}
+        }
+        "#;
+
+    let expected = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+        }
+
+        fn main() {
+            Foo { one: (), two: () }
+        }
+        "#;
+
+    assert_code_action(title, src, expected).await;
+}
+
+#[test]
+async fn test_fill_struct_fields_code_action_space() {
+    let title = "Fill struct fields";
+
+    let src = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+        }
+
+        fn main() {
+            Foo { >|<}
+        }
+        "#;
+
+    let expected = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+        }
+
+        fn main() {
+            Foo { one: (), two: () }
+        }
+        "#;
+
+    assert_code_action(title, src, expected).await;
+}
+
+#[test]
+async fn test_fill_struct_fields_code_action_some_fields() {
+    let title = "Fill struct fields";
+
+    let src = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+            three: Field,
+        }
+
+        fn main() {
+            Foo { two: 1>|<}
+        }
+        "#;
+
+    let expected = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+            three: Field,
+        }
+
+        fn main() {
+            Foo { two: 1, one: (), three: () }
+        }
+        "#;
+
+    assert_code_action(title, src, expected).await;
+}
+
+#[test]
+async fn test_fill_struct_fields_code_action_some_fields_trailing_comma() {
+    let title = "Fill struct fields";
+
+    let src = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+            three: Field,
+        }
+
+        fn main() {
+            Foo { two: 1,>|<}
+        }
+        "#;
+
+    let expected = r#"
+        struct Foo {
+            one: Field,
+            two: Field,
+            three: Field,
+        }
+
+        fn main() {
+            Foo { two: 1, one: (), three: () }
+        }
+        "#;
+
+    assert_code_action(title, src, expected).await;
+}

@@ -11,10 +11,11 @@ use lsp_types::{
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::{Ident, Path, Visitor},
+    ast::{ConstructorExpression, Ident, Path, Visitor},
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     macros_api::{ModuleDefId, NodeInterner},
+    node_interner::ReferenceId,
     parser::{Item, ItemKind, ParsedSubModule},
     ParsedModule,
 };
@@ -68,6 +69,7 @@ struct CodeActionFinder<'a> {
     uri: Url,
     files: &'a FileMap,
     file: FileId,
+    source: &'a str,
     lines: Vec<&'a str>,
     byte_index: usize,
     /// The module ID in scope. This might change as we traverse the AST
@@ -108,6 +110,7 @@ impl<'a> CodeActionFinder<'a> {
             uri,
             files,
             file,
+            source,
             lines: source.lines().collect(),
             byte_index,
             module_id,
@@ -296,5 +299,81 @@ impl<'a> Visitor for CodeActionFinder<'a> {
                 self.push_qualify_code_action(ident, &qualify_prefix, &full_path);
             }
         }
+    }
+
+    fn visit_constructor_expression(
+        &mut self,
+        constructor: &ConstructorExpression,
+        span: Span,
+    ) -> bool {
+        if !self.includes_span(span) {
+            return false;
+        }
+
+        // Find out which struct this is
+        let location = Location::new(constructor.type_name.last_ident().span(), self.file);
+        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+            return true;
+        };
+
+        let struct_type = self.interner.get_struct(struct_id);
+        let struct_type = struct_type.borrow();
+
+        // First get all of the struct's fields
+        let mut fields = struct_type.get_fields_as_written();
+
+        // Remove the ones that already exists in the constructor
+        for (field, _) in &constructor.fields {
+            fields.retain(|(name, _)| name != &field.0.contents);
+        }
+
+        if fields.is_empty() {
+            return true;
+        }
+
+        // Some fields are missing. Let's suggest a quick fix that adds them.
+        let bytes = self.source.as_bytes();
+        let right_brace_index = span.end() as usize - 1;
+        let mut index = right_brace_index - 1;
+        while bytes[index].is_ascii_whitespace() {
+            index -= 1;
+        }
+
+        let char_before_right_brace = bytes[index] as char;
+
+        index += 1;
+
+        let Some(range) = byte_span_to_range(self.files, self.file, index..index) else {
+            return true;
+        };
+
+        let on_whitespace = bytes[index].is_ascii_whitespace();
+
+        let mut new_text = String::new();
+        if !constructor.fields.is_empty() && char_before_right_brace != ',' {
+            new_text.push(',')
+        }
+        if !on_whitespace || constructor.fields.is_empty() {
+            new_text.push(' ');
+        }
+
+        for (index, (name, _)) in fields.iter().enumerate() {
+            if index > 0 {
+                new_text.push_str(", ");
+            }
+            new_text.push_str(name);
+            new_text.push_str(": ()");
+        }
+
+        if !bytes[right_brace_index - 1].is_ascii_whitespace() {
+            new_text.push(' ');
+        }
+
+        let title = "Fill struct fields".to_string();
+        let text_edit = TextEdit { range, new_text };
+        let code_action = self.new_quick_fix(title, text_edit);
+        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+
+        true
     }
 }
