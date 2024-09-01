@@ -870,6 +870,16 @@ pub enum SecondaryAttribute {
     Varargs,
 }
 
+impl SecondaryAttribute {
+    pub(crate) fn as_custom(&self) -> Option<&str> {
+        if let Self::Custom(str) = self {
+            Some(str)
+        } else {
+            None
+        }
+    }
+}
+
 impl fmt::Display for SecondaryAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

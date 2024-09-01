@@ -4,6 +4,11 @@ impl FunctionDefinition {
     fn body(self) -> Expr {}
     // docs:end:body
 
+    #[builtin(function_def_has_named_attribute)]
+    // docs:start:has_named_attribute
+    fn has_named_attribute(self, name: Quoted) -> bool {}
+    // docs:end:has_named_attribute
+
     #[builtin(function_def_name)]
     // docs:start:name
     fn name(self) -> Quoted {}
