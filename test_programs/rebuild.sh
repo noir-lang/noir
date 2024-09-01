@@ -76,7 +76,8 @@ else
     done
 fi
 
-parallel -j7  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
+# Clear any existing rebuild.log
+rm -f "$current_dir/rebuild.log"
 
 # Process directories in parallel
 parallel -j7  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
