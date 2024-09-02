@@ -15,7 +15,7 @@ use crate::ast::{
     Expression, Ident, ImportStatement, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
     NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind, TypeImpl, UseTree,
 };
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, SecondaryAttribute, Token};
 
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
@@ -341,6 +341,7 @@ pub enum ItemKind {
 pub struct ParsedSubModule {
     pub name: Ident,
     pub contents: ParsedModule,
+    pub attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
 }
 

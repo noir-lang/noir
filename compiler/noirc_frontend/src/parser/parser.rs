@@ -26,6 +26,7 @@
 use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
+use attributes::{attributes, validate_secondary_attributes};
 pub use types::parse_type;
 
 use super::{
@@ -285,25 +286,39 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
 
 /// submodule: 'mod' ident '{' module '}'
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod)
-        .ignore_then(ident())
+    attributes()
+        .then_ignore(keyword(Keyword::Mod))
+        .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .map(|(name, contents)| {
-            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: false })
+        .validate(|((attributes, name), contents), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::SubModule(ParsedSubModule {
+                name,
+                contents,
+                attributes,
+                is_contract: false,
+            })
         })
 }
 
 /// contract: 'contract' ident '{' module '}'
 fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Contract)
-        .ignore_then(ident())
+    attributes()
+        .then_ignore(keyword(Keyword::Contract))
+        .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .map(|(name, contents)| {
-            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: true })
+        .validate(|((attributes, name), contents), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::SubModule(ParsedSubModule {
+                name,
+                contents,
+                attributes,
+                is_contract: true,
+            })
         })
 }
 
@@ -432,9 +447,12 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod)
-        .ignore_then(ident())
-        .map(|ident| TopLevelStatement::Module(ModuleDeclaration { ident }))
+    attributes().then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
+        |(attributes, ident), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::Module(ModuleDeclaration { ident, attributes })
+        },
+    )
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
@@ -1517,7 +1535,20 @@ mod test {
     #[test]
     fn parse_module_declaration() {
         parse_with(module_declaration(), "mod foo").unwrap();
+        parse_with(module_declaration(), "#[attr] mod foo").unwrap();
         parse_with(module_declaration(), "mod 1").unwrap_err();
+    }
+
+    #[test]
+    fn parse_submodule_declaration() {
+        parse_with(submodule(module()), "mod foo {}").unwrap();
+        parse_with(submodule(module()), "#[attr] mod foo {}").unwrap();
+    }
+
+    #[test]
+    fn parse_contract() {
+        parse_with(contract(module()), "contract foo {}").unwrap();
+        parse_with(contract(module()), "#[attr] contract foo {}").unwrap();
     }
 
     #[test]
