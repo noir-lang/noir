@@ -126,6 +126,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_back" => slice_push_back(interner, arguments, location),
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
+            "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
@@ -240,6 +241,32 @@ fn slice_push_back(
     let (mut values, typ) = get_slice(interner, slice)?;
     values.push_back(element);
     Ok(Value::Slice(values, typ))
+}
+
+fn str_as_bytes(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (string, string_location) = check_one_argument(arguments, location)?;
+
+    match string {
+        Value::String(string) => {
+            let string_as_bytes = string.as_bytes();
+            let bytes_vector: Vec<Value> = string_as_bytes.iter().cloned().map(Value::U8).collect();
+            let byte_array_type = Type::Array(
+                Box::new(Type::Constant(string_as_bytes.len() as u32)),
+                Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+            );
+            Ok(Value::Array(bytes_vector.into(), byte_array_type))
+        }
+        value => {
+            let type_var = Box::new(interner.next_type_variable());
+            let expected = Type::Array(type_var.clone(), type_var);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location: string_location })
+        }
+    }
 }
 
 /// fn as_type(self) -> Type
