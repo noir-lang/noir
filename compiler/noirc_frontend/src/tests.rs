@@ -3327,6 +3327,7 @@ fn warns_on_re_export_of_item_with_less_visibility() {
     }
 
     fn main() {
+        foo::baz();
     }
     "#;
 
