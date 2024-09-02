@@ -347,19 +347,53 @@ impl<'a> Visitor for CodeActionFinder<'a> {
             return true;
         };
 
+        // If the constructor spans multiple lines, we'll add the new fields in new lines too.
+        // Otherwise we'll add all the fields in a single line.
+        let constructor_range =
+            byte_span_to_range(self.files, self.file, span.start() as usize..span.end() as usize);
+
+        // If it's multiline, find out the indent of the beginning line: we'll add new fields
+        // with that indent "plus one" (4 more spaces).
+        let line_indent = if let Some(constructor_range) = constructor_range {
+            if constructor_range.start.line == constructor_range.end.line {
+                None
+            } else {
+                let line = self.lines[constructor_range.start.line as usize];
+                let whitespace_bytes =
+                    line.bytes().take_while(|byte| byte.is_ascii_whitespace()).count();
+                Some(whitespace_bytes)
+            }
+        } else {
+            None
+        };
+        let line_indent = line_indent.map(|indent| " ".repeat(indent + 4));
+
         let on_whitespace = bytes[index].is_ascii_whitespace();
 
         let mut new_text = String::new();
+
+        // Add a comma if there's not a trailing one (if there are existing fields)
         if !constructor.fields.is_empty() && char_before_right_brace != ',' {
-            new_text.push(',')
+            new_text.push(',');
         }
-        if !on_whitespace || constructor.fields.is_empty() {
+
+        // Add space or newline depending on whether it's multiline or not
+        if let Some(line_indent) = &line_indent {
+            new_text.push('\n');
+            new_text.push_str(line_indent);
+        } else if !on_whitespace || constructor.fields.is_empty() {
             new_text.push(' ');
         }
 
         for (index, (name, _)) in fields.iter().enumerate() {
             if index > 0 {
-                new_text.push_str(", ");
+                new_text.push(',');
+                if let Some(line_indent) = &line_indent {
+                    new_text.push('\n');
+                    new_text.push_str(line_indent);
+                } else {
+                    new_text.push(' ');
+                }
             }
             new_text.push_str(name);
             new_text.push_str(": ()");
