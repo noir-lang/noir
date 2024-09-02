@@ -41,14 +41,18 @@ template <typename Flavor> void OinkRecursiveVerifier_<Flavor>::verify()
     CommitmentLabels labels;
 
     FF circuit_size = transcript->template receive_from_prover<FF>(domain_separator + "circuit_size");
-    transcript->template receive_from_prover<FF>(domain_separator + "public_input_size");
-    transcript->template receive_from_prover<FF>(domain_separator + "pub_inputs_offset");
+    FF public_input_size = transcript->template receive_from_prover<FF>(domain_separator + "public_input_size");
+    FF pub_inputs_offset = transcript->template receive_from_prover<FF>(domain_separator + "pub_inputs_offset");
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1032): Uncomment these once it doesn't cause issues
-    // with the flows
-    // ASSERT(static_cast<uint32_t>(circuit_size.get_value()) == key->circuit_size);
-    // ASSERT(static_cast<uint32_t>(public_input_size.get_value()) == key->num_public_inputs);
-    // ASSERT(static_cast<uint32_t>(pub_inputs_offset.get_value()) == key->pub_inputs_offset);
+    if (static_cast<uint32_t>(circuit_size.get_value()) != instance->verification_key->circuit_size) {
+        throw_or_abort("OinkRecursiveVerifier::verify: proof circuit size does not match verification key");
+    }
+    if (static_cast<uint32_t>(public_input_size.get_value()) != instance->verification_key->num_public_inputs) {
+        throw_or_abort("OinkRecursiveVerifier::verify: proof public input size does not match verification key");
+    }
+    if (static_cast<uint32_t>(pub_inputs_offset.get_value()) != instance->verification_key->pub_inputs_offset) {
+        throw_or_abort("OinkRecursiveVerifier::verify: proof public input offset does not match verification key");
+    }
 
     std::vector<FF> public_inputs;
     for (size_t i = 0; i < instance->verification_key->num_public_inputs; ++i) {
