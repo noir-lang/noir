@@ -582,7 +582,7 @@ mod tests {
         comptime
         {
             let expr = quote { times_two }.as_expr().unwrap();
-            let func = expr.resolve().as_function_definition().unwrap();
+            let func = expr.resolve(Option::none()).as_function_definition().unwrap();
             assert_eq(func.name(), quote { times_two });
             assert_eq(func.parameters().len(), 1);
         }

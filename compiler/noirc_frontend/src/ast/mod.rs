@@ -10,6 +10,9 @@ mod statement;
 mod structure;
 mod traits;
 mod type_alias;
+mod visitor;
+
+pub use visitor::Visitor;
 
 pub use expression::*;
 pub use function::*;
