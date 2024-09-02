@@ -17,6 +17,7 @@ use crate::ast::{
 use crate::hir::resolution::errors::ResolverError;
 use crate::macros_api::{Expression, NodeInterner, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::ModuleAttributes;
+use crate::token::SecondaryAttribute;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -63,7 +64,7 @@ pub fn collect_defs(
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(
             context,
-            &decl,
+            decl,
             crate_id,
             macro_processors,
         ));
@@ -303,6 +304,7 @@ impl<'a> ModCollector<'a> {
                 context,
                 &name,
                 Location::new(name.span(), self.file_id),
+                Vec::new(),
                 false,
                 false,
             ) {
@@ -435,6 +437,7 @@ impl<'a> ModCollector<'a> {
                 context,
                 &name,
                 Location::new(name.span(), self.file_id),
+                Vec::new(),
                 false,
                 false,
             ) {
@@ -624,10 +627,15 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
+            let mut attributes = Vec::new();
+            attributes.extend(submodule.attributes);
+            attributes.extend(submodule.contents.attributes.clone());
+
             match self.push_child_module(
                 context,
                 &submodule.name,
                 Location::new(submodule.name.span(), file_id),
+                attributes,
                 true,
                 submodule.is_contract,
             ) {
@@ -656,7 +664,7 @@ impl<'a> ModCollector<'a> {
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
-        mod_decl: &ModuleDeclaration,
+        mod_decl: ModuleDeclaration,
         crate_id: CrateId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
@@ -719,6 +727,7 @@ impl<'a> ModCollector<'a> {
             context,
             &mod_decl.ident,
             Location::new(Span::empty(0), child_file_id),
+            mod_decl.attributes,
             true,
             false,
         ) {
@@ -750,6 +759,7 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         mod_name: &Ident,
         mod_location: Location,
+        attributes: Vec<SecondaryAttribute>,
         add_to_parent_scope: bool,
         is_contract: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
@@ -763,7 +773,7 @@ impl<'a> ModCollector<'a> {
         // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
         // so we keep using `location` so that it continues to work as usual.
         let location = Location::new(mod_name.span(), mod_location.file);
-        let new_module = ModuleData::new(parent, location, is_contract);
+        let new_module = ModuleData::new(parent, location, attributes, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;

@@ -5,6 +5,7 @@ use noirc_errors::Location;
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
 /// children, and scope with all definitions defined within the scope.
@@ -25,13 +26,20 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
+    pub attributes: Vec<SecondaryAttribute>,
+
     /// List of all unused imports. Each time something is imported into this module it's added
     /// to this set. When it's used, it's removed. At the end of the program only unused imports remain.
     unused_imports: HashSet<Ident>,
 }
 
 impl ModuleData {
-    pub fn new(parent: Option<LocalModuleId>, location: Location, is_contract: bool) -> ModuleData {
+    pub fn new(
+        parent: Option<LocalModuleId>,
+        location: Location,
+        attributes: Vec<SecondaryAttribute>,
+        is_contract: bool,
+    ) -> ModuleData {
         ModuleData {
             parent,
             children: HashMap::new(),
@@ -39,6 +47,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
+            attributes,
             unused_imports: HashSet::new(),
         }
     }

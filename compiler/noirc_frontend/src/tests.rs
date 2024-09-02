@@ -67,7 +67,8 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(None, location, false));
+        let root =
+            modules.insert(ModuleData::new(None, location, program.attributes.clone(), false));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
