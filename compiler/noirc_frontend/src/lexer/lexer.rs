@@ -918,13 +918,13 @@ mod tests {
 
     #[test]
     fn test_inner_attribute() {
-        let input = r#"#![test]"#;
+        let input = r#"#![something]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::InnerAttribute(SecondaryAttribute::Custom("test".to_string()))
+            &Token::InnerAttribute(SecondaryAttribute::Custom("something".to_string()))
         );
     }
 
