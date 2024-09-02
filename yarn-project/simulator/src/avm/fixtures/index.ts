@@ -1,5 +1,6 @@
+import { isNoirCallStackUnresolved } from '@aztec/circuit-types';
 import { GasFees, GlobalVariables, Header } from '@aztec/circuits.js';
-import { FunctionSelector } from '@aztec/foundation/abi';
+import { FunctionSelector, getFunctionDebugMetadata } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -9,12 +10,19 @@ import { strict as assert } from 'assert';
 import { mock } from 'jest-mock-extended';
 import merge from 'lodash.merge';
 
-import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
+import {
+  type CommitmentsDB,
+  type PublicContractsDB,
+  type PublicStateDB,
+  resolveAssertionMessage,
+  traverseCauseChain,
+} from '../../index.js';
 import { type PublicSideEffectTraceInterface } from '../../public/side_effect_trace_interface.js';
 import { AvmContext } from '../avm_context.js';
 import { AvmContextInputs, AvmExecutionEnvironment } from '../avm_execution_environment.js';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field, Uint8, Uint64 } from '../avm_memory_types.js';
+import { type AvmRevertReason } from '../errors.js';
 import { HostStorage } from '../journal/host_storage.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
 import { NullifierManager } from '../journal/nullifiers.js';
@@ -151,4 +159,26 @@ export function getAvmTestContractBytecode(functionName: string): Buffer {
     `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
   );
   return artifact.bytecode;
+}
+
+export function resolveAvmTestContractAssertionMessage(
+  functionName: string,
+  revertReason: AvmRevertReason,
+): string | undefined {
+  const functionArtifact = AvmTestContractArtifact.functions.find(f => f.name === functionName)!;
+
+  traverseCauseChain(revertReason, cause => {
+    revertReason = cause as AvmRevertReason;
+  });
+
+  if (!functionArtifact || !revertReason.noirCallStack || !isNoirCallStackUnresolved(revertReason.noirCallStack)) {
+    return undefined;
+  }
+
+  const debugMetadata = getFunctionDebugMetadata(AvmTestContractArtifact, functionArtifact);
+  if (!debugMetadata) {
+    return undefined;
+  }
+
+  return resolveAssertionMessage(revertReason.noirCallStack, debugMetadata);
 }

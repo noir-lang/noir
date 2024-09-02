@@ -1,9 +1,11 @@
+use fxhash::FxHashMap as HashMap;
+
 use acvm::acir::circuit::brillig::BrilligFunctionId;
 use acvm::FieldElement;
 use log::debug;
 
 use acvm::acir::brillig::Opcode as BrilligOpcode;
-use acvm::acir::circuit::{Opcode, Program};
+use acvm::acir::circuit::{AssertionPayload, Opcode, Program};
 
 use crate::instructions::AvmInstruction;
 
@@ -34,6 +36,33 @@ pub fn extract_brillig_from_acir_program(
         "An AVM program should be contained entirely in only a single `Brillig` function"
     );
     &program.unconstrained_functions[0].bytecode
+}
+
+/// Assertion messages that are static strings are stored in the assert_messages map of the ACIR program.
+pub fn extract_static_assert_messages(program: &Program<FieldElement>) -> HashMap<usize, String> {
+    assert_eq!(
+        program.functions.len(),
+        1,
+        "An AVM program should have only a single ACIR function with a 'BrilligCall'"
+    );
+    let main_function = &program.functions[0];
+    main_function
+        .assert_messages
+        .iter()
+        .filter_map(|(location, payload)| {
+            if let AssertionPayload::StaticString(static_string) = payload {
+                Some((
+                    location
+                        .to_brillig_location()
+                        .expect("Assert message is not for the brillig function")
+                        .0,
+                    static_string.clone(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// Print inputs, outputs, and instructions in a Brillig program

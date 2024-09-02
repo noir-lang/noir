@@ -210,6 +210,10 @@ export interface FunctionArtifact extends FunctionAbi {
   verificationKey?: string;
   /** Maps opcodes to source code pointers */
   debugSymbols: string;
+  /**
+   * Public functions store their static assertion messages externally to the bytecode.
+   */
+  assertMessages?: Record<number, string>;
   /** Debug metadata for the function. */
   debug?: FunctionDebugMetadata;
 }
@@ -369,6 +373,10 @@ export interface FunctionDebugMetadata {
    * Maps the file IDs to the file contents to resolve pointers
    */
   files: DebugFileMap;
+  /**
+   * Public functions store their static assertion messages externally to the bytecode.
+   */
+  assertMessages?: Record<number, string>;
 }
 
 /**
@@ -407,7 +415,11 @@ export function getFunctionDebugMetadata(
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/5813)
     // We only support handling debug info for the contract function entry point.
     // So for now we simply index into the first debug info.
-    return { debugSymbols: programDebugSymbols.debug_infos[0], files: contractArtifact.fileMap };
+    return {
+      debugSymbols: programDebugSymbols.debug_infos[0],
+      files: contractArtifact.fileMap,
+      assertMessages: functionArtifact.assertMessages,
+    };
   }
   return undefined;
 }

@@ -182,6 +182,7 @@ function generateFunctionArtifact(fn: NoirCompiledContractFunction, contract: No
     bytecode: Buffer.from(fn.bytecode, 'base64'),
     verificationKey: mockVerificationKey,
     debugSymbols: fn.debug_symbols,
+    assertMessages: fn.assert_messages,
   };
 }
 

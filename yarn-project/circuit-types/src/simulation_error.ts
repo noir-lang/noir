@@ -108,6 +108,14 @@ export class SimulationError extends Error {
     return this.originalMessage;
   }
 
+  getOriginalMessage() {
+    return this.originalMessage;
+  }
+
+  setOriginalMessage(message: string) {
+    this.originalMessage = message;
+  }
+
   /**
    * Enriches the error with the name of a contract that failed.
    * @param contractAddress - The address of the contract

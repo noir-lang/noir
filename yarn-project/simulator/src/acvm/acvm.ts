@@ -104,6 +104,28 @@ export function resolveOpcodeLocations(
 }
 
 /**
+ * Extracts the source code locations for an array of opcode locations
+ * @param opcodeLocations - The opcode locations that caused the error.
+ * @param debug - The debug metadata of the function.
+ * @returns The source code locations.
+ */
+export function resolveAssertionMessage(
+  opcodeLocations: OpcodeLocation[],
+  debug: FunctionDebugMetadata,
+): string | undefined {
+  if (opcodeLocations.length === 0) {
+    return undefined;
+  }
+
+  const lastLocation = extractBrilligLocation(opcodeLocations[opcodeLocations.length - 1]);
+  if (!lastLocation) {
+    return undefined;
+  }
+
+  return debug.assertMessages?.[parseInt(lastLocation, 10)];
+}
+
+/**
  * The function call that executes an ACIR.
  */
 export async function acvm(

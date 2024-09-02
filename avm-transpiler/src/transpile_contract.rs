@@ -8,8 +8,11 @@ use serde::{Deserialize, Serialize};
 use acvm::acir::circuit::Program;
 use noirc_errors::debug_info::ProgramDebugInfo;
 
-use crate::transpile::{brillig_to_avm, map_brillig_pcs_to_avm_pcs, patch_debug_info_pcs};
-use crate::utils::extract_brillig_from_acir_program;
+use crate::transpile::{
+    brillig_to_avm, map_brillig_pcs_to_avm_pcs, patch_assert_message_pcs, patch_debug_info_pcs,
+};
+use crate::utils::{extract_brillig_from_acir_program, extract_static_assert_messages};
+use fxhash::FxHashMap as HashMap;
 
 /// Representation of a contract with some transpiled functions
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,6 +52,7 @@ pub struct AvmContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
+    pub assert_messages: HashMap<usize, String>,
 }
 
 /// Representation of an ACIR contract function but with
@@ -93,9 +97,14 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
                 // Extract Brillig Opcodes from acir
                 let acir_program = function.bytecode;
                 let brillig_bytecode = extract_brillig_from_acir_program(&acir_program);
+                let assert_messages = extract_static_assert_messages(&acir_program);
 
                 // Map Brillig pcs to AVM pcs (index is Brillig PC, value is AVM PC)
                 let brillig_pcs_to_avm_pcs = map_brillig_pcs_to_avm_pcs(brillig_bytecode);
+
+                // Patch the assert messages with updated PCs
+                let assert_messages =
+                    patch_assert_message_pcs(assert_messages, &brillig_pcs_to_avm_pcs);
 
                 // Transpile to AVM
                 let avm_bytecode = brillig_to_avm(brillig_bytecode, &brillig_pcs_to_avm_pcs);
@@ -130,6 +139,7 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
                         abi: function.abi,
                         bytecode: base64::prelude::BASE64_STANDARD.encode(compressed_avm_bytecode),
                         debug_symbols: ProgramDebugInfo { debug_infos },
+                        assert_messages,
                     },
                 ));
             } else {

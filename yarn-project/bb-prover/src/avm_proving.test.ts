@@ -39,6 +39,7 @@ import {
   initExecutionEnvironment,
   initHostStorage,
   initPersistableStateManager,
+  resolveAvmTestContractAssertionMessage,
 } from '@aztec/simulator/avm/fixtures';
 
 import { jest } from '@jest/globals';
@@ -256,7 +257,8 @@ const proveAndVerifyAvmTestContract = async (
   } else {
     // Explicit revert when an assertion failed.
     expect(avmResult.reverted).toBe(true);
-    expect(avmResult.revertReason?.message).toContain(assertionErrString);
+    expect(avmResult.revertReason).toBeDefined();
+    expect(resolveAvmTestContractAssertionMessage(functionName, avmResult.revertReason!)).toContain(assertionErrString);
   }
 
   const pxResult = trace.toPublicExecutionResult(

@@ -64,6 +64,8 @@ export interface NoirFunctionEntry {
   verification_key?: string;
   /** The debug information, compressed and base64 encoded. */
   debug_symbols: string;
+  /** Map opcode index to assert message for public functions */
+  assert_messages?: Record<number, string>;
 }
 
 /**

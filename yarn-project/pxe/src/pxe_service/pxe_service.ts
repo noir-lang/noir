@@ -66,6 +66,7 @@ import {
   collectSortedEncryptedLogs,
   collectSortedNoteEncryptedLogs,
   collectSortedUnencryptedLogs,
+  resolveAssertionMessage,
   resolveOpcodeLocations,
 } from '@aztec/simulator';
 import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -762,19 +763,25 @@ export class PXEService implements PXE {
           originalFailingFunction.functionSelector,
         );
         const noirCallStack = err.getNoirCallStack();
-        if (debugInfo && isNoirCallStackUnresolved(noirCallStack)) {
-          try {
-            // Public functions are simulated as a single Brillig entry point.
-            // Thus, we can safely assume here that the Brillig function id is `0`.
-            const parsedCallStack = resolveOpcodeLocations(noirCallStack, debugInfo, 0);
-            err.setNoirCallStack(parsedCallStack);
-          } catch (err) {
-            this.log.warn(
-              `Could not resolve noir call stack for ${originalFailingFunction.contractAddress.toString()}:${originalFailingFunction.functionSelector.toString()}: ${err}`,
-            );
+        if (debugInfo) {
+          if (isNoirCallStackUnresolved(noirCallStack)) {
+            const assertionMessage = resolveAssertionMessage(noirCallStack, debugInfo);
+            if (assertionMessage) {
+              err.setOriginalMessage(err.getOriginalMessage() + `: ${assertionMessage}`);
+            }
+            try {
+              // Public functions are simulated as a single Brillig entry point.
+              // Thus, we can safely assume here that the Brillig function id is `0`.
+              const parsedCallStack = resolveOpcodeLocations(noirCallStack, debugInfo, 0);
+              err.setNoirCallStack(parsedCallStack);
+            } catch (err) {
+              this.log.warn(
+                `Could not resolve noir call stack for ${originalFailingFunction.contractAddress.toString()}:${originalFailingFunction.functionSelector.toString()}: ${err}`,
+              );
+            }
           }
+          await this.#enrichSimulationError(err);
         }
-        await this.#enrichSimulationError(err);
       }
 
       throw err;

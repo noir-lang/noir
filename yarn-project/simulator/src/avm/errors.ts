@@ -151,7 +151,7 @@ export function revertReasonFromExplicitRevert(revertData: Fr[], context: AvmCon
  */
 export function decodeRevertDataAsMessage(revertData: Fr[]): string {
   if (revertData.length === 0) {
-    return 'Assertion failed.';
+    return 'Assertion failed';
   } else {
     try {
       // We remove the first element which is the 'error selector'.
