@@ -23,6 +23,8 @@ class ArgumentEncoder {
         return abiType.length * ArgumentEncoder.typeSize(abiType.type);
       case 'struct':
         return abiType.fields.reduce((acc, field) => acc + ArgumentEncoder.typeSize(field.type), 0);
+      case 'tuple':
+        return abiType.fields.reduce((acc, field) => acc + ArgumentEncoder.typeSize(field), 0);
       default: {
         const exhaustiveCheck: never = abiType;
         throw new Error(`Unhandled abi type: ${exhaustiveCheck}`);

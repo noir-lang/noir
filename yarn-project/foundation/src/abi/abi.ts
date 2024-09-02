@@ -84,7 +84,14 @@ export interface BasicType<T extends string> {
 /**
  * A variable type.
  */
-export type AbiType = BasicType<'field'> | BasicType<'boolean'> | IntegerType | ArrayType | StringType | StructType;
+export type AbiType =
+  | BasicType<'field'>
+  | BasicType<'boolean'>
+  | IntegerType
+  | ArrayType
+  | StringType
+  | StructType
+  | TupleType;
 
 type Sign = 'unsigned' | 'signed';
 
@@ -114,6 +121,16 @@ export interface ArrayType extends BasicType<'array'> {
    * The type of the array elements.
    */
   type: AbiType;
+}
+
+/**
+ * A tuple type.
+ */
+export interface TupleType extends BasicType<'tuple'> {
+  /**
+   * The types of the tuple elements.
+   */
+  fields: AbiType[];
 }
 
 /**

@@ -56,6 +56,13 @@ class ReturnValuesDecoder {
         }
         return array;
       }
+      case 'tuple': {
+        const array = [];
+        for (const tupleAbiType of abiType.fields) {
+          array.push(this.decodeReturn(tupleAbiType));
+        }
+        return array;
+      }
       default:
         throw new Error(`Unsupported type: ${abiType}`);
     }
