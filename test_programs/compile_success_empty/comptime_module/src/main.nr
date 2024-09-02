@@ -1,3 +1,4 @@
+#[outer_attribute]
 mod foo {
     #![some_attribute]
     fn x() {}
@@ -9,11 +10,18 @@ contract bar {}
 #[some_attribute]
 mod another_module {}
 
-#[module_func]
-mod yet_another_module {}
+#[outer_attribute_func]
+mod yet_another_module {
+    #![inner_attribute_func]
+    fn foo() {}
+}
 
-#[func_func]
-fn coco(){}
+comptime mut global counter = 0;
+
+fn outer_attribute_func(m: Module) {
+    assert_eq(m.name(), quote { yet_another_module });
+    counter += 1;
+}
 
 fn main() {
     comptime
@@ -37,15 +45,13 @@ fn main() {
 
         // Check Module::has_named_attribute
         assert(foo.has_named_attribute(quote { some_attribute }));
+        assert(foo.has_named_attribute(quote { outer_attribute }));
         assert(!bar.has_named_attribute(quote { some_attribute }));
         assert(another_module.has_named_attribute(quote { some_attribute }));
     }
-}
 
-fn module_func(m: Module) {
-    assert_eq(m.name(), quote { yet_another_module });
+    assert_eq(counter, 2);
 }
-
 
 // docs:start:as_module_example
 mod baz {

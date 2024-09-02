@@ -402,6 +402,7 @@ impl<'context> Elaborator<'context> {
         }
 
         self.run_attributes_on_functions(functions, &mut generated_items);
+
         generated_items
     }
 
@@ -410,27 +411,30 @@ impl<'context> Elaborator<'context> {
         let mut data = Vec::new();
 
         for (index, module_data) in def_map.modules.iter() {
+            let local_id = LocalModuleId(index);
+
             if !module_data.outer_attributes.is_empty() {
+                // When resolving an outer attribute we need to do it as if we are located in the parent module
                 let parent = def_map.modules()[index].parent.unwrap();
-                let module_data = &def_map.modules()[parent.0];
-                let module_id = ModuleId { krate: self.crate_id, local_id: parent };
+                let parent_module_data = &def_map.modules()[parent.0];
                 let attributes = module_data.outer_attributes.clone();
-                data.push((module_id, module_data.location, attributes));
+                data.push((local_id, parent, parent_module_data.location, attributes));
             }
 
             if !module_data.inner_attributes.is_empty() {
-                let local_id = LocalModuleId(index);
-                let module_id = ModuleId { krate: self.crate_id, local_id };
                 let attributes = module_data.inner_attributes.clone();
-                data.push((module_id, module_data.location, attributes));
+                data.push((local_id, local_id, module_data.location, attributes));
             }
         }
 
-        for (module_id, location, attributes) in data {
+        for (local_id, attribute_module, location, attributes) in data {
+            let module_id = ModuleId { krate: self.crate_id, local_id };
             let item = Value::ModuleDefinition(module_id);
-            self.local_module = module_id.local_id;
-            self.file = location.file;
             let span = location.span;
+
+            self.local_module = attribute_module;
+            self.file = location.file;
+
             for name in attributes {
                 let item = item.clone();
                 if let Err(error) =
@@ -456,10 +460,6 @@ impl<'context> Elaborator<'context> {
                 let attributes = function.secondary_attributes();
                 let item = Value::FunctionDefinition(*function_id);
                 let span = function.span();
-                // println!("FUNC");
-                // dbg!(self.local_module);
-                // dbg!(self.file);
-
                 self.run_comptime_attributes_on_item(attributes, item, span, generated_items);
             }
         }
