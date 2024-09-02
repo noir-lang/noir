@@ -190,7 +190,7 @@ mod tests {
         let bits: [u1; 8] = field.to_be_bits();
         assert_eq(bits, [0, 0, 0, 0, 0, 0, 1, 0]);
     }
-    // docs:end:to_be_radix_example
+    // docs:end:to_be_bits_example
 
     #[test]
     // docs:start:to_le_bits_example
