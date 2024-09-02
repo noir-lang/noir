@@ -166,7 +166,7 @@ impl super::FmtVisitor<'_> {
                     }
 
                     for attribute in module.attributes {
-                        self.push_str(&attribute.to_string());
+                        self.push_str(attribute.as_ref());
                         self.push_str("\n");
                         self.push_str(&self.indent.to_string());
                     }

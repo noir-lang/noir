@@ -67,3 +67,16 @@ pub(super) fn validate_secondary_attributes(
 
     struct_attributes
 }
+
+fn inner_attribute() -> impl NoirParser<SecondaryAttribute> {
+    token_kind(TokenKind::InnerAttribute).map(|token| match token {
+        Token::InnerAttribute(attribute) => attribute,
+        _ => unreachable!(
+            "Parser should have already errored due to token not being an inner attribute"
+        ),
+    })
+}
+
+pub(super) fn inner_attributes() -> impl NoirParser<Vec<SecondaryAttribute>> {
+    inner_attribute().repeated()
+}

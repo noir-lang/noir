@@ -26,7 +26,7 @@
 use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
-use attributes::{attributes, validate_secondary_attributes};
+use attributes::{attributes, inner_attributes, validate_secondary_attributes};
 pub use types::parse_type;
 
 use super::{
@@ -90,7 +90,7 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
-    let parsed_module = module.unwrap_or(ParsedModule { items: vec![] });
+    let parsed_module = module.unwrap_or_default();
 
     if cfg!(feature = "experimental_parser") {
         for parsed_item in &parsed_module.items {
@@ -174,13 +174,20 @@ fn program() -> impl NoirParser<ParsedModule> {
 ///       | %empty
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
-        empty()
-            .to(ParsedModule::default())
-            .then(spanned(top_level_statement(module_parser)).repeated())
-            .foldl(|mut program, (statement, span)| {
-                if let Some(kind) = statement.into_item_kind() {
-                    program.items.push(Item { kind, span });
-                }
+        inner_attributes()
+            .then(
+                empty()
+                    .to(ParsedModule::default())
+                    .then(spanned(top_level_statement(module_parser)).repeated())
+                    .foldl(|mut program, (statement, span)| {
+                        if let Some(kind) = statement.into_item_kind() {
+                            program.items.push(Item { kind, span });
+                        }
+                        program
+                    }),
+            )
+            .map(|(attributes, mut program)| {
+                program.attributes = attributes;
                 program
             })
     })

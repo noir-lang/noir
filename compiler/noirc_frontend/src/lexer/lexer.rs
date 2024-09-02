@@ -286,6 +286,13 @@ impl<'a> Lexer<'a> {
     fn eat_attribute(&mut self) -> SpannedTokenResult {
         let start = self.position;
 
+        let is_inner = if self.peek_char_is('!') {
+            self.next_char();
+            true
+        } else {
+            false
+        };
+
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
@@ -309,8 +316,19 @@ impl<'a> Lexer<'a> {
         let end = self.position;
 
         let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
-
-        Ok(attribute.into_span(start, end))
+        if is_inner {
+            match attribute {
+                Attribute::Function(attribute) => Err(LexerErrorKind::InvalidInnerAttribute {
+                    span: Span::from(start..end),
+                    found: attribute.to_string(),
+                }),
+                Attribute::Secondary(attribute) => {
+                    Ok(Token::InnerAttribute(attribute).into_span(start, end))
+                }
+            }
+        } else {
+            Ok(Token::Attribute(attribute).into_span(start, end))
+        }
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
@@ -896,6 +914,18 @@ mod tests {
         };
 
         assert_eq!(sub_string, "test(invalid_scope)");
+    }
+
+    #[test]
+    fn test_inner_attribute() {
+        let input = r#"#![test]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::InnerAttribute(SecondaryAttribute::Custom("test".to_string()))
+        );
     }
 
     #[test]

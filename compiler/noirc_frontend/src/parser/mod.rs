@@ -290,6 +290,7 @@ impl std::fmt::Display for SortedModule {
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
+    pub attributes: Vec<SecondaryAttribute>,
 }
 
 impl ParsedModule {
