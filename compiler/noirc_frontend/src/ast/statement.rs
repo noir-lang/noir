@@ -136,7 +136,9 @@ impl Recoverable for StatementKind {
 
 impl StatementKind {
     pub fn new_let(
-        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+        pattern: Pattern,
+        r#type: UnresolvedType,
+        expression: Expression,
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
@@ -715,13 +717,11 @@ impl ForRange {
 
                 // let fresh1 = array;
                 let let_array = Statement {
-                    kind: StatementKind::Let(LetStatement {
-                        pattern: Pattern::Identifier(array_ident.clone()),
-                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                        expression: array,
-                        comptime: false,
-                        attributes: vec![],
-                    }),
+                    kind: StatementKind::new_let(
+                        Pattern::Identifier(array_ident.clone()),
+                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        array,
+                    ),
                     span: array_span,
                 };
 
@@ -761,13 +761,11 @@ impl ForRange {
 
                 // let elem = array[i];
                 let let_elem = Statement {
-                    kind: StatementKind::Let(LetStatement {
-                        pattern: Pattern::Identifier(identifier),
-                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                        expression: Expression::new(loop_element, array_span),
-                        comptime: false,
-                        attributes: vec![],
-                    }),
+                    kind: StatementKind::new_let(
+                        Pattern::Identifier(identifier),
+                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        Expression::new(loop_element, array_span),
+                    ),
                     span: array_span,
                 };
 
