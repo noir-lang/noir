@@ -647,10 +647,10 @@ impl<'a> Context<'a> {
 
                 let assert_payload = if let Some(error) = assert_message {
                     match error {
-                        ConstrainError::Intrinsic(string) => {
+                        ConstrainError::StaticString(string) => {
                             Some(AssertionPayload::StaticString(string.clone()))
                         }
-                        ConstrainError::UserDefined(error_selector, values) => {
+                        ConstrainError::Dynamic(error_selector, values) => {
                             if let Some(constant_string) = try_to_extract_string_from_error_payload(
                                 *error_selector,
                                 values,
