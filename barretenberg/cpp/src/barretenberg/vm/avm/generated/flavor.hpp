@@ -282,13 +282,35 @@ class AvmFlavor {
         auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
     };
 
-    class ProvingKey
-        : public ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
+    class ProvingKey : public PrecomputedEntities<Polynomial>, public WitnessEntities<Polynomial> {
       public:
-        // Expose constructors on the base class
-        using Base = ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
-        using Base::Base;
-        auto get_to_be_shifted() { return AvmFlavor::get_to_be_shifted<DataType>(*this); }
+        using FF = typename Polynomial::FF;
+
+        ProvingKey() = default;
+        ProvingKey(const size_t circuit_size, const size_t num_public_inputs);
+
+        size_t circuit_size;
+        bb::EvaluationDomain<FF> evaluation_domain;
+        std::shared_ptr<CommitmentKey> commitment_key;
+
+        // Offset off the public inputs from the start of the execution trace
+        size_t pub_inputs_offset = 0;
+
+        // The number of public inputs has to be the same for all instances because they are
+        // folded element by element.
+        std::vector<FF> public_inputs;
+
+        std::vector<std::string> get_labels() const
+        {
+            return concatenate(PrecomputedEntities<Polynomial>::get_labels(),
+                               WitnessEntities<Polynomial>::get_labels());
+        }
+        auto get_witness_polynomials() { return WitnessEntities<Polynomial>::get_all(); }
+        auto get_precomputed_polynomials() { return PrecomputedEntities<Polynomial>::get_all(); }
+        auto get_selectors() { return PrecomputedEntities<Polynomial>::get_all(); }
+        auto get_to_be_shifted() { return AvmFlavor::get_to_be_shifted<Polynomial>(*this); }
+        // This order matters! must match get_unshifted in entity classes
+        auto get_all() { return concatenate(get_precomputed_polynomials(), get_witness_polynomials()); }
     };
 
     class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {

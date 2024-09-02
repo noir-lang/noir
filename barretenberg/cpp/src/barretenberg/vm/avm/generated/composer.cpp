@@ -54,8 +54,6 @@ std::shared_ptr<Flavor::ProvingKey> AvmComposer::compute_proving_key(CircuitCons
         proving_key = std::make_shared<Flavor::ProvingKey>(subgroup_size, 0);
     }
 
-    proving_key->contains_recursive_proof = false;
-
     return proving_key;
 }
 

@@ -141,52 +141,6 @@ template <typename FF, typename CommitmentKey_> class ProvingKey_ {
         this->num_public_inputs = num_public_inputs;
     };
 };
-template <typename PrecomputedPolynomials, typename WitnessPolynomials, typename CommitmentKey_>
-class ProvingKeyAvm_ : public PrecomputedPolynomials, public WitnessPolynomials {
-  public:
-    using Polynomial = typename PrecomputedPolynomials::DataType;
-    using FF = typename Polynomial::FF;
-
-    size_t circuit_size;
-    bool contains_recursive_proof;
-    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
-    bb::EvaluationDomain<FF> evaluation_domain;
-    std::shared_ptr<CommitmentKey_> commitment_key;
-
-    // Offset off the public inputs from the start of the execution trace
-    size_t pub_inputs_offset = 0;
-
-    // The number of public inputs has to be the same for all instances because they are
-    // folded element by element.
-    std::vector<FF> public_inputs;
-
-    std::vector<std::string> get_labels() const
-    {
-        return concatenate(PrecomputedPolynomials::get_labels(), WitnessPolynomials::get_labels());
-    }
-    // This order matters! must match get_unshifted in entity classes
-    auto get_all() { return concatenate(get_precomputed_polynomials(), get_witness_polynomials()); }
-    auto get_witness_polynomials() { return WitnessPolynomials::get_all(); }
-    auto get_precomputed_polynomials() { return PrecomputedPolynomials::get_all(); }
-    auto get_selectors() { return PrecomputedPolynomials::get_selectors(); }
-    ProvingKeyAvm_() = default;
-    ProvingKeyAvm_(const size_t circuit_size, const size_t num_public_inputs)
-    {
-        this->commitment_key = std::make_shared<CommitmentKey_>(circuit_size + 1);
-        this->evaluation_domain = bb::EvaluationDomain<FF>(circuit_size, circuit_size);
-        this->circuit_size = circuit_size;
-        this->log_circuit_size = numeric::get_msb(circuit_size);
-        this->num_public_inputs = num_public_inputs;
-        // Allocate memory for precomputed polynomials
-        for (auto& poly : PrecomputedPolynomials::get_all()) {
-            poly = Polynomial(circuit_size);
-        }
-        // Allocate memory for witness polynomials
-        for (auto& poly : WitnessPolynomials::get_all()) {
-            poly = Polynomial(circuit_size);
-        }
-    };
-};
 
 /**
  * @brief Base verification key class.

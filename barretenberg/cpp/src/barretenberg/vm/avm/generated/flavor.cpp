@@ -2264,4 +2264,23 @@ AvmFlavor::PartiallyEvaluatedMultivariates::PartiallyEvaluatedMultivariates(cons
     }
 }
 
+AvmFlavor::ProvingKey::ProvingKey(const size_t circuit_size, const size_t num_public_inputs)
+    : circuit_size(circuit_size)
+    , evaluation_domain(bb::EvaluationDomain<FF>(circuit_size, circuit_size))
+    , commitment_key(std::make_shared<CommitmentKey>(circuit_size + 1))
+{
+    // TODO: These come from PrecomputedEntitiesBase, ideal we'd just call that class's constructor.
+    this->log_circuit_size = numeric::get_msb(circuit_size);
+    this->num_public_inputs = num_public_inputs;
+
+    // Allocate memory for precomputed polynomials
+    for (auto& poly : PrecomputedEntities<Polynomial>::get_all()) {
+        poly = Polynomial(circuit_size);
+    }
+    // Allocate memory for witness polynomials
+    for (auto& poly : WitnessEntities<Polynomial>::get_all()) {
+        poly = Polynomial(circuit_size);
+    }
+};
+
 } // namespace bb
