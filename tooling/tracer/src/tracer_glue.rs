@@ -6,6 +6,7 @@ use noirc_printable_type::{PrintableType, PrintableValue};
 use runtime_tracing::{FullValueRecord, Line, Tracer, ValueRecord};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
+use tracing::warn;
 
 /// Stores the trace accumulated in `tracer` in the specified directory. The trace is stored as
 /// multiple JSON files.
@@ -91,8 +92,10 @@ fn register_value(
             }
         }
         _ => {
-            // TODO(stanm): cover all types and remove `todo!`.
-            todo!("not implemented yet: type that is not Field: {:?}", typ)
+            // TODO(stanm): cover all types and remove `warn!`.
+            warn!("not implemented yet: type that is not Field: {:?}", typ);
+            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
+            ValueRecord::None { type_id }
         }
     }
 }

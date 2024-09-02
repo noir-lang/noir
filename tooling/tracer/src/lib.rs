@@ -22,6 +22,7 @@ use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 use runtime_tracing::{Line, Tracer};
 use std::path::PathBuf;
+use tracing::debug;
 
 /// The result from step_debugger: the debugger either paused at a new location, reached the end of
 /// execution, or hit some kind of an error. Takes the error type as a parameter.
@@ -175,6 +176,8 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
             }
             DebugStepResult::Paused(source_location) => source_location,
         };
+
+        debug!("debugger stepped until line {:?}", source_locations.last().unwrap());
 
         tracing_context.update_record(tracer, &source_locations);
 

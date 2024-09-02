@@ -15,7 +15,7 @@ use std::env;
 use color_eyre::config::HookBuilder;
 
 use tracing_appender::rolling;
-use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
+use tracing_subscriber::{filter::LevelFilter, fmt::format::FmtSpan, EnvFilter};
 
 // TODO: Currently only used by benches.
 use noir_artifact_cli as _;
@@ -23,7 +23,27 @@ use noir_artifact_cli as _;
 const PANIC_MESSAGE: &str = "This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.\nIf there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml";
 
 fn main() {
-    setup_tracing();
+    // Setup tracing
+    if let Ok(log_dir) = env::var("NARGO_LOG_DIR") {
+        let debug_file = rolling::daily(log_dir, "nargo-log");
+        tracing_subscriber::fmt()
+            .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
+            .with_writer(debug_file)
+            .with_ansi(false)
+            .with_env_filter(EnvFilter::from_default_env())
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
+            .with_ansi(true)
+            .with_env_filter(
+                EnvFilter::builder()
+                    .with_default_directive(LevelFilter::WARN.into())
+                    .with_env_var(&"NOIR_LOG")
+                    .from_env_lossy(),
+            )
+            .init();
+    }
 
     // Register a panic hook to display more readable panic messages to end-users
     let (panic_hook, _) =
