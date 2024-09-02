@@ -1,9 +1,13 @@
 mod foo {
+    #![some_attribute]
     fn x() {}
     fn y() {}
 }
 
 contract bar {}
+
+#[some_attribute]
+mod another_module {}
 
 fn main() {
     comptime
@@ -15,6 +19,8 @@ fn main() {
         let bar = quote { bar }.as_module().unwrap();
         assert(bar.is_contract());
 
+        let another_module = quote { another_module }.as_module().unwrap();
+
         // Check Module::functions
         assert_eq(foo.functions().len(), 2);
         assert_eq(bar.functions().len(), 0);
@@ -22,6 +28,11 @@ fn main() {
         // Check Module::name
         assert_eq(foo.name(), quote { foo });
         assert_eq(bar.name(), quote { bar });
+
+        // Check Module::has_named_attribute
+        assert(foo.has_named_attribute(quote { some_attribute }));
+        assert(!bar.has_named_attribute(quote { some_attribute }));
+        assert(another_module.has_named_attribute(quote { some_attribute }));
     }
 }
 

@@ -314,6 +314,7 @@ impl ParsedModule {
             }
         }
 
+        module.attributes = self.attributes;
         module
     }
 }
