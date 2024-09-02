@@ -574,7 +574,8 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let_statement(expr_parser).map(StatementKind::new_let)
+    let_statement(expr_parser)
+        .map(|((pattern, typ), expr)| StatementKind::new_let(pattern, typ, expr))
 }
 
 pub fn pattern() -> impl NoirParser<Pattern> {
