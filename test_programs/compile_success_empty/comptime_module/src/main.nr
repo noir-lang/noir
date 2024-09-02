@@ -9,6 +9,12 @@ contract bar {}
 #[some_attribute]
 mod another_module {}
 
+#[module_func]
+mod yet_another_module {}
+
+#[func_func]
+fn coco(){}
+
 fn main() {
     comptime
     {
@@ -35,6 +41,11 @@ fn main() {
         assert(another_module.has_named_attribute(quote { some_attribute }));
     }
 }
+
+fn module_func(m: Module) {
+    assert_eq(m.name(), quote { yet_another_module });
+}
+
 
 // docs:start:as_module_example
 mod baz {

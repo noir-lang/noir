@@ -26,7 +26,8 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
-    pub attributes: Vec<String>,
+    pub outer_attributes: Vec<String>,
+    pub inner_attributes: Vec<String>,
 
     /// List of all unused imports. Each time something is imported into this module it's added
     /// to this set. When it's used, it's removed. At the end of the program only unused imports remain.
@@ -37,11 +38,16 @@ impl ModuleData {
     pub fn new(
         parent: Option<LocalModuleId>,
         location: Location,
-        attributes: Vec<SecondaryAttribute>,
+        outer_attributes: Vec<SecondaryAttribute>,
+        inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
     ) -> ModuleData {
-        let attributes = attributes.iter().filter_map(|attr| attr.as_custom());
-        let attributes = attributes.map(|attr| attr.to_string()).collect();
+        let outer_attributes = outer_attributes.iter().filter_map(|attr| attr.as_custom());
+        let outer_attributes = outer_attributes.map(|attr| attr.to_string()).collect();
+
+        let inner_attributes = inner_attributes.iter().filter_map(|attr| attr.as_custom());
+        let inner_attributes = inner_attributes.map(|attr| attr.to_string()).collect();
+
         ModuleData {
             parent,
             children: HashMap::new(),
@@ -49,7 +55,8 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
-            attributes,
+            outer_attributes,
+            inner_attributes,
             unused_imports: HashSet::new(),
         }
     }

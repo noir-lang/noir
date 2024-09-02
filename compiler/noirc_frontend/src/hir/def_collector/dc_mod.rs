@@ -305,6 +305,7 @@ impl<'a> ModCollector<'a> {
                 &name,
                 Location::new(name.span(), self.file_id),
                 Vec::new(),
+                Vec::new(),
                 false,
                 false,
             ) {
@@ -437,6 +438,7 @@ impl<'a> ModCollector<'a> {
                 context,
                 &name,
                 Location::new(name.span(), self.file_id),
+                Vec::new(),
                 Vec::new(),
                 false,
                 false,
@@ -627,15 +629,12 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
-            let mut attributes = Vec::new();
-            attributes.extend(submodule.attributes);
-            attributes.extend(submodule.contents.attributes.clone());
-
             match self.push_child_module(
                 context,
                 &submodule.name,
                 Location::new(submodule.name.span(), file_id),
-                attributes,
+                submodule.outer_attributes,
+                submodule.contents.inner_attributes.clone(),
                 true,
                 submodule.is_contract,
             ) {
@@ -727,7 +726,8 @@ impl<'a> ModCollector<'a> {
             context,
             &mod_decl.ident,
             Location::new(Span::empty(0), child_file_id),
-            mod_decl.attributes,
+            mod_decl.outer_attributes,
+            Vec::new(),
             true,
             false,
         ) {
@@ -754,12 +754,14 @@ impl<'a> ModCollector<'a> {
 
     /// Add a child module to the current def_map.
     /// On error this returns None and pushes to `errors`
+    #[allow(clippy::too_many_arguments)]
     fn push_child_module(
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
         mod_location: Location,
-        attributes: Vec<SecondaryAttribute>,
+        outer_attributes: Vec<SecondaryAttribute>,
+        inner_attributes: Vec<SecondaryAttribute>,
         add_to_parent_scope: bool,
         is_contract: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
@@ -773,7 +775,8 @@ impl<'a> ModCollector<'a> {
         // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
         // so we keep using `location` so that it continues to work as usual.
         let location = Location::new(mod_name.span(), mod_location.file);
-        let new_module = ModuleData::new(parent, location, attributes, is_contract);
+        let new_module =
+            ModuleData::new(parent, location, outer_attributes, inner_attributes, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;

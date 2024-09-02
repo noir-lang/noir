@@ -187,7 +187,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     }),
             )
             .map(|(attributes, mut program)| {
-                program.attributes = attributes;
+                program.inner_attributes = attributes;
                 program
             })
     })
@@ -304,7 +304,7 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
             TopLevelStatement::SubModule(ParsedSubModule {
                 name,
                 contents,
-                attributes,
+                outer_attributes: attributes,
                 is_contract: false,
             })
         })
@@ -323,7 +323,7 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
             TopLevelStatement::SubModule(ParsedSubModule {
                 name,
                 contents,
-                attributes,
+                outer_attributes: attributes,
                 is_contract: true,
             })
         })
@@ -457,7 +457,7 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
     attributes().then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
         |(attributes, ident), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatement::Module(ModuleDeclaration { ident, attributes })
+            TopLevelStatement::Module(ModuleDeclaration { ident, outer_attributes: attributes })
         },
     )
 }

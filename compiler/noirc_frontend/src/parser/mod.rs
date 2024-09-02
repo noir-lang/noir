@@ -247,7 +247,7 @@ pub struct SortedModule {
     /// Full submodules as in `mod foo { ... definitions ... }`
     pub submodules: Vec<SortedSubModule>,
 
-    pub attributes: Vec<SecondaryAttribute>,
+    pub inner_attributes: Vec<SecondaryAttribute>,
 }
 
 impl std::fmt::Display for SortedModule {
@@ -292,7 +292,7 @@ impl std::fmt::Display for SortedModule {
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
-    pub attributes: Vec<SecondaryAttribute>,
+    pub inner_attributes: Vec<SecondaryAttribute>,
 }
 
 impl ParsedModule {
@@ -314,7 +314,7 @@ impl ParsedModule {
             }
         }
 
-        module.attributes = self.attributes;
+        module.inner_attributes = self.inner_attributes;
         module
     }
 }
@@ -345,7 +345,7 @@ pub enum ItemKind {
 pub struct ParsedSubModule {
     pub name: Ident,
     pub contents: ParsedModule,
-    pub attributes: Vec<SecondaryAttribute>,
+    pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
 }
 
@@ -354,7 +354,7 @@ impl ParsedSubModule {
         SortedSubModule {
             name: self.name,
             contents: self.contents.into_sorted(),
-            attributes: self.attributes,
+            outer_attributes: self.outer_attributes,
             is_contract: self.is_contract,
         }
     }
@@ -376,7 +376,7 @@ impl std::fmt::Display for SortedSubModule {
 pub struct SortedSubModule {
     pub name: Ident,
     pub contents: SortedModule,
-    pub attributes: Vec<SecondaryAttribute>,
+    pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
 }
 

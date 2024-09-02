@@ -1811,13 +1811,9 @@ fn module_has_named_attribute(
     let module_data = interpreter.elaborator.get_module(module_id);
     let name = get_quoted(name)?;
 
-    let attributes = &module_data.attributes;
-    if attributes.is_empty() {
-        return Ok(Value::Bool(false));
-    };
-
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
+    let attributes = module_data.outer_attributes.iter().chain(&module_data.inner_attributes);
     for attribute in attributes {
         let parse_result = Elaborator::parse_attribute(attribute, location.file);
         let Ok(Some((function, _arguments))) = parse_result else {
