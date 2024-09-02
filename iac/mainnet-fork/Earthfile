@@ -16,7 +16,6 @@ build:
     COPY ./scripts ./scripts
     COPY ./redeploy ./redeploy
     COPY ./nginx/ /etc/nginx/
-    COPY --chmod 640 ./etc/anvil.logrotate.conf /etc/logrotate.d/anvil
 
     # Expose port 80
     EXPOSE 80

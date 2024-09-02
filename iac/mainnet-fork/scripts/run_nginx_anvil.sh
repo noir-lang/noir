@@ -25,8 +25,8 @@ mkdir -p /data
 # Log directory for anvil
 mkdir -p /var/log/anvil/
 
-# Run anvil logging to /var/log/anvil
-.foundry/bin/anvil --block-time 12 --host $HOST -p $PORT -m "$MNEMONIC_STRIPPED" -f=https://mainnet.infura.io/v3/$INFURA_API_KEY --chain-id=$L1_CHAIN_ID --fork-block-number=15918000 --block-base-fee-per-gas=10 -s=$SNAPSHOT_FREQUENCY --state=./data/state --balance=1000000000000000000 >>/var/log/anvil/anvil.log &
+# Run anvil logging to stdout
+.foundry/bin/anvil --block-time 12 --host $HOST -p $PORT -m "$MNEMONIC_STRIPPED" -f=https://mainnet.infura.io/v3/$INFURA_API_KEY --chain-id=$L1_CHAIN_ID --fork-block-number=15918000 --block-base-fee-per-gas=10 -s=$SNAPSHOT_FREQUENCY --state=./data/state --balance=1000000000000000000 &
 
 echo "Waiting for ethereum host at $ETHEREUM_HOST..."
 while ! curl -s $ETHEREUM_HOST >/dev/null; do sleep 1; done
