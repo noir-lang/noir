@@ -2957,6 +2957,7 @@ dependencies = [
  "noirc_artifacts",
  "noirc_printable_type",
  "runtime_tracing",
+ "tracing",
 ]
 
 [[package]]

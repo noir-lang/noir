@@ -608,10 +608,10 @@ fn plonky2_trace_{test_name}() {{
     cmd.assert().success().stdout(predicate::str::contains(file_written_message));
 
     let expected_trace_path = test_program_dir_path.join("expected_trace.json");
-    let expected_trace = fs::read_to_string(expected_trace_path).unwrap();
+    let expected_trace = fs::read_to_string(expected_trace_path).expect("problem reading {{expected_trace_path}}");
     let mut expected_json: Value = serde_json::from_str(&expected_trace).unwrap();
 
-    let actual_trace = fs::read_to_string(trace_file_path).unwrap();
+    let actual_trace = fs::read_to_string(trace_file_path).expect("problem reading {{trace_file_path}}");
     let mut actual_json: Value = serde_json::from_str(&actual_trace).unwrap();
 
     // Ignore paths in test, because they need to be absolute and supporting them would make the
@@ -631,14 +631,14 @@ fn plonky2_trace_{test_name}() {{
     assert_eq!(expected_json, actual_json, "traces do not match");
 
     let expected_metadata_path = test_program_dir_path.join("expected_metadata.json");
-    let expected_metadata = fs::read_to_string(expected_metadata_path).unwrap();
+    let expected_metadata = fs::read_to_string(expected_metadata_path).expect("problem reading expected_metadata.json");
     let mut expected_metadata_json: Value = serde_json::from_str(&expected_metadata).unwrap();
     if let Some(path) = expected_metadata_json.get_mut("workdir") {{
         *path = json!("ignored-in-test");
     }}
 
     let actual_metadata_path = temp_dir.path().join("trace_metadata.json");
-    let actual_metadata = fs::read_to_string(actual_metadata_path).unwrap();
+    let actual_metadata = fs::read_to_string(actual_metadata_path).expect("problem reading trace_metadata.json");
     let mut actual_metadata_json: Value = serde_json::from_str(&actual_metadata).unwrap();
     if let Some(path) = actual_metadata_json.get_mut("workdir") {{
         *path = json!("ignored-in-test");
@@ -647,12 +647,12 @@ fn plonky2_trace_{test_name}() {{
     assert_eq!(expected_metadata_json, actual_metadata_json, "trace metadata mismatch");
 
     let expected_paths_file_path = test_program_dir_path.join("expected_paths.json");
-    let expected_paths = fs::read_to_string(expected_paths_file_path).unwrap();
+    let expected_paths = fs::read_to_string(expected_paths_file_path).expect("problem reading expected_paths.json");
     let expected_paths_json: Value = serde_json::from_str(&expected_paths).unwrap();
     let num_expected_paths = expected_paths_json.as_array().unwrap().len();
 
     let actual_paths_file_path = temp_dir.path().join("trace_paths.json");
-    let actual_paths = fs::read_to_string(actual_paths_file_path).unwrap();
+    let actual_paths = fs::read_to_string(actual_paths_file_path).expect("problem reading actual_paths.json");
     let actual_paths_json: Value = serde_json::from_str(&actual_paths).unwrap();
     let num_actual_paths = actual_paths_json.as_array().unwrap().len();
 
