@@ -24,10 +24,22 @@ describe('e2e_bot', () => {
   afterAll(() => teardown());
 
   it('sends token transfers from the bot', async () => {
+    const { recipient: recipientBefore } = await bot.getBalances();
+
     await bot.run();
-    const balances = await bot.getBalances();
-    expect(balances.recipient.privateBalance).toEqual(1n);
-    expect(balances.recipient.publicBalance).toEqual(1n);
+    const { recipient: recipientAfter } = await bot.getBalances();
+    expect(recipientAfter.privateBalance - recipientBefore.privateBalance).toEqual(1n);
+    expect(recipientAfter.publicBalance - recipientBefore.publicBalance).toEqual(1n);
+  });
+
+  it('sends token transfers with hardcoded gas and no simulation', async () => {
+    bot.updateConfig({ daGasLimit: 1e9, l2GasLimit: 1e9, skipPublicSimulation: true });
+    const { recipient: recipientBefore } = await bot.getBalances();
+
+    await bot.run();
+    const { recipient: recipientAfter } = await bot.getBalances();
+    expect(recipientAfter.privateBalance - recipientBefore.privateBalance).toEqual(1n);
+    expect(recipientAfter.publicBalance - recipientBefore.publicBalance).toEqual(1n);
   });
 
   it('reuses the same account and token contract', async () => {

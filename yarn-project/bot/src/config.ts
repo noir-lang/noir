@@ -5,6 +5,7 @@ import {
   getConfigFromMappings,
   getDefaultConfig,
   numberConfigHelper,
+  optionalNumberConfigHelper,
 } from '@aztec/foundation/config';
 
 const botFollowChain = ['NONE', 'PENDING', 'PROVEN'] as const;
@@ -39,6 +40,12 @@ export type BotConfig = {
   maxPendingTxs: number;
   /** Whether to flush after sending each 'setup' transaction */
   flushSetupTransactions: boolean;
+  /** Whether to skip public simulation of txs before sending them. */
+  skipPublicSimulation: boolean;
+  /** L2 gas limit for the tx (empty to have the bot trigger an estimate gas). */
+  l2GasLimit: number | undefined;
+  /** DA gas limit for the tx (empty to have the bot trigger an estimate gas). */
+  daGasLimit: number | undefined;
 };
 
 export const botConfigMappings: ConfigMappingsType<BotConfig> = {
@@ -119,6 +126,21 @@ export const botConfigMappings: ConfigMappingsType<BotConfig> = {
     env: 'BOT_FLUSH_SETUP_TRANSACTIONS',
     description: 'Make a request for the sequencer to build a block after each setup transaction.',
     ...booleanConfigHelper(false),
+  },
+  skipPublicSimulation: {
+    env: 'BOT_SKIP_PUBLIC_SIMULATION',
+    description: 'Whether to skip public simulation of txs before sending them.',
+    ...booleanConfigHelper(false),
+  },
+  l2GasLimit: {
+    env: 'BOT_L2_GAS_LIMIT',
+    description: 'L2 gas limit for the tx (empty to have the bot trigger an estimate gas).',
+    ...optionalNumberConfigHelper(),
+  },
+  daGasLimit: {
+    env: 'BOT_DA_GAS_LIMIT',
+    description: 'DA gas limit for the tx (empty to have the bot trigger an estimate gas).',
+    ...optionalNumberConfigHelper(),
   },
 };
 

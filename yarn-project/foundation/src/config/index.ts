@@ -68,6 +68,21 @@ export function numberConfigHelper(defaultVal: number): Pick<ConfigMapping, 'par
 }
 
 /**
+ * Generates parseEnv for an optional numerical config value.
+ */
+export function optionalNumberConfigHelper(): Pick<ConfigMapping, 'parseEnv'> {
+  return {
+    parseEnv: (val: string | undefined) => {
+      if (val !== undefined && val.length > 0) {
+        const parsedValue = parseInt(val);
+        return Number.isSafeInteger(parsedValue) ? parsedValue : undefined;
+      }
+      return undefined;
+    },
+  };
+}
+
+/**
  * Generates parseEnv and default values for a boolean config value.
  * @param defaultVal - The default value to use if the environment variable is not set or is invalid
  * @returns Object with parseEnv and default values for a boolean config value
