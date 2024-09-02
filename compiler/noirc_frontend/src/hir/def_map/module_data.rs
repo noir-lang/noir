@@ -128,7 +128,7 @@ impl ModuleData {
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
         // Empty spans could come from implicitly injected imports, and we don't want to track those
-        if visibility == ItemVisibility::Private && name.span().start() < name.span().end() {
+        if visibility != ItemVisibility::Public && name.span().start() < name.span().end() {
             self.unused_imports.insert(name.clone());
         }
 
