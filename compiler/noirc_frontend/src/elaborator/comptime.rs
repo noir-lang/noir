@@ -334,7 +334,7 @@ impl<'context> Elaborator<'context> {
             TopLevelStatement::Error => (),
 
             TopLevelStatement::Module(_)
-            | TopLevelStatement::Import(_)
+            | TopLevelStatement::Import(..)
             | TopLevelStatement::Struct(_)
             | TopLevelStatement::Trait(_)
             | TopLevelStatement::Impl(_)

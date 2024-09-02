@@ -21,7 +21,7 @@ use noirc_frontend::{
 
 use crate::{
     byte_span_to_range,
-    modules::{get_parent_module_id, module_full_path},
+    modules::{get_parent_module_id, module_full_path, module_id_path},
     utils, LspState,
 };
 
@@ -267,21 +267,33 @@ impl<'a> Visitor for CodeActionFinder<'a> {
                 continue;
             }
 
-            for (module_def_id, visibility) in entries {
-                let Some(module_full_path) = module_full_path(
-                    *module_def_id,
-                    *visibility,
-                    self.module_id,
-                    current_module_parent_id,
-                    self.interner,
-                ) else {
-                    continue;
+            for (module_def_id, visibility, defining_module) in entries {
+                let module_full_path = if let Some(defining_module) = defining_module {
+                    module_id_path(
+                        *defining_module,
+                        &self.module_id,
+                        current_module_parent_id,
+                        self.interner,
+                    )
+                } else {
+                    let Some(module_full_path) = module_full_path(
+                        *module_def_id,
+                        *visibility,
+                        self.module_id,
+                        current_module_parent_id,
+                        self.interner,
+                    ) else {
+                        continue;
+                    };
+                    module_full_path
                 };
 
-                let full_path = if let ModuleDefId::ModuleId(..) = module_def_id {
-                    module_full_path.clone()
-                } else {
+                let full_path = if defining_module.is_some()
+                    || !matches!(module_def_id, ModuleDefId::ModuleId(..))
+                {
                     format!("{}::{}", module_full_path, name)
+                } else {
+                    module_full_path.clone()
                 };
 
                 let qualify_prefix = if let ModuleDefId::ModuleId(..) = module_def_id {
