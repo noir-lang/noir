@@ -28,8 +28,8 @@ unconstrained pub(crate) fn decompose_hint(x: Field) -> (Field, Field) {
 }
 
 fn compute_lt(x: Field, y: Field, num_bytes: u32) -> bool {
-    let x_bytes: [u8; 254] = x.to_le_bytes();
-    let y_bytes: [u8; 254] = y.to_le_bytes();
+    let x_bytes: [u8; 32] = x.to_le_bytes();
+    let y_bytes: [u8; 32] = y.to_le_bytes();
     let mut x_is_lt = false;
     let mut done = false;
     for i in 0..num_bytes {
