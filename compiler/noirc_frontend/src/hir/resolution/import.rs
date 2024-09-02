@@ -4,8 +4,8 @@ use thiserror::Error;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::ReferenceId;
-use rustc_hash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashSet};
+use crate::usage_tracker::UsageTracker;
+use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
@@ -88,7 +88,7 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+    usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
@@ -101,7 +101,7 @@ pub fn resolve_import(
         crate_id,
         crate_id,
         def_maps,
-        unused_imports,
+        usage_tracker,
         path_references,
     )?;
 
@@ -141,7 +141,7 @@ fn resolve_path_to_ns(
     crate_id: CrateId,
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+    usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
@@ -154,7 +154,7 @@ fn resolve_path_to_ns(
                 importing_crate,
                 import_path,
                 def_maps,
-                unused_imports,
+                usage_tracker,
                 path_references,
             )
         }
@@ -169,7 +169,7 @@ fn resolve_path_to_ns(
                     import_directive.module_id,
                     def_maps,
                     true,
-                    unused_imports,
+                    usage_tracker,
                     path_references,
                 );
             }
@@ -186,7 +186,7 @@ fn resolve_path_to_ns(
                     // def_map,
                     import_directive,
                     def_maps,
-                    unused_imports,
+                    usage_tracker,
                     path_references,
                     importing_crate,
                 );
@@ -199,7 +199,7 @@ fn resolve_path_to_ns(
                 import_directive.module_id,
                 def_maps,
                 true,
-                unused_imports,
+                usage_tracker,
                 path_references,
             )
         }
@@ -208,7 +208,7 @@ fn resolve_path_to_ns(
             crate_id,
             import_directive,
             def_maps,
-            unused_imports,
+            usage_tracker,
             path_references,
             importing_crate,
         ),
@@ -224,7 +224,7 @@ fn resolve_path_to_ns(
                     parent_module_id,
                     def_maps,
                     false,
-                    unused_imports,
+                    usage_tracker,
                     path_references,
                 )
             } else {
@@ -242,7 +242,7 @@ fn resolve_path_from_crate_root(
 
     import_path: &[PathSegment],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+    usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let starting_mod = def_maps[&crate_id].root;
@@ -253,7 +253,7 @@ fn resolve_path_from_crate_root(
         starting_mod,
         def_maps,
         false,
-        unused_imports,
+        usage_tracker,
         path_references,
     )
 }
@@ -266,7 +266,7 @@ fn resolve_name_in_module(
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     plain: bool,
-    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+    usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let def_map = &def_maps[&krate];
@@ -289,7 +289,7 @@ fn resolve_name_in_module(
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
-    unused_imports.entry(current_mod_id).or_default().remove(first_segment);
+    usage_tracker.mark_as_used(current_mod_id, first_segment);
 
     let mut warning: Option<PathResolutionError> = None;
     for (index, (last_segment, current_segment)) in
@@ -356,7 +356,7 @@ fn resolve_name_in_module(
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
-        unused_imports.entry(current_mod_id).or_default().remove(current_segment);
+        usage_tracker.mark_as_used(current_mod_id, current_segment);
 
         current_ns = found_ns;
     }
@@ -375,7 +375,7 @@ fn resolve_external_dep(
     crate_id: CrateId,
     directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+    usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
     importing_crate: CrateId,
 ) -> NamespaceResolutionResult {
@@ -418,7 +418,7 @@ fn resolve_external_dep(
         dep_module.krate,
         importing_crate,
         def_maps,
-        unused_imports,
+        usage_tracker,
         path_references,
     )
 }

@@ -253,7 +253,7 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         enable_arithmetic_generics: bool,
-        error_on_unused_imports: bool,
+        error_on_usage_tracker: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -267,13 +267,13 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            let error_on_unused_imports = false;
+            let error_on_usage_tracker = false;
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
                 debug_comptime_in_file,
                 enable_arithmetic_generics,
-                error_on_unused_imports,
+                error_on_usage_tracker,
                 macro_processors,
             ));
 
@@ -328,7 +328,7 @@ impl DefCollector {
                     crate_id,
                     &collected_import,
                     &context.def_maps,
-                    &mut context.def_interner.unused_imports,
+                    &mut context.def_interner.usage_tracker,
                     &mut Some(&mut references),
                 );
 
@@ -350,7 +350,7 @@ impl DefCollector {
                     crate_id,
                     &collected_import,
                     &context.def_maps,
-                    &mut context.def_interner.unused_imports,
+                    &mut context.def_interner.usage_tracker,
                     &mut None,
                 )
             };
@@ -399,10 +399,8 @@ impl DefCollector {
 
                             context
                                 .def_interner
-                                .unused_imports
-                                .entry(module_id)
-                                .or_default()
-                                .insert(name.clone());
+                                .usage_tracker
+                                .add_unused_import(module_id, name.clone());
                         }
 
                         if visibility != ItemVisibility::Private {
@@ -478,34 +476,29 @@ impl DefCollector {
             );
         }
 
-        if error_on_unused_imports {
-            Self::check_unused_imports(context, crate_id, &mut errors);
+        if error_on_usage_tracker {
+            Self::check_usage_tracker(context, crate_id, &mut errors);
         }
 
         errors
     }
 
-    fn check_unused_imports(
+    fn check_usage_tracker(
         context: &Context,
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        errors.extend(
-            context
-                .def_interner
-                .unused_imports
-                .iter()
-                .filter(|(module_id, _)| module_id.krate == crate_id)
-                .flat_map(|(module_id, unused_imports)| {
-                    let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
-                    unused_imports.iter().map(|ident| {
-                        let ident = ident.clone();
-                        let error =
-                            CompilationError::ResolverError(ResolverError::UnusedImport { ident });
-                        (error, module.location.file)
-                    })
-                }),
-        );
+        let unused_imports = context.def_interner.usage_tracker.unused_imports().iter();
+        let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
+
+        errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
+            let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
+            usage_tracker.iter().map(|ident| {
+                let ident = ident.clone();
+                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                (error, module.location.file)
+            })
+        }));
     }
 }
 
@@ -551,7 +544,7 @@ fn inject_prelude(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
-            &mut context.def_interner.unused_imports,
+            &mut context.def_interner.usage_tracker,
             &mut None,
         ) {
             assert!(error.is_none(), "Tried to add private item to prelude");

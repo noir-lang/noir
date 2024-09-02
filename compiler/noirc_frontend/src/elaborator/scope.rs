@@ -89,7 +89,7 @@ impl<'context> Elaborator<'context> {
             return resolver.resolve(
                 self.def_maps,
                 path,
-                &mut self.interner.unused_imports,
+                &mut self.interner.usage_tracker,
                 &mut None,
             );
         }
@@ -102,7 +102,7 @@ impl<'context> Elaborator<'context> {
         let path_resolution = resolver.resolve(
             self.def_maps,
             path.clone(),
-            &mut self.interner.unused_imports,
+            &mut self.interner.usage_tracker,
             &mut Some(&mut references),
         );
 

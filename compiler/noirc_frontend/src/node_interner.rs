@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
@@ -28,6 +27,7 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::macros_api::ModuleDefId;
 use crate::macros_api::UnaryOp;
+use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -268,9 +268,7 @@ pub struct NodeInterner {
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
-    /// List of all unused imports in each module. Each time something is imported it's added
-    /// to the module's set. When it's used, it's removed. At the end of the program only unused imports remain.
-    pub unused_imports: HashMap<ModuleId, HashSet<Ident>>,
+    pub(crate) usage_tracker: UsageTracker,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -657,7 +655,7 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            unused_imports: std::collections::HashMap::default(),
+            usage_tracker: UsageTracker::default(),
         }
     }
 }

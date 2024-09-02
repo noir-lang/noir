@@ -1,8 +1,8 @@
 use super::import::{resolve_import, ImportDirective, PathResolution, PathResolutionResult};
-use crate::ast::{Ident, ItemVisibility, Path};
+use crate::ast::{ItemVisibility, Path};
 use crate::node_interner::ReferenceId;
-use rustc_hash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashSet};
+use crate::usage_tracker::UsageTracker;
+use std::collections::BTreeMap;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
@@ -16,7 +16,7 @@ pub trait PathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-        unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+        usage_tracker: &mut UsageTracker,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult;
 
@@ -41,10 +41,10 @@ impl PathResolver for StandardPathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-        unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+        usage_tracker: &mut UsageTracker,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        resolve_path(def_maps, self.module_id, path, unused_imports, path_references)
+        resolve_path(def_maps, self.module_id, path, usage_tracker, path_references)
     }
 
     fn local_module_id(&self) -> LocalModuleId {
@@ -62,7 +62,7 @@ pub fn resolve_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
     path: Path,
-    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
+    usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> PathResolutionResult {
     // lets package up the path into an ImportDirective and resolve it using that
@@ -74,7 +74,7 @@ pub fn resolve_path(
         is_prelude: false,
     };
     let resolved_import =
-        resolve_import(module_id.krate, &import, def_maps, unused_imports, path_references)?;
+        resolve_import(module_id.krate, &import, def_maps, usage_tracker, path_references)?;
 
     let namespace = resolved_import.resolved_namespace;
     let id =
