@@ -107,3 +107,122 @@ impl<'a> CodeActionFinder<'a> {
         self.code_actions.push(code_action);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::test;
+
+    use crate::requests::code_action::tests::assert_code_action;
+
+    #[test]
+    async fn test_qualify_code_action_for_struct() {
+        let title = "Qualify as foo::bar::SomeTypeInBar";
+
+        let src = r#"
+        mod foo {
+            mod bar {
+                struct SomeTypeInBar {}
+            }
+        }
+
+        fn foo(x: SomeType>|<InBar) {}
+        "#;
+
+        let expected = r#"
+        mod foo {
+            mod bar {
+                struct SomeTypeInBar {}
+            }
+        }
+
+        fn foo(x: foo::bar::SomeTypeInBar) {}
+        "#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_code_action_for_struct() {
+        let title = "Import foo::bar::SomeTypeInBar";
+
+        let src = r#"mod foo {
+    mod bar {
+        struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeType>|<InBar) {}"#;
+
+        let expected = r#"use foo::bar::SomeTypeInBar;
+
+mod foo {
+    mod bar {
+        struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeTypeInBar) {}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_qualify_code_action_for_module() {
+        let title = "Qualify as foo::bar::some_module_in_bar";
+
+        let src = r#"
+        mod foo {
+            mod bar {
+                mod some_module_in_bar {}
+            }
+        }
+
+        fn main() {
+          some_mod>|<ule_in_bar
+        }
+        "#;
+
+        let expected = r#"
+        mod foo {
+            mod bar {
+                mod some_module_in_bar {}
+            }
+        }
+
+        fn main() {
+          foo::bar::some_module_in_bar
+        }
+        "#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_code_action_for_module() {
+        let title = "Import foo::bar::some_module_in_bar";
+
+        let src = r#"mod foo {
+    mod bar {
+        mod some_module_in_bar {}
+    }
+}
+
+fn main() {
+    some_mod>|<ule_in_bar
+}"#;
+
+        let expected = r#"use foo::bar::some_module_in_bar;
+
+mod foo {
+    mod bar {
+        mod some_module_in_bar {}
+    }
+}
+
+fn main() {
+    some_module_in_bar
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+}
