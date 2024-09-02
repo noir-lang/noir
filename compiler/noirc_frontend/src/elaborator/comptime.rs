@@ -168,7 +168,7 @@ impl<'context> Elaborator<'context> {
     /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
     /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
     #[allow(clippy::type_complexity)]
-    fn parse_attribute(
+    pub(crate) fn parse_attribute(
         annotation: &str,
         file: FileId,
     ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {

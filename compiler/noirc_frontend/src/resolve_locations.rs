@@ -4,7 +4,7 @@ use noirc_errors::Location;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::types::Type;
 
-use crate::node_interner::{DefinitionKind, Node, NodeInterner};
+use crate::node_interner::{DefinitionId, DefinitionKind, Node, NodeInterner};
 
 impl NodeInterner {
     /// Scans the interner for the item which is located at that [Location]
@@ -108,14 +108,18 @@ impl NodeInterner {
     ) -> Option<Location> {
         match expression {
             HirExpression::Ident(ident, _) => {
-                let definition_info = self.definition(ident.id);
-                match definition_info.kind {
-                    DefinitionKind::Function(func_id) => {
-                        Some(self.function_meta(&func_id).location)
+                if ident.id != DefinitionId::dummy_id() {
+                    let definition_info = self.definition(ident.id);
+                    match definition_info.kind {
+                        DefinitionKind::Function(func_id) => {
+                            Some(self.function_meta(&func_id).location)
+                        }
+                        DefinitionKind::Local(_local_id) => Some(definition_info.location),
+                        DefinitionKind::Global(_global_id) => Some(definition_info.location),
+                        _ => None,
                     }
-                    DefinitionKind::Local(_local_id) => Some(definition_info.location),
-                    DefinitionKind::Global(_global_id) => Some(definition_info.location),
-                    _ => None,
+                } else {
+                    None
                 }
             }
             HirExpression::Constructor(expr) => {

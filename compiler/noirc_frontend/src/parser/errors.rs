@@ -165,42 +165,51 @@ impl std::fmt::Display for ParserError {
 impl<'a> From<&'a ParserError> for Diagnostic {
     fn from(error: &'a ParserError) -> Diagnostic {
         match &error.reason {
-            Some(reason) => {
-                match reason {
-                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
+            Some(reason) => match reason {
+                ParserErrorReason::ConstrainDeprecated => {
+                    let mut diagnostic = Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
                         "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
-                    ),
-                    ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
+                    );
+                    diagnostic.deprecated = true;
+                    diagnostic
+                }
+                ParserErrorReason::ComptimeDeprecated => {
+                    let mut diagnostic = Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
                         error.span,
-                    ),
-                    ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
-                        format!("Use of invalid bit size {}", bit_size),
-                        format!("Allowed bit sizes for integers are {}", IntegerBitSize::allowed_sizes().iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")),
-                        error.span,
-                    ),
-                    ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(
-                        reason.to_string(),
-                        "".into(),
-                        error.span,
-                    ),
-                    ParserErrorReason::TraitImplFunctionModifiers => Diagnostic::simple_warning(
-                        reason.to_string(),
-                        "".into(),
-                        error.span,
-                    ),
-                    ParserErrorReason::ExpectedPatternButFoundType(ty) => {
-                        Diagnostic::simple_error("Expected a ; separating these two statements".into(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
-                    }
-                    ParserErrorReason::Lexer(error) => error.into(),
-                    other => {
-                        Diagnostic::simple_error(format!("{other}"), String::new(), error.span)
-                    }
+                    ) ;
+                    diagnostic.deprecated = true;
+                    diagnostic
                 }
-            }
+                ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
+                    format!("Use of invalid bit size {}", bit_size),
+                    format!(
+                        "Allowed bit sizes for integers are {}",
+                        IntegerBitSize::allowed_sizes()
+                            .iter()
+                            .map(|n| n.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    error.span,
+                ),
+                ParserErrorReason::ExperimentalFeature(_) => {
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                }
+                ParserErrorReason::TraitImplFunctionModifiers => {
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                }
+                ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
+                    "Expected a ; separating these two statements".into(),
+                    format!("{ty} is a type and cannot be used as a variable name"),
+                    error.span,
+                ),
+                ParserErrorReason::Lexer(error) => error.into(),
+                other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
+            },
             None => {
                 let primary = error.to_string();
                 Diagnostic::simple_error(primary, String::new(), error.span)
