@@ -6,7 +6,9 @@ impl Field {
     ///
     /// # Failures
     /// Causes a constraint failure for `Field` values exceeding `2^{bit_size}`.
+    // docs:start:assert_max_bit_size
     pub fn assert_max_bit_size(self, bit_size: u32) {
+        // docs:end:assert_max_bit_size
         crate::assert_constant(bit_size);
         assert(bit_size < modulus_num_bits() as u32);
         self.__assert_max_bit_size(bit_size);
@@ -27,7 +29,9 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_le_bits)]
+    // docs:start:to_le_bits
     pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
+    // docs:end:to_le_bits
 
     /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
@@ -41,7 +45,9 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_be_bits)]
+     // docs:start:to_be_bits
     pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
+    // docs:end:to_be_bits
 
     /// Decomposes `self` into its little endian byte decomposition as a `[u8]` slice of length `byte_size`.
     /// This slice will be zero padded should not all bytes be necessary to represent `self`.
@@ -54,9 +60,11 @@ impl Field {
     /// Values of `byte_size` equal to or greater than the number of bytes necessary to represent the `Field` modulus
     /// (e.g. 32 for the BN254 field) allow for multiple byte decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
+    // docs:start:to_le_bytes
     pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
         self.to_le_radix(256)
     }
+    // docs:end:to_le_bytes
 
     /// Decomposes `self` into its big endian byte decomposition as a `[u8]` slice of length `byte_size`.
     /// This slice will be zero padded should not all bytes be necessary to represent `self`.
@@ -69,19 +77,25 @@ impl Field {
     /// Values of `byte_size` equal to or greater than the number of bytes necessary to represent the `Field` modulus
     /// (e.g. 32 for the BN254 field) allow for multiple byte decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
+    // docs:start:to_be_bytes
     pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
         self.to_be_radix(256)
     }
+    // docs:end:to_be_bytes
 
+    // docs:start:to_le_radix
     pub fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         crate::assert_constant(radix);
         self.__to_le_radix(radix)
     }
+    // docs:end:to_le_radix
 
+    // docs:start:to_be_radix
     pub fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         crate::assert_constant(radix);
         self.__to_be_radix(radix)
     }
+    // docs:end:to_be_radix
 
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
@@ -168,3 +182,58 @@ fn lt_fallback(x: Field, y: Field) -> bool {
     x_is_lt
 }
 
+mod tests {
+    #[test]
+    // docs:start:to_be_bits_example
+    fn test_to_be_bits() {
+        let field = 2;
+        let bits: [u1; 8] = field.to_be_bits();
+        assert_eq(bits, [0, 0, 0, 0, 0, 0, 1, 0]);
+    }
+    // docs:end:to_be_radix_example
+
+    #[test]
+    // docs:start:to_le_bits_example
+    fn test_to_le_bits() {
+        let field = 2;
+        let bits: [u1; 8] = field.to_le_bits();
+        assert_eq(bits, [0, 1, 0, 0, 0, 0, 0, 0]);
+    }
+    // docs:end:to_le_bits_example
+
+    #[test]
+    // docs:start:to_be_bytes_example
+    fn test_to_be_bytes() {
+        let field = 2;
+        let bits: [u8; 8] = field.to_be_bytes();
+        assert_eq(bits, [0, 0, 0, 0, 0, 0, 0, 2]);
+    }
+    // docs:end:to_be_bytes_example
+
+    #[test]
+    // docs:start:to_le_bytes_example
+    fn test_to_le_bytes() {
+        let field = 2;
+        let bits: [u8; 8] = field.to_le_bytes();
+        assert_eq(bits, [2, 0, 0, 0, 0, 0, 0, 0]);
+    }
+    // docs:end:to_le_bytes_example
+
+    #[test]
+    // docs:start:to_be_radix_example
+    fn test_to_be_radix() {
+        let field = 2;
+        let bits: [u8; 8] = field.to_be_radix(256);
+        assert_eq(bits, [0, 0, 0, 0, 0, 0, 0, 2]);
+    }
+    // docs:end:to_be_radix_example
+
+    #[test]
+    // docs:start:to_le_radix_example
+    fn test_to_le_radix() {
+        let field = 2;
+        let bits: [u8; 8] = field.to_le_radix(256);
+        assert_eq(bits, [2, 0, 0, 0, 0, 0, 0, 0]);
+    }
+    // docs:end:to_le_radix_example
+}
