@@ -1527,24 +1527,14 @@ impl<F: AcirField> AcirContext<F> {
         endian: Endian,
         input_var: AcirVar,
         radix_var: AcirVar,
-        limb_count_var: AcirVar,
+        limb_count: u32,
         result_element_type: AcirType,
-    ) -> Result<Vec<AcirValue>, RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
             Some(radix) => radix.to_u128() as u32,
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
-                    call_stack: self.get_call_stack(),
-                }));
-            }
-        };
-
-        let limb_count = match self.vars[&limb_count_var].as_constant() {
-            Some(limb_count) => limb_count.to_u128() as u32,
-            None => {
-                return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                    name: "limb_size".to_string(),
                     call_stack: self.get_call_stack(),
                 }));
             }
@@ -1566,10 +1556,7 @@ impl<F: AcirField> AcirContext<F> {
 
         // `Intrinsic::ToRadix` returns slices which are represented
         // by tuples with the structure (length, slice contents)
-        Ok(vec![
-            AcirValue::Var(self.add_constant(limb_vars.len()), AcirType::field()),
-            AcirValue::Array(limb_vars.into()),
-        ])
+        Ok(AcirValue::Array(limb_vars.into()))
     }
 
     /// Returns `AcirVar`s constrained to be the bit decomposition of the provided input
@@ -1577,11 +1564,11 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         endian: Endian,
         input_var: AcirVar,
-        limb_count_var: AcirVar,
+        limb_count: u32,
         result_element_type: AcirType,
-    ) -> Result<Vec<AcirValue>, RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError> {
         let two_var = self.add_constant(2_u128);
-        self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
+        self.radix_decompose(endian, input_var, two_var, limb_count, result_element_type)
     }
 
     /// Recursive helper to flatten a single AcirValue into the result vector.

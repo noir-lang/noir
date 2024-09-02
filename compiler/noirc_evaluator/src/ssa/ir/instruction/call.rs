@@ -50,32 +50,39 @@ pub(super) fn simplify_call(
 
     match intrinsic {
         Intrinsic::ToBits(endian) => {
-            if let Some(constant_args) = constant_args {
+            // TODO: simplify to a range constraint if `limb_count == 1`
+            if let (Some(constant_args), Some(return_type)) =
+                (constant_args, ctrl_typevars.map(|return_types| return_types.first().cloned()))
+            {
                 let field = constant_args[0];
-                let limb_count = constant_args[1].to_u128() as u32;
+                let limb_count = if let Some(Type::Array(_, array_len)) = return_type {
+                    array_len as u32
+                } else {
+                    unreachable!("ICE: Intrinsic::ToRadix return type must be array")
+                };
+                let result_array = constant_to_radix(endian, field, 2, limb_count, dfg);
 
-                let (len_value, result_slice) =
-                    constant_to_radix(endian, field, 2, limb_count, dfg);
-
-                // `Intrinsic::ToBits` returns slices which are represented
-                // by tuples with the structure (length, slice contents)
-                SimplifyResult::SimplifiedToMultiple(vec![len_value, result_slice])
+                SimplifyResult::SimplifiedTo(result_array)
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::ToRadix(endian) => {
-            if let Some(constant_args) = constant_args {
+            // TODO: simplify to a range constraint if `limb_count == 1`
+            if let (Some(constant_args), Some(return_type)) =
+                (constant_args, ctrl_typevars.map(|return_types| return_types.first().cloned()))
+            {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
-                let limb_count = constant_args[2].to_u128() as u32;
+                let limb_count = if let Some(Type::Array(_, array_len)) = return_type {
+                    array_len as u32
+                } else {
+                    unreachable!("ICE: Intrinsic::ToRadix return type must be array")
+                };
 
-                let (len_value, result_slice) =
-                    constant_to_radix(endian, field, radix, limb_count, dfg);
+                let result_array = constant_to_radix(endian, field, radix, limb_count, dfg);
 
-                // `Intrinsic::ToRadix` returns slices which are represented
-                // by tuples with the structure (length, slice contents)
-                SimplifyResult::SimplifiedToMultiple(vec![len_value, result_slice])
+                SimplifyResult::SimplifiedTo(result_array)
             } else {
                 SimplifyResult::None
             }
@@ -584,7 +591,7 @@ fn constant_to_radix(
     radix: u32,
     limb_count: u32,
     dfg: &mut DataFlowGraph,
-) -> (ValueId, ValueId) {
+) -> ValueId {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -599,7 +606,7 @@ fn constant_to_radix(
     if endian == Endian::Big {
         limbs.reverse();
     }
-    make_constant_slice(dfg, limbs, Type::unsigned(bit_size))
+    make_constant_array(dfg, limbs, Type::unsigned(bit_size))
 }
 
 fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {

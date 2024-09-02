@@ -160,14 +160,14 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
 
     let mut hash_input_flattened = [0; TX_EFFECT_HASH_FULL_FIELDS * 32 + TX_EFFECT_HASH_LOG_FIELDS * 16];
     for offset in 0..TX_EFFECT_HASH_FULL_FIELDS {
-        let input_as_bytes = tx_effects_hash_inputs[offset].to_be_bytes(32);
+        let input_as_bytes: [u8; 32] = tx_effects_hash_inputs[offset].to_be_bytes();
         for byte_index in 0..32 {
             hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
         }
     }
 
     for log_field_index in 0..TX_EFFECT_HASH_LOG_FIELDS {
-        let input_as_bytes = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes(16);
+        let input_as_bytes: [u8; 16] = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0..16 {
             hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
         }

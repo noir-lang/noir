@@ -2177,19 +2177,38 @@ impl<'a> Context<'a> {
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
-                let limb_size = self.convert_value(arguments[2], dfg).into_var()?;
 
-                let result_type = Self::array_element_type(dfg, result_ids[1]);
+                let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
+                else {
+                    unreachable!("ICE: ToRadix result must be an array");
+                };
 
-                self.acir_context.radix_decompose(endian, field, radix, limb_size, result_type)
+                self.acir_context
+                    .radix_decompose(
+                        endian,
+                        field,
+                        radix,
+                        array_length as u32,
+                        result_type[0].clone().into(),
+                    )
+                    .map(|array| vec![array])
             }
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
-                let bit_size = self.convert_value(arguments[1], dfg).into_var()?;
 
-                let result_type = Self::array_element_type(dfg, result_ids[1]);
+                let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
+                else {
+                    unreachable!("ICE: ToRadix result must be an array");
+                };
 
-                self.acir_context.bit_decompose(endian, field, bit_size, result_type)
+                self.acir_context
+                    .bit_decompose(
+                        endian,
+                        field,
+                        array_length as u32,
+                        result_type[0].clone().into(),
+                    )
+                    .map(|array| vec![array])
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
