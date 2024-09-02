@@ -40,7 +40,8 @@ export class Bot {
 
   public async run() {
     const logCtx = { runId: Date.now() * 1000 + Math.floor(Math.random() * 1000) };
-    const { privateTransfersPerTx, publicTransfersPerTx, feePaymentMethod } = this.config;
+    const { privateTransfersPerTx, publicTransfersPerTx, feePaymentMethod, followChain, txMinedWaitSeconds } =
+      this.config;
     const { token, recipient, wallet } = this;
     const sender = wallet.getAddress();
 
@@ -72,19 +73,16 @@ export class Bot {
 
     const txHash = await tx.getTxHash();
 
-    if (this.config.followChain === 'NONE') {
+    if (followChain === 'NONE') {
       this.log.info(`Transaction ${txHash} sent, not waiting for it to be mined`);
       return;
     }
 
-    this.log.verbose(
-      `Awaiting tx ${txHash} to be on the ${this.config.followChain} (timeout ${this.config.txMinedWaitSeconds}s)`,
-      logCtx,
-    );
+    this.log.verbose(`Awaiting tx ${txHash} to be on the ${followChain} (timeout ${txMinedWaitSeconds}s)`, logCtx);
     const receipt = await tx.wait({
-      timeout: this.config.txMinedWaitSeconds,
-      provenTimeout: this.config.txMinedWaitSeconds,
-      proven: this.config.followChain === 'PROVEN',
+      timeout: txMinedWaitSeconds,
+      provenTimeout: txMinedWaitSeconds,
+      proven: followChain === 'PROVEN',
     });
     this.log.info(`Tx ${receipt.txHash} mined in block ${receipt.blockNumber}`, logCtx);
   }
@@ -98,7 +96,7 @@ export class Bot {
 
   private getSendMethodOpts(): SendMethodOptions {
     const sender = this.wallet.getAddress();
-    const { feePaymentMethod, l2GasLimit, daGasLimit } = this.config;
+    const { feePaymentMethod, l2GasLimit, daGasLimit, skipPublicSimulation } = this.config;
     const paymentMethod =
       feePaymentMethod === 'fee_juice' ? new FeeJuicePaymentMethod(sender) : new NoFeePaymentMethod();
 
@@ -106,12 +104,13 @@ export class Bot {
     if (l2GasLimit !== undefined && l2GasLimit > 0 && daGasLimit !== undefined && daGasLimit > 0) {
       gasSettings = GasSettings.default({ gasLimits: Gas.from({ l2Gas: l2GasLimit, daGas: daGasLimit }) });
       estimateGas = false;
-      this.log.verbose(`Using gas limits: ${l2GasLimit} L2 gas, ${daGasLimit} DA gas`);
+      this.log.verbose(`Using gas limits ${l2GasLimit} L2 gas ${daGasLimit} DA gas`);
     } else {
       gasSettings = GasSettings.default();
       estimateGas = true;
       this.log.verbose(`Estimating gas for transaction`);
     }
-    return { estimateGas, fee: { paymentMethod, gasSettings } };
+    this.log.verbose(skipPublicSimulation ? `Skipping public simulation` : `Simulating public transfers`);
+    return { estimateGas, fee: { paymentMethod, gasSettings }, skipPublicSimulation };
   }
 }
