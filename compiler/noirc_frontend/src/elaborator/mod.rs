@@ -170,6 +170,9 @@ pub struct Elaborator<'context> {
     enable_arithmetic_generics: bool,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
+
+    /// Did we already run module attributes?
+    ran_module_attributes: bool,
 }
 
 #[derive(Default)]
@@ -218,6 +221,7 @@ impl<'context> Elaborator<'context> {
             enable_arithmetic_generics,
             current_trait: None,
             interpreter_call_stack,
+            ran_module_attributes: false,
         }
     }
 

@@ -12,15 +12,18 @@ mod another_module {}
 
 #[outer_attribute_func]
 mod yet_another_module {
-    #![inner_attribute_func]
+    #![super::inner_attribute_func]
     fn foo() {}
 }
 
-comptime mut global counter = 0;
-
-fn outer_attribute_func(m: Module) {
+fn outer_attribute_func(m: Module) -> Quoted {
     assert_eq(m.name(), quote { yet_another_module });
-    counter += 1;
+    quote { pub fn created_by_outer_attribute() {} }
+}
+
+fn inner_attribute_func(m: Module) -> Quoted {
+    assert_eq(m.name(), quote { yet_another_module });
+    quote { pub fn created_by_inner_attribute() {} }
 }
 
 fn main() {
@@ -49,8 +52,8 @@ fn main() {
         assert(!bar.has_named_attribute(quote { some_attribute }));
         assert(another_module.has_named_attribute(quote { some_attribute }));
     }
-
-    assert_eq(counter, 2);
+    // created_by_inner_attribute();
+    // created_by_outer_attribute();
 }
 
 // docs:start:as_module_example

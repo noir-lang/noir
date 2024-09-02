@@ -407,6 +407,11 @@ impl<'context> Elaborator<'context> {
     }
 
     fn run_attributes_on_modules(&mut self, generated_items: &mut CollectedItems) {
+        if self.ran_module_attributes {
+            return;
+        }
+        self.ran_module_attributes = true;
+
         let def_map = &self.def_maps[&self.crate_id];
         let mut data = Vec::new();
 
