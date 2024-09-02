@@ -965,7 +965,7 @@ fn expr_as_assert_eq(
         if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
             if constrain.2 == ConstrainKind::AssertEq {
                 let ExpressionKind::Infix(infix) = constrain.0.kind else {
-                    panic!("Expected AssertEq constrain statmenet to have an infix expression");
+                    panic!("Expected AssertEq constrain statement to have an infix expression");
                 };
 
                 let lhs = Value::expression(infix.lhs.kind);
