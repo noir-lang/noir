@@ -213,10 +213,6 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         constructor: &ConstructorExpression,
         span: Span,
     ) -> bool {
-        if !self.includes_span(span) {
-            return false;
-        }
-
         self.fill_struct_fields(constructor, span);
 
         true

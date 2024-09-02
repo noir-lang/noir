@@ -8,6 +8,10 @@ use super::CodeActionFinder;
 
 impl<'a> CodeActionFinder<'a> {
     pub(super) fn fill_struct_fields(&mut self, constructor: &ConstructorExpression, span: Span) {
+        if !self.includes_span(span) {
+            return;
+        }
+
         // Find out which struct this is
         let location = Location::new(constructor.type_name.last_ident().span(), self.file);
         let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
