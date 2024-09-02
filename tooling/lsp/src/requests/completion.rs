@@ -18,16 +18,13 @@ use noirc_frontend::{
         AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
         ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression, ItemVisibility,
         Lambda, LetStatement, MemberAccessExpression, MethodCallExpression, NoirFunction,
-        NoirStruct, NoirTraitImpl, Path, PathKind, PathSegment, Pattern, Statement, TypeImpl,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
+        NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement, TypeImpl, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::{
-            import::can_reference_module_id,
-            path_resolver::{PathResolver, StandardPathResolver},
-        },
+        resolution::import::can_reference_module_id,
     },
     hir_def::traits::Trait,
     macros_api::{ModuleDefId, NodeInterner},
@@ -92,8 +89,6 @@ struct NodeFinder<'a> {
     lines: Vec<&'a str>,
     byte_index: usize,
     byte: Option<u8>,
-    /// The module ID of the current file.
-    root_module_id: ModuleId,
     /// The module ID in scope. This might change as we traverse the AST
     /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
@@ -131,7 +126,6 @@ impl<'a> NodeFinder<'a> {
     ) -> Self {
         // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
-        let root_module_id = ModuleId { krate, local_id: def_map.root() };
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
@@ -146,7 +140,6 @@ impl<'a> NodeFinder<'a> {
             lines: source.lines().collect(),
             byte_index,
             byte,
-            root_module_id,
             module_id,
             def_maps,
             dependencies,
@@ -759,14 +752,6 @@ impl<'a> NodeFinder<'a> {
 
     fn resolve_path(&self, segments: Vec<Ident>) -> Option<ModuleDefId> {
         let last_segment = segments.last().unwrap().clone();
-
-        let path_segments = segments.into_iter().map(PathSegment::from).collect();
-        let path = Path { segments: path_segments, kind: PathKind::Plain, span: Span::default() };
-
-        let path_resolver = StandardPathResolver::new(self.root_module_id);
-        if let Ok(path_resolution) = path_resolver.resolve(self.def_maps, path, &mut None) {
-            return Some(path_resolution.module_def_id);
-        }
 
         // If we can't resolve a path trough lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);

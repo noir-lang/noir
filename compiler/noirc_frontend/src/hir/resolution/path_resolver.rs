@@ -13,7 +13,7 @@ pub trait PathResolver {
     /// a module or type).
     fn resolve(
         &self,
-        def_maps: &BTreeMap<CrateId, CrateDefMap>,
+        def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
         path: Path,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult;
@@ -37,7 +37,7 @@ impl StandardPathResolver {
 impl PathResolver for StandardPathResolver {
     fn resolve(
         &self,
-        def_maps: &BTreeMap<CrateId, CrateDefMap>,
+        def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
         path: Path,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
@@ -56,7 +56,7 @@ impl PathResolver for StandardPathResolver {
 /// Resolve the given path to a function or a type.
 /// In the case of a conflict, functions are given priority
 pub fn resolve_path(
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
     path: Path,
     path_references: &mut Option<&mut Vec<ReferenceId>>,

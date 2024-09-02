@@ -86,7 +86,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
 pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
@@ -131,11 +131,10 @@ fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     crate_id: CrateId,
     importing_crate: CrateId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
-    let def_map = &def_maps[&crate_id];
 
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
@@ -163,6 +162,7 @@ fn resolve_path_to_ns(
                 );
             }
 
+            let def_map = &def_maps[&crate_id];
             let current_mod_id = ModuleId { krate: crate_id, local_id: import_directive.module_id };
             let current_mod = &def_map.modules[current_mod_id.local_id.0];
             let first_segment =
@@ -170,7 +170,8 @@ fn resolve_path_to_ns(
             if current_mod.find_name(first_segment).is_none() {
                 // Resolve externally when first segment is unresolved
                 return resolve_external_dep(
-                    def_map,
+                    crate_id,
+                    // def_map,
                     import_directive,
                     def_maps,
                     path_references,
@@ -190,7 +191,7 @@ fn resolve_path_to_ns(
         }
 
         crate::ast::PathKind::Dep => resolve_external_dep(
-            def_map,
+            crate_id,
             import_directive,
             def_maps,
             path_references,
@@ -224,7 +225,7 @@ fn resolve_path_from_crate_root(
     importing_crate: CrateId,
 
     import_path: &[PathSegment],
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let starting_mod = def_maps[&crate_id].root;
@@ -244,13 +245,13 @@ fn resolve_name_in_module(
     importing_crate: CrateId,
     import_path: &[PathSegment],
     starting_mod: LocalModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
     plain: bool,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
-    let def_map = &def_maps[&krate];
+    let def_map = def_maps.get_mut(&krate).unwrap();
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
-    let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
+    let mut current_mod = def_map.modules.get_mut(current_mod_id.local_id.0).unwrap();
 
     // There is a possibility that the import path is empty
     // In that case, early return
@@ -267,6 +268,8 @@ fn resolve_name_in_module(
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
+
+    current_mod.use_import(first_segment);
 
     let mut warning: Option<PathResolutionError> = None;
     for (index, (last_segment, current_segment)) in
@@ -324,7 +327,12 @@ fn resolve_name_in_module(
             }
         });
 
-        current_mod = &def_maps[&current_mod_id.krate].modules[current_mod_id.local_id.0];
+        current_mod = def_maps
+            .get_mut(&current_mod_id.krate)
+            .unwrap()
+            .modules
+            .get_mut(current_mod_id.local_id.0)
+            .unwrap();
 
         // Check if namespace
         let found_ns = current_mod.find_name(current_segment);
@@ -332,6 +340,8 @@ fn resolve_name_in_module(
         if found_ns.is_none() {
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
+
+        current_mod.use_import(current_segment);
 
         current_ns = found_ns;
     }
@@ -347,14 +357,16 @@ fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
 }
 
 fn resolve_external_dep(
-    current_def_map: &CrateDefMap,
+    crate_id: CrateId,
     directive: &ImportDirective,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
     importing_crate: CrateId,
 ) -> NamespaceResolutionResult {
     // Use extern_prelude to get the dep
     let path = &directive.path.segments;
+
+    let current_def_map = &def_maps[&crate_id];
 
     // Fetch the root module from the prelude
     let crate_name = &path.first().unwrap().ident;

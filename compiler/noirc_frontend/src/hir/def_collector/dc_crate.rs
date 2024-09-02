@@ -327,7 +327,7 @@ impl DefCollector {
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
-                    &context.def_maps,
+                    &mut context.def_maps,
                     &mut Some(&mut references),
                 );
 
@@ -345,7 +345,7 @@ impl DefCollector {
 
                 resolved_import
             } else {
-                resolve_import(crate_id, &collected_import, &context.def_maps, &mut None)
+                resolve_import(crate_id, &collected_import, &mut context.def_maps, &mut None)
             };
             match resolved_import {
                 Ok(resolved_import) => {
@@ -493,7 +493,7 @@ fn add_import_reference(
 
 fn inject_prelude(
     crate_id: CrateId,
-    context: &Context,
+    context: &mut Context,
     crate_root: LocalModuleId,
     collected_imports: &mut Vec<ImportDirective>,
 ) {
@@ -515,7 +515,7 @@ fn inject_prelude(
         };
 
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
-            &context.def_maps,
+            &mut context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
             &mut None,
