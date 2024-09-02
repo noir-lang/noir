@@ -8,7 +8,7 @@ global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
 // Decomposes a single field into two 16 byte fields.
 fn compute_decomposition(x: Field) -> (Field, Field) {
-    let x_bytes = x.to_le_bytes(32);
+    let x_bytes: [u8; 32] = x.to_le_bytes();
 
     let mut low: Field = 0;
     let mut high: Field = 0;
@@ -28,8 +28,8 @@ unconstrained pub(crate) fn decompose_hint(x: Field) -> (Field, Field) {
 }
 
 fn compute_lt(x: Field, y: Field, num_bytes: u32) -> bool {
-    let x_bytes = x.to_le_radix(256, num_bytes);
-    let y_bytes = y.to_le_radix(256, num_bytes);
+    let x_bytes: [u8; 32] = x.to_le_bytes();
+    let y_bytes: [u8; 32] = y.to_le_bytes();
     let mut x_is_lt = false;
     let mut done = false;
     for i in 0..num_bytes {

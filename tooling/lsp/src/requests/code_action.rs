@@ -15,6 +15,8 @@ use noirc_frontend::{
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     macros_api::NodeInterner,
+};
+use noirc_frontend::{
     parser::{Item, ItemKind, ParsedSubModule},
     ParsedModule,
 };

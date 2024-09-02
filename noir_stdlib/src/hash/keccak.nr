@@ -115,7 +115,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     let mut result = [0; 32];
     for i in 0..4 {
         let lane = state[i] as Field;
-        let lane_le = lane.to_le_bytes(8);
+        let lane_le: [u8; 8] = lane.to_le_bytes();
         for j in 0..8 {
             result[8*i+j] = lane_le[j];
         }
