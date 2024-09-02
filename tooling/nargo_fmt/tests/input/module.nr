@@ -1,3 +1,6 @@
+#![inner]
+#![inner2]
+
 mod a {
     mod b {
         struct Data {
