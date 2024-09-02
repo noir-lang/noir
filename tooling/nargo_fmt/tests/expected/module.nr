@@ -13,6 +13,8 @@ mod a {
         Data2 { a }
     }
 
+    #[custom]
+    #[another_custom]
     mod tests {
         #[test]
         fn test() {
@@ -20,4 +22,7 @@ mod a {
             data2(1);
         }
     }
+
+    #[attr]
+    mod baz;
 }

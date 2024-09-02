@@ -165,6 +165,12 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
+                    for attribute in module.attributes {
+                        self.push_str(&attribute.to_string());
+                        self.push_str("\n");
+                        self.push_str(&self.indent.to_string());
+                    }
+
                     let name = module.name;
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
