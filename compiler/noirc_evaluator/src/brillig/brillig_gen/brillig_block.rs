@@ -266,7 +266,7 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                 );
                 match assert_message {
-                    Some(ConstrainError::UserDefined(selector, values)) => {
+                    Some(ConstrainError::Dynamic(selector, values)) => {
                         let payload_values =
                             vecmap(values, |value| self.convert_ssa_value(*value, dfg));
                         let payload_as_params = vecmap(values, |value| {
@@ -280,7 +280,7 @@ impl<'block> BrilligBlock<'block> {
                             selector.as_u64(),
                         );
                     }
-                    Some(ConstrainError::Intrinsic(message)) => {
+                    Some(ConstrainError::StaticString(message)) => {
                         self.brillig_context.codegen_constrain(condition, Some(message.clone()));
                     }
                     None => {
