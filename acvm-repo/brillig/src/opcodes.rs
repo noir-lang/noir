@@ -171,7 +171,7 @@ pub enum ValueOrArray {
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.  
+    /// and stores the value in the `result` address.
     BinaryFieldOp {
         destination: MemoryAddress,
         op: BinaryFieldOp,
@@ -180,7 +180,7 @@ pub enum BrilligOpcode<F> {
     },
     /// Takes the `bit_size` size integers in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.  
+    /// and stores the value in the `result` address.
     BinaryIntOp {
         destination: MemoryAddress,
         op: BinaryIntOp,
@@ -220,6 +220,11 @@ pub enum BrilligOpcode<F> {
     },
     Const {
         destination: MemoryAddress,
+        bit_size: BitSize,
+        value: F,
+    },
+    IndirectConst {
+        destination_pointer: MemoryAddress,
         bit_size: BitSize,
         value: F,
     },

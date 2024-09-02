@@ -8,10 +8,11 @@ use crate::brillig::brillig_ir::BrilligBinaryOp;
 use super::{
     brillig_variable::{BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
+    registers::RegisterAllocator,
     BrilligContext,
 };
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Codegens a truncation of a value to the given bit size
     pub(crate) fn codegen_truncate(
         &mut self,
@@ -70,7 +71,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         radix: u32,
         limb_count: usize,
         big_endian: bool,
-        limb_bit_size: u32,
+        output_bits: bool, // If true will generate bit limbs, if false will generate byte limbs
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
 
@@ -82,32 +83,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
             input: source_field.address,
             radix,
             output: HeapArray { pointer: target_vector.pointer, size: limb_count },
+            output_bits,
         });
 
-        let limb_field = SingleAddrVariable::new(self.allocate_register(), F::max_num_bits());
-        let limb_casted = SingleAddrVariable::new(self.allocate_register(), limb_bit_size);
-
-        if limb_bit_size != F::max_num_bits() {
-            self.codegen_loop(target_vector.size, |ctx, iterator_register| {
-                // Read the limb
-                ctx.codegen_array_get(target_vector.pointer, iterator_register, limb_field.address);
-                // Cast it
-                ctx.cast_instruction(limb_casted, limb_field);
-                // Write it
-                ctx.codegen_array_set(
-                    target_vector.pointer,
-                    iterator_register,
-                    limb_casted.address,
-                );
-            });
-        }
-
-        // Deallocate our temporary registers
-        self.deallocate_single_addr(limb_field);
-        self.deallocate_single_addr(limb_casted);
-
         if big_endian {
-            self.codegen_reverse_vector_in_place(target_vector);
+            self.codegen_array_reverse(target_vector.pointer, target_vector.size);
         }
     }
 }
