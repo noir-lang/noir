@@ -728,7 +728,7 @@ impl<'a> ModCollector<'a> {
             &mod_decl.ident,
             Location::new(Span::empty(0), child_file_id),
             mod_decl.outer_attributes,
-            Vec::new(),
+            ast.inner_attributes.clone(),
             true,
             false,
         ) {
