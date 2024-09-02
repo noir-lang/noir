@@ -18,6 +18,13 @@ If this expression is an array, this returns a slice of each element in the arra
 
 If this expression is an assert, this returns the assert expression and the optional message.
 
+### as_assert_eq
+
+#include_code as_assert_eq noir_stdlib/src/meta/expr.nr rust
+
+If this expression is an assert_eq, this returns the left-hand-side and right-hand-side
+expressions, together with the optional message.
+
 ### as_assign
 
 #include_code as_assign noir_stdlib/src/meta/expr.nr rust

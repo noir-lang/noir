@@ -13,6 +13,11 @@ impl Expr {
     fn as_assert(self) -> Option<(Expr, Option<Expr>)> {}
     // docs:end:as_assert
 
+    #[builtin(expr_as_assert_eq)]
+    // docs:start:as_assert_eq
+    fn as_assert_eq(self) -> Option<(Expr, Expr, Option<Expr>)> {}
+    // docs:end:as_assert_eq
+
     #[builtin(expr_as_assign)]
     // docs:start:as_assign
     fn as_assign(self) -> Option<(Expr, Expr)> {}
@@ -121,6 +126,7 @@ impl Expr {
         // docs:end:modify
         let result = modify_array(self, f);
         let result = result.or_else(|| modify_assert(self, f));
+        let result = result.or_else(|| modify_assert_eq(self, f));
         let result = result.or_else(|| modify_assign(self, f));
         let result = result.or_else(|| modify_binary_op(self, f));
         let result = result.or_else(|| modify_block(self, f));
@@ -174,6 +180,18 @@ fn modify_assert<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Ex
         let predicate = predicate.modify(f);
         let msg = msg.map(|msg: Expr| msg.modify(f));
         new_assert(predicate, msg)
+    }
+    )
+}
+
+fn modify_assert_eq<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_assert_eq().map(
+        |expr: (Expr, Expr, Option<Expr>)| {
+        let (lhs, rhs, msg) = expr;
+        let lhs = lhs.modify(f);
+        let rhs = rhs.modify(f);
+        let msg = msg.map(|msg: Expr| msg.modify(f));
+        new_assert_eq(lhs, rhs, msg)
     }
     )
 }
@@ -357,6 +375,15 @@ fn new_assert(predicate: Expr, msg: Option<Expr>) -> Expr {
         quote { assert($predicate, $msg) }.as_expr().unwrap()
     } else {
         quote { assert($predicate) }.as_expr().unwrap()
+    }
+}
+
+fn new_assert_eq(lhs: Expr, rhs: Expr, msg: Option<Expr>) -> Expr {
+    if msg.is_some() {
+        let msg = msg.unwrap();
+        quote { assert_eq($lhs, $rhs, $msg) }.as_expr().unwrap()
+    } else {
+        quote { assert_eq($lhs, $rhs) }.as_expr().unwrap()
     }
 }
 
