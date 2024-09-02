@@ -52,6 +52,8 @@ fn simplify_function(function: &mut Function) {
             stack.extend(function.dfg[block].successors().filter(|block| !visited.contains(block)));
         }
 
+        check_for_double_jmp(function, block, &mut cfg);
+
         // This call is before try_inline_into_predecessor so that if it succeeds in changing a
         // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
         check_for_constant_jmpif(function, block, &mut cfg);
@@ -98,6 +100,69 @@ fn check_for_constant_jmpif(
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
+        }
+    }
+}
+
+/// Optimize a jmp to a block which immediately jmps elsewhere to just jmp to the second block.
+fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut ControlFlowGraph) {
+    if !function.dfg[block].instructions().is_empty()
+        || !function.dfg[block].parameters().is_empty()
+    {
+        return;
+    }
+
+    if let Some(TerminatorInstruction::Jmp { destination: final_destination, arguments, .. }) =
+        function.dfg[block].terminator()
+    {
+        let final_destination = *final_destination;
+
+        if !arguments.is_empty() {
+            return;
+        }
+
+        let predecessors: Vec<_> = cfg.predecessors(block).collect();
+        for predecessor_block in predecessors {
+            let terminator_instruction = function.dfg[predecessor_block].take_terminator();
+            let redirected_terminator_instruction = match terminator_instruction {
+                TerminatorInstruction::JmpIf {
+                    condition,
+                    then_destination,
+                    else_destination,
+                    call_stack,
+                } => TerminatorInstruction::JmpIf {
+                    condition,
+                    then_destination: if then_destination == block {
+                        final_destination
+                    } else {
+                        then_destination
+                    },
+                    else_destination: if else_destination == block {
+                        final_destination
+                    } else {
+                        else_destination
+                    },
+                    call_stack,
+                },
+                TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
+                    assert_eq!(
+                        destination, block,
+                        "ICE: predecessor block doesn't jump to current block"
+                    );
+                    assert!(arguments.is_empty(), "ICE: predecessor jmp has arguments");
+                    TerminatorInstruction::Jmp {
+                        destination: final_destination,
+                        arguments,
+                        call_stack,
+                    }
+                }
+                TerminatorInstruction::Return { .. } => unreachable!(
+                    "ICE: predecessor block should not have return terminator instruction"
+                ),
+            };
+
+            function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);
+            cfg.recompute_block(function, predecessor_block);
         }
     }
 }
