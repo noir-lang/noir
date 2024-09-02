@@ -1,4 +1,4 @@
-use lsp_types::{CodeActionOrCommand, Position, Range, TextEdit};
+use lsp_types::{Position, Range, TextEdit};
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::{Ident, Path},
@@ -88,7 +88,7 @@ impl<'a> CodeActionFinder<'a> {
         };
 
         let code_action = self.new_quick_fix(title, text_edit);
-        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+        self.code_actions.push(code_action);
     }
 
     fn push_qualify_code_action(&mut self, ident: &Ident, prefix: &str, full_path: &str) {
@@ -104,6 +104,6 @@ impl<'a> CodeActionFinder<'a> {
         let text_edit = TextEdit { range, new_text: format!("{}::", prefix) };
 
         let code_action = self.new_quick_fix(title, text_edit);
-        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+        self.code_actions.push(code_action);
     }
 }

@@ -1,4 +1,4 @@
-use lsp_types::{CodeActionOrCommand, TextEdit};
+use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{ast::ConstructorExpression, node_interner::ReferenceId};
 
@@ -104,6 +104,6 @@ impl<'a> CodeActionFinder<'a> {
         let title = "Fill struct fields".to_string();
         let text_edit = TextEdit { range, new_text };
         let code_action = self.new_quick_fix(title, text_edit);
-        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+        self.code_actions.push(code_action);
     }
 }

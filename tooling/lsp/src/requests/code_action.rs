@@ -137,7 +137,7 @@ impl<'a> CodeActionFinder<'a> {
         Some(code_actions)
     }
 
-    fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeAction {
+    fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeActionOrCommand {
         let mut changes = HashMap::new();
         changes.insert(self.uri.clone(), vec![text_edit]);
 
@@ -147,7 +147,7 @@ impl<'a> CodeActionFinder<'a> {
             change_annotations: None,
         };
 
-        CodeAction {
+        CodeActionOrCommand::CodeAction(CodeAction {
             title,
             kind: Some(CodeActionKind::QUICKFIX),
             diagnostics: None,
@@ -156,7 +156,7 @@ impl<'a> CodeActionFinder<'a> {
             is_preferred: None,
             disabled: None,
             data: None,
-        }
+        })
     }
 
     fn includes_span(&self, span: Span) -> bool {
