@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
@@ -266,6 +267,10 @@ pub struct NodeInterner {
     /// This is stored in the NodeInterner so that the Elaborator from each crate can
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
+
+    /// List of all unused imports in each module. Each time something is imported it's added
+    /// to the module's set. When it's used, it's removed. At the end of the program only unused imports remain.
+    pub unused_imports: HashMap<ModuleId, HashSet<Ident>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -652,6 +657,7 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
+            unused_imports: std::collections::HashMap::default(),
         }
     }
 }

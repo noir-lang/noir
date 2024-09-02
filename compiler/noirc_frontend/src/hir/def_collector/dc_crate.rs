@@ -327,7 +327,8 @@ impl DefCollector {
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
-                    &mut context.def_maps,
+                    &context.def_maps,
+                    &mut context.def_interner.unused_imports,
                     &mut Some(&mut references),
                 );
 
@@ -345,7 +346,13 @@ impl DefCollector {
 
                 resolved_import
             } else {
-                resolve_import(crate_id, &collected_import, &mut context.def_maps, &mut None)
+                resolve_import(
+                    crate_id,
+                    &collected_import,
+                    &context.def_maps,
+                    &mut context.def_interner.unused_imports,
+                    &mut None,
+                )
             };
             match resolved_import {
                 Ok(resolved_import) => {
@@ -380,6 +387,23 @@ impl DefCollector {
 
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), visibility, module_def_id, is_prelude);
+
+                        // Empty spans could come from implicitly injected imports, and we don't want to track those
+                        if visibility != ItemVisibility::Public
+                            && name.span().start() < name.span().end()
+                        {
+                            let module_id = ModuleId {
+                                krate: crate_id,
+                                local_id: resolved_import.module_scope,
+                            };
+
+                            context
+                                .def_interner
+                                .unused_imports
+                                .entry(module_id)
+                                .or_default()
+                                .insert(name.clone());
+                        }
 
                         if visibility != ItemVisibility::Private {
                             let local_id = resolved_import.module_scope;
@@ -466,13 +490,22 @@ impl DefCollector {
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        errors.extend(context.def_maps[&crate_id].modules().iter().flat_map(|(_, module)| {
-            module.unused_imports().iter().map(|ident| {
-                let ident = ident.clone();
-                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
-                (error, module.location.file)
-            })
-        }));
+        errors.extend(
+            context
+                .def_interner
+                .unused_imports
+                .iter()
+                .filter(|(module_id, _)| module_id.krate == crate_id)
+                .flat_map(|(module_id, unused_imports)| {
+                    let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
+                    unused_imports.iter().map(|ident| {
+                        let ident = ident.clone();
+                        let error =
+                            CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                        (error, module.location.file)
+                    })
+                }),
+        );
     }
 }
 
@@ -515,9 +548,10 @@ fn inject_prelude(
         };
 
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
-            &mut context.def_maps,
+            &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
+            &mut context.def_interner.unused_imports,
             &mut None,
         ) {
             assert!(error.is_none(), "Tried to add private item to prelude");

@@ -86,7 +86,12 @@ impl<'context> Elaborator<'context> {
         let resolver = StandardPathResolver::new(module_id);
 
         if !self.interner.lsp_mode {
-            return resolver.resolve(self.def_maps, path, &mut None);
+            return resolver.resolve(
+                self.def_maps,
+                path,
+                &mut self.interner.unused_imports,
+                &mut None,
+            );
         }
 
         let last_segment = path.last_ident();
@@ -94,8 +99,12 @@ impl<'context> Elaborator<'context> {
         let is_self_type_name = last_segment.is_self_type_name();
 
         let mut references: Vec<_> = Vec::new();
-        let path_resolution =
-            resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references));
+        let path_resolution = resolver.resolve(
+            self.def_maps,
+            path.clone(),
+            &mut self.interner.unused_imports,
+            &mut Some(&mut references),
+        );
 
         for (referenced, segment) in references.iter().zip(path.segments) {
             self.interner.add_reference(

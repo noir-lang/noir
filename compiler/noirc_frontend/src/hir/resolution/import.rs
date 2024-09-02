@@ -4,7 +4,8 @@ use thiserror::Error;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::ReferenceId;
-use std::collections::BTreeMap;
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
@@ -86,7 +87,8 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
 pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
-    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
@@ -94,7 +96,14 @@ pub fn resolve_import(
         module_id: resolved_module,
         namespace: resolved_namespace,
         mut error,
-    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, path_references)?;
+    } = resolve_path_to_ns(
+        import_directive,
+        crate_id,
+        crate_id,
+        def_maps,
+        unused_imports,
+        path_references,
+    )?;
 
     let name = resolve_path_name(import_directive);
 
@@ -131,7 +140,8 @@ fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     crate_id: CrateId,
     importing_crate: CrateId,
-    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
@@ -144,6 +154,7 @@ fn resolve_path_to_ns(
                 importing_crate,
                 import_path,
                 def_maps,
+                unused_imports,
                 path_references,
             )
         }
@@ -158,6 +169,7 @@ fn resolve_path_to_ns(
                     import_directive.module_id,
                     def_maps,
                     true,
+                    unused_imports,
                     path_references,
                 );
             }
@@ -174,6 +186,7 @@ fn resolve_path_to_ns(
                     // def_map,
                     import_directive,
                     def_maps,
+                    unused_imports,
                     path_references,
                     importing_crate,
                 );
@@ -186,6 +199,7 @@ fn resolve_path_to_ns(
                 import_directive.module_id,
                 def_maps,
                 true,
+                unused_imports,
                 path_references,
             )
         }
@@ -194,6 +208,7 @@ fn resolve_path_to_ns(
             crate_id,
             import_directive,
             def_maps,
+            unused_imports,
             path_references,
             importing_crate,
         ),
@@ -209,6 +224,7 @@ fn resolve_path_to_ns(
                     parent_module_id,
                     def_maps,
                     false,
+                    unused_imports,
                     path_references,
                 )
             } else {
@@ -225,7 +241,8 @@ fn resolve_path_from_crate_root(
     importing_crate: CrateId,
 
     import_path: &[PathSegment],
-    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let starting_mod = def_maps[&crate_id].root;
@@ -236,22 +253,25 @@ fn resolve_path_from_crate_root(
         starting_mod,
         def_maps,
         false,
+        unused_imports,
         path_references,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_name_in_module(
     krate: CrateId,
     importing_crate: CrateId,
     import_path: &[PathSegment],
     starting_mod: LocalModuleId,
-    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     plain: bool,
+    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
-    let def_map = def_maps.get_mut(&krate).unwrap();
+    let def_map = &def_maps[&krate];
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
-    let mut current_mod = def_map.modules.get_mut(current_mod_id.local_id.0).unwrap();
+    let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
     // There is a possibility that the import path is empty
     // In that case, early return
@@ -269,7 +289,7 @@ fn resolve_name_in_module(
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
-    current_mod.use_import(first_segment);
+    unused_imports.entry(current_mod_id).or_default().remove(first_segment);
 
     let mut warning: Option<PathResolutionError> = None;
     for (index, (last_segment, current_segment)) in
@@ -327,12 +347,7 @@ fn resolve_name_in_module(
             }
         });
 
-        current_mod = def_maps
-            .get_mut(&current_mod_id.krate)
-            .unwrap()
-            .modules
-            .get_mut(current_mod_id.local_id.0)
-            .unwrap();
+        current_mod = &def_maps[&current_mod_id.krate].modules[current_mod_id.local_id.0];
 
         // Check if namespace
         let found_ns = current_mod.find_name(current_segment);
@@ -341,7 +356,7 @@ fn resolve_name_in_module(
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
-        current_mod.use_import(current_segment);
+        unused_imports.entry(current_mod_id).or_default().remove(current_segment);
 
         current_ns = found_ns;
     }
@@ -359,7 +374,8 @@ fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
 fn resolve_external_dep(
     crate_id: CrateId,
     directive: &ImportDirective,
-    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    unused_imports: &mut HashMap<ModuleId, HashSet<Ident>>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
     importing_crate: CrateId,
 ) -> NamespaceResolutionResult {
@@ -397,7 +413,14 @@ fn resolve_external_dep(
         is_prelude: false,
     };
 
-    resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps, path_references)
+    resolve_path_to_ns(
+        &dep_directive,
+        dep_module.krate,
+        importing_crate,
+        def_maps,
+        unused_imports,
+        path_references,
+    )
 }
 
 // Returns false if the given private function is being called from a non-child module, or
