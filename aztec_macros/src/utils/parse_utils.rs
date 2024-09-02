@@ -404,9 +404,9 @@ fn empty_pattern(pattern: &mut Pattern) {
 }
 
 fn empty_unresolved_trait_constraints(
-    unresolved_trait_constriants: &mut [UnresolvedTraitConstraint],
+    unresolved_trait_constraints: &mut [UnresolvedTraitConstraint],
 ) {
-    for trait_constraint in unresolved_trait_constriants.iter_mut() {
+    for trait_constraint in unresolved_trait_constraints.iter_mut() {
         empty_unresolved_trait_constraint(trait_constraint);
     }
 }

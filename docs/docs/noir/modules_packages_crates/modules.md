@@ -194,7 +194,7 @@ even a definition with a private canonical path, inside a different module.
 An example of re-exporting:
 
 ```rust
-mod quux {
+mod some_module {
     pub use foo::{bar, baz};
     mod foo {
         pub fn bar() {}
@@ -203,9 +203,9 @@ mod quux {
 }
 
 fn main() {
-    quux::bar();
-    quux::baz();
+    some_module::bar();
+    some_module::baz();
 }
 ```
 
-In this example, the module `quux` re-exports two public names defined in `foo`.
+In this example, the module `some_module` re-exports two public names defined in `foo`.
