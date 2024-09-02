@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.52.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.51.1...barretenberg-v0.52.0) (2024-09-01)
+
+
+### Features
+
+* Clarify state in Protogalaxy 3 ([#8181](https://github.com/AztecProtocol/aztec-packages/issues/8181)) ([4a9bb9d](https://github.com/AztecProtocol/aztec-packages/commit/4a9bb9d47e6b1838875c9ce16fa80a2133b05920))
+
+
+### Bug Fixes
+
+* Prevent honk proof from getting stale inputs on syncs ([#8293](https://github.com/AztecProtocol/aztec-packages/issues/8293)) ([2598108](https://github.com/AztecProtocol/aztec-packages/commit/2598108e038a9fe791d3fc6e0c0ee064a1511a09))
+
+
+### Miscellaneous
+
+* **bb:** Make compile on stock mac clang ([#8278](https://github.com/AztecProtocol/aztec-packages/issues/8278)) ([7af80ff](https://github.com/AztecProtocol/aztec-packages/commit/7af80ff98313a20ed18dc15fd5e4c22c82828a98))
+* **bb:** More graceful pippenger on non-powers-of-2 ([#8279](https://github.com/AztecProtocol/aztec-packages/issues/8279)) ([104ea85](https://github.com/AztecProtocol/aztec-packages/commit/104ea85667b4be03dd52cd20812907e0b85bcdd8))
+* Renaming around Protogalaxy Prover ([#8272](https://github.com/AztecProtocol/aztec-packages/issues/8272)) ([be2169d](https://github.com/AztecProtocol/aztec-packages/commit/be2169da8057a06c0cc5c503ec523e62647775e1))
+* **revert:** Earthfile accidental change ([#8309](https://github.com/AztecProtocol/aztec-packages/issues/8309)) ([2d3e0b6](https://github.com/AztecProtocol/aztec-packages/commit/2d3e0b672c11eddf0e4e50f00a42a662bdd67c0c))
+
+
+### Documentation
+
+* **bb:** Transcript spec ([#8301](https://github.com/AztecProtocol/aztec-packages/issues/8301)) ([18abf37](https://github.com/AztecProtocol/aztec-packages/commit/18abf3785e0826b81417b9f99ffe9776a0213fb1))
+
 ## [0.51.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.51.0...barretenberg-v0.51.1) (2024-08-29)
 
 
