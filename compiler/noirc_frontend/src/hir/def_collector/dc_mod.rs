@@ -34,7 +34,7 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -247,7 +247,14 @@ impl<'a> ModCollector<'a> {
                 context.def_interner.register_function(func_id, &function.def);
             }
 
+            let module_data = &mut self.def_collector.def_map.modules[self.module_id.0];
+
             let is_test = function.def.attributes.is_test_function();
+            let is_entry_point_function = if module_data.is_contract {
+                function.attributes().is_contract_entry_point()
+            } else {
+                function.name() == MAIN_FUNCTION
+            };
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
@@ -258,10 +265,9 @@ impl<'a> ModCollector<'a> {
             unresolved_functions.push_fn(self.module_id, func_id, function);
 
             // Add function to scope/ns of the module
-            let module_data = &mut self.def_collector.def_map.modules[self.module_id.0];
             let result = module_data.declare_function(name.clone(), visibility, func_id);
 
-            if !is_test {
+            if !is_test && !is_entry_point_function {
                 let module_id = ModuleId { krate, local_id: self.module_id };
                 let item = UnusedItem::Function(func_id);
                 context

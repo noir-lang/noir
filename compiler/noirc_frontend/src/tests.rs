@@ -3349,6 +3349,15 @@ fn warns_on_re_export_of_item_with_less_visibility() {
 #[test]
 fn errors_on_unused_function() {
     let src = r#"
+    contract some_contract {
+        // This function is unused, but it's a contract entrypoint
+        // so it should not produce a warning
+        fn foo() -> pub Field {
+            1
+        }
+    }
+
+
     fn foo() {
         bar();
     }

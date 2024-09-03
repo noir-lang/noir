@@ -479,15 +479,10 @@ impl DefCollector {
     }
 
     fn check_unused_items(
-        context: &mut Context,
+        context: &Context,
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        // Assume `main` is used so we don't warn on that
-        let root = ModuleId { krate: crate_id, local_id: context.def_maps[&crate_id].root };
-        let main = Ident::new("main".to_string(), Span::default());
-        context.def_interner.usage_tracker.mark_as_used(root, &main);
-
         let unused_imports = context.def_interner.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
