@@ -870,6 +870,16 @@ pub enum SecondaryAttribute {
     Varargs,
 }
 
+impl SecondaryAttribute {
+    pub(crate) fn as_custom(&self) -> Option<&str> {
+        if let Self::Custom(str) = self {
+            Some(str)
+        } else {
+            None
+        }
+    }
+}
+
 impl fmt::Display for SecondaryAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -962,6 +972,7 @@ pub enum Keyword {
     TraitDefinition,
     TraitImpl,
     Type,
+    TypedExpr,
     TypeType,
     Unchecked,
     Unconstrained,
@@ -1017,6 +1028,7 @@ impl fmt::Display for Keyword {
             Keyword::TraitDefinition => write!(f, "TraitDefinition"),
             Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
+            Keyword::TypedExpr => write!(f, "TypedExpr"),
             Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
@@ -1075,6 +1087,7 @@ impl Keyword {
             "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
+            "TypedExpr" => Keyword::TypedExpr,
             "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,

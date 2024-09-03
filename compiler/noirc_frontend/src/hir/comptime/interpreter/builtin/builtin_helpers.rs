@@ -11,7 +11,7 @@ use crate::{
     hir::{
         comptime::{
             errors::IResult,
-            value::{add_token_spans, ExprValue},
+            value::{add_token_spans, ExprValue, TypedExpr},
             Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
@@ -99,6 +99,19 @@ pub(crate) fn get_slice(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Slice(type_var);
+            type_mismatch(value, expected, location)
+        }
+    }
+}
+
+pub(crate) fn get_str(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<Rc<String>> {
+    match value {
+        Value::String(string) => Ok(string),
+        value => {
+            let expected = Type::String(Box::new(interner.next_type_variable()));
             type_mismatch(value, expected, location)
         }
     }
@@ -224,6 +237,13 @@ pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
         value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
+    }
+}
+
+pub(crate) fn get_typed_expr((value, location): (Value, Location)) -> IResult<TypedExpr> {
+    match value {
+        Value::TypedExpr(typed_expr) => Ok(typed_expr),
+        value => type_mismatch(value, Type::Quoted(QuotedType::TypedExpr), location),
     }
 }
 

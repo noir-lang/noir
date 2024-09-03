@@ -183,3 +183,29 @@ fn from_bar() {
     super::from_foo(); // also invokes bar::from_foo()
 }
 ```
+
+### `use` visibility
+
+`use` declarations are private to the containing module, by default. However, like functions, 
+they can be marked as `pub` or `pub(crate)`. Such a use declaration serves to _re-export_ a name. 
+A public `use` declaration can therefore redirect some public name to a different target definition: 
+even a definition with a private canonical path, inside a different module.
+
+An example of re-exporting:
+
+```rust
+mod some_module {
+    pub use foo::{bar, baz};
+    mod foo {
+        pub fn bar() {}
+        pub fn baz() {}
+    }
+}
+
+fn main() {
+    some_module::bar();
+    some_module::baz();
+}
+```
+
+In this example, the module `some_module` re-exports two public names defined in `foo`.

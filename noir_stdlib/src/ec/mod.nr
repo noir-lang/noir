@@ -155,15 +155,12 @@ pub fn is_square(x: Field) -> bool {
 // Power function of two Field arguments of arbitrary size.
 // Adapted from std::field::pow_32.
 pub fn pow(x: Field, y: Field) -> Field {
-    // As in tests with minor modifications
-    let N_BITS = crate::field::modulus_num_bits();
-
     let mut r = 1 as Field;
-    let b = y.to_le_bits(N_BITS as u32);
+    let b: [u1; 254] = y.to_le_bits();
 
-    for i in 0..N_BITS {
+    for i in 0..254 {
         r *= r;
-        r *= (b[N_BITS - 1 - i] as Field)*x + (1-b[N_BITS - 1 - i] as Field);
+        r *= (b[254 - 1 - i] as Field)*x + (1-b[254 - 1 - i] as Field);
     }
 
     r
