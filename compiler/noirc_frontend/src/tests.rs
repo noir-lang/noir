@@ -3227,7 +3227,7 @@ fn errors_on_unused_private_import() {
     let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
         &errors[0].0
     else {
-        panic!("Expected an unused import error");
+        panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "bar");
@@ -3263,7 +3263,7 @@ fn errors_on_unused_pub_crate_import() {
     let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
         &errors[0].0
     else {
-        panic!("Expected an unused import error");
+        panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "bar");
@@ -3344,4 +3344,27 @@ fn warns_on_re_export_of_item_with_less_visibility() {
             DefCollectorErrorKind::CannotReexportItemWithLessVisibility { .. }
         )
     ));
+}
+
+#[test]
+fn errors_on_unused_function() {
+    let src = r#"
+    fn foo() {
+        bar();
+    }
+
+    fn bar() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "foo");
+    assert_eq!(item_type, "function");
 }
