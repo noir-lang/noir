@@ -4,7 +4,7 @@ import { type EthAddress } from '@aztec/foundation/eth-address';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RollupAbi } from '@aztec/l1-artifacts';
 
-import { type PublicClient, getAbiItem } from 'viem';
+import { type Hex, type PublicClient, getAbiItem } from 'viem';
 
 import {
   getL2BlockProposedLogs,
@@ -147,7 +147,7 @@ export async function retrieveL2ProofVerifiedEvents(
   rollupAddress: EthAddress,
   searchStartBlock: bigint,
   searchEndBlock?: bigint,
-): Promise<{ l1BlockNumber: bigint; l2BlockNumber: bigint; proverId: Fr }[]> {
+): Promise<{ l1BlockNumber: bigint; l2BlockNumber: bigint; proverId: Fr; txHash: Hex }[]> {
   const logs = await publicClient.getLogs({
     address: rollupAddress.toString(),
     fromBlock: searchStartBlock,
@@ -160,5 +160,6 @@ export async function retrieveL2ProofVerifiedEvents(
     l1BlockNumber: log.blockNumber,
     l2BlockNumber: log.args.blockNumber,
     proverId: Fr.fromString(log.args.proverId),
+    txHash: log.transactionHash,
   }));
 }
