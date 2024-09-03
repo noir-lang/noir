@@ -433,7 +433,7 @@ impl<'context> Elaborator<'context> {
             self.local_module = module_attribute.attribute_module_id;
             self.file = module_attribute.attribute_file_id;
 
-            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items)
+            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items);
         }
     }
 
