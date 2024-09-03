@@ -15,8 +15,11 @@ use acvm::acir::AcirField;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
-        instruction::TerminatorInstruction,
+        basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        function::Function,
+        instruction::{Instruction, TerminatorInstruction},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -29,6 +32,7 @@ impl Ssa {
     /// 4. Removing any blocks which have no instructions other than a single terminating jmp.
     /// 5. Replacing any jmpifs with constant conditions with jmps. If this causes the block to have
     ///    only 1 successor then (2) also will be applied.
+    /// 6. Replacing any jmpifs with a negated condition with a jmpif with a un-negated condition and reversed branches.
     ///
     /// Currently, 1 and 4 are unimplemented.
     #[tracing::instrument(level = "trace", skip(self))]
@@ -51,6 +55,8 @@ fn simplify_function(function: &mut Function) {
         if visited.insert(block) {
             stack.extend(function.dfg[block].successors().filter(|block| !visited.contains(block)));
         }
+
+        check_for_negated_jmpif_condition(function, block);
 
         // This call is before try_inline_into_predecessor so that if it succeeds in changing a
         // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
@@ -98,6 +104,30 @@ fn check_for_constant_jmpif(
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
+        }
+    }
+}
+
+/// Optimize a jmpif on a negated condition by swapping the branches.
+fn check_for_negated_jmpif_condition(function: &mut Function, block: BasicBlockId) {
+    if let Some(TerminatorInstruction::JmpIf {
+        condition,
+        then_destination,
+        else_destination,
+        call_stack,
+    }) = function.dfg[block].terminator()
+    {
+        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
+            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
+                let call_stack = call_stack.clone();
+                let jmpif = TerminatorInstruction::JmpIf {
+                    condition: negated_condition,
+                    then_destination: *else_destination,
+                    else_destination: *then_destination,
+                    call_stack,
+                };
+                function.dfg[block].set_terminator(jmpif);
+            }
         }
     }
 }
