@@ -15,7 +15,9 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::macros_api::{Expression, NodeInterner, UnresolvedType, UnresolvedTypeData};
+use crate::macros_api::{
+    Expression, ModuleDefId, NodeInterner, UnresolvedType, UnresolvedTypeData,
+};
 use crate::node_interner::ModuleAttributes;
 use crate::{
     graph::CrateId,
@@ -246,6 +248,8 @@ impl<'a> ModCollector<'a> {
                 context.def_interner.register_function(func_id, &function.def);
             }
 
+            let is_test = function.def.attributes.is_test_function();
+
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
             // Once we have lowered it to a HirFunction, we retrieve it's Id from the DefInterner
@@ -255,8 +259,17 @@ impl<'a> ModCollector<'a> {
             unresolved_functions.push_fn(self.module_id, func_id, function);
 
             // Add function to scope/ns of the module
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_function(name, visibility, func_id);
+            let module_data = &mut self.def_collector.def_map.modules[self.module_id.0];
+            let result = module_data.declare_function(name.clone(), visibility, func_id);
+
+            if !is_test {
+                let module_id = ModuleId { krate, local_id: self.module_id };
+                let item = ModuleDefId::FunctionId(func_id);
+                context
+                    .def_interner
+                    .usage_tracker
+                    .add_unused_item(module_id, name, item, visibility);
+            }
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {

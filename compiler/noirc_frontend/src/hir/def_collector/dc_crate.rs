@@ -253,7 +253,7 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         enable_arithmetic_generics: bool,
-        error_on_usage_tracker: bool,
+        error_on_unused_items: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -388,21 +388,14 @@ impl DefCollector {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), visibility, module_def_id, is_prelude);
 
-                        // Empty spans could come from implicitly injected imports, and we don't want to track those
-                        if visibility != ItemVisibility::Public
-                            && name.span().start() < name.span().end()
-                        {
-                            let module_id = ModuleId {
-                                krate: crate_id,
-                                local_id: resolved_import.module_scope,
-                            };
-
-                            context.def_interner.usage_tracker.add_unused_item(
-                                module_id,
-                                name.clone(),
-                                module_def_id,
-                            );
-                        }
+                        let module_id =
+                            ModuleId { krate: crate_id, local_id: resolved_import.module_scope };
+                        context.def_interner.usage_tracker.add_unused_item(
+                            module_id,
+                            name.clone(),
+                            module_def_id,
+                            visibility,
+                        );
 
                         if visibility != ItemVisibility::Private {
                             let local_id = resolved_import.module_scope;
@@ -477,18 +470,23 @@ impl DefCollector {
             );
         }
 
-        if error_on_usage_tracker {
-            Self::check_usage_tracker(context, crate_id, &mut errors);
+        if error_on_unused_items {
+            Self::check_unused_items(context, crate_id, &mut errors);
         }
 
         errors
     }
 
-    fn check_usage_tracker(
-        context: &Context,
+    fn check_unused_items(
+        context: &mut Context,
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
+        // Assume `main` is used so we don't warn on that
+        let root = ModuleId { krate: crate_id, local_id: context.def_maps[&crate_id].root };
+        let main = Ident::new("main".to_string(), Span::default());
+        context.def_interner.usage_tracker.mark_as_used(root, &main);
+
         let unused_imports = context.def_interner.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
