@@ -116,7 +116,7 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+    last_loads: HashMap<ValueId, InstructionId>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -262,7 +262,7 @@ impl<'f> PerFunctionContext<'f> {
                     references.aliases.insert(Expression::Other(result), AliasSet::known(result));
                     references.set_known_value(result, address);
 
-                    self.last_loads.insert(address, (instruction, block_id));
+                    self.last_loads.insert(address, instruction);
                 }
             }
             Instruction::Store { address, value, from_rc } => {
