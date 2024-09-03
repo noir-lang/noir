@@ -216,9 +216,9 @@ impl super::FmtVisitor<'_> {
                         self.last_position = span.end();
                     }
                 }
-                ItemKind::Import(use_tree) => {
-                    let use_tree =
-                        UseTree::from_ast(use_tree).rewrite_top_level(self, self.shape());
+                ItemKind::Import(use_tree, visibility) => {
+                    let use_tree = UseTree::from_ast(use_tree);
+                    let use_tree = use_tree.rewrite_top_level(self, self.shape(), visibility);
                     self.push_rewrite(use_tree, span);
                     self.last_position = span.end();
                 }

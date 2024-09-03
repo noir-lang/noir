@@ -164,6 +164,9 @@ pub struct FuncMeta {
     /// If this function is from an impl (trait or regular impl), this
     /// is the object type of the impl. Otherwise this is None.
     pub self_type: Option<Type>,
+
+    /// Custom attributes attached to this function.
+    pub custom_attributes: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

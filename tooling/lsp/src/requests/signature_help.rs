@@ -9,11 +9,12 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         CallExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
-        FunctionReturnType, MethodCallExpression,
+        FunctionReturnType, MethodCallExpression, Statement, Visitor,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::NodeInterner,
     node_interner::ReferenceId,
+    parser::Item,
     ParsedModule, Type,
 };
 
@@ -22,7 +23,6 @@ use crate::{utils, LspState};
 use super::process_request;
 
 mod tests;
-mod traversal;
 
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
@@ -64,96 +64,9 @@ impl<'a> SignatureFinder<'a> {
     }
 
     fn find(&mut self, parsed_module: &ParsedModule) -> Option<SignatureHelp> {
-        self.find_in_parsed_module(parsed_module);
+        parsed_module.accept(self);
 
         self.signature_help.clone()
-    }
-
-    fn find_in_call_expression(&mut self, call_expression: &CallExpression, span: Span) {
-        self.find_in_expression(&call_expression.func);
-        self.find_in_expressions(&call_expression.arguments);
-
-        let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
-        let span = call_expression.func.span;
-        let name_span = Span::from(span.end() - 1..span.end());
-        let has_self = false;
-
-        self.try_compute_signature_help(
-            &call_expression.arguments,
-            arguments_span,
-            name_span,
-            has_self,
-        );
-    }
-
-    fn find_in_method_call_expression(
-        &mut self,
-        method_call_expression: &MethodCallExpression,
-        span: Span,
-    ) {
-        self.find_in_expression(&method_call_expression.object);
-        self.find_in_expressions(&method_call_expression.arguments);
-
-        let arguments_span =
-            Span::from(method_call_expression.method_name.span().end() + 1..span.end() - 1);
-        let name_span = method_call_expression.method_name.span();
-        let has_self = true;
-
-        self.try_compute_signature_help(
-            &method_call_expression.arguments,
-            arguments_span,
-            name_span,
-            has_self,
-        );
-    }
-
-    pub(super) fn find_in_constrain_statement(&mut self, constrain_statement: &ConstrainStatement) {
-        self.find_in_expression(&constrain_statement.0);
-
-        if let Some(exp) = &constrain_statement.1 {
-            self.find_in_expression(exp);
-        }
-
-        if self.signature_help.is_some() {
-            return;
-        }
-
-        let arguments_span = if let Some(expr) = &constrain_statement.1 {
-            Span::from(constrain_statement.0.span.start()..expr.span.end())
-        } else {
-            constrain_statement.0.span
-        };
-
-        if !self.includes_span(arguments_span) {
-            return;
-        }
-
-        match constrain_statement.2 {
-            ConstrainKind::Assert => {
-                let mut arguments = vec![constrain_statement.0.clone()];
-                if let Some(expr) = &constrain_statement.1 {
-                    arguments.push(expr.clone());
-                }
-
-                let active_parameter = self.compute_active_parameter(&arguments);
-                let signature_information = self.assert_signature_information(active_parameter);
-                self.set_signature_help(signature_information);
-            }
-            ConstrainKind::AssertEq => {
-                if let ExpressionKind::Infix(infix) = &constrain_statement.0.kind {
-                    let mut arguments = vec![infix.lhs.clone(), infix.rhs.clone()];
-                    if let Some(expr) = &constrain_statement.1 {
-                        arguments.push(expr.clone());
-                    }
-
-                    let active_parameter = self.compute_active_parameter(&arguments);
-                    let signature_information =
-                        self.assert_eq_signature_information(active_parameter);
-                    self.set_signature_help(signature_information);
-                }
-            }
-            ConstrainKind::Constrain => (),
-        }
     }
 
     fn try_compute_signature_help(
@@ -399,5 +312,106 @@ impl<'a> SignatureFinder<'a> {
 
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
+    }
+}
+
+impl<'a> Visitor for SignatureFinder<'a> {
+    fn visit_item(&mut self, item: &Item) -> bool {
+        self.includes_span(item.span)
+    }
+
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        self.includes_span(statement.span)
+    }
+
+    fn visit_expression(&mut self, expression: &Expression) -> bool {
+        self.includes_span(expression.span)
+    }
+
+    fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
+        call_expression.accept_children(self);
+
+        let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
+        let span = call_expression.func.span;
+        let name_span = Span::from(span.end() - 1..span.end());
+        let has_self = false;
+
+        self.try_compute_signature_help(
+            &call_expression.arguments,
+            arguments_span,
+            name_span,
+            has_self,
+        );
+
+        false
+    }
+
+    fn visit_method_call_expression(
+        &mut self,
+        method_call_expression: &MethodCallExpression,
+        span: Span,
+    ) -> bool {
+        method_call_expression.accept_children(self);
+
+        let arguments_span =
+            Span::from(method_call_expression.method_name.span().end() + 1..span.end() - 1);
+        let name_span = method_call_expression.method_name.span();
+        let has_self = true;
+
+        self.try_compute_signature_help(
+            &method_call_expression.arguments,
+            arguments_span,
+            name_span,
+            has_self,
+        );
+
+        false
+    }
+
+    fn visit_constrain_statement(&mut self, constrain_statement: &ConstrainStatement) -> bool {
+        constrain_statement.accept_children(self);
+
+        if self.signature_help.is_some() {
+            return false;
+        }
+
+        let arguments_span = if let Some(expr) = &constrain_statement.1 {
+            Span::from(constrain_statement.0.span.start()..expr.span.end())
+        } else {
+            constrain_statement.0.span
+        };
+
+        if !self.includes_span(arguments_span) {
+            return false;
+        }
+
+        match constrain_statement.2 {
+            ConstrainKind::Assert => {
+                let mut arguments = vec![constrain_statement.0.clone()];
+                if let Some(expr) = &constrain_statement.1 {
+                    arguments.push(expr.clone());
+                }
+
+                let active_parameter = self.compute_active_parameter(&arguments);
+                let signature_information = self.assert_signature_information(active_parameter);
+                self.set_signature_help(signature_information);
+            }
+            ConstrainKind::AssertEq => {
+                if let ExpressionKind::Infix(infix) = &constrain_statement.0.kind {
+                    let mut arguments = vec![infix.lhs.clone(), infix.rhs.clone()];
+                    if let Some(expr) = &constrain_statement.1 {
+                        arguments.push(expr.clone());
+                    }
+
+                    let active_parameter = self.compute_active_parameter(&arguments);
+                    let signature_information =
+                        self.assert_eq_signature_information(active_parameter);
+                    self.set_signature_help(signature_information);
+                }
+            }
+            ConstrainKind::Constrain => (),
+        }
+
+        false
     }
 }
