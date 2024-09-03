@@ -76,4 +76,16 @@ http://{{ include "aztec-network.fullname" . }}-metrics.{{ .Release.Namespace }}
 
 
 
-
+{{- define "helpers.flag" -}}
+{{- $name := index . 0 -}}
+{{- $value := index . 1 -}}
+{{- if $value -}}
+  {{- if kindIs "string" $value -}}
+    {{- if ne $value "" -}}
+--{{ $name }} {{ $value }}
+    {{- end -}}
+  {{- else -}}
+--{{ $name }} {{ $value }}
+  {{- end -}}
+{{- end -}}
+{{- end -}}

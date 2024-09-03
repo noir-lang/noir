@@ -2,9 +2,9 @@ import { foundry } from 'viem/chains';
 
 import { type EthereumChain } from './ethereum_chain.js';
 
+export * from './constants.js';
 export * from './deploy_l1_contracts.js';
 export * from './l1_contract_addresses.js';
-export * from './constants.js';
 export * from './l1_reader.js';
 
 /**

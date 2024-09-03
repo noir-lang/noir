@@ -18,13 +18,13 @@ spec:
         app: prover-node
     spec:
       initContainers:
-        - name: configure-validator-env
+        - name: configure-prover-env
           image: "{{ .Values.images.aztec.image }}"
           imagePullPolicy: {{ .Values.images.aztec.pullPolicy }}
           command:
             - "/bin/sh"
             - "-c"
-            - "cp /scripts/configure-validator-env.sh /tmp/configure-validator-env.sh && chmod +x /tmp/configure-validator-env.sh && /tmp/configure-validator-env.sh"
+            - "cp /scripts/configure-prover-env.sh /tmp/configure-prover-env.sh && chmod +x /tmp/configure-prover-env.sh && /tmp/configure-prover-env.sh {{ include "aztec-network.bootNodeUrl" . }}"
           volumeMounts:
             - name: shared-volume
               mountPath: /shared
@@ -84,4 +84,15 @@ spec:
           emptyDir: {}
         - name: scripts
           configMap:
-            name: {{ include "aztec-network.fullname" . }}-configure-validator-env
+            name: {{ include "aztec-network.fullname" . }}-configure-prover-env
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-configure-prover-env
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+data:
+  configure-prover-env.sh: |
+    {{ .Files.Get "files/config/config-prover-env.sh" | nindent 4 }}

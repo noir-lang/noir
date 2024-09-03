@@ -137,6 +137,7 @@ export class L1Publisher {
     const { l1RpcUrl: rpcUrl, l1ChainId: chainId, publisherPrivateKey, l1Contracts } = config;
     const chain = createEthereumChain(rpcUrl, chainId);
     this.account = privateKeyToAccount(publisherPrivateKey);
+    this.log.debug(`Publishing from address ${this.account.address}`);
     const walletClient = createWalletClient({
       account: this.account,
       chain: chain.chainInfo,

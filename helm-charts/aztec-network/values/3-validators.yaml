@@ -1,8 +1,9 @@
 validator:
+  debug: "aztec:*,-aztec:avm_simulator:*,-aztec:libp2p_service"
   replicas: 3
   validator:
     disabled: false
 
 bootNode:
   validator:
-    disabled: false
+    disabled: true

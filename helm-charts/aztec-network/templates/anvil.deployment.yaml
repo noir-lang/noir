@@ -22,23 +22,18 @@ spec:
           imagePullPolicy: {{ .Values.images.foundry.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
-            - |
-              [ -n "$FORK_URL" ] && ARGS="$ARGS --fork-url $FORK_URL";
-              [ -n "$FORK_BLOCK_NUMBER" ] && ARGS="$ARGS --fork-block-number $FORK_BLOCK_NUMBER";
-              echo anvil --block-time 12 -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
-              anvil --block-time 12 -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
+            - >-
+              anvil
+              --host 0.0.0.0
+              {{ include "helpers.flag" (list "block-time" .Values.ethereum.blockTime) }}
+              {{ include "helpers.flag" (list "chain-id" .Values.ethereum.chainId) }}
+              {{ include "helpers.flag" (list "gas-limit" .Values.ethereum.gasLimit) }}
+              {{ include "helpers.flag" (list "fork-url" .Values.ethereum.forkUrl) }}
+              {{ include "helpers.flag" (list "fork-block-number" .Values.ethereum.forkBlockNumber) }}
+              -p {{ .Values.ethereum.service.port }}
           ports:
             - containerPort: {{ .Values.ethereum.service.port }}
               name: anvil
-          env:
-            - name: FORK_URL
-              value: {{ .Values.ethereum.forkUrl | quote }}
-            - name: FORK_BLOCK_NUMBER
-              value: {{ .Values.ethereum.forkBlockNumber | quote }}
-            - name: ANVIL_PORT
-              value: {{ .Values.ethereum.service.port | quote }}
-            - name: ARGS
-              value: {{ .Values.ethereum.args | quote }}
           readinessProbe:
             exec:
               command:

@@ -307,6 +307,7 @@ export class Sequencer {
         throw new Error(msg);
       }
 
+      this.log.debug(`Can propose block ${proposalBlockNumber} at slot ${slot}`);
       return slot;
     } catch (err) {
       if (err instanceof BaseError) {

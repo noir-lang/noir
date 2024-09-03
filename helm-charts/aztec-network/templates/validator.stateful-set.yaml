@@ -24,7 +24,7 @@ spec:
           command:
             - "/bin/sh"
             - "-c"
-            - "cp /scripts/configure-validator-env.sh /tmp/configure-validator-env.sh && chmod +x /tmp/configure-validator-env.sh && /tmp/configure-validator-env.sh"
+            - "cp /scripts/configure-validator-env.sh /tmp/configure-validator-env.sh && chmod +x /tmp/configure-validator-env.sh && /tmp/configure-validator-env.sh {{ include "aztec-network.bootNodeUrl" . }}"
           volumeMounts:
             - name: shared-volume
               mountPath: /shared
@@ -94,3 +94,14 @@ spec:
         - name: scripts
           configMap:
             name: {{ include "aztec-network.fullname" . }}-configure-validator-env
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-configure-validator-env
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+data:
+  configure-validator-env.sh: |
+    {{ .Files.Get "files/config/config-validator-env.sh" | nindent 4 }}

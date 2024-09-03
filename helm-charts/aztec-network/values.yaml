@@ -9,7 +9,7 @@ images:
     image: curlimages/curl:7.81.0
     pullPolicy: IfNotPresent
   foundry:
-    image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
+    image: ghcr.io/foundry-rs/foundry@sha256:ce4b236f6760fdeb08e82267c9fa17647d29a374760bfe7ee01998fb8c0aaad7
     pullPolicy: IfNotPresent
   otelCollector:
     image: otel/opentelemetry-collector-contrib
@@ -83,6 +83,10 @@ pxe:
 ethereum:
   replicas: 1
   chainId: 31337
+  blockTime: 12
+  # 1 billion gas limit
+  # helps ensure we can deploy public contracts
+  gasLimit: "1000000000"
   forkUrl: ""
   forkBlockNumber: ""
   args: ""
