@@ -397,6 +397,10 @@ impl<'f> PerFunctionContext<'f> {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
+                if destination_parameters.len() != arguments.len() {
+                    eprintln!("{}", self.inserter.function);
+                    eprintln!("Current block {block}, dest {destination}({destination_parameters:?}), in function {}", self.inserter.function.name());
+                }
                 assert_eq!(destination_parameters.len(), arguments.len());
 
                 // Add an alias for each reference parameter
