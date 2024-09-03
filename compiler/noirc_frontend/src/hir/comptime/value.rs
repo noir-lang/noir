@@ -592,6 +592,11 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                             let typ = self.interner.get_unresolved_type_data(*id);
                             write!(f, " {}", typ)?;
                         }
+                        Token::UnquoteMarker(id) => {
+                            let hir_expr = self.interner.expression(id);
+                            let expr = hir_expr.to_display_ast(self.interner, Span::default());
+                            write!(f, " {}", expr.kind)?;
+                        }
                         other => write!(f, " {other}")?,
                     }
                 }
