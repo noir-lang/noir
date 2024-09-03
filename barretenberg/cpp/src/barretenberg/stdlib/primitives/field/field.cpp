@@ -694,18 +694,18 @@ template <typename Builder> bool_t<Builder> field_t<Builder>::operator==(const f
     bb::fr fd = fa - fb;
     bool is_equal = (fa == fb);
     bb::fr fc = is_equal ? bb::fr::one() : fd.invert();
+    bool_t result(ctx, is_equal);
+    auto result_witness = witness_t(ctx, is_equal);
+    result.witness_index = result_witness.witness_index;
+    result.witness_bool = is_equal;
 
-    bool_t result(witness_t(ctx, is_equal));
-    field_t r(result);
     field_t x(witness_t(ctx, fc));
-
     const field_t& a = *this;
     const field_t& b = other;
     const field_t diff = a - b;
-
-    const field_t t1 = r.madd(-x + 1, x);
-    const field_t t2 = diff.madd(t1, r - 1);
-    t2.assert_equal(0);
+    // these constraints ensure that result is a boolean
+    field_t::evaluate_polynomial_identity(diff, x, result, -field_t(bb::fr::one()));
+    field_t::evaluate_polynomial_identity(diff, result, field_t(bb::fr::zero()), field_t(bb::fr::zero()));
 
     return result;
 }

@@ -447,7 +447,15 @@ template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator+
     // if x_coordinates match, lambda triggers a divide by zero error.
     // Adding in `x_coordinates_match` ensures that lambda will always be well-formed
     auto x_diff = x2.add_two(-x1, x_coordinates_match);
-    auto lambda = (y2 - y1) / x_diff;
+    // Computes lambda = (y2-y1)/x_diff, using the fact that x_diff is never 0
+    field_t lambda;
+    if ((y1.is_constant() && y2.is_constant()) || x_diff.is_constant()) {
+        lambda = (y2 - y1).divide_no_zero_check(x_diff);
+    } else {
+        lambda = field_t::from_witness(context, (y2.get_value() - y1.get_value()) / x_diff.get_value());
+        field_t::evaluate_polynomial_identity(x_diff, lambda, -y2, y1);
+    }
+
     auto x3 = lambda.madd(lambda, -(x2 + x1));
     auto y3 = lambda.madd(x1 - x3, -y1);
     cycle_group add_result(x3, y3, x_coordinates_match);
@@ -473,7 +481,6 @@ template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator+
     // is result point at infinity?
     // yes = infinity_predicate && !lhs_infinity && !rhs_infinity
     // yes = lhs_infinity && rhs_infinity
-    // n.b. can likely optimize this
     bool_t result_is_infinity = infinity_predicate && (!lhs_infinity && !rhs_infinity);
     result_is_infinity = result_is_infinity || (lhs_infinity && rhs_infinity);
     result.set_point_at_infinity(result_is_infinity);

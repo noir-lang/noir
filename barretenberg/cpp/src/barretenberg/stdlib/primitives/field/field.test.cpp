@@ -325,9 +325,9 @@ template <typename Builder> class stdlib_field : public testing::Test {
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
-            EXPECT_EQ(gates_after - gates_before, 6UL);
+            EXPECT_EQ(gates_after - gates_before, 5UL);
         } else if (std::same_as<Builder, UltraCircuitBuilder>) {
-            EXPECT_EQ(gates_after - gates_before, 4UL);
+            EXPECT_EQ(gates_after - gates_before, 3UL);
         }
 
         bool result = CircuitChecker::check(builder);
@@ -353,9 +353,9 @@ template <typename Builder> class stdlib_field : public testing::Test {
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
-            EXPECT_EQ(gates_after - gates_before, 6UL);
+            EXPECT_EQ(gates_after - gates_before, 5UL);
         } else if (std::same_as<Builder, UltraCircuitBuilder>) {
-            EXPECT_EQ(gates_after - gates_before, 4UL);
+            EXPECT_EQ(gates_after - gates_before, 3UL);
         }
 
         bool result = CircuitChecker::check(builder);
@@ -382,9 +382,9 @@ template <typename Builder> class stdlib_field : public testing::Test {
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
-            EXPECT_EQ(gates_after - gates_before, 11UL);
+            EXPECT_EQ(gates_after - gates_before, 9UL);
         } else if (std::same_as<Builder, UltraCircuitBuilder>) {
-            EXPECT_EQ(gates_after - gates_before, 7UL);
+            EXPECT_EQ(gates_after - gates_before, 5UL);
         }
 
         bool result = CircuitChecker::check(builder);
