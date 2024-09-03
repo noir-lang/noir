@@ -30,7 +30,7 @@ impl Ssa {
     /// 5. Replacing any jmpifs with constant conditions with jmps. If this causes the block to have
     ///    only 1 successor then (2) also will be applied.
     ///
-    /// Currently, 1 and 4 are unimplemented.
+    /// Currently, 1 is unimplemented.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
@@ -132,20 +132,24 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
                     then_destination,
                     else_destination,
                     call_stack,
-                } => TerminatorInstruction::JmpIf {
-                    condition,
-                    then_destination: if then_destination == block {
+                } => {
+                    let then_destination = if then_destination == block {
                         final_destination
                     } else {
                         then_destination
-                    },
-                    else_destination: if else_destination == block {
+                    };
+                    let else_destination = if else_destination == block {
                         final_destination
                     } else {
                         else_destination
-                    },
-                    call_stack,
-                },
+                    };
+                    TerminatorInstruction::JmpIf {
+                        condition,
+                        then_destination,
+                        else_destination,
+                        call_stack,
+                    }
+                }
                 TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                     assert_eq!(
                         destination, block,
