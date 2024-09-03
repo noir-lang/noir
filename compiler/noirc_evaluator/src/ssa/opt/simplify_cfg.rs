@@ -56,7 +56,7 @@ fn simplify_function(function: &mut Function) {
             stack.extend(function.dfg[block].successors().filter(|block| !visited.contains(block)));
         }
 
-        check_for_negated_jmpif_condition(function, block);
+        check_for_negated_jmpif_condition(function, block, &mut cfg);
 
         // This call is before try_inline_into_predecessor so that if it succeeds in changing a
         // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
@@ -109,7 +109,11 @@ fn check_for_constant_jmpif(
 }
 
 /// Optimize a jmpif on a negated condition by swapping the branches.
-fn check_for_negated_jmpif_condition(function: &mut Function, block: BasicBlockId) {
+fn check_for_negated_jmpif_condition(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) {
     if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
@@ -127,6 +131,7 @@ fn check_for_negated_jmpif_condition(function: &mut Function, block: BasicBlockI
                     call_stack,
                 };
                 function.dfg[block].set_terminator(jmpif);
+                cfg.recompute_block(function, block);
             }
         }
     }
