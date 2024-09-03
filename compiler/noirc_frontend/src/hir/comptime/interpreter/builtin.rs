@@ -39,7 +39,7 @@ use crate::{
     QuotedType, Shared, Type,
 };
 
-use self::builtin_helpers::{get_array, get_u8};
+use self::builtin_helpers::{get_array, get_str, get_u8};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -248,25 +248,15 @@ fn str_as_bytes(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (string, string_location) = check_one_argument(arguments, location)?;
+    let string = check_one_argument(arguments, location)?;
+    let string = get_str(interner, string)?;
 
-    match string {
-        Value::String(string) => {
-            let string_as_bytes = string.as_bytes();
-            let bytes_vector: Vec<Value> = string_as_bytes.iter().cloned().map(Value::U8).collect();
-            let byte_array_type = Type::Array(
-                Box::new(Type::Constant(string_as_bytes.len() as u32)),
-                Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
-            );
-            Ok(Value::Array(bytes_vector.into(), byte_array_type))
-        }
-        value => {
-            let type_var = Box::new(interner.next_type_variable());
-            let expected = Type::Array(type_var.clone(), type_var);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location: string_location })
-        }
-    }
+    let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
+    let byte_array_type = Type::Array(
+        Box::new(Type::Constant(bytes.len() as u32)),
+        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+    );
+    Ok(Value::Array(bytes, byte_array_type))
 }
 
 /// fn as_type(self) -> Type
