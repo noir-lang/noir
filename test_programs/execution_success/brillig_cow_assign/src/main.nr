@@ -6,13 +6,8 @@ unconstrained fn main() {
 
     for i in 0..N {
         if i == N / 2 {
-            // println("inside if");
-            // println(arr);
             mid_change = arr;
-            // println(mid_change);
         }
-        // println(i);
-        // println(mid_change);
         arr[i] = 27;
     }
 
