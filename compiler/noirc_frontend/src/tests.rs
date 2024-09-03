@@ -1885,7 +1885,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
 
-    fn read<T, N>() -> T where T: Deserialize<N> {
+    pub fn read<T, N>() -> T where T: Deserialize<N> {
         let mut fields: [Field; N] = [0; N];
         for i in 0..N {
             fields[i] = i as Field + 1;
