@@ -19,7 +19,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AZTEC_NODE_URL: https://api.aztec.network/devnet/aztec-node-1/{{ secrets.DEVNET_API_KEY }}
   FAUCET_URL: https://api.aztec.network/devnet/aztec-faucet/{{ secrets.DEVNET_API_KEY }}
-  ETHEREUM_HOST: https://devnet-mainnet-fork.aztec.network:8545/${{ secrets.DEVNET_API_KEY }}
+  ETHEREUM_HOST: https://devnet-mainnet-fork.aztec.network:8545/admin-${{ secrets.DEVNET_API_KEY }}
 
 jobs:
   setup:
