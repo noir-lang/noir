@@ -71,11 +71,11 @@ contract SchnorrAccount {
         }
 
         // Verify signature of the payload bytes
-        let verification = std::schnorr::verify_signature_slice(
+        let verification = std::schnorr::verify_signature(
             public_key.x,
             public_key.y,
             signature,
-            outer_hash.to_be_bytes(32)
+            outer_hash.to_be_bytes::<32>()
         );
         assert(verification == true);
         // docs:end:entrypoint
@@ -98,11 +98,11 @@ contract SchnorrAccount {
         for i in 0..64 {
             signature[i] = witness[i] as u8;
         }
-        let valid_in_private = std::schnorr::verify_signature_slice(
+        let valid_in_private = std::schnorr::verify_signature(
             public_key.x,
             public_key.y,
             signature,
-            message_hash.to_be_bytes(32)
+            message_hash.to_be_bytes::<32>()
         );
 
         // Compute the nullifier and check if it is spent

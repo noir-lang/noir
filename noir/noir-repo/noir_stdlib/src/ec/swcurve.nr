@@ -350,11 +350,9 @@ mod curvegroup {
 
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
-            let N_BITS = crate::field::modulus_num_bits();
-
             // TODO: temporary workaround until issue 1354 is solved
             let mut n_as_bits: [u1; 254] = [0; 254];
-            let tmp = n.to_le_bits(N_BITS as u32);
+            let tmp: [u1; 254] = n.to_le_bits();
             for i in 0..254 {
                 n_as_bits[i] = tmp[i];
             }

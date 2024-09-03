@@ -502,6 +502,8 @@ impl<'block> BrilligBlock<'block> {
                     );
                 }
                 Value::Intrinsic(Intrinsic::ToRadix(endianness)) => {
+                    let results = dfg.instruction_results(instruction_id);
+
                     let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
                     let radix: u32 = dfg
@@ -512,88 +514,43 @@ impl<'block> BrilligBlock<'block> {
                         .try_into()
                         .expect("Radix should be u32");
 
-                    let limb_count: usize = dfg
-                        .get_numeric_constant(arguments[2])
-                        .expect("Limb count should be known")
-                        .try_to_u64()
-                        .expect("Limb count should fit in u64")
-                        .try_into()
-                        .expect("Limb count should fit in usize");
-
-                    let results = dfg.instruction_results(instruction_id);
-
-                    let target_len = self.variables.define_single_addr_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[0],
-                        dfg,
-                    );
-
-                    let target_vector = self
+                    let target_array = self
                         .variables
                         .define_variable(
                             self.function_context,
                             self.brillig_context,
-                            results[1],
+                            results[0],
                             dfg,
                         )
-                        .extract_vector();
-
-                    // Update the user-facing slice length
-                    self.brillig_context
-                        .usize_const_instruction(target_len.address, limb_count.into());
+                        .extract_array();
 
                     self.brillig_context.codegen_to_radix(
                         source,
-                        target_vector,
+                        target_array,
                         radix,
-                        limb_count,
                         matches!(endianness, Endian::Big),
                         false,
                     );
                 }
                 Value::Intrinsic(Intrinsic::ToBits(endianness)) => {
-                    let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
-                    let limb_count: usize = dfg
-                        .get_numeric_constant(arguments[1])
-                        .expect("Limb count should be known")
-                        .try_to_u64()
-                        .expect("Limb count should fit in u64")
-                        .try_into()
-                        .expect("Limb count should fit in usize");
-
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[0],
-                        dfg,
-                    );
-                    let target_len = target_len_variable.extract_single_addr();
+                    let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
-                    let target_vector = match self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[1],
-                        dfg,
-                    ) {
-                        BrilligVariable::BrilligArray(array) => {
-                            self.brillig_context.array_to_vector_instruction(&array)
-                        }
-                        BrilligVariable::BrilligVector(vector) => vector,
-                        BrilligVariable::SingleAddr(..) => unreachable!("ICE: ToBits on non-array"),
-                    };
-
-                    // Update the user-facing slice length
-                    self.brillig_context
-                        .usize_const_instruction(target_len.address, limb_count.into());
+                    let target_array = self
+                        .variables
+                        .define_variable(
+                            self.function_context,
+                            self.brillig_context,
+                            results[0],
+                            dfg,
+                        )
+                        .extract_array();
 
                     self.brillig_context.codegen_to_radix(
                         source,
-                        target_vector,
+                        target_array,
                         2,
-                        limb_count,
                         matches!(endianness, Endian::Big),
                         true,
                     );

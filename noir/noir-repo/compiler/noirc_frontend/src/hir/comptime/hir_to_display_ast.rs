@@ -4,7 +4,7 @@ use noirc_errors::{Span, Spanned};
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
-    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
+    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal,
     MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
@@ -29,13 +29,7 @@ impl HirStatement {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
                 let r#type = interner.id_type(let_stmt.expression).to_display_ast();
                 let expression = let_stmt.expression.to_display_ast(interner);
-                StatementKind::Let(LetStatement {
-                    pattern,
-                    r#type,
-                    expression,
-                    comptime: false,
-                    attributes: Vec::new(),
-                })
+                StatementKind::new_let(pattern, r#type, expression)
             }
             HirStatement::Constrain(constrain) => {
                 let expr = constrain.0.to_display_ast(interner);

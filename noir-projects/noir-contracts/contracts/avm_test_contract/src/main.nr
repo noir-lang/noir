@@ -160,7 +160,7 @@ contract AvmTest {
     }
 
     /************************************************************************
-     * Misc 
+     * Misc
      ************************************************************************/
 
     #[aztec(public)]
@@ -178,8 +178,7 @@ contract AvmTest {
 
     #[aztec(public)]
     fn to_radix_le(input: Field) -> [u8; 10] {
-        let result: [u8] = input.to_le_radix(/*base=*/ 2, /*limbs=*/ 10);
-        result.as_array()
+        input.to_le_radix(/*base=*/ 2)
     }
 
     // Helper functions to demonstrate an internal call stack in error messages

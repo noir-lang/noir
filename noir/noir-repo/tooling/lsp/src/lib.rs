@@ -22,8 +22,8 @@ use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::{
     request::{
-        Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest, PrepareRenameRequest,
-        References, Rename, SignatureHelpRequest,
+        CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
+        PrepareRenameRequest, References, Rename, SignatureHelpRequest,
     },
     CodeLens,
 };
@@ -51,21 +51,24 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_completion_request, on_document_symbol_request, on_formatting,
-    on_goto_declaration_request, on_goto_definition_request, on_goto_type_definition_request,
-    on_hover_request, on_initialize, on_inlay_hint_request, on_prepare_rename_request,
-    on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
-    on_signature_help_request, on_test_run_request, on_tests_request, LspInitializationOptions,
+    on_code_action_request, on_code_lens_request, on_completion_request,
+    on_document_symbol_request, on_formatting, on_goto_declaration_request,
+    on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
+    on_inlay_hint_request, on_prepare_rename_request, on_profile_run_request,
+    on_references_request, on_rename_request, on_shutdown, on_signature_help_request,
+    on_test_run_request, on_tests_request, LspInitializationOptions,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
+mod modules;
 mod notifications;
 mod requests;
 mod solver;
 mod types;
 mod utils;
+mod visibility;
 
 #[cfg(test)]
 mod test_utils;
@@ -144,6 +147,7 @@ impl NargoLspService {
             .request::<InlayHintRequest, _>(on_inlay_hint_request)
             .request::<Completion, _>(on_completion_request)
             .request::<SignatureHelpRequest, _>(on_signature_help_request)
+            .request::<CodeActionRequest, _>(on_code_action_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

@@ -65,8 +65,8 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
 
         let mut buffer: [u8; MOCK_NOTE_BYTES_LENGTH] = [0; MOCK_NOTE_BYTES_LENGTH];
 
-        let storage_slot_bytes = storage_slot.to_be_bytes(32);
-        let note_type_id_bytes = MockNote::get_note_type_id().to_be_bytes(32);
+        let storage_slot_bytes: [u8; 32] = storage_slot.to_be_bytes();
+        let note_type_id_bytes: [u8; 32] = MockNote::get_note_type_id().to_be_bytes();
 
         for i in 0..32 {
             buffer[i] = storage_slot_bytes[i];
@@ -74,7 +74,7 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
         }
 
         for i in 0..serialized_note.len() {
-            let bytes = serialized_note[i].to_be_bytes(32);
+            let bytes: [u8; 32] = serialized_note[i].to_be_bytes();
             for j in 0..32 {
                 buffer[64 + i * 32 + j] = bytes[j];
             }
@@ -85,7 +85,7 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
 
 impl Eq for MockNote {
     fn eq(self, other: Self) -> bool {
-      (self.header == other.header) & 
+      (self.header == other.header) &
       (self.value == other.value)
     }
 }

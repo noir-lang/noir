@@ -17,7 +17,7 @@ struct Card {
 
 impl FromField for Card {
  fn from_field(field: Field) -> Card {
-        let value_bytes = field.to_le_bytes(32);
+        let value_bytes: [u8; 32] = field.to_le_bytes();
         let strength = (value_bytes[0] as u32) + (value_bytes[1] as u32) * 256;
         let points = (value_bytes[2] as u32) + (value_bytes[3] as u32) * 256;
         Card { strength, points }
@@ -157,7 +157,7 @@ pub fn get_pack_cards(
     // generate pseudo randomness deterministically from 'seed' and user secret
     let secret = context.request_nsk_app(owner_npk_m_hash);
     let mix = secret + seed;
-    let mix_bytes: [u8; 32] = mix.to_le_bytes(32).as_array();
+    let mix_bytes: [u8; 32] = mix.to_le_bytes();
     let random_bytes = std::hash::sha256(mix_bytes);
 
     let mut cards = [Card::from_field(0); PACK_CARDS];

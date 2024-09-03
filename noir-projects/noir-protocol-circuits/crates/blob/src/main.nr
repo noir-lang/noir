@@ -72,12 +72,7 @@ unconstrained fn __compute_fracs(z: F, ys: [F; FIELDS_PER_BLOB]) -> [F; FIELDS_P
 }
 
 unconstrained fn __field_to_bytes(x: Field) -> [u8; 32] {
-    let x_bytes_slice = x.to_be_bytes(32);
-    let mut x_bytes = [0; 32];
-    for i in 0..32 {
-        x_bytes[i] = x_bytes_slice[i];
-    }
-    x_bytes
+    x.to_be_bytes()
 }
 
 unconstrained fn __field_to_bignum(x: Field) -> F {
@@ -120,17 +115,24 @@ fn unsafe_bignum_to_field(x: F) -> Field {
 }
 
 fn bignum_to_bytes(x: F) -> [u8] {
-    let limb_0_bytes: [u8] = x.limbs[0].to_be_bytes(15);
-    let limb_1_bytes: [u8] = x.limbs[1].to_be_bytes(15);
-    let limb_2_bytes: [u8] = x.limbs[2].to_be_bytes(2);
-    let out = limb_2_bytes.append(limb_1_bytes).append(limb_0_bytes);
+    let limb_0_bytes: [u8; 15] = x.limbs[0].to_be_bytes();
+    let limb_1_bytes: [u8; 15] = x.limbs[1].to_be_bytes();
+    let limb_2_bytes: [u8; 2] = x.limbs[2].to_be_bytes();
+    let mut out: [u8; 32] = [0; 32];
+    for i in 0..32 {
+        out[i] = limb_0_bytes[i];
+        out[i+15] = limb_1_bytes[i];
+    }
+    for i in 0..1 {
+        out[30 + i] = limb_2_bytes[i];
+    }
     std::static_assert(out.len() == 32, "bad byte decomposition of bignum");
     out
 }
 
 // fn kzg_commitment_to_bytes(c: [Field; 2]) -> [u8] {
-//     let limb_0_bytes: [u8] = x.limbs[0].to_be_bytes(32);
-//     let limb_1_bytes: [u8] = x.limbs[1].to_be_bytes(16);
+//     let limb_0_bytes: [u8; 32] = x.limbs[0].to_be_bytes();
+//     let limb_1_bytes: [u8; 16] = x.limbs[1].to_be_bytes();
 
 //     let out = limb_2_bytes.append(limb_1_bytes).append(limb_0_bytes);
 //     std::static_assert(out.len() == 32, "bad byte decomposition of bignum");
@@ -247,7 +249,7 @@ fn main(blob: [F; FIELDS_PER_BLOB], kzg_commitment: [Field; 2]) -> pub (Field, F
     let y: F = barycentric_evaluate_blob_at_z(challenge_z_as_bignum, blob);
     // let y = challenge_z_as_bignum; // dummy constraint for when we want to skip the barycentric stuff in testing.
 
-    // let challenge_z_as_bytes: [u8] = challenge_z.to_be_bytes(32);
+    // let challenge_z_as_bytes: [u8; 32] = challenge_z.to_be_bytes();
     // let y_as_bytes: [u8] = bignum_to_bytes(y);
     // let kzg_commitment_as_bytes: [u8] = ()
 

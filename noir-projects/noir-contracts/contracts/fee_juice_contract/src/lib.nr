@@ -8,8 +8,8 @@ pub fn calculate_fee<TPublicContext>(context: PublicContext) -> Field {
 
 pub fn get_bridge_gas_msg_hash(owner: AztecAddress, amount: Field) -> Field {
     let mut hash_bytes = [0; 68];
-    let recipient_bytes = owner.to_field().to_be_bytes(32);
-    let amount_bytes = amount.to_be_bytes(32);
+    let recipient_bytes: [u8; 32] = owner.to_field().to_be_bytes();
+    let amount_bytes: [u8; 32] = amount.to_be_bytes();
 
     for i in 0..32 {
         hash_bytes[i + 4] = recipient_bytes[i];

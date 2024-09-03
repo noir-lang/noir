@@ -13,7 +13,7 @@ pub fn point_to_bytes(pk: Point) -> [u8; 32] {
     // the "sign") so it's possible to use that last bit as an "is_infinite" flag if desired in the future.
     assert(!pk.is_infinite, "Cannot serialize point at infinity as bytes.");
 
-    let mut result = pk.x.to_be_bytes(32);
+    let mut result: [u8; 32] = pk.x.to_be_bytes();
 
     // We store only a "sign" of the y coordinate because the rest can be derived from the x coordinate. To get
     // the sign we check if the y coordinate is less or equal than the curve's order minus 1 divided by 2.
@@ -27,7 +27,7 @@ pub fn point_to_bytes(pk: Point) -> [u8; 32] {
         result[0] += 128;
     }
 
-    result.as_array()
+    result
 }
 
 mod test {

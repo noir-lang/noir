@@ -25,10 +25,10 @@ impl EncryptedLogOutgoingBody {
 
         let mut buffer = [0 as u8; 128];
 
-        let serialized_eph_sk_high = self.eph_sk.hi.to_be_bytes(32);
-        let serialized_eph_sk_low = self.eph_sk.lo.to_be_bytes(32);
+        let serialized_eph_sk_high: [u8; 32] = self.eph_sk.hi.to_be_bytes();
+        let serialized_eph_sk_low: [u8; 32] = self.eph_sk.lo.to_be_bytes();
 
-        let address_bytes = self.recipient.to_field().to_be_bytes(32);
+        let address_bytes: [u8; 32] = self.recipient.to_field().to_be_bytes();
         let serialized_recipient_ivpk = point_to_bytes(self.recipient_ivpk.to_point());
 
         for i in 0..32 {
@@ -44,7 +44,7 @@ impl EncryptedLogOutgoingBody {
         let full_key: [u8; 32] = poseidon2_hash_with_separator(
             [ovsk_app.hi, ovsk_app.lo, eph_pk.x, eph_pk.y],
             GENERATOR_INDEX__SYMMETRIC_KEY as Field
-        ).to_be_bytes(32).as_array();
+        ).to_be_bytes();
 
         let mut sym_key = [0; 16];
         let mut iv = [0; 16];

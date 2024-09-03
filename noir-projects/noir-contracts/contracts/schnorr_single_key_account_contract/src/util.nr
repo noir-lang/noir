@@ -1,11 +1,11 @@
-use std::{schnorr::verify_signature_slice};
+use std::schnorr::verify_signature;
 use dep::aztec::prelude::AztecAddress;
 use crate::auth_oracle::AuthWitness;
 
 pub fn recover_address(message_hash: Field, witness: AuthWitness) -> AztecAddress {
-    let message_bytes = message_hash.to_be_bytes(32);
+    let message_bytes: [u8; 32] = message_hash.to_be_bytes();
     // In a single key account contract we re-used ivpk_m as signing key
-    let verification = verify_signature_slice(
+    let verification = verify_signature(
         witness.keys.ivpk_m.inner.x,
         witness.keys.ivpk_m.inner.y,
         witness.signature,

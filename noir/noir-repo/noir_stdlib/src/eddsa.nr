@@ -1,7 +1,6 @@
-use crate::hash::poseidon;
 use crate::ec::consts::te::baby_jubjub;
 use crate::ec::tecurve::affine::Point as TEPoint;
-use crate::hash::{Hash, Hasher, BuildHasher, BuildHasherDefault};
+use crate::hash::Hasher;
 use crate::hash::poseidon::PoseidonHasher;
 use crate::default::Default;
 
