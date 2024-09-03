@@ -1,0 +1,7 @@
+[package]
+name = "comptime_str_as_bytes"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.24.0"
+
+[dependencies]
