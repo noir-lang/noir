@@ -1,14 +1,11 @@
 // Account contract that uses ECDSA signatures for authentication on the same curve as Ethereum.
 // The signing key is stored in an immutable private note and should be different from the signing key.
 contract EcdsaKAccount {
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, PrivateImmutable};
+    use dep::aztec::prelude::{PrivateContext, PrivateImmutable};
     use dep::aztec::{
         encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys,
         keys::getters::get_current_public_keys
     };
-
-    use dep::aztec::protocol_types::abis::call_context::CallContext;
-    use dep::std;
 
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,

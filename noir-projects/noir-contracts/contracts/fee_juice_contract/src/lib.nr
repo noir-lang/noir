@@ -1,4 +1,4 @@
-use dep::aztec::prelude::{AztecAddress, EthAddress};
+use dep::aztec::prelude::AztecAddress;
 use dep::aztec::context::PublicContext;
 use dep::aztec::protocol_types::hash::sha256_to_field;
 

@@ -4,7 +4,7 @@ use dep::aztec::protocol_types::{
     traits::{Hash, Serialize}
 };
 
-use dep::authwit::entrypoint::function_call::{FunctionCall, FUNCTION_CALL_SIZE_IN_BYTES};
+use dep::authwit::entrypoint::function_call::FunctionCall;
 
 global DAPP_MAX_CALLS: u64 = 1;
 // FUNCTION_CALL_SIZE * DAPP_MAX_CALLS + 1

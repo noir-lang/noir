@@ -47,7 +47,7 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
       4135
     }
 
-    fn compute_nullifier(self, context: &mut PrivateContext, note_hash_for_nullify: Field) -> Field {
+    fn compute_nullifier(_self: Self, _context: &mut PrivateContext, note_hash_for_nullify: Field) -> Field {
         // We don't use any kind of secret here since this is only a mock note and having it here would make tests
         // more cumbersome
         poseidon2_hash_with_separator([note_hash_for_nullify], GENERATOR_INDEX__NOTE_NULLIFIER as Field)

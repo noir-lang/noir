@@ -210,7 +210,7 @@ impl BaseRollupInputs {
         )
     }
 
-    fn create_nullifier_subtree<N>(leaves: [NullifierLeafPreimage; N]) -> Field {
+    fn create_nullifier_subtree<let N: u32>(leaves: [NullifierLeafPreimage; N]) -> Field {
         calculate_subtree_root(leaves.map(|leaf:NullifierLeafPreimage| leaf.hash()))
     }
 
@@ -506,7 +506,7 @@ mod tests {
     global MAX_nullifiers_PER_TEST = 4;
     global MAX_PUBLIC_DATA_READS_PER_TEST = 2;
 
-    fn update_public_data_tree<EXISTING_LEAVES, SUBTREE_SIBLING_PATH_LENGTH, SUBTREE_HEIGHT>(
+    fn update_public_data_tree<let EXISTING_LEAVES: u32, let SUBTREE_SIBLING_PATH_LENGTH: u32, let SUBTREE_HEIGHT: u32>(
         public_data_tree: &mut NonEmptyMerkleTree<EXISTING_LEAVES, PUBLIC_DATA_TREE_HEIGHT, SUBTREE_SIBLING_PATH_LENGTH, SUBTREE_HEIGHT>,
         kernel_data: &mut KernelData,
         snapshot: AppendOnlyTreeSnapshot,
@@ -615,7 +615,7 @@ mod tests {
         fee_payer_fee_juice_balance_pre_existing_public_data_index: Option<u32>
     }
 
-    fn test_compute_empty_root<N>(size: [Field; N]) -> Field {
+    fn test_compute_empty_root<let N: u32>(size: [Field; N]) -> Field {
         compute_zero_hashes(size)[N - 1]
     }
 
@@ -653,7 +653,7 @@ mod tests {
             )
         }
 
-        fn extract_subtree_sibling_path<FULL_HEIGHT, SIBLING_PATH_LENGTH>(
+        fn extract_subtree_sibling_path<let FULL_HEIGHT: u32, let SIBLING_PATH_LENGTH: u32>(
             path: [Field; FULL_HEIGHT],
             mut sibling_path: [Field; SIBLING_PATH_LENGTH]
         ) -> [Field; SIBLING_PATH_LENGTH] {

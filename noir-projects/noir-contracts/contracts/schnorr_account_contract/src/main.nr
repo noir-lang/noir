@@ -5,7 +5,7 @@ mod public_key_note;
 contract SchnorrAccount {
     use dep::std;
 
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
+    use dep::aztec::prelude::{AztecAddress, PrivateContext, PrivateImmutable};
     use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
@@ -14,7 +14,7 @@ contract SchnorrAccount {
     use dep::aztec::{hash::compute_siloed_nullifier, keys::getters::get_current_public_keys};
     use dep::aztec::oracle::get_nullifier_membership_witness::get_low_nullifier_membership_witness;
 
-    use crate::public_key_note::{PublicKeyNote, PUBLIC_KEY_NOTE_LEN};
+    use crate::public_key_note::PublicKeyNote;
 
     #[aztec(storage)]
     struct Storage {

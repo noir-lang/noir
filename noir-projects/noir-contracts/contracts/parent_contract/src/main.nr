@@ -1,7 +1,7 @@
 
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, Deserialize};
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector};
     use dep::aztec::context::gas::GasOpts;
     // Private function to call another private function in the target_contract using the provided selector
     #[aztec(private)]
@@ -56,7 +56,7 @@ contract Parent {
         context.call_public_function(target_contract, target_selector, [target_value]);
     }
 
-    // Private function that enqueues two calls to a child contract: 
+    // Private function that enqueues two calls to a child contract:
     // - one through a nested call to enqueue_call_to_child with value 10,
     // - followed by one issued directly from this function with value 20.
     #[aztec(private)]
@@ -73,7 +73,7 @@ contract Parent {
         context.call_public_function(target_contract, target_selector, [20]);
     }
 
-    // Private function that enqueues two calls to a child contract: 
+    // Private function that enqueues two calls to a child contract:
     // - one issued directly from this function with value 20,
     // - followed by one through a nested call to enqueue_call_to_child with value 10.
     #[aztec(private)]
