@@ -3,6 +3,7 @@ use std::ops::ControlFlow;
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
+use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
 use lsp_types::{DiagnosticTag, Url};
 use noirc_driver::{check_crate, file_manager_with_stdlib};
@@ -160,78 +161,92 @@ pub(crate) fn process_workspace_for_noir_document(
         let fm = &context.file_manager;
         let files = fm.as_file_map();
 
-        if !output_diagnostics {
-            continue;
+        if output_diagnostics {
+            publish_diagnostics(state, package_root_dir, files, fm, file_diagnostics);
         }
-
-        let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
-
-        for FileDiagnostic { file_id, diagnostic, call_stack: _ } in file_diagnostics.into_iter() {
-            // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
-            let range = diagnostic
-                .secondaries
-                .into_iter()
-                .filter_map(|sec| byte_span_to_range(files, file_id, sec.span.into()))
-                .last()
-                .unwrap_or_default();
-
-            let severity = match diagnostic.kind {
-                DiagnosticKind::Error => DiagnosticSeverity::ERROR,
-                DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
-                DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
-                DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
-            };
-
-            let mut tags = Vec::new();
-            if diagnostic.unnecessary {
-                tags.push(DiagnosticTag::UNNECESSARY);
-            }
-            if diagnostic.deprecated {
-                tags.push(DiagnosticTag::DEPRECATED);
-            }
-
-            let diagnostic = Diagnostic {
-                range,
-                severity: Some(severity),
-                message: diagnostic.message,
-                tags: if tags.is_empty() { None } else { Some(tags) },
-                ..Default::default()
-            };
-
-            let path = fm.path(file_id).expect("file must exist to have emitted diagnostic");
-            log(&format!("{:?}: {}", path, diagnostic.message));
-            if let Ok(uri) = Url::from_file_path(path) {
-                log(&format!("{:?}: {}", uri, diagnostic.message));
-                diagnostics_per_url.entry(uri).or_default().push(diagnostic);
-            }
-        }
-
-        let new_files_with_errors: HashSet<_> = diagnostics_per_url.keys().cloned().collect();
-
-        for (uri, diagnostics) in diagnostics_per_url {
-            let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
-                uri,
-                version: None,
-                diagnostics,
-            });
-        }
-
-        // For files that previously had errors but no longer have errors we still need to publish empty diagnostics
-        if let Some(old_files_with_errors) = state.files_with_errors.get(&package_root_dir) {
-            for uri in old_files_with_errors.difference(&new_files_with_errors) {
-                let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
-                    uri: uri.clone(),
-                    version: None,
-                    diagnostics: vec![],
-                });
-            }
-        }
-
-        // Remember which files currently have errors, for next time
-        state.files_with_errors.insert(package_root_dir, new_files_with_errors);
     }
 
     Ok(())
+}
+
+fn publish_diagnostics(
+    state: &mut LspState,
+    package_root_dir: String,
+    files: &FileMap,
+    fm: &FileManager,
+    file_diagnostics: Vec<FileDiagnostic>,
+) {
+    let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
+
+    for file_diagnostic in file_diagnostics.into_iter() {
+        let file_id = file_diagnostic.file_id;
+        let diagnostic = file_diagnostic_to_diagnostic(file_diagnostic, files);
+
+        let path = fm.path(file_id).expect("file must exist to have emitted diagnostic");
+        if let Ok(uri) = Url::from_file_path(path) {
+            diagnostics_per_url.entry(uri).or_default().push(diagnostic);
+        }
+    }
+
+    let new_files_with_errors: HashSet<_> = diagnostics_per_url.keys().cloned().collect();
+
+    for (uri, diagnostics) in diagnostics_per_url {
+        let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+            uri,
+            version: None,
+            diagnostics,
+        });
+    }
+
+    // For files that previously had errors but no longer have errors we still need to publish empty diagnostics
+    if let Some(old_files_with_errors) = state.files_with_errors.get(&package_root_dir) {
+        for uri in old_files_with_errors.difference(&new_files_with_errors) {
+            let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                uri: uri.clone(),
+                version: None,
+                diagnostics: vec![],
+            });
+        }
+    }
+
+    // Remember which files currently have errors, for next time
+    state.files_with_errors.insert(package_root_dir, new_files_with_errors);
+}
+
+fn file_diagnostic_to_diagnostic(file_diagnostic: FileDiagnostic, files: &FileMap) -> Diagnostic {
+    let file_id = file_diagnostic.file_id;
+    let diagnostic = file_diagnostic.diagnostic;
+
+    // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
+    let range = diagnostic
+        .secondaries
+        .into_iter()
+        .filter_map(|sec| byte_span_to_range(files, file_id, sec.span.into()))
+        .last()
+        .unwrap_or_default();
+
+    let severity = match diagnostic.kind {
+        DiagnosticKind::Error => DiagnosticSeverity::ERROR,
+        DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
+        DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
+        DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
+    };
+
+    let mut tags = Vec::new();
+    if diagnostic.unnecessary {
+        tags.push(DiagnosticTag::UNNECESSARY);
+    }
+    if diagnostic.deprecated {
+        tags.push(DiagnosticTag::DEPRECATED);
+    }
+
+    Diagnostic {
+        range,
+        severity: Some(severity),
+        message: diagnostic.message,
+        tags: if tags.is_empty() { None } else { Some(tags) },
+        ..Default::default()
+    }
 }
 
 pub(super) fn on_exit(
@@ -317,20 +332,5 @@ mod notification_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
-    }
-}
-
-fn log(contents: &str) {
-    use std::fs::OpenOptions;
-    use std::io::prelude::*;
-
-    let mut file = OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open("/Users/asterite/Sandbox/output/lsp.txt")
-        .unwrap();
-
-    if let Err(e) = writeln!(file, "{}", contents) {
-        eprintln!("Couldn't write to file: {}", e);
     }
 }
