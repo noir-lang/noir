@@ -546,7 +546,7 @@ impl Instruction {
                 }
             }
 
-            Instruction::Store { address, value, .. } => {
+            Instruction::Store { address, value } => {
                 f(*address);
                 f(*value);
             }
