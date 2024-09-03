@@ -1378,7 +1378,7 @@ fn deny_inline_attribute_on_unconstrained() {
 fn deny_fold_attribute_on_unconstrained() {
     let src = r#"
         #[fold]
-        unconstrained fn foo(x: Field, y: Field) {
+        unconstrained pub fn foo(x: Field, y: Field) {
             assert(x != y);
         }
     "#;
@@ -1633,7 +1633,7 @@ fn bool_generic_as_loop_bound() {
 #[test]
 fn numeric_generic_in_function_signature() {
     let src = r#"
-    fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
+    pub fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
     assert_no_errors(src);
 }
@@ -1869,7 +1869,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
 
-    fn read<T, N>() -> T where T: Deserialize<N> {
+    pub fn read<T, N>() -> T where T: Deserialize<N> {
         T::deserialize([0, 1])
     }
     "#;
@@ -2445,7 +2445,7 @@ fn use_super_in_path() {
     fn some_func() {}
 
     mod foo {
-        fn func() {
+        pub fn func() {
             super::some_func();
         }
     }
@@ -3112,7 +3112,7 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
         }
     }
 
-    fn use_it(t: u32) -> i32 {
+    pub fn use_it(t: u32) -> i32 {
         Two::two(t)
     }
 
