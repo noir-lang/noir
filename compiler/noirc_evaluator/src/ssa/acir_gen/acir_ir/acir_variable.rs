@@ -518,6 +518,10 @@ impl<F: AcirField> AcirContext<F> {
             self.mark_variables_equivalent(lhs, rhs)?;
             return Ok(());
         }
+        if diff_expr.is_const() {
+            // Constraint is always false, returns an error
+            return Err(RuntimeError::AssertFailed { call_stack: self.get_call_stack() });
+        }
 
         self.acir_ir.assert_is_zero(diff_expr);
         if let Some(payload) = assert_message {
