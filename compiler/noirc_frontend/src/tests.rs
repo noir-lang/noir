@@ -1535,7 +1535,7 @@ fn struct_numeric_generic_in_function() {
         inner: u64
     }
 
-    fn bar<let N: Foo>() { }
+    pub fn bar<let N: Foo>() { }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
@@ -1567,7 +1567,7 @@ fn struct_numeric_generic_in_struct() {
 #[test]
 fn bool_numeric_generic() {
     let src = r#"
-    fn read<let N: bool>() -> Field {
+    pub fn read<let N: bool>() -> Field {
         if N {
             0
         } else {
@@ -1586,7 +1586,7 @@ fn bool_numeric_generic() {
 #[test]
 fn numeric_generic_binary_operation_type_mismatch() {
     let src = r#"
-    fn foo<let N: Field>() -> bool {
+    pub fn foo<let N: Field>() -> bool {
         let mut check: bool = true;
         check = N;
         check
@@ -2431,7 +2431,7 @@ fn use_super() {
     mod foo {
         use super::some_func;
 
-        fn bar() {
+        pub fn bar() {
             some_func();
         }
     }
@@ -3072,7 +3072,7 @@ fn trait_impl_for_a_type_that_implements_another_trait() {
         }
     }
 
-    fn use_it<T>(t: T) -> i32 where T: Two {
+    pub fn use_it<T>(t: T) -> i32 where T: Two {
         Two::two(t)
     }
 

@@ -15,10 +15,9 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::macros_api::{
-    Expression, ModuleDefId, NodeInterner, UnresolvedType, UnresolvedTypeData,
-};
+use crate::macros_api::{Expression, NodeInterner, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::ModuleAttributes;
+use crate::usage_tracker::UnusedItem;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -264,7 +263,7 @@ impl<'a> ModCollector<'a> {
 
             if !is_test {
                 let module_id = ModuleId { krate, local_id: self.module_id };
-                let item = ModuleDefId::FunctionId(func_id);
+                let item = UnusedItem::Function(func_id);
                 context
                     .def_interner
                     .usage_tracker

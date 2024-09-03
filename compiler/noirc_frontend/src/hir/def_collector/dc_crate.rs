@@ -7,12 +7,13 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
+use crate::usage_tracker::UnusedItem;
 use crate::{Generics, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::{Expression, MacroError, MacroProcessor, ModuleDefId};
+use crate::macros_api::{Expression, MacroError, MacroProcessor};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
@@ -393,7 +394,7 @@ impl DefCollector {
                         context.def_interner.usage_tracker.add_unused_item(
                             module_id,
                             name.clone(),
-                            module_def_id,
+                            UnusedItem::Import,
                             visibility,
                         );
 
@@ -492,26 +493,15 @@ impl DefCollector {
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
             let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
-            usage_tracker.iter().map(|(ident, id)| {
+            usage_tracker.iter().map(|(ident, unused_item)| {
                 let ident = ident.clone();
                 let error = CompilationError::ResolverError(ResolverError::UnusedItem {
                     ident,
-                    item_type: item_type(*id).to_string(),
+                    item_type: unused_item.item_type().to_string(),
                 });
                 (error, module.location.file)
             })
         }));
-    }
-}
-
-fn item_type(id: ModuleDefId) -> &'static str {
-    match id {
-        ModuleDefId::ModuleId(_) => "module",
-        ModuleDefId::FunctionId(_) => "function",
-        ModuleDefId::TypeId(_) => "struct",
-        ModuleDefId::TypeAliasId(_) => "type alias",
-        ModuleDefId::TraitId(_) => "trait",
-        ModuleDefId::GlobalId(_) => "global",
     }
 }
 
