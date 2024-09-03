@@ -152,16 +152,23 @@ impl<'f> PerFunctionContext<'f> {
             self.analyze_block(block, references);
         }
 
-        let mut load_result_unused = HashSet::default();
+        let mut load_result_unused: HashSet<ValueId> = HashSet::default();
+        let mut load_result_used: HashSet<ValueId> = HashSet::default();
         for (_, (not_used_flag, load_instruction)) in self.load_results.iter() {
+            let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+            else {
+                panic!("Should only have a load instruction here");
+            };
+
             if *not_used_flag {
-                let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
-                else {
-                    panic!("Should only have a load instruction here");
-                };
-                load_result_unused.insert(address);
+                if !load_result_used.contains(&address) {
+                    load_result_unused.insert(address);
+                }
 
                 self.instructions_to_remove.insert(*load_instruction);
+            } else {
+                load_result_unused.remove(&address);
+                load_result_used.insert(address);
             }
         }
 
