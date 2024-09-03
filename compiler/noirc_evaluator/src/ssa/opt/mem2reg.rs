@@ -438,12 +438,12 @@ impl<'f> PerFunctionContext<'f> {
         self.inserter.map_terminator_in_place(block);
 
         let terminator = self.inserter.function.dfg[block].unwrap_terminator();
+
         terminator.for_each_value(|value| {
             if let Some((not_used_flag, _)) = self.load_results.get_mut(&value) {
                 *not_used_flag = false;
             }
         });
-
 
         match terminator {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
