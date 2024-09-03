@@ -97,17 +97,27 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
-            if let SecondaryAttribute::Custom(name) = attribute {
-                if let Err(error) =
-                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
-                {
-                    self.errors.push(error);
-                }
-            }
+            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items);
         }
     }
 
     fn run_comptime_attribute_on_item(
+        &mut self,
+        attribute: &SecondaryAttribute,
+        item: &Value,
+        span: Span,
+        generated_items: &mut CollectedItems,
+    ) {
+        if let SecondaryAttribute::Custom(name) = attribute {
+            if let Err(error) =
+                self.run_comptime_attribute_name_on_item(name, item.clone(), span, generated_items)
+            {
+                self.errors.push(error);
+            }
+        }
+    }
+
+    fn run_comptime_attribute_name_on_item(
         &mut self,
         attribute: &str,
         item: Value,
@@ -423,13 +433,7 @@ impl<'context> Elaborator<'context> {
             self.local_module = module_attribute.attribute_module_id;
             self.file = module_attribute.attribute_file_id;
 
-            if let SecondaryAttribute::Custom(name) = attribute {
-                if let Err(error) =
-                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
-                {
-                    self.errors.push(error);
-                }
-            }
+            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items)
         }
     }
 
