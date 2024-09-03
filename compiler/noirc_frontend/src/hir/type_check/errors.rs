@@ -357,7 +357,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 
-                Diagnostic::simple_warning(primary_message, secondary_message, *span)
+                let mut diagnostic = Diagnostic::simple_warning(primary_message, secondary_message, *span);
+                diagnostic.deprecated = true;
+                diagnostic
             }
             TypeCheckError::UnusedResultError { expr_type, expr_span } => {
                 let msg = format!("Unused expression result of type {expr_type}");

@@ -64,6 +64,44 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_assert_eq() {
+        comptime
+        {
+            let expr = quote { assert_eq(true, false) }.as_expr().unwrap();
+            let (lhs, rhs, msg) = expr.as_assert_eq().unwrap();
+            assert_eq(lhs.as_bool().unwrap(), true);
+            assert_eq(rhs.as_bool().unwrap(), false);
+            assert(msg.is_none());
+
+            let expr = quote { assert_eq(false, true, "oops") }.as_expr().unwrap();
+            let (lhs, rhs, msg) = expr.as_assert_eq().unwrap();
+            assert_eq(lhs.as_bool().unwrap(), false);
+            assert_eq(rhs.as_bool().unwrap(), true);
+            assert(msg.is_some());
+        }
+    }
+
+    #[test]
+    fn test_expr_mutate_for_assert_eq() {
+        comptime
+        {
+            let expr = quote { assert_eq(1, 2) }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (lhs, rhs, msg) = expr.as_assert_eq().unwrap();
+            assert_eq(lhs.as_integer().unwrap(), (2, false));
+            assert_eq(rhs.as_integer().unwrap(), (4, false));
+            assert(msg.is_none());
+
+            let expr = quote { assert_eq(1, 2, 3) }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (lhs, rhs, msg) = expr.as_assert_eq().unwrap();
+            assert_eq(lhs.as_integer().unwrap(), (2, false));
+            assert_eq(rhs.as_integer().unwrap(), (4, false));
+            assert_eq(msg.unwrap().as_integer().unwrap(), (6, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_assign() {
         comptime
         {
@@ -582,7 +620,7 @@ mod tests {
         comptime
         {
             let expr = quote { times_two }.as_expr().unwrap();
-            let func = expr.resolve().as_function_definition().unwrap();
+            let func = expr.resolve(Option::none()).as_function_definition().unwrap();
             assert_eq(func.name(), quote { times_two });
             assert_eq(func.parameters().len(), 1);
         }

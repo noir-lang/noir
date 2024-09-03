@@ -41,103 +41,67 @@ After declaring a Field, you can use these common methods on it:
 
 Transforms the field into an array of bits, Little Endian.
 
-```rust
-fn to_le_bits(_x : Field, _bit_size: u32) -> [u1]
-```
+#include_code to_le_bits noir_stdlib/src/field/mod.nr rust
 
 example:
 
-```rust
-fn main() {
-    let field = 2;
-    let bits = field.to_le_bits(32);
-}
-```
+#include_code to_le_bits_example noir_stdlib/src/field/mod.nr rust
+
 
 ### to_be_bits
 
 Transforms the field into an array of bits, Big Endian.
 
-```rust
-fn to_be_bits(_x : Field, _bit_size: u32) -> [u1]
-```
+#include_code to_be_bits noir_stdlib/src/field/mod.nr rust
 
 example:
 
-```rust
-fn main() {
-    let field = 2;
-    let bits = field.to_be_bits(32);
-}
-```
+#include_code to_be_bits_example noir_stdlib/src/field/mod.nr rust
+
 
 ### to_le_bytes
 
 Transforms into an array of bytes, Little Endian
 
-```rust
-fn to_le_bytes(_x : Field, byte_size: u32) -> [u8]
-```
+#include_code to_le_bytes noir_stdlib/src/field/mod.nr rust
 
 example:
 
-```rust
-fn main() {
-    let field = 2;
-    let bytes = field.to_le_bytes(4);
-}
-```
+#include_code to_le_bytes_example noir_stdlib/src/field/mod.nr rust
 
 ### to_be_bytes
 
 Transforms into an array of bytes, Big Endian
 
-```rust
-fn to_be_bytes(_x : Field, byte_size: u32) -> [u8]
-```
+#include_code to_be_bytes noir_stdlib/src/field/mod.nr rust
 
 example:
 
-```rust
-fn main() {
-    let field = 2;
-    let bytes = field.to_be_bytes(4);
-}
-```
+#include_code to_be_bytes_example noir_stdlib/src/field/mod.nr rust
+
 
 ### to_le_radix
 
-Decomposes into a vector over the specified base, Little Endian
+Decomposes into an array over the specified base, Little Endian
 
-```rust
-fn to_le_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8]
-```
+#include_code to_le_radix noir_stdlib/src/field/mod.nr rust
+
 
 example:
 
-```rust
-fn main() {
-    let field = 2;
-    let radix = field.to_le_radix(256, 4);
-}
-```
+#include_code to_le_radix_example noir_stdlib/src/field/mod.nr rust
+
 
 ### to_be_radix
 
-Decomposes into a vector over the specified base, Big Endian
+Decomposes into an array over the specified base, Big Endian
 
-```rust
-fn to_be_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8]
-```
+#include_code to_be_radix noir_stdlib/src/field/mod.nr rust
 
 example:
 
-```rust
-fn main() {
-    let field = 2;
-    let radix = field.to_be_radix(256, 4);
-}
-```
+#include_code to_be_radix_example noir_stdlib/src/field/mod.nr rust
+
 
 ### pow_32
 
@@ -161,9 +125,7 @@ fn main() {
 
 Adds a constraint to specify that the field can be represented with `bit_size` number of bits
 
-```rust
-fn assert_max_bit_size(self, bit_size: u32)
-```
+#include_code assert_max_bit_size noir_stdlib/src/field/mod.nr rust
 
 example:
 
