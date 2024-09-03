@@ -571,6 +571,27 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                         Token::QuotedType(id) => {
                             write!(f, " {}", self.interner.get_quoted_type(*id))?;
                         }
+                        Token::InternedExpr(id) => {
+                            let expr = self.interner.get_expression_kind(*id);
+                            let expr =
+                                remove_interned_in_expression_kind(self.interner, expr.clone());
+                            write!(f, "{}", expr)?;
+                        }
+                        Token::InternedStatement(id) => {
+                            let stmt = self.interner.get_statement_kind(*id);
+                            let stmt =
+                                remove_interned_in_statement_kind(self.interner, stmt.clone());
+                            write!(f, "{}", stmt)?;
+                        }
+                        Token::InternedLValue(id) => {
+                            let lvalue = self.interner.get_lvalue(*id, Span::default());
+                            let lvalue = remove_interned_in_lvalue(self.interner, lvalue.clone());
+                            write!(f, "{}", lvalue)?;
+                        }
+                        Token::InternedUnresolvedTypeData(id) => {
+                            let typ = self.interner.get_unresolved_type_data(*id);
+                            write!(f, "{}", typ)?;
+                        }
                         other => write!(f, " {other}")?,
                     }
                 }
