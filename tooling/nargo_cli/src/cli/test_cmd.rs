@@ -10,8 +10,7 @@ use nargo::{
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
-    check_crate, file_manager_with_stdlib, CheckOptions, CompileOptions,
-    NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::CrateName,
@@ -186,9 +185,7 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     // We then need to construct a separate copy for each test.
 
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    let error_on_unused_imports = package.error_on_unused_imports();
-    let check_options = CheckOptions::new(compile_options, error_on_unused_imports);
-    check_crate(&mut context, crate_id, &check_options)
+    check_crate(&mut context, crate_id, compile_options)
         .expect("Any errors should have occurred when collecting test functions");
 
     let test_functions = context
@@ -217,9 +214,7 @@ fn get_tests_in_package(
     options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    let error_on_unused_imports = package.error_on_unused_imports();
-    let check_options = CheckOptions::new(options, error_on_unused_imports);
-    check_crate_and_report_errors(&mut context, crate_id, &check_options)?;
+    check_crate_and_report_errors(&mut context, crate_id, options)?;
 
     Ok(context
         .get_all_test_functions_in_crate_matching(&crate_id, fn_name)

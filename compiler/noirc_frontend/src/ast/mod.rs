@@ -460,12 +460,22 @@ impl UnresolvedTypeExpression {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 /// Represents whether the definition can be referenced outside its module/crate
 pub enum ItemVisibility {
-    Public,
     Private,
     PublicCrate,
+    Public,
+}
+
+impl std::fmt::Display for ItemVisibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItemVisibility::Public => write!(f, "pub"),
+            ItemVisibility::Private => Ok(()),
+            ItemVisibility::PublicCrate => write!(f, "pub(crate)"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

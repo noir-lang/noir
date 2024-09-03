@@ -10,7 +10,7 @@ use completion_items::{
 };
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
-use kinds::{FunctionCompletionKind, FunctionKind, ModuleCompletionKind, RequestedItems};
+use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
@@ -18,16 +18,13 @@ use noirc_frontend::{
         AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
         ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression, ItemVisibility,
         Lambda, LetStatement, MemberAccessExpression, MethodCallExpression, NoirFunction,
-        NoirStruct, NoirTraitImpl, Path, PathKind, PathSegment, Pattern, Statement, TypeImpl,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
+        NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement, TypeImpl, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::{
-            import::can_reference_module_id,
-            path_resolver::{PathResolver, StandardPathResolver},
-        },
+        resolution::import::can_reference_module_id,
     },
     hir_def::traits::Trait,
     macros_api::{ModuleDefId, NodeInterner},
@@ -92,8 +89,6 @@ struct NodeFinder<'a> {
     lines: Vec<&'a str>,
     byte_index: usize,
     byte: Option<u8>,
-    /// The module ID of the current file.
-    root_module_id: ModuleId,
     /// The module ID in scope. This might change as we traverse the AST
     /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
@@ -131,7 +126,6 @@ impl<'a> NodeFinder<'a> {
     ) -> Self {
         // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
-        let root_module_id = ModuleId { krate, local_id: def_map.root() };
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
@@ -146,7 +140,6 @@ impl<'a> NodeFinder<'a> {
             lines: source.lines().collect(),
             byte_index,
             byte,
-            root_module_id,
             module_id,
             def_maps,
             dependencies,
@@ -278,12 +271,6 @@ impl<'a> NodeFinder<'a> {
         let is_single_segment = !after_colons && idents.is_empty() && path.kind == PathKind::Plain;
         let module_id;
 
-        let module_completion_kind = if after_colons || !idents.is_empty() {
-            ModuleCompletionKind::DirectChildren
-        } else {
-            ModuleCompletionKind::AllVisibleItems
-        };
-
         // When completing in the middle of an ident, we don't want to complete
         // with function parameters because there might already be function parameters,
         // and in the middle of a path it leads to code that won't compile
@@ -346,7 +333,6 @@ impl<'a> NodeFinder<'a> {
             &prefix,
             path.kind,
             at_root,
-            module_completion_kind,
             function_completion_kind,
             requested_items,
         );
@@ -447,7 +433,6 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        let module_completion_kind = ModuleCompletionKind::DirectChildren;
         let function_completion_kind = FunctionCompletionKind::Name;
         let requested_items = RequestedItems::AnyItems;
 
@@ -463,7 +448,6 @@ impl<'a> NodeFinder<'a> {
                     prefix,
                     path_kind,
                     at_root,
-                    module_completion_kind,
                     function_completion_kind,
                     requested_items,
                 );
@@ -478,7 +462,6 @@ impl<'a> NodeFinder<'a> {
                     &prefix,
                     path_kind,
                     at_root,
-                    module_completion_kind,
                     function_completion_kind,
                     requested_items,
                 );
@@ -489,7 +472,6 @@ impl<'a> NodeFinder<'a> {
                     &prefix,
                     path_kind,
                     at_root,
-                    module_completion_kind,
                     function_completion_kind,
                     requested_items,
                 );
@@ -604,6 +586,7 @@ impl<'a> NodeFinder<'a> {
             for func_id in methods.iter() {
                 if name_matches(name, prefix) {
                     if let Some(completion_item) = self.function_completion_item(
+                        name,
                         func_id,
                         function_completion_kind,
                         function_kind,
@@ -625,9 +608,12 @@ impl<'a> NodeFinder<'a> {
     ) {
         for (name, func_id) in &trait_.method_ids {
             if name_matches(name, prefix) {
-                if let Some(completion_item) =
-                    self.function_completion_item(*func_id, function_completion_kind, function_kind)
-                {
+                if let Some(completion_item) = self.function_completion_item(
+                    name,
+                    *func_id,
+                    function_completion_kind,
+                    function_kind,
+                ) {
                     self.completion_items.push(completion_item);
                     self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(*func_id));
                 }
@@ -661,7 +647,6 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         path_kind: PathKind,
         at_root: bool,
-        module_completion_kind: ModuleCompletionKind,
         function_completion_kind: FunctionCompletionKind,
         requested_items: RequestedItems,
     ) {
@@ -694,12 +679,7 @@ impl<'a> NodeFinder<'a> {
 
         let function_kind = FunctionKind::Any;
 
-        let items = match module_completion_kind {
-            ModuleCompletionKind::DirectChildren => module_data.definitions(),
-            ModuleCompletionKind::AllVisibleItems => module_data.scope(),
-        };
-
-        for ident in items.names() {
+        for ident in module_data.scope().names() {
             let name = &ident.0.contents;
 
             if name_matches(name, prefix) {
@@ -773,14 +753,6 @@ impl<'a> NodeFinder<'a> {
     fn resolve_path(&self, segments: Vec<Ident>) -> Option<ModuleDefId> {
         let last_segment = segments.last().unwrap().clone();
 
-        let path_segments = segments.into_iter().map(PathSegment::from).collect();
-        let path = Path { segments: path_segments, kind: PathKind::Plain, span: Span::default() };
-
-        let path_resolver = StandardPathResolver::new(self.root_module_id);
-        if let Ok(path_resolution) = path_resolver.resolve(self.def_maps, path, &mut None) {
-            return Some(path_resolution.module_def_id);
-        }
-
         // If we can't resolve a path trough lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);
         if let Some(reference_id) = self.interner.find_referenced(location) {
@@ -808,7 +780,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.includes_span(item.span)
     }
 
-    fn visit_import(&mut self, use_tree: &UseTree) -> bool {
+    fn visit_import(&mut self, use_tree: &UseTree, _visibility: ItemVisibility) -> bool {
         let mut prefixes = Vec::new();
         self.find_in_use_tree(use_tree, &mut prefixes);
         false
