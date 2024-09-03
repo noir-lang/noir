@@ -170,9 +170,6 @@ pub struct Elaborator<'context> {
     enable_arithmetic_generics: bool,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
-
-    /// Did we already run module attributes?
-    ran_module_attributes: bool,
 }
 
 #[derive(Default)]
@@ -221,7 +218,6 @@ impl<'context> Elaborator<'context> {
             enable_arithmetic_generics,
             current_trait: None,
             interpreter_call_stack,
-            ran_module_attributes: false,
         }
     }
 
@@ -324,7 +320,12 @@ impl<'context> Elaborator<'context> {
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
-        let generated_items = self.run_attributes(&items.traits, &items.types, &items.functions);
+        let generated_items = self.run_attributes(
+            &items.module_attributes,
+            &items.traits,
+            &items.types,
+            &items.functions,
+        );
 
         // After everything is collected, we can elaborate our generated items.
         // It may be better to inline these within `items` entirely since elaborating them

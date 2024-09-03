@@ -27,6 +27,7 @@ use crate::{
 };
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
+use super::dc_crate::ModuleAttribute;
 use super::{
     dc_crate::{
         CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
@@ -66,6 +67,8 @@ pub fn collect_defs(
             context,
             decl,
             crate_id,
+            file_id,
+            module_id,
             macro_processors,
         ));
     }
@@ -73,6 +76,7 @@ pub fn collect_defs(
     errors.extend(collector.collect_submodules(
         context,
         crate_id,
+        module_id,
         ast.submodules,
         file_id,
         macro_processors,
@@ -103,10 +107,40 @@ pub fn collect_defs(
 
     collector.collect_impls(context, ast.impls, crate_id);
 
+    collector.collect_attributes(
+        ast.inner_attributes,
+        file_id,
+        module_id,
+        file_id,
+        module_id,
+        true,
+    );
+
     errors
 }
 
 impl<'a> ModCollector<'a> {
+    fn collect_attributes(
+        &mut self,
+        attributes: Vec<SecondaryAttribute>,
+        file_id: FileId,
+        module_id: LocalModuleId,
+        attribute_file_id: FileId,
+        attribute_module_id: LocalModuleId,
+        is_inner: bool,
+    ) {
+        for attribute in attributes {
+            self.def_collector.items.module_attributes.push(ModuleAttribute {
+                file_id,
+                module_id,
+                attribute_file_id,
+                attribute_module_id,
+                attribute,
+                is_inner,
+            });
+        }
+    }
+
     fn collect_globals(
         &mut self,
         context: &mut Context,
@@ -624,6 +658,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         crate_id: CrateId,
+        parent_module_id: LocalModuleId,
         submodules: Vec<SortedSubModule>,
         file_id: FileId,
         macro_processors: &[&dyn MacroProcessor],
@@ -634,12 +669,21 @@ impl<'a> ModCollector<'a> {
                 context,
                 &submodule.name,
                 Location::new(submodule.name.span(), file_id),
-                submodule.outer_attributes,
+                submodule.outer_attributes.clone(),
                 submodule.contents.inner_attributes.clone(),
                 true,
                 submodule.is_contract,
             ) {
                 Ok(child) => {
+                    self.collect_attributes(
+                        submodule.outer_attributes,
+                        file_id,
+                        child.local_id,
+                        file_id,
+                        parent_module_id,
+                        false,
+                    );
+
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
@@ -666,6 +710,8 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         mod_decl: ModuleDeclaration,
         crate_id: CrateId,
+        parent_file_id: FileId,
+        parent_module_id: LocalModuleId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -727,12 +773,21 @@ impl<'a> ModCollector<'a> {
             context,
             &mod_decl.ident,
             Location::new(Span::empty(0), child_file_id),
-            mod_decl.outer_attributes,
+            mod_decl.outer_attributes.clone(),
             ast.inner_attributes.clone(),
             true,
             false,
         ) {
             Ok(child_mod_id) => {
+                self.collect_attributes(
+                    mod_decl.outer_attributes,
+                    child_file_id,
+                    child_mod_id.local_id,
+                    parent_file_id,
+                    parent_module_id,
+                    false,
+                );
+
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 context.def_interner.add_module_reference(child_mod_id, location);
 
