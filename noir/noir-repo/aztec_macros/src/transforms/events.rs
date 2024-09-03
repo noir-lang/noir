@@ -230,7 +230,7 @@ fn generate_fn_get_event_type_id(
     let function_source = format!(
         "
         fn get_event_type_id() -> dep::aztec::protocol_types::abis::event_selector::EventSelector {{
-           dep::aztec::protocol_types::abis::event_selector::EventSelector::from_signature(\"{event_type}({from_signature_input})\")
+           comptime {{ dep::aztec::protocol_types::abis::event_selector::EventSelector::from_signature(\"{event_type}({from_signature_input})\") }}
     }}
     ",
     )

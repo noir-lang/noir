@@ -341,7 +341,9 @@ contract AvmTest {
     #[aztec(public)]
     fn check_selector() {
         assert(
-            context.selector() == FunctionSelector::from_signature("check_selector()"), "Unexpected selector!"
+            context.selector() == comptime {
+                FunctionSelector::from_signature("check_selector()")
+            }, "Unexpected selector!"
         );
     }
 

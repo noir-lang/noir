@@ -64,7 +64,9 @@ contract Parent {
         target_contract: AztecAddress,
         target_selector: FunctionSelector
     ) {
-        let enqueue_call_to_child_selector = FunctionSelector::from_signature("enqueue_call_to_child((Field),(u32),Field)");
+        let enqueue_call_to_child_selector = comptime {
+            FunctionSelector::from_signature("enqueue_call_to_child((Field),(u32),Field)")
+        };
         let _ret = context.call_private_function(
             context.this_address(),
             enqueue_call_to_child_selector,
@@ -82,7 +84,9 @@ contract Parent {
         target_selector: FunctionSelector
     ) {
         context.call_public_function(target_contract, target_selector, [20]);
-        let enqueue_call_to_child_selector = FunctionSelector::from_signature("enqueue_call_to_child((Field),(u32),Field)");
+        let enqueue_call_to_child_selector = comptime {
+            FunctionSelector::from_signature("enqueue_call_to_child((Field),(u32),Field)")
+        };
         let _ret = context.call_private_function(
             context.this_address(),
             enqueue_call_to_child_selector,
@@ -110,7 +114,9 @@ contract Parent {
         target_selector: FunctionSelector,
         target_value: Field
     ) {
-        let pub_entry_point_selector = FunctionSelector::from_signature("pub_entry_point((Field),(u32),Field)");
+        let pub_entry_point_selector = comptime {
+            FunctionSelector::from_signature("pub_entry_point((Field),(u32),Field)")
+        };
         let this_address = context.this_address();
         let _void = context.call_public_function(
             this_address,
@@ -126,7 +132,9 @@ contract Parent {
         target_selector: FunctionSelector,
         target_value: Field
     ) {
-        let pub_entry_point_selector = FunctionSelector::from_signature("pub_entry_point((Field),(u32),Field)");
+        let pub_entry_point_selector = comptime {
+            FunctionSelector::from_signature("pub_entry_point((Field),(u32),Field)")
+        };
         let this_address = context.this_address();
 
         context.call_public_function(
@@ -265,7 +273,9 @@ contract Parent {
         let value_to_set = 7;
         let parent_private_set_call_interface = Parent::interface().private_call(
             child_contract_address,
-            FunctionSelector::from_signature("private_set_value(Field,(Field))"),
+            comptime {
+            FunctionSelector::from_signature("private_set_value(Field,(Field))")
+        },
             [value_to_set, owner.to_field()]
         );
         let result: Field = env.call_private(parent_private_set_call_interface);
@@ -282,7 +292,9 @@ contract Parent {
         // Get value from child through parent
         let parent_private_get_call_interface = Parent::interface().private_call(
             child_contract_address,
-            FunctionSelector::from_signature("private_get_value(Field,(Field))"),
+            comptime {
+            FunctionSelector::from_signature("private_get_value(Field,(Field))")
+        },
             [7, owner.to_field()]
         );
         let read_result: Field = env.call_private(parent_private_get_call_interface);

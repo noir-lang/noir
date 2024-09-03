@@ -177,7 +177,7 @@ mod test {
 
     impl EventInterface<TEST_EVENT_BYTES_LEN, TEST_EVENT_BYTES_LEN_WITHOUT_RANDOMNESS> for TestEvent {
         fn get_event_type_id() -> EventSelector {
-            EventSelector::from_signature("TestEvent(Field,Field,Field)")
+            comptime { EventSelector::from_signature("TestEvent(Field,Field,Field)") }
         }
 
         fn private_to_be_bytes(self, randomness: Field) -> [u8; TEST_EVENT_BYTES_LEN] {
