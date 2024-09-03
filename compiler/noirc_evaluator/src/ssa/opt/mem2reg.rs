@@ -211,7 +211,6 @@ impl<'f> PerFunctionContext<'f> {
 
         for instruction in instructions {
             self.analyze_instruction(block, &mut references, instruction);
-            self.track_rc_reload_state(instruction);
         }
 
         self.handle_terminator(block, &mut references);
@@ -366,18 +365,23 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Call { arguments, .. } => self.mark_all_unknown(arguments, references),
             _ => (),
         }
+
+        self.track_rc_reload_state(instruction);
     }
 
     /// Update the `inside_rc_reload` context variable.
-    /// This method should always be called after `analyze_instruction`.
+    /// To maintain the same value ids, we must run this method inside `analyze_instruction` so that
+    /// we operate on the newly pushed instruction id.
+    /// This method should also always come after running analysis on the new instruction.
     fn track_rc_reload_state(&mut self, instruction: InstructionId) {
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { .. } => {
+                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                // let result = self.inserter.function.dfg.resolve(result);
                 if self.inside_rc_reload.is_some() {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inside_rc_reload = Some((result, true));
                 } else {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    // let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inside_rc_reload = Some((result, false));
                 }
             }
