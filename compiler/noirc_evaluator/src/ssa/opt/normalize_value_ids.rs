@@ -5,7 +5,8 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
         map::SparseMap,
-        value::{Value, ValueId}, post_order::PostOrder,
+        post_order::PostOrder,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -34,18 +35,23 @@ impl Ssa {
 struct Context {
     functions: SparseMap<Function>,
 
+    new_ids: IdMaps,
+}
+
+/// Maps from old ids to new ones.
+/// Separate from the rest of Context so we can call mutable methods on it
+/// while Context gives out mutable references to functions within.
+#[derive(Default)]
+struct IdMaps {
     // Maps old function id -> new function id
     function_ids: HashMap<FunctionId, FunctionId>,
 
-    per_function_context: PerFunctionContext,
-}
-
-#[derive(Default)]
-struct PerFunctionContext {
     // Maps old block id -> new block id
+    // Cleared in between each function.
     blocks: HashMap<BasicBlockId, BasicBlockId>,
 
     // Maps old value id -> new value id
+    // Cleared in between each function.
     values: HashMap<ValueId, ValueId>,
 }
 
@@ -53,36 +59,32 @@ impl Context {
     fn populate_functions(&mut self, functions: &BTreeMap<FunctionId, Function>) {
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
-                self.function_ids.insert(*id, new_id);
-                Function::new(function.name().to_string(), new_id)
+                self.new_ids.function_ids.insert(*id, new_id);
+                Function::clone_signature(new_id, function)
             });
         }
     }
 
     fn normalize_ids(&mut self, old_function: &mut Function) {
-        self.per_function_context.clear();
+        self.new_ids.blocks.clear();
+        self.new_ids.values.clear();
 
-        eprintln!("Working on function:\n{old_function}");
-
-        let new_function_id = self.function_ids[&old_function.id()];
+        let new_function_id = self.new_ids.function_ids[&old_function.id()];
         let new_function = &mut self.functions[new_function_id];
 
         let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
         reachable_blocks.reverse();
 
-        let old_entry = old_function.entry_block();
-        self.per_function_context.populate_blocks(&reachable_blocks, old_entry, old_function, new_function);
+        self.new_ids.populate_blocks(&reachable_blocks, old_function, new_function);
 
         // Map each parameter, instruction, and terminator
         for old_block_id in reachable_blocks {
-            let new_block_id = self.per_function_context.blocks[&old_block_id];
-            eprintln!("On block {old_block_id}");
+            let new_block_id = self.new_ids.blocks[&old_block_id];
 
             let old_block = &mut old_function.dfg[old_block_id];
             for old_instruction_id in old_block.take_instructions() {
-                let instruction = old_function.dfg[old_instruction_id].map_values(|value| {
-                    self.per_function_context.map_value(new_function, old_function, value)
-                });
+                let instruction = old_function.dfg[old_instruction_id]
+                    .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
 
                 let call_stack = old_function.dfg.get_call_stack(old_instruction_id);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
@@ -102,36 +104,32 @@ impl Context {
                 for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
                 {
                     let old_result = old_function.dfg.resolve(*old_result);
-                    self.per_function_context.values.insert(old_result, *new_result);
+                    self.new_ids.values.insert(old_result, *new_result);
                 }
             }
 
             let old_block = &mut old_function.dfg[old_block_id];
-            let terminator = old_block.take_terminator().map_values(|value| {
-                self.per_function_context.map_value(new_function, old_function, value)
-            });
+            let mut terminator = old_block
+                .take_terminator()
+                .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
+            terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }
     }
 }
 
-impl PerFunctionContext {
-    fn clear(&mut self) {
-        self.blocks.clear();
-        self.values.clear();
-    }
-
+impl IdMaps {
     fn populate_blocks(
         &mut self,
         reachable_blocks: &[BasicBlockId],
-        entry: BasicBlockId,
         old_function: &mut Function,
         new_function: &mut Function,
     ) {
-        self.blocks.insert(entry, new_function.entry_block());
+        let old_entry = old_function.entry_block();
+        self.blocks.insert(old_entry, new_function.entry_block());
 
         for old_id in reachable_blocks {
-            if *old_id != entry {
+            if *old_id != old_entry {
                 let new_id = new_function.dfg.make_block();
                 self.blocks.insert(*old_id, new_id);
             }
@@ -168,7 +166,10 @@ impl PerFunctionContext {
                 })
             }
 
-            Value::Function(id) => new_function.dfg.import_function(*id),
+            Value::Function(id) => {
+                let new_id = self.function_ids[id];
+                new_function.dfg.import_function(new_id)
+            }
 
             Value::NumericConstant { constant, typ } => {
                 new_function.dfg.make_constant(*constant, typ.clone())

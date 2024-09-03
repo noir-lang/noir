@@ -54,7 +54,6 @@ impl Ssa {
     }
 
     fn inline_functions_inner(mut self, inline_no_predicates_functions: bool) -> Ssa {
-        let inline_no_predicates_functions = true;
         let recursive_functions = find_all_recursive_functions(&self);
         self.functions = btree_map(
             get_functions_to_inline_into(&self, inline_no_predicates_functions),
@@ -344,7 +343,6 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
             value @ Value::Param { .. } => {
-                eprintln!("Source function: {}, {}", self.source_function.id(), self.source_function.name());
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
