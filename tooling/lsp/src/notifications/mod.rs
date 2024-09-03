@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::ops::ControlFlow;
+use std::path::PathBuf;
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
@@ -162,7 +163,7 @@ pub(crate) fn process_workspace_for_noir_document(
         let files = fm.as_file_map();
 
         if output_diagnostics {
-            publish_diagnostics(state, package_root_dir, files, fm, file_diagnostics);
+            publish_diagnostics(state, &package.root_dir, files, fm, file_diagnostics);
         }
     }
 
@@ -171,7 +172,7 @@ pub(crate) fn process_workspace_for_noir_document(
 
 fn publish_diagnostics(
     state: &mut LspState,
-    package_root_dir: String,
+    package_root_dir: &PathBuf,
     files: &FileMap,
     fm: &FileManager,
     file_diagnostics: Vec<FileDiagnostic>,
@@ -199,7 +200,7 @@ fn publish_diagnostics(
     }
 
     // For files that previously had errors but no longer have errors we still need to publish empty diagnostics
-    if let Some(old_files_with_errors) = state.files_with_errors.get(&package_root_dir) {
+    if let Some(old_files_with_errors) = state.files_with_errors.get(package_root_dir) {
         for uri in old_files_with_errors.difference(&new_files_with_errors) {
             let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
                 uri: uri.clone(),
@@ -210,7 +211,7 @@ fn publish_diagnostics(
     }
 
     // Remember which files currently have errors, for next time
-    state.files_with_errors.insert(package_root_dir, new_files_with_errors);
+    state.files_with_errors.insert(package_root_dir.clone(), new_files_with_errors);
 }
 
 fn file_diagnostic_to_diagnostic(file_diagnostic: FileDiagnostic, files: &FileMap) -> Diagnostic {

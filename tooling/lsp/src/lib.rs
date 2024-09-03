@@ -97,7 +97,7 @@ pub struct LspState {
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
-    files_with_errors: HashMap<String, HashSet<Url>>,
+    files_with_errors: HashMap<PathBuf, HashSet<Url>>,
 }
 
 impl LspState {
