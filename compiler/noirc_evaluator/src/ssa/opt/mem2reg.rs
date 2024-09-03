@@ -66,7 +66,7 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -117,6 +117,9 @@ struct PerFunctionContext<'f> {
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, InstructionId>,
+
+    /// Track whether a load result was used across all blocks.
+    load_results: HashMap<ValueId, (bool, InstructionId)>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -131,6 +134,7 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),
             last_loads: HashMap::default(),
+            load_results: HashMap::default(),
         }
     }
 
@@ -148,13 +152,29 @@ impl<'f> PerFunctionContext<'f> {
             self.analyze_block(block, references);
         }
 
+        let mut load_result_unused = HashSet::default();
+        for (_, (not_used_flag, load_instruction)) in self.load_results.iter() {
+            if *not_used_flag {
+                let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+                else {
+                    panic!("Should only have a load instruction here");
+                };
+                load_result_unused.insert(address);
+
+                self.instructions_to_remove.insert(*load_instruction);
+            }
+        }
+
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (block_id, block) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             for (value, store_instruction) in block.last_stores.iter() {
                 let is_reference_param = block_params.contains(value);
-                if self.last_loads.get(value).is_none() && !is_reference_param {
+                let last_load_removed = load_result_unused.get(&value).is_some();
+                let last_load_nonexistent =
+                    self.last_loads.get(value).is_none() || last_load_removed;
+                if last_load_nonexistent && !is_reference_param {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
@@ -244,6 +264,12 @@ impl<'f> PerFunctionContext<'f> {
             return;
         }
 
+        self.inserter.function.dfg[instruction].for_each_value(|value| {
+            if let Some((not_used_flag, _)) = self.load_results.get_mut(&value) {
+                *not_used_flag = false;
+            }
+        });
+
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
                 let address = self.inserter.function.dfg.resolve(*address);
@@ -263,6 +289,8 @@ impl<'f> PerFunctionContext<'f> {
                     references.set_known_value(result, address);
 
                     self.last_loads.insert(address, instruction);
+                    // Assume that the load result is unused
+                    self.load_results.insert(result, (true, instruction));
                 }
             }
             Instruction::Store { address, value, from_rc } => {
