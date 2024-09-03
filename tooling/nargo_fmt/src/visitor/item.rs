@@ -232,7 +232,8 @@ impl super::FmtVisitor<'_> {
                 | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)
                 | ItemKind::Global(_)
-                | ItemKind::ModuleDecl(_) => {
+                | ItemKind::ModuleDecl(_)
+                | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);
                     self.last_position = span.end();
                 }

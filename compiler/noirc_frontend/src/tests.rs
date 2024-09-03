@@ -28,7 +28,8 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
 use crate::monomorphization::monomorphize;
-use crate::parser::ParserErrorReason;
+use crate::parser::{ItemKind, ParserErrorReason};
+use crate::token::SecondaryAttribute;
 use crate::ParsedModule;
 use crate::{
     hir::def_map::{CrateDefMap, LocalModuleId},
@@ -64,6 +65,18 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     remove_experimental_warnings(&mut errors);
 
     if !has_parser_error(&errors) {
+        let inner_attributes: Vec<SecondaryAttribute> = program
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let ItemKind::InnerAttribute(attribute) = &item.kind {
+                    Some(attribute.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
@@ -71,7 +84,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             None,
             location,
             Vec::new(),
-            program.inner_attributes.clone(),
+            inner_attributes.clone(),
             false,
         ));
 

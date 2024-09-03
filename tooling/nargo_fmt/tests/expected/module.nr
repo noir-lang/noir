@@ -1,5 +1,6 @@
 #![inner]
 #![inner2]
+
 mod a {
     mod b {
         struct Data {
@@ -27,4 +28,8 @@ mod a {
 
     #[attr]
     mod baz;
+
+    mod empty {
+        #![inner]
+    }
 }

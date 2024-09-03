@@ -339,7 +339,8 @@ impl<'context> Elaborator<'context> {
             | TopLevelStatement::Trait(_)
             | TopLevelStatement::Impl(_)
             | TopLevelStatement::TypeAlias(_)
-            | TopLevelStatement::SubModule(_) => {
+            | TopLevelStatement::SubModule(_)
+            | TopLevelStatement::InnerAttribute(_) => {
                 let item = item.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());

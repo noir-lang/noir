@@ -41,6 +41,7 @@ pub enum TopLevelStatement {
     TypeAlias(NoirTypeAlias),
     SubModule(ParsedSubModule),
     Global(LetStatement),
+    InnerAttribute(SecondaryAttribute),
     Error,
 }
 
@@ -57,6 +58,7 @@ impl TopLevelStatement {
             TopLevelStatement::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
             TopLevelStatement::SubModule(s) => Some(ItemKind::Submodules(s)),
             TopLevelStatement::Global(c) => Some(ItemKind::Global(c)),
+            TopLevelStatement::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
             TopLevelStatement::Error => None,
         }
     }
@@ -293,7 +295,6 @@ impl std::fmt::Display for SortedModule {
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
-    pub inner_attributes: Vec<SecondaryAttribute>,
 }
 
 impl ParsedModule {
@@ -312,10 +313,10 @@ impl ParsedModule {
                 ItemKind::Global(global) => module.push_global(global),
                 ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
                 ItemKind::Submodules(submodule) => module.push_submodule(submodule.into_sorted()),
+                ItemKind::InnerAttribute(attribute) => module.inner_attributes.push(attribute),
             }
         }
 
-        module.inner_attributes = self.inner_attributes;
         module
     }
 }
@@ -338,6 +339,7 @@ pub enum ItemKind {
     Global(LetStatement),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
+    InnerAttribute(SecondaryAttribute),
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
@@ -519,6 +521,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::TypeAlias(t) => t.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),
             TopLevelStatement::Global(c) => c.fmt(f),
+            TopLevelStatement::InnerAttribute(a) => write!(f, "#![{}]", a),
             TopLevelStatement::Error => write!(f, "error"),
         }
     }

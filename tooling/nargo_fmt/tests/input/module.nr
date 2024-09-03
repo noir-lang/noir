@@ -28,4 +28,8 @@ mod a {
 
     #[attr]
     mod baz;
+
+    mod empty {
+        #![inner]
+    }
 }

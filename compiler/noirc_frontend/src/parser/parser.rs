@@ -26,7 +26,7 @@
 use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
-use attributes::{attributes, inner_attributes, validate_secondary_attributes};
+use attributes::{attributes, inner_attribute, validate_secondary_attributes};
 pub use types::parse_type;
 use visibility::visibility_modifier;
 
@@ -176,20 +176,13 @@ fn program() -> impl NoirParser<ParsedModule> {
 ///       | %empty
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
-        inner_attributes()
-            .then(
-                empty()
-                    .to(ParsedModule::default())
-                    .then(spanned(top_level_statement(module_parser)).repeated())
-                    .foldl(|mut program, (statement, span)| {
-                        if let Some(kind) = statement.into_item_kind() {
-                            program.items.push(Item { kind, span });
-                        }
-                        program
-                    }),
-            )
-            .map(|(attributes, mut program)| {
-                program.inner_attributes = attributes;
+        empty()
+            .to(ParsedModule::default())
+            .then(spanned(top_level_statement(module_parser)).repeated())
+            .foldl(|mut program, (statement, span)| {
+                if let Some(kind) = statement.into_item_kind() {
+                    program.items.push(Item { kind, span });
+                }
                 program
             })
     })
@@ -223,6 +216,7 @@ fn top_level_statement<'a>(
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
         global_declaration().then_ignore(force(just(Token::Semicolon))),
+        inner_attribute().map(TopLevelStatement::InnerAttribute),
     ))
     .recover_via(top_level_statement_recovery())
 }
