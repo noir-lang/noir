@@ -1362,7 +1362,7 @@ fn ban_mutable_globals() {
 fn deny_inline_attribute_on_unconstrained() {
     let src = r#"
         #[no_predicates]
-        unconstrained fn foo(x: Field, y: Field) {
+        unconstrained pub fn foo(x: Field, y: Field) {
             assert(x != y);
         }
     "#;
@@ -1603,7 +1603,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
 #[test]
 fn bool_generic_as_loop_bound() {
     let src = r#"
-    fn read<let N: bool>() {
+    pub fn read<let N: bool>() {
         let mut fields = [0; N];
         for i in 0..N {
             fields[i] = i + 1;
@@ -1675,7 +1675,7 @@ fn normal_generic_as_array_length() {
 #[test]
 fn numeric_generic_as_param_type() {
     let src = r#"
-    fn foo<let I: Field>(x: I) -> I {
+    pub fn foo<let I: Field>(x: I) -> I {
         let _q: I = 5;
         x
     }
@@ -1814,7 +1814,7 @@ fn numeric_generic_used_in_where_clause() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
 
-    fn read<T, let N: u32>() -> T where T: Deserialize<N> {
+    pub fn read<T, let N: u32>() -> T where T: Deserialize<N> {
         let mut fields: [Field; N] = [0; N];
         for i in 0..N {
             fields[i] = i as Field + 1;
@@ -1828,12 +1828,12 @@ fn numeric_generic_used_in_where_clause() {
 #[test]
 fn numeric_generic_used_in_turbofish() {
     let src = r#"
-    fn double<let N: u32>() -> u32 {
+    pub fn double<let N: u32>() -> u32 {
         // Used as an expression
         N * 2
     }
 
-    fn double_numeric_generics_test() {
+    pub fn double_numeric_generics_test() {
         // Example usage of a numeric generic arguments.
         assert(double::<9>() == 18);
         assert(double::<7 + 8>() == 30);
@@ -2736,7 +2736,7 @@ fn trait_constraint_on_tuple_type() {
             fn foo(self, x: A) -> bool;
         }
 
-        fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
             x.foo(y)
         }
 
@@ -3280,7 +3280,7 @@ fn warns_on_use_of_private_exported_item() {
 
         use bar::baz;
 
-        fn qux() {
+        pub fn qux() {
             baz();
         }
     }
