@@ -11,7 +11,7 @@ import {
   TxStatus,
   sleep,
 } from '@aztec/aztec.js';
-import { EthAddress } from '@aztec/circuits.js';
+import { ETHEREUM_SLOT_DURATION, EthAddress } from '@aztec/circuits.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { type BootstrapNode } from '@aztec/p2p';
 import { type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
@@ -60,7 +60,12 @@ describe('e2e_p2p_network', () => {
 
     const initialValidators = [EthAddress.fromString(account.address)];
 
-    ({ teardown, config, logger, deployL1ContractsValues } = await setup(0, { initialValidators, ...options }));
+    ({ teardown, config, logger, deployL1ContractsValues } = await setup(0, {
+      initialValidators,
+      l1BlockTime: ETHEREUM_SLOT_DURATION,
+      salt: 420,
+      ...options,
+    }));
 
     bootstrapNode = await createBootstrapNode(BOOT_NODE_UDP_PORT);
     bootstrapNodeEnr = bootstrapNode.getENR().encodeTxt();
@@ -77,7 +82,14 @@ describe('e2e_p2p_network', () => {
     for (let i = 0; i < NUM_NODES; i++) {
       const account = privateKeyToAccount(`0x${getPrivateKeyFromIndex(i + 1)!.toString('hex')}`);
       await rollup.write.addValidator([account.address]);
+      logger.debug(`Adding ${account.address} as validator`);
     }
+
+    // Remove the initial sequencer from the set! This was the sequencer we used for perform the setup.
+    logger.debug(`Removing ${account.address} as validator`);
+    const txHash = await rollup.write.removeValidator([account.address]);
+
+    await deployL1ContractsValues.publicClient.waitForTransactionReceipt({ hash: txHash });
 
     //@note   Now we jump ahead to the next epoch such that the validator committee is picked
     //        INTERVAL MINING: If we are using anvil interval mining this will NOT progress the time!
@@ -85,7 +97,16 @@ describe('e2e_p2p_network', () => {
     const slotsInEpoch = await rollup.read.EPOCH_DURATION();
     const timestamp = await rollup.read.getTimestampForSlot([slotsInEpoch]);
     const cheatCodes = new EthCheatCodes(config.l1RpcUrl);
-    await cheatCodes.warp(Number(timestamp));
+    try {
+      await cheatCodes.warp(Number(timestamp));
+    } catch (err) {
+      logger.debug('Warp failed, time already satisfied');
+    }
+
+    // Send and await a tx to make sure we mine a block for the warp to correctly progress.
+    await deployL1ContractsValues.publicClient.waitForTransactionReceipt({
+      hash: await deployL1ContractsValues.walletClient.sendTransaction({ to: account.address, value: 1n, account }),
+    });
   });
 
   afterEach(() => teardown());

@@ -137,6 +137,7 @@ global ETHEREUM_SLOT_DURATION: u32 = 12;
 // AZTEC_SLOT_DURATION should be a multiple of ETHEREUM_SLOT_DURATION
 global AZTEC_SLOT_DURATION: u32 = ETHEREUM_SLOT_DURATION * 1;
 global AZTEC_EPOCH_DURATION: u32 = 48;
+global AZTEC_TARGET_COMMITTEE_SIZE: u32 = 48;
 // The following is taken from building a block and looking at the `lastArchive` value in it.
 // You can run the `integration_l1_publisher.test.ts` and look at the first blocks in the fixtures.
 global GENESIS_ARCHIVE_ROOT: Field = 0x1200a06aae1368abe36530b585bd7a4d2ba4de5037b82076412691a187d7621e;

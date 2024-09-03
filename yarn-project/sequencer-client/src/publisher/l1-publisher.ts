@@ -88,13 +88,6 @@ export type L1SubmitProofArgs = {
   aggregationObject: Buffer;
 };
 
-export type MetadataForSlot = {
-  proposer: EthAddress;
-  slot: bigint;
-  pendingBlockNumber: bigint;
-  archive: Buffer;
-};
-
 /**
  * Publishes L2 blocks to L1. This implementation does *not* retry a transaction in
  * the event of network congestion, but should work for local development.
@@ -176,11 +169,7 @@ export class L1Publisher {
    */
   public async canProposeAtNextEthBlock(archive: Buffer): Promise<[bigint, bigint]> {
     const ts = BigInt((await this.publicClient.getBlock()).timestamp + BigInt(ETHEREUM_SLOT_DURATION));
-    const [slot, blockNumber] = await this.rollupContract.read.canProposeAtTime([
-      ts,
-      this.account.address,
-      `0x${archive.toString('hex')}`,
-    ]);
+    const [slot, blockNumber] = await this.rollupContract.read.canProposeAtTime([ts, `0x${archive.toString('hex')}`]);
     return [slot, blockNumber];
   }
 
@@ -225,26 +214,6 @@ export class L1Publisher {
       }
       throw error;
     }
-  }
-
-  // @note Assumes that all ethereum slots have blocks
-  // Using next Ethereum block so we do NOT need to wait for it being mined before seeing the effect
-  public async getMetadataForSlotAtNextEthBlock(): Promise<MetadataForSlot> {
-    const ts = BigInt((await this.publicClient.getBlock()).timestamp + BigInt(ETHEREUM_SLOT_DURATION));
-
-    const [submitter, slot, pendingBlockCount, archive] = await Promise.all([
-      this.rollupContract.read.getProposerAt([ts]),
-      this.rollupContract.read.getSlotAt([ts]),
-      this.rollupContract.read.pendingBlockCount(),
-      this.rollupContract.read.archive(),
-    ]);
-
-    return {
-      proposer: EthAddress.fromString(submitter),
-      slot,
-      pendingBlockNumber: pendingBlockCount - 1n,
-      archive: Buffer.from(archive.replace('0x', ''), 'hex'),
-    };
   }
 
   public async getCurrentEpochCommittee(): Promise<EthAddress[]> {
