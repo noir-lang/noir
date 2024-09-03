@@ -1,26 +1,22 @@
-use std::collections::HashSet;
-
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::{ast::Ident, hir::def_map::ModuleId};
+use crate::{ast::Ident, hir::def_map::ModuleId, macros_api::ModuleDefId};
 
 #[derive(Debug, Default)]
 pub struct UsageTracker {
-    /// List of all unused imports in each module. Each time something is imported it's added
-    /// to the module's set. When it's used, it's removed. At the end of the program only unused imports remain.
-    unused_imports: HashMap<ModuleId, HashSet<Ident>>,
+    unused_items: HashMap<ModuleId, HashMap<Ident, ModuleDefId>>,
 }
 
 impl UsageTracker {
-    pub(crate) fn add_unused_import(&mut self, module_id: ModuleId, name: Ident) {
-        self.unused_imports.entry(module_id).or_default().insert(name);
+    pub(crate) fn add_unused_item(&mut self, module_id: ModuleId, name: Ident, item: ModuleDefId) {
+        self.unused_items.entry(module_id).or_default().insert(name, item);
     }
 
     pub(crate) fn mark_as_used(&mut self, current_mod_id: ModuleId, name: &Ident) {
-        self.unused_imports.entry(current_mod_id).or_default().remove(name);
+        self.unused_items.entry(current_mod_id).or_default().remove(name);
     }
 
-    pub(crate) fn unused_imports(&self) -> &HashMap<ModuleId, HashSet<Ident>> {
-        &self.unused_imports
+    pub(crate) fn unused_items(&self) -> &HashMap<ModuleId, HashMap<Ident, ModuleDefId>> {
+        &self.unused_items
     }
 }

@@ -12,7 +12,7 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::{Expression, MacroError, MacroProcessor};
+use crate::macros_api::{Expression, MacroError, MacroProcessor, ModuleDefId};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
@@ -397,10 +397,11 @@ impl DefCollector {
                                 local_id: resolved_import.module_scope,
                             };
 
-                            context
-                                .def_interner
-                                .usage_tracker
-                                .add_unused_import(module_id, name.clone());
+                            context.def_interner.usage_tracker.add_unused_item(
+                                module_id,
+                                name.clone(),
+                                module_def_id,
+                            );
                         }
 
                         if visibility != ItemVisibility::Private {
@@ -488,17 +489,31 @@ impl DefCollector {
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        let unused_imports = context.def_interner.usage_tracker.unused_imports().iter();
+        let unused_imports = context.def_interner.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
             let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
-            usage_tracker.iter().map(|ident| {
+            usage_tracker.iter().map(|(ident, id)| {
                 let ident = ident.clone();
-                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                let error = CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident,
+                    item_type: item_type(*id).to_string(),
+                });
                 (error, module.location.file)
             })
         }));
+    }
+}
+
+fn item_type(id: ModuleDefId) -> &'static str {
+    match id {
+        ModuleDefId::ModuleId(_) => "module",
+        ModuleDefId::FunctionId(_) => "function",
+        ModuleDefId::TypeId(_) => "struct",
+        ModuleDefId::TypeAliasId(_) => "type alias",
+        ModuleDefId::TraitId(_) => "trait",
+        ModuleDefId::GlobalId(_) => "global",
     }
 }
 

@@ -3224,12 +3224,14 @@ fn errors_on_unused_private_import() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
     else {
         panic!("Expected an unused import error");
     };
 
     assert_eq!(ident.to_string(), "bar");
+    assert_eq!(item_type, "import");
 }
 
 #[test]
@@ -3258,12 +3260,14 @@ fn errors_on_unused_pub_crate_import() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
     else {
         panic!("Expected an unused import error");
     };
 
     assert_eq!(ident.to_string(), "bar");
+    assert_eq!(item_type, "import");
 }
 
 #[test]
