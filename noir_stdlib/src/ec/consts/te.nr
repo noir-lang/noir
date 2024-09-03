@@ -1,4 +1,3 @@
-use crate::compat;
 use crate::ec::tecurve::affine::Point as TEPoint;
 use crate::ec::tecurve::affine::Curve as TECurve;
 

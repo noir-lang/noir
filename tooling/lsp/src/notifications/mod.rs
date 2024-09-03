@@ -2,7 +2,8 @@ use std::ops::ControlFlow;
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use noirc_driver::{check_crate, file_manager_with_stdlib, CheckOptions};
+use lsp_types::DiagnosticTag;
+use noirc_driver::{check_crate, file_manager_with_stdlib};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
 use crate::types::{
@@ -132,11 +133,7 @@ pub(crate) fn process_workspace_for_noir_document(
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let options = CheckOptions {
-                error_on_unused_imports: package.error_on_unused_imports(),
-                ..Default::default()
-            };
-            let file_diagnostics = match check_crate(&mut context, crate_id, &options) {
+            let file_diagnostics = match check_crate(&mut context, crate_id, &Default::default()) {
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
@@ -189,10 +186,20 @@ pub(crate) fn process_workspace_for_noir_document(
                             DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
                             DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
                         };
+
+                        let mut tags = Vec::new();
+                        if diagnostic.unnecessary {
+                            tags.push(DiagnosticTag::UNNECESSARY);
+                        }
+                        if diagnostic.deprecated {
+                            tags.push(DiagnosticTag::DEPRECATED);
+                        }
+
                         Some(Diagnostic {
                             range,
                             severity: Some(severity),
                             message: diagnostic.message,
+                            tags: if tags.is_empty() { None } else { Some(tags) },
                             ..Default::default()
                         })
                     })

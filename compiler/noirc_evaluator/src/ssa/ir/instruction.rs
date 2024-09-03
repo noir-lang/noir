@@ -468,12 +468,10 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error {
-                    ConstrainError::UserDefined(selector, payload_values) => {
-                        ConstrainError::UserDefined(
-                            *selector,
-                            payload_values.iter().map(|&value| f(value)).collect(),
-                        )
-                    }
+                    ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
+                        *selector,
+                        payload_values.iter().map(|&value| f(value)).collect(),
+                    ),
                     _ => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
@@ -541,7 +539,7 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
-                if let Some(ConstrainError::UserDefined(_, values)) = assert_error.as_ref() {
+                if let Some(ConstrainError::Dynamic(_, values)) = assert_error.as_ref() {
                     values.iter().for_each(|&val| {
                         f(val);
                     });
@@ -836,15 +834,15 @@ pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum ConstrainError {
-    // These are errors which have been hardcoded during SSA gen
-    Intrinsic(String),
-    // These are errors issued by the user
-    UserDefined(ErrorSelector, Vec<ValueId>),
+    // Static string errors are not handled inside the program as data for efficiency reasons.
+    StaticString(String),
+    // These errors are handled by the program as data.
+    Dynamic(ErrorSelector, Vec<ValueId>),
 }
 
 impl From<String> for ConstrainError {
     fn from(value: String) -> Self {
-        ConstrainError::Intrinsic(value)
+        ConstrainError::StaticString(value)
     }
 }
 

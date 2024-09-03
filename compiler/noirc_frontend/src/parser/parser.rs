@@ -27,6 +27,7 @@ use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
 pub use types::parse_type;
+use visibility::visibility_modifier;
 
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
@@ -64,6 +65,7 @@ mod primitives;
 mod structs;
 pub(super) mod traits;
 mod types;
+mod visibility;
 
 // synthesized by LALRPOP
 lalrpop_mod!(pub noir_parser);
@@ -95,7 +97,7 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
         for parsed_item in &parsed_module.items {
             if lalrpop_parser_supports_kind(&parsed_item.kind) {
                 match &parsed_item.kind {
-                    ItemKind::Import(parsed_use_tree) => {
+                    ItemKind::Import(parsed_use_tree, _visibility) => {
                         prototype_parse_use_tree(Some(parsed_use_tree), source_program);
                     }
                     // other kinds prevented by lalrpop_parser_supports_kind
@@ -139,7 +141,7 @@ fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str
         );
 
         match calculated.unwrap() {
-            TopLevelStatement::Import(parsed_use_tree) => {
+            TopLevelStatement::Import(parsed_use_tree, _visibility) => {
                 assert_eq!(expected_use_tree, &parsed_use_tree);
             }
             unexpected_calculated => {
@@ -161,7 +163,7 @@ fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str
 }
 
 fn lalrpop_parser_supports_kind(kind: &ItemKind) -> bool {
-    matches!(kind, ItemKind::Import(_))
+    matches!(kind, ItemKind::Import(..))
 }
 
 /// program: module EOF
@@ -438,7 +440,10 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
+    visibility_modifier()
+        .then_ignore(keyword(Keyword::Use))
+        .then(use_tree())
+        .map(|(visibility, use_tree)| TopLevelStatement::Import(use_tree, visibility))
 }
 
 fn rename() -> impl NoirParser<Option<Ident>> {
@@ -574,7 +579,8 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let_statement(expr_parser).map(StatementKind::new_let)
+    let_statement(expr_parser)
+        .map(|((pattern, typ), expr)| StatementKind::new_let(pattern, typ, expr))
 }
 
 pub fn pattern() -> impl NoirParser<Pattern> {
@@ -1555,7 +1561,7 @@ mod test {
                     parse_recover(&use_statement(), &use_statement_str);
                 use_statement_str.push(';');
                 match result_opt.unwrap() {
-                    TopLevelStatement::Import(expected_use_statement) => {
+                    TopLevelStatement::Import(expected_use_statement, _visibility) => {
                         Some(expected_use_statement)
                     }
                     _ => unreachable!(),

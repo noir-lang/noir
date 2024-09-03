@@ -1,5 +1,4 @@
 use crate::cmp::Eq;
-use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
