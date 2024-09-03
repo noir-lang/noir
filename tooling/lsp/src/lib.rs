@@ -91,9 +91,9 @@ pub struct LspState {
     open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
-    cached_definitions: HashMap<String, NodeInterner>,
+    cached_definitions: HashMap<PathBuf, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    cached_def_maps: HashMap<String, BTreeMap<CrateId, CrateDefMap>>,
+    cached_def_maps: HashMap<PathBuf, BTreeMap<CrateId, CrateDefMap>>,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.

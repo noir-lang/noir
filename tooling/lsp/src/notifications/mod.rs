@@ -130,8 +130,6 @@ pub(crate) fn process_workspace_for_noir_document(
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     for package in workspace.into_iter() {
-        let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
-
         let (mut context, crate_id) =
             crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
@@ -156,8 +154,8 @@ pub(crate) fn process_workspace_for_noir_document(
             Some(&file_path),
         );
         state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
-        state.cached_definitions.insert(package_root_dir.clone(), context.def_interner);
-        state.cached_def_maps.insert(package_root_dir.clone(), context.def_maps);
+        state.cached_definitions.insert(package.root_dir.clone(), context.def_interner);
+        state.cached_def_maps.insert(package.root_dir.clone(), context.def_maps);
 
         let fm = &context.file_manager;
         let files = fm.as_file_map();
