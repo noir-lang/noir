@@ -54,6 +54,8 @@ pub enum RuntimeError {
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
     #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
     UnknownReference { call_stack: CallStack },
+    #[error("Assertion is false")]
+    AssertFailed { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,6 +159,7 @@ impl RuntimeError {
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
+            | RuntimeError::AssertFailed { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,
         }
     }
