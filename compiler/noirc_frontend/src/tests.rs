@@ -3231,7 +3231,7 @@ fn errors_on_unused_private_import() {
     };
 
     assert_eq!(ident.to_string(), "bar");
-    assert_eq!(item_type, "import");
+    assert_eq!(*item_type, "import");
 }
 
 #[test]
@@ -3267,7 +3267,7 @@ fn errors_on_unused_pub_crate_import() {
     };
 
     assert_eq!(ident.to_string(), "bar");
-    assert_eq!(item_type, "import");
+    assert_eq!(*item_type, "import");
 }
 
 #[test]
@@ -3366,5 +3366,5 @@ fn errors_on_unused_function() {
     };
 
     assert_eq!(ident.to_string(), "foo");
-    assert_eq!(item_type, "function");
+    assert_eq!(*item_type, "function");
 }

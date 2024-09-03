@@ -497,7 +497,7 @@ impl DefCollector {
                 let ident = ident.clone();
                 let error = CompilationError::ResolverError(ResolverError::UnusedItem {
                     ident,
-                    item_type: unused_item.item_type().to_string(),
+                    item_type: unused_item.item_type(),
                 });
                 (error, module.location.file)
             })

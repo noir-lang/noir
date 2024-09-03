@@ -21,7 +21,7 @@ pub enum ResolverError {
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
     #[error("Unused {item_type}")]
-    UnusedItem { ident: Ident, item_type: String },
+    UnusedItem { ident: Ident, item_type: &'static str },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
