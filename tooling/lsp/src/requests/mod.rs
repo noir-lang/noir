@@ -10,7 +10,7 @@ use crate::{
 use async_lsp::{ErrorCode, ResponseError};
 use fm::{codespan_files::Error, FileMap, PathString};
 use lsp_types::{
-    DeclarationCapability, Location, Position, TextDocumentPositionParams,
+    CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
@@ -36,6 +36,7 @@ use crate::{
 // They are not attached to the `NargoLspService` struct so they can be unit tested with only `LspState`
 // and params passed in.
 
+mod code_action;
 mod code_lens_request;
 mod completion;
 mod document_symbol;
@@ -51,14 +52,15 @@ mod test_run;
 mod tests;
 
 pub(crate) use {
-    code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
-    completion::on_completion_request, document_symbol::on_document_symbol_request,
-    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
-    inlay_hint::on_inlay_hint_request, profile_run::on_profile_run_request,
-    references::on_references_request, rename::on_prepare_rename_request,
-    rename::on_rename_request, signature_help::on_signature_help_request,
-    test_run::on_test_run_request, tests::on_tests_request,
+    code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
+    code_lens_request::on_code_lens_request, completion::on_completion_request,
+    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
+    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
+    hover::on_hover_request, inlay_hint::on_inlay_hint_request,
+    profile_run::on_profile_run_request, references::on_references_request,
+    rename::on_prepare_rename_request, rename::on_rename_request,
+    signature_help::on_signature_help_request, test_run::on_test_run_request,
+    tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -252,6 +254,13 @@ pub(crate) fn on_initialize(
                         },
                     },
                 )),
+                code_action_provider: Some(lsp_types::OneOf::Right(lsp_types::CodeActionOptions {
+                    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                    resolve_provider: None,
+                })),
             },
             server_info: None,
         })

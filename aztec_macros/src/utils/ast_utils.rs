@@ -1,9 +1,9 @@
 use noirc_errors::{Span, Spanned};
 use noirc_frontend::ast::{
     BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
-    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MemberAccessExpression,
-    MethodCallExpression, NoirTraitImpl, Path, PathSegment, Pattern, PrefixExpression, Statement,
-    StatementKind, TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
+    Ident, IndexExpression, InfixExpression, Lambda, MemberAccessExpression, MethodCallExpression,
+    NoirTraitImpl, Path, PathSegment, Pattern, PrefixExpression, Statement, StatementKind,
+    TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::token::SecondaryAttribute;
 
@@ -73,13 +73,11 @@ pub fn mutable(name: &str) -> Pattern {
 }
 
 pub fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
-    make_statement(StatementKind::Let(LetStatement {
-        pattern: mutable(name),
-        r#type: make_type(UnresolvedTypeData::Unspecified),
-        expression: assigned_to,
-        comptime: false,
-        attributes: vec![],
-    }))
+    make_statement(StatementKind::new_let(
+        mutable(name),
+        make_type(UnresolvedTypeData::Unspecified),
+        assigned_to,
+    ))
 }
 
 pub fn mutable_reference(variable_name: &str) -> Expression {
@@ -98,13 +96,7 @@ pub fn assignment_with_type(
     typ: UnresolvedTypeData,
     assigned_to: Expression,
 ) -> Statement {
-    make_statement(StatementKind::Let(LetStatement {
-        pattern: pattern(name),
-        r#type: make_type(typ),
-        expression: assigned_to,
-        comptime: false,
-        attributes: vec![],
-    }))
+    make_statement(StatementKind::new_let(pattern(name), make_type(typ), assigned_to))
 }
 
 pub fn return_type(path: Path) -> FunctionReturnType {
