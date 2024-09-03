@@ -117,6 +117,24 @@ struct PerFunctionContext<'f> {
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, InstructionId>,
+
+    /// Flag for tracking whether we had to perform a re-load as part of the Brillig CoW optimization.
+    /// Stores made as part of this optimization should not be removed.
+    /// We want to catch stores of this nature:
+    /// ```text
+    /// v3 = load v1
+    //  inc_rc v3
+    //  v4 = load v1
+    //  inc_rc v4
+    //  store v4 at v1
+    //  store v3 at v2
+    /// ```
+    ///
+    /// We keep track of a tuple as we go through instructions.
+    /// The first tuple field is the value being loaded, which would be `v1` in the example above.
+    /// The second tuple states whether we have only done the first load or we are doing a re-load.
+    /// `inside_rc_reload` is reset to `None` on every instructions that is not a load, inc_rc, or dec_rc.
+    inside_rc_reload: Option<(ValueId, bool)>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -131,6 +149,7 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),
             last_loads: HashMap::default(),
+            inside_rc_reload: None,
         }
     }
 
@@ -192,6 +211,7 @@ impl<'f> PerFunctionContext<'f> {
 
         for instruction in instructions {
             self.analyze_instruction(block, &mut references, instruction);
+            self.track_rc_reload_state(instruction);
         }
 
         self.handle_terminator(block, &mut references);
@@ -265,7 +285,7 @@ impl<'f> PerFunctionContext<'f> {
                     self.last_loads.insert(address, instruction);
                 }
             }
-            Instruction::Store { address, value, from_rc } => {
+            Instruction::Store { address, value } => {
                 let address = self.inserter.function.dfg.resolve(*address);
                 let value = self.inserter.function.dfg.resolve(*value);
 
@@ -277,8 +297,17 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                if let Some(known_value) = references.get_known_value(value) {
-                    if known_value == address && !from_rc {
+                let known_value = references.get_known_value(value);
+                let from_rc = self
+                    .inside_rc_reload
+                    .map(|(rc_value, is_reload)| rc_value == value && is_reload);
+                if let Some(known_value) = known_value {
+                    let known_value_is_address = known_value == address;
+                    if let Some(from_rc) = from_rc {
+                        if known_value_is_address && !from_rc {
+                            self.instructions_to_remove.insert(instruction);
+                        }
+                    } else if known_value_is_address {
                         self.instructions_to_remove.insert(instruction);
                     }
                 }
@@ -336,6 +365,30 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Call { arguments, .. } => self.mark_all_unknown(arguments, references),
             _ => (),
+        }
+    }
+
+    /// Update the `inside_rc_reload` context variable.
+    /// This method should always be called after `analyze_instruction`.
+    fn track_rc_reload_state(&mut self, instruction: InstructionId) {
+        match &self.inserter.function.dfg[instruction] {
+            Instruction::Load { .. } => {
+                if self.inside_rc_reload.is_some() {
+                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    self.inside_rc_reload = Some((result, true));
+                } else {
+                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    self.inside_rc_reload = Some((result, false));
+                }
+            }
+            Instruction::IncrementRc { value } | Instruction::DecrementRc { value } => {
+                if let Some((previous_value, _)) = self.inside_rc_reload {
+                    if *value != previous_value {
+                        self.inside_rc_reload = None;
+                    }
+                }
+            }
+            _ => self.inside_rc_reload = None,
         }
     }
 

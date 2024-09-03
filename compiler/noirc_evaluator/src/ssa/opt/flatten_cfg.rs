@@ -647,7 +647,7 @@ impl<'f> Context<'f> {
             let value = new_values[address];
             let address = *address;
             self.insert_instruction_with_typevars(
-                Instruction::Store { address, value, from_rc: false },
+                Instruction::Store { address, value },
                 None,
                 call_stack.clone(),
             );
@@ -740,9 +740,9 @@ impl<'f> Context<'f> {
 
                     Instruction::Constrain(lhs, rhs, message)
                 }
-                Instruction::Store { address, value, from_rc } => {
+                Instruction::Store { address, value } => {
                     self.remember_store(address, value, call_stack);
-                    Instruction::Store { address, value, from_rc }
+                    Instruction::Store { address, value }
                 }
                 Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                     // Replace value with `value * predicate` to zero out value when predicate is inactive.
@@ -869,7 +869,7 @@ impl<'f> Context<'f> {
         for (address, store) in store_values {
             let address = *address;
             let value = store.old_value;
-            let instruction = Instruction::Store { address, value, from_rc: false };
+            let instruction = Instruction::Store { address, value };
             // Considering the location of undoing a store to be the same as the original store.
             self.insert_instruction_with_typevars(instruction, None, store.call_stack.clone());
         }
