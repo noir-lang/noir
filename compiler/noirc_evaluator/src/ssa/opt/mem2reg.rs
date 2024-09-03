@@ -437,7 +437,15 @@ impl<'f> PerFunctionContext<'f> {
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {
         self.inserter.map_terminator_in_place(block);
 
-        match self.inserter.function.dfg[block].unwrap_terminator() {
+        let terminator = self.inserter.function.dfg[block].unwrap_terminator();
+        terminator.for_each_value(|value| {
+            if let Some((not_used_flag, _)) = self.load_results.get_mut(&value) {
+                *not_used_flag = false;
+            }
+        });
+
+
+        match terminator {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
