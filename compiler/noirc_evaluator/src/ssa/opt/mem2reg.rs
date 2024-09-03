@@ -171,7 +171,7 @@ impl<'f> PerFunctionContext<'f> {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             for (value, store_instruction) in block.last_stores.iter() {
                 let is_reference_param = block_params.contains(value);
-                let last_load_removed = load_result_unused.get(&value).is_some();
+                let last_load_removed = load_result_unused.get(value).is_some();
                 let last_load_nonexistent =
                     self.last_loads.get(value).is_none() || last_load_removed;
                 if last_load_nonexistent && !is_reference_param {
