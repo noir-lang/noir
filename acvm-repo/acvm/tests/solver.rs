@@ -813,7 +813,9 @@ fn solve_array_input_blackbox_call<F>(
     f: F,
 ) -> Result<Vec<FieldElement>, OpcodeResolutionError<FieldElement>>
 where
-    F: FnOnce((Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
+    F: FnOnce(
+        (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
 {
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
@@ -979,7 +981,10 @@ fn solve_blackbox_func_call(
     blackbox_func_call: impl Fn(
         Option<FieldElement>,
         Option<FieldElement>,
-    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
+    ) -> Result<
+        BlackBoxFuncCall<FieldElement>,
+        OpcodeResolutionError<FieldElement>,
+    >,
     lhs: (FieldElement, bool), // if false, use a Witness
     rhs: (FieldElement, bool), // if false, use a Witness
 ) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
@@ -1215,24 +1220,35 @@ fn function_input_from_option(
     opt_constant: Option<FieldElement>,
 ) -> Result<FunctionInput<FieldElement>, OpcodeResolutionError<FieldElement>> {
     opt_constant
-        .map(|constant| FunctionInput::constant(constant, FieldElement::max_num_bits()).map_err(From::from))
+        .map(|constant| {
+            FunctionInput::constant(constant, FieldElement::max_num_bits()).map_err(From::from)
+        })
         .unwrap_or(Ok(FunctionInput::witness(witness, FieldElement::max_num_bits())))
 }
 
-fn and_op(x: Option<FieldElement>, y: Option<FieldElement>) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
+fn and_op(
+    x: Option<FieldElement>,
+    y: Option<FieldElement>,
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let lhs = function_input_from_option(Witness(1), x)?;
     let rhs = function_input_from_option(Witness(2), y)?;
     Ok(BlackBoxFuncCall::AND { lhs, rhs, output: Witness(3) })
 }
 
-fn xor_op(x: Option<FieldElement>, y: Option<FieldElement>) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
+fn xor_op(
+    x: Option<FieldElement>,
+    y: Option<FieldElement>,
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let lhs = function_input_from_option(Witness(1), x)?;
     let rhs = function_input_from_option(Witness(2), y)?;
     Ok(BlackBoxFuncCall::XOR { lhs, rhs, output: Witness(3) })
 }
 
 fn prop_assert_commutative(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     x: (FieldElement, bool),
     y: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
@@ -1240,7 +1256,10 @@ fn prop_assert_commutative(
 }
 
 fn prop_assert_associative(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     x: (FieldElement, bool),
     y: (FieldElement, bool),
     z: (FieldElement, bool),
@@ -1257,7 +1276,10 @@ fn prop_assert_associative(
 }
 
 fn prop_assert_identity_l(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     op_identity: (FieldElement, bool),
     x: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
@@ -1265,7 +1287,10 @@ fn prop_assert_identity_l(
 }
 
 fn prop_assert_zero_l(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     op_zero: (FieldElement, bool),
     x: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
@@ -1283,7 +1308,10 @@ fn prop_assert_injective<F>(
     op: F,
 ) -> (bool, String)
 where
-    F: FnOnce((Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>
+    F: FnOnce(
+            (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+        )
+            -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>
         + Clone,
 {
     let equal_inputs = drop_use_constant_eq(&inputs, &distinct_inputs);

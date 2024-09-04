@@ -201,7 +201,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                 opcode_location: ErrorLocation::Resolved(opcode_location),
                                 ..
                             } => Some(vec![*opcode_location]),
-                            | OpcodeResolutionError::InvalidInputBitSize {
+                            OpcodeResolutionError::InvalidInputBitSize {
                                 opcode_location: ErrorLocation::Resolved(opcode_location),
                                 ..
                             } => Some(vec![*opcode_location]),

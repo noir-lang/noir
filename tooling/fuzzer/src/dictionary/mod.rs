@@ -83,7 +83,9 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
                 }
             }
 
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) if matches!(input.input(), ConstantOrWitnessEnum::Constant(..)) => {
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input })
+                if matches!(input.input(), ConstantOrWitnessEnum::Constant(..)) =>
+            {
                 if let ConstantOrWitnessEnum::Constant(c) = input.input() {
                     let field = 1u128.wrapping_shl(input.num_bits());
                     constants.insert(F::from(field));

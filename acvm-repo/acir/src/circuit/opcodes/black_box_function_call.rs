@@ -44,7 +44,6 @@ impl<F> FunctionInput<F> {
     }
 }
 
-
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 #[error("FunctionInput value has too many bits: value: {value}, {value_num_bits} >= {num_bits}")]
 pub struct InvalidInputBitSize {

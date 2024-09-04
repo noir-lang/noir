@@ -1502,12 +1502,14 @@ impl<F: AcirField> AcirContext<F> {
                 let num_bits = typ.bit_size::<F>();
                 match self.vars[&input].as_constant() {
                     Some(constant) if allow_constant_inputs => {
-                        single_val_witnesses.push(FunctionInput::constant(*constant, num_bits).map_err(|invalid_input_bit_size| {
-                            RuntimeError::InvalidInputBitSize {
-                                invalid_input_bit_size,
-                                call_stack: self.get_call_stack(),
-                            }
-                        })?);
+                        single_val_witnesses.push(
+                            FunctionInput::constant(*constant, num_bits).map_err(
+                                |invalid_input_bit_size| RuntimeError::InvalidInputBitSize {
+                                    invalid_input_bit_size,
+                                    call_stack: self.get_call_stack(),
+                                },
+                            )?,
+                        );
                     }
                     _ => {
                         let witness_var = self.get_or_create_witness_var(input)?;

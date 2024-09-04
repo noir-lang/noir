@@ -6,7 +6,9 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize},
+        opcodes::{
+            AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
+        },
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
@@ -129,7 +131,10 @@ pub enum OpcodeResolutionError<F> {
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
     IndexOutOfBounds { opcode_location: ErrorLocation, index: u32, array_size: u32 },
     #[error("Cannot solve opcode: {invalid_input_bit_size}")]
-    InvalidInputBitSize { opcode_location: ErrorLocation, invalid_input_bit_size: InvalidInputBitSize },
+    InvalidInputBitSize {
+        opcode_location: ErrorLocation,
+        invalid_input_bit_size: InvalidInputBitSize,
+    },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
@@ -662,7 +667,7 @@ pub fn input_to_value<F: AcirField>(
                     },
                 })
             }
-        },
+        }
         ConstantOrWitnessEnum::Constant(value) => Ok(value),
     }
 }

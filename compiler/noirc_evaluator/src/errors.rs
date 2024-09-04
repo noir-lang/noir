@@ -7,7 +7,7 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::{FieldElement, acir::InvalidInputBitSize};
+use acvm::{acir::InvalidInputBitSize, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
