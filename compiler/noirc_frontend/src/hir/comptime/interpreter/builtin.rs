@@ -1609,7 +1609,7 @@ fn function_def_has_named_attribute(
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
     for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location.file);
+        let parse_result = Elaborator::parse_attribute(&attribute.contents, location);
         let Ok(Some((function, _arguments))) = parse_result else {
             continue;
         };

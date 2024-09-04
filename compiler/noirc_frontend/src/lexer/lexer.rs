@@ -295,7 +295,11 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
+        let contents_start = self.position + 1;
+
         let word = self.eat_while(None, |ch| ch != ']');
+
+        let contents_end = self.position;
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -308,7 +312,10 @@ impl<'a> Lexer<'a> {
 
         let end = self.position;
 
-        let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
+        let span = Span::inclusive(start, end);
+        let contents_span = Span::inclusive(contents_start, contents_end);
+
+        let attribute = Attribute::lookup_attribute(&word, span, contents_span)?;
 
         Ok(attribute.into_span(start, end))
     }
@@ -682,7 +689,7 @@ mod tests {
     use iter_extended::vecmap;
 
     use super::*;
-    use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+    use crate::token::{CustomAtrribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_double_char() {
@@ -810,9 +817,11 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(
-                "custom(hello)".to_string()
-            )))
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                contents: "custom(hello)".to_string(),
+                span: Span::from(0..16),
+                contents_span: Span::from(2..15)
+            })))
         );
     }
 

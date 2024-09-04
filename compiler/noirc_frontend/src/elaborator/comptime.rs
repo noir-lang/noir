@@ -24,7 +24,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
     parser::{self, TopLevelStatement},
-    Type, TypeBindings,
+    Type, TypeBindings, UnificationError,
 };
 
 use super::{Elaborator, FunctionContext, ResolverMeta};
@@ -96,10 +96,14 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
-            if let SecondaryAttribute::Custom(name) = attribute {
-                if let Err(error) =
-                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
-                {
+            if let SecondaryAttribute::Custom(attribute) = attribute {
+                if let Err(error) = self.run_comptime_attribute_on_item(
+                    &attribute.contents,
+                    item.clone(),
+                    span,
+                    attribute.contents_span,
+                    generated_items,
+                ) {
                     self.errors.push(error);
                 }
             }
@@ -111,10 +115,11 @@ impl<'context> Elaborator<'context> {
         attribute: &str,
         item: Value,
         span: Span,
+        attribute_span: Span,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
-        let location = Location::new(span, self.file);
-        let Some((function, arguments)) = Self::parse_attribute(attribute, self.file)? else {
+        let location = Location::new(attribute_span, self.file);
+        let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
             // Do not issue an error if the attribute is unknown
             return Ok(());
         };
@@ -141,12 +146,17 @@ impl<'context> Elaborator<'context> {
         };
 
         let mut interpreter = self.setup_interpreter();
-        let mut arguments =
-            Self::handle_attribute_arguments(&mut interpreter, function, arguments, location)
-                .map_err(|error| {
-                    let file = error.get_location().file;
-                    (error.into(), file)
-                })?;
+        let mut arguments = Self::handle_attribute_arguments(
+            &mut interpreter,
+            &item,
+            function,
+            arguments,
+            location,
+        )
+        .map_err(|error| {
+            let file = error.get_location().file;
+            (error.into(), file)
+        })?;
 
         arguments.insert(0, (item, location));
 
@@ -170,32 +180,61 @@ impl<'context> Elaborator<'context> {
     #[allow(clippy::type_complexity)]
     pub(crate) fn parse_attribute(
         annotation: &str,
-        file: FileId,
+        location: Location,
     ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
         let (tokens, mut lexing_errors) = Lexer::lex(annotation);
         if !lexing_errors.is_empty() {
-            return Err((lexing_errors.swap_remove(0).into(), file));
+            return Err((lexing_errors.swap_remove(0).into(), location.file));
         }
 
         let expression = parser::expression()
             .parse(tokens)
-            .map_err(|mut errors| (errors.swap_remove(0).into(), file))?;
+            .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
 
-        Ok(match expression.kind {
-            ExpressionKind::Call(call) => Some((*call.func, call.arguments)),
-            ExpressionKind::Variable(_) => Some((expression, Vec::new())),
-            _ => None,
-        })
+        let (mut func, mut arguments) = match expression.kind {
+            ExpressionKind::Call(call) => (*call.func, call.arguments),
+            ExpressionKind::Variable(_) => (expression, Vec::new()),
+            _ => return Ok(None),
+        };
+
+        func.span = func.span.shift_by(location.span.start());
+
+        for argument in &mut arguments {
+            argument.span = argument.span.shift_by(location.span.start());
+        }
+
+        Ok(Some((func, arguments)))
     }
 
     fn handle_attribute_arguments(
         interpreter: &mut Interpreter,
+        item: &Value,
         function: FuncId,
         arguments: Vec<Expression>,
         location: Location,
     ) -> Result<Vec<(Value, Location)>, InterpreterError> {
         let meta = interpreter.elaborator.interner.function_meta(&function);
+
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
+
+        if parameters.is_empty() {
+            return Err(InterpreterError::ArgumentCountMismatch {
+                expected: 0,
+                actual: arguments.len() + 1,
+                location,
+            });
+        }
+
+        let expected_type = item.get_type();
+        let expected_type = expected_type.as_ref();
+
+        if &parameters[0] != expected_type {
+            return Err(InterpreterError::TypeMismatch {
+                expected: parameters[0].clone(),
+                actual: expected_type.clone(),
+                location,
+            });
+        }
 
         // Remove the initial parameter for the comptime item since that is not included
         // in `arguments` at this point.
@@ -213,6 +252,7 @@ impl<'context> Elaborator<'context> {
         let mut varargs = im::Vector::new();
 
         for (i, arg) in arguments.into_iter().enumerate() {
+            let arg_location = Location::new(arg.span, location.file);
             let param_type = parameters.get(i).or(varargs_elem_type).unwrap_or(&Type::Error);
 
             let mut push_arg = |arg| {
@@ -233,9 +273,17 @@ impl<'context> Elaborator<'context> {
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
             } else {
-                let expr_id = interpreter.elaborator.elaborate_expression(arg).0;
+                let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
                 push_arg(interpreter.evaluate(expr_id)?);
-            }
+
+                if let Err(UnificationError) = expr_type.unify(param_type) {
+                    return Err(InterpreterError::TypeMismatch {
+                        expected: param_type.clone(),
+                        actual: expr_type,
+                        location: arg_location,
+                    });
+                }
+            };
         }
 
         if is_varargs {

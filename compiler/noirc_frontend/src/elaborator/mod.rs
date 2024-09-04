@@ -28,6 +28,7 @@ use crate::{
     node_interner::{
         DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
+    token::CustomAtrribute,
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -819,7 +820,7 @@ impl<'context> Elaborator<'context> {
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes = attributes.map(|str| str.to_string()).collect();
+        let attributes: Vec<CustomAtrribute> = attributes.cloned().collect();
 
         let meta = FuncMeta {
             name: name_ident,
