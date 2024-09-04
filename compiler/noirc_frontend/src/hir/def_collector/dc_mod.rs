@@ -775,6 +775,7 @@ impl<'a> ModCollector<'a> {
 
 /// Add a child module to the current def_map.
 /// On error this returns None and pushes to `errors`
+#[allow(clippy::too_many_arguments)]
 fn push_child_module(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,
