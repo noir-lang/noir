@@ -248,16 +248,15 @@ impl<'a> ModCollector<'a> {
         let module = ModuleId { krate, local_id: self.module_id };
 
         for function in functions {
-            let func_id = match collect_function(
+            let Some(func_id) = collect_function(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
                 &function,
                 module,
                 self.file_id,
                 &mut errors,
-            ) {
-                Some(value) => value,
-                None => continue,
+            ) else {
+                continue;
             };
 
             // Now link this func_id to a crate level map with the noir function and the module id
