@@ -621,11 +621,7 @@ impl<'f> PerFunctionContext<'f> {
             // Map any remaining load results to the value from the removed store
             for (
                 result,
-                PerFuncLoadResultContext {
-                    load_instruction,
-                    instructions_using_result,
-                    ..
-                },
+                PerFuncLoadResultContext { load_instruction, instructions_using_result, .. },
             ) in self.load_results.iter()
             {
                 let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
