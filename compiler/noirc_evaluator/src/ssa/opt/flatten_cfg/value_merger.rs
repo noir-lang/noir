@@ -58,6 +58,13 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        let then_value = self.dfg.resolve(then_value);
+        let else_value = self.dfg.resolve(else_value);
+
+        if then_value == else_value {
+            return then_value;
+        }
+
         match self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Self::merge_numeric_values(
                 self.dfg,
@@ -374,7 +381,7 @@ impl<'a> ValueMerger<'a> {
         for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
 
-            let instruction = Instruction::EnableSideEffects { condition };
+            let instruction = Instruction::EnableSideEffectsIf { condition };
             self.insert_instruction(instruction);
 
             let mut get_element = |array, typevars| {
@@ -398,7 +405,7 @@ impl<'a> ValueMerger<'a> {
             array = self.insert_array_set(array, index, value, Some(condition)).first();
         }
 
-        let instruction = Instruction::EnableSideEffects { condition: current_condition };
+        let instruction = Instruction::EnableSideEffectsIf { condition: current_condition };
         self.insert_instruction(instruction);
         Some(array)
     }

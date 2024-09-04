@@ -4,3 +4,4 @@ type = "bin"
 authors = [""]
 
 [dependencies]
+dependency = { path = "dependency" }

@@ -12,8 +12,9 @@ mod labels;
 mod parser;
 
 use crate::ast::{
-    Expression, Ident, ImportStatement, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
-    NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind, TypeImpl, UseTree,
+    Expression, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
+    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind,
+    TypeImpl, UseTree,
 };
 use crate::token::{Keyword, Token};
 
@@ -25,14 +26,14 @@ use noirc_errors::Span;
 pub use parser::path::path_no_turbofish;
 pub use parser::traits::trait_bound;
 pub use parser::{
-    block, expression, fresh_statement, parse_program, parse_type, pattern, top_level_items,
+    block, expression, fresh_statement, lvalue, parse_program, parse_type, pattern, top_level_items,
 };
 
 #[derive(Debug, Clone)]
 pub enum TopLevelStatement {
     Function(NoirFunction),
     Module(ModuleDeclaration),
-    Import(UseTree),
+    Import(UseTree, ItemVisibility),
     Struct(NoirStruct),
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
@@ -48,7 +49,7 @@ impl TopLevelStatement {
         match self {
             TopLevelStatement::Function(f) => Some(ItemKind::Function(f)),
             TopLevelStatement::Module(m) => Some(ItemKind::ModuleDecl(m)),
-            TopLevelStatement::Import(i) => Some(ItemKind::Import(i)),
+            TopLevelStatement::Import(i, visibility) => Some(ItemKind::Import(i, visibility)),
             TopLevelStatement::Struct(s) => Some(ItemKind::Struct(s)),
             TopLevelStatement::Trait(t) => Some(ItemKind::Trait(t)),
             TopLevelStatement::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
@@ -298,7 +299,7 @@ impl ParsedModule {
 
         for item in self.items {
             match item.kind {
-                ItemKind::Import(import) => module.push_import(import),
+                ItemKind::Import(import, visibility) => module.push_import(import, visibility),
                 ItemKind::Function(func) => module.push_function(func),
                 ItemKind::Struct(typ) => module.push_type(typ),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
@@ -323,7 +324,7 @@ pub struct Item {
 
 #[derive(Clone, Debug)]
 pub enum ItemKind {
-    Import(UseTree),
+    Import(UseTree, ItemVisibility),
     Function(NoirFunction),
     Struct(NoirStruct),
     Trait(NoirTrait),
@@ -398,8 +399,8 @@ impl SortedModule {
         self.type_aliases.push(type_alias);
     }
 
-    fn push_import(&mut self, import_stmt: UseTree) {
-        self.imports.extend(import_stmt.desugar(None));
+    fn push_import(&mut self, import_stmt: UseTree, visibility: ItemVisibility) {
+        self.imports.extend(import_stmt.desugar(None, visibility));
     }
 
     fn push_module_decl(&mut self, mod_decl: ModuleDeclaration) {
@@ -497,7 +498,13 @@ impl std::fmt::Display for TopLevelStatement {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
             TopLevelStatement::Module(m) => m.fmt(f),
-            TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
+            TopLevelStatement::Import(tree, visibility) => {
+                if visibility == &ItemVisibility::Private {
+                    write!(f, "use {tree}")
+                } else {
+                    write!(f, "{visibility} use {tree}")
+                }
+            }
             TopLevelStatement::Trait(t) => t.fmt(f),
             TopLevelStatement::TraitImpl(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),

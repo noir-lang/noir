@@ -129,6 +129,7 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
         BrilligOpcode::Cast { .. } => "cast".to_string(),
         BrilligOpcode::ConditionalMov { .. } => "cmov".to_string(),
         BrilligOpcode::Const { .. } => "const".to_string(),
+        BrilligOpcode::IndirectConst { .. } => "iconst".to_string(),
         BrilligOpcode::ForeignCall { function, .. } => format!("foreign_call({})", function),
         BrilligOpcode::Jump { .. } => "jump".to_string(),
         BrilligOpcode::JumpIf { .. } => "jump_if".to_string(),

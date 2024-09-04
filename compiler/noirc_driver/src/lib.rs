@@ -123,6 +123,12 @@ pub struct CompileOptions {
     /// Temporary flag to enable the experimental arithmetic generics feature
     #[arg(long, hide = true)]
     pub arithmetic_generics: bool,
+
+    /// Flag to turn off the compiler check for under constrained values.
+    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// This check should always be run on production code.
+    #[arg(long)]
+    pub skip_underconstrained_check: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -278,11 +284,13 @@ pub fn check_crate(
         if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
 
     let mut errors = vec![];
+    let error_on_unused_imports = true;
     let diagnostics = CrateDefMap::collect_defs(
         crate_id,
         context,
         options.debug_comptime_in_file.as_deref(),
         options.arithmetic_generics,
+        error_on_unused_imports,
         macros,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
@@ -458,6 +466,7 @@ fn compile_contract_inner(
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
             names: function.names,
+            brillig_names: function.brillig_names,
         });
     }
 
@@ -574,6 +583,7 @@ pub fn compile_no_check(
             ExpressionWidth::default()
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
+        skip_underconstrained_check: options.skip_underconstrained_check,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

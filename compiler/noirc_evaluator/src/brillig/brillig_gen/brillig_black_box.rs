@@ -6,14 +6,15 @@ use acvm::{
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
+    registers::RegisterAllocator,
     BrilligContext,
 };
 
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
 /// Extracting arguments and results from the SSA function call
 /// And making any necessary type conversions to adapt noir's blackbox calls to brillig's
-pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
-    brillig_context: &mut BrilligContext<F>,
+pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
     bb_func: &BlackBoxFunc,
     function_arguments: &[BrilligVariable],
     function_results: &[BrilligVariable],
@@ -28,6 +29,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     message: message_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
                 });
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
             } else {
                 unreachable!("ICE: SHA256 expects one array argument and one array result")
             }
@@ -41,6 +43,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     message: message_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
                 });
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
             } else {
                 unreachable!("ICE: Blake2s expects one array argument and one array result")
             }
@@ -54,6 +57,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     message: message_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
                 });
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
             } else {
                 unreachable!("ICE: Blake3 expects one array argument and one array result")
             }
@@ -77,6 +81,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     output: result_array.to_heap_array(),
                 });
                 brillig_context.deallocate_single_addr(message_size_as_usize);
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
             } else {
                 unreachable!("ICE: Keccak256 expects message, message size and result array")
             }
@@ -91,6 +96,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     message: state_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
                 });
+                deallocate_converted_vector(brillig_context, message, state_vector, bb_func);
             } else {
                 unreachable!("ICE: Keccakf1600 expects one array argument and one array result")
             }
@@ -110,6 +116,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     signature: signature.to_heap_array(),
                     result: result_register.address,
                 });
+                deallocate_converted_vector(brillig_context, message, message_hash_vector, bb_func);
             } else {
                 unreachable!(
                     "ICE: EcdsaSecp256k1 expects four array arguments and one register result"
@@ -131,6 +138,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     signature: signature.to_heap_array(),
                     result: result_register.address,
                 });
+                deallocate_converted_vector(brillig_context, message, message_hash_vector, bb_func);
             } else {
                 unreachable!(
                     "ICE: EcdsaSecp256r1 expects four array arguments and one register result"
@@ -150,6 +158,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     domain_separator: domain_separator.address,
                     output: result_array.to_heap_array(),
                 });
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
             } else {
                 unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
             }
@@ -166,6 +175,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     domain_separator: domain_separator.address,
                     output: result.address,
                 });
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
             } else {
                 unreachable!("ICE: Pedersen hash expects one array argument, a register for the domain separator, and one register result")
             }
@@ -177,14 +187,16 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
             ) = (function_arguments, function_results)
             {
                 let message_hash = convert_array_or_vector(brillig_context, message, bb_func);
-                let signature = brillig_context.array_to_vector_instruction(signature);
+                let signature_vector = brillig_context.array_to_vector_instruction(signature);
                 brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
                     public_key_x: public_key_x.address,
                     public_key_y: public_key_y.address,
                     message: message_hash.to_heap_vector(),
-                    signature: signature.to_heap_vector(),
+                    signature: signature_vector.to_heap_vector(),
                     result: result_register.address,
                 });
+                deallocate_converted_vector(brillig_context, message, message_hash, bb_func);
+                brillig_context.deallocate_register(signature_vector.size);
             } else {
                 unreachable!("ICE: Schnorr verify expects two registers for the public key, an array for signature, an array for the message hash and one result register")
             }
@@ -193,13 +205,15 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
             if let ([points, scalars], [BrilligVariable::BrilligArray(outputs)]) =
                 (function_arguments, function_results)
             {
-                let points = convert_array_or_vector(brillig_context, points, bb_func);
-                let scalars = convert_array_or_vector(brillig_context, scalars, bb_func);
+                let points_vector = convert_array_or_vector(brillig_context, points, bb_func);
+                let scalars_vector = convert_array_or_vector(brillig_context, scalars, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::MultiScalarMul {
-                    points: points.to_heap_vector(),
-                    scalars: scalars.to_heap_vector(),
+                    points: points_vector.to_heap_vector(),
+                    scalars: scalars_vector.to_heap_vector(),
                     outputs: outputs.to_heap_array(),
                 });
+                deallocate_converted_vector(brillig_context, points, points_vector, bb_func);
+                deallocate_converted_vector(brillig_context, scalars, scalars_vector, bb_func);
             } else {
                 unreachable!(
                     "ICE: MultiScalarMul expects two register arguments and one array result"
@@ -318,6 +332,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     modulus: modulus_vector.to_heap_vector(),
                     output: output.address,
                 });
+                deallocate_converted_vector(brillig_context, inputs, inputs_vector, bb_func);
+                deallocate_converted_vector(brillig_context, modulus, modulus_vector, bb_func);
             } else {
                 unreachable!(
                     "ICE: BigIntFromLeBytes expects a register and an array  as arguments and two result registers"
@@ -335,6 +351,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     input: input.address,
                     output: output.to_heap_vector(),
                 });
+                deallocate_converted_vector(brillig_context, result_array, output, bb_func);
             } else {
                 unreachable!(
                     "ICE: BigIntToLeBytes expects two register arguments and one array result"
@@ -353,6 +370,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     output: result_array.to_heap_array(),
                     len: state_len.address,
                 });
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
             } else {
                 unreachable!("ICE: Poseidon2Permutation expects one array argument, a length and one array result")
             }
@@ -368,6 +386,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                     hash_values: hash_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
                 });
+                deallocate_converted_vector(brillig_context, message, message_vector, bb_func);
+                deallocate_converted_vector(brillig_context, hash_values, hash_vector, bb_func);
             } else {
                 unreachable!("ICE: Sha256Compression expects two array argument, one array result")
             }
@@ -378,18 +398,19 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 [BrilligVariable::SingleAddr(out_len), outputs],
             ) = (function_arguments, function_results)
             {
-                let inputs = convert_array_or_vector(brillig_context, inputs, bb_func);
-                let outputs = convert_array_or_vector(brillig_context, outputs, bb_func);
-                let output_vec = outputs.to_heap_vector();
+                let inputs_vector = convert_array_or_vector(brillig_context, inputs, bb_func);
+                let outputs_vector = convert_array_or_vector(brillig_context, outputs, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::AES128Encrypt {
-                    inputs: inputs.to_heap_vector(),
+                    inputs: inputs_vector.to_heap_vector(),
                     iv: iv.to_heap_array(),
                     key: key.to_heap_array(),
-                    outputs: output_vec,
+                    outputs: outputs_vector.to_heap_vector(),
                 });
-                brillig_context.mov_instruction(out_len.address, output_vec.size);
+                brillig_context.mov_instruction(out_len.address, outputs_vector.size);
                 // Returns slice, so we need to allocate memory for it after the fact
-                brillig_context.increase_free_memory_pointer_instruction(output_vec.size);
+                brillig_context.increase_free_memory_pointer_instruction(outputs_vector.size);
+                deallocate_converted_vector(brillig_context, inputs, inputs_vector, bb_func);
+                deallocate_converted_vector(brillig_context, outputs, outputs_vector, bb_func);
             } else {
                 unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
             }
@@ -397,8 +418,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
     }
 }
 
-fn convert_array_or_vector<F: AcirField + DebugToString>(
-    brillig_context: &mut BrilligContext<F>,
+fn convert_array_or_vector<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
     array_or_vector: &BrilligVariable,
     bb_func: &BlackBoxFunc,
 ) -> BrilligVector {
@@ -409,6 +430,27 @@ fn convert_array_or_vector<F: AcirField + DebugToString>(
             "ICE: {} expected an array or a vector, but got {:?}",
             bb_func.name(),
             array_or_vector
+        ),
+    }
+}
+
+/// Deallocates any new register allocated by the function above.
+/// Concretely, the only allocated register between array and vector is the size register if the array was converted to a vector.
+fn deallocate_converted_vector<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
+    original_array_or_vector: &BrilligVariable,
+    converted_vector: BrilligVector,
+    bb_func: &BlackBoxFunc,
+) {
+    match original_array_or_vector {
+        BrilligVariable::BrilligArray(_) => {
+            brillig_context.deallocate_register(converted_vector.size);
+        }
+        BrilligVariable::BrilligVector(_) => {}
+        _ => unreachable!(
+            "ICE: {} expected an array or a vector, but got {:?}",
+            bb_func.name(),
+            original_array_or_vector
         ),
     }
 }

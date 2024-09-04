@@ -442,16 +442,15 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.debug_artifact.debug_symbols[debug_location.circuit_id as usize]
             .opcode_location(&debug_location.opcode_location)
             .unwrap_or_else(|| {
-                if let Some(brillig_function_id) = debug_location.brillig_function_id {
+                if let (Some(brillig_function_id), Some(brillig_location)) = (
+                    debug_location.brillig_function_id,
+                    debug_location.opcode_location.to_brillig_location(),
+                ) {
                     let brillig_locations = self.debug_artifact.debug_symbols
                         [debug_location.circuit_id as usize]
                         .brillig_locations
                         .get(&brillig_function_id);
-                    brillig_locations
-                        .unwrap()
-                        .get(&debug_location.opcode_location)
-                        .cloned()
-                        .unwrap_or_default()
+                    brillig_locations.unwrap().get(&brillig_location).cloned().unwrap_or_default()
                 } else {
                     vec![]
                 }
@@ -660,8 +659,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     fn get_current_acir_index(&self) -> Option<usize> {
         self.get_current_debug_location().map(|debug_location| {
             match debug_location.opcode_location {
-                OpcodeLocation::Acir(acir_index) => acir_index,
-                OpcodeLocation::Brillig { acir_index, .. } => acir_index,
+                OpcodeLocation::Acir(acir_index) | OpcodeLocation::Brillig { acir_index, .. } => {
+                    acir_index
+                }
             }
         })
     }
@@ -893,8 +893,19 @@ fn build_source_to_opcode_debug_mappings(
         );
 
         for (brillig_function_id, brillig_locations_map) in &debug_symbols.brillig_locations {
+            let brillig_locations_map = brillig_locations_map
+                .iter()
+                .map(|(key, val)| {
+                    (
+                        // TODO: this is a temporary placeholder until the debugger is updated to handle the new brillig debug locations.
+                        OpcodeLocation::Brillig { acir_index: 0, brillig_index: key.0 },
+                        val.clone(),
+                    )
+                })
+                .collect();
+
             add_opcode_locations_map(
-                brillig_locations_map,
+                &brillig_locations_map,
                 &mut result,
                 &simple_files,
                 circuit_id,

@@ -135,7 +135,7 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 64] {
     }
 
     let len = 8 * msg.len();
-    let len_bytes = (len as Field).to_le_bytes(16);
+    let len_bytes: [u8; 16] = (len as Field).to_le_bytes();
     for _i in 0..128 {
         // In any case, fill blocks up with zeros until the last 128 (i.e. until i = 112).
         if i < 112 {
@@ -155,7 +155,7 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 64] {
     }
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes = (h[7 - j] as Field).to_le_bytes(8);
+        let h_bytes: [u8; 8] = (h[7 - j] as Field).to_le_bytes();
         for k in 0..8 {
             out_h[63 - 8*j - k] = h_bytes[k];
         }

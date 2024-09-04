@@ -20,6 +20,8 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
+    #[error("Unused import")]
+    UnusedImport { ident: Ident },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -58,8 +60,8 @@ pub enum ResolverError {
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
-    #[error("Incorrect amount of arguments to {item_name}")]
-    IncorrectGenericCount { span: Span, item_name: String, actual: usize, expected: usize },
+    #[error("Cannot apply generics on an associated type")]
+    GenericsOnAssociatedType { span: Span },
     #[error("{0}")]
     ParserError(Box<ParserError>),
     #[error("Cannot create a mutable reference to {variable}, it was declared to be immutable")]
@@ -70,7 +72,7 @@ pub enum ResolverError {
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("Nested slices are not supported")]
+    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
@@ -116,6 +118,12 @@ pub enum ResolverError {
     NonFunctionInAnnotation { span: Span },
     #[error("Type `{typ}` was inserted into the generics list from a macro, but is not a generic")]
     MacroResultInGenericsListNotAGeneric { span: Span, typ: Type },
+    #[error("Named type arguments aren't allowed in a {item_kind}")]
+    NamedTypeArgs { span: Span, item_kind: &'static str },
+    #[error("Associated constants may only be a field or integer type")]
+    AssociatedConstantsMustBeNumeric { span: Span },
+    #[error("Overflow in `{lhs} {op} {rhs}`")]
+    OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
 }
 
 impl ResolverError {
@@ -142,11 +150,24 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnusedVariable { ident } => {
                 let name = &ident.0.contents;
 
-                Diagnostic::simple_warning(
+                let mut diagnostic = Diagnostic::simple_warning(
                     format!("unused variable {name}"),
                     "unused variable ".to_string(),
                     ident.span(),
-                )
+                );
+                diagnostic.unnecessary = true;
+                diagnostic
+            }
+            ResolverError::UnusedImport { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diagnostic = Diagnostic::simple_warning(
+                    format!("unused import {name}"),
+                    "unused import ".to_string(),
+                    ident.span(),
+                );
+                diagnostic.unnecessary = true;
+                diagnostic
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),
@@ -281,16 +302,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
                 *span,
             ),
-            ResolverError::IncorrectGenericCount { span, item_name, actual, expected } => {
-                let expected_plural = if *expected == 1 { "" } else { "s" };
-                let actual_plural = if *actual == 1 { "is" } else { "are" };
-
-                Diagnostic::simple_error(
-                    format!("`{item_name}` has {expected} generic argument{expected_plural} but {actual} {actual_plural} given here"),
-                    "Incorrect number of generic arguments".into(),
-                    *span,
-                )
-            }
+            ResolverError::GenericsOnAssociatedType { span } => Diagnostic::simple_error(
+                "Generic Associated Types (GATs) are currently unsupported in Noir".into(),
+                "Cannot apply generics to an associated type".into(),
+                *span,
+            ),
             ResolverError::ParserError(error) => error.as_ref().into(),
             ResolverError::MutableReferenceToImmutableVariable { variable, span } => {
                 Diagnostic::simple_error(format!("Cannot mutably reference the immutable variable {variable}"), format!("{variable} is immutable"), *span)
@@ -307,8 +323,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
-                "Nested slices are not supported".into(),
-                "Try to use a constant sized array instead".into(),
+                "Nested slices, i.e. slices within an array or slice, are not supported".into(),
+                "Try to use a constant sized array or BoundedVec instead".into(),
                 *span,
             ),
             ResolverError::MisplacedRecursiveAttribute { ident } => {
@@ -464,6 +480,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"),
                     format!("Type `{typ}` is not a generic"),
+                    *span,
+                )
+            }
+            ResolverError::NamedTypeArgs { span, item_kind } => {
+                Diagnostic::simple_error(
+                    format!("Named type arguments aren't allowed on a {item_kind}"),
+                    "Named type arguments are only allowed for associated types on traits".to_string(),
+                    *span,
+                )
+            }
+            ResolverError::AssociatedConstantsMustBeNumeric { span } => {
+                Diagnostic::simple_error(
+                    "Associated constants may only be a field or integer type".to_string(),
+                    "Only numeric constants are allowed".to_string(),
+                    *span,
+                )
+            }
+            ResolverError::OverflowInType { lhs, op, rhs, span } => {
+                Diagnostic::simple_error(
+                    format!("Overflow in `{lhs} {op} {rhs}`"),
+                    "Overflow here".to_string(),
                     *span,
                 )
             }

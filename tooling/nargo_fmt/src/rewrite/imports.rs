@@ -1,4 +1,4 @@
-use noirc_frontend::ast;
+use noirc_frontend::ast::{self, ItemVisibility};
 
 use crate::{
     items::Item,
@@ -96,8 +96,18 @@ impl UseTree {
         result
     }
 
-    pub(crate) fn rewrite_top_level(&self, visitor: &FmtVisitor, shape: Shape) -> String {
-        format!("use {};", self.rewrite(visitor, shape))
+    pub(crate) fn rewrite_top_level(
+        &self,
+        visitor: &FmtVisitor,
+        shape: Shape,
+        visibility: ItemVisibility,
+    ) -> String {
+        let rewrite = self.rewrite(visitor, shape);
+        if visibility == ItemVisibility::Private {
+            format!("use {};", rewrite)
+        } else {
+            format!("{} use {};", visibility, rewrite)
+        }
     }
 
     fn rewrite(&self, visitor: &FmtVisitor, shape: Shape) -> String {

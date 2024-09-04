@@ -46,6 +46,7 @@ impl<'context> Elaborator<'context> {
             self.crate_id,
             self.debug_comptime_in_file,
             self.enable_arithmetic_generics,
+            self.interpreter_call_stack.clone(),
         );
 
         elaborator.function_context.push(FunctionContext::default());
@@ -167,7 +168,7 @@ impl<'context> Elaborator<'context> {
     /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
     /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
     #[allow(clippy::type_complexity)]
-    fn parse_attribute(
+    pub(crate) fn parse_attribute(
         annotation: &str,
         file: FileId,
     ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
@@ -284,13 +285,14 @@ impl<'context> Elaborator<'context> {
                 });
             }
             TopLevelStatement::TraitImpl(mut trait_impl) => {
-                let methods = dc_mod::collect_trait_impl_functions(
-                    self.interner,
-                    &mut trait_impl,
-                    self.crate_id,
-                    self.file,
-                    self.local_module,
-                );
+                let (methods, associated_types, associated_constants) =
+                    dc_mod::collect_trait_impl_items(
+                        self.interner,
+                        &mut trait_impl,
+                        self.crate_id,
+                        self.file,
+                        self.local_module,
+                    );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
                     file_id: self.file,
@@ -301,6 +303,8 @@ impl<'context> Elaborator<'context> {
                     methods,
                     generics: trait_impl.impl_generics,
                     where_clause: trait_impl.where_clause,
+                    associated_types,
+                    associated_constants,
 
                     // These last fields are filled in later
                     trait_id: None,
@@ -329,7 +333,7 @@ impl<'context> Elaborator<'context> {
             TopLevelStatement::Error => (),
 
             TopLevelStatement::Module(_)
-            | TopLevelStatement::Import(_)
+            | TopLevelStatement::Import(..)
             | TopLevelStatement::Struct(_)
             | TopLevelStatement::Trait(_)
             | TopLevelStatement::Impl(_)

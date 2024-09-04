@@ -3,7 +3,9 @@ use super::{
     block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_visibility,
     parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
     primitives::token_kind,
-    self_parameter, where_clause, NoirParser,
+    self_parameter,
+    visibility::visibility_modifier,
+    where_clause, NoirParser,
 };
 use crate::token::{Keyword, Token, TokenKind};
 use crate::{
@@ -71,21 +73,6 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
             }
             .into()
         })
-}
-
-/// visibility_modifier: 'pub(crate)'? 'pub'? ''
-fn visibility_modifier() -> impl NoirParser<ItemVisibility> {
-    let is_pub_crate = (keyword(Keyword::Pub)
-        .then_ignore(just(Token::LeftParen))
-        .then_ignore(keyword(Keyword::Crate))
-        .then_ignore(just(Token::RightParen)))
-    .map(|_| ItemVisibility::PublicCrate);
-
-    let is_pub = keyword(Keyword::Pub).map(|_| ItemVisibility::Public);
-
-    let is_private = empty().map(|_| ItemVisibility::Private);
-
-    choice((is_pub_crate, is_pub, is_private))
 }
 
 /// function_modifiers: 'unconstrained'? (visibility)?

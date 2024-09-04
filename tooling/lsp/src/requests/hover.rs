@@ -58,6 +58,13 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
     }
 }
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
+    let crate_root = args.def_maps[&id.krate].root();
+
+    if id.local_id == crate_root {
+        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate);
+        return dep.map(|dep| format!("    crate {}", dep.name));
+    }
+
     // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
     // This is a workaround to avoid panicking in that case (which brings the LSP server down).
     // Cases where this happens are related to generated code, so once that stops happening
@@ -65,12 +72,14 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     let module_attributes = args.interner.try_module_attributes(&id)?;
 
     let mut string = String::new();
-    if format_parent_module_from_module_id(
-        &ModuleId { krate: id.krate, local_id: module_attributes.parent },
-        args,
-        &mut string,
-    ) {
-        string.push('\n');
+    if let Some(parent_local_id) = module_attributes.parent {
+        if format_parent_module_from_module_id(
+            &ModuleId { krate: id.krate, local_id: parent_local_id },
+            args,
+            &mut string,
+        ) {
+            string.push('\n');
+        }
     }
     string.push_str("    ");
     string.push_str("mod ");
@@ -325,29 +334,27 @@ fn format_parent_module_from_module_id(
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
-        while let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
-            krate: module.krate,
-            local_id: current_attributes.parent,
-        }) {
+        loop {
+            let Some(parent_local_id) = current_attributes.parent else {
+                break;
+            };
+
+            let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
+                krate: module.krate,
+                local_id: parent_local_id,
+            }) else {
+                break;
+            };
+
             segments.push(&parent_attributes.name);
             current_attributes = parent_attributes;
         }
     }
 
-    let crate_id = module.krate;
-    let crate_name = match crate_id {
-        CrateId::Root(_) => Some(args.crate_name.clone()),
-        CrateId::Crate(_) => args
-            .dependencies
-            .iter()
-            .find(|dep| dep.crate_id == crate_id)
-            .map(|dep| format!("{}", dep.name)),
-        CrateId::Stdlib(_) => Some("std".to_string()),
-        CrateId::Dummy => unreachable!("ICE: A dummy CrateId should not be accessible"),
-    };
-
-    if let Some(crate_name) = &crate_name {
-        segments.push(crate_name);
+    // We don't record module attriubtes for the root module,
+    // so we handle that case separately
+    if let CrateId::Root(_) = module.krate {
+        segments.push(&args.crate_name);
     };
 
     if segments.is_empty() {
@@ -416,8 +423,11 @@ impl<'a> TypeLinksGatherer<'a> {
             Type::TraitAsType(trait_id, _, generics) => {
                 let some_trait = self.interner.get_trait(*trait_id);
                 self.gather_trait_links(some_trait);
-                for generic in generics {
+                for generic in &generics.ordered {
                     self.gather_type_links(generic);
+                }
+                for named_type in &generics.named {
+                    self.gather_type_links(&named_type.typ);
                 }
             }
             Type::NamedGeneric(var, _, _) => {
@@ -801,6 +811,17 @@ mod hover_tests {
         some_field: i32,
         some_other_field: Field,
     }"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_crate_segment() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 0, character: 5 },
+            "    crate one",
         )
         .await;
     }
