@@ -75,7 +75,7 @@ impl<F: AcirField> RangeOptimizer<F> {
 
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
                     if let ConstantOrWitnessEnum::Witness(witness) = input.input() {
-                        Some((witness.clone(), input.num_bits()))
+                        Some((witness, input.num_bits()))
                     } else {
                         None
                     }

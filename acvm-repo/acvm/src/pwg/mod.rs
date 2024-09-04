@@ -159,6 +159,15 @@ impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
     }
 }
 
+impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
+    fn from(invalid_input_bit_size: InvalidInputBitSize) -> Self {
+        Self::InvalidInputBitSize {
+            opcode_location: ErrorLocation::Unresolved,
+            invalid_input_bit_size,
+        }
+    }
+}
+
 pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
 

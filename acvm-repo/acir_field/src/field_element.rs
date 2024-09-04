@@ -143,9 +143,9 @@ impl<F: PrimeField> From<BigUint> for FieldElement<F> {
     }
 }
 
-impl<F: PrimeField> Into<BigUint> for FieldElement<F> {
-    fn into(self) -> BigUint {
-        F::into(self.0)
+impl<F: PrimeField> From<FieldElement<F>> for BigUint {
+    fn from(a: FieldElement<F>) -> BigUint {
+        F::into(a.0)
     }
 }
 
