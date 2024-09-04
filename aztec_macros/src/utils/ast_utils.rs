@@ -187,7 +187,7 @@ pub fn check_trait_method_implemented(trait_impl: &NoirTraitImpl, method_name: &
 
 /// Checks if an attribute is a custom attribute with a specific name
 pub fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool {
-    if let SecondaryAttribute::Custom(custom_attr) = attr {
+    if let SecondaryAttribute::Custom(custom_attr, _) = attr {
         custom_attr.as_str() == attribute_name
     } else {
         false

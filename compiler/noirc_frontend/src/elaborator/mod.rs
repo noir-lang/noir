@@ -819,7 +819,8 @@ impl<'context> Elaborator<'context> {
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes = attributes.map(|str| str.to_string()).collect();
+        let attributes: Vec<(String, Span)> =
+            attributes.map(|(str, span)| (str.to_string(), span)).collect();
 
         let meta = FuncMeta {
             name: name_ident,

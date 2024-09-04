@@ -284,8 +284,6 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_attribute(&mut self) -> SpannedTokenResult {
-        let start = self.position;
-
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
@@ -295,7 +293,12 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
+        // Make start and end be exactly the attribute contents without leading `#[` and trailing `]`
+        let start = self.position + 1;
+
         let word = self.eat_while(None, |ch| ch != ']');
+
+        let end = self.position;
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -305,8 +308,6 @@ impl<'a> Lexer<'a> {
             });
         }
         self.next_char();
-
-        let end = self.position;
 
         let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
 
@@ -811,7 +812,8 @@ mod tests {
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(
-                "custom(hello)".to_string()
+                "custom(hello)".to_string(),
+                Span::from(2..14),
             )))
         );
     }

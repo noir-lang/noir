@@ -96,10 +96,14 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
-            if let SecondaryAttribute::Custom(name) = attribute {
-                if let Err(error) =
-                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
-                {
+            if let SecondaryAttribute::Custom(name, attribute_span) = attribute {
+                if let Err(error) = self.run_comptime_attribute_on_item(
+                    name,
+                    item.clone(),
+                    span,
+                    *attribute_span,
+                    generated_items,
+                ) {
                     self.errors.push(error);
                 }
             }
@@ -111,9 +115,10 @@ impl<'context> Elaborator<'context> {
         attribute: &str,
         item: Value,
         span: Span,
+        attribute_span: Span,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
-        let location = Location::new(span, self.file);
+        let location = Location::new(attribute_span, self.file);
         let Some((function, arguments)) = Self::parse_attribute(attribute, self.file)? else {
             // Do not issue an error if the attribute is unknown
             return Ok(());
@@ -196,6 +201,14 @@ impl<'context> Elaborator<'context> {
     ) -> Result<Vec<(Value, Location)>, InterpreterError> {
         let meta = interpreter.elaborator.interner.function_meta(&function);
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
+
+        if parameters.is_empty() {
+            return Err(InterpreterError::ArgumentCountMismatch {
+                expected: 0,
+                actual: arguments.len() + 1,
+                location,
+            });
+        }
 
         // Remove the initial parameter for the comptime item since that is not included
         // in `arguments` at this point.

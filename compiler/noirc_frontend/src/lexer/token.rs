@@ -770,7 +770,7 @@ impl Attribute {
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
+                Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned(), span))
             }
         };
 
@@ -863,7 +863,7 @@ pub enum SecondaryAttribute {
     ContractLibraryMethod,
     Export,
     Field(String),
-    Custom(String),
+    Custom(String, Span),
     Abi(String),
 
     /// A variable-argument comptime function.
@@ -871,9 +871,9 @@ pub enum SecondaryAttribute {
 }
 
 impl SecondaryAttribute {
-    pub(crate) fn as_custom(&self) -> Option<&str> {
-        if let Self::Custom(str) = self {
-            Some(str)
+    pub(crate) fn as_custom(&self) -> Option<(&str, Span)> {
+        if let Self::Custom(str, span) = self {
+            Some((str, *span))
         } else {
             None
         }
@@ -887,7 +887,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Deprecated(Some(ref note)) => {
                 write!(f, r#"#[deprecated("{note}")]"#)
             }
-            SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
+            SecondaryAttribute::Custom(ref k, _) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
@@ -916,7 +916,7 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string)
+            SecondaryAttribute::Custom(string, _)
             | SecondaryAttribute::Field(string)
             | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
