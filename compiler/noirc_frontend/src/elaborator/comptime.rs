@@ -269,10 +269,7 @@ impl<'context> Elaborator<'context> {
                 let module = self.module_id();
                 self.interner.push_function(id, &function.def, module, location);
 
-                if self.interner.is_in_lsp_mode()
-                    && !function.def.is_test()
-                    && !function.def.is_private()
-                {
+                if self.interner.is_in_lsp_mode() && !function.def.is_test() {
                     self.interner.register_function(id, &function.def);
                 }
 
