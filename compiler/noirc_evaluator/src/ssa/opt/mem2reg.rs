@@ -66,7 +66,7 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -122,7 +122,8 @@ struct PerFunctionContext<'f> {
     load_results: HashMap<ValueId, PerFuncLoadResultContext>,
 
     /// Track whether a reference was passed into another entry point
-    stores_used_in_calls: HashMap<ValueId, Vec<(InstructionId, BasicBlockId)>>,
+    /// This is needed to determine whether we can remove a store.
+    calls_reference_input: HashSet<ValueId>,
 }
 
 #[derive(Debug, Clone)]
@@ -151,7 +152,7 @@ impl<'f> PerFunctionContext<'f> {
             instructions_to_remove: BTreeSet::new(),
             last_loads: HashMap::default(),
             load_results: HashMap::default(),
-            stores_used_in_calls: HashMap::default(),
+            calls_reference_input: HashSet::default(),
         }
     }
 
@@ -169,148 +170,8 @@ impl<'f> PerFunctionContext<'f> {
             self.analyze_block(block, references);
         }
 
-        let mut loads_removed = HashMap::default();
-        for (_, PerFuncLoadResultContext { load_counter, load_instruction, .. }) in
-            self.load_results.iter()
-        {
-            let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
-            else {
-                panic!("Should only have a load instruction here");
-            };
-
-            if *load_counter == 0 {
-                if let Some(counter) = loads_removed.get_mut(&address) {
-                    *counter += 1;
-                } else {
-                    loads_removed.insert(address, 1);
-                }
-
-                self.instructions_to_remove.insert(*load_instruction);
-            }
-        }
-
-        let mut not_removed_stores: HashMap<ValueId, (InstructionId, u32)> = HashMap::default();
-        // If we never load from an address within a function we can remove all stores to that address.
-        // This rule does not apply to reference parameters, which we must also check for before removing these stores.
-        for (block_id, block) in self.blocks.iter() {
-            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            for (store_address, store_instruction) in block.last_stores.iter() {
-                let is_reference_param = block_params.contains(store_address);
-                let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-
-                let is_return = matches!(terminator, TerminatorInstruction::Return { .. });
-                let remove_load = if is_return {
-                    // Determine whether the last store is used in the return value
-                    let mut is_return_value = false;
-                    terminator.for_each_value(|return_value| {
-                        is_return_value = return_value == *store_address || is_return_value;
-                    });
-
-                    // If the last load of a store is not part of the block with a return terminator,
-                    // we can safely remove this store.
-                    let last_load_not_in_return = self
-                        .last_loads
-                        .get(store_address)
-                        .map(|(_, last_load_block, _)| *last_load_block != *block_id)
-                        .unwrap_or(true);
-                    !is_return_value && last_load_not_in_return
-                } else if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
-                    (self.last_loads.get(store_address), loads_removed.get(store_address))
-                {
-                    *last_loads_counter == *loads_removed_counter
-                } else {
-                    self.last_loads.get(store_address).is_none()
-                };
-
-                let is_not_used_in_reference_param =
-                    self.stores_used_in_calls.get(store_address).is_none();
-                if remove_load && !is_reference_param && is_not_used_in_reference_param {
-                    self.instructions_to_remove.insert(*store_instruction);
-                    if let Some((_, counter)) = not_removed_stores.get_mut(store_address) {
-                        *counter -= 1;
-                    }
-                } else if let Some((_, counter)) = not_removed_stores.get_mut(store_address) {
-                    *counter += 1;
-                } else {
-                    not_removed_stores.insert(*store_address, (*store_instruction, 1));
-                }
-            }
-        }
-
-        self.load_results.retain(|_, PerFuncLoadResultContext { load_instruction, .. }| {
-            let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
-            else {
-                panic!("Should only have a load instruction here");
-            };
-            not_removed_stores.contains_key(&address)
-        });
-
-        let mut new_instructions = HashMap::default();
-        for (store_address, (store_instruction, store_counter)) in not_removed_stores {
-            let Instruction::Store { value, .. } = self.inserter.function.dfg[store_instruction]
-            else {
-                panic!("Should only have a store instruction");
-            };
-
-            if store_counter != 0 {
-                continue;
-            }
-            self.instructions_to_remove.insert(store_instruction);
-
-            if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
-                (self.last_loads.get(&store_address), loads_removed.get(&store_address))
-            {
-                if *last_loads_counter < *loads_removed_counter {
-                    panic!("The number of loads removed should not be more than all loads");
-                }
-            }
-
-            for (
-                result,
-                PerFuncLoadResultContext {
-                    load_counter,
-                    load_instruction,
-                    instructions_using_result,
-                },
-            ) in self.load_results.iter()
-            {
-                let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
-                else {
-                    panic!("Should only have a load instruction here");
-                };
-                if address != store_address {
-                    continue;
-                }
-
-                if *load_counter > 0 {
-                    self.inserter.map_value(*result, value);
-                    for (instruction, block_id) in instructions_using_result {
-                        let new_instruction =
-                            self.inserter.push_instruction(*instruction, *block_id);
-                        if let Some(new_instruction) = new_instruction {
-                            new_instructions
-                                .insert((*instruction, block_id), Some(new_instruction));
-                        } else {
-                            new_instructions.insert((*instruction, block_id), None);
-                        }
-                    }
-
-                    self.instructions_to_remove.insert(*load_instruction);
-                }
-            }
-        }
-
-        // Re-assign or delete any mapped instructions after the final loads were removed.
-        for ((old_instruction, block_id), new_instruction) in new_instructions {
-            let instructions = self.inserter.function.dfg[*block_id].instructions_mut();
-            if let Some(index) = instructions.iter().position(|v| *v == old_instruction) {
-                if let Some(new_instruction) = new_instruction {
-                    instructions[index] = new_instruction;
-                } else {
-                    instructions.remove(index);
-                }
-            }
-        }
+        self.cleanup_function();
+        // self.cleanup_function();
     }
 
     /// The value of each reference at the start of the given block is the unification
@@ -502,10 +363,7 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Call { arguments, .. } => {
                 for arg in arguments {
                     if self.inserter.function.dfg.value_is_reference(*arg) {
-                        self.stores_used_in_calls
-                            .entry(*arg)
-                            .or_default()
-                            .push((instruction, block_id));
+                        self.calls_reference_input.insert(*arg);
                     }
                 }
                 self.mark_all_unknown(arguments, references);
@@ -612,6 +470,174 @@ impl<'f> PerFunctionContext<'f> {
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
                 self.mark_all_unknown(return_values, references);
+            }
+        }
+    }
+
+    /// The mem2reg pass is sometimes unable to determine certain known values
+    /// when iterating over a function's block in reverse post order.
+    /// We collect state about any final loads and stores to a given address during the initial mem2reg pass.
+    /// We can then utilize this state to clean up any loads and stores that may have been missed.
+    fn cleanup_function(&mut self) {
+        let removed_loads = self.remove_unused_loads();
+        let remaining_last_stores = self.remove_unloaded_last_stores(&removed_loads);
+        self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
+    }
+
+    /// Cleanup remaining loads across the entire function
+    /// Remove any loads whose reference counter is zero.
+    /// Returns a map of the removed load address to the number of load instructions removed for that address
+    fn remove_unused_loads(&mut self) -> HashMap<ValueId, u32> {
+        let mut removed_loads = HashMap::default();
+        for (_, PerFuncLoadResultContext { load_counter, load_instruction, .. }) in
+            self.load_results.iter()
+        {
+            let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+            else {
+                panic!("Should only have a load instruction here");
+            };
+
+            if *load_counter == 0 {
+                if let Some(counter) = removed_loads.get_mut(&address) {
+                    *counter += 1;
+                } else {
+                    removed_loads.insert(address, 1);
+                }
+
+                self.instructions_to_remove.insert(*load_instruction);
+            }
+        }
+        removed_loads
+    }
+
+    /// Cleanup remaining stores across the entire function.
+    /// If we never load from an address within a function we can remove all stores to that address.
+    /// This rule does not apply to reference parameters, which we must also check for before removing these stores.
+    /// Returns a map of any remaining stores which may still have loads in use.
+    fn remove_unloaded_last_stores(
+        &mut self,
+        removed_loads: &HashMap<ValueId, u32>,
+    ) -> HashMap<ValueId, (InstructionId, u32)> {
+        let mut remaining_last_stores: HashMap<ValueId, (InstructionId, u32)> = HashMap::default();
+        for (block_id, block) in self.blocks.iter() {
+            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
+            for (store_address, store_instruction) in block.last_stores.iter() {
+                let is_reference_param = block_params.contains(store_address);
+                let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
+
+                let is_return = matches!(terminator, TerminatorInstruction::Return { .. });
+                // Determine whether any loads that reference this store address
+                // have been removed while cleaning up unused loads.
+                let remove_load = if is_return {
+                    // Determine whether the last store is used in the return value
+                    let mut is_return_value = false;
+                    terminator.for_each_value(|return_value| {
+                        is_return_value = return_value == *store_address || is_return_value;
+                    });
+
+                    // If the last load of a store is not part of the block with a return terminator,
+                    // we can safely remove this store.
+                    let last_load_not_in_return = self
+                        .last_loads
+                        .get(store_address)
+                        .map(|(_, last_load_block, _)| *last_load_block != *block_id)
+                        .unwrap_or(true);
+                    !is_return_value && last_load_not_in_return
+                } else if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
+                    (self.last_loads.get(store_address), removed_loads.get(store_address))
+                {
+                    // `last_loads` contains the total number of loads for a given load address
+                    // If the number of loads removed
+                    *last_loads_counter == *loads_removed_counter
+                } else {
+                    // Otherwise just check whether a load exists at all for this store address
+                    self.last_loads.get(store_address).is_none()
+                };
+
+                let is_not_used_in_reference_param =
+                    self.calls_reference_input.get(store_address).is_none();
+                if remove_load && !is_reference_param && is_not_used_in_reference_param {
+                    self.instructions_to_remove.insert(*store_instruction);
+                    if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
+                        *counter -= 1;
+                    }
+                    // else {
+                    //     remaining_last_stores.insert(*store_address, (*store_instruction, 1));
+                    // }
+                } else if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
+                    *counter += 1;
+                } else {
+                    remaining_last_stores.insert(*store_address, (*store_instruction, 1));
+                }
+            }
+        }
+        remaining_last_stores
+    }
+
+    /// Check if any remaining last stores are only used in a single load
+    fn remove_remaining_last_stores(
+        &mut self,
+        removed_loads: &HashMap<ValueId, u32>,
+        remaining_last_stores: &HashMap<ValueId, (InstructionId, u32)>,
+    ) {
+        // Filter out any still in use load results and any load results that do not contain addresses from the remaining last stores
+        self.load_results.retain(
+            |_, PerFuncLoadResultContext { load_instruction, load_counter, .. }| {
+                let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+                else {
+                    panic!("Should only have a load instruction here");
+                };
+                remaining_last_stores.contains_key(&address) && *load_counter > 0
+            },
+        );
+
+        for (store_address, (store_instruction, store_counter)) in remaining_last_stores {
+            let Instruction::Store { value, .. } = self.inserter.function.dfg[*store_instruction]
+            else {
+                panic!("Should only have a store instruction");
+            };
+
+            if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
+                (self.last_loads.get(store_address), removed_loads.get(store_address))
+            {
+                if *last_loads_counter < *loads_removed_counter {
+                    panic!("The number of loads removed should not be more than all loads");
+                }
+            }
+
+            if *store_counter != 0 {
+                continue;
+            }
+
+            self.instructions_to_remove.insert(*store_instruction);
+
+            // Map any remaining load results to the value from the removed store
+            for (
+                result,
+                PerFuncLoadResultContext { load_instruction, instructions_using_result, .. },
+            ) in self.load_results.iter()
+            {
+                self.inserter.map_value(*result, value);
+                for (instruction, block_id) in instructions_using_result {
+                    if self.instructions_to_remove.contains(instruction) {
+                        continue;
+                    }
+
+                    let new_instruction = self.inserter.push_instruction(*instruction, *block_id);
+
+                    let instructions = self.inserter.function.dfg[*block_id].instructions_mut();
+
+                    // Re-assign or delete any mapped instructions after the final loads were removed.
+                    if let Some(index) = instructions.iter().position(|v| *v == *instruction) {
+                        if let Some(new_instruction) = new_instruction {
+                            instructions[index] = new_instruction;
+                        } else {
+                            instructions.remove(index);
+                        }
+                    }
+                }
+
+                self.instructions_to_remove.insert(*load_instruction);
             }
         }
     }
@@ -920,5 +946,162 @@ mod tests {
 
         // We expect the last eq to be optimized out
         assert_eq!(b1_instructions.len(), 0);
+    }
+
+    #[test]
+    fn remove_unused_loads_and_stores() {
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v0 = allocate
+        //       store Field 1 at v0
+        //       v2 = allocate
+        //       store Field 1 at v2
+        //       v4 = allocate
+        //       store u1 0 at v4
+        //       v5 = allocate
+        //       store u1 0 at v5
+        //       v6 = allocate
+        //       store u1 0 at v6
+        //       jmp b1(u1 0)
+        //     b1(v7: u32):
+        //       v9 = eq v7, u32 0
+        //       jmpif v9 then: b3, else: b2
+        //     b3():
+        //       v20 = load v0
+        //       v21 = load v2
+        //       v22 = load v4
+        //       v23 = load v5
+        //       v24 = load v6
+        //       constrain v20 == Field 1
+        //       v25 = eq v21, Field 1
+        //       constrain v21 == Field 1
+        //       v26 = eq v7, u32 0
+        //       jmp b1(v26)
+        //     b2():
+        //       v10 = load v0
+        //       v11 = load v2
+        //       v12 = load v4
+        //       v13 = load v5
+        //       v14 = load v6
+        //       store Field 1 at v0
+        //       store Field 1 at v2
+        //       store v12 at v4
+        //       store v13 at v5
+        //       store v14 at v6
+        //       v15 = load v0
+        //       v16 = load v2
+        //       v17 = load v4
+        //       v18 = load v5
+        //       v19 = load v6
+        //       constrain v15 == Field 1
+        //       return v16
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.insert_allocate(Type::field());
+        let one = builder.numeric_constant(1u128, Type::field());
+        builder.insert_store(v0, one);
+
+        let v2 = builder.insert_allocate(Type::field());
+        builder.insert_store(v2, one);
+
+        let zero_bool = builder.numeric_constant(0u128, Type::bool());
+        let v4 = builder.insert_allocate(Type::bool());
+        builder.insert_store(v4, zero_bool);
+
+        let v6 = builder.insert_allocate(Type::bool());
+        builder.insert_store(v6, zero_bool);
+
+        let v8 = builder.insert_allocate(Type::bool());
+        builder.insert_store(v8, zero_bool);
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![zero_bool]);
+
+        builder.switch_to_block(b1);
+
+        let v7 = builder.add_block_parameter(b1, Type::unsigned(32));
+        let zero_u32 = builder.numeric_constant(0u128, Type::unsigned(32));
+        let is_zero = builder.insert_binary(v7, BinaryOp::Eq, zero_u32);
+
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        builder.terminate_with_jmpif(is_zero, b3, b2);
+
+        builder.switch_to_block(b2);
+
+        let _ = builder.insert_load(v0, Type::field());
+        let _ = builder.insert_load(v2, Type::field());
+        let v12 = builder.insert_load(v4, Type::bool());
+        let v13 = builder.insert_load(v6, Type::bool());
+        let v14 = builder.insert_load(v8, Type::bool());
+
+        builder.insert_store(v0, one);
+        builder.insert_store(v2, one);
+        builder.insert_store(v4, v12);
+        builder.insert_store(v6, v13);
+        builder.insert_store(v8, v14);
+
+        let v15 = builder.insert_load(v0, Type::field());
+        // Insert unused loads
+        let v16 = builder.insert_load(v2, Type::field());
+        let _ = builder.insert_load(v4, Type::bool());
+        let _ = builder.insert_load(v6, Type::bool());
+        let _ = builder.insert_load(v8, Type::bool());
+
+        builder.insert_constrain(v15, one, None);
+        builder.terminate_with_return(vec![v16]);
+
+        builder.switch_to_block(b3);
+
+        let v26 = builder.insert_load(v0, Type::field());
+        // Insert unused loads
+        let v27 = builder.insert_load(v2, Type::field());
+        let _ = builder.insert_load(v4, Type::bool());
+        let _ = builder.insert_load(v6, Type::bool());
+        let _ = builder.insert_load(v8, Type::bool());
+
+        builder.insert_constrain(v26, one, None);
+        let _ = builder.insert_binary(v27, BinaryOp::Eq, one);
+        builder.insert_constrain(v27, one, None);
+        let one_u32 = builder.numeric_constant(0u128, Type::unsigned(32));
+        let plus_one = builder.insert_binary(v7, BinaryOp::Eq, one_u32);
+        builder.terminate_with_jmp(b1, vec![plus_one]);
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+
+        // Expected result:
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v27 = allocate
+        //       v28 = allocate
+        //       v29 = allocate
+        //       v30 = allocate
+        //       v31 = allocate
+        //       jmp b1(u1 0)
+        //     b1(v7: u32):
+        //       v32 = eq v7, u32 0
+        //       jmpif v32 then: b3, else: b2
+        //     b3():
+        //       v49 = eq v7, u32 0
+        //       jmp b1(v49)
+        //     b2():
+        //       return Field 1
+        //   }
+        let ssa = ssa.mem2reg();
+        println!("{}", ssa);
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 4);
+
+        // All loads should be removed
+        assert_eq!(count_loads(b2, &main.dfg), 0);
+        assert_eq!(count_loads(b3, &main.dfg), 0);
+
+        // All stores should be removed
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_stores(b2, &main.dfg), 0);
     }
 }
