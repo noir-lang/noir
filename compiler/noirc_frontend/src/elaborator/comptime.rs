@@ -175,6 +175,8 @@ impl<'context> Elaborator<'context> {
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
 
+        self.debug_comptime(location, |interner| value.display(interner).to_string());
+
         if value != Value::Unit {
             let items = value
                 .into_top_level_items(location, self.interner)
@@ -385,14 +387,30 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error);
                 }
             }
+            TopLevelStatement::Struct(struct_def) => {
+                if let Some((type_id, the_struct)) = dc_mod::collect_struct(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    struct_def,
+                    self.file,
+                    self.local_module,
+                    self.crate_id,
+                    &mut self.errors,
+                ) {
+                    generated_items.types.insert(type_id, the_struct);
+                }
+            }
+            TopLevelStatement::Impl(r#impl) => {
+                let module = self.module_id();
+                dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
+            }
+
             // Assume that an error has already been issued
             TopLevelStatement::Error => (),
 
             TopLevelStatement::Module(_)
             | TopLevelStatement::Import(..)
-            | TopLevelStatement::Struct(_)
             | TopLevelStatement::Trait(_)
-            | TopLevelStatement::Impl(_)
             | TopLevelStatement::TypeAlias(_)
             | TopLevelStatement::SubModule(_)
             | TopLevelStatement::InnerAttribute(_) => {
