@@ -7,9 +7,9 @@ use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
     check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_field,
-    get_function_def, get_module, get_quoted, get_slice, get_struct, get_trait_constraint,
-    get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr, get_u32,
-    get_unresolved_type, hir_pattern_to_tokens, mutate_func_meta_type, parse,
+    get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
+    get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
+    get_u32, get_unresolved_type, hir_pattern_to_tokens, mutate_func_meta_type, parse,
     replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use chumsky::{prelude::choice, Parser};
@@ -32,6 +32,7 @@ use crate::{
         InterpreterError, Value,
     },
     hir_def::function::FunctionBody,
+    lexer::Lexer,
     macros_api::{HirExpression, HirLiteral, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
@@ -95,6 +96,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
+            "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -1574,6 +1576,23 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
         }
     }
     expr_value
+}
+
+// fn quoted_contents(self) -> Quoted
+fn fmtstr_quoted_contents(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let (string, _) = get_format_string(interner, self_argument)?;
+    let (tokens, _) = Lexer::lex(&string);
+    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
+    if let Some(Token::EOF) = tokens.last() {
+        tokens.pop();
+    }
+
+    Ok(Value::Quoted(Rc::new(tokens)))
 }
 
 // fn body(self) -> Expr

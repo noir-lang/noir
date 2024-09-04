@@ -336,7 +336,7 @@ mod completion_tests {
             fo>|<
           }
         "#;
-        assert_completion(src, vec![module_completion_item("foobar")]).await;
+        assert_completion_excluding_auto_import(src, vec![module_completion_item("foobar")]).await;
     }
 
     #[test]
