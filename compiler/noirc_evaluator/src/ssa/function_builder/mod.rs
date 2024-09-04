@@ -219,11 +219,7 @@ impl FunctionBuilder {
     /// at the given address. Expects that the address points somewhere
     /// within a previous Allocate instruction.
     pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
-        self.insert_instruction(Instruction::Store { address, value, from_rc: false }, None);
-    }
-
-    pub(crate) fn insert_store_from_rc(&mut self, address: ValueId, value: ValueId) {
-        self.insert_instruction(Instruction::Store { address, value, from_rc: true }, None);
+        self.insert_instruction(Instruction::Store { address, value }, None);
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -482,7 +478,7 @@ impl FunctionBuilder {
                         let address = *address;
                         let new_load = self.insert_load(address, typ);
                         update_rc(self, new_load);
-                        self.insert_store_from_rc(address, new_load);
+                        self.insert_store(address, new_load);
                     }
                 }
             }
