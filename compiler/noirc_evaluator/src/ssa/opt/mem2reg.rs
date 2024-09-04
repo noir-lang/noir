@@ -116,7 +116,7 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId, u32)>,
 
     /// Track whether a load result was used across all blocks.
     load_results: HashMap<ValueId, (u32, InstructionId)>,
@@ -172,8 +172,7 @@ impl<'f> PerFunctionContext<'f> {
             self.analyze_block(block, references);
         }
 
-        let mut load_result_unused: HashSet<ValueId> = HashSet::default();
-        let mut load_result_used: HashSet<ValueId> = HashSet::default();
+        let mut loads_removed = HashMap::default();
         for (_, (ref_counter, load_instruction)) in self.load_results.iter() {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
@@ -181,6 +180,12 @@ impl<'f> PerFunctionContext<'f> {
             };
 
             if *ref_counter == 0 {
+                if let Some(counter) = loads_removed.get_mut(&address) {
+                    *counter += 1;
+                } else {
+                    loads_removed.insert(address, 1);
+                }
+
                 self.instructions_to_remove.insert(*load_instruction);
             }
         }
@@ -206,11 +211,17 @@ impl<'f> PerFunctionContext<'f> {
                     let last_load_not_in_return = self
                         .last_loads
                         .get(store_address)
-                        .map(|(_, last_load_block)| *last_load_block != *block_id)
+                        .map(|(_, last_load_block, _)| *last_load_block != *block_id)
                         .unwrap_or(true);
                     !is_return_value && last_load_not_in_return
                 } else {
-                    self.last_loads.get(store_address).is_none()
+                    if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
+                        (self.last_loads.get(store_address), loads_removed.get(store_address))
+                    {
+                        *last_loads_counter == *loads_removed_counter
+                    } else {
+                        self.last_loads.get(store_address).is_none()
+                    }
                 };
 
                 if remove_load && !is_reference_param {
@@ -329,7 +340,13 @@ impl<'f> PerFunctionContext<'f> {
 
                     self.load_results.insert(result, (0, instruction));
 
-                    self.last_loads.insert(address, (instruction, block_id));
+                    let load_counter =
+                        if let Some((_, _, load_counter)) = self.last_loads.get(&address) {
+                            *load_counter + 1
+                        } else {
+                            1
+                        };
+                    self.last_loads.insert(address, (instruction, block_id, load_counter));
                 }
             }
             Instruction::Store { address, value } => {
