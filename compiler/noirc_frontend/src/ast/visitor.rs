@@ -16,7 +16,7 @@ use crate::{
         QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::Tokens,
+    token::{SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
@@ -432,6 +432,8 @@ pub trait Visitor {
     fn visit_struct_pattern(&mut self, _: &Path, _: &[(Ident, Pattern)], _: Span) -> bool {
         true
     }
+
+    fn visit_secondary_attribute(&mut self, _: &SecondaryAttribute, _: Span) {}
 }
 
 impl ParsedModule {
@@ -480,6 +482,9 @@ impl Item {
             ItemKind::Struct(noir_struct) => noir_struct.accept(self.span, visitor),
             ItemKind::ModuleDecl(module_declaration) => {
                 module_declaration.accept(self.span, visitor);
+            }
+            ItemKind::InnerAttribute(attribute) => {
+                attribute.accept(self.span, visitor);
             }
         }
     }
@@ -1286,6 +1291,12 @@ impl Pattern {
                 }
             }
         }
+    }
+}
+
+impl SecondaryAttribute {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        visitor.visit_secondary_attribute(self, span);
     }
 }
 

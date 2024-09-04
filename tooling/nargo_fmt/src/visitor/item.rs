@@ -165,6 +165,11 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
+                    for attribute in module.outer_attributes {
+                        self.push_str(&format!("#[{}]\n", attribute.as_ref()));
+                        self.push_str(&self.indent.to_string());
+                    }
+
                     let name = module.name;
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
@@ -227,7 +232,8 @@ impl super::FmtVisitor<'_> {
                 | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)
                 | ItemKind::Global(_)
-                | ItemKind::ModuleDecl(_) => {
+                | ItemKind::ModuleDecl(_)
+                | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);
                     self.last_position = span.end();
                 }
