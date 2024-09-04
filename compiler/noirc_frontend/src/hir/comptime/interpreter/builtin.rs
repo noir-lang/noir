@@ -1577,7 +1577,7 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
     expr_value
 }
 
-// fn quoted(self) -> Quoted
+// fn contents(self) -> Quoted
 fn fmtstr_contents(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
