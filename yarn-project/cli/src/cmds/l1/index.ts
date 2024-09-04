@@ -285,17 +285,32 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       ETHEREUM_HOST,
     )
     .addOption(l1ChainIdOption)
-    .option('--start-block <number>', 'The block number to start from', parseBigint, 1n)
+    .option('--start-block <number>', 'The L1 block number to start from', parseBigint, 1n)
+    .option('--end-block <number>', 'The last L1 block number to query', parseBigint)
     .option('--batch-size <number>', 'The number of blocks to query in each batch', parseBigint, 100n)
+    .option('--proving-timeout <number>', 'Cutoff for proving time to consider a block', parseBigint)
     .option('--l1-rollup-address <string>', 'Address of the rollup contract (required if node URL is not set)')
     .option(
       '--node-url <string>',
       'JSON RPC URL of an Aztec node to retrieve the rollup contract address (required if L1 rollup address is not set)',
     )
+    .option('--raw-logs', 'Output raw logs instead of aggregated stats')
     .action(async options => {
       const { proverStats } = await import('./prover_stats.js');
-      const { l1RpcUrl, chainId, l1RollupAddress, startBlock, batchSize, nodeUrl } = options;
-      await proverStats({ l1RpcUrl, chainId, l1RollupAddress, startBlock, batchSize, nodeUrl, log });
+      const { l1RpcUrl, chainId, l1RollupAddress, startBlock, endBlock, batchSize, nodeUrl, provingTimeout, rawLogs } =
+        options;
+      await proverStats({
+        l1RpcUrl,
+        chainId,
+        l1RollupAddress,
+        startBlock,
+        endBlock,
+        batchSize,
+        nodeUrl,
+        provingTimeout,
+        rawLogs,
+        log,
+      });
     });
 
   return program;

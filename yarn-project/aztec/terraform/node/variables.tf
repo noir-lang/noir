@@ -11,6 +11,10 @@ variable "API_KEY" {
   type = string
 }
 
+variable "FORK_ADMIN_API_KEY" {
+  type = string
+}
+
 variable "SEQUENCER_PRIVATE_KEYS" {
   type = list(string)
 }

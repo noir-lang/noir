@@ -150,20 +150,24 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnusedVariable { ident } => {
                 let name = &ident.0.contents;
 
-                Diagnostic::simple_warning(
+                let mut diagnostic = Diagnostic::simple_warning(
                     format!("unused variable {name}"),
                     "unused variable ".to_string(),
                     ident.span(),
-                )
+                );
+                diagnostic.unnecessary = true;
+                diagnostic
             }
             ResolverError::UnusedImport { ident } => {
                 let name = &ident.0.contents;
 
-                Diagnostic::simple_warning(
+                let mut diagnostic = Diagnostic::simple_warning(
                     format!("unused import {name}"),
                     "unused import ".to_string(),
                     ident.span(),
-                )
+                );
+                diagnostic.unnecessary = true;
+                diagnostic
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),

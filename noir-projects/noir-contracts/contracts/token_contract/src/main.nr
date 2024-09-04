@@ -19,11 +19,11 @@ contract Token {
         context::{PrivateContext, PrivateCallInterface}, hash::compute_secret_hash,
         prelude::{
         NoteGetterOptions, Map, PublicMutable, SharedImmutable, PrivateSet, AztecAddress,
-        FunctionSelector, NoteHeader, Point
+        FunctionSelector, NoteHeader
     },
         encrypted_logs::{
         encrypted_note_emission::{encode_and_encrypt_note_with_keys, encode_and_encrypt_note_with_keys_unconstrained},
-        encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys_unconstrained}
+        encrypted_event_emission::encode_and_encrypt_event_with_keys_unconstrained
     },
         keys::getters::get_current_public_keys
     };
@@ -33,8 +33,8 @@ contract Token {
     // docs:end:import_authwit
 
     use crate::types::{
-        transparent_note::TransparentNote,
-        token_note::{TokenNote, TOKEN_NOTE_LEN, TokenNoteHidingPoint}, balance_set::BalanceSet
+        transparent_note::TransparentNote, token_note::{TokenNote, TokenNoteHidingPoint},
+        balance_set::BalanceSet
     };
     // docs:end::imports
 
@@ -572,7 +572,9 @@ contract Token {
         // function has access to the final transaction fee, which is needed to compute the actual refund amount.
         context.set_public_teardown_function(
             context.this_address(),
-            FunctionSelector::from_signature("complete_refund(((Field,Field,bool)),((Field,Field,bool)),Field)"),
+            comptime {
+            FunctionSelector::from_signature("complete_refund(((Field,Field,bool)),((Field,Field,bool)),Field)")
+        },
             [
             fee_payer_point.inner.x, fee_payer_point.inner.y, fee_payer_point.inner.is_infinite as Field, user_point.inner.x, user_point.inner.y, user_point.inner.is_infinite as Field, funded_amount
         ]

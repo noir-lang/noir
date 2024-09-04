@@ -1,14 +1,11 @@
 // Account contract that uses ECDSA signatures for authentication on the same curve as Ethereum.
 // The signing key is stored in an immutable private note and should be different from the signing key.
 contract EcdsaKAccount {
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, PrivateImmutable};
+    use dep::aztec::prelude::{PrivateContext, PrivateImmutable};
     use dep::aztec::{
         encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys,
         keys::getters::get_current_public_keys
     };
-
-    use dep::aztec::protocol_types::abis::call_context::CallContext;
-    use dep::std;
 
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
@@ -66,7 +63,7 @@ contract EcdsaKAccount {
 
         // Verify payload signature using Ethereum's signing scheme
         // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.
-        let outer_hash_bytes: [u8; 32] = outer_hash.to_be_bytes(32).as_array();
+        let outer_hash_bytes: [u8; 32] = outer_hash.to_be_bytes();
         let hashed_message: [u8; 32] = std::hash::sha256(outer_hash_bytes);
         let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, hashed_message);
         assert(verification == true);

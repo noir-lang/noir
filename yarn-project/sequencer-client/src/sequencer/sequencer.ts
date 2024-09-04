@@ -314,7 +314,11 @@ export class Sequencer {
         const revertError = err.walk(err => err instanceof ContractFunctionRevertedError);
         if (revertError instanceof ContractFunctionRevertedError) {
           const errorName = revertError.data?.errorName ?? '';
-          this.log.debug(`canProposeAtTime failed with "${errorName}"`);
+          const args =
+            revertError.metaMessages && revertError.metaMessages?.length > 1
+              ? revertError.metaMessages[1].trimStart()
+              : '';
+          this.log.debug(`canProposeAtTime failed with "${errorName}${args}"`);
         }
       }
       throw err;

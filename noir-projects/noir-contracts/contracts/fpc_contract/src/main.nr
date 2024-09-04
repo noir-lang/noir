@@ -28,7 +28,9 @@ contract FPC {
         // FPC::at(context.this_address()).pay_refund_with_shielded_rebate(amount, asset, secret_hash).set_public_teardown_function(&mut context);
         context.set_public_teardown_function(
             context.this_address(),
-            FunctionSelector::from_signature("pay_refund_with_shielded_rebate(Field,(Field),Field)"),
+            comptime {
+            FunctionSelector::from_signature("pay_refund_with_shielded_rebate(Field,(Field),Field)")
+        },
             [amount, asset.to_field(), secret_hash]
         );
     }
@@ -41,7 +43,9 @@ contract FPC {
         // FPC::at(context.this_address()).pay_refund(context.msg_sender(), amount, asset).set_public_teardown_function(&mut context);
         context.set_public_teardown_function(
             context.this_address(),
-            FunctionSelector::from_signature("pay_refund((Field),Field,(Field))"),
+            comptime {
+            FunctionSelector::from_signature("pay_refund((Field),Field,(Field))")
+        },
             [context.msg_sender().to_field(), amount, asset.to_field()]
         );
     }

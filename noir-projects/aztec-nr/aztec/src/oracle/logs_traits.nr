@@ -102,14 +102,14 @@ trait ToBytesForUnencryptedLog<let N: u32, let M: u32> {
 
 impl ToBytesForUnencryptedLog<32, 68> for Field {
     fn to_be_bytes_arr(self) -> [u8; 32] {
-        self.to_be_bytes(32).as_array()
+        self.to_be_bytes()
     }
     fn output_bytes(self) -> [u8; 68] {[self as u8; 68]}
 }
 
 impl ToBytesForUnencryptedLog<32, 68> for AztecAddress {
     fn to_be_bytes_arr(self) -> [u8; 32] {
-        self.to_field().to_be_bytes(32).as_array()
+        self.to_field().to_be_bytes()
     }
     fn output_bytes(self) -> [u8; 68] {[self.to_field() as u8; 68]}
 }
@@ -118,7 +118,7 @@ fn arr_to_be_bytes_arr<let N: u32, let L: u32>(fields: [Field; L]) -> [u8; N] {
     let mut bytes: [u8] = &[];
     for i in 0..L {
         // Note that bytes.append() results in bound error
-        let to_add = fields[i].to_be_bytes(32);
+        let to_add: [u8; 32] = fields[i].to_be_bytes();
         for j in 0..32 {
             bytes = bytes.push_back(to_add[j]);
         }
@@ -132,7 +132,7 @@ fn str_to_be_bytes_arr<let N: u32, let L: u32>(string: str<L>) -> [u8; N] {
     let chars_bytes = string.as_bytes();
     let mut bytes: [u8] = &[];
     for i in 0..L {
-        let to_add = (chars_bytes[i] as Field).to_be_bytes(32);
+        let to_add: [u8; 32] = (chars_bytes[i] as Field).to_be_bytes();
         for j in 0..32 {
             bytes = bytes.push_back(to_add[j]);
         }

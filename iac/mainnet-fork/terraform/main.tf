@@ -120,7 +120,7 @@ resource "aws_ecs_task_definition" "aztec_mainnet_fork" {
       essential = true
       environment = [
         { name = "API_KEY", value = "${var.API_KEY}" },
-        { name = "PUBLIC_API_KEY", value = "${var.PUBLIC_API_KEY}" },
+        { name = "FORK_ADMIN_API_KEY", value = "${var.FORK_ADMIN_API_KEY}" },
         { name = "MNEMONIC", value = "${var.FORK_MNEMONIC}" },
         { name = "INFURA_API_KEY", value = "${var.INFURA_API_KEY}" },
         { name = "L1_CHAIN_ID", value = "${var.L1_CHAIN_ID}" },

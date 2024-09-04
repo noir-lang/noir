@@ -12,7 +12,7 @@ use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_s
 use crate::meta::derive_via;
 
 // Kept for backwards compatibility
-use sha256::{digest, sha256, sha256_compression, sha256_var};
+pub use sha256::{digest, sha256, sha256_compression, sha256_var};
 
 #[foreign(blake2s)]
 // docs:start:blake2s
@@ -118,7 +118,7 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut sum = 0;
 
     for input in inputs {
-        let input_bytes: [u8; 32] = input.to_le_bytes(32).as_array();
+        let input_bytes: [u8; 32] = input.to_le_bytes();
         sum += crate::field::bytes32_to_field(blake2s(input_bytes));
     }
 

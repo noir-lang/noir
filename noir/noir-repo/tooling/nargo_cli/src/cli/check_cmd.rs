@@ -10,7 +10,7 @@ use nargo::{
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
-    check_crate, compute_function_abi, file_manager_with_stdlib, CheckOptions, CompileOptions,
+    check_crate, compute_function_abi, file_manager_with_stdlib, CompileOptions,
     NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
@@ -81,9 +81,7 @@ fn check_package(
     allow_overwrite: bool,
 ) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    let error_on_unused_imports = package.error_on_unused_imports();
-    let check_options = CheckOptions::new(compile_options, error_on_unused_imports);
-    check_crate_and_report_errors(&mut context, crate_id, &check_options)?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
@@ -152,10 +150,9 @@ fn create_input_toml_template(
 pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
-    check_options: &CheckOptions,
+    options: &CompileOptions,
 ) -> Result<(), CompileError> {
-    let options = &check_options.compile_options;
-    let result = check_crate(context, crate_id, check_options);
+    let result = check_crate(context, crate_id, options);
     report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }
 

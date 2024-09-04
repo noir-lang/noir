@@ -61,6 +61,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
             "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
+            "expr_as_assert_eq" => expr_as_assert_eq(interner, arguments, return_type, location),
             "expr_as_assign" => expr_as_assign(interner, arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(interner, arguments, return_type, location),
             "expr_as_block" => expr_as_block(interner, arguments, return_type, location),
@@ -125,10 +126,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_back" => slice_push_back(interner, arguments, location),
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
+            "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
-            "to_le_radix" => to_le_radix(arguments, location),
+            "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -239,6 +241,32 @@ fn slice_push_back(
     let (mut values, typ) = get_slice(interner, slice)?;
     values.push_back(element);
     Ok(Value::Slice(values, typ))
+}
+
+fn str_as_bytes(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (string, string_location) = check_one_argument(arguments, location)?;
+
+    match string {
+        Value::String(string) => {
+            let string_as_bytes = string.as_bytes();
+            let bytes_vector: Vec<Value> = string_as_bytes.iter().cloned().map(Value::U8).collect();
+            let byte_array_type = Type::Array(
+                Box::new(Type::Constant(string_as_bytes.len() as u32)),
+                Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+            );
+            Ok(Value::Array(bytes_vector.into(), byte_array_type))
+        }
+        value => {
+            let type_var = Box::new(interner.next_type_variable());
+            let expected = Type::Array(type_var.clone(), type_var);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location: string_location })
+        }
+    }
 }
 
 /// fn as_type(self) -> Type
@@ -455,12 +483,24 @@ fn quoted_as_type(
     Ok(Value::Type(typ))
 }
 
-fn to_le_radix(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (value, radix, limb_count) = check_three_arguments(arguments, location)?;
+fn to_le_radix(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (value, radix) = check_two_arguments(arguments, location)?;
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let limb_count = get_u32(limb_count)?;
+    let limb_count = if let Type::Array(length, _) = return_type {
+        if let Type::Constant(limb_count) = *length {
+            limb_count
+        } else {
+            return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+        }
+    } else {
+        return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+    };
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix(value, radix);
@@ -944,6 +984,43 @@ fn expr_as_assert(
                 let message = option(option_type, message).ok()?;
 
                 Some(Value::Tuple(vec![predicate, message]))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_assert_eq(self) -> Option<(Expr, Expr, Option<Expr>)>
+fn expr_as_assert_eq(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
+            if constrain.2 == ConstrainKind::AssertEq {
+                let ExpressionKind::Infix(infix) = constrain.0.kind else {
+                    panic!("Expected AssertEq constrain statement to have an infix expression");
+                };
+
+                let lhs = Value::expression(infix.lhs.kind);
+                let rhs = Value::expression(infix.rhs.kind);
+
+                let option_type = extract_option_generic_type(return_type);
+                let Type::Tuple(mut tuple_types) = option_type else {
+                    panic!("Expected the return type option generic arg to be a tuple");
+                };
+                assert_eq!(tuple_types.len(), 3);
+
+                let option_type = tuple_types.pop().unwrap();
+                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = option(option_type, message).ok()?;
+
+                Some(Value::Tuple(vec![lhs, rhs, message]))
             } else {
                 None
             }

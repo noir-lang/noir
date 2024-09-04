@@ -23,7 +23,7 @@ impl EncryptedLogHeader {
             iv[i] = full_key[i + 16];
         }
 
-        let input: [u8; 32] = self.address.to_field().to_be_bytes(32).as_array();
+        let input: [u8; 32] = self.address.to_field().to_be_bytes();
         aes128_encrypt(input, iv, sym_key).as_array()
     }
 }

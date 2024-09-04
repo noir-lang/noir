@@ -4,8 +4,12 @@ set -eum pipefail
 
 # Replace API_KEYs in nginx config
 echo "Replacing api keys in nginx config..."
-sed -i 's/{{PUBLIC_API_KEY}}/'$PUBLIC_API_KEY'/g' /etc/nginx/gateway.conf
-sed -i 's/{{ADMIN_API_KEY}}/'$API_KEY'/g' /etc/nginx/gateway.conf
+sed -i 's/{{PUBLIC_API_KEY}}/'$API_KEY'/g' /etc/nginx/gateway.conf
+sed -i 's/{{ADMIN_API_KEY}}/'$FORK_ADMIN_API_KEY'/g' /etc/nginx/gateway.conf
+
+# Resulting config
+cat /etc/nginx/gateway.conf
+echo
 
 # Run nginx and anvil alongside each other
 trap 'kill $(jobs -p)' SIGTERM

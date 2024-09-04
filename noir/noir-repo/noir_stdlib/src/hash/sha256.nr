@@ -194,7 +194,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         }
 
         let len = 8 * message_size;
-        let len_bytes = (len as Field).to_be_bytes(8);
+        let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
         for i in 56..64 {
             assert_eq(msg_block[i], len_bytes[i - 56]);
         }
@@ -222,7 +222,7 @@ unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64) -
 
 unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64, message_size: u64) -> [u8; 64] {
     let len = 8 * message_size;
-    let len_bytes = (len as Field).to_be_bytes(8);
+    let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
     for _i in 0..64 {
         // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
         if msg_byte_ptr < 56 {
@@ -246,7 +246,7 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes = (state[7 - j] as Field).to_le_bytes(4);
+        let h_bytes: [u8; 4] = (state[7 - j] as Field).to_le_bytes();
         for k in 0..4 {
             out_h[31 - 4*j - k] = h_bytes[k];
         }

@@ -502,6 +502,8 @@ impl<'block> BrilligBlock<'block> {
                     );
                 }
                 Value::Intrinsic(Intrinsic::ToRadix(endianness)) => {
+                    let results = dfg.instruction_results(instruction_id);
+
                     let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
                     let radix: u32 = dfg
@@ -512,88 +514,43 @@ impl<'block> BrilligBlock<'block> {
                         .try_into()
                         .expect("Radix should be u32");
 
-                    let limb_count: usize = dfg
-                        .get_numeric_constant(arguments[2])
-                        .expect("Limb count should be known")
-                        .try_to_u64()
-                        .expect("Limb count should fit in u64")
-                        .try_into()
-                        .expect("Limb count should fit in usize");
-
-                    let results = dfg.instruction_results(instruction_id);
-
-                    let target_len = self.variables.define_single_addr_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[0],
-                        dfg,
-                    );
-
-                    let target_vector = self
+                    let target_array = self
                         .variables
                         .define_variable(
                             self.function_context,
                             self.brillig_context,
-                            results[1],
+                            results[0],
                             dfg,
                         )
-                        .extract_vector();
-
-                    // Update the user-facing slice length
-                    self.brillig_context
-                        .usize_const_instruction(target_len.address, limb_count.into());
+                        .extract_array();
 
                     self.brillig_context.codegen_to_radix(
                         source,
-                        target_vector,
+                        target_array,
                         radix,
-                        limb_count,
                         matches!(endianness, Endian::Big),
                         false,
                     );
                 }
                 Value::Intrinsic(Intrinsic::ToBits(endianness)) => {
-                    let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
-                    let limb_count: usize = dfg
-                        .get_numeric_constant(arguments[1])
-                        .expect("Limb count should be known")
-                        .try_to_u64()
-                        .expect("Limb count should fit in u64")
-                        .try_into()
-                        .expect("Limb count should fit in usize");
-
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[0],
-                        dfg,
-                    );
-                    let target_len = target_len_variable.extract_single_addr();
+                    let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
-                    let target_vector = match self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        results[1],
-                        dfg,
-                    ) {
-                        BrilligVariable::BrilligArray(array) => {
-                            self.brillig_context.array_to_vector_instruction(&array)
-                        }
-                        BrilligVariable::BrilligVector(vector) => vector,
-                        BrilligVariable::SingleAddr(..) => unreachable!("ICE: ToBits on non-array"),
-                    };
-
-                    // Update the user-facing slice length
-                    self.brillig_context
-                        .usize_const_instruction(target_len.address, limb_count.into());
+                    let target_array = self
+                        .variables
+                        .define_variable(
+                            self.function_context,
+                            self.brillig_context,
+                            results[0],
+                            dfg,
+                        )
+                        .extract_array();
 
                     self.brillig_context.codegen_to_radix(
                         source,
-                        target_vector,
+                        target_array,
                         2,
-                        limb_count,
                         matches!(endianness, Endian::Big),
                         true,
                     );
@@ -818,6 +775,12 @@ impl<'block> BrilligBlock<'block> {
         // puts the returns into the returned_registers and restores saved_registers
         self.brillig_context
             .codegen_post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
+
+        // Reset the register state to the one needed to hold the current available variables
+        let variables = self.variables.get_available_variables(self.function_context);
+        let registers =
+            variables.into_iter().flat_map(|variable| variable.extract_registers()).collect();
+        self.brillig_context.set_allocated_registers(registers);
     }
 
     fn needs_runtime_array_index_check(
@@ -1819,7 +1782,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.allocate_nested_array(typ, Some(array));
+                self.allocate_foreign_call_result_array(typ, array);
 
                 variable
             }
@@ -1846,40 +1809,39 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    fn allocate_nested_array(
-        &mut self,
-        typ: &Type,
-        array: Option<BrilligArray>,
-    ) -> BrilligVariable {
-        match typ {
-            Type::Array(types, size) => {
-                let array = array.unwrap_or(BrilligArray {
-                    pointer: self.brillig_context.allocate_register(),
-                    size: *size,
-                    rc: self.brillig_context.allocate_register(),
-                });
-                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
-                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+    fn allocate_foreign_call_result_array(&mut self, typ: &Type, array: BrilligArray) {
+        let Type::Array(types, size) = typ else {
+            unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
+        };
 
-                let mut index = 0_usize;
-                for _ in 0..*size {
-                    for element_type in types.iter() {
-                        match element_type {
-                            Type::Array(_, _) => {
-                                let inner_array = self.allocate_nested_array(element_type, None);
-                                let idx =
-                                    self.brillig_context.make_usize_constant_instruction(index.into());
-                                self.brillig_context.codegen_store_variable_in_array(array.pointer, idx, inner_array);
-                            }
-                            Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
-                            _ => (),
-                        }
-                        index += 1;
+        self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
+        self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+
+        let mut index = 0_usize;
+        for _ in 0..*size {
+            for element_type in types.iter() {
+                match element_type {
+                    Type::Array(_, nested_size) => {
+                        let inner_array = BrilligArray {
+                            pointer: self.brillig_context.allocate_register(),
+                            rc: self.brillig_context.allocate_register(),
+                            size: *nested_size,
+                        };
+                        self.allocate_foreign_call_result_array(element_type, inner_array);
+
+                        let idx =
+                            self.brillig_context.make_usize_constant_instruction(index.into());
+                        self.brillig_context.codegen_store_variable_in_array(array.pointer, idx, BrilligVariable::BrilligArray(inner_array));
+
+                        self.brillig_context.deallocate_single_addr(idx);
+                        self.brillig_context.deallocate_register(inner_array.pointer);
+                        self.brillig_context.deallocate_register(inner_array.rc);
                     }
+                    Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                    _ => (),
                 }
-                BrilligVariable::BrilligArray(array)
+                index += 1;
             }
-            _ => unreachable!("ICE: allocate_nested_array() expects an array, got {typ:?}"),
         }
     }
 

@@ -52,6 +52,7 @@ pub struct AvmContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
+    pub brillig_names: Vec<String>,
     pub assert_messages: HashMap<usize, String>,
 }
 
@@ -73,6 +74,7 @@ pub struct AcirContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
+    pub brillig_names: Vec<String>,
 }
 
 /// An enum that allows the TranspiledContract struct to contain
@@ -139,6 +141,7 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
                         abi: function.abi,
                         bytecode: base64::prelude::BASE64_STANDARD.encode(compressed_avm_bytecode),
                         debug_symbols: ProgramDebugInfo { debug_infos },
+                        brillig_names: function.brillig_names,
                         assert_messages,
                     },
                 ));

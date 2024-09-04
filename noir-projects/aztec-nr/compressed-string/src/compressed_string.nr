@@ -34,7 +34,7 @@ impl<let N: u32, let M: u32> CompressedString<N, M> {
         let mut result = [0; M];
         let mut w_index = 0 as u32;
         for i in 0..N {
-            let bytes = self.value[i].to_be_bytes(31);
+            let bytes: [u8; 31] = self.value[i].to_be_bytes();
             for j in 0..31 {
                 if w_index < M {
                     result[w_index] = bytes[j];
@@ -55,7 +55,7 @@ impl<let N: u32, let M: u32> Eq for CompressedString<N, M> {
 impl<let N: u32, let M: u32> Serialize<N> for CompressedString<N, M> {
     fn serialize(self) -> [Field; N] {
         self.value
-    
+
     }
 }
 

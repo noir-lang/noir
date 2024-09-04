@@ -16,14 +16,14 @@ pub fn compute_swap_public_content_hash(
 ) -> Field {
     let mut hash_bytes = [0; 260]; // 8 fields of 32 bytes each + 4 bytes fn selector
 
-    let input_token_portal_bytes = input_asset_bridge_portal_address.to_field().to_be_bytes(32);
-    let in_amount_bytes = input_amount.to_be_bytes(32);
-    let uniswap_fee_tier_bytes = uniswap_fee_tier.to_be_bytes(32);
-    let output_token_portal_bytes = output_asset_bridge_portal_address.to_field().to_be_bytes(32);
-    let amount_out_min_bytes = minimum_output_amount.to_be_bytes(32);
-    let aztec_recipient_bytes = aztec_recipient.to_field().to_be_bytes(32);
-    let secret_hash_for_L1_to_l2_message_bytes = secret_hash_for_L1_to_l2_message.to_be_bytes(32);
-    let caller_on_L1_bytes = caller_on_L1.to_field().to_be_bytes(32);
+    let input_token_portal_bytes: [u8; 32] = input_asset_bridge_portal_address.to_field().to_be_bytes();
+    let in_amount_bytes: [u8; 32] = input_amount.to_be_bytes();
+    let uniswap_fee_tier_bytes: [u8; 32] = uniswap_fee_tier.to_be_bytes();
+    let output_token_portal_bytes: [u8; 32] = output_asset_bridge_portal_address.to_field().to_be_bytes();
+    let amount_out_min_bytes: [u8; 32] = minimum_output_amount.to_be_bytes();
+    let aztec_recipient_bytes: [u8; 32] = aztec_recipient.to_field().to_be_bytes();
+    let secret_hash_for_L1_to_l2_message_bytes: [u8; 32] = secret_hash_for_L1_to_l2_message.to_be_bytes();
+    let caller_on_L1_bytes: [u8; 32] = caller_on_L1.to_field().to_be_bytes();
 
     // function selector: 0xf18186d8 keccak256("swap_public(address,uint256,uint24,address,uint256,bytes32,bytes32,address)")
     hash_bytes[0] = 0xf1;
@@ -62,14 +62,14 @@ pub fn compute_swap_private_content_hash(
 ) -> Field {
     let mut hash_bytes = [0; 260]; // 8 fields of 32 bytes each + 4 bytes fn selector
 
-    let input_token_portal_bytes = input_asset_bridge_portal_address.to_field().to_be_bytes(32);
-    let in_amount_bytes = input_amount.to_be_bytes(32);
-    let uniswap_fee_tier_bytes = uniswap_fee_tier.to_be_bytes(32);
-    let output_token_portal_bytes = output_asset_bridge_portal_address.to_field().to_be_bytes(32);
-    let amount_out_min_bytes = minimum_output_amount.to_be_bytes(32);
-    let secret_hash_for_redeeming_minted_notes_bytes = secret_hash_for_redeeming_minted_notes.to_be_bytes(32);
-    let secret_hash_for_L1_to_l2_message_bytes = secret_hash_for_L1_to_l2_message.to_be_bytes(32);
-    let caller_on_L1_bytes = caller_on_L1.to_field().to_be_bytes(32);
+    let input_token_portal_bytes: [u8; 32] = input_asset_bridge_portal_address.to_field().to_be_bytes();
+    let in_amount_bytes: [u8; 32] = input_amount.to_be_bytes();
+    let uniswap_fee_tier_bytes: [u8; 32] = uniswap_fee_tier.to_be_bytes();
+    let output_token_portal_bytes: [u8; 32] = output_asset_bridge_portal_address.to_field().to_be_bytes();
+    let amount_out_min_bytes: [u8; 32] = minimum_output_amount.to_be_bytes();
+    let secret_hash_for_redeeming_minted_notes_bytes: [u8; 32] = secret_hash_for_redeeming_minted_notes.to_be_bytes();
+    let secret_hash_for_L1_to_l2_message_bytes: [u8; 32] = secret_hash_for_L1_to_l2_message.to_be_bytes();
+    let caller_on_L1_bytes: [u8; 32] = caller_on_L1.to_field().to_be_bytes();
 
     // function selector: 0x16f416eb keccak256("swap_private(address,uint256,uint24,address,uint256,bytes32,bytes32,address)")
     hash_bytes[0] = 0x16;

@@ -26,9 +26,9 @@ contract AvmTest {
     // Libs
     use std::embedded_curve_ops::{multi_scalar_mul, EmbeddedCurvePoint};
     use dep::aztec::protocol_types::constants::CONTRACT_INSTANCE_LENGTH;
-    use dep::aztec::prelude::{Map, Deserialize};
+    use dep::aztec::prelude::Map;
     use dep::aztec::state_vars::PublicMutable;
-    use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH, point::Point, scalar::Scalar};
+    use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, point::Point, scalar::Scalar};
     use dep::aztec::oracle::get_contract_instance::{get_contract_instance_avm, get_contract_instance_internal_avm};
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, storage::map::derive_storage_slot_in_map};
     use dep::aztec::context::gas::GasOpts;
@@ -160,7 +160,7 @@ contract AvmTest {
     }
 
     /************************************************************************
-     * Misc 
+     * Misc
      ************************************************************************/
 
     #[aztec(public)]
@@ -178,8 +178,7 @@ contract AvmTest {
 
     #[aztec(public)]
     fn to_radix_le(input: Field) -> [u8; 10] {
-        let result: [u8] = input.to_le_radix(/*base=*/ 2, /*limbs=*/ 10);
-        result.as_array()
+        input.to_le_radix(/*base=*/ 2)
     }
 
     // Helper functions to demonstrate an internal call stack in error messages
@@ -342,7 +341,9 @@ contract AvmTest {
     #[aztec(public)]
     fn check_selector() {
         assert(
-            context.selector() == FunctionSelector::from_signature("check_selector()"), "Unexpected selector!"
+            context.selector() == comptime {
+                FunctionSelector::from_signature("check_selector()")
+            }, "Unexpected selector!"
         );
     }
 
