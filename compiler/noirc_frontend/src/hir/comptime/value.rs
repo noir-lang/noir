@@ -429,6 +429,9 @@ impl Value {
         location: Location,
     ) -> IResult<Vec<Token>> {
         let token = match self {
+            Value::Unit => {
+                return Ok(vec![Token::LeftParen, Token::RightParen]);
+            }
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
             Value::Expr(ExprValue::Expression(expr)) => {
@@ -443,6 +446,40 @@ impl Value {
             Value::UnresolvedType(typ) => {
                 Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
             }
+            Value::U1(bool) => Token::Bool(bool),
+            Value::U8(value) => Token::Int((value as u128).into()),
+            Value::U16(value) => Token::Int((value as u128).into()),
+            Value::U32(value) => Token::Int((value as u128).into()),
+            Value::U64(value) => Token::Int((value as u128).into()),
+            Value::I8(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I16(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I32(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I64(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::Field(value) => Token::Int(value),
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
         Ok(vec![token])
