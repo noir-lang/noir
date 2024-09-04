@@ -574,9 +574,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::ExpectedIdentForStructField { value, index, location } => {
                 let msg = format!(
-                    "Quoted value in index {index} of this slice is not a valid identifier"
+                    "Quoted value in index {index} of this slice is not a valid field name"
                 );
-                let secondary = format!("`{value}` is not a valid identifier");
+                let secondary = format!("`{value}` is not a valid field name for `set_fields`");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
         }
