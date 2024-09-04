@@ -650,7 +650,11 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
-                self.validate_array_index(array_variable, index_variable);
+
+                if self.needs_runtime_array_index_check(*array, *index, dfg) {
+                    self.validate_array_index(array_variable, index_variable);
+                }
+
                 self.retrieve_variable_from_array(
                     array_pointer,
                     index_variable,
@@ -669,7 +673,11 @@ impl<'block> BrilligBlock<'block> {
                     result_ids[0],
                     dfg,
                 );
-                self.validate_array_index(source_variable, index_register);
+
+                if self.needs_runtime_array_index_check(*array, *index, dfg) {
+                    self.validate_array_index(source_variable, index_register);
+                }
+
                 self.convert_ssa_array_set(
                     source_variable,
                     destination_variable,
@@ -810,6 +818,23 @@ impl<'block> BrilligBlock<'block> {
         // puts the returns into the returned_registers and restores saved_registers
         self.brillig_context
             .codegen_post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
+    }
+
+    fn needs_runtime_array_index_check(
+        &self,
+        array: ValueId,
+        index: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> bool {
+        let array_type = dfg.type_of_value(array);
+        let Type::Array(item_types, len) = array_type else {
+            return true;
+        };
+        let Some(index) = dfg.get_numeric_constant(index) else {
+            return true;
+        };
+        // We skip the runtime check if the index is a constant and the index is within bounds
+        index >= (len * item_types.len()).into()
     }
 
     fn validate_array_index(
