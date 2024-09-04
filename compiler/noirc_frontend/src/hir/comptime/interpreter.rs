@@ -1653,10 +1653,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         assert_eq!(arguments.len(), 2);
 
         let print_newline = arguments[0].0 == Value::Bool(true);
-        if print_newline {
-            println!("{}", arguments[1].0.display(self.elaborator.interner));
+        let contents = arguments[1].0.display(self.elaborator.interner);
+        if self.elaborator.interner.is_in_lsp_mode() {
+            // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
+            // the connection. If we use `eprintln!` not only it doesn't crash, but the output
+            // appears in the "Noir Language Server" output window in case you want to see it.
+            if print_newline {
+                eprintln!("{}", contents);
+            } else {
+                eprint!("{}", contents);
+            }
+        } else if print_newline {
+            println!("{}", contents);
         } else {
-            print!("{}", arguments[1].0.display(self.elaborator.interner));
+            print!("{}", contents);
         }
 
         Ok(Value::Unit)
