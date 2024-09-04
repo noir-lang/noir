@@ -820,7 +820,7 @@ mod tests {
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
                 contents: "custom(hello)".to_string(),
                 span: Span::from(0..16),
-                contents_span: Span::from(2..14)
+                contents_span: Span::from(2..15)
             })))
         );
     }
