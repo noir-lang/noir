@@ -123,25 +123,6 @@ struct PerFunctionContext<'f> {
 
     /// Track whether a reference was passed into another entry point
     stores_used_in_calls: HashMap<ValueId, Vec<(InstructionId, BasicBlockId)>>,
-
-    /// Flag for tracking whether we had to perform a re-load as part of the Brillig CoW optimization.
-    /// Stores made as part of this optimization should not be removed.
-    /// We want to catch stores of this nature:
-    /// ```text
-    /// v3 = load v1
-    //  inc_rc v3
-    //  v4 = load v1
-    //  inc_rc v4
-    //  store v4 at v1
-    //  store v3 at v2
-    /// ```
-    ///
-    /// We keep track of an optional boolean flag as we go through instructions.
-    /// If the flag exists it means we have hit a load instruction.
-    /// If the flag is false it means we have processed a single load, while if the flag is true
-    /// it means we have performed a re-load.
-    /// The field is reset to `None` on every instruction that is not a load, inc_rc, dec_rc, or function call.
-    inside_rc_reload: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -170,7 +151,6 @@ impl<'f> PerFunctionContext<'f> {
             instructions_to_remove: BTreeSet::new(),
             last_loads: HashMap::default(),
             load_results: HashMap::default(),
-            inside_rc_reload: None,
             stores_used_in_calls: HashMap::default(),
         }
     }
