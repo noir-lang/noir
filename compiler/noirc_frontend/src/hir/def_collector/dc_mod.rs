@@ -17,6 +17,7 @@ use crate::ast::{
 use crate::hir::resolution::errors::ResolverError;
 use crate::macros_api::{Expression, NodeInterner, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::ModuleAttributes;
+use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{
     graph::CrateId,
@@ -27,6 +28,7 @@ use crate::{
 };
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
+use super::dc_crate::ModuleAttribute;
 use super::{
     dc_crate::{
         CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
@@ -64,8 +66,10 @@ pub fn collect_defs(
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(
             context,
-            &decl,
+            decl,
             crate_id,
+            file_id,
+            module_id,
             macro_processors,
         ));
     }
@@ -73,6 +77,7 @@ pub fn collect_defs(
     errors.extend(collector.collect_submodules(
         context,
         crate_id,
+        module_id,
         ast.submodules,
         file_id,
         macro_processors,
@@ -103,10 +108,40 @@ pub fn collect_defs(
 
     collector.collect_impls(context, ast.impls, crate_id);
 
+    collector.collect_attributes(
+        ast.inner_attributes,
+        file_id,
+        module_id,
+        file_id,
+        module_id,
+        true,
+    );
+
     errors
 }
 
 impl<'a> ModCollector<'a> {
+    fn collect_attributes(
+        &mut self,
+        attributes: Vec<SecondaryAttribute>,
+        file_id: FileId,
+        module_id: LocalModuleId,
+        attribute_file_id: FileId,
+        attribute_module_id: LocalModuleId,
+        is_inner: bool,
+    ) {
+        for attribute in attributes {
+            self.def_collector.items.module_attributes.push(ModuleAttribute {
+                file_id,
+                module_id,
+                attribute_file_id,
+                attribute_module_id,
+                attribute,
+                is_inner,
+            });
+        }
+    }
+
     fn collect_globals(
         &mut self,
         context: &mut Context,
@@ -240,10 +275,7 @@ impl<'a> ModCollector<'a> {
             let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
 
-            if context.def_interner.is_in_lsp_mode()
-                && !function.def.is_test()
-                && !function.def.is_private()
-            {
+            if context.def_interner.is_in_lsp_mode() && !function.def.is_test() {
                 context.def_interner.register_function(func_id, &function.def);
             }
 
@@ -322,6 +354,8 @@ impl<'a> ModCollector<'a> {
                 context,
                 &name,
                 Location::new(name.span(), self.file_id),
+                Vec::new(),
+                Vec::new(),
                 false,
                 false,
             ) {
@@ -454,6 +488,8 @@ impl<'a> ModCollector<'a> {
                 context,
                 &name,
                 Location::new(name.span(), self.file_id),
+                Vec::new(),
+                Vec::new(),
                 false,
                 false,
             ) {
@@ -637,6 +673,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         crate_id: CrateId,
+        parent_module_id: LocalModuleId,
         submodules: Vec<SortedSubModule>,
         file_id: FileId,
         macro_processors: &[&dyn MacroProcessor],
@@ -647,10 +684,21 @@ impl<'a> ModCollector<'a> {
                 context,
                 &submodule.name,
                 Location::new(submodule.name.span(), file_id),
+                submodule.outer_attributes.clone(),
+                submodule.contents.inner_attributes.clone(),
                 true,
                 submodule.is_contract,
             ) {
                 Ok(child) => {
+                    self.collect_attributes(
+                        submodule.outer_attributes,
+                        file_id,
+                        child.local_id,
+                        file_id,
+                        parent_module_id,
+                        false,
+                    );
+
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
@@ -675,8 +723,10 @@ impl<'a> ModCollector<'a> {
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
-        mod_decl: &ModuleDeclaration,
+        mod_decl: ModuleDeclaration,
         crate_id: CrateId,
+        parent_file_id: FileId,
+        parent_module_id: LocalModuleId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -738,10 +788,21 @@ impl<'a> ModCollector<'a> {
             context,
             &mod_decl.ident,
             Location::new(Span::empty(0), child_file_id),
+            mod_decl.outer_attributes.clone(),
+            ast.inner_attributes.clone(),
             true,
             false,
         ) {
             Ok(child_mod_id) => {
+                self.collect_attributes(
+                    mod_decl.outer_attributes,
+                    child_file_id,
+                    child_mod_id.local_id,
+                    parent_file_id,
+                    parent_module_id,
+                    false,
+                );
+
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 context.def_interner.add_module_reference(child_mod_id, location);
 
@@ -764,11 +825,14 @@ impl<'a> ModCollector<'a> {
 
     /// Add a child module to the current def_map.
     /// On error this returns None and pushes to `errors`
+    #[allow(clippy::too_many_arguments)]
     fn push_child_module(
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
         mod_location: Location,
+        outer_attributes: Vec<SecondaryAttribute>,
+        inner_attributes: Vec<SecondaryAttribute>,
         add_to_parent_scope: bool,
         is_contract: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
@@ -782,7 +846,8 @@ impl<'a> ModCollector<'a> {
         // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
         // so we keep using `location` so that it continues to work as usual.
         let location = Location::new(mod_name.span(), mod_location.file);
-        let new_module = ModuleData::new(parent, location, is_contract);
+        let new_module =
+            ModuleData::new(parent, location, outer_attributes, inner_attributes, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;
