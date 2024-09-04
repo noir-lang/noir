@@ -97,12 +97,13 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
-            if let SecondaryAttribute::Custom(name, attribute_span) = attribute {
+            if let SecondaryAttribute::Custom(attribute) = attribute {
+                let attribute_span = Span::from(attribute.name_start..attribute.span.end());
                 if let Err(error) = self.run_comptime_attribute_on_item(
-                    name,
+                    &attribute.contents,
                     item.clone(),
                     span,
-                    *attribute_span,
+                    attribute_span,
                     generated_items,
                 ) {
                     self.errors.push(error);

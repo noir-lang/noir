@@ -284,6 +284,8 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_attribute(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
@@ -293,12 +295,9 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        // Make start and end be exactly the attribute contents without leading `#[` and trailing `]`
-        let start = self.position + 1;
+        let name_start = self.position;
 
         let word = self.eat_while(None, |ch| ch != ']');
-
-        let end = self.position;
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -309,7 +308,10 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
+        let end = self.position;
+
+        let attribute =
+            Attribute::lookup_attribute(&word, Span::inclusive(start, end), name_start)?;
 
         Ok(attribute.into_span(start, end))
     }
@@ -683,7 +685,7 @@ mod tests {
     use iter_extended::vecmap;
 
     use super::*;
-    use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+    use crate::token::{CustomAtrribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_double_char() {
@@ -811,10 +813,11 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(
-                "custom(hello)".to_string(),
-                Span::from(2..14),
-            )))
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                contents: "custom(hello)".to_string(),
+                span: Span::from(0..14),
+                name_start: 2,
+            })))
         );
     }
 
