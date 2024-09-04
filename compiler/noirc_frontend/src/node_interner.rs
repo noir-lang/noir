@@ -13,7 +13,11 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::ast::ExpressionKind;
 use crate::ast::Ident;
+use crate::ast::LValue;
+use crate::ast::StatementKind;
+use crate::ast::UnresolvedTypeData;
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -23,6 +27,7 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::macros_api::ModuleDefId;
 use crate::macros_api::UnaryOp;
+use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -208,6 +213,15 @@ pub struct NodeInterner {
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
 
+    // Interned `ExpressionKind`s during comptime code.
+    interned_expression_kinds: noirc_arena::Arena<ExpressionKind>,
+
+    // Interned `StatementKind`s during comptime code.
+    interned_statement_kinds: noirc_arena::Arena<StatementKind>,
+
+    // Interned `UnresolvedTypeData`s during comptime code.
+    interned_unresolved_type_datas: noirc_arena::Arena<UnresolvedTypeData>,
+
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
@@ -240,9 +254,11 @@ pub struct NodeInterner {
     pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
 
     // All names (and their definitions) that can be offered for auto_import.
+    // The third value in the tuple is the module where the definition is (only for pub use).
     // These include top-level functions, global variables and types, but excludes
     // impl and trait-impl methods.
-    pub(crate) auto_import_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
+    pub(crate) auto_import_names:
+        HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
@@ -251,6 +267,8 @@ pub struct NodeInterner {
     /// This is stored in the NodeInterner so that the Elaborator from each crate can
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
+
+    pub(crate) usage_tracker: UsageTracker,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -316,6 +334,13 @@ pub enum TraitImplKind {
         /// `x.into()` with a `X: Into<Y>` in scope would not.
         trait_generics: TraitGenerics,
     },
+}
+
+/// When searching for a trait impl, these are the types of errors we can expect
+pub enum ImplSearchErrorKind {
+    TypeAnnotationsNeededOnObjectType,
+    Nested(Vec<TraitConstraint>),
+    MultipleMatching(Vec<String>),
 }
 
 /// Represents the methods on a given type that each share the same name.
@@ -573,6 +598,15 @@ pub struct GlobalInfo {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedTypeId(noirc_arena::Index);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedExpressionKind(noirc_arena::Index);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedStatementKind(noirc_arena::Index);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedUnresolvedTypeData(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -610,6 +644,9 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
+            interned_expression_kinds: Default::default(),
+            interned_statement_kinds: Default::default(),
+            interned_unresolved_type_datas: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -618,6 +655,7 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
+            usage_tracker: UsageTracker::default(),
         }
     }
 }
@@ -1282,6 +1320,10 @@ impl NodeInterner {
         &self.instantiation_bindings[&expr_id]
     }
 
+    pub fn try_get_instantiation_bindings(&self, expr_id: ExprId) -> Option<&TypeBindings> {
+        self.instantiation_bindings.get(&expr_id)
+    }
+
     pub fn get_field_index(&self, expr_id: ExprId) -> usize {
         self.field_indices[&expr_id]
     }
@@ -1383,7 +1425,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
         let (impl_kind, bindings) = self.try_lookup_trait_implementation(
             object_type,
             trait_id,
@@ -1425,7 +1467,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<(TraitImplKind, TypeBindings), Vec<TraitConstraint>> {
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let mut bindings = TypeBindings::new();
         let impl_kind = self.lookup_trait_implementation_helper(
             object_type,
@@ -1451,7 +1493,7 @@ impl NodeInterner {
         trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
-    ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
         let make_constraint = || {
             let ordered = trait_generics.to_vec();
             let named = trait_associated_types.to_vec();
@@ -1463,29 +1505,29 @@ impl NodeInterner {
             }
         };
 
+        let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
+
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {
-            return Err(vec![make_constraint()]);
+            return Err(nested_error());
         }
 
         let object_type = object_type.substitute(type_bindings);
 
         // If the object type isn't known, just return an error saying type annotations are needed.
         if object_type.is_bindable() {
-            return Err(Vec::new());
+            return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
-        let impls =
-            self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+        let impls = self.trait_implementation_map.get(&trait_id).ok_or_else(nested_error)?;
 
         let mut matching_impls = Vec::new();
+        let mut where_clause_error = None;
 
-        let mut where_clause_errors = Vec::new();
-
-        for (existing_object_type2, impl_kind) in impls {
+        for (existing_object_type, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
-                existing_object_type2.instantiate(self);
+                existing_object_type.instantiate(self);
 
             let mut fresh_bindings = type_bindings.clone();
 
@@ -1503,19 +1545,18 @@ impl NodeInterner {
                     )
                 };
 
-            let generics_match = match impl_kind {
+            let trait_generics = match impl_kind {
                 TraitImplKind::Normal(id) => {
                     let shared_impl = self.get_trait_implementation(*id);
                     let shared_impl = shared_impl.borrow();
-                    let impl_associated_types = self.get_associated_types_for_impl(*id);
-                    check_trait_generics(&shared_impl.trait_generics, impl_associated_types)
+                    let named = self.get_associated_types_for_impl(*id).to_vec();
+                    let ordered = shared_impl.trait_generics.clone();
+                    TraitGenerics { named, ordered }
                 }
-                TraitImplKind::Assumed { trait_generics, .. } => {
-                    check_trait_generics(&trait_generics.ordered, &trait_generics.named)
-                }
+                TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
             };
 
-            if !generics_match {
+            if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
                 continue;
             }
 
@@ -1524,34 +1565,48 @@ impl NodeInterner {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
-                    if let Err(errors) = self.validate_where_clause(
+                    if let Err(error) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
                         // Only keep the first errors we get from a failing where clause
-                        if where_clause_errors.is_empty() {
-                            where_clause_errors.extend(errors);
+                        if where_clause_error.is_none() {
+                            where_clause_error = Some(error);
                         }
                         continue;
                     }
                 }
 
-                matching_impls.push((impl_kind.clone(), fresh_bindings));
+                let constraint = TraitConstraint {
+                    typ: existing_object_type,
+                    trait_id,
+                    trait_generics,
+                    span: Span::default(),
+                };
+                matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
             }
         }
 
         if matching_impls.len() == 1 {
-            let (impl_, fresh_bindings) = matching_impls.pop().unwrap();
+            let (impl_, fresh_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok(impl_)
         } else if matching_impls.is_empty() {
-            where_clause_errors.push(make_constraint());
-            Err(where_clause_errors)
+            let mut errors = match where_clause_error {
+                Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
+                Some((constraint, _other)) => vec![constraint],
+                None => vec![],
+            };
+            errors.push(make_constraint());
+            Err(ImplSearchErrorKind::Nested(errors))
         } else {
-            // multiple matching impls, type annotations needed
-            Err(vec![])
+            let impls = vecmap(matching_impls, |(_, _, constraint)| {
+                let name = &self.get_trait(constraint.trait_id).name;
+                format!("{}: {name}{}", constraint.typ, constraint.trait_generics)
+            });
+            Err(ImplSearchErrorKind::MultipleMatching(impls))
         }
     }
 
@@ -1563,7 +1618,7 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
-    ) -> Result<(), Vec<TraitConstraint>> {
+    ) -> Result<(), (TraitConstraint, ImplSearchErrorKind)> {
         for constraint in where_clause {
             // Instantiation bindings are generally safe to force substitute into the same type.
             // This is needed here to undo any bindings done to trait methods by monomorphization.
@@ -1591,7 +1646,8 @@ impl NodeInterner {
                 // our impl list, which we don't want to bind to.
                 type_bindings,
                 recursion_limit - 1,
-            )?;
+            )
+            .map_err(|error| (constraint.clone(), error))?;
         }
 
         Ok(())
@@ -2015,6 +2071,41 @@ impl NodeInterner {
 
     pub fn get_quoted_type(&self, id: QuotedTypeId) -> &Type {
         &self.quoted_types[id.0]
+    }
+
+    pub fn push_expression_kind(&mut self, expr: ExpressionKind) -> InternedExpressionKind {
+        InternedExpressionKind(self.interned_expression_kinds.insert(expr))
+    }
+
+    pub fn get_expression_kind(&self, id: InternedExpressionKind) -> &ExpressionKind {
+        &self.interned_expression_kinds[id.0]
+    }
+
+    pub fn push_statement_kind(&mut self, statement: StatementKind) -> InternedStatementKind {
+        InternedStatementKind(self.interned_statement_kinds.insert(statement))
+    }
+
+    pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
+        &self.interned_statement_kinds[id.0]
+    }
+
+    pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
+        self.push_expression_kind(lvalue.as_expression().kind)
+    }
+
+    pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
+        LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+    }
+
+    pub fn push_unresolved_type_data(
+        &mut self,
+        typ: UnresolvedTypeData,
+    ) -> InternedUnresolvedTypeData {
+        InternedUnresolvedTypeData(self.interned_unresolved_type_datas.insert(typ))
+    }
+
+    pub fn get_unresolved_type_data(&self, id: InternedUnresolvedTypeData) -> &UnresolvedTypeData {
+        &self.interned_unresolved_type_datas[id.0]
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.

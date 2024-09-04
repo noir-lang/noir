@@ -10,6 +10,9 @@ mod statement;
 mod structure;
 mod traits;
 mod type_alias;
+mod visitor;
+
+pub use visitor::Visitor;
 
 pub use expression::*;
 pub use function::*;
@@ -22,7 +25,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
-    node_interner::QuotedTypeId,
+    node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     token::IntType,
     BinaryTypeOperator,
@@ -140,6 +143,10 @@ pub enum UnresolvedTypeData {
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
     Resolved(QuotedTypeId),
+
+    // This is an interned UnresolvedTypeData during comptime code.
+    // The actual UnresolvedTypeData can be retrieved with a NodeInterner.
+    Interned(InternedUnresolvedTypeData),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -297,6 +304,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
             Resolved(_) => write!(f, "(resolved type)"),
+            Interned(_) => write!(f, "?Interned"),
             AsTraitPath(path) => write!(f, "{path}"),
         }
     }
@@ -452,12 +460,22 @@ impl UnresolvedTypeExpression {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 /// Represents whether the definition can be referenced outside its module/crate
 pub enum ItemVisibility {
-    Public,
     Private,
     PublicCrate,
+    Public,
+}
+
+impl std::fmt::Display for ItemVisibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItemVisibility::Public => write!(f, "pub"),
+            ItemVisibility::Private => Ok(()),
+            ItemVisibility::PublicCrate => write!(f, "pub(crate)"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

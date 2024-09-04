@@ -80,6 +80,7 @@ pub fn collect_defs(
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
         collector.def_collector.imports.push(ImportDirective {
+            visibility: import.visibility,
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,

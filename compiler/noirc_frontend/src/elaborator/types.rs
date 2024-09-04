@@ -32,8 +32,8 @@ use crate::{
         SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplKind,
-        TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ImplSearchErrorKind, TraitId,
+        TraitImplKind, TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
     TypeVariableKind,
@@ -122,7 +122,7 @@ impl<'context> Elaborator<'context> {
             Unit => Type::Unit,
             Unspecified => {
                 let span = typ.span;
-                self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+                self.push_err(TypeCheckError::UnspecifiedType { span });
                 Type::Error
             }
             Error => Type::Error,
@@ -158,6 +158,10 @@ impl<'context> Elaborator<'context> {
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
             AsTraitPath(path) => self.resolve_as_trait_path(*path),
+            Interned(id) => {
+                let typ = self.interner.get_unresolved_type_data(id).clone();
+                return self.resolve_type_inner(UnresolvedType { typ, span }, kind);
+            }
         };
 
         let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
@@ -421,7 +425,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.resolve_path(path.clone()) {
+        match self.resolve_path_or_error(path.clone()) {
             Ok(ModuleDefId::GlobalId(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
@@ -445,14 +449,19 @@ impl<'context> Elaborator<'context> {
                 })
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function(lhs, rhs))
+                        if let Some(result) = op.function(lhs, rhs) {
+                            Type::Constant(result)
+                        } else {
+                            self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
+                            Type::Error
+                        }
                     }
                     (lhs, rhs) => {
                         if !self.enable_arithmetic_generics {
@@ -482,7 +491,7 @@ impl<'context> Elaborator<'context> {
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
             Ok(impl_kind) => self.get_associated_type_from_trait_impl(path, impl_kind),
             Err(constraints) => {
-                self.push_trait_constraint_error(constraints, span);
+                self.push_trait_constraint_error(&object_type, constraints, span);
                 Type::Error
             }
         }
@@ -1041,9 +1050,6 @@ impl<'context> Elaborator<'context> {
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
             (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
-                    return self.infix_operand_type_rules(binding, op, other, span);
-                }
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
                     self.unify(
                         rhs_type,
@@ -1057,6 +1063,9 @@ impl<'context> Elaborator<'context> {
                         true
                     };
                     return Ok((lhs_type.clone(), use_impl));
+                }
+                if let TypeBinding::Bound(binding) = &*int.borrow() {
+                    return self.infix_operand_type_rules(binding, op, other, span);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
                 Ok((other.clone(), use_impl))
@@ -1332,7 +1341,7 @@ impl<'context> Elaborator<'context> {
 
             // The type variable must be unbound at this point since follow_bindings was called
             Type::TypeVariable(_, TypeVariableKind::Normal) => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
                 None
             }
 
@@ -1596,16 +1605,34 @@ impl<'context> Elaborator<'context> {
             Ok(impl_kind) => {
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
-            Err(constraints) => self.push_trait_constraint_error(constraints, span),
+            Err(error) => self.push_trait_constraint_error(object_type, error, span),
         }
     }
 
-    fn push_trait_constraint_error(&mut self, constraints: Vec<TraitConstraint>, span: Span) {
-        if constraints.is_empty() {
-            self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
-        } else if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
-        {
-            self.push_err(TypeCheckError::NoMatchingImplFound(error));
+    fn push_trait_constraint_error(
+        &mut self,
+        object_type: &Type,
+        error: ImplSearchErrorKind,
+        span: Span,
+    ) {
+        match error {
+            ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
+            }
+            ImplSearchErrorKind::Nested(constraints) => {
+                if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
+                {
+                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
+                }
+            }
+            ImplSearchErrorKind::MultipleMatching(candidates) => {
+                let object_type = object_type.clone();
+                self.push_err(TypeCheckError::MultipleMatchingImpls {
+                    object_type,
+                    span,
+                    candidates,
+                });
+            }
         }
     }
 

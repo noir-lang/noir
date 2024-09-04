@@ -39,11 +39,16 @@ impl<'context> Elaborator<'context> {
                 let (expr, _typ) = self.elaborate_expression(expr);
                 (HirStatement::Semi(expr), Type::Unit)
             }
+            StatementKind::Interned(id) => {
+                let kind = self.interner.get_statement_kind(id);
+                let statement = Statement { kind: kind.clone(), span: statement.span };
+                self.elaborate_statement_value(statement)
+            }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
 
-    pub(super) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+    pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         let span = statement.span;
         let (hir_statement, typ) = self.elaborate_statement_value(statement);
         let id = self.interner.push_stmt(hir_statement);
@@ -357,6 +362,10 @@ impl<'context> Elaborator<'context> {
                 let lvalue = HirLValue::Dereference { lvalue, element_type, location };
                 (lvalue, typ, true)
             }
+            LValue::Interned(id, span) => {
+                let lvalue = self.interner.get_lvalue(id, span).clone();
+                self.elaborate_lvalue(lvalue, assign_span)
+            }
         }
     }
 
@@ -419,7 +428,7 @@ impl<'context> Elaborator<'context> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { span });
         } else if lhs_type != Type::Error {
             self.push_err(TypeCheckError::AccessUnknownMember {
                 lhs_type,

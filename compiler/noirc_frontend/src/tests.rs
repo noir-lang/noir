@@ -76,15 +76,21 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             extern_prelude: BTreeMap::new(),
         };
 
+        let debug_comptime_in_file = None;
+        let enable_arithmetic_generics = false;
+        let error_on_unused_imports = true;
+        let macro_processors = &[];
+
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            None,  // No debug_comptime_in_file
-            false, // Disallow arithmetic generics
-            &[],   // No macro processors
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+            error_on_unused_imports,
+            macro_processors,
         ));
     }
     (program, context, errors)
@@ -2424,6 +2430,10 @@ fn use_super() {
 
     mod foo {
         use super::some_func;
+
+        fn bar() {
+            some_func();
+        }
     }
     "#;
     assert_no_errors(src);
@@ -3186,4 +3196,148 @@ fn as_trait_path_syntax_no_impl() {
 
     use CompilationError::TypeError;
     assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
+}
+
+#[test]
+fn errors_on_unused_private_import() {
+    let src = r#"
+    mod foo {
+        pub fn bar() {}
+        pub fn baz() {}
+
+        trait Foo {
+        }
+    }
+
+    use foo::bar;
+    use foo::baz;
+    use foo::Foo;
+
+    impl Foo for Field {
+    }
+
+    fn main() {
+        baz();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    else {
+        panic!("Expected an unused import error");
+    };
+
+    assert_eq!(ident.to_string(), "bar");
+}
+
+#[test]
+fn errors_on_unused_pub_crate_import() {
+    let src = r#"
+    mod foo {
+        pub fn bar() {}
+        pub fn baz() {}
+
+        trait Foo {
+        }
+    }
+
+    pub(crate) use foo::bar;
+    use foo::baz;
+    use foo::Foo;
+
+    impl Foo for Field {
+    }
+
+    fn main() {
+        baz();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    else {
+        panic!("Expected an unused import error");
+    };
+
+    assert_eq!(ident.to_string(), "bar");
+}
+
+#[test]
+fn warns_on_use_of_private_exported_item() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+
+        use bar::baz;
+
+        fn qux() {
+            baz();
+        }
+    }
+
+    fn main() {
+        foo::baz();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2); // An existing bug causes this error to be duplicated
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::PathResolutionError(
+            PathResolutionError::Private(..),
+        ))
+    ));
+}
+
+#[test]
+fn can_use_pub_use_item() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+
+        pub use bar::baz;
+    }
+
+    fn main() {
+        foo::baz();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn warns_on_re_export_of_item_with_less_visibility() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub(crate) fn baz() {}
+        }
+
+        pub use bar::baz;
+    }
+
+    fn main() {
+        foo::baz();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::DefinitionError(
+            DefCollectorErrorKind::CannotReexportItemWithLessVisibility { .. }
+        )
+    ));
 }

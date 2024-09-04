@@ -130,7 +130,7 @@ criterion = "0.5.0"
 # https://github.com/tikv/pprof-rs/pull/172
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
-
+cfg-if = "1.0.0"
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
@@ -154,6 +154,7 @@ color-eyre = "0.6.2"
 rand = "0.8.5"
 proptest = "1.2.0"
 proptest-derive = "0.4.0"
+rayon = "1.8.0"
 
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
@@ -166,6 +167,14 @@ rust-embed = "6.6.0"
 # See https://ritik-mishra.medium.com/resolving-the-wasm-pack-error-locals-exceed-maximum-ec3a9d96685b
 opt-level = 1
 
+# release mode with extra checks, e.g. overflow checks
+[profile.release-pedantic]
+inherits = "release"
+overflow-checks = true
+
+[profile.test]
+inherits = "dev"
+overflow-checks = true
 
 [profile.size]
 inherits = "release"

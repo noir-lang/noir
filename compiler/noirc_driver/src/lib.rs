@@ -284,11 +284,13 @@ pub fn check_crate(
         if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
 
     let mut errors = vec![];
+    let error_on_unused_imports = true;
     let diagnostics = CrateDefMap::collect_defs(
         crate_id,
         context,
         options.debug_comptime_in_file.as_deref(),
         options.arithmetic_generics,
+        error_on_unused_imports,
         macros,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
@@ -464,6 +466,7 @@ fn compile_contract_inner(
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
             names: function.names,
+            brillig_names: function.brillig_names,
         });
     }
 

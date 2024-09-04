@@ -142,13 +142,11 @@ impl DebugInstrumenter {
             None => false,
             Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
                 let save_ret_expr = ast::Statement {
-                    kind: ast::StatementKind::Let(ast::LetStatement {
-                        pattern: ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
-                        r#type: ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                        expression: ret_expr.clone(),
-                        comptime: false,
-                        attributes: vec![],
-                    }),
+                    kind: ast::StatementKind::new_let(
+                        ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
+                        ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        ret_expr.clone(),
+                    ),
                     span: ret_expr.span,
                 };
                 statements.push(save_ret_expr);
@@ -242,18 +240,16 @@ impl DebugInstrumenter {
         });
 
         ast::Statement {
-            kind: ast::StatementKind::Let(ast::LetStatement {
-                pattern: ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
-                r#type: ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                comptime: false,
-                expression: ast::Expression {
+            kind: ast::StatementKind::new_let(
+                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
+                ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: block_stmts,
                     }),
                     span: let_stmt.expression.span,
                 },
-                attributes: vec![],
-            }),
+            ),
             span: *span,
         }
     }
@@ -274,13 +270,11 @@ impl DebugInstrumenter {
         //   __debug_expr
         // };
 
-        let let_kind = ast::StatementKind::Let(ast::LetStatement {
-            pattern: ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
-            r#type: ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
-            expression: assign_stmt.expression.clone(),
-            comptime: false,
-            attributes: vec![],
-        });
+        let let_kind = ast::StatementKind::new_let(
+            ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
+            ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+            assign_stmt.expression.clone(),
+        );
         let expression_span = assign_stmt.expression.span;
         let new_assign_stmt = match &assign_stmt.lvalue {
             ast::LValue::Ident(id) => {
@@ -320,6 +314,9 @@ impl DebugInstrumenter {
                             indexes.push(index.clone());
                         }
                         ast::LValue::Dereference(_ref, _span) => {
+                            unimplemented![]
+                        }
+                        ast::LValue::Interned(..) => {
                             unimplemented![]
                         }
                     }

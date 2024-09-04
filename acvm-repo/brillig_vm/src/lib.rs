@@ -339,6 +339,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.memory.write(*destination, MemoryValue::new_from_field(*value, *bit_size));
                 self.increment_program_counter()
             }
+            Opcode::IndirectConst { destination_pointer, bit_size, value } => {
+                // Convert our destination_pointer to an address
+                let destination = self.memory.read_ref(*destination_pointer);
+                // Use our usize destination index to set the value in memory
+                self.memory.write(destination, MemoryValue::new_from_field(*value, *bit_size));
+                self.increment_program_counter()
+            }
             Opcode::BlackBox(black_box_op) => {
                 match evaluate_black_box(
                     black_box_op,
@@ -1187,6 +1194,34 @@ mod tests {
         let memory = brillig_write_memory(1024);
         let expected: Vec<_> = (0..1024).map(|i: u32| i.into()).collect();
         assert_eq!(memory, expected);
+    }
+
+    #[test]
+    fn iconst_opcode() {
+        let opcodes = &[
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+                value: FieldElement::from(8_usize),
+            },
+            Opcode::IndirectConst {
+                destination_pointer: MemoryAddress(0),
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+                value: FieldElement::from(27_usize),
+            },
+        ];
+        let mut vm = VM::new(vec![], opcodes, vec![], &StubbedBlackBoxSolver);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+
+        let VM { memory, .. } = vm;
+
+        let destination_value = memory.read(MemoryAddress::from(8));
+        assert_eq!(destination_value.to_field(), (27_usize).into());
     }
 
     #[test]

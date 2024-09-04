@@ -114,7 +114,7 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
     .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
-    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
+    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
@@ -127,11 +127,12 @@ pub(crate) fn optimize_into_acir(
             ssa.check_for_underconstrained_values()
         })
     };
+
+    drop(ssa_gen_span_guard);
+
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
-
-    drop(ssa_gen_span_guard);
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, options.expression_width)

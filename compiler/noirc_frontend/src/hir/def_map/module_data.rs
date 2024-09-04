@@ -118,10 +118,11 @@ impl ModuleData {
     pub fn import(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         id: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
-        self.scope.add_item_to_namespace(name, ItemVisibility::Public, id, None, is_prelude)
+        self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {

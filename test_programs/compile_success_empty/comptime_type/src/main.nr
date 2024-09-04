@@ -110,9 +110,15 @@ fn main() {
         assert(!struct_does_not_implement_some_trait.implements(some_trait_field));
 
         let _trait_impl = struct_implements_some_trait.get_trait_impl(some_trait_i32).unwrap();
+
+        // Check Type::as_str
+        let str_type = quote { str<10> }.as_type();
+        let constant = str_type.as_str().unwrap();
+        assert_eq(constant.as_constant().unwrap(), 10);
     }
 }
 
+// docs:start:implements_example
 fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
     comptime
     {
@@ -123,3 +129,4 @@ fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
         assert(t.get_trait_impl(some_trait_i32).is_none());
     }
 }
+// docs:end:implements_example

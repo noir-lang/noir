@@ -245,7 +245,7 @@ impl Context {
             let instruction_id = *instruction_id;
             let instruction = &function.dfg[instruction_id];
 
-            if let Instruction::EnableSideEffects { condition } = instruction {
+            if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 side_effects_condition = Some(*condition);
 
                 // We still need to keep the EnableSideEffects instruction

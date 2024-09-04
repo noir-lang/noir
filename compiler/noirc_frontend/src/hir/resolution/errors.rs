@@ -20,6 +20,8 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
+    #[error("Unused import")]
+    UnusedImport { ident: Ident },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -70,7 +72,7 @@ pub enum ResolverError {
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("Nested slices are not supported")]
+    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
@@ -120,6 +122,8 @@ pub enum ResolverError {
     NamedTypeArgs { span: Span, item_kind: &'static str },
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
+    #[error("Overflow in `{lhs} {op} {rhs}`")]
+    OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
 }
 
 impl ResolverError {
@@ -146,11 +150,24 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnusedVariable { ident } => {
                 let name = &ident.0.contents;
 
-                Diagnostic::simple_warning(
+                let mut diagnostic = Diagnostic::simple_warning(
                     format!("unused variable {name}"),
                     "unused variable ".to_string(),
                     ident.span(),
-                )
+                );
+                diagnostic.unnecessary = true;
+                diagnostic
+            }
+            ResolverError::UnusedImport { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diagnostic = Diagnostic::simple_warning(
+                    format!("unused import {name}"),
+                    "unused import ".to_string(),
+                    ident.span(),
+                );
+                diagnostic.unnecessary = true;
+                diagnostic
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),
@@ -306,8 +323,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
-                "Nested slices are not supported".into(),
-                "Try to use a constant sized array instead".into(),
+                "Nested slices, i.e. slices within an array or slice, are not supported".into(),
+                "Try to use a constant sized array or BoundedVec instead".into(),
                 *span,
             ),
             ResolverError::MisplacedRecursiveAttribute { ident } => {
@@ -477,6 +494,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Associated constants may only be a field or integer type".to_string(),
                     "Only numeric constants are allowed".to_string(),
+                    *span,
+                )
+            }
+            ResolverError::OverflowInType { lhs, op, rhs, span } => {
+                Diagnostic::simple_error(
+                    format!("Overflow in `{lhs} {op} {rhs}`"),
+                    "Overflow here".to_string(),
                     *span,
                 )
             }
