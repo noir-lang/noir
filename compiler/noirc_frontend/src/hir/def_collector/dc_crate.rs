@@ -7,6 +7,7 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
+use crate::token::SecondaryAttribute;
 use crate::{Generics, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
@@ -111,6 +112,21 @@ pub struct UnresolvedGlobal {
     pub stmt_def: LetStatement,
 }
 
+pub struct ModuleAttribute {
+    // The file in which the module is defined
+    pub file_id: FileId,
+    // The module this attribute is attached to
+    pub module_id: LocalModuleId,
+    // The file where the attribute exists (it could be the same as `file_id`
+    // or a different one if it's an inner attribute in a different file)
+    pub attribute_file_id: FileId,
+    // The module where the attribute is defined (similar to `attribute_file_id`,
+    // it could be different than `module_id` for inner attributes)
+    pub attribute_module_id: LocalModuleId,
+    pub attribute: SecondaryAttribute,
+    pub is_inner: bool,
+}
+
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
@@ -127,6 +143,7 @@ pub struct CollectedItems {
     pub globals: Vec<UnresolvedGlobal>,
     pub(crate) impls: ImplMap,
     pub(crate) trait_impls: Vec<UnresolvedTraitImpl>,
+    pub(crate) module_attributes: Vec<ModuleAttribute>,
 }
 
 impl CollectedItems {
@@ -238,6 +255,7 @@ impl DefCollector {
                 impls: HashMap::default(),
                 globals: vec![],
                 trait_impls: vec![],
+                module_attributes: vec![],
             },
         }
     }

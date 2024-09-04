@@ -1,4 +1,9 @@
 impl Module {
+    #[builtin(module_has_named_attribute)]
+    // docs:start:has_named_attribute
+    fn has_named_attribute(self, name: Quoted) -> bool {}
+    // docs:end:has_named_attribute
+
     #[builtin(module_is_contract)]
 // docs:start:is_contract
     fn is_contract(self) -> bool {}

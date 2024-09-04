@@ -321,7 +321,12 @@ impl<'context> Elaborator<'context> {
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
-        let generated_items = self.run_attributes(&items.traits, &items.types, &items.functions);
+        let generated_items = self.run_attributes(
+            &items.traits,
+            &items.types,
+            &items.functions,
+            &items.module_attributes,
+        );
 
         // After everything is collected, we can elaborate our generated items.
         // It may be better to inline these within `items` entirely since elaborating them

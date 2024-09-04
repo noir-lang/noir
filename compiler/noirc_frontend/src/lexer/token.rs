@@ -27,6 +27,7 @@ pub enum BorrowedToken<'input> {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    InnerAttribute(SecondaryAttribute),
     LineComment(&'input str, Option<DocStyle>),
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
@@ -132,6 +133,7 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    InnerAttribute(SecondaryAttribute),
     LineComment(String, Option<DocStyle>),
     BlockComment(String, Option<DocStyle>),
     // A `quote { ... }` along with the tokens in its token stream.
@@ -244,6 +246,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::RawStr(ref b, hashes) => BorrowedToken::RawStr(b, *hashes),
         Token::Keyword(k) => BorrowedToken::Keyword(*k),
         Token::Attribute(ref a) => BorrowedToken::Attribute(a.clone()),
+        Token::InnerAttribute(ref a) => BorrowedToken::InnerAttribute(a.clone()),
         Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
@@ -363,6 +366,7 @@ impl fmt::Display for Token {
             }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::InnerAttribute(ref a) => write!(f, "#![{a}]"),
             Token::LineComment(ref s, _style) => write!(f, "//{s}"),
             Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
             Token::Quote(ref stream) => {
@@ -428,6 +432,7 @@ pub enum TokenKind {
     Literal,
     Keyword,
     Attribute,
+    InnerAttribute,
     Quote,
     QuotedType,
     InternedExpr,
@@ -445,6 +450,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
             TokenKind::Attribute => write!(f, "attribute"),
+            TokenKind::InnerAttribute => write!(f, "inner attribute"),
             TokenKind::Quote => write!(f, "quote"),
             TokenKind::QuotedType => write!(f, "quoted type"),
             TokenKind::InternedExpr => write!(f, "interned expr"),
@@ -467,6 +473,7 @@ impl Token {
             | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
+            Token::InnerAttribute(_) => TokenKind::InnerAttribute,
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,
             Token::QuotedType(_) => TokenKind::QuotedType,
@@ -701,7 +708,7 @@ impl Attribute {
         word: &str,
         span: Span,
         contents_span: Span,
-    ) -> Result<Token, LexerErrorKind> {
+    ) -> Result<Attribute, LexerErrorKind> {
         let word_segments: Vec<&str> = word
             .split(|c| c == '(' || c == ')')
             .filter(|string_segment| !string_segment.is_empty())
@@ -782,7 +789,7 @@ impl Attribute {
             }
         };
 
-        Ok(Token::Attribute(attribute))
+        Ok(attribute)
     }
 }
 

@@ -10,11 +10,12 @@ use crate::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedStruct,
-                UnresolvedTrait, UnresolvedTraitImpl,
+                CollectedItems, CompilationError, ModuleAttribute, UnresolvedFunctions,
+                UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl,
             },
             dc_mod,
         },
+        def_map::ModuleId,
         resolution::errors::ResolverError,
     },
     hir_def::expr::HirIdent,
@@ -96,21 +97,31 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
-            if let SecondaryAttribute::Custom(attribute) = attribute {
-                if let Err(error) = self.run_comptime_attribute_on_item(
-                    &attribute.contents,
-                    item.clone(),
-                    span,
-                    attribute.contents_span,
-                    generated_items,
-                ) {
-                    self.errors.push(error);
-                }
-            }
+            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items);
         }
     }
 
     fn run_comptime_attribute_on_item(
+        &mut self,
+        attribute: &SecondaryAttribute,
+        item: &Value,
+        span: Span,
+        generated_items: &mut CollectedItems,
+    ) {
+        if let SecondaryAttribute::Custom(attribute) = attribute {
+            if let Err(error) = self.run_comptime_attribute_name_on_item(
+                &attribute.contents,
+                item.clone(),
+                span,
+                attribute.contents_span,
+                generated_items,
+            ) {
+                self.errors.push(error);
+            }
+        }
+    }
+
+    fn run_comptime_attribute_name_on_item(
         &mut self,
         attribute: &str,
         item: Value,
@@ -383,7 +394,8 @@ impl<'context> Elaborator<'context> {
             | TopLevelStatement::Trait(_)
             | TopLevelStatement::Impl(_)
             | TopLevelStatement::TypeAlias(_)
-            | TopLevelStatement::SubModule(_) => {
+            | TopLevelStatement::SubModule(_)
+            | TopLevelStatement::InnerAttribute(_) => {
                 let item = item.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());
@@ -422,6 +434,7 @@ impl<'context> Elaborator<'context> {
         traits: &BTreeMap<TraitId, UnresolvedTrait>,
         types: &BTreeMap<StructId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
+        module_attributes: &[ModuleAttribute],
     ) -> CollectedItems {
         let mut generated_items = CollectedItems::default();
 
@@ -444,7 +457,29 @@ impl<'context> Elaborator<'context> {
         }
 
         self.run_attributes_on_functions(functions, &mut generated_items);
+
+        self.run_attributes_on_modules(module_attributes, &mut generated_items);
+
         generated_items
+    }
+
+    fn run_attributes_on_modules(
+        &mut self,
+        module_attributes: &[ModuleAttribute],
+        generated_items: &mut CollectedItems,
+    ) {
+        for module_attribute in module_attributes {
+            let local_id = module_attribute.module_id;
+            let module_id = ModuleId { krate: self.crate_id, local_id };
+            let item = Value::ModuleDefinition(module_id);
+            let attribute = &module_attribute.attribute;
+            let span = Span::default();
+
+            self.local_module = module_attribute.attribute_module_id;
+            self.file = module_attribute.attribute_file_id;
+
+            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items);
+        }
     }
 
     fn run_attributes_on_functions(
