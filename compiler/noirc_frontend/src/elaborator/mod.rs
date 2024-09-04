@@ -28,6 +28,7 @@ use crate::{
     node_interner::{
         DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
+    token::CustomAtrribute,
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -320,7 +321,12 @@ impl<'context> Elaborator<'context> {
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
-        let generated_items = self.run_attributes(&items.traits, &items.types, &items.functions);
+        let generated_items = self.run_attributes(
+            &items.traits,
+            &items.types,
+            &items.functions,
+            &items.module_attributes,
+        );
 
         // After everything is collected, we can elaborate our generated items.
         // It may be better to inline these within `items` entirely since elaborating them
@@ -819,7 +825,7 @@ impl<'context> Elaborator<'context> {
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes = attributes.map(|str| str.to_string()).collect();
+        let attributes: Vec<CustomAtrribute> = attributes.cloned().collect();
 
         let meta = FuncMeta {
             name: name_ident,
