@@ -97,28 +97,28 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::inline_functions, "After Inlining:")
     // Run mem2reg with the CFG separated into blocks
     .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-    // .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
-    // .try_run_pass(
-    //     Ssa::evaluate_static_assert_and_assert_constant,
-    //     "After `static_assert` and `assert_constant`:",
-    // )?
-    // .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
-    // .run_pass(Ssa::simplify_cfg, "After Simplifying:")
-    // .run_pass(Ssa::flatten_cfg, "After Flattening:")
-    // .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
-    // // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-    // .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-    // // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
-    // // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
-    // // This pass must come immediately following `mem2reg` as the succeeding passes
-    // // may create an SSA which inlining fails to handle.
-    // .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
-    // .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
-    // .run_pass(Ssa::fold_constants, "After Constant Folding:")
-    // .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
-    // .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
-    // .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-    // .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
+    .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
+    .try_run_pass(
+        Ssa::evaluate_static_assert_and_assert_constant,
+        "After `static_assert` and `assert_constant`:",
+    )?
+    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
+    .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+    .run_pass(Ssa::flatten_cfg, "After Flattening:")
+    .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
+    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+    // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+    // This pass must come immediately following `mem2reg` as the succeeding passes
+    // may create an SSA which inlining fails to handle.
+    .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
+    .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
+    .run_pass(Ssa::fold_constants, "After Constant Folding:")
+    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
+    .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
+    .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+    .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
     let ssa_level_warnings = if options.skip_underconstrained_check {

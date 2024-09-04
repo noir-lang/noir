@@ -119,8 +119,8 @@ struct PerFunctionContext<'f> {
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
 
     /// Track whether a load result was used across all blocks.
-    load_results: HashMap<ValueId, (bool, InstructionId)>,
-    
+    load_results: HashMap<ValueId, (u32, InstructionId)>,
+
     /// Flag for tracking whether we had to perform a re-load as part of the Brillig CoW optimization.
     /// Stores made as part of this optimization should not be removed.
     /// We want to catch stores of this nature:
@@ -174,21 +174,14 @@ impl<'f> PerFunctionContext<'f> {
 
         let mut load_result_unused: HashSet<ValueId> = HashSet::default();
         let mut load_result_used: HashSet<ValueId> = HashSet::default();
-        for (_, (not_used_flag, load_instruction)) in self.load_results.iter() {
+        for (_, (ref_counter, load_instruction)) in self.load_results.iter() {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
                 panic!("Should only have a load instruction here");
             };
 
-            if *not_used_flag {
-                if !load_result_used.contains(&address) {
-                    load_result_unused.insert(address);
-                }
-
+            if *ref_counter == 0 {
                 self.instructions_to_remove.insert(*load_instruction);
-            } else {
-                load_result_unused.remove(&address);
-                load_result_used.insert(address);
             }
         }
 
@@ -311,8 +304,8 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         self.inserter.function.dfg[instruction].for_each_value(|value| {
-            if let Some((not_used_flag, _)) = self.load_results.get_mut(&value) {
-                *not_used_flag = false;
+            if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
+                *ref_counter += 1;
             }
         });
 
@@ -334,9 +327,8 @@ impl<'f> PerFunctionContext<'f> {
                     references.aliases.insert(Expression::Other(result), AliasSet::known(result));
                     references.set_known_value(result, address);
 
-                    // Assume that the load result is unused
-                    self.load_results.insert(result, (true, instruction));
-                    
+                    self.load_results.insert(result, (0, instruction));
+
                     self.last_loads.insert(address, (instruction, block_id));
                 }
             }
@@ -350,17 +342,25 @@ impl<'f> PerFunctionContext<'f> {
                 // function calls in-between, we can remove the previous store.
                 if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
+                    if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
+                        *ref_counter -= 1;
+                    }
                 }
 
                 let known_value = references.get_known_value(value);
                 if let Some(known_value) = known_value {
                     let known_value_is_address = known_value == address;
-                    if let Some(from_rc) = self.inside_rc_reload {
-                        if known_value_is_address && !from_rc {
+                    if known_value_is_address {
+                        if let Some(from_rc) = self.inside_rc_reload {
+                            if !from_rc {
+                                self.instructions_to_remove.insert(instruction);
+                            }
+                        } else {
                             self.instructions_to_remove.insert(instruction);
                         }
-                    } else if known_value_is_address {
-                        self.instructions_to_remove.insert(instruction);
+                        if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
+                            *ref_counter -= 1;
+                        }
                     }
                 }
 
@@ -524,8 +524,8 @@ impl<'f> PerFunctionContext<'f> {
         let terminator = self.inserter.function.dfg[block].unwrap_terminator();
 
         terminator.for_each_value(|value| {
-            if let Some((not_used_flag, _)) = self.load_results.get_mut(&value) {
-                *not_used_flag = false;
+            if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
+                *ref_counter += 1;
             }
         });
 
