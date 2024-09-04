@@ -295,9 +295,11 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let name_start = self.position;
+        let contents_start = self.position + 1;
 
         let word = self.eat_while(None, |ch| ch != ']');
+
+        let contents_end = self.position;
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -310,8 +312,10 @@ impl<'a> Lexer<'a> {
 
         let end = self.position;
 
-        let attribute =
-            Attribute::lookup_attribute(&word, Span::inclusive(start, end), name_start)?;
+        let span = Span::inclusive(start, end);
+        let contents_span = Span::inclusive(contents_start, contents_end);
+
+        let attribute = Attribute::lookup_attribute(&word, span, contents_span)?;
 
         Ok(attribute.into_span(start, end))
     }
@@ -815,8 +819,8 @@ mod tests {
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
                 contents: "custom(hello)".to_string(),
-                span: Span::from(0..14),
-                name_start: 2,
+                span: Span::from(0..16),
+                contents_span: Span::from(2..14)
             })))
         );
     }

@@ -700,7 +700,7 @@ impl Attribute {
     pub(crate) fn lookup_attribute(
         word: &str,
         span: Span,
-        name_start: u32,
+        contents_span: Span,
     ) -> Result<Token, LexerErrorKind> {
         let word_segments: Vec<&str> = word
             .split(|c| c == '(' || c == ')')
@@ -777,7 +777,7 @@ impl Attribute {
                 Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
                     contents: word.to_owned(),
                     span,
-                    name_start,
+                    contents_span,
                 }))
             }
         };
@@ -881,11 +881,10 @@ pub enum SecondaryAttribute {
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAtrribute {
     pub contents: String,
-
     // The span of the entire attribute, including leading `#[` and trailing `]`
     pub span: Span,
-    // The byte position where the attribute name starts
-    pub name_start: u32,
+    // The span for the attribute contents (what's inside `#[...]`)
+    pub contents_span: Span,
 }
 
 impl SecondaryAttribute {
