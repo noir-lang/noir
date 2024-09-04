@@ -121,6 +121,9 @@ struct PerFunctionContext<'f> {
     /// Track whether a load result was used across all blocks.
     load_results: HashMap<ValueId, PerFuncLoadResultContext>,
 
+    /// Track whether a reference was passed into another entry point
+    stores_used_in_calls: HashMap<ValueId, Vec<(InstructionId, BasicBlockId)>>,
+
     /// Flag for tracking whether we had to perform a re-load as part of the Brillig CoW optimization.
     /// Stores made as part of this optimization should not be removed.
     /// We want to catch stores of this nature:
@@ -168,6 +171,7 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashMap::default(),
             load_results: HashMap::default(),
             inside_rc_reload: None,
+            stores_used_in_calls: HashMap::default(),
         }
     }
 
@@ -238,7 +242,9 @@ impl<'f> PerFunctionContext<'f> {
                     self.last_loads.get(store_address).is_none()
                 };
 
-                if remove_load && !is_reference_param {
+                let is_not_used_in_reference_param =
+                    self.stores_used_in_calls.get(store_address).is_none();
+                if remove_load && !is_reference_param && is_not_used_in_reference_param {
                     self.instructions_to_remove.insert(*store_instruction);
                     if let Some((_, counter)) = not_removed_stores.get_mut(store_address) {
                         *counter -= 1;
@@ -536,7 +542,17 @@ impl<'f> PerFunctionContext<'f> {
                     references.aliases.insert(expression, aliases);
                 }
             }
-            Instruction::Call { arguments, .. } => self.mark_all_unknown(arguments, references),
+            Instruction::Call { arguments, .. } => {
+                for arg in arguments {
+                    if self.inserter.function.dfg.value_is_reference(*arg) {
+                        self.stores_used_in_calls
+                            .entry(*arg)
+                            .or_default()
+                            .push((instruction, block_id));
+                    }
+                }
+                self.mark_all_unknown(arguments, references);
+            }
             _ => (),
         }
 
