@@ -18,6 +18,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::macros_api::{Expression, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::ModuleAttributes;
 use crate::token::SecondaryAttribute;
+use crate::usage_tracker::UnusedItem;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -36,7 +37,7 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -833,6 +834,16 @@ pub fn collect_function(
             return None;
         }
     }
+
+    let module_data = &mut def_map.modules[module.local_id.0];
+
+    let is_test = function.def.attributes.is_test_function();
+    let is_entry_point_function = if module_data.is_contract {
+        function.attributes().is_contract_entry_point()
+    } else {
+        function.name() == MAIN_FUNCTION
+    };
+
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
     let visibility = function.def.visibility;
@@ -841,6 +852,13 @@ pub fn collect_function(
     if interner.is_in_lsp_mode() && !function.def.is_test() {
         interner.register_function(func_id, &function.def);
     }
+
+    if !is_test && !is_entry_point_function {
+        let item = UnusedItem::Function(func_id);
+        interner.usage_tracker.add_unused_item(module, name.clone(), item, visibility);
+    }
+
+    // Add function to scope/ns of the module
     let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
     if let Err((first_def, second_def)) = result {
         let error = DefCollectorErrorKind::Duplicate {

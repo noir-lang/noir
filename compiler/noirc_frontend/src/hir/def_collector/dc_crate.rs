@@ -8,6 +8,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
 use crate::token::SecondaryAttribute;
+use crate::usage_tracker::UnusedItem;
 use crate::{Generics, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
@@ -271,7 +272,7 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         enable_arithmetic_generics: bool,
-        error_on_usage_tracker: bool,
+        error_on_unused_items: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -406,20 +407,14 @@ impl DefCollector {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), visibility, module_def_id, is_prelude);
 
-                        // Empty spans could come from implicitly injected imports, and we don't want to track those
-                        if visibility != ItemVisibility::Public
-                            && name.span().start() < name.span().end()
-                        {
-                            let module_id = ModuleId {
-                                krate: crate_id,
-                                local_id: resolved_import.module_scope,
-                            };
-
-                            context
-                                .def_interner
-                                .usage_tracker
-                                .add_unused_import(module_id, name.clone());
-                        }
+                        let module_id =
+                            ModuleId { krate: crate_id, local_id: resolved_import.module_scope };
+                        context.def_interner.usage_tracker.add_unused_item(
+                            module_id,
+                            name.clone(),
+                            UnusedItem::Import,
+                            visibility,
+                        );
 
                         if visibility != ItemVisibility::Private {
                             let local_id = resolved_import.module_scope;
@@ -494,26 +489,29 @@ impl DefCollector {
             );
         }
 
-        if error_on_usage_tracker {
-            Self::check_usage_tracker(context, crate_id, &mut errors);
+        if error_on_unused_items {
+            Self::check_unused_items(context, crate_id, &mut errors);
         }
 
         errors
     }
 
-    fn check_usage_tracker(
+    fn check_unused_items(
         context: &Context,
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        let unused_imports = context.def_interner.usage_tracker.unused_imports().iter();
+        let unused_imports = context.def_interner.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
             let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
-            usage_tracker.iter().map(|ident| {
+            usage_tracker.iter().map(|(ident, unused_item)| {
                 let ident = ident.clone();
-                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                let error = CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident,
+                    item_type: unused_item.item_type(),
+                });
                 (error, module.location.file)
             })
         }));
