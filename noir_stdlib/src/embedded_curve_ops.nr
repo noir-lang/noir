@@ -124,14 +124,14 @@ pub fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint
     let y_coordinates_match = point1.y == point2.y;
     let double_predicate = (x_coordinates_match & y_coordinates_match);
     let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
-    let point1_1 = EmbeddedCurvePoint { x: point1.x + (x_coordinates_match as Field), y: point1.y, is_infinite: false };
+    let point1_1 = EmbeddedCurvePoint { x: point1.x + (x_coordinates_match as Field), y: point1.y, is_infinite: x_coordinates_match };
     // point1_1 is guaranteed to have a different abscissa than point2
     let mut result = embedded_curve_add_unsafe(point1_1, point2);
     result.is_infinite = x_coordinates_match;
 
     // dbl if x_match, y_match
     let double = embedded_curve_add_unsafe(point1, point1);
-    let mut result = if double_predicate { double } else { result };
+    result = if double_predicate { double } else { result };
 
     // infinity if x_match, !y_match
     if point1.is_infinite {
@@ -142,7 +142,6 @@ pub fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint
     }
     let mut result_is_infinity = infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
     result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
-    result.is_infinite = result_is_infinity;
     result
 }
 
@@ -160,6 +159,8 @@ pub fn embedded_curve_add_not_nul(
     point2: EmbeddedCurvePoint
 ) -> EmbeddedCurvePoint {
     assert(point1.x - point2.x != 0);
+    assert(point1.is_infinite == false);
+    assert(point2.is_infinite == false);
     embedded_curve_add_unsafe(point1, point2)
 }
 
@@ -170,8 +171,6 @@ pub fn embedded_curve_add_unsafe(
     point1: EmbeddedCurvePoint,
     point2: EmbeddedCurvePoint
 ) -> EmbeddedCurvePoint {
-    assert(point1.is_infinite == false);
-    assert(point2.is_infinite == false);
     let point_array = embedded_curve_add_array_return(point1, point2);
     let x = point_array[0];
     let y = point_array[1];
