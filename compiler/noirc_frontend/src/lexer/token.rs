@@ -10,8 +10,6 @@ use crate::{
     },
 };
 
-use super::Lexer;
-
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
 /// smallest unit of grammar. A parser may (will) decide to parse
@@ -770,20 +768,6 @@ impl Attribute {
                 ))
             }
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
-            ["ensures", body] => {
-                let (tokenized_body, errors) =  Lexer::lex(body);
-                if let Some(first_error) = errors.first() {
-                    return Err(first_error.clone());
-                }
-                Attribute::Secondary(SecondaryAttribute::Ensures(tokenized_body))
-            },
-            ["requires", body] => {
-                let (tokenized_body, errors) =  Lexer::lex(body);
-                if let Some(first_error) = errors.first() {
-                    return Err(first_error.clone());
-                }
-                Attribute::Secondary(SecondaryAttribute::Requires(tokenized_body))
-            },
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
@@ -881,9 +865,7 @@ pub enum SecondaryAttribute {
     Field(String),
     Custom(String),
     Abi(String),
-    // Formal verification attributes
-    Ensures(Tokens),
-    Requires(Tokens),
+
     /// A variable-argument comptime function.
     Varargs,
 }
@@ -911,14 +893,6 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
             SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
-            SecondaryAttribute::Ensures(ref k ) => {
-                write!(f, "#[ensures(")?;
-                k.0.iter().try_for_each(|x| x.0.contents.fmt(f))?;
-                write!(f, ")]")},
-            SecondaryAttribute::Requires(ref k ) => {
-                write!(f, "#[requires(")?;
-                k.0.iter().try_for_each(|x| x.0.contents.fmt(f))?;
-                write!(f, ")]")},
         }
     }
 }
@@ -948,8 +922,6 @@ impl AsRef<str> for SecondaryAttribute {
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
             SecondaryAttribute::Varargs => "",
-            SecondaryAttribute::Ensures(_) => "",
-            SecondaryAttribute::Requires(_) => "",
         }
     }
 }
