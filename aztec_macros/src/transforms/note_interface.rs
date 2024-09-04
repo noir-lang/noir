@@ -244,8 +244,8 @@ fn generate_note_to_be_bytes(
 
             let mut buffer: [u8; {0}] = [0; {0}];
 
-            let storage_slot_bytes = storage_slot.to_be_bytes(32);
-            let note_type_id_bytes = {1}::get_note_type_id().to_be_bytes(32);
+            let storage_slot_bytes: [u8; 32] = storage_slot.to_be_bytes();
+            let note_type_id_bytes: [u8; 32] = {1}::get_note_type_id().to_be_bytes();
 
             for i in 0..32 {{
                 buffer[i] = storage_slot_bytes[i];
@@ -253,7 +253,7 @@ fn generate_note_to_be_bytes(
             }}
 
             for i in 0..serialized_note.len() {{
-                let bytes = serialized_note[i].to_be_bytes(32);
+                let bytes: [u8; 32] = serialized_note[i].to_be_bytes();
                 for j in 0..32 {{
                     buffer[64 + i * 32 + j] = bytes[j];
                 }}
