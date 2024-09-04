@@ -3341,3 +3341,21 @@ fn warns_on_re_export_of_item_with_less_visibility() {
         )
     ));
 }
+
+#[test]
+fn can_unquote_struct() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+
+        pub use bar::baz;
+    }
+
+    fn main() {
+        foo::baz();
+    }
+    "#;
+    assert_no_errors(src);
+}

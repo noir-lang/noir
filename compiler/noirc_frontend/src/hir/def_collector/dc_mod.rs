@@ -15,7 +15,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::macros_api::{Expression, NodeInterner, UnresolvedType, UnresolvedTypeData};
+use crate::macros_api::{Expression, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::ModuleAttributes;
 use crate::{
     graph::CrateId,
@@ -280,88 +280,19 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut definition_errors = vec![];
         for struct_definition in types {
-            self.check_duplicate_field_names(&struct_definition, &mut definition_errors);
-
-            let name = struct_definition.name.clone();
-
-            let unresolved = UnresolvedStruct {
-                file_id: self.file_id,
-                module_id: self.module_id,
-                struct_def: struct_definition,
-            };
-
-            let resolved_generics = context.resolve_generics(
-                &unresolved.struct_def.generics,
-                &mut definition_errors,
+            if let Some((id, the_struct)) = collect_struct(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                struct_definition,
                 self.file_id,
-            );
-
-            // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(
-                context,
-                &name,
-                Location::new(name.span(), self.file_id),
-                false,
-                false,
+                self.module_id,
+                krate,
+                &mut definition_errors,
             ) {
-                Ok(module_id) => context.def_interner.new_struct(
-                    &unresolved,
-                    resolved_generics,
-                    krate,
-                    module_id.local_id,
-                    self.file_id,
-                ),
-                Err(error) => {
-                    definition_errors.push((error.into(), self.file_id));
-                    continue;
-                }
-            };
-
-            // Add the struct to scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_struct(name.clone(), id);
-
-            if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::TypeDefinition,
-                    first_def,
-                    second_def,
-                };
-                definition_errors.push((error.into(), self.file_id));
-            }
-
-            // And store the TypeId -> StructType mapping somewhere it is reachable
-            self.def_collector.items.types.insert(id, unresolved);
-
-            if context.def_interner.is_in_lsp_mode() {
-                let parent_module_id = ModuleId { krate, local_id: self.module_id };
-                context.def_interner.register_struct(id, name.to_string(), parent_module_id);
+                self.def_collector.items.types.insert(id, the_struct);
             }
         }
         definition_errors
-    }
-
-    fn check_duplicate_field_names(
-        &self,
-        struct_definition: &NoirStruct,
-        definition_errors: &mut Vec<(CompilationError, FileId)>,
-    ) {
-        let mut seen_field_names = std::collections::HashSet::new();
-        for (field_name, _) in &struct_definition.fields {
-            if seen_field_names.insert(field_name) {
-                continue;
-            }
-
-            let previous_field_name = *seen_field_names.get(field_name).unwrap();
-            definition_errors.push((
-                DefCollectorErrorKind::DuplicateField {
-                    first_def: previous_field_name.clone(),
-                    second_def: field_name.clone(),
-                }
-                .into(),
-                self.file_id,
-            ));
-        }
     }
 
     /// Collect any type aliases definitions declared within the ast.
@@ -383,7 +314,8 @@ impl<'a> ModCollector<'a> {
                 type_alias_def: type_alias,
             };
 
-            let resolved_generics = context.resolve_generics(
+            let resolved_generics = Context::resolve_generics(
+                &context.def_interner,
                 &unresolved.type_alias_def.generics,
                 &mut errors,
                 self.file_id,
@@ -584,8 +516,12 @@ impl<'a> ModCollector<'a> {
                 }
             }
 
-            let resolved_generics =
-                context.resolve_generics(&trait_definition.generics, &mut errors, self.file_id);
+            let resolved_generics = Context::resolve_generics(
+                &context.def_interner,
+                &trait_definition.generics,
+                &mut errors,
+                self.file_id,
+            );
 
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
@@ -741,75 +677,6 @@ impl<'a> ModCollector<'a> {
         errors
     }
 
-    /// Add a child module to the current def_map.
-    /// On error this returns None and pushes to `errors`
-    fn push_child_module(
-        &mut self,
-        context: &mut Context,
-        mod_name: &Ident,
-        mod_location: Location,
-        add_to_parent_scope: bool,
-        is_contract: bool,
-    ) -> Result<ModuleId, DefCollectorErrorKind> {
-        let parent = Some(self.module_id);
-
-        // Note: the difference between `location` and `mod_location` is:
-        // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
-        //   if it's an inline module, or the first char of a the file if it's an external module.
-        // - `location` will always point to the token "foo" in `mod foo` regardless of whether
-        //   it's inline or external.
-        // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
-        // so we keep using `location` so that it continues to work as usual.
-        let location = Location::new(mod_name.span(), mod_location.file);
-        let new_module = ModuleData::new(parent, location, is_contract);
-        let module_id = self.def_collector.def_map.modules.insert(new_module);
-
-        let modules = &mut self.def_collector.def_map.modules;
-
-        // Update the parent module to reference the child
-        modules[self.module_id.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
-
-        let mod_id = ModuleId {
-            krate: self.def_collector.def_map.krate,
-            local_id: LocalModuleId(module_id),
-        };
-
-        // Add this child module into the scope of the parent module as a module definition
-        // module definitions are definitions which can only exist at the module level.
-        // ModuleDefinitionIds can be used across crates since they contain the CrateId
-        //
-        // We do not want to do this in the case of struct modules (each struct type corresponds
-        // to a child module containing its methods) since the module name should not shadow
-        // the struct name.
-        if add_to_parent_scope {
-            if let Err((first_def, second_def)) =
-                modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
-            {
-                let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Module,
-                    first_def,
-                    second_def,
-                };
-                return Err(err);
-            }
-
-            context.def_interner.add_module_attributes(
-                mod_id,
-                ModuleAttributes {
-                    name: mod_name.0.contents.clone(),
-                    location: mod_location,
-                    parent: Some(self.module_id),
-                },
-            );
-
-            if context.def_interner.is_in_lsp_mode() {
-                context.def_interner.register_module(mod_id, mod_name.0.contents.clone());
-            }
-        }
-
-        Ok(mod_id)
-    }
-
     fn resolve_associated_constant_type(
         &self,
         typ: &UnresolvedType,
@@ -826,6 +693,146 @@ impl<'a> ModCollector<'a> {
             }
         }
     }
+
+    /// Add a child module to the current def_map.
+    /// On error this returns None and pushes to `errors`
+    fn push_child_module(
+        &mut self,
+        context: &mut Context,
+        mod_name: &Ident,
+        mod_location: Location,
+        add_to_parent_scope: bool,
+        is_contract: bool,
+    ) -> Result<ModuleId, DefCollectorErrorKind> {
+        push_child_module(
+            &mut context.def_interner,
+            &mut self.def_collector.def_map,
+            self.module_id,
+            mod_name,
+            mod_location,
+            add_to_parent_scope,
+            is_contract,
+        )
+    }
+}
+
+/// Add a child module to the current def_map.
+/// On error this returns None and pushes to `errors`
+fn push_child_module(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    parent: LocalModuleId,
+    mod_name: &Ident,
+    mod_location: Location,
+    add_to_parent_scope: bool,
+    is_contract: bool,
+) -> Result<ModuleId, DefCollectorErrorKind> {
+    // Note: the difference between `location` and `mod_location` is:
+    // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
+    //   if it's an inline module, or the first char of a the file if it's an external module.
+    // - `location` will always point to the token "foo" in `mod foo` regardless of whether
+    //   it's inline or external.
+    // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
+    // so we keep using `location` so that it continues to work as usual.
+    let location = Location::new(mod_name.span(), mod_location.file);
+    let new_module = ModuleData::new(Some(parent), location, is_contract);
+    let module_id = def_map.modules.insert(new_module);
+
+    let modules = &mut def_map.modules;
+
+    // Update the parent module to reference the child
+    modules[parent.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
+
+    let mod_id = ModuleId { krate: def_map.krate, local_id: LocalModuleId(module_id) };
+
+    // Add this child module into the scope of the parent module as a module definition
+    // module definitions are definitions which can only exist at the module level.
+    // ModuleDefinitionIds can be used across crates since they contain the CrateId
+    //
+    // We do not want to do this in the case of struct modules (each struct type corresponds
+    // to a child module containing its methods) since the module name should not shadow
+    // the struct name.
+    if add_to_parent_scope {
+        if let Err((first_def, second_def)) =
+            modules[parent.0].declare_child_module(mod_name.to_owned(), mod_id)
+        {
+            let err = DefCollectorErrorKind::Duplicate {
+                typ: DuplicateType::Module,
+                first_def,
+                second_def,
+            };
+            return Err(err);
+        }
+
+        interner.add_module_attributes(
+            mod_id,
+            ModuleAttributes {
+                name: mod_name.0.contents.clone(),
+                location: mod_location,
+                parent: Some(parent),
+            },
+        );
+
+        if interner.is_in_lsp_mode() {
+            interner.register_module(mod_id, mod_name.0.contents.clone());
+        }
+    }
+
+    Ok(mod_id)
+}
+
+pub fn collect_struct(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    struct_definition: NoirStruct,
+    file_id: FileId,
+    module_id: LocalModuleId,
+    krate: CrateId,
+    definition_errors: &mut Vec<(CompilationError, FileId)>,
+) -> Option<(StructId, UnresolvedStruct)> {
+    check_duplicate_field_names(&struct_definition, file_id, definition_errors);
+
+    let name = struct_definition.name.clone();
+
+    let unresolved = UnresolvedStruct { file_id, module_id, struct_def: struct_definition };
+
+    let resolved_generics = Context::resolve_generics(
+        interner,
+        &unresolved.struct_def.generics,
+        definition_errors,
+        file_id,
+    );
+
+    // Create the corresponding module for the struct namespace
+    let location = Location::new(name.span(), file_id);
+    let id = match push_child_module(interner, def_map, module_id, &name, location, false, false) {
+        Ok(module_id) => {
+            interner.new_struct(&unresolved, resolved_generics, krate, module_id.local_id, file_id)
+        }
+        Err(error) => {
+            definition_errors.push((error.into(), file_id));
+            return None;
+        }
+    };
+
+    // Add the struct to scope so its path can be looked up later
+    let result = def_map.modules[module_id.0].declare_struct(name.clone(), id);
+
+    if let Err((first_def, second_def)) = result {
+        let error = DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::TypeDefinition,
+            first_def,
+            second_def,
+        };
+        definition_errors.push((error.into(), file_id));
+    }
+
+    if interner.is_in_lsp_mode() {
+        let parent_module_id = ModuleId { krate, local_id: module_id };
+        interner.register_struct(id, name.to_string(), parent_module_id);
+    }
+
+    Some((id, unresolved))
 }
 
 fn find_module(
@@ -984,6 +991,29 @@ pub(crate) fn collect_global(
 
     let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
     (global, error)
+}
+
+fn check_duplicate_field_names(
+    struct_definition: &NoirStruct,
+    file: FileId,
+    definition_errors: &mut Vec<(CompilationError, FileId)>,
+) {
+    let mut seen_field_names = std::collections::HashSet::new();
+    for (field_name, _) in &struct_definition.fields {
+        if seen_field_names.insert(field_name) {
+            continue;
+        }
+
+        let previous_field_name = *seen_field_names.get(field_name).unwrap();
+        definition_errors.push((
+            DefCollectorErrorKind::DuplicateField {
+                first_def: previous_field_name.clone(),
+                second_def: field_name.clone(),
+            }
+            .into(),
+            file,
+        ));
+    }
 }
 
 #[cfg(test)]

@@ -326,12 +326,25 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error);
                 }
             }
+            TopLevelStatement::Struct(struct_def) => {
+                if let Some((type_id, the_struct)) = dc_mod::collect_struct(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    struct_def,
+                    self.file,
+                    self.local_module,
+                    self.crate_id,
+                    &mut self.errors,
+                ) {
+                    generated_items.types.insert(type_id, the_struct);
+                }
+            }
+
             // Assume that an error has already been issued
             TopLevelStatement::Error => (),
 
             TopLevelStatement::Module(_)
             | TopLevelStatement::Import(..)
-            | TopLevelStatement::Struct(_)
             | TopLevelStatement::Trait(_)
             | TopLevelStatement::Impl(_)
             | TopLevelStatement::TypeAlias(_)
