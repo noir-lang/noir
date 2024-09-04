@@ -5,7 +5,6 @@ use lsp_types::{
     DidOpenTextDocumentParams, PartialResultParams, Position, Range, TextDocumentIdentifier,
     TextDocumentItem, TextEdit, WorkDoneProgressParams,
 };
-use tokio::test;
 
 use super::on_code_action_request;
 
@@ -49,7 +48,7 @@ async fn get_code_action(src: &str) -> CodeActionResponse {
     .unwrap()
 }
 
-async fn assert_code_action(title: &str, src: &str, expected: &str) {
+pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
     let actions = get_code_action(src).await;
     let action = actions
         .iter()
@@ -86,151 +85,4 @@ fn apply_text_edit(src: &str, text_edit: &TextEdit) -> String {
     );
     lines[text_edit.range.start.line as usize] = &line;
     lines.join("\n")
-}
-
-#[test]
-async fn test_qualify_code_action_for_struct() {
-    let title = "Qualify as foo::bar::SomeTypeInBar";
-
-    let src = r#"
-        mod foo {
-            mod bar {
-                struct SomeTypeInBar {}
-            }
-        }
-
-        fn foo(x: SomeType>|<InBar) {}
-        "#;
-
-    let expected = r#"
-        mod foo {
-            mod bar {
-                struct SomeTypeInBar {}
-            }
-        }
-
-        fn foo(x: foo::bar::SomeTypeInBar) {}
-        "#;
-
-    assert_code_action(title, src, expected).await;
-}
-
-#[test]
-async fn test_import_code_action_for_struct() {
-    let title = "Import foo::bar::SomeTypeInBar";
-
-    let src = r#"mod foo {
-    mod bar {
-        struct SomeTypeInBar {}
-    }
-}
-
-fn foo(x: SomeType>|<InBar) {}"#;
-
-    let expected = r#"use foo::bar::SomeTypeInBar;
-
-mod foo {
-    mod bar {
-        struct SomeTypeInBar {}
-    }
-}
-
-fn foo(x: SomeTypeInBar) {}"#;
-
-    assert_code_action(title, src, expected).await;
-}
-
-#[test]
-async fn test_qualify_code_action_for_module() {
-    let title = "Qualify as foo::bar::some_module_in_bar";
-
-    let src = r#"
-        mod foo {
-            mod bar {
-                mod some_module_in_bar {}
-            }
-        }
-
-        fn main() {
-          some_mod>|<ule_in_bar
-        }
-        "#;
-
-    let expected = r#"
-        mod foo {
-            mod bar {
-                mod some_module_in_bar {}
-            }
-        }
-
-        fn main() {
-          foo::bar::some_module_in_bar
-        }
-        "#;
-
-    assert_code_action(title, src, expected).await;
-}
-
-#[test]
-async fn test_import_code_action_for_module() {
-    let title = "Import foo::bar::some_module_in_bar";
-
-    let src = r#"mod foo {
-    mod bar {
-        mod some_module_in_bar {}
-    }
-}
-
-fn main() {
-    some_mod>|<ule_in_bar
-}"#;
-
-    let expected = r#"use foo::bar::some_module_in_bar;
-
-mod foo {
-    mod bar {
-        mod some_module_in_bar {}
-    }
-}
-
-fn main() {
-    some_module_in_bar
-}"#;
-
-    assert_code_action(title, src, expected).await;
-}
-
-#[test]
-async fn test_qualify_code_action_for_pub_use_import() {
-    let title = "Qualify as bar::foobar";
-
-    let src = r#"
-        mod bar {
-            mod baz {
-                pub fn qux() {}
-            }
-
-            pub use baz::qux as foobar;
-        }
-
-        fn main() {
-            foob>|<ar
-        }
-        "#;
-
-    let expected = r#"
-        mod bar {
-            mod baz {
-                pub fn qux() {}
-            }
-
-            pub use baz::qux as foobar;
-        }
-
-        fn main() {
-            bar::foobar
-        }
-        "#;
-
-    assert_code_action(title, src, expected).await;
 }

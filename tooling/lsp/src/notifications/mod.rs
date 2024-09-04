@@ -1,8 +1,12 @@
+use std::collections::HashSet;
 use std::ops::ControlFlow;
+use std::path::PathBuf;
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use lsp_types::DiagnosticTag;
+use fm::{FileManager, FileMap};
+use fxhash::FxHashMap as HashMap;
+use lsp_types::{DiagnosticTag, Url};
 use noirc_driver::{check_crate, file_manager_with_stdlib};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
@@ -105,7 +109,7 @@ pub(super) fn on_did_save_text_document(
 // caching code lenses and type definitions, and notifying about compilation errors.
 pub(crate) fn process_workspace_for_noir_document(
     state: &mut LspState,
-    document_uri: lsp_types::Url,
+    document_uri: Url,
     output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
     let file_path = document_uri.to_file_path().map_err(|_| {
@@ -125,100 +129,123 @@ pub(crate) fn process_workspace_for_noir_document(
 
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
-    let diagnostics: Vec<_> = workspace
-        .into_iter()
-        .flat_map(|package| -> Vec<Diagnostic> {
-            let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
+    for package in workspace.into_iter() {
+        let (mut context, crate_id) =
+            crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let (mut context, crate_id) =
-                crate::prepare_package(&workspace_file_manager, &parsed_files, package);
+        let file_diagnostics = match check_crate(&mut context, crate_id, &Default::default()) {
+            Ok(((), warnings)) => warnings,
+            Err(errors_and_warnings) => errors_and_warnings,
+        };
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, &Default::default()) {
-                Ok(((), warnings)) => warnings,
-                Err(errors_and_warnings) => errors_and_warnings,
-            };
+        // We don't add test headings for a package if it contains no `#[test]` functions
+        if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
+            let _ = state.client.notify::<notification::NargoUpdateTests>(NargoPackageTests {
+                package: package.name.to_string(),
+                tests,
+            });
+        }
 
-            // We don't add test headings for a package if it contains no `#[test]` functions
-            if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
-                let _ = state.client.notify::<notification::NargoUpdateTests>(NargoPackageTests {
-                    package: package.name.to_string(),
-                    tests,
-                });
-            }
+        let collected_lenses = crate::requests::collect_lenses_for_package(
+            &context,
+            crate_id,
+            &workspace,
+            package,
+            Some(&file_path),
+        );
+        state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
+        state.cached_definitions.insert(package.root_dir.clone(), context.def_interner);
+        state.cached_def_maps.insert(package.root_dir.clone(), context.def_maps);
 
-            let collected_lenses = crate::requests::collect_lenses_for_package(
-                &context,
-                crate_id,
-                &workspace,
-                package,
-                Some(&file_path),
-            );
-            state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
-            state.cached_definitions.insert(package_root_dir.clone(), context.def_interner);
-            state.cached_def_maps.insert(package_root_dir.clone(), context.def_maps);
+        let fm = &context.file_manager;
+        let files = fm.as_file_map();
 
-            let fm = &context.file_manager;
-            let files = fm.as_file_map();
+        if output_diagnostics {
+            publish_diagnostics(state, &package.root_dir, files, fm, file_diagnostics);
+        }
+    }
 
-            if output_diagnostics {
-                file_diagnostics
-                    .into_iter()
-                    .filter_map(|FileDiagnostic { file_id, diagnostic, call_stack: _ }| {
-                        // Ignore diagnostics for any file that wasn't the file we saved
-                        // TODO: In the future, we could create "related" diagnostics for these files
-                        if fm.path(file_id).expect("file must exist to have emitted diagnostic")
-                            != file_path
-                        {
-                            return None;
-                        }
+    Ok(())
+}
 
-                        // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
-                        let range = diagnostic
-                            .secondaries
-                            .into_iter()
-                            .filter_map(|sec| byte_span_to_range(files, file_id, sec.span.into()))
-                            .last()
-                            .unwrap_or_default();
+fn publish_diagnostics(
+    state: &mut LspState,
+    package_root_dir: &PathBuf,
+    files: &FileMap,
+    fm: &FileManager,
+    file_diagnostics: Vec<FileDiagnostic>,
+) {
+    let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
-                        let severity = match diagnostic.kind {
-                            DiagnosticKind::Error => DiagnosticSeverity::ERROR,
-                            DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
-                            DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
-                            DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
-                        };
+    for file_diagnostic in file_diagnostics.into_iter() {
+        let file_id = file_diagnostic.file_id;
+        let diagnostic = file_diagnostic_to_diagnostic(file_diagnostic, files);
 
-                        let mut tags = Vec::new();
-                        if diagnostic.unnecessary {
-                            tags.push(DiagnosticTag::UNNECESSARY);
-                        }
-                        if diagnostic.deprecated {
-                            tags.push(DiagnosticTag::DEPRECATED);
-                        }
+        let path = fm.path(file_id).expect("file must exist to have emitted diagnostic");
+        if let Ok(uri) = Url::from_file_path(path) {
+            diagnostics_per_url.entry(uri).or_default().push(diagnostic);
+        }
+    }
 
-                        Some(Diagnostic {
-                            range,
-                            severity: Some(severity),
-                            message: diagnostic.message,
-                            tags: if tags.is_empty() { None } else { Some(tags) },
-                            ..Default::default()
-                        })
-                    })
-                    .collect()
-            } else {
-                vec![]
-            }
-        })
-        .collect();
+    let new_files_with_errors: HashSet<_> = diagnostics_per_url.keys().cloned().collect();
 
-    if output_diagnostics {
+    for (uri, diagnostics) in diagnostics_per_url {
         let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
-            uri: document_uri,
+            uri,
             version: None,
             diagnostics,
         });
     }
 
-    Ok(())
+    // For files that previously had errors but no longer have errors we still need to publish empty diagnostics
+    if let Some(old_files_with_errors) = state.files_with_errors.get(package_root_dir) {
+        for uri in old_files_with_errors.difference(&new_files_with_errors) {
+            let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                uri: uri.clone(),
+                version: None,
+                diagnostics: vec![],
+            });
+        }
+    }
+
+    // Remember which files currently have errors, for next time
+    state.files_with_errors.insert(package_root_dir.clone(), new_files_with_errors);
+}
+
+fn file_diagnostic_to_diagnostic(file_diagnostic: FileDiagnostic, files: &FileMap) -> Diagnostic {
+    let file_id = file_diagnostic.file_id;
+    let diagnostic = file_diagnostic.diagnostic;
+
+    // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
+    let range = diagnostic
+        .secondaries
+        .into_iter()
+        .filter_map(|sec| byte_span_to_range(files, file_id, sec.span.into()))
+        .last()
+        .unwrap_or_default();
+
+    let severity = match diagnostic.kind {
+        DiagnosticKind::Error => DiagnosticSeverity::ERROR,
+        DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
+        DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
+        DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
+    };
+
+    let mut tags = Vec::new();
+    if diagnostic.unnecessary {
+        tags.push(DiagnosticTag::UNNECESSARY);
+    }
+    if diagnostic.deprecated {
+        tags.push(DiagnosticTag::DEPRECATED);
+    }
+
+    Diagnostic {
+        range,
+        severity: Some(severity),
+        message: diagnostic.message,
+        tags: if tags.is_empty() { None } else { Some(tags) },
+        ..Default::default()
+    }
 }
 
 pub(super) fn on_exit(
