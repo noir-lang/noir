@@ -1,13 +1,25 @@
-use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleId};
+use std::collections::BTreeMap;
+
+use noirc_frontend::{
+    ast::ItemVisibility,
+    graph::CrateId,
+    hir::{
+        def_map::{CrateDefMap, ModuleId},
+        resolution::import::can_reference_module_id,
+    },
+};
 
 pub(super) fn is_visible(
+    target_module_id: ModuleId,
+    current_module_id: ModuleId,
     visibility: ItemVisibility,
-    current_module: ModuleId,
-    target_module: ModuleId,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> bool {
-    match visibility {
-        ItemVisibility::Public => true,
-        ItemVisibility::Private => false,
-        ItemVisibility::PublicCrate => current_module.krate == target_module.krate,
-    }
+    can_reference_module_id(
+        def_maps,
+        current_module_id.krate,
+        current_module_id.local_id,
+        target_module_id,
+        visibility,
+    )
 }

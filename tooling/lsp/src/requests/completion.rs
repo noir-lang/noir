@@ -22,10 +22,7 @@ use noirc_frontend::{
         UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
-    hir::{
-        def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::import::can_reference_module_id,
-    },
+    hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     hir_def::traits::Trait,
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
@@ -34,7 +31,7 @@ use noirc_frontend::{
 };
 use sort_text::underscore_sort_text;
 
-use crate::{requests::to_lsp_location, utils, LspState};
+use crate::{requests::to_lsp_location, utils, visibility::is_visible, LspState};
 
 use super::process_request;
 
@@ -1261,21 +1258,6 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         | ReferenceId::Local(_)
         | ReferenceId::Reference(_, _) => None,
     }
-}
-
-fn is_visible(
-    target_module_id: ModuleId,
-    current_module_id: ModuleId,
-    visibility: ItemVisibility,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> bool {
-    can_reference_module_id(
-        def_maps,
-        current_module_id.krate,
-        current_module_id.local_id,
-        target_module_id,
-        visibility,
-    )
 }
 
 #[cfg(test)]
