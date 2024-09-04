@@ -230,7 +230,7 @@ fn generate_fn_get_event_type_id(
     let function_source = format!(
         "
         fn get_event_type_id() -> dep::aztec::protocol_types::abis::event_selector::EventSelector {{
-           dep::aztec::protocol_types::abis::event_selector::EventSelector::from_signature(\"{event_type}({from_signature_input})\")
+           comptime {{ dep::aztec::protocol_types::abis::event_selector::EventSelector::from_signature(\"{event_type}({from_signature_input})\") }}
     }}
     ",
     )
@@ -260,8 +260,8 @@ fn generate_fn_private_to_be_bytes(
          fn private_to_be_bytes(self: {event_type}, randomness: Field) -> [u8; {byte_length}] {{
              let mut buffer: [u8; {byte_length}] = [0; {byte_length}];
 
-             let randomness_bytes = randomness.to_be_bytes(32);
-             let event_type_id_bytes = {event_type}::get_event_type_id().to_field().to_be_bytes(32);
+             let randomness_bytes: [u8; 32] = randomness.to_be_bytes();
+             let event_type_id_bytes: [u8; 32] = {event_type}::get_event_type_id().to_field().to_be_bytes();
 
              for i in 0..32 {{
                  buffer[i] = randomness_bytes[i];
@@ -271,7 +271,7 @@ fn generate_fn_private_to_be_bytes(
              let serialized_event = self.serialize();
 
              for i in 0..serialized_event.len() {{
-                 let bytes = serialized_event[i].to_be_bytes(32);
+                 let bytes: [u8; 32] = serialized_event[i].to_be_bytes();
                  for j in 0..32 {{
                      buffer[64 + i * 32 + j] = bytes[j];
                 }}
@@ -308,7 +308,7 @@ fn generate_fn_to_be_bytes(
          fn to_be_bytes(self: {event_type}) -> [u8; {byte_length_without_randomness}] {{
              let mut buffer: [u8; {byte_length_without_randomness}] = [0; {byte_length_without_randomness}];
 
-             let event_type_id_bytes = {event_type}::get_event_type_id().to_field().to_be_bytes(32);
+             let event_type_id_bytes: [u8; 32] = {event_type}::get_event_type_id().to_field().to_be_bytes();
 
              for i in 0..32 {{
                  buffer[i] = event_type_id_bytes[i];
@@ -317,7 +317,7 @@ fn generate_fn_to_be_bytes(
              let serialized_event = self.serialize();
 
              for i in 0..serialized_event.len() {{
-                 let bytes = serialized_event[i].to_be_bytes(32);
+                 let bytes: [u8; 32] = serialized_event[i].to_be_bytes();
                  for j in 0..32 {{
                      buffer[32 + i * 32 + j] = bytes[j];
                 }}
