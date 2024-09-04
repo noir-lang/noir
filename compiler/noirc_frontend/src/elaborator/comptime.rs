@@ -175,6 +175,10 @@ impl<'context> Elaborator<'context> {
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
 
+        self.debug_comptime(location, |interner| {
+            value.display(interner).to_string()
+        });
+
         if value != Value::Unit {
             let items = value
                 .into_top_level_items(location, self.interner)
