@@ -72,7 +72,7 @@ pub enum ResolverError {
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("Nested slices are not supported")]
+    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
@@ -323,8 +323,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
-                "Nested slices are not supported".into(),
-                "Try to use a constant sized array instead".into(),
+                "Nested slices, i.e. slices within an array or slice, are not supported".into(),
+                "Try to use a constant sized array or BoundedVec instead".into(),
                 *span,
             ),
             ResolverError::MisplacedRecursiveAttribute { ident } => {

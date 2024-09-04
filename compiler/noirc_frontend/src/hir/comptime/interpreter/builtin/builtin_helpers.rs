@@ -104,6 +104,19 @@ pub(crate) fn get_slice(
     }
 }
 
+pub(crate) fn get_str(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<Rc<String>> {
+    match value {
+        Value::String(string) => Ok(string),
+        value => {
+            let expected = Type::String(Box::new(interner.next_type_variable()));
+            type_mismatch(value, expected, location)
+        }
+    }
+}
+
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
     (value, location): (Value, Location),
