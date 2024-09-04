@@ -326,21 +326,24 @@ impl<'context> Elaborator<'context> {
     ) {
         match item {
             TopLevelStatement::Function(function) => {
-                let id = self.interner.push_empty_fn();
-                let module = self.module_id();
-                self.interner.push_function(id, &function.def, module, location);
+                let module_id = self.module_id();
 
-                if self.interner.is_in_lsp_mode() && !function.def.is_test() {
-                    self.interner.register_function(id, &function.def);
+                if let Some(id) = dc_mod::collect_function(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    &function,
+                    module_id,
+                    self.file,
+                    &mut self.errors,
+                ) {
+                    let functions = vec![(self.local_module, id, function)];
+                    generated_items.functions.push(UnresolvedFunctions {
+                        file_id: self.file,
+                        functions,
+                        trait_id: None,
+                        self_type: None,
+                    });
                 }
-
-                let functions = vec![(self.local_module, id, function)];
-                generated_items.functions.push(UnresolvedFunctions {
-                    file_id: self.file,
-                    functions,
-                    trait_id: None,
-                    self_type: None,
-                });
             }
             TopLevelStatement::TraitImpl(mut trait_impl) => {
                 let (methods, associated_types, associated_constants) =
