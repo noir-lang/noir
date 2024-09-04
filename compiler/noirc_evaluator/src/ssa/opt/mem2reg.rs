@@ -119,7 +119,7 @@ struct PerFunctionContext<'f> {
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId, u32)>,
 
     /// Track whether a load result was used across all blocks.
-    load_results: HashMap<ValueId, (u32, InstructionId)>,
+    load_results: HashMap<ValueId, PerFuncLoadResultContext>,
 
     /// Flag for tracking whether we had to perform a re-load as part of the Brillig CoW optimization.
     /// Stores made as part of this optimization should not be removed.
@@ -139,6 +139,19 @@ struct PerFunctionContext<'f> {
     /// it means we have performed a re-load.
     /// The field is reset to `None` on every instruction that is not a load, inc_rc, dec_rc, or function call.
     inside_rc_reload: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+struct PerFuncLoadResultContext {
+    load_counter: u32,
+    load_instruction: InstructionId,
+    instructions_using_result: Vec<(InstructionId, BasicBlockId)>,
+}
+
+impl PerFuncLoadResultContext {
+    fn new(load_instruction: InstructionId) -> Self {
+        Self { load_counter: 0, load_instruction, instructions_using_result: vec![] }
+    }
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -173,13 +186,15 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         let mut loads_removed = HashMap::default();
-        for (_, (ref_counter, load_instruction)) in self.load_results.iter() {
+        for (_, PerFuncLoadResultContext { load_counter, load_instruction, .. }) in
+            self.load_results.iter()
+        {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
                 panic!("Should only have a load instruction here");
             };
 
-            if *ref_counter == 0 {
+            if *load_counter == 0 {
                 if let Some(counter) = loads_removed.get_mut(&address) {
                     *counter += 1;
                 } else {
@@ -190,6 +205,7 @@ impl<'f> PerFunctionContext<'f> {
             }
         }
 
+        let mut not_removed_stores: HashMap<ValueId, (InstructionId, u32)> = HashMap::default();
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (block_id, block) in self.blocks.iter() {
@@ -224,6 +240,88 @@ impl<'f> PerFunctionContext<'f> {
 
                 if remove_load && !is_reference_param {
                     self.instructions_to_remove.insert(*store_instruction);
+                    if let Some((_, counter)) = not_removed_stores.get_mut(store_address) {
+                        *counter -= 1;
+                    }
+                } else if let Some((_, counter)) = not_removed_stores.get_mut(store_address) {
+                    *counter += 1;
+                } else {
+                    not_removed_stores.insert(*store_address, (*store_instruction, 1));
+                }
+            }
+        }
+
+        self.load_results.retain(|_, PerFuncLoadResultContext { load_instruction, .. }| {
+            let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+            else {
+                panic!("Should only have a load instruction here");
+            };
+            not_removed_stores.contains_key(&address)
+        });
+
+        let mut new_instructions = HashMap::default();
+        for (store_address, (store_instruction, store_counter)) in not_removed_stores {
+            let Instruction::Store { value, .. } = self.inserter.function.dfg[store_instruction]
+            else {
+                panic!("Should only have a store instruction");
+            };
+
+            if store_counter != 0 {
+                continue;
+            }
+            self.instructions_to_remove.insert(store_instruction);
+
+            if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
+                (self.last_loads.get(&store_address), loads_removed.get(&store_address))
+            {
+                if *last_loads_counter < *loads_removed_counter {
+                    panic!("The number of loads removed should not be more than all loads");
+                }
+            }
+
+            for (
+                result,
+                PerFuncLoadResultContext {
+                    load_counter,
+                    load_instruction,
+                    instructions_using_result,
+                },
+            ) in self.load_results.iter()
+            {
+                let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+                else {
+                    panic!("Should only have a load instruction here");
+                };
+                if address != store_address {
+                    continue;
+                }
+
+                if *load_counter > 0 {
+                    self.inserter.map_value(*result, value);
+                    for (instruction, block_id) in instructions_using_result {
+                        let new_instruction =
+                            self.inserter.push_instruction(*instruction, *block_id);
+                        if let Some(new_instruction) = new_instruction {
+                            new_instructions
+                                .insert((*instruction, block_id), Some(new_instruction));
+                        } else {
+                            new_instructions.insert((*instruction, block_id), None);
+                        }
+                    }
+
+                    self.instructions_to_remove.insert(*load_instruction);
+                }
+            }
+        }
+
+        // Re-assign or delete any mapped instructions after the final loads were removed.
+        for ((old_instruction, block_id), new_instruction) in new_instructions {
+            let instructions = self.inserter.function.dfg[*block_id].instructions_mut();
+            if let Some(index) = instructions.iter().position(|v| *v == old_instruction) {
+                if let Some(new_instruction) = new_instruction {
+                    instructions[index] = new_instruction;
+                } else {
+                    instructions.remove(index);
                 }
             }
         }
@@ -313,8 +411,12 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         self.inserter.function.dfg[instruction].for_each_value(|value| {
-            if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
-                *ref_counter += 1;
+            if let Some(PerFuncLoadResultContext {
+                load_counter, instructions_using_result, ..
+            }) = self.load_results.get_mut(&value)
+            {
+                *load_counter += 1;
+                instructions_using_result.push((instruction, block_id));
             }
         });
 
@@ -336,7 +438,7 @@ impl<'f> PerFunctionContext<'f> {
                     references.aliases.insert(Expression::Other(result), AliasSet::known(result));
                     references.set_known_value(result, address);
 
-                    self.load_results.insert(result, (0, instruction));
+                    self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
                     let load_counter =
                         if let Some((_, _, load_counter)) = self.last_loads.get(&address) {
@@ -357,8 +459,10 @@ impl<'f> PerFunctionContext<'f> {
                 // function calls in-between, we can remove the previous store.
                 if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
-                    if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
-                        *ref_counter -= 1;
+                    if let Some(PerFuncLoadResultContext { load_counter, .. }) =
+                        self.load_results.get_mut(&value)
+                    {
+                        *load_counter -= 1;
                     }
                 }
 
@@ -373,8 +477,10 @@ impl<'f> PerFunctionContext<'f> {
                         } else {
                             self.instructions_to_remove.insert(instruction);
                         }
-                        if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
-                            *ref_counter -= 1;
+                        if let Some(PerFuncLoadResultContext { load_counter, .. }) =
+                            self.load_results.get_mut(&value)
+                        {
+                            *load_counter -= 1;
                         }
                     }
                 }
@@ -539,8 +645,10 @@ impl<'f> PerFunctionContext<'f> {
         let terminator = self.inserter.function.dfg[block].unwrap_terminator();
 
         terminator.for_each_value(|value| {
-            if let Some((ref_counter, _)) = self.load_results.get_mut(&value) {
-                *ref_counter += 1;
+            if let Some(PerFuncLoadResultContext { load_counter, .. }) =
+                self.load_results.get_mut(&value)
+            {
+                *load_counter += 1;
             }
         });
 
