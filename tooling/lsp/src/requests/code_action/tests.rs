@@ -199,3 +199,38 @@ fn main() {
 
     assert_code_action(title, src, expected).await;
 }
+
+#[test]
+async fn test_qualify_code_action_for_pub_use_import() {
+    let title = "Qualify as bar::foobar";
+
+    let src = r#"
+        mod bar {
+            mod baz {
+                pub fn qux() {}
+            }
+
+            pub use baz::qux as foobar;
+        }
+
+        fn main() {
+            foob>|<ar
+        }
+        "#;
+
+    let expected = r#"
+        mod bar {
+            mod baz {
+                pub fn qux() {}
+            }
+
+            pub use baz::qux as foobar;
+        }
+
+        fn main() {
+            bar::foobar
+        }
+        "#;
+
+    assert_code_action(title, src, expected).await;
+}

@@ -21,8 +21,9 @@ use crate::{
 };
 
 use super::{
-    FunctionReturnType, GenericTypeArgs, IntegerBitSize, Pattern, Signedness, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern, Signedness,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 
 /// Implements the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) for Noir's AST.
@@ -252,7 +253,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_import(&mut self, _: &UseTree) -> bool {
+    fn visit_import(&mut self, _: &UseTree, _visibility: ItemVisibility) -> bool {
         true
     }
 
@@ -470,8 +471,8 @@ impl Item {
                 }
             }
             ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
-            ItemKind::Import(use_tree) => {
-                if visitor.visit_import(use_tree) {
+            ItemKind::Import(use_tree, visibility) => {
+                if visitor.visit_import(use_tree, *visibility) {
                     use_tree.accept(visitor);
                 }
             }
