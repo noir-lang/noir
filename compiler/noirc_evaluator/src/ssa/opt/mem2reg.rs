@@ -546,7 +546,7 @@ impl<'f> PerFunctionContext<'f> {
                     (self.last_loads.get(store_address), removed_loads.get(store_address))
                 {
                     // `last_loads` contains the total number of loads for a given load address
-                    // If the number of loads removed is equal to the total number of loads for an address,
+                    // If the number of removed loads for a given address is equal to the total number of loads for that address,
                     // we know we can safely remove any stores to that load address.
                     *last_loads_counter == *loads_removed_counter
                 } else {
