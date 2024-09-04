@@ -488,7 +488,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::UnsupportedTopLevelItemUnquote { item, location } => {
                 let msg = "Unsupported statement type to unquote".into();
                 let secondary =
-                    "Only functions, globals, and trait impls can be unquoted here".into();
+                    "Only functions, structs, globals, and impls can be unquoted here".into();
                 let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error

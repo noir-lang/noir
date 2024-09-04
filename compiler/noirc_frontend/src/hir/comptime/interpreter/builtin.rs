@@ -110,6 +110,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
                 function_def_set_return_type(self, arguments, location)
             }
             "module_functions" => module_functions(self, arguments, location),
+            "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_name" => module_name(interner, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
@@ -1628,7 +1629,7 @@ fn function_def_has_named_attribute(
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
     for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location.file);
+        let parse_result = Elaborator::parse_attribute(&attribute.contents, location);
         let Ok(Some((function, _arguments))) = parse_result else {
             continue;
         };
@@ -1833,6 +1834,38 @@ fn module_functions(
 
     let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
     Ok(Value::Slice(func_ids, slice_type))
+}
+
+// fn has_named_attribute(self, name: Quoted) -> bool
+fn module_has_named_attribute(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
+    let name = get_quoted(name)?;
+
+    let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
+
+    let attributes = module_data.outer_attributes.iter().chain(&module_data.inner_attributes);
+    for attribute in attributes {
+        let parse_result = Elaborator::parse_attribute(attribute, location);
+        let Ok(Some((function, _arguments))) = parse_result else {
+            continue;
+        };
+
+        let ExpressionKind::Variable(path) = function.kind else {
+            continue;
+        };
+
+        if path.last_name() == name {
+            return Ok(Value::Bool(true));
+        }
+    }
+
+    Ok(Value::Bool(false))
 }
 
 // fn is_contract(self) -> bool

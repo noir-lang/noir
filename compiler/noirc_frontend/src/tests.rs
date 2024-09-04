@@ -28,7 +28,8 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
 use crate::monomorphization::monomorphize;
-use crate::parser::ParserErrorReason;
+use crate::parser::{ItemKind, ParserErrorReason};
+use crate::token::SecondaryAttribute;
 use crate::ParsedModule;
 use crate::{
     hir::def_map::{CrateDefMap, LocalModuleId},
@@ -64,10 +65,28 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     remove_experimental_warnings(&mut errors);
 
     if !has_parser_error(&errors) {
+        let inner_attributes: Vec<SecondaryAttribute> = program
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let ItemKind::InnerAttribute(attribute) = &item.kind {
+                    Some(attribute.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(None, location, false));
+        let root = modules.insert(ModuleData::new(
+            None,
+            location,
+            Vec::new(),
+            inner_attributes.clone(),
+            false,
+        ));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -3340,4 +3359,32 @@ fn warns_on_re_export_of_item_with_less_visibility() {
             DefCollectorErrorKind::CannotReexportItemWithLessVisibility { .. }
         )
     ));
+}
+
+#[test]
+fn unoquted_integer_as_integer_token() {
+    let src = r#"
+    trait Serialize<let N: u32> {
+        fn serialize() {}
+    }
+
+    #[attr]
+    fn foobar() {}
+
+    fn attr(_f: FunctionDefinition) -> Quoted {
+        let serialized_len = 1;
+        // We are testing that when we unoqute $serialized_len, it's unquoted
+        // as the token `1` and not as something else that later won't be parsed correctly
+        // in the context of a generic argument.
+        quote {
+            impl Serialize<$serialized_len> for Field {
+                fn serialize() { }
+            }
+        }
+    }
+
+    fn main() {}
+    "#;
+
+    assert_no_errors(src);
 }
