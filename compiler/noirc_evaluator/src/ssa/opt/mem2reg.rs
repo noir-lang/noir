@@ -171,7 +171,6 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         self.cleanup_function();
-        // self.cleanup_function();
     }
 
     /// The value of each reference at the start of the given block is the unification
@@ -561,9 +560,6 @@ impl<'f> PerFunctionContext<'f> {
                     if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
                         *counter -= 1;
                     }
-                    // else {
-                    //     remaining_last_stores.insert(*store_address, (*store_instruction, 1));
-                    // }
                 } else if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
                     *counter += 1;
                 } else {
