@@ -1,6 +1,6 @@
 use acir::{
     circuit::{
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
         Circuit, Opcode,
     },
     native_types::Witness,
@@ -73,10 +73,13 @@ impl<F: AcirField> RangeOptimizer<F> {
                     }
                 }
 
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input:
-                        FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits },
-                }) => Some((*witness, *num_bits)),
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
+                    if let ConstantOrWitnessEnum::Witness(witness) = input.input() {
+                        Some((witness.clone(), input.num_bits()))
+                    } else {
+                        None
+                    }
+                }
 
                 _ => None,
             }) else {
@@ -107,10 +110,13 @@ impl<F: AcirField> RangeOptimizer<F> {
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
             let (witness, num_bits) = match opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input:
-                        FunctionInput { input: ConstantOrWitnessEnum::Witness(w), num_bits: bits },
-                }) => (w, bits),
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) if matches!(input.input_ref(), ConstantOrWitnessEnum::Witness(..)) => {
+                    if let ConstantOrWitnessEnum::Witness(witness) = input.input() {
+                        (witness, input.num_bits())
+                    } else {
+                        unreachable!("The matches! above ensures only a witness is possible")
+                    }
+                },
                 _ => {
                     // If its not the range opcode, add it to the opcode
                     // list and continue;

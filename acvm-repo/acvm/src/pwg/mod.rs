@@ -6,7 +6,7 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput},
+        opcodes::{AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize},
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
@@ -128,6 +128,8 @@ pub enum OpcodeResolutionError<F> {
     },
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
     IndexOutOfBounds { opcode_location: ErrorLocation, index: u32, array_size: u32 },
+    #[error("Cannot solve opcode: {invalid_input_bit_size}")]
+    InvalidInputBitSize { opcode_location: ErrorLocation, invalid_input_bit_size: InvalidInputBitSize },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
@@ -387,6 +389,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                         *opcode_index = ErrorLocation::Resolved(location);
                         *assertion_payload = self.extract_assertion_payload(location);
                     }
+                    OpcodeResolutionError::InvalidInputBitSize {
+                        opcode_location: opcode_index,
+                        ..
+                    } => {
+                        let location = OpcodeLocation::Acir(self.instruction_pointer());
+                        *opcode_index = ErrorLocation::Resolved(location);
+                    }
                     // All other errors are thrown normally.
                     _ => (),
                 };
@@ -637,11 +646,22 @@ pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     input: FunctionInput<F>,
 ) -> Result<F, OpcodeResolutionError<F>> {
-    match input.input {
+    match input.input() {
         ConstantOrWitnessEnum::Witness(witness) => {
             let initial_value = *witness_to_value(initial_witness, witness)?;
-            assert!(initial_value.num_bits() <= input.num_bits);
-            Ok(initial_value)
+            if initial_value.num_bits() <= input.num_bits() {
+                Ok(initial_value)
+            } else {
+                Err(OpcodeResolutionError::InvalidInputBitSize {
+                    opcode_location: ErrorLocation::Unresolved,
+
+                    invalid_input_bit_size: InvalidInputBitSize {
+                        value: format!("{}", initial_value),
+                        value_num_bits: initial_value.num_bits(),
+                        num_bits: input.num_bits(),
+                    },
+                })
+            }
         },
         ConstantOrWitnessEnum::Constant(value) => Ok(value),
     }

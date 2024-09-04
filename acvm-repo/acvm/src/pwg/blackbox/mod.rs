@@ -42,11 +42,11 @@ fn first_missing_assignment<F>(
     inputs: &[FunctionInput<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if let ConstantOrWitnessEnum::Witness(witness) = input.input {
-            if witness_assignments.contains_key(&witness) {
+        if let ConstantOrWitnessEnum::Witness(ref witness) = input.input_ref() {
+            if witness_assignments.contains_key(witness) {
                 None
             } else {
-                Some(witness)
+                Some(*witness)
             }
         } else {
             None

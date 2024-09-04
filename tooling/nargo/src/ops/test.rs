@@ -191,6 +191,9 @@ fn check_expected_failure_message(
         None => return TestStatus::Pass,
     };
 
+    // TODO: cleanup
+    dbg!(test_function.failure_reason());
+
     let expected_failure_message_matches =
         matches!(&failed_assertion, Some(message) if message.contains(expected_failure_message));
     if expected_failure_message_matches {

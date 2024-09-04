@@ -7,7 +7,7 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::FieldElement;
+use acvm::{FieldElement, acir::InvalidInputBitSize};
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
@@ -54,6 +54,8 @@ pub enum RuntimeError {
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
     #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
     UnknownReference { call_stack: CallStack },
+    #[error("{invalid_input_bit_size}")]
+    InvalidInputBitSize { invalid_input_bit_size: InvalidInputBitSize, call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,6 +157,7 @@ impl RuntimeError {
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
+            | RuntimeError::InvalidInputBitSize { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,

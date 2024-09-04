@@ -10,7 +10,7 @@ use acvm::{
         circuit::{
             brillig::{BrilligBytecode, BrilligInputs},
             directives::Directive,
-            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
             Circuit, Opcode, Program,
         },
         native_types::Expression,
@@ -83,18 +83,18 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
                 }
             }
 
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { input: ConstantOrWitnessEnum::Constant(c), num_bits },
-            }) => {
-                let field = 1u128.wrapping_shl(*num_bits);
-                constants.insert(F::from(field));
-                constants.insert(F::from(field - 1));
-                constants.insert(*c);
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) if matches!(input.input(), ConstantOrWitnessEnum::Constant(..)) => {
+                if let ConstantOrWitnessEnum::Constant(c) = input.input() {
+                    let field = 1u128.wrapping_shl(input.num_bits());
+                    constants.insert(F::from(field));
+                    constants.insert(F::from(field - 1));
+                    constants.insert(c);
+                } else {
+                    unreachable!("matches! above ensures the other case is matched")
+                }
             }
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { input: ConstantOrWitnessEnum::Witness(_), num_bits },
-            }) => {
-                let field = 1u128.wrapping_shl(*num_bits);
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
+                let field = 1u128.wrapping_shl(input.num_bits());
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }

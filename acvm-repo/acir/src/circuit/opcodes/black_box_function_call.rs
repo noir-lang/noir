@@ -1,6 +1,8 @@
 use crate::native_types::Witness;
 use crate::{AcirField, BlackBoxFunc};
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use thiserror::Error;
 
 // Note: Some functions will not use all of the witness
 // So we need to supply how many bits of the witness is needed
@@ -29,6 +31,10 @@ impl<F> FunctionInput<F> {
         self.input
     }
 
+    pub fn input_ref(&self) -> &ConstantOrWitnessEnum<F> {
+        &self.input
+    }
+
     pub fn num_bits(&self) -> u32 {
         self.num_bits
     }
@@ -38,10 +44,26 @@ impl<F> FunctionInput<F> {
     }
 }
 
+
+#[derive(Clone, PartialEq, Eq, Debug, Error)]
+#[error("FunctionInput value has too many bits: value: {value}, {value_num_bits} >= {num_bits}")]
+pub struct InvalidInputBitSize {
+    pub value: String,
+    pub value_num_bits: u32,
+    pub num_bits: u32,
+}
+
 impl<F: AcirField> FunctionInput<F> {
-    pub fn constant(value: F, num_bits: u32) -> FunctionInput<F> {
-        assert!(value.num_bits() <= num_bits);
-        FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits }
+    pub fn constant(value: F, num_bits: u32) -> Result<FunctionInput<F>, InvalidInputBitSize> {
+        if value.num_bits() <= num_bits {
+            Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits })
+        } else {
+            Err(InvalidInputBitSize {
+                value: format!("{}", value),
+                value_num_bits: value.num_bits(),
+                num_bits,
+            })
+        }
     }
 }
 

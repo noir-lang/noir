@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 mod black_box_function_call;
 mod memory_operation;
 
-pub use black_box_function_call::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput};
+pub use black_box_function_call::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize};
 pub use memory_operation::{BlockId, MemOp};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
