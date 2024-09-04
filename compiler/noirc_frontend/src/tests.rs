@@ -3361,6 +3361,7 @@ fn warns_on_re_export_of_item_with_less_visibility() {
     ));
 }
 
+#[test]
 fn unoquted_integer_as_integer_token() {
     let src = r#"
     trait Serialize<let N: u32> {
