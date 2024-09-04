@@ -54,8 +54,6 @@ pub enum RuntimeError {
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
     #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
     UnknownReference { call_stack: CallStack },
-    #[error("Assertion is false")]
-    AssertFailed { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,6 +88,7 @@ impl From<SsaReport> for FileDiagnostic {
                     InternalBug::IndependentSubgraph { call_stack } => {
                         ("There is no path from the output of this brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(),call_stack)
                     }
+                    InternalBug::AssertFailed { call_stack } => (String::new(), call_stack)
                 };
                 let call_stack = vecmap(call_stack, |location| location);
                 let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
@@ -113,6 +112,8 @@ pub enum InternalWarning {
 pub enum InternalBug {
     #[error("Input to brillig function is in a separate subgraph to output")]
     IndependentSubgraph { call_stack: CallStack },
+    #[error("Assertion is false")]
+    AssertFailed { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -159,7 +160,6 @@ impl RuntimeError {
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
-            | RuntimeError::AssertFailed { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,
         }
     }
