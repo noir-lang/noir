@@ -429,6 +429,9 @@ impl Value {
         location: Location,
     ) -> IResult<Vec<Token>> {
         let token = match self {
+            Value::Unit => {
+                return Ok(vec![Token::LeftParen, Token::RightParen]);
+            }
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
             Value::Expr(ExprValue::Expression(expr)) => {
@@ -443,6 +446,40 @@ impl Value {
             Value::UnresolvedType(typ) => {
                 Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
             }
+            Value::U1(bool) => Token::Bool(bool),
+            Value::U8(value) => Token::Int((value as u128).into()),
+            Value::U16(value) => Token::Int((value as u128).into()),
+            Value::U32(value) => Token::Int((value as u128).into()),
+            Value::U64(value) => Token::Int((value as u128).into()),
+            Value::I8(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I16(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I32(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I64(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::Field(value) => Token::Int(value),
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
         Ok(vec![token])
@@ -567,11 +604,33 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Quoted(tokens) => {
                 write!(f, "quote {{")?;
                 for token in tokens.iter() {
+                    write!(f, " ")?;
+
                     match token {
                         Token::QuotedType(id) => {
-                            write!(f, " {}", self.interner.get_quoted_type(*id))?;
+                            write!(f, "{}", self.interner.get_quoted_type(*id))?;
                         }
-                        other => write!(f, " {other}")?,
+                        Token::InternedExpr(id) => {
+                            let value = Value::expression(ExpressionKind::Interned(*id));
+                            value.display(self.interner).fmt(f)?;
+                        }
+                        Token::InternedStatement(id) => {
+                            let value = Value::statement(StatementKind::Interned(*id));
+                            value.display(self.interner).fmt(f)?;
+                        }
+                        Token::InternedLValue(id) => {
+                            let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                            value.display(self.interner).fmt(f)?;
+                        }
+                        Token::InternedUnresolvedTypeData(id) => {
+                            let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
+                            value.display(self.interner).fmt(f)?;
+                        }
+                        Token::UnquoteMarker(id) => {
+                            let value = Value::TypedExpr(TypedExpr::ExprId(*id));
+                            value.display(self.interner).fmt(f)?;
+                        }
+                        other => write!(f, "{other}")?,
                     }
                 }
                 write!(f, " }}")
@@ -632,7 +691,16 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Expr(ExprValue::LValue(lvalue)) => {
                 write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
             }
-            Value::TypedExpr(_) => write!(f, "(typed expr)"),
+            Value::TypedExpr(TypedExpr::ExprId(id)) => {
+                let hir_expr = self.interner.expression(id);
+                let expr = hir_expr.to_display_ast(self.interner, Span::default());
+                write!(f, "{}", expr.kind)
+            }
+            Value::TypedExpr(TypedExpr::StmtId(id)) => {
+                let hir_statement = self.interner.statement(id);
+                let stmt = hir_statement.to_display_ast(self.interner, Span::default());
+                write!(f, "{}", stmt.kind)
+            }
             Value::UnresolvedType(typ) => {
                 if let UnresolvedTypeData::Interned(id) = typ {
                     let typ = self.interner.get_unresolved_type_data(*id);

@@ -704,7 +704,11 @@ impl fmt::Display for Attribute {
 impl Attribute {
     /// If the string is a fixed attribute return that, else
     /// return the custom attribute
-    pub(crate) fn lookup_attribute(word: &str, span: Span) -> Result<Attribute, LexerErrorKind> {
+    pub(crate) fn lookup_attribute(
+        word: &str,
+        span: Span,
+        contents_span: Span,
+    ) -> Result<Attribute, LexerErrorKind> {
         let word_segments: Vec<&str> = word
             .split(|c| c == '(' || c == ')')
             .filter(|string_segment| !string_segment.is_empty())
@@ -777,7 +781,11 @@ impl Attribute {
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
+                Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                    contents: word.to_owned(),
+                    span,
+                    contents_span,
+                }))
             }
         };
 
@@ -870,17 +878,26 @@ pub enum SecondaryAttribute {
     ContractLibraryMethod,
     Export,
     Field(String),
-    Custom(String),
+    Custom(CustomAtrribute),
     Abi(String),
 
     /// A variable-argument comptime function.
     Varargs,
 }
 
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub struct CustomAtrribute {
+    pub contents: String,
+    // The span of the entire attribute, including leading `#[` and trailing `]`
+    pub span: Span,
+    // The span for the attribute contents (what's inside `#[...]`)
+    pub contents_span: Span,
+}
+
 impl SecondaryAttribute {
-    pub(crate) fn as_custom(&self) -> Option<&str> {
-        if let Self::Custom(str) = self {
-            Some(str)
+    pub(crate) fn as_custom(&self) -> Option<&CustomAtrribute> {
+        if let Self::Custom(attribute) = self {
+            Some(attribute)
         } else {
             None
         }
@@ -894,7 +911,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Deprecated(Some(ref note)) => {
                 write!(f, r#"#[deprecated("{note}")]"#)
             }
-            SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
+            SecondaryAttribute::Custom(ref attribute) => write!(f, "#[{}]", attribute.contents),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
@@ -923,9 +940,8 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string)
-            | SecondaryAttribute::Field(string)
-            | SecondaryAttribute::Abi(string) => string,
+            SecondaryAttribute::Custom(attribute) => &attribute.contents,
+            SecondaryAttribute::Field(string) | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
             SecondaryAttribute::Varargs => "",

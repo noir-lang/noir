@@ -39,10 +39,10 @@ impl ModuleData {
         is_contract: bool,
     ) -> ModuleData {
         let outer_attributes = outer_attributes.iter().filter_map(|attr| attr.as_custom());
-        let outer_attributes = outer_attributes.map(|attr| attr.to_string()).collect();
+        let outer_attributes = outer_attributes.map(|attr| attr.contents.to_string()).collect();
 
         let inner_attributes = inner_attributes.iter().filter_map(|attr| attr.as_custom());
-        let inner_attributes = inner_attributes.map(|attr| attr.to_string()).collect();
+        let inner_attributes = inner_attributes.map(|attr| attr.contents.to_string()).collect();
 
         ModuleData {
             parent,

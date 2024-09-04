@@ -39,7 +39,7 @@ use crate::{
     QuotedType, Shared, Type,
 };
 
-use self::builtin_helpers::{get_array, get_u8};
+use self::builtin_helpers::{get_array, get_str, get_u8};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -127,6 +127,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_back" => slice_push_back(interner, arguments, location),
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
+            "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
@@ -241,6 +242,22 @@ fn slice_push_back(
     let (mut values, typ) = get_slice(interner, slice)?;
     values.push_back(element);
     Ok(Value::Slice(values, typ))
+}
+
+fn str_as_bytes(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let string = check_one_argument(arguments, location)?;
+    let string = get_str(interner, string)?;
+
+    let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
+    let byte_array_type = Type::Array(
+        Box::new(Type::Constant(bytes.len() as u32)),
+        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+    );
+    Ok(Value::Array(bytes, byte_array_type))
 }
 
 /// fn as_type(self) -> Type
@@ -1593,7 +1610,7 @@ fn function_def_has_named_attribute(
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
     for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location.file);
+        let parse_result = Elaborator::parse_attribute(&attribute.contents, location);
         let Ok(Some((function, _arguments))) = parse_result else {
             continue;
         };
@@ -1815,7 +1832,7 @@ fn module_has_named_attribute(
 
     let attributes = module_data.outer_attributes.iter().chain(&module_data.inner_attributes);
     for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location.file);
+        let parse_result = Elaborator::parse_attribute(attribute, location);
         let Ok(Some((function, _arguments))) = parse_result else {
             continue;
         };
