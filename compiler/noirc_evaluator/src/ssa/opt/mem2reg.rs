@@ -66,7 +66,7 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{
@@ -214,14 +214,12 @@ impl<'f> PerFunctionContext<'f> {
                         .map(|(_, last_load_block, _)| *last_load_block != *block_id)
                         .unwrap_or(true);
                     !is_return_value && last_load_not_in_return
+                } else if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
+                    (self.last_loads.get(store_address), loads_removed.get(store_address))
+                {
+                    *last_loads_counter == *loads_removed_counter
                 } else {
-                    if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
-                        (self.last_loads.get(store_address), loads_removed.get(store_address))
-                    {
-                        *last_loads_counter == *loads_removed_counter
-                    } else {
-                        self.last_loads.get(store_address).is_none()
-                    }
+                    self.last_loads.get(store_address).is_none()
                 };
 
                 if remove_load && !is_reference_param {

@@ -421,7 +421,7 @@ impl SsaBuilder {
 
     fn print(mut self, msg: &str) -> Self {
         if self.print_ssa_passes {
-            // self.ssa.normalize_ids();
+            self.ssa.normalize_ids();
             println!("{msg}\n{}", self.ssa);
         }
         self
