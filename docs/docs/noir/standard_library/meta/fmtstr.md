@@ -8,6 +8,6 @@ title: fmtstr
 
 ### contents
 
-#include_code quoted noir_stdlib/src/meta/format_string.nr rust
+#include_code contents noir_stdlib/src/meta/format_string.nr rust
 
 Returns the format string contents (that is, without the leading and trailing double quotes) as a `Quoted` value.
