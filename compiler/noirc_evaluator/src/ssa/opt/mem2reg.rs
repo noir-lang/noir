@@ -154,12 +154,10 @@ impl<'f> PerFunctionContext<'f> {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             for (store_address, store_instruction) in block.last_stores.iter() {
                 let is_reference_param = block_params.contains(store_address);
-                let mut remove_load = self.last_loads.get(store_address).is_none();
-
                 let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
 
                 let is_return = matches!(terminator, TerminatorInstruction::Return { .. });
-                if is_return {
+                let remove_load = if is_return {
                     // Determine whether the last store is used in the return value
                     let mut is_return_value = false;
                     terminator.for_each_value(|return_value| {
@@ -173,7 +171,9 @@ impl<'f> PerFunctionContext<'f> {
                         .get(store_address)
                         .map(|(_, last_load_block)| *last_load_block != *block_id)
                         .unwrap_or(true);
-                    remove_load = !is_return_value && last_load_not_in_return;
+                    !is_return_value && last_load_not_in_return;
+                } else {
+                    self.last_loads.get(store_address).is_none()
                 }
 
                 if remove_load && !is_reference_param {
