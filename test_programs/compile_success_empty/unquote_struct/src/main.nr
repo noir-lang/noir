@@ -1,6 +1,6 @@
 fn main() {
-    let foo = Foo { x: 4, y: 5 };
-    assert_eq(foo.x, 4);
+    let foo = Foo { x: 4, y: 4 };
+    foo.assert_equal();
 }
 
 #[output_struct]
@@ -18,5 +18,11 @@ comptime fn output_struct(f: FunctionDefinition) -> Quoted {
 
     quote {
         struct Foo { $fields }
+
+        impl Foo {
+            fn assert_equal(self) {
+                assert_eq(self.x as u32, self.y);
+            }
+        }
     }
 }

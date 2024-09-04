@@ -339,6 +339,10 @@ impl<'context> Elaborator<'context> {
                     generated_items.types.insert(type_id, the_struct);
                 }
             }
+            TopLevelStatement::Impl(r#impl) => {
+                let module = self.module_id();
+                dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
+            }
 
             // Assume that an error has already been issued
             TopLevelStatement::Error => (),
@@ -346,7 +350,6 @@ impl<'context> Elaborator<'context> {
             TopLevelStatement::Module(_)
             | TopLevelStatement::Import(..)
             | TopLevelStatement::Trait(_)
-            | TopLevelStatement::Impl(_)
             | TopLevelStatement::TypeAlias(_)
             | TopLevelStatement::SubModule(_) => {
                 let item = item.to_string();

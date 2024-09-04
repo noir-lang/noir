@@ -26,6 +26,7 @@ use crate::{
 };
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
+use super::dc_crate::CollectedItems;
 use super::{
     dc_crate::{
         CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
@@ -136,24 +137,13 @@ impl<'a> ModCollector<'a> {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for r#impl in impls {
-            let mut unresolved_functions = UnresolvedFunctions {
-                file_id: self.file_id,
-                functions: Vec::new(),
-                trait_id: None,
-                self_type: None,
-            };
-
-            for (mut method, _) in r#impl.methods {
-                let func_id = context.def_interner.push_empty_fn();
-                method.def.where_clause.extend(r#impl.where_clause.clone());
-                let location = Location::new(method.span(), self.file_id);
-                context.def_interner.push_function(func_id, &method.def, module_id, location);
-                unresolved_functions.push_fn(self.module_id, func_id, method);
-            }
-
-            let key = (r#impl.object_type, self.module_id);
-            let methods = self.def_collector.items.impls.entry(key).or_default();
-            methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
+            collect_impl(
+                &mut context.def_interner,
+                &mut self.def_collector.items,
+                r#impl,
+                self.file_id,
+                module_id,
+            );
         }
     }
 
@@ -833,6 +823,29 @@ pub fn collect_struct(
     }
 
     Some((id, unresolved))
+}
+
+pub fn collect_impl(
+    interner: &mut NodeInterner,
+    items: &mut CollectedItems,
+    r#impl: TypeImpl,
+    file_id: FileId,
+    module_id: ModuleId,
+) {
+    let mut unresolved_functions =
+        UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+
+    for (mut method, _) in r#impl.methods {
+        let func_id = interner.push_empty_fn();
+        method.def.where_clause.extend(r#impl.where_clause.clone());
+        let location = Location::new(method.span(), file_id);
+        interner.push_function(func_id, &method.def, module_id, location);
+        unresolved_functions.push_fn(module_id.local_id, func_id, method);
+    }
+
+    let key = (r#impl.object_type, module_id.local_id);
+    let methods = items.impls.entry(key).or_default();
+    methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
 }
 
 fn find_module(
