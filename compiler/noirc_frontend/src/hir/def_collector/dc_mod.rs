@@ -239,10 +239,7 @@ impl<'a> ModCollector<'a> {
             let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
 
-            if context.def_interner.is_in_lsp_mode()
-                && !function.def.is_test()
-                && !function.def.is_private()
-            {
+            if context.def_interner.is_in_lsp_mode() && !function.def.is_test() {
                 context.def_interner.register_function(func_id, &function.def);
             }
 

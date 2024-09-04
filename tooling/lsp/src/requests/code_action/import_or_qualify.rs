@@ -52,6 +52,7 @@ impl<'a> CodeActionFinder<'a> {
                         self.module_id,
                         current_module_parent_id,
                         self.interner,
+                        self.def_maps,
                     ) else {
                         continue;
                     };

@@ -44,7 +44,7 @@ pub enum RuntimeError {
     StaticAssertDynamicPredicate { call_stack: CallStack },
     #[error("Argument is false")]
     StaticAssertFailed { call_stack: CallStack },
-    #[error("Nested slices are not supported")]
+    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlice { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
