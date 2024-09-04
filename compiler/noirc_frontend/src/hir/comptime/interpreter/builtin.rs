@@ -96,7 +96,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
-            "fmtstr_contents" => fmtstr_contents(interner, arguments, location),
+            "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -1578,8 +1578,8 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
     expr_value
 }
 
-// fn contents(self) -> Quoted
-fn fmtstr_contents(
+// fn quoted_contents(self) -> Quoted
+fn fmtstr_quoted_contents(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,

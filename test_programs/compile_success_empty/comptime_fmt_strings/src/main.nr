@@ -13,12 +13,12 @@ fn main() {
     assert_eq(s1, "x is 4, fake interpolation: {y}, y is 5");
     assert_eq(s2, "\0\0\0\0");
 
-    // Mainly test fmtstr::contents
+    // Mainly test fmtstr::quoted_contents
     call!(glue(quote { hello }, quote { world }));
 }
 
 fn glue(x: Quoted, y: Quoted) -> Quoted {
-    f"{x}_{y}".contents()
+    f"{x}_{y}".quoted_contents()
 }
 
 fn hello_world() {}
