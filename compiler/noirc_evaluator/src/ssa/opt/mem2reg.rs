@@ -399,9 +399,7 @@ impl<'f> PerFunctionContext<'f> {
     fn track_rc_reload_state(&mut self, instruction: InstructionId) {
         match &self.inserter.function.dfg[instruction] {
             // We just had an increment or decrement to an arrays reference counter
-            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
-                self.inside_rc_reload = true
-            }
+            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => self.inside_rc_reload = true,
             _ => self.inside_rc_reload = false,
         }
     }
