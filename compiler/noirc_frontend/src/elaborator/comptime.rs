@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display, rc::Rc};
+use std::{collections::BTreeMap, fmt::Display};
 
 use chumsky::Parser;
 use fm::FileId;
@@ -16,7 +16,6 @@ use crate::{
             dc_mod,
         },
         resolution::errors::ResolverError,
-        type_check::generics::TraitGenerics,
     },
     hir_def::expr::HirIdent,
     lexer::Lexer,
@@ -265,36 +264,27 @@ impl<'context> Elaborator<'context> {
                 }
             };
 
-            let arg_type = if *param_type == Type::Quoted(crate::QuotedType::TraitDefinition) {
-                let (trait_id, trait_name) = match arg.kind {
-                    ExpressionKind::Variable(path) => {
-                        let trait_name = path.to_string();
-                        let trait_id = interpreter
-                            .elaborator
-                            .resolve_trait_by_path(path)
-                            .ok_or(InterpreterError::FailedToResolveTraitDefinition { location })?;
-
-                        Ok((trait_id, trait_name))
-                    }
+            if *param_type == Type::Quoted(crate::QuotedType::TraitDefinition) {
+                let trait_id = match arg.kind {
+                    ExpressionKind::Variable(path) => interpreter
+                        .elaborator
+                        .resolve_trait_by_path(path)
+                        .ok_or(InterpreterError::FailedToResolveTraitDefinition { location }),
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
-
-                Type::TraitAsType(trait_id, Rc::new(trait_name), TraitGenerics::default())
             } else {
                 let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
                 push_arg(interpreter.evaluate(expr_id)?);
 
-                expr_type
+                if let Err(UnificationError) = expr_type.unify(param_type) {
+                    return Err(InterpreterError::TypeMismatch {
+                        expected: param_type.clone(),
+                        actual: expr_type,
+                        location: arg_location,
+                    });
+                }
             };
-
-            if let Err(UnificationError) = arg_type.unify(param_type) {
-                return Err(InterpreterError::TypeMismatch {
-                    expected: param_type.clone(),
-                    actual: arg_type,
-                    location: arg_location,
-                });
-            }
         }
 
         if is_varargs {
