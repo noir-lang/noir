@@ -248,25 +248,16 @@ impl<'a> ModCollector<'a> {
         let module = ModuleId { krate, local_id: self.module_id };
 
         for function in functions {
-            // check if optional field attribute is compatible with native field
-            if let Some(field) = function.attributes().get_field_attribute() {
-                if !is_native_field(&field) {
-                    continue;
-                }
-            }
-
-            let name = function.name_ident().clone();
-            let func_id = context.def_interner.push_empty_fn();
-            let visibility = function.def.visibility;
-
-            // First create dummy function in the DefInterner
-            // So that we can get a FuncId
-            let location = Location::new(function.span(), self.file_id);
-            context.def_interner.push_function(func_id, &function.def, module, location);
-
-            if context.def_interner.is_in_lsp_mode() && !function.def.is_test() {
-                context.def_interner.register_function(func_id, &function.def);
-            }
+            let Some(func_id) = collect_function(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                &function,
+                module,
+                self.file_id,
+                &mut errors,
+            ) else {
+                continue;
+            };
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
@@ -275,19 +266,6 @@ impl<'a> ModCollector<'a> {
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
             unresolved_functions.push_fn(self.module_id, func_id, function);
-
-            // Add function to scope/ns of the module
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_function(name, visibility, func_id);
-
-            if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Function,
-                    first_def,
-                    second_def,
-                };
-                errors.push((error.into(), self.file_id));
-            }
         }
 
         self.def_collector.items.functions.push(unresolved_functions);
@@ -840,6 +818,39 @@ fn push_child_module(
     }
 
     Ok(mod_id)
+}
+
+pub fn collect_function(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    function: &NoirFunction,
+    module: ModuleId,
+    file: FileId,
+    errors: &mut Vec<(CompilationError, FileId)>,
+) -> Option<crate::node_interner::FuncId> {
+    if let Some(field) = function.attributes().get_field_attribute() {
+        if !is_native_field(&field) {
+            return None;
+        }
+    }
+    let name = function.name_ident().clone();
+    let func_id = interner.push_empty_fn();
+    let visibility = function.def.visibility;
+    let location = Location::new(function.span(), file);
+    interner.push_function(func_id, &function.def, module, location);
+    if interner.is_in_lsp_mode() && !function.def.is_test() {
+        interner.register_function(func_id, &function.def);
+    }
+    let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
+    if let Err((first_def, second_def)) = result {
+        let error = DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::Function,
+            first_def,
+            second_def,
+        };
+        errors.push((error.into(), file));
+    }
+    Some(func_id)
 }
 
 pub fn collect_struct(
