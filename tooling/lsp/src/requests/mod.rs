@@ -407,7 +407,7 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     location: noirc_errors::Location,
     files: &'a FileMap,
     interner: &'a NodeInterner,
-    interners: &'a HashMap<String, NodeInterner>,
+    interners: &'a HashMap<PathBuf, NodeInterner>,
     crate_id: CrateId,
     crate_name: String,
     dependencies: &'a Vec<Dependency>,
@@ -432,8 +432,6 @@ where
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
 
-    let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
-
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(
         state,
@@ -447,9 +445,9 @@ where
 
     let interner;
     let def_maps;
-    if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {
+    if let Some(def_interner) = state.cached_definitions.get(&package.root_dir) {
         interner = def_interner;
-        def_maps = state.cached_def_maps.get(&package_root_path).unwrap();
+        def_maps = state.cached_def_maps.get(&package.root_dir).unwrap();
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
         let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
@@ -479,7 +477,7 @@ where
 pub(crate) fn find_all_references_in_workspace(
     location: noirc_errors::Location,
     interner: &NodeInterner,
-    cached_interners: &HashMap<String, NodeInterner>,
+    cached_interners: &HashMap<PathBuf, NodeInterner>,
     files: &FileMap,
     include_declaration: bool,
     include_self_type_name: bool,

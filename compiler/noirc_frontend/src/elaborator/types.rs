@@ -37,7 +37,7 @@ use crate::{
         TraitImplKind, TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableKind,
+    TypeVariableKind, UnificationError,
 };
 
 use super::{lints, Elaborator};
@@ -704,9 +704,9 @@ impl<'context> Elaborator<'context> {
         expected: &Type,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        let mut errors = Vec::new();
-        actual.unify(expected, &mut errors, make_error);
-        self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
+        if let Err(UnificationError) = actual.unify(expected) {
+            self.errors.push((make_error().into(), self.file));
+        }
     }
 
     /// Wrapper of Type::unify_with_coercions using self.errors

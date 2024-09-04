@@ -1863,4 +1863,29 @@ mod completion_tests {
             Some("(use bar::foobar)".to_string()),
         );
     }
+
+    #[test]
+    async fn test_auto_import_suggests_private_function_if_visibile() {
+        let src = r#"
+            mod foo {
+                fn qux() {
+                  barba>|<
+                }
+            }
+
+            fn barbaz() {}
+
+            fn main() {}
+        "#;
+
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "barbaz()");
+        assert_eq!(
+            item.label_details.as_ref().unwrap().detail,
+            Some("(use super::barbaz)".to_string()),
+        );
+    }
 }
