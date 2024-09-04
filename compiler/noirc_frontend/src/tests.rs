@@ -3375,7 +3375,7 @@ fn unoquted_integer_as_integer_token() {
     #[attr]
     fn foobar() {}
 
-    fn attr(_f: FunctionDefinition) -> Quoted {
+    pub fn attr(_f: FunctionDefinition) -> Quoted {
         let serialized_len = 1;
         // We are testing that when we unoqute $serialized_len, it's unquoted
         // as the token `1` and not as something else that later won't be parsed correctly
