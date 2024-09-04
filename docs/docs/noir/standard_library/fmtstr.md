@@ -2,7 +2,7 @@
 title: fmtstr
 ---
 
-`std::meta::format_string` contains comptime methods on the `fmtstr` type for format strings.
+`fmtstr<N, T>` is the type resulting from using format string (`f"..."`).
 
 ## Methods
 
