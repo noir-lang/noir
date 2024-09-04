@@ -25,7 +25,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
     parser::{self, TopLevelStatement},
-    Type, TypeBindings,
+    Type, TypeBindings, UnificationError,
 };
 
 use super::{Elaborator, FunctionContext, ResolverMeta};
@@ -287,12 +287,19 @@ impl<'context> Elaborator<'context> {
                 expr_type
             };
 
-            if param_type != &arg_type {
-                return Err(InterpreterError::TypeMismatch {
-                    expected: param_type.clone(),
-                    actual: arg_type,
-                    location: arg_location,
-                });
+            let mut bindings = TypeBindings::new();
+            match arg_type.try_unify(param_type, &mut bindings) {
+                Ok(()) => {
+                    // Commit any type bindings on success
+                    Type::apply_type_bindings(bindings);
+                }
+                Err(UnificationError) => {
+                    return Err(InterpreterError::TypeMismatch {
+                        expected: param_type.clone(),
+                        actual: arg_type,
+                        location: arg_location,
+                    });
+                }
             }
         }
 
