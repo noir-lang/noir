@@ -18,4 +18,13 @@ impl StructDefinition {
 // docs:start:fields
     fn fields(self) -> [(Quoted, Type)] {}
     // docs:end:fields
+
+    /// Sets the fields of this struct to the given fields list.
+    /// All existing fields of the struct will be overridden with the given fields.
+    /// Each element of the fields list corresponds to the name and type of a field.
+    /// Each name is expected to be a single identifier.
+    #[builtin(struct_def_set_fields)]
+    // docs:start:set_fields
+    fn set_fields(self, new_fields: [(Quoted, Type)]) {}
+    // docs:end:set_fields
 }
