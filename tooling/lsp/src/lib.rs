@@ -4,7 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     future::Future,
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
@@ -91,13 +91,10 @@ pub struct LspState {
     open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
-    cached_definitions: HashMap<PathBuf, NodeInterner>,
+    cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    cached_def_maps: HashMap<PathBuf, BTreeMap<CrateId, CrateDefMap>>,
+    cached_def_maps: HashMap<String, BTreeMap<CrateId, CrateDefMap>>,
     options: LspInitializationOptions,
-
-    // Tracks files that currently have errors, by package root.
-    files_with_errors: HashMap<PathBuf, HashSet<Url>>,
 }
 
 impl LspState {
@@ -116,8 +113,6 @@ impl LspState {
             cached_parsed_files: HashMap::new(),
             cached_def_maps: HashMap::new(),
             options: Default::default(),
-
-            files_with_errors: HashMap::new(),
         }
     }
 }

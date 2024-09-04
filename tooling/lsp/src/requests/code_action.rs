@@ -7,26 +7,26 @@ use async_lsp::ResponseError;
 use fm::{FileId, FileMap, PathString};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
-    TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
+    Position, Range, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::{ConstructorExpression, Path, Visitor},
+    ast::{Ident, Path, Visitor},
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
-    macros_api::NodeInterner,
-};
-use noirc_frontend::{
+    macros_api::{ModuleDefId, NodeInterner},
     parser::{Item, ItemKind, ParsedSubModule},
     ParsedModule,
 };
 
-use crate::{utils, LspState};
+use crate::{
+    byte_span_to_range,
+    modules::{get_parent_module_id, module_full_path, module_id_path},
+    utils, LspState,
+};
 
 use super::{process_request, to_lsp_location};
 
-mod fill_struct_fields;
-mod import_or_qualify;
 #[cfg(test)]
 mod tests;
 
@@ -68,7 +68,6 @@ struct CodeActionFinder<'a> {
     uri: Url,
     files: &'a FileMap,
     file: FileId,
-    source: &'a str,
     lines: Vec<&'a str>,
     byte_index: usize,
     /// The module ID in scope. This might change as we traverse the AST
@@ -109,7 +108,6 @@ impl<'a> CodeActionFinder<'a> {
             uri,
             files,
             file,
-            source,
             lines: source.lines().collect(),
             byte_index,
             module_id,
@@ -139,7 +137,46 @@ impl<'a> CodeActionFinder<'a> {
         Some(code_actions)
     }
 
-    fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeActionOrCommand {
+    fn push_import_code_action(&mut self, full_path: &str) {
+        let line = self.auto_import_line as u32;
+        let character = (self.nesting * 4) as u32;
+        let indent = " ".repeat(self.nesting * 4);
+        let mut newlines = "\n";
+
+        // If the line we are inserting into is not an empty line, insert an extra line to make some room
+        if let Some(line_text) = self.lines.get(line as usize) {
+            if !line_text.trim().is_empty() {
+                newlines = "\n\n";
+            }
+        }
+
+        let title = format!("Import {}", full_path);
+        let text_edit = TextEdit {
+            range: Range { start: Position { line, character }, end: Position { line, character } },
+            new_text: format!("use {};{}{}", full_path, newlines, indent),
+        };
+
+        let code_action = self.new_quick_fix(title, text_edit);
+        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+    }
+
+    fn push_qualify_code_action(&mut self, ident: &Ident, prefix: &str, full_path: &str) {
+        let Some(range) = byte_span_to_range(
+            self.files,
+            self.file,
+            ident.span().start() as usize..ident.span().start() as usize,
+        ) else {
+            return;
+        };
+
+        let title = format!("Qualify as {}", full_path);
+        let text_edit = TextEdit { range, new_text: format!("{}::", prefix) };
+
+        let code_action = self.new_quick_fix(title, text_edit);
+        self.code_actions.push(CodeActionOrCommand::CodeAction(code_action));
+    }
+
+    fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeAction {
         let mut changes = HashMap::new();
         changes.insert(self.uri.clone(), vec![text_edit]);
 
@@ -149,7 +186,7 @@ impl<'a> CodeActionFinder<'a> {
             change_annotations: None,
         };
 
-        CodeActionOrCommand::CodeAction(CodeAction {
+        CodeAction {
             title,
             kind: Some(CodeActionKind::QUICKFIX),
             diagnostics: None,
@@ -158,7 +195,7 @@ impl<'a> CodeActionFinder<'a> {
             is_preferred: None,
             disabled: None,
             data: None,
-        })
+        }
     }
 
     fn includes_span(&self, span: Span) -> bool {
@@ -207,16 +244,69 @@ impl<'a> Visitor for CodeActionFinder<'a> {
     }
 
     fn visit_path(&mut self, path: &Path) {
-        self.import_or_qualify(path);
-    }
+        if path.segments.len() != 1 {
+            return;
+        }
 
-    fn visit_constructor_expression(
-        &mut self,
-        constructor: &ConstructorExpression,
-        span: Span,
-    ) -> bool {
-        self.fill_struct_fields(constructor, span);
+        let ident = &path.segments[0].ident;
+        if !self.includes_span(ident.span()) {
+            return;
+        }
 
-        true
+        let location = Location::new(ident.span(), self.file);
+        if self.interner.find_referenced(location).is_some() {
+            return;
+        }
+
+        let current_module_parent_id = get_parent_module_id(self.def_maps, self.module_id);
+
+        // The Path doesn't resolve to anything so it means it's an error and maybe we
+        // can suggest an import or to fully-qualify the path.
+        for (name, entries) in self.interner.get_auto_import_names() {
+            if name != &ident.0.contents {
+                continue;
+            }
+
+            for (module_def_id, visibility, defining_module) in entries {
+                let module_full_path = if let Some(defining_module) = defining_module {
+                    module_id_path(
+                        *defining_module,
+                        &self.module_id,
+                        current_module_parent_id,
+                        self.interner,
+                    )
+                } else {
+                    let Some(module_full_path) = module_full_path(
+                        *module_def_id,
+                        *visibility,
+                        self.module_id,
+                        current_module_parent_id,
+                        self.interner,
+                    ) else {
+                        continue;
+                    };
+                    module_full_path
+                };
+
+                let full_path = if defining_module.is_some()
+                    || !matches!(module_def_id, ModuleDefId::ModuleId(..))
+                {
+                    format!("{}::{}", module_full_path, name)
+                } else {
+                    module_full_path.clone()
+                };
+
+                let qualify_prefix = if let ModuleDefId::ModuleId(..) = module_def_id {
+                    let mut segments: Vec<_> = module_full_path.split("::").collect();
+                    segments.pop();
+                    segments.join("::")
+                } else {
+                    module_full_path
+                };
+
+                self.push_import_code_action(&full_path);
+                self.push_qualify_code_action(ident, &qualify_prefix, &full_path);
+            }
+        }
     }
 }

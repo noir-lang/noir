@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashSet as HashSet;
 
 use crate::{
     brillig::brillig_ir::{
@@ -22,16 +22,15 @@ use super::brillig_fn::FunctionContext;
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,
-    available_constants: HashMap<ValueId, BrilligVariable>,
 }
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
     pub(crate) fn new(live_in: HashSet<ValueId>) -> Self {
-        BlockVariables { available_variables: live_in, ..Default::default() }
+        BlockVariables { available_variables: live_in }
     }
 
-    /// Returns all non-constant variables that have not been removed at this point.
+    /// Returns all variables that have not been removed at this point.
     pub(crate) fn get_available_variables(
         &self,
         function_context: &FunctionContext,
@@ -48,7 +47,7 @@ impl BlockVariables {
             .collect()
     }
 
-    /// For a given SSA non constant value id, define the variable and return the corresponding cached allocation.
+    /// For a given SSA value id, define the variable and return the corresponding cached allocation.
     pub(crate) fn define_variable(
         &mut self,
         function_context: &mut FunctionContext,
@@ -97,6 +96,11 @@ impl BlockVariables {
         });
     }
 
+    /// Checks if a variable is allocated.
+    pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
+        self.available_variables.contains(value_id)
+    }
+
     /// For a given SSA value id, return the corresponding cached allocation.
     pub(crate) fn get_allocation(
         &mut self,
@@ -105,48 +109,16 @@ impl BlockVariables {
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
-        if let Some(constant) = self.available_constants.get(&value_id) {
-            *constant
-        } else {
-            assert!(
-                self.available_variables.contains(&value_id),
-                "ICE: ValueId {value_id:?} is not available"
-            );
 
-            *function_context
-                .ssa_value_allocations
-                .get(&value_id)
-                .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
-        }
-    }
+        assert!(
+            self.available_variables.contains(&value_id),
+            "ICE: ValueId {value_id:?} is not available"
+        );
 
-    /// Creates a constant. Constants are a special case in SSA, since they are "defined" every time they are used.
-    /// We keep constants block-local.
-    pub(crate) fn allocate_constant(
-        &mut self,
-        brillig_context: &mut BrilligContext<FieldElement, Stack>,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
-        let constant = allocate_value(value_id, brillig_context, dfg);
-        self.available_constants.insert(value_id, constant);
-        constant
-    }
-
-    /// Gets a constant.
-    pub(crate) fn get_constant(
-        &mut self,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> Option<BrilligVariable> {
-        let value_id = dfg.resolve(value_id);
-        self.available_constants.get(&value_id).cloned()
-    }
-
-    /// Removes the allocations of all constants. Constants will need to be reallocated and reinitialized after this.
-    pub(crate) fn dump_constants(&mut self) {
-        self.available_constants.clear();
+        *function_context
+            .ssa_value_allocations
+            .get(&value_id)
+            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
     }
 }
 
