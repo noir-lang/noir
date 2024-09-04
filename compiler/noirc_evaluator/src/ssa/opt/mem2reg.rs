@@ -375,7 +375,7 @@ impl<'f> PerFunctionContext<'f> {
         match &self.inserter.function.dfg[instruction] {
             // We just had an increment or decrement to an array's reference counter
             Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
-                self.inside_rc_reload = true
+                self.inside_rc_reload = true;
             }
             _ => self.inside_rc_reload = false,
         }
