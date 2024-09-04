@@ -171,10 +171,10 @@ impl<'f> PerFunctionContext<'f> {
                         .get(store_address)
                         .map(|(_, last_load_block)| *last_load_block != *block_id)
                         .unwrap_or(true);
-                    !is_return_value && last_load_not_in_return;
+                    !is_return_value && last_load_not_in_return
                 } else {
                     self.last_loads.get(store_address).is_none()
-                }
+                };
 
                 if remove_load && !is_reference_param {
                     self.instructions_to_remove.insert(*store_instruction);
