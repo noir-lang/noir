@@ -261,14 +261,9 @@ impl<'f> PerFunctionContext<'f> {
 
         // Track whether any load results were used in the instruction
         self.inserter.function.dfg[instruction].for_each_value(|value| {
-            if let Some(PerFuncLoadResultContext {
-                result_counter: load_counter,
-                instructions_using_result,
-                ..
-            }) = self.load_results.get_mut(&value)
-            {
-                *load_counter += 1;
-                instructions_using_result.push((instruction, block_id));
+            if let Some(context) = self.load_results.get_mut(&value) {
+                context.result_counter += 1;
+                context.instructions_using_result.push((instruction, block_id));
             }
         });
 
