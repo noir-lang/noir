@@ -288,12 +288,10 @@ impl<'f> PerFunctionContext<'f> {
 
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
-                    let load_counter =
-                        if let Some((_, _, load_counter)) = self.last_loads.get(&address) {
-                            *load_counter + 1
-                        } else {
-                            1
-                        };
+                     let load_counter = self
+                        .last_loads
+                        .get(&address)
+                        .map_or(1, |(_, _, load_counter)| *load_counter + 1);
                     self.last_loads.insert(address, (instruction, block_id, load_counter));
                 }
             }
