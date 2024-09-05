@@ -37,33 +37,37 @@ unconstrained fn __get_index<let N: u32>(indices: [Field; N], idx: Field) -> Fie
 }
 
 pub(crate) fn check_shuffle<T, let N: u32>(lhs: [T; N], rhs: [T; N]) where T: std::cmp::Eq {
-    let shuffle_indices = __get_shuffle_indices(lhs, rhs);
+    unsafe {
+        let shuffle_indices = __get_shuffle_indices(lhs, rhs);
 
-    for i in 0..N {
-        let idx = __get_index(shuffle_indices, i as Field);
-        assert_eq(shuffle_indices[idx], i as Field);
-    }
-    for i in 0..N {
-        let idx = shuffle_indices[i];
-        let expected = rhs[idx];
-        let result = lhs[i];
-        assert_eq(expected, result);
+        for i in 0..N {
+            let idx = __get_index(shuffle_indices, i as Field);
+            assert_eq(shuffle_indices[idx], i as Field);
+        }
+        for i in 0..N {
+            let idx = shuffle_indices[i];
+            let expected = rhs[idx];
+            let result = lhs[i];
+            assert_eq(expected, result);
+        }
     }
 }
 
 pub(crate) fn get_shuffle_indices<T, let N: u32>(lhs: [T; N], rhs: [T; N]) -> [Field; N] where T: std::cmp::Eq {
-    let shuffle_indices = __get_shuffle_indices(lhs, rhs);
-    for i in 0..N {
-        let idx = __get_index(shuffle_indices, i as Field);
-        assert_eq(shuffle_indices[idx], i as Field);
+    unsafe {
+        let shuffle_indices = __get_shuffle_indices(lhs, rhs);
+        for i in 0..N {
+            let idx = __get_index(shuffle_indices, i as Field);
+            assert_eq(shuffle_indices[idx], i as Field);
+        }
+        for i in 0..N {
+            let idx = shuffle_indices[i];
+            let expected = rhs[idx];
+            let result = lhs[i];
+            assert_eq(expected, result);
+        }
+        shuffle_indices
     }
-    for i in 0..N {
-        let idx = shuffle_indices[i];
-        let expected = rhs[idx];
-        let result = lhs[i];
-        assert_eq(expected, result);
-    }
-    shuffle_indices
 }
 
 mod test {
