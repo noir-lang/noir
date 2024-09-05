@@ -1,10 +1,20 @@
 impl StructDefinition {
+    #[builtin(struct_def_add_attribute)]
+    // docs:start:add_attribute
+    fn add_attribute<let N: u32>(self, attribute: str<N>) {}
+    // docs:end:add_attribute
+
     /// Return a syntactic version of this struct definition as a type.
     /// For example, `as_type(quote { type Foo<A, B> { ... } })` would return `Foo<A, B>`
     #[builtin(struct_def_as_type)]
 // docs:start:as_type
     fn as_type(self) -> Type {}
     // docs:end:as_type
+
+    #[builtin(struct_def_has_named_attribute)]
+    // docs:start:has_named_attribute
+    fn has_named_attribute(self, name: Quoted) -> bool {}
+    // docs:end:has_named_attribute
 
     /// Return each generic on this struct.
     #[builtin(struct_def_generics)]
