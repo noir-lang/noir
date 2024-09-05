@@ -53,6 +53,7 @@ fn empty_item(item: &mut Item) {
         ItemKind::Import(use_tree, _) => empty_use_tree(use_tree),
         ItemKind::Struct(noir_struct) => empty_noir_struct(noir_struct),
         ItemKind::TypeAlias(noir_type_alias) => empty_noir_type_alias(noir_type_alias),
+        ItemKind::InnerAttribute(_) => (),
     }
 }
 

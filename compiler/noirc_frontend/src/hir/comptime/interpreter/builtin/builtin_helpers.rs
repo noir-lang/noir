@@ -189,6 +189,20 @@ pub(crate) fn get_expr(
     }
 }
 
+pub(crate) fn get_format_string(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<(Rc<String>, Type)> {
+    match value {
+        Value::FormatString(value, typ) => Ok((value, typ)),
+        value => {
+            let n = Box::new(interner.next_type_variable());
+            let e = Box::new(interner.next_type_variable());
+            type_mismatch(value, Type::FmtString(n, e), location)
+        }
+    }
+}
+
 pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => Ok(id),
