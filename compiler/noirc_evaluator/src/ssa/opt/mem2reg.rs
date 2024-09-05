@@ -133,7 +133,7 @@ struct PerFunctionContext<'f> {
 #[derive(Debug, Clone)]
 struct PerFuncLoadResultContext {
     /// Reference counter that keeps track of how many times a load was used in other instructions
-    result_counter: u32,
+    uses: u32,
     /// Load instruction that produced a given load result
     load_instruction: InstructionId,
     /// Instructions that use a given load result
@@ -142,7 +142,7 @@ struct PerFuncLoadResultContext {
 
 impl PerFuncLoadResultContext {
     fn new(load_instruction: InstructionId) -> Self {
-        Self { result_counter: 0, load_instruction, instructions_using_result: vec![] }
+        Self { uses: 0, load_instruction, instructions_using_result: vec![] }
     }
 }
 
@@ -267,7 +267,7 @@ impl<'f> PerFunctionContext<'f> {
         // Track whether any load results were used in the instruction
         self.inserter.function.dfg[instruction].for_each_value(|value| {
             if let Some(context) = self.load_results.get_mut(&value) {
-                context.result_counter += 1;
+                context.uses += 1;
                 context.instructions_using_result.push((instruction, block_id));
             }
         });
@@ -310,7 +310,7 @@ impl<'f> PerFunctionContext<'f> {
                 if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
                     if let Some(context) = self.load_results.get_mut(&value) {
-                        context.result_counter -= 1;
+                        context.uses -= 1;
                     }
                 }
 
@@ -464,7 +464,7 @@ impl<'f> PerFunctionContext<'f> {
 
         terminator.for_each_value(|value| {
             if let Some(context) = self.load_results.get_mut(&value) {
-                context.result_counter += 1;
+                context.uses += 1;
             }
         });
 
@@ -514,8 +514,7 @@ impl<'f> PerFunctionContext<'f> {
     /// Returns a map of the removed load address to the number of load instructions removed for that address
     fn remove_unused_loads(&mut self) -> HashMap<ValueId, u32> {
         let mut removed_loads = HashMap::default();
-        for (_, PerFuncLoadResultContext { result_counter, load_instruction, .. }) in
-            self.load_results.iter()
+        for (_, PerFuncLoadResultContext { uses, load_instruction, .. }) in self.load_results.iter()
         {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
@@ -523,7 +522,7 @@ impl<'f> PerFunctionContext<'f> {
             };
 
             // If the load result's counter is equal to zero we can safely remove that load instruction.
-            if *result_counter == 0 {
+            if *uses == 0 {
                 removed_loads.entry(address).and_modify(|counter| *counter += 1).or_insert(1);
 
                 self.instructions_to_remove.insert(*load_instruction);
@@ -601,15 +600,13 @@ impl<'f> PerFunctionContext<'f> {
         remaining_last_stores: &HashMap<ValueId, (InstructionId, u32)>,
     ) {
         // Filter out any still in use load results and any load results that do not contain addresses from the remaining last stores
-        self.load_results.retain(
-            |_, PerFuncLoadResultContext { load_instruction, result_counter, .. }| {
-                let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
-                else {
-                    unreachable!("Should only have a load instruction here");
-                };
-                remaining_last_stores.contains_key(&address) && *result_counter > 0
-            },
-        );
+        self.load_results.retain(|_, PerFuncLoadResultContext { load_instruction, uses, .. }| {
+            let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+            else {
+                unreachable!("Should only have a load instruction here");
+            };
+            remaining_last_stores.contains_key(&address) && *uses > 0
+        });
 
         for (store_address, (store_instruction, store_counter)) in remaining_last_stores {
             let Instruction::Store { value, .. } = self.inserter.function.dfg[*store_instruction]
