@@ -1,4 +1,5 @@
 mod expr;
+mod format_string;
 mod function_def;
 mod module;
 mod op;

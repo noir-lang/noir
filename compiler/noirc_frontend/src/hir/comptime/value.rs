@@ -605,33 +605,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 write!(f, "quote {{")?;
                 for token in tokens.iter() {
                     write!(f, " ")?;
-
-                    match token {
-                        Token::QuotedType(id) => {
-                            write!(f, "{}", self.interner.get_quoted_type(*id))?;
-                        }
-                        Token::InternedExpr(id) => {
-                            let value = Value::expression(ExpressionKind::Interned(*id));
-                            value.display(self.interner).fmt(f)?;
-                        }
-                        Token::InternedStatement(id) => {
-                            let value = Value::statement(StatementKind::Interned(*id));
-                            value.display(self.interner).fmt(f)?;
-                        }
-                        Token::InternedLValue(id) => {
-                            let value = Value::lvalue(LValue::Interned(*id, Span::default()));
-                            value.display(self.interner).fmt(f)?;
-                        }
-                        Token::InternedUnresolvedTypeData(id) => {
-                            let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
-                            value.display(self.interner).fmt(f)?;
-                        }
-                        Token::UnquoteMarker(id) => {
-                            let value = Value::TypedExpr(TypedExpr::ExprId(*id));
-                            value.display(self.interner).fmt(f)?;
-                        }
-                        other => write!(f, "{other}")?,
-                    }
+                    token.display(self.interner).fmt(f)?;
                 }
                 write!(f, " }}")
             }
@@ -709,6 +683,51 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                     write!(f, "{}", typ)
                 }
             }
+        }
+    }
+}
+
+impl Token {
+    pub fn display<'token, 'interner>(
+        &'token self,
+        interner: &'interner NodeInterner,
+    ) -> TokenPrinter<'token, 'interner> {
+        TokenPrinter { token: self, interner }
+    }
+}
+
+pub struct TokenPrinter<'token, 'interner> {
+    token: &'token Token,
+    interner: &'interner NodeInterner,
+}
+
+impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.token {
+            Token::QuotedType(id) => {
+                write!(f, "{}", self.interner.get_quoted_type(*id))
+            }
+            Token::InternedExpr(id) => {
+                let value = Value::expression(ExpressionKind::Interned(*id));
+                value.display(self.interner).fmt(f)
+            }
+            Token::InternedStatement(id) => {
+                let value = Value::statement(StatementKind::Interned(*id));
+                value.display(self.interner).fmt(f)
+            }
+            Token::InternedLValue(id) => {
+                let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                value.display(self.interner).fmt(f)
+            }
+            Token::InternedUnresolvedTypeData(id) => {
+                let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
+                value.display(self.interner).fmt(f)
+            }
+            Token::UnquoteMarker(id) => {
+                let value = Value::TypedExpr(TypedExpr::ExprId(*id));
+                value.display(self.interner).fmt(f)
+            }
+            other => write!(f, "{other}"),
         }
     }
 }
