@@ -655,7 +655,7 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            usage_tracker: UsageTracker::default(),
+            usage_tracker: UsageTracker::new(),
         }
     }
 }

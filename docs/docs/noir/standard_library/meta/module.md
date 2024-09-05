@@ -20,6 +20,12 @@ Returns the name of the module.
 
 Returns each function in the module.
 
+### has_named_attribute
+
+#include_code has_named_attribute noir_stdlib/src/meta/module.nr rust
+
+Returns true if this module has a custom attribute with the given name.
+
 ### is_contract
 
 #include_code is_contract noir_stdlib/src/meta/module.nr rust

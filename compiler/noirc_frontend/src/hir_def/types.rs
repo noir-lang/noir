@@ -1467,21 +1467,13 @@ impl Type {
     /// equal to the other type in the process. When comparing types, unification
     /// (including try_unify) are almost always preferred over Type::eq as unification
     /// will correctly handle generic types.
-    pub fn unify(
-        &self,
-        expected: &Type,
-        errors: &mut Vec<TypeCheckError>,
-        make_error: impl FnOnce() -> TypeCheckError,
-    ) {
+    pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::new();
 
-        match self.try_unify(expected, &mut bindings) {
-            Ok(()) => {
-                // Commit any type bindings on success
-                Self::apply_type_bindings(bindings);
-            }
-            Err(UnificationError) => errors.push(make_error()),
-        }
+        self.try_unify(expected, &mut bindings).map(|()| {
+            // Commit any type bindings on success
+            Self::apply_type_bindings(bindings);
+        })
     }
 
     /// `try_unify` is a bit of a misnomer since although errors are not committed,

@@ -586,7 +586,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     consuming = false;
 
                     if let Some(value) = values.pop_front() {
-                        result.push_str(&value.display(self.elaborator.interner).to_string());
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        if let Value::Quoted(tokens) = value {
+                            for (index, token) in tokens.iter().enumerate() {
+                                if index > 0 {
+                                    result.push(' ');
+                                }
+                                result
+                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                            }
+                        } else {
+                            result.push_str(&value.display(self.elaborator.interner).to_string());
+                        }
                     }
                 }
                 other if !consuming => {
