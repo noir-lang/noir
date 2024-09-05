@@ -591,7 +591,7 @@ impl<'f> PerFunctionContext<'f> {
             |_, PerFuncLoadResultContext { load_instruction, result_counter, .. }| {
                 let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
                 else {
-                    panic!("Should only have a load instruction here");
+                    unreachable!("Should only have a load instruction here");
                 };
                 remaining_last_stores.contains_key(&address) && *result_counter > 0
             },
