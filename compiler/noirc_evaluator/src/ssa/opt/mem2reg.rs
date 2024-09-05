@@ -128,11 +128,11 @@ struct PerFunctionContext<'f> {
 
 #[derive(Debug, Clone)]
 struct PerFuncLoadResultContext {
-    // Reference counter that keeps track of how many times a load was used in other instructions
+    /// Reference counter that keeps track of how many times a load was used in other instructions
     result_counter: u32,
-    // Load instruction that produced a given load result
+    /// Load instruction that produced a given load result
     load_instruction: InstructionId,
-    // Instructions that use a given load result
+    /// Instructions that use a given load result
     instructions_using_result: Vec<(InstructionId, BasicBlockId)>,
 }
 
