@@ -1,4 +1,9 @@
 impl FunctionDefinition {
+    #[builtin(function_def_add_attribute)]
+    // docs:start:add_attribute
+    fn add_attribute<let N: u32>(self, attribute: str<N>) {}
+    // docs:end:add_attribute
+
     #[builtin(function_def_body)]
     // docs:start:body
     fn body(self) -> Expr {}

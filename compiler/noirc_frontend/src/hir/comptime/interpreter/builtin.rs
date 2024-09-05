@@ -12,7 +12,7 @@ use builtin_helpers::{
     get_u32, get_unresolved_type, hir_pattern_to_tokens, mutate_func_meta_type, parse,
     replace_func_meta_parameters, replace_func_meta_return_type,
 };
-use chumsky::{prelude::choice, Parser};
+use chumsky::{chain::Chain, prelude::choice, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -36,7 +36,7 @@ use crate::{
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
-    token::Token,
+    token::{Attribute, SecondaryAttribute, Token},
     QuotedType, Shared, Type,
 };
 
@@ -97,6 +97,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
+            "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -1652,6 +1653,57 @@ fn fmtstr_quoted_contents(
     }
 
     Ok(Value::Quoted(Rc::new(tokens)))
+}
+
+// fn add_attribute<let N: u32>(self, attribute: str<N>)
+fn function_def_add_attribute(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_str(interpreter.elaborator.interner, attribute)?;
+
+    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
+    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
+        tokens.pop();
+    }
+    if tokens.len() != 1 {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    }
+
+    let token = tokens[0].token();
+    let Token::Attribute(attribute) = token else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    };
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+
+    match attribute {
+        Attribute::Function(attribute) => {
+            function_modifiers.attributes.function = Some(attribute.clone());
+        }
+        Attribute::Secondary(attribute) => {
+            function_modifiers.attributes.secondary.push(attribute.clone());
+        }
+    }
+
+    if let Attribute::Secondary(SecondaryAttribute::Custom(attribute)) = attribute {
+        let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+        func_meta.custom_attributes.push(attribute.clone());
+    }
+
+    Ok(Value::Unit)
 }
 
 // fn body(self) -> Expr
