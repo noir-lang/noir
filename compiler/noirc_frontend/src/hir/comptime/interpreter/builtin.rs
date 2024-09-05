@@ -1888,9 +1888,8 @@ fn function_def_set_return_visibility(
     let parser = parser::visibility();
     let visibility = parse(visibility, parser, "a visibility")?;
 
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.return_visibility = visibility;
-    });
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.return_visibility = visibility;
 
     Ok(Value::Unit)
 }
