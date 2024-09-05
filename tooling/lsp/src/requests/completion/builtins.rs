@@ -97,6 +97,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
+        Keyword::Module => Some("Module"),
         Keyword::Quoted => Some("Quoted"),
         Keyword::StructDefinition => Some("StructDefinition"),
         Keyword::TraitConstraint => Some("TraitConstraint"),
@@ -128,7 +129,6 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::In
         | Keyword::Let
         | Keyword::Mod
-        | Keyword::Module
         | Keyword::Mut
         | Keyword::Pub
         | Keyword::Return
