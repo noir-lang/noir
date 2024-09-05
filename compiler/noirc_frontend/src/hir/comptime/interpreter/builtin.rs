@@ -97,6 +97,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
+            "fmtstr_quoted" => fmtstr_quoted(interner, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -1593,6 +1594,28 @@ fn fmtstr_quoted_contents(
     }
 
     Ok(Value::Quoted(Rc::new(tokens)))
+}
+
+// fn quoted(self) -> Quoted
+fn fmtstr_quoted(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let (string, _) = get_format_string(interner, self_argument)?;
+    let (tokens, _) = Lexer::lex(&string);
+    let str = tokens
+        .0
+        .into_iter()
+        .filter(|token| !matches!(token.clone().into_token(), Token::EOF))
+        .map(|token| token.into_token().display(interner).to_string())
+        .collect::<Vec<_>>()
+        .join("");
+
+    let token = Token::Str(str);
+
+    Ok(Value::Quoted(Rc::new(vec![token])))
 }
 
 // fn body(self) -> Expr
