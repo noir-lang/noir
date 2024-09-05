@@ -103,6 +103,11 @@ pub enum BorrowedToken<'input> {
     DollarSign,
     /// =
     Assign,
+    /// #[requires
+    Requires,
+    /// #[ensures
+    Ensures,
+
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -220,6 +225,11 @@ pub enum Token {
     Assign,
     /// $
     DollarSign,
+    /// #[requires
+    Requires,
+    /// #[ensures
+    Ensures,
+
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -297,6 +307,8 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
         Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
+        Token::Requires => BorrowedToken::Requires,
+        Token::Ensures => BorrowedToken::Ensures,
     }
 }
 
@@ -427,6 +439,8 @@ impl fmt::Display for Token {
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
             Token::UnquoteMarker(_) => write!(f, "(UnquoteMarker)"),
+            Token::Requires => write!(f, "#[requires"),
+            Token::Ensures => write!(f, "#[ensures"),
         }
     }
 }
