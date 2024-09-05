@@ -325,7 +325,7 @@ fn struct_def_fields(
     Ok(Value::Slice(fields, typ))
 }
 
-/// fn fields(self) -> [(Quoted, Type)]
+/// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
 /// Returns (name, type) pairs of each field of this StructDefinition
 fn struct_def_set_fields(
     interner: &mut NodeInterner,
