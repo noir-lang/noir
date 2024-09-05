@@ -259,7 +259,6 @@ impl StructType {
     /// created. Therefore, this method is used to set the fields once they
     /// become known.
     pub fn set_fields(&mut self, fields: Vec<(Ident, Type)>) {
-        assert!(self.fields.is_empty());
         self.fields = fields;
     }
 
