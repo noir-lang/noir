@@ -43,4 +43,9 @@ impl FunctionDefinition {
     // docs:start:set_return_type
     fn set_return_type(self, return_type: Type) {}
     // docs:end:set_return_type
+
+    #[builtin(function_def_set_return_public)]
+    // docs:start:set_return_public
+    fn set_return_public(self, public: bool) {}
+    // docs:end:set_return_public
 }
