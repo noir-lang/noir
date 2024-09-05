@@ -436,10 +436,8 @@ impl<'f> PerFunctionContext<'f> {
         let terminator = self.inserter.function.dfg[block].unwrap_terminator();
 
         terminator.for_each_value(|value| {
-            if let Some(PerFuncLoadResultContext { result_counter, .. }) =
-                self.load_results.get_mut(&value)
-            {
-                *result_counter += 1;
+            if let Some(context) = self.load_results.get_mut(&value) {
+                context.result_counter += 1;
             }
         });
 
