@@ -15,7 +15,9 @@ use acvm::acir::AcirField;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, function::{Function, RuntimeType},
+        basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        function::{Function, RuntimeType},
         instruction::TerminatorInstruction,
     },
     ssa_gen::Ssa,
@@ -74,7 +76,7 @@ fn simplify_function(function: &mut Function) {
             try_inline_into_predecessor(function, &mut cfg, block, predecessor);
         } else {
             drop(predecessors);
-  
+
             check_for_double_jmp(function, block, &mut cfg);
         }
     }
@@ -110,9 +112,9 @@ fn check_for_constant_jmpif(
 fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut ControlFlowGraph) {
     if matches!(function.runtime(), RuntimeType::Acir(_)) {
         // We can't remove double jumps in ACIR functions as this interferes with the `flatten_cfg` pass.
-        return
+        return;
     }
-    
+
     if !function.dfg[block].instructions().is_empty()
         || !function.dfg[block].parameters().is_empty()
     {
