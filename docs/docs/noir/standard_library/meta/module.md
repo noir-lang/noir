@@ -8,6 +8,12 @@ declarations in the source program.
 
 ## Methods
 
+### add_item
+
+#include_code add_item noir_stdlib/src/meta/module.nr rust
+
+Adds a top-level item to the module.
+
 ### name
 
 #include_code name noir_stdlib/src/meta/module.nr rust

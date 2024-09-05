@@ -352,7 +352,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_item(
+    pub(crate) fn add_item(
         &mut self,
         item: TopLevelStatement,
         generated_items: &mut CollectedItems,

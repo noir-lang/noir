@@ -25,10 +25,21 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
+<<<<<<< Updated upstream
     hir::comptime::{
         errors::IResult,
         value::{ExprValue, TypedExpr},
         InterpreterError, Value,
+=======
+    elaborator::{self, Elaborator},
+    hir::{
+        comptime::{
+            errors::IResult,
+            value::{ExprValue, TypedExpr},
+            InterpreterError, Value,
+        },
+        def_collector::dc_crate::CollectedItems,
+>>>>>>> Stashed changes
     },
     hir_def::function::FunctionBody,
     lexer::Lexer,
@@ -112,6 +123,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_set_return_public" => {
                 function_def_set_return_public(self, arguments, location)
             }
+            "module_add_item" => module_add_item(self, arguments, location),
             "module_functions" => module_functions(self, arguments, location),
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
@@ -2003,6 +2015,34 @@ fn function_def_set_return_public(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+
+    Ok(Value::Unit)
+}
+
+// fn add_item(self, item: Quoted)
+fn module_add_item(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, item) = check_two_arguments(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+
+    let parser = parser::top_level_statement(parser::module());
+    let top_level_statement = parse(item, parser, "a top-level item")?;
+
+    // TODO: we need to type-check the top-level statement relative to the current function
+    // (interpreter.current_function) but we need to add it to the given module (module_id).
+    // How to do this?
+
+    let mut generated_items = CollectedItems::default();
+    interpreter.elaborator.add_item(top_level_statement, &mut generated_items, location);
+
+    if !generated_items.is_empty() {
+        interpreter.elaborate_item(interpreter.current_function, |elaborator| {
+            elaborator.elaborate_items(generated_items);
+        });
+    }
 
     Ok(Value::Unit)
 }
