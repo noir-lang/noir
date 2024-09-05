@@ -536,7 +536,7 @@ fn quoted_as_type(
     Ok(Value::Type(typ))
 }
 
-// fn as_expr(quoted: Quoted) -> Option<Expr>
+// fn tokens(quoted: Quoted) -> [Quoted]
 fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let value = get_quoted(argument)?;
