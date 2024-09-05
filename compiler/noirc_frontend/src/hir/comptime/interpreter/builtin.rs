@@ -6,7 +6,7 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
-    check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_field,
+    check_one_argument, check_three_arguments, check_two_arguments, get_bool, get_expr, get_field,
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
     get_u32, get_unresolved_type, hir_pattern_to_tokens, mutate_func_meta_type, parse,
@@ -109,8 +109,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_set_return_type" => {
                 function_def_set_return_type(self, arguments, location)
             }
-            "function_def_set_return_visibility" => {
-                function_def_set_return_visibility(self, arguments, location)
+            "function_def_set_return_public" => {
+                function_def_set_return_public(self, arguments, location)
             }
             "module_functions" => module_functions(self, arguments, location),
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
@@ -1874,22 +1874,21 @@ fn function_def_set_return_type(
     Ok(Value::Unit)
 }
 
-// fn set_return_visibility(self, visibility: Quoted)
-fn function_def_set_return_visibility(
+// fn set_return_public(self, public: bool)
+fn function_def_set_return_public(
     interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (self_argument, visibility) = check_two_arguments(arguments, location)?;
+    let (self_argument, public) = check_two_arguments(arguments, location)?;
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
-    let parser = parser::visibility();
-    let visibility = parse(visibility, parser, "a visibility")?;
+    let public = get_bool(public)?;
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_visibility = visibility;
+    func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
 
     Ok(Value::Unit)
 }

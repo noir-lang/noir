@@ -90,6 +90,13 @@ pub(crate) fn get_array(
     }
 }
 
+pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
+    match value {
+        Value::Bool(value) => Ok(value),
+        value => type_mismatch(value, Type::Bool, location),
+    }
+}
+
 pub(crate) fn get_slice(
     interner: &NodeInterner,
     (value, location): (Value, Location),

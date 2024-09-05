@@ -58,7 +58,7 @@ fn main() {
     assert_eq(add_one(41), 42);
 }
 
-mod some_contract {
+contract some_contract {
     // No pub on the return type is an error
     #[super::set_pub_return_type]
     pub fn bar() -> Field {
@@ -67,5 +67,5 @@ mod some_contract {
 }
 
 fn set_pub_return_type(f: FunctionDefinition) {
-    f.set_return_visibility(quote { what the heck });
+    f.set_return_public(true);
 }
