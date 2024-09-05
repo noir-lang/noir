@@ -60,12 +60,12 @@ fn main() {
 
 contract some_contract {
     // No pub on the return type is an error
-    #[super::set_pub_return_type]
+    #[super::set_pub_return]
     pub fn bar() -> Field {
         1
     }
 }
 
-fn set_pub_return_type(f: FunctionDefinition) {
+fn set_pub_return(f: FunctionDefinition) {
     f.set_return_public(true);
 }
