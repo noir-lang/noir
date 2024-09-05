@@ -141,8 +141,8 @@ struct PerFuncLastLoadContext {
 }
 
 impl PerFuncLastLoadContext {
-    fn new(load_instruction: InstructionId, block_id: BasicBlockId) -> Self {
-        Self { num_loads: 0, load_instruction, block_id }
+    fn new(load_instruction: InstructionId, block_id: BasicBlockId, num_loads: u32) -> Self {
+        Self { num_loads, load_instruction, block_id }
     }
 }
 
@@ -308,11 +308,12 @@ impl<'f> PerFunctionContext<'f> {
 
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
-                    let last_load = self
-                        .last_loads
-                        .entry(address)
-                        .or_insert(PerFuncLastLoadContext::new(instruction, block_id));
-                    last_load.num_loads += 1;
+                    let num_loads =
+                        self.last_loads.get(&address).map_or(1, |context| context.num_loads + 1);
+                    self.last_loads.insert(
+                        address,
+                        PerFuncLastLoadContext::new(instruction, block_id, num_loads),
+                    );
                 }
             }
             Instruction::Store { address, value } => {
