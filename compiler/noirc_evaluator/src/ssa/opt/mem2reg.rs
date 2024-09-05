@@ -116,7 +116,7 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId, u32)>,
+    last_loads: HashMap<ValueId, PerFuncLastLoadContext>,
 
     /// Track whether a load result was used across all blocks.
     load_results: HashMap<ValueId, PerFuncLoadResultContext>,
@@ -128,6 +128,22 @@ struct PerFunctionContext<'f> {
     /// Track whether the last instruction is an inc_rc/dec_rc instruction.
     /// If it is we should not remove any known store values.
     inside_rc_reload: bool,
+}
+
+#[derive(Debug, Clone)]
+struct PerFuncLastLoadContext {
+    /// Reference counter that keeps track of how many times we loaded from a given address
+    num_loads: u32,
+    /// Last load instruction from a given address
+    load_instruction: InstructionId,
+    /// Block of the last load instruction
+    block_id: BasicBlockId,
+}
+
+impl PerFuncLastLoadContext {
+    fn new(load_instruction: InstructionId, block_id: BasicBlockId) -> Self {
+        Self { num_loads: 0, load_instruction, block_id }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -292,9 +308,11 @@ impl<'f> PerFunctionContext<'f> {
 
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
-                    let last_load =
-                        self.last_loads.entry(address).or_insert((instruction, block_id, 0));
-                    last_load.load_counter += 1;
+                    let last_load = self
+                        .last_loads
+                        .entry(address)
+                        .or_insert(PerFuncLastLoadContext::new(instruction, block_id));
+                    last_load.num_loads += 1;
                 }
             }
             Instruction::Store { address, value } => {
@@ -559,16 +577,16 @@ impl<'f> PerFunctionContext<'f> {
                     let last_load_not_in_return = self
                         .last_loads
                         .get(store_address)
-                        .map(|(_, last_load_block, _)| *last_load_block != *block_id)
+                        .map(|context| context.block_id != *block_id)
                         .unwrap_or(true);
                     !is_return_value && last_load_not_in_return
-                } else if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
+                } else if let (Some(context), Some(loads_removed_counter)) =
                     (self.last_loads.get(store_address), removed_loads.get(store_address))
                 {
                     // `last_loads` contains the total number of loads for a given load address
                     // If the number of removed loads for a given address is equal to the total number of loads for that address,
                     // we know we can safely remove any stores to that load address.
-                    *last_loads_counter == *loads_removed_counter
+                    context.num_loads == *loads_removed_counter
                 } else {
                     // Otherwise just check whether a load exists at all for this store address
                     self.last_loads.get(store_address).is_none()
@@ -612,11 +630,11 @@ impl<'f> PerFunctionContext<'f> {
                 unreachable!("Should only have a store instruction");
             };
 
-            if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
+            if let (Some(context), Some(loads_removed_counter)) =
                 (self.last_loads.get(store_address), removed_loads.get(store_address))
             {
                 assert!(
-                    *last_loads_counter >= *loads_removed_counter,
+                    context.num_loads >= *loads_removed_counter,
                     "The number of loads removed should not be more than all loads"
                 );
             }
