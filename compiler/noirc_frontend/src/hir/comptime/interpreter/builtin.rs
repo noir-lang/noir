@@ -33,7 +33,7 @@ use crate::{
     },
     hir_def::function::FunctionBody,
     lexer::Lexer,
-    macros_api::{HirExpression, HirLiteral, ModuleDefId, NodeInterner, Signedness},
+    macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
     token::Token,
@@ -133,6 +133,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
+            "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
@@ -324,6 +325,64 @@ fn struct_def_fields(
         Type::Quoted(QuotedType::Type),
     ])));
     Ok(Value::Slice(fields, typ))
+}
+
+/// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
+/// Returns (name, type) pairs of each field of this StructDefinition
+fn struct_def_set_fields(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (the_struct, fields) = check_two_arguments(arguments, location)?;
+    let struct_id = get_struct(the_struct)?;
+
+    let struct_def = interner.get_struct(struct_id);
+    let mut struct_def = struct_def.borrow_mut();
+
+    let field_location = fields.1;
+    let fields = get_slice(interner, fields)?.0;
+
+    let new_fields = fields
+        .into_iter()
+        .flat_map(|field_pair| get_tuple(interner, (field_pair, field_location)))
+        .enumerate()
+        .map(|(index, mut field_pair)| {
+            if field_pair.len() == 2 {
+                let typ = field_pair.pop().unwrap();
+                let name_value = field_pair.pop().unwrap();
+
+                let name_tokens = get_quoted((name_value.clone(), field_location))?;
+                let typ = get_type((typ, field_location))?;
+
+                match name_tokens.first() {
+                    Some(Token::Ident(name)) if name_tokens.len() == 1 => {
+                        Ok((Ident::new(name.clone(), field_location.span), typ))
+                    }
+                    _ => {
+                        let value = name_value.display(interner).to_string();
+                        let location = field_location;
+                        Err(InterpreterError::ExpectedIdentForStructField {
+                            value,
+                            index,
+                            location,
+                        })
+                    }
+                }
+            } else {
+                let type_var = interner.next_type_variable();
+                let expected = Type::Tuple(vec![type_var.clone(), type_var]);
+
+                let actual =
+                    Type::Tuple(vecmap(&field_pair, |value| value.get_type().into_owned()));
+
+                Err(InterpreterError::TypeMismatch { expected, actual, location })
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    struct_def.set_fields(new_fields);
+    Ok(Value::Unit)
 }
 
 fn slice_remove(
