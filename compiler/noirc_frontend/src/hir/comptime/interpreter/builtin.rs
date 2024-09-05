@@ -124,6 +124,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
+            "quoted_tokens" => quoted_tokens(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
             "slice_pop_back" => slice_pop_back(interner, arguments, location, call_stack),
             "slice_pop_front" => slice_pop_front(interner, arguments, location, call_stack),
@@ -534,6 +535,17 @@ fn quoted_as_type(
     let typ =
         interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
+}
+
+// fn as_expr(quoted: Quoted) -> Option<Expr>
+fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let value = get_quoted(argument)?;
+
+    Ok(Value::Slice(
+        value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
+        Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted))),
+    ))
 }
 
 fn to_le_radix(
