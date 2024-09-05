@@ -11,7 +11,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         resolution::errors::ResolverError,
-        type_check::TypeCheckError,
+        type_check::{generics::TraitGenerics, TypeCheckError},
     },
     hir_def::{
         expr::{
@@ -62,6 +62,11 @@ impl<'context> Elaborator<'context> {
                 self.elaborate_unsafe_block(block_expression)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
+            ExpressionKind::Interned(id) => {
+                let expr_kind = self.interner.get_expression_kind(id);
+                let expr = Expression::new(expr_kind.clone(), expr.span);
+                return self.elaborate_expression(expr);
+            }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
@@ -397,7 +402,7 @@ impl<'context> Elaborator<'context> {
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
                 let ((function_id, function_name), function_call) = method_call.into_function_call(
-                    &method_ref,
+                    method_ref,
                     object_type,
                     is_macro_call,
                     location,
@@ -620,7 +625,7 @@ impl<'context> Elaborator<'context> {
                     let constraint = TraitConstraint {
                         typ: operand_type.clone(),
                         trait_id: trait_id.trait_id,
-                        trait_generics: Vec::new(),
+                        trait_generics: TraitGenerics::default(),
                         span,
                     };
                     self.push_trait_constraint(constraint, expr_id);

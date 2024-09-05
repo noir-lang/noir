@@ -218,13 +218,23 @@ pub(crate) enum Instruction {
     Store { address: ValueId, value: ValueId },
 
     /// Provides a context for all instructions that follow up until the next
-    /// `EnableSideEffects` is encountered, for stating a condition that determines whether
+    /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
     /// such instructions are allowed to have side-effects.
+    ///
+    /// For example,
+    /// ```text
+    /// EnableSideEffectsIf condition0;
+    /// code0;
+    /// EnableSideEffectsIf condition1;
+    /// code1;
+    /// ```
+    /// - `code0` will have side effects iff `condition0` evaluates to `true`
+    /// - `code1` will have side effects iff `condition1` evaluates to `true`
     ///
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with an condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffects { condition: ValueId },
+    EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
@@ -249,6 +259,17 @@ pub(crate) enum Instruction {
     DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
+    ///
+    /// ```text
+    /// if then_condition {
+    ///     then_value
+    /// } else {   // else_condition = !then_condition
+    ///     else_value
+    /// }
+    /// ```
+    ///
+    /// Where we save the result of !then_condition so that we have the same
+    /// ValueId for it each time.
     IfElse {
         then_condition: ValueId,
         then_value: ValueId,
@@ -279,7 +300,7 @@ impl Instruction {
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
-            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
@@ -306,7 +327,7 @@ impl Instruction {
 
         match self {
             // These either have side-effects or interact with memory
-            EnableSideEffects { .. }
+            EnableSideEffectsIf { .. }
             | Allocate
             | Load { .. }
             | Store { .. }
@@ -362,7 +383,7 @@ impl Instruction {
 
             Constrain(..)
             | Store { .. }
-            | EnableSideEffects { .. }
+            | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
@@ -396,16 +417,12 @@ impl Instruction {
                 true
             }
 
-            // `ArrayGet`s which read from "known good" indices from an array don't need a predicate.
             Instruction::ArrayGet { array, index } => {
-                #[allow(clippy::match_like_matches_macro)]
-                match (dfg.type_of_value(*array), dfg.get_numeric_constant(*index)) {
-                    (Type::Array(_, len), Some(index)) if index.to_u128() < (len as u128) => false,
-                    _ => true,
-                }
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(*index, *array)
             }
 
-            Instruction::EnableSideEffects { .. } | Instruction::ArraySet { .. } => true,
+            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(_) => true,
@@ -451,12 +468,10 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error {
-                    ConstrainError::UserDefined(selector, payload_values) => {
-                        ConstrainError::UserDefined(
-                            *selector,
-                            payload_values.iter().map(|&value| f(value)).collect(),
-                        )
-                    }
+                    ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
+                        *selector,
+                        payload_values.iter().map(|&value| f(value)).collect(),
+                    ),
                     _ => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
@@ -470,8 +485,8 @@ impl Instruction {
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
-            Instruction::EnableSideEffects { condition } => {
-                Instruction::EnableSideEffects { condition: f(*condition) }
+            Instruction::EnableSideEffectsIf { condition } => {
+                Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
@@ -524,7 +539,7 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
-                if let Some(ConstrainError::UserDefined(_, values)) = assert_error.as_ref() {
+                if let Some(ConstrainError::Dynamic(_, values)) = assert_error.as_ref() {
                     values.iter().for_each(|&val| {
                         f(val);
                     });
@@ -545,7 +560,7 @@ impl Instruction {
                 f(*index);
                 f(*value);
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
             Instruction::IncrementRc { value }
@@ -682,11 +697,11 @@ impl Instruction {
             Instruction::Call { func, arguments } => {
                 simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
-                    if matches!(last, Instruction::EnableSideEffects { .. }) {
-                        *last = Instruction::EnableSideEffects { condition: *condition };
+                    if matches!(last, Instruction::EnableSideEffectsIf { .. }) {
+                        *last = Instruction::EnableSideEffectsIf { condition: *condition };
                         return Remove;
                     }
                 }
@@ -716,11 +731,15 @@ impl Instruction {
                     }
                 }
 
+                let then_value = dfg.resolve(*then_value);
+                let else_value = dfg.resolve(*else_value);
+                if then_value == else_value {
+                    return SimplifiedTo(then_value);
+                }
+
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
-                    let then_value = *then_value;
                     let else_condition = *else_condition;
-                    let else_value = *else_value;
 
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
@@ -815,15 +834,15 @@ pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum ConstrainError {
-    // These are errors which have been hardcoded during SSA gen
-    Intrinsic(String),
-    // These are errors issued by the user
-    UserDefined(ErrorSelector, Vec<ValueId>),
+    // Static string errors are not handled inside the program as data for efficiency reasons.
+    StaticString(String),
+    // These errors are handled by the program as data.
+    Dynamic(ErrorSelector, Vec<ValueId>),
 }
 
 impl From<String> for ConstrainError {
     fn from(value: String) -> Self {
-        ConstrainError::Intrinsic(value)
+        ConstrainError::StaticString(value)
     }
 }
 

@@ -12,10 +12,11 @@ mod labels;
 mod parser;
 
 use crate::ast::{
-    Expression, Ident, ImportStatement, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
-    NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind, TypeImpl, UseTree,
+    Expression, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
+    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind,
+    TypeImpl, UseTree,
 };
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, SecondaryAttribute, Token};
 
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
@@ -25,14 +26,14 @@ use noirc_errors::Span;
 pub use parser::path::path_no_turbofish;
 pub use parser::traits::trait_bound;
 pub use parser::{
-    block, expression, fresh_statement, parse_program, parse_type, pattern, top_level_items,
+    block, expression, fresh_statement, lvalue, parse_program, parse_type, pattern, top_level_items,
 };
 
 #[derive(Debug, Clone)]
 pub enum TopLevelStatement {
     Function(NoirFunction),
     Module(ModuleDeclaration),
-    Import(UseTree),
+    Import(UseTree, ItemVisibility),
     Struct(NoirStruct),
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
@@ -40,6 +41,7 @@ pub enum TopLevelStatement {
     TypeAlias(NoirTypeAlias),
     SubModule(ParsedSubModule),
     Global(LetStatement),
+    InnerAttribute(SecondaryAttribute),
     Error,
 }
 
@@ -48,7 +50,7 @@ impl TopLevelStatement {
         match self {
             TopLevelStatement::Function(f) => Some(ItemKind::Function(f)),
             TopLevelStatement::Module(m) => Some(ItemKind::ModuleDecl(m)),
-            TopLevelStatement::Import(i) => Some(ItemKind::Import(i)),
+            TopLevelStatement::Import(i, visibility) => Some(ItemKind::Import(i, visibility)),
             TopLevelStatement::Struct(s) => Some(ItemKind::Struct(s)),
             TopLevelStatement::Trait(t) => Some(ItemKind::Trait(t)),
             TopLevelStatement::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
@@ -56,6 +58,7 @@ impl TopLevelStatement {
             TopLevelStatement::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
             TopLevelStatement::SubModule(s) => Some(ItemKind::Submodules(s)),
             TopLevelStatement::Global(c) => Some(ItemKind::Global(c)),
+            TopLevelStatement::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
             TopLevelStatement::Error => None,
         }
     }
@@ -246,6 +249,8 @@ pub struct SortedModule {
 
     /// Full submodules as in `mod foo { ... definitions ... }`
     pub submodules: Vec<SortedSubModule>,
+
+    pub inner_attributes: Vec<SecondaryAttribute>,
 }
 
 impl std::fmt::Display for SortedModule {
@@ -298,7 +303,7 @@ impl ParsedModule {
 
         for item in self.items {
             match item.kind {
-                ItemKind::Import(import) => module.push_import(import),
+                ItemKind::Import(import, visibility) => module.push_import(import, visibility),
                 ItemKind::Function(func) => module.push_function(func),
                 ItemKind::Struct(typ) => module.push_type(typ),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
@@ -308,6 +313,7 @@ impl ParsedModule {
                 ItemKind::Global(global) => module.push_global(global),
                 ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
                 ItemKind::Submodules(submodule) => module.push_submodule(submodule.into_sorted()),
+                ItemKind::InnerAttribute(attribute) => module.inner_attributes.push(attribute),
             }
         }
 
@@ -323,7 +329,7 @@ pub struct Item {
 
 #[derive(Clone, Debug)]
 pub enum ItemKind {
-    Import(UseTree),
+    Import(UseTree, ItemVisibility),
     Function(NoirFunction),
     Struct(NoirStruct),
     Trait(NoirTrait),
@@ -333,6 +339,7 @@ pub enum ItemKind {
     Global(LetStatement),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
+    InnerAttribute(SecondaryAttribute),
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
@@ -341,6 +348,7 @@ pub enum ItemKind {
 pub struct ParsedSubModule {
     pub name: Ident,
     pub contents: ParsedModule,
+    pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
 }
 
@@ -349,6 +357,7 @@ impl ParsedSubModule {
         SortedSubModule {
             name: self.name,
             contents: self.contents.into_sorted(),
+            outer_attributes: self.outer_attributes,
             is_contract: self.is_contract,
         }
     }
@@ -370,6 +379,7 @@ impl std::fmt::Display for SortedSubModule {
 pub struct SortedSubModule {
     pub name: Ident,
     pub contents: SortedModule,
+    pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
 }
 
@@ -398,8 +408,8 @@ impl SortedModule {
         self.type_aliases.push(type_alias);
     }
 
-    fn push_import(&mut self, import_stmt: UseTree) {
-        self.imports.extend(import_stmt.desugar(None));
+    fn push_import(&mut self, import_stmt: UseTree, visibility: ItemVisibility) {
+        self.imports.extend(import_stmt.desugar(None, visibility));
     }
 
     fn push_module_decl(&mut self, mod_decl: ModuleDeclaration) {
@@ -497,7 +507,13 @@ impl std::fmt::Display for TopLevelStatement {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
             TopLevelStatement::Module(m) => m.fmt(f),
-            TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
+            TopLevelStatement::Import(tree, visibility) => {
+                if visibility == &ItemVisibility::Private {
+                    write!(f, "use {tree}")
+                } else {
+                    write!(f, "{visibility} use {tree}")
+                }
+            }
             TopLevelStatement::Trait(t) => t.fmt(f),
             TopLevelStatement::TraitImpl(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
@@ -505,6 +521,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::TypeAlias(t) => t.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),
             TopLevelStatement::Global(c) => c.fmt(f),
+            TopLevelStatement::InnerAttribute(a) => write!(f, "#![{}]", a),
             TopLevelStatement::Error => write!(f, "error"),
         }
     }

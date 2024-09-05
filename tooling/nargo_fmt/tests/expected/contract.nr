@@ -1,6 +1,6 @@
-// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
-// Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 
-// Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+// Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+// Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
 // Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 contract Benchmarking {
     use aztec::protocol_types::abis::function_selector::FunctionSelector;
@@ -63,7 +63,9 @@ contract Benchmarking {
         storage.balances.at(owner).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
-            FunctionSelector::from_signature("broadcast(Field)"),
+            comptime {
+            FunctionSelector::from_signature("broadcast(Field)")
+        },
             [owner]
         );
     }
@@ -75,5 +77,5 @@ contract Benchmarking {
     }
 }
 
-// Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
+// Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1
 contract Uniswap {}

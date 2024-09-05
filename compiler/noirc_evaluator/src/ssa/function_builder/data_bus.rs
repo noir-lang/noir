@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::ir::{types::Type, value::ValueId};
 use acvm::FieldElement;
@@ -155,8 +154,8 @@ impl FunctionBuilder {
         let len = databus.values.len();
 
         let array = if len > 0 {
-            let array =
-                self.array_constant(databus.values, Type::Array(Rc::new(vec![Type::field()]), len));
+            let array = self
+                .array_constant(databus.values, Type::Array(Arc::new(vec![Type::field()]), len));
             Some(array)
         } else {
             None

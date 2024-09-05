@@ -3,21 +3,47 @@ use noirc_frontend::token::Keyword;
 use strum::IntoEnumIterator;
 
 use super::{
-    completion_items::{simple_completion_item, snippet_completion_item},
+    completion_items::{
+        completion_item_with_trigger_parameter_hints_command, simple_completion_item,
+        snippet_completion_item,
+    },
+    kinds::FunctionCompletionKind,
     name_matches, NodeFinder,
 };
 
 impl<'a> NodeFinder<'a> {
-    pub(super) fn builtin_functions_completion(&mut self, prefix: &str) {
+    pub(super) fn builtin_functions_completion(
+        &mut self,
+        prefix: &str,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
         for keyword in Keyword::iter() {
             if let Some(func) = keyword_builtin_function(&keyword) {
                 if name_matches(func.name, prefix) {
-                    self.completion_items.push(snippet_completion_item(
-                        format!("{}(…)", func.name),
-                        CompletionItemKind::FUNCTION,
-                        format!("{}({})", func.name, func.parameters),
-                        Some(func.description.to_string()),
-                    ));
+                    let description = Some(func.description.to_string());
+                    let label;
+                    let insert_text;
+                    match function_completion_kind {
+                        FunctionCompletionKind::Name => {
+                            label = func.name.to_string();
+                            insert_text = func.name.to_string();
+                        }
+                        FunctionCompletionKind::NameAndParameters => {
+                            label = format!("{}(…)", func.name);
+                            insert_text = format!("{}({})", func.name, func.parameters);
+                        }
+                    }
+
+                    self.completion_items.push(
+                        completion_item_with_trigger_parameter_hints_command(
+                            snippet_completion_item(
+                                label,
+                                CompletionItemKind::FUNCTION,
+                                insert_text,
+                                description,
+                            ),
+                        ),
+                    );
                 }
             }
         }
@@ -71,11 +97,14 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
+        Keyword::Quoted => Some("Quoted"),
         Keyword::StructDefinition => Some("StructDefinition"),
         Keyword::TraitConstraint => Some("TraitConstraint"),
         Keyword::TraitDefinition => Some("TraitDefinition"),
         Keyword::TraitImpl => Some("TraitImpl"),
+        Keyword::TypedExpr => Some("TypedExpr"),
         Keyword::TypeType => Some("Type"),
+        Keyword::UnresolvedType => Some("UnresolvedType"),
 
         Keyword::As
         | Keyword::Assert
@@ -102,7 +131,6 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Module
         | Keyword::Mut
         | Keyword::Pub
-        | Keyword::Quoted
         | Keyword::Return
         | Keyword::ReturnData
         | Keyword::String
@@ -180,9 +208,11 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::TraitDefinition
         | Keyword::TraitImpl
         | Keyword::Type
+        | Keyword::TypedExpr
         | Keyword::TypeType
         | Keyword::Unchecked
         | Keyword::Unconstrained
+        | Keyword::UnresolvedType
         | Keyword::Unsafe
         | Keyword::Use
         | Keyword::Where

@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::rc::Rc;
 use std::vec;
 
 use acvm::{AcirField, FieldElement};
@@ -13,8 +14,11 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
-use crate::macros_api::NodeInterner;
+use crate::hir::resolution::errors::ResolverError;
+use crate::macros_api::{Expression, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::ModuleAttributes;
+use crate::token::SecondaryAttribute;
+use crate::usage_tracker::UnusedItem;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -22,7 +26,10 @@ use crate::{
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
 };
+use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
+use super::dc_crate::CollectedItems;
+use super::dc_crate::ModuleAttribute;
 use super::{
     dc_crate::{
         CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
@@ -30,7 +37,7 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -60,8 +67,10 @@ pub fn collect_defs(
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(
             context,
-            &decl,
+            decl,
             crate_id,
+            file_id,
+            module_id,
             macro_processors,
         ));
     }
@@ -69,6 +78,7 @@ pub fn collect_defs(
     errors.extend(collector.collect_submodules(
         context,
         crate_id,
+        module_id,
         ast.submodules,
         file_id,
         macro_processors,
@@ -77,6 +87,7 @@ pub fn collect_defs(
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
         collector.def_collector.imports.push(ImportDirective {
+            visibility: import.visibility,
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
@@ -98,10 +109,40 @@ pub fn collect_defs(
 
     collector.collect_impls(context, ast.impls, crate_id);
 
+    collector.collect_attributes(
+        ast.inner_attributes,
+        file_id,
+        module_id,
+        file_id,
+        module_id,
+        true,
+    );
+
     errors
 }
 
 impl<'a> ModCollector<'a> {
+    fn collect_attributes(
+        &mut self,
+        attributes: Vec<SecondaryAttribute>,
+        file_id: FileId,
+        module_id: LocalModuleId,
+        attribute_file_id: FileId,
+        attribute_module_id: LocalModuleId,
+        is_inner: bool,
+    ) {
+        for attribute in attributes {
+            self.def_collector.items.module_attributes.push(ModuleAttribute {
+                file_id,
+                module_id,
+                attribute_file_id,
+                attribute_module_id,
+                attribute,
+                is_inner,
+            });
+        }
+    }
+
     fn collect_globals(
         &mut self,
         context: &mut Context,
@@ -132,24 +173,13 @@ impl<'a> ModCollector<'a> {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for r#impl in impls {
-            let mut unresolved_functions = UnresolvedFunctions {
-                file_id: self.file_id,
-                functions: Vec::new(),
-                trait_id: None,
-                self_type: None,
-            };
-
-            for (mut method, _) in r#impl.methods {
-                let func_id = context.def_interner.push_empty_fn();
-                method.def.where_clause.extend(r#impl.where_clause.clone());
-                let location = Location::new(method.span(), self.file_id);
-                context.def_interner.push_function(func_id, &method.def, module_id, location);
-                unresolved_functions.push_fn(self.module_id, func_id, method);
-            }
-
-            let key = (r#impl.object_type, self.module_id);
-            let methods = self.def_collector.items.impls.entry(key).or_default();
-            methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
+            collect_impl(
+                &mut context.def_interner,
+                &mut self.def_collector.items,
+                r#impl,
+                self.file_id,
+                module_id,
+            );
         }
     }
 
@@ -162,13 +192,14 @@ impl<'a> ModCollector<'a> {
         for mut trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
-            let mut unresolved_functions = collect_trait_impl_functions(
-                &mut context.def_interner,
-                &mut trait_impl,
-                krate,
-                self.file_id,
-                self.module_id,
-            );
+            let (mut unresolved_functions, associated_types, associated_constants) =
+                collect_trait_impl_items(
+                    &mut context.def_interner,
+                    &mut trait_impl,
+                    krate,
+                    self.file_id,
+                    self.module_id,
+                );
 
             let module = ModuleId { krate, local_id: self.module_id };
 
@@ -186,6 +217,8 @@ impl<'a> ModCollector<'a> {
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
                 trait_generics: trait_impl.trait_generics,
+                associated_constants,
+                associated_types,
 
                 // These last fields are filled later on
                 trait_id: None,
@@ -216,28 +249,16 @@ impl<'a> ModCollector<'a> {
         let module = ModuleId { krate, local_id: self.module_id };
 
         for function in functions {
-            // check if optional field attribute is compatible with native field
-            if let Some(field) = function.attributes().get_field_attribute() {
-                if !is_native_field(&field) {
-                    continue;
-                }
-            }
-
-            let name = function.name_ident().clone();
-            let func_id = context.def_interner.push_empty_fn();
-            let visibility = function.def.visibility;
-
-            // First create dummy function in the DefInterner
-            // So that we can get a FuncId
-            let location = Location::new(function.span(), self.file_id);
-            context.def_interner.push_function(func_id, &function.def, module, location);
-
-            if context.def_interner.is_in_lsp_mode()
-                && !function.def.is_test()
-                && !function.def.is_private()
-            {
-                context.def_interner.register_function(func_id, &function.def);
-            }
+            let Some(func_id) = collect_function(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                &function,
+                module,
+                self.file_id,
+                &mut errors,
+            ) else {
+                continue;
+            };
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
@@ -246,19 +267,6 @@ impl<'a> ModCollector<'a> {
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
             unresolved_functions.push_fn(self.module_id, func_id, function);
-
-            // Add function to scope/ns of the module
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_function(name, visibility, func_id);
-
-            if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Function,
-                    first_def,
-                    second_def,
-                };
-                errors.push((error.into(), self.file_id));
-            }
         }
 
         self.def_collector.items.functions.push(unresolved_functions);
@@ -276,88 +284,19 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut definition_errors = vec![];
         for struct_definition in types {
-            self.check_duplicate_field_names(&struct_definition, &mut definition_errors);
-
-            let name = struct_definition.name.clone();
-
-            let unresolved = UnresolvedStruct {
-                file_id: self.file_id,
-                module_id: self.module_id,
-                struct_def: struct_definition,
-            };
-
-            let resolved_generics = context.resolve_generics(
-                &unresolved.struct_def.generics,
-                &mut definition_errors,
+            if let Some((id, the_struct)) = collect_struct(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                struct_definition,
                 self.file_id,
-            );
-
-            // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(
-                context,
-                &name,
-                Location::new(name.span(), self.file_id),
-                false,
-                false,
+                self.module_id,
+                krate,
+                &mut definition_errors,
             ) {
-                Ok(module_id) => context.def_interner.new_struct(
-                    &unresolved,
-                    resolved_generics,
-                    krate,
-                    module_id.local_id,
-                    self.file_id,
-                ),
-                Err(error) => {
-                    definition_errors.push((error.into(), self.file_id));
-                    continue;
-                }
-            };
-
-            // Add the struct to scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_struct(name.clone(), id);
-
-            if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::TypeDefinition,
-                    first_def,
-                    second_def,
-                };
-                definition_errors.push((error.into(), self.file_id));
-            }
-
-            // And store the TypeId -> StructType mapping somewhere it is reachable
-            self.def_collector.items.types.insert(id, unresolved);
-
-            if context.def_interner.is_in_lsp_mode() {
-                let parent_module_id = ModuleId { krate, local_id: self.module_id };
-                context.def_interner.register_struct(id, name.to_string(), parent_module_id);
+                self.def_collector.items.types.insert(id, the_struct);
             }
         }
         definition_errors
-    }
-
-    fn check_duplicate_field_names(
-        &self,
-        struct_definition: &NoirStruct,
-        definition_errors: &mut Vec<(CompilationError, FileId)>,
-    ) {
-        let mut seen_field_names = std::collections::HashSet::new();
-        for (field_name, _) in &struct_definition.fields {
-            if seen_field_names.insert(field_name) {
-                continue;
-            }
-
-            let previous_field_name = *seen_field_names.get(field_name).unwrap();
-            definition_errors.push((
-                DefCollectorErrorKind::DuplicateField {
-                    first_def: previous_field_name.clone(),
-                    second_def: field_name.clone(),
-                }
-                .into(),
-                self.file_id,
-            ));
-        }
     }
 
     /// Collect any type aliases definitions declared within the ast.
@@ -379,7 +318,8 @@ impl<'a> ModCollector<'a> {
                 type_alias_def: type_alias,
             };
 
-            let resolved_generics = context.resolve_generics(
+            let resolved_generics = Context::resolve_generics(
+                &context.def_interner,
                 &unresolved.type_alias_def.generics,
                 &mut errors,
                 self.file_id,
@@ -429,6 +369,8 @@ impl<'a> ModCollector<'a> {
                 context,
                 &name,
                 Location::new(name.span(), self.file_id),
+                Vec::new(),
+                Vec::new(),
                 false,
                 false,
             ) {
@@ -461,6 +403,8 @@ impl<'a> ModCollector<'a> {
             };
 
             let mut method_ids = HashMap::default();
+            let mut associated_types = Generics::new();
+
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
@@ -521,7 +465,7 @@ impl<'a> ModCollector<'a> {
                             }
                         }
                     }
-                    TraitItem::Constant { name, .. } => {
+                    TraitItem::Constant { name, typ, default_value: _ } => {
                         let global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.0.local_id,
@@ -542,10 +486,19 @@ impl<'a> ModCollector<'a> {
                                 second_def,
                             };
                             errors.push((error.into(), self.file_id));
+                        } else {
+                            let type_variable_id = context.def_interner.next_type_variable_id();
+                            let typ = self.resolve_associated_constant_type(typ, &mut errors);
+
+                            associated_types.push(ResolvedGeneric {
+                                name: Rc::new(name.to_string()),
+                                type_var: TypeVariable::unbound(type_variable_id),
+                                kind: Kind::Numeric(Box::new(typ)),
+                                span: name.span(),
+                            });
                         }
                     }
                     TraitItem::Type { name } => {
-                        // TODO(nickysn or alexvitkov): implement context.def_interner.push_empty_type_alias and get an id, instead of using TypeAliasId::dummy_id()
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [trait_id.0.local_id.0]
                             .declare_type_alias(name.clone(), TypeAliasId::dummy_id())
@@ -556,15 +509,26 @@ impl<'a> ModCollector<'a> {
                                 second_def,
                             };
                             errors.push((error.into(), self.file_id));
+                        } else {
+                            let type_variable_id = context.def_interner.next_type_variable_id();
+                            associated_types.push(ResolvedGeneric {
+                                name: Rc::new(name.to_string()),
+                                type_var: TypeVariable::unbound(type_variable_id),
+                                kind: Kind::Normal,
+                                span: name.span(),
+                            });
                         }
                     }
                 }
             }
 
-            let resolved_generics =
-                context.resolve_generics(&trait_definition.generics, &mut errors, self.file_id);
+            let resolved_generics = Context::resolve_generics(
+                &context.def_interner,
+                &trait_definition.generics,
+                &mut errors,
+                self.file_id,
+            );
 
-            // And store the TraitId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
                 module_id: self.module_id,
@@ -573,7 +537,12 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
-            context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
+            context.def_interner.push_empty_trait(
+                trait_id,
+                &unresolved,
+                resolved_generics,
+                associated_types,
+            );
 
             if context.def_interner.is_in_lsp_mode() {
                 let parent_module_id = ModuleId { krate, local_id: self.module_id };
@@ -589,6 +558,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         crate_id: CrateId,
+        parent_module_id: LocalModuleId,
         submodules: Vec<SortedSubModule>,
         file_id: FileId,
         macro_processors: &[&dyn MacroProcessor],
@@ -599,10 +569,21 @@ impl<'a> ModCollector<'a> {
                 context,
                 &submodule.name,
                 Location::new(submodule.name.span(), file_id),
+                submodule.outer_attributes.clone(),
+                submodule.contents.inner_attributes.clone(),
                 true,
                 submodule.is_contract,
             ) {
                 Ok(child) => {
+                    self.collect_attributes(
+                        submodule.outer_attributes,
+                        file_id,
+                        child.local_id,
+                        file_id,
+                        parent_module_id,
+                        false,
+                    );
+
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
@@ -627,8 +608,10 @@ impl<'a> ModCollector<'a> {
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
-        mod_decl: &ModuleDeclaration,
+        mod_decl: ModuleDeclaration,
         crate_id: CrateId,
+        parent_file_id: FileId,
+        parent_module_id: LocalModuleId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -690,10 +673,21 @@ impl<'a> ModCollector<'a> {
             context,
             &mod_decl.ident,
             Location::new(Span::empty(0), child_file_id),
+            mod_decl.outer_attributes.clone(),
+            ast.inner_attributes.clone(),
             true,
             false,
         ) {
             Ok(child_mod_id) => {
+                self.collect_attributes(
+                    mod_decl.outer_attributes,
+                    child_file_id,
+                    child_mod_id.local_id,
+                    parent_file_id,
+                    parent_module_id,
+                    false,
+                );
+
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 context.def_interner.add_module_reference(child_mod_id, location);
 
@@ -716,72 +710,252 @@ impl<'a> ModCollector<'a> {
 
     /// Add a child module to the current def_map.
     /// On error this returns None and pushes to `errors`
+    #[allow(clippy::too_many_arguments)]
     fn push_child_module(
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
         mod_location: Location,
+        outer_attributes: Vec<SecondaryAttribute>,
+        inner_attributes: Vec<SecondaryAttribute>,
         add_to_parent_scope: bool,
         is_contract: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
-        let parent = Some(self.module_id);
+        push_child_module(
+            &mut context.def_interner,
+            &mut self.def_collector.def_map,
+            self.module_id,
+            mod_name,
+            mod_location,
+            outer_attributes,
+            inner_attributes,
+            add_to_parent_scope,
+            is_contract,
+        )
+    }
 
-        // Note: the difference between `location` and `mod_location` is:
-        // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
-        //   if it's an inline module, or the first char of a the file if it's an external module.
-        // - `location` will always point to the token "foo" in `mod foo` regardless of whether
-        //   it's inline or external.
-        // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
-        // so we keep using `location` so that it continues to work as usual.
-        let location = Location::new(mod_name.span(), mod_location.file);
-        let new_module = ModuleData::new(parent, location, is_contract);
-        let module_id = self.def_collector.def_map.modules.insert(new_module);
-
-        let modules = &mut self.def_collector.def_map.modules;
-
-        // Update the parent module to reference the child
-        modules[self.module_id.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
-
-        let mod_id = ModuleId {
-            krate: self.def_collector.def_map.krate,
-            local_id: LocalModuleId(module_id),
-        };
-
-        // Add this child module into the scope of the parent module as a module definition
-        // module definitions are definitions which can only exist at the module level.
-        // ModuleDefinitionIds can be used across crates since they contain the CrateId
-        //
-        // We do not want to do this in the case of struct modules (each struct type corresponds
-        // to a child module containing its methods) since the module name should not shadow
-        // the struct name.
-        if add_to_parent_scope {
-            if let Err((first_def, second_def)) =
-                modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
-            {
-                let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Module,
-                    first_def,
-                    second_def,
-                };
-                return Err(err);
-            }
-
-            context.def_interner.add_module_attributes(
-                mod_id,
-                ModuleAttributes {
-                    name: mod_name.0.contents.clone(),
-                    location: mod_location,
-                    parent: Some(self.module_id),
-                },
-            );
-
-            if context.def_interner.is_in_lsp_mode() {
-                context.def_interner.register_module(mod_id, mod_name.0.contents.clone());
+    fn resolve_associated_constant_type(
+        &self,
+        typ: &UnresolvedType,
+        errors: &mut Vec<(CompilationError, FileId)>,
+    ) -> Type {
+        match &typ.typ {
+            UnresolvedTypeData::FieldElement => Type::FieldElement,
+            UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
+            _ => {
+                let span = typ.span;
+                let error = ResolverError::AssociatedConstantsMustBeNumeric { span };
+                errors.push((error.into(), self.file_id));
+                Type::Error
             }
         }
-
-        Ok(mod_id)
     }
+}
+
+/// Add a child module to the current def_map.
+/// On error this returns None and pushes to `errors`
+#[allow(clippy::too_many_arguments)]
+fn push_child_module(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    parent: LocalModuleId,
+    mod_name: &Ident,
+    mod_location: Location,
+    outer_attributes: Vec<SecondaryAttribute>,
+    inner_attributes: Vec<SecondaryAttribute>,
+    add_to_parent_scope: bool,
+    is_contract: bool,
+) -> Result<ModuleId, DefCollectorErrorKind> {
+    // Note: the difference between `location` and `mod_location` is:
+    // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
+    //   if it's an inline module, or the first char of a the file if it's an external module.
+    // - `location` will always point to the token "foo" in `mod foo` regardless of whether
+    //   it's inline or external.
+    // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
+    // so we keep using `location` so that it continues to work as usual.
+    let location = Location::new(mod_name.span(), mod_location.file);
+    let new_module =
+        ModuleData::new(Some(parent), location, outer_attributes, inner_attributes, is_contract);
+
+    let module_id = def_map.modules.insert(new_module);
+    let modules = &mut def_map.modules;
+
+    // Update the parent module to reference the child
+    modules[parent.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
+
+    let mod_id = ModuleId { krate: def_map.krate, local_id: LocalModuleId(module_id) };
+
+    // Add this child module into the scope of the parent module as a module definition
+    // module definitions are definitions which can only exist at the module level.
+    // ModuleDefinitionIds can be used across crates since they contain the CrateId
+    //
+    // We do not want to do this in the case of struct modules (each struct type corresponds
+    // to a child module containing its methods) since the module name should not shadow
+    // the struct name.
+    if add_to_parent_scope {
+        if let Err((first_def, second_def)) =
+            modules[parent.0].declare_child_module(mod_name.to_owned(), mod_id)
+        {
+            let err = DefCollectorErrorKind::Duplicate {
+                typ: DuplicateType::Module,
+                first_def,
+                second_def,
+            };
+            return Err(err);
+        }
+
+        interner.add_module_attributes(
+            mod_id,
+            ModuleAttributes {
+                name: mod_name.0.contents.clone(),
+                location: mod_location,
+                parent: Some(parent),
+            },
+        );
+
+        if interner.is_in_lsp_mode() {
+            interner.register_module(mod_id, mod_name.0.contents.clone());
+        }
+    }
+
+    Ok(mod_id)
+}
+
+pub fn collect_function(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    function: &NoirFunction,
+    module: ModuleId,
+    file: FileId,
+    errors: &mut Vec<(CompilationError, FileId)>,
+) -> Option<crate::node_interner::FuncId> {
+    if let Some(field) = function.attributes().get_field_attribute() {
+        if !is_native_field(&field) {
+            return None;
+        }
+    }
+
+    let module_data = &mut def_map.modules[module.local_id.0];
+
+    let is_test = function.def.attributes.is_test_function();
+    let is_entry_point_function = if module_data.is_contract {
+        function.attributes().is_contract_entry_point()
+    } else {
+        function.name() == MAIN_FUNCTION
+    };
+
+    let name = function.name_ident().clone();
+    let func_id = interner.push_empty_fn();
+    let visibility = function.def.visibility;
+    let location = Location::new(function.span(), file);
+    interner.push_function(func_id, &function.def, module, location);
+    if interner.is_in_lsp_mode() && !function.def.is_test() {
+        interner.register_function(func_id, &function.def);
+    }
+
+    if !is_test && !is_entry_point_function {
+        let item = UnusedItem::Function(func_id);
+        interner.usage_tracker.add_unused_item(module, name.clone(), item, visibility);
+    }
+
+    // Add function to scope/ns of the module
+    let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
+    if let Err((first_def, second_def)) = result {
+        let error = DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::Function,
+            first_def,
+            second_def,
+        };
+        errors.push((error.into(), file));
+    }
+    Some(func_id)
+}
+
+pub fn collect_struct(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    struct_definition: NoirStruct,
+    file_id: FileId,
+    module_id: LocalModuleId,
+    krate: CrateId,
+    definition_errors: &mut Vec<(CompilationError, FileId)>,
+) -> Option<(StructId, UnresolvedStruct)> {
+    check_duplicate_field_names(&struct_definition, file_id, definition_errors);
+
+    let name = struct_definition.name.clone();
+
+    let unresolved = UnresolvedStruct { file_id, module_id, struct_def: struct_definition };
+
+    let resolved_generics = Context::resolve_generics(
+        interner,
+        &unresolved.struct_def.generics,
+        definition_errors,
+        file_id,
+    );
+
+    // Create the corresponding module for the struct namespace
+    let location = Location::new(name.span(), file_id);
+    let id = match push_child_module(
+        interner,
+        def_map,
+        module_id,
+        &name,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false,
+        false,
+    ) {
+        Ok(module_id) => {
+            interner.new_struct(&unresolved, resolved_generics, krate, module_id.local_id, file_id)
+        }
+        Err(error) => {
+            definition_errors.push((error.into(), file_id));
+            return None;
+        }
+    };
+
+    // Add the struct to scope so its path can be looked up later
+    let result = def_map.modules[module_id.0].declare_struct(name.clone(), id);
+
+    if let Err((first_def, second_def)) = result {
+        let error = DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::TypeDefinition,
+            first_def,
+            second_def,
+        };
+        definition_errors.push((error.into(), file_id));
+    }
+
+    if interner.is_in_lsp_mode() {
+        let parent_module_id = ModuleId { krate, local_id: module_id };
+        interner.register_struct(id, name.to_string(), parent_module_id);
+    }
+
+    Some((id, unresolved))
+}
+
+pub fn collect_impl(
+    interner: &mut NodeInterner,
+    items: &mut CollectedItems,
+    r#impl: TypeImpl,
+    file_id: FileId,
+    module_id: ModuleId,
+) {
+    let mut unresolved_functions =
+        UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+
+    for (mut method, _) in r#impl.methods {
+        let func_id = interner.push_empty_fn();
+        method.def.where_clause.extend(r#impl.where_clause.clone());
+        let location = Location::new(method.span(), file_id);
+        interner.push_function(func_id, &method.def, module_id, location);
+        unresolved_functions.push_fn(module_id.local_id, func_id, method);
+    }
+
+    let key = (r#impl.object_type, module_id.local_id);
+    let methods = items.impls.entry(key).or_default();
+    methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
 }
 
 fn find_module(
@@ -870,28 +1044,43 @@ fn is_native_field(str: &str) -> bool {
     }
 }
 
-pub(crate) fn collect_trait_impl_functions(
+type AssociatedTypes = Vec<(Ident, UnresolvedType)>;
+type AssociatedConstants = Vec<(Ident, UnresolvedType, Expression)>;
+
+/// Returns a tuple of (methods, associated types, associated constants)
+pub(crate) fn collect_trait_impl_items(
     interner: &mut NodeInterner,
     trait_impl: &mut NoirTraitImpl,
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
-) -> UnresolvedFunctions {
+) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+
+    let mut associated_types = Vec::new();
+    let mut associated_constants = Vec::new();
 
     let module = ModuleId { krate, local_id };
 
     for item in std::mem::take(&mut trait_impl.items) {
-        if let TraitImplItem::Function(impl_method) = item {
-            let func_id = interner.push_empty_fn();
-            let location = Location::new(impl_method.span(), file_id);
-            interner.push_function(func_id, &impl_method.def, module, location);
-            unresolved_functions.push_fn(local_id, func_id, impl_method);
+        match item {
+            TraitImplItem::Function(impl_method) => {
+                let func_id = interner.push_empty_fn();
+                let location = Location::new(impl_method.span(), file_id);
+                interner.push_function(func_id, &impl_method.def, module, location);
+                unresolved_functions.push_fn(local_id, func_id, impl_method);
+            }
+            TraitImplItem::Constant(name, typ, expr) => {
+                associated_constants.push((name, typ, expr));
+            }
+            TraitImplItem::Type { name, alias } => {
+                associated_types.push((name, alias));
+            }
         }
     }
 
-    unresolved_functions
+    (unresolved_functions, associated_types, associated_constants)
 }
 
 pub(crate) fn collect_global(
@@ -925,6 +1114,29 @@ pub(crate) fn collect_global(
 
     let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
     (global, error)
+}
+
+fn check_duplicate_field_names(
+    struct_definition: &NoirStruct,
+    file: FileId,
+    definition_errors: &mut Vec<(CompilationError, FileId)>,
+) {
+    let mut seen_field_names = std::collections::HashSet::new();
+    for (field_name, _) in &struct_definition.fields {
+        if seen_field_names.insert(field_name) {
+            continue;
+        }
+
+        let previous_field_name = *seen_field_names.get(field_name).unwrap();
+        definition_errors.push((
+            DefCollectorErrorKind::DuplicateField {
+                first_def: previous_field_name.clone(),
+                second_def: field_name.clone(),
+            }
+            .into(),
+            file,
+        ));
+    }
 }
 
 #[cfg(test)]

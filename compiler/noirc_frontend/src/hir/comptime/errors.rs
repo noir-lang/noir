@@ -56,6 +56,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
+        call_stack: im::Vector<Location>,
     },
     NoMethodFound {
         name: String,
@@ -188,9 +189,22 @@ pub enum InterpreterError {
     FunctionAlreadyResolved {
         location: Location,
     },
+    MultipleMatchingImpls {
+        object_type: Type,
+        candidates: Vec<String>,
+        location: Location,
+    },
 
     Unimplemented {
         item: String,
+        location: Location,
+    },
+    TypeAnnotationsNeededForMethodCall {
+        location: Location,
+    },
+    ExpectedIdentForStructField {
+        value: String,
+        index: usize,
         location: Location,
     },
 
@@ -257,8 +271,11 @@ impl InterpreterError {
             | InterpreterError::ContinueNotInLoop { location, .. }
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
-            | InterpreterError::FailedToResolveTraitBound { location, .. } => *location,
-            InterpreterError::FunctionAlreadyResolved { location, .. } => *location,
+            | InterpreterError::FailedToResolveTraitBound { location, .. }
+            | InterpreterError::FunctionAlreadyResolved { location, .. }
+            | InterpreterError::MultipleMatchingImpls { location, .. }
+            | InterpreterError::ExpectedIdentForStructField { location, .. }
+            | InterpreterError::TypeAnnotationsNeededForMethodCall { location } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -343,12 +360,20 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::FailingConstraint { message, location } => {
+            InterpreterError::FailingConstraint { message, location, call_stack } => {
                 let (primary, secondary) = match message {
                     Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                CustomDiagnostic::simple_error(primary, secondary, location.span)
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary, secondary, location.span);
+
+                // Only take at most 3 frames starting from the top of the stack to avoid producing too much output
+                for frame in call_stack.iter().rev().take(3) {
+                    diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
+                }
+
+                diagnostic
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");
@@ -469,7 +494,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::UnsupportedTopLevelItemUnquote { item, location } => {
                 let msg = "Unsupported statement type to unquote".into();
                 let secondary =
-                    "Only functions, globals, and trait impls can be unquoted here".into();
+                    "Only functions, structs, globals, and impls can be unquoted here".into();
                 let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
@@ -525,6 +550,33 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary =
                     "The function was previously called at compile-time or is in another crate"
                         .to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::MultipleMatchingImpls { object_type, candidates, location } => {
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = CustomDiagnostic::simple_error(message, secondary, location.span);
+                for (i, candidate) in candidates.iter().enumerate() {
+                    error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
+                }
+                error
+            }
+            InterpreterError::TypeAnnotationsNeededForMethodCall { location } => {
+                let mut error = CustomDiagnostic::simple_error(
+                    "Object type is unknown in method call".to_string(),
+                    "Type must be known by this point to know which method to call".to_string(),
+                    location.span,
+                );
+                let message =
+                    "Try adding a type annotation for the object type before this method call";
+                error.add_note(message.to_string());
+                error
+            }
+            InterpreterError::ExpectedIdentForStructField { value, index, location } => {
+                let msg = format!(
+                    "Quoted value in index {index} of this slice is not a valid field name"
+                );
+                let secondary = format!("`{value}` is not a valid field name for `set_fields`");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
         }

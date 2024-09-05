@@ -12,7 +12,7 @@ use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_s
 use crate::meta::derive_via;
 
 // Kept for backwards compatibility
-use sha256::{digest, sha256, sha256_compression, sha256_var};
+pub use sha256::{digest, sha256, sha256_compression, sha256_var};
 
 #[foreign(blake2s)]
 // docs:start:blake2s
@@ -113,7 +113,7 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut sum = 0;
 
     for input in inputs {
-        let input_bytes: [u8; 32] = input.to_le_bytes(32).as_array();
+        let input_bytes: [u8; 32] = input.to_le_bytes();
         sum += crate::field::bytes32_to_field(blake2s(input_bytes));
     }
 
@@ -139,12 +139,14 @@ trait Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher;
 }
 
+// docs:start:derive_hash
 comptime fn derive_hash(s: StructDefinition) -> Quoted {
     let name = quote { Hash };
     let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
     let for_each_field = |name| quote { _self.$name.hash(_state); };
     crate::meta::make_trait_impl(s, name, signature, for_each_field, quote {}, |fields| fields)
 }
+// docs:end:derive_hash
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
 // TODO: consider making the types generic here ([u8], [Field], etc.)
