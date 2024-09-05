@@ -597,7 +597,7 @@ impl<'f> PerFunctionContext<'f> {
                 );
             }
 
-            // We only want to remove stores
+            // We only want to remove last stores referencing a single address.
             if *store_counter != 0 {
                 continue;
             }
