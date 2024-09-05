@@ -501,7 +501,7 @@ impl<'f> PerFunctionContext<'f> {
         {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
-                panic!("Should only have a load instruction here");
+                unreachable!("Should only have a load instruction here");
             };
 
             // If the load result's counter is equal to zero we can safely remove that load instruction.
@@ -600,15 +600,16 @@ impl<'f> PerFunctionContext<'f> {
         for (store_address, (store_instruction, store_counter)) in remaining_last_stores {
             let Instruction::Store { value, .. } = self.inserter.function.dfg[*store_instruction]
             else {
-                panic!("Should only have a store instruction");
+                unreachable!("Should only have a store instruction");
             };
 
             if let (Some((_, _, last_loads_counter)), Some(loads_removed_counter)) =
                 (self.last_loads.get(store_address), removed_loads.get(store_address))
             {
-                if *last_loads_counter < *loads_removed_counter {
-                    panic!("The number of loads removed should not be more than all loads");
-                }
+                assert!(
+                    *last_loads_counter >= *loads_removed_counter,
+                    "The number of loads removed should not be more than all loads"
+                );
             }
 
             // We only want to remove stores
@@ -626,7 +627,7 @@ impl<'f> PerFunctionContext<'f> {
             {
                 let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
                 else {
-                    panic!("Should only have a load instruction here");
+                    unreachable!("Should only have a load instruction here");
                 };
                 if address != *store_address {
                     continue;
