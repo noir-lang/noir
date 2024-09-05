@@ -9,8 +9,8 @@ use builtin_helpers::{
     check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_field,
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
-    get_u32, get_unresolved_type, hir_pattern_to_tokens, mutate_func_meta_type, parse,
-    replace_func_meta_parameters, replace_func_meta_return_type,
+    get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
+    mutate_func_meta_type, parse, replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use chumsky::{chain::Chain, prelude::choice, Parser};
 use im::Vector;
@@ -25,7 +25,6 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    elaborator::Elaborator,
     hir::comptime::{
         errors::IResult,
         value::{ExprValue, TypedExpr},
@@ -358,33 +357,15 @@ fn struct_def_has_named_attribute(
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let struct_id = get_struct(self_argument)?;
+
     let name = get_quoted(name)?;
-    let attributes = interner.struct_attributes(&struct_id);
-    let attributes: Vec<_> =
-        attributes.iter().filter_map(|attribute| attribute.as_custom()).collect();
-
-    if attributes.is_empty() {
-        return Ok(Value::Bool(false));
-    };
-
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
-    for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(&attribute.contents, location);
-        let Ok(Some((function, _arguments))) = parse_result else {
-            continue;
-        };
+    let attributes = interner.struct_attributes(&struct_id);
+    let attributes = attributes.iter().filter_map(|attribute| attribute.as_custom());
+    let attributes = attributes.map(|attribute| &attribute.contents);
 
-        let ExpressionKind::Variable(path) = function.kind else {
-            continue;
-        };
-
-        if path.last_name() == name {
-            return Ok(Value::Bool(true));
-        }
-    }
-
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
 }
 
 /// fn fields(self) -> [(Quoted, Type)]
@@ -1827,31 +1808,15 @@ fn function_def_has_named_attribute(
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let name = get_quoted(name)?;
     let func_meta = interner.function_meta(&func_id);
-    let attributes = &func_meta.custom_attributes;
-    if attributes.is_empty() {
-        return Ok(Value::Bool(false));
-    };
 
+    let name = get_quoted(name)?;
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
-    for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(&attribute.contents, location);
-        let Ok(Some((function, _arguments))) = parse_result else {
-            continue;
-        };
+    let attributes = &func_meta.custom_attributes;
+    let attributes = attributes.iter().map(|attribute| &attribute.contents);
 
-        let ExpressionKind::Variable(path) = function.kind else {
-            continue;
-        };
-
-        if path.last_name() == name {
-            return Ok(Value::Bool(true));
-        }
-    }
-
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
 }
 
 // fn name(self) -> Quoted
@@ -2053,27 +2018,13 @@ fn module_has_named_attribute(
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
-    let name = get_quoted(name)?;
 
+    let name = get_quoted(name)?;
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
     let attributes = module_data.outer_attributes.iter().chain(&module_data.inner_attributes);
-    for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location);
-        let Ok(Some((function, _arguments))) = parse_result else {
-            continue;
-        };
 
-        let ExpressionKind::Variable(path) = function.kind else {
-            continue;
-        };
-
-        if path.last_name() == name {
-            return Ok(Value::Bool(true));
-        }
-    }
-
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
 }
 
 // fn is_contract(self) -> bool
