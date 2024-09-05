@@ -32,11 +32,6 @@ impl FieldCompressedString {
     }
 
     pub fn to_bytes(self) -> [u8; 31] {
-        let mut result = [0; 31];
-        let bytes = self.value.to_be_bytes(31);
-        for i in 0..31 {
-            result[i] = bytes[i];
-        }
-        result
+        self.value.to_be_bytes()
     }
 }

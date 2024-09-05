@@ -288,7 +288,7 @@ pub fn compute_tx_effects_hash(
 
     let mut hash_input_flattened = [0; TX_EFFECTS_HASH_INPUT_FIELDS * 32];
     for offset in 0..TX_EFFECTS_HASH_INPUT_FIELDS {
-        let input_as_bytes = tx_effects_hash_input[offset].to_be_bytes(32);
+        let input_as_bytes: [u8; 32] = tx_effects_hash_input[offset].to_be_bytes();
         for byte_index in 0..32 {
             hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
         }

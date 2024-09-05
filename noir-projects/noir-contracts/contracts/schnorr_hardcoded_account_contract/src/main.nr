@@ -2,7 +2,7 @@
 // Account contract that uses Schnorr signatures for authentication using a hardcoded public key.
 contract SchnorrHardcodedAccount {
     use dep::std;
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, PrivateContext};
+    use dep::aztec::prelude::PrivateContext;
 
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
@@ -37,11 +37,11 @@ contract SchnorrHardcodedAccount {
         }
 
         // Verify signature using hardcoded public key
-        let verification = std::schnorr::verify_signature_slice(
+        let verification = std::schnorr::verify_signature(
             public_key_x,
             public_key_y,
             signature,
-            outer_hash.to_be_bytes(32)
+            outer_hash.to_be_bytes::<32>()
         );
         assert(verification == true);
         true

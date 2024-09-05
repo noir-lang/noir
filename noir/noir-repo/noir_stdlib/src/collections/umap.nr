@@ -1,10 +1,7 @@
 use crate::cmp::Eq;
-use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
-use crate::hash::{Hash, Hasher, BuildHasher, BuildHasherDefault};
-use crate::hash::poseidon2::Poseidon2;
-use crate::collections::bounded_vec::BoundedVec;
+use crate::hash::{Hash, Hasher, BuildHasher};
 
 // An unconstrained hash table with open addressing and quadratic probing.
 // Note that "unconstrained" here means that almost all operations on this

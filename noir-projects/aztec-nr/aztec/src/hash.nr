@@ -30,7 +30,7 @@ pub fn compute_unencrypted_log_hash<T, let N: u32, let M: u32>(
     for i in 0..32 {
         hash_bytes[i] = address_bytes[i];
     }
-    let len_bytes = (n as Field).to_be_bytes(4);
+    let len_bytes: [u8; 4] = (n as Field).to_be_bytes();
     for i in 0..4 {
         hash_bytes[32 + i] = len_bytes[i];
     }
@@ -50,12 +50,12 @@ pub fn compute_message_hash(
     secret_hash: Field
 ) -> Field {
     let mut hash_bytes = [0 as u8; 192];
-    let sender_bytes = sender.to_field().to_be_bytes(32);
-    let chain_id_bytes = chain_id.to_be_bytes(32);
-    let recipient_bytes = recipient.to_field().to_be_bytes(32);
-    let version_bytes = version.to_be_bytes(32);
-    let content_bytes = content.to_be_bytes(32);
-    let secret_hash_bytes = secret_hash.to_be_bytes(32);
+    let sender_bytes: [u8; 32] = sender.to_field().to_be_bytes();
+    let chain_id_bytes: [u8; 32] = chain_id.to_be_bytes();
+    let recipient_bytes: [u8; 32] = recipient.to_field().to_be_bytes();
+    let version_bytes: [u8; 32] = version.to_be_bytes();
+    let content_bytes: [u8; 32] = content.to_be_bytes();
+    let secret_hash_bytes: [u8; 32] = secret_hash.to_be_bytes();
 
     for i in 0..32 {
         hash_bytes[i] = sender_bytes[i];

@@ -1,6 +1,6 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { type DebugLogger, Fr, GrumpkinScalar, type PXE, type SentTx, TxStatus } from '@aztec/aztec.js';
-import { EthAddress } from '@aztec/circuits.js';
+import { ETHEREUM_SLOT_DURATION, EthAddress } from '@aztec/circuits.js';
 import { type PXEService } from '@aztec/pxe';
 
 import { privateKeyToAccount } from 'viem/accounts';
@@ -16,7 +16,7 @@ describe('e2e_l1_with_wall_time', () => {
     const account = privateKeyToAccount(`0x${getPrivateKeyFromIndex(0)!.toString('hex')}`);
     const initialValidators = [EthAddress.fromString(account.address)];
 
-    ({ teardown, logger, pxe } = await setup(0, { initialValidators, l1BlockTime: 12 }));
+    ({ teardown, logger, pxe } = await setup(0, { initialValidators, l1BlockTime: ETHEREUM_SLOT_DURATION, salt: 420 }));
   });
 
   afterEach(() => teardown());

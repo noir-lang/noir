@@ -213,7 +213,9 @@ contract Test {
     fn test_setting_teardown() {
         context.set_public_teardown_function(
             context.this_address(),
-            FunctionSelector::from_signature("dummy_public_call()"),
+            comptime {
+            FunctionSelector::from_signature("dummy_public_call()")
+        },
             []
         );
     }

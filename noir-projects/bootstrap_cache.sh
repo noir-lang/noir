@@ -11,4 +11,6 @@ extract_repo_if_working_copy_clean noir-projects \
 
 remove_old_images noir-projects
 
+yarn
+
 ./mock-protocol-circuits/bootstrap.sh

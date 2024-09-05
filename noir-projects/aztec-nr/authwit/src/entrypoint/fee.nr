@@ -50,7 +50,7 @@ impl FeePayload {
         for i in 0..MAX_FEE_FUNCTION_CALLS {
             bytes.extend_from_array(self.function_calls[i].to_be_bytes());
         }
-        bytes.extend_from_slice(self.nonce.to_be_bytes(32));
+        bytes.extend_from_array(self.nonce.to_be_bytes::<32>());
         bytes.push(self.is_fee_payer as u8);
 
         bytes.storage

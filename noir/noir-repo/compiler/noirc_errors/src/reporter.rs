@@ -12,6 +12,8 @@ pub struct CustomDiagnostic {
     pub secondaries: Vec<CustomLabel>,
     notes: Vec<String>,
     pub kind: DiagnosticKind,
+    pub deprecated: bool,
+    pub unnecessary: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -35,6 +37,8 @@ impl CustomDiagnostic {
             secondaries: Vec::new(),
             notes: Vec::new(),
             kind: DiagnosticKind::Error,
+            deprecated: false,
+            unnecessary: false,
         }
     }
 
@@ -49,6 +53,8 @@ impl CustomDiagnostic {
             secondaries: vec![CustomLabel::new(secondary_message, secondary_span, None)],
             notes: Vec::new(),
             kind,
+            deprecated: false,
+            unnecessary: false,
         }
     }
 
@@ -101,6 +107,8 @@ impl CustomDiagnostic {
             secondaries: vec![CustomLabel::new(secondary_message, secondary_span, None)],
             notes: Vec::new(),
             kind: DiagnosticKind::Bug,
+            deprecated: false,
+            unnecessary: false,
         }
     }
 

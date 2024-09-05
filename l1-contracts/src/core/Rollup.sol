@@ -217,9 +217,6 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @dev     TODO(#7346): Verify root proofs rather than block root when batch rollups are integrated.
    *
-   * @dev     Will call `_progressState` to update the proven chain. Notice this have potentially
-   *          unbounded gas consumption.
-   *
    * @dev     Will emit `L2ProofVerified` if the proof is valid
    *
    * @dev     Will throw if:
@@ -368,16 +365,15 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   }
 
   /**
-   * @notice  Check if a proposer can propose at a given time
+   * @notice  Check if msg.sender can propose at a given time
    *
    * @param _ts - The timestamp to check
-   * @param _proposer - The proposer to check
    * @param _archive - The archive to check (should be the latest archive)
    *
    * @return uint256 - The slot at the given timestamp
    * @return uint256 - The block number at the given timestamp
    */
-  function canProposeAtTime(uint256 _ts, address _proposer, bytes32 _archive)
+  function canProposeAtTime(uint256 _ts, bytes32 _archive)
     external
     view
     override(IRollup)
@@ -395,10 +391,10 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       revert Errors.Rollup__InvalidArchive(tipArchive, _archive);
     }
 
-    address proposer = getProposerAt(_ts);
-    if (proposer != address(0) && proposer != _proposer) {
-      revert Errors.Leonidas__InvalidProposer(proposer, _proposer);
-    }
+    SignatureLib.Signature[] memory sigs = new SignatureLib.Signature[](0);
+    DataStructures.ExecutionFlags memory flags =
+      DataStructures.ExecutionFlags({ignoreDA: true, ignoreSignatures: true});
+    _validateLeonidas(slot, sigs, _archive, flags);
 
     return (slot, pendingBlockCount);
   }
@@ -575,7 +571,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       revert Errors.Rollup__InvalidEpoch(currentEpoch, epochNumber);
     }
 
-    _proposePendingBlock(_slot, _signatures, _digest, _flags);
+    _validateLeonidas(_slot, _signatures, _digest, _flags);
   }
 
   /**

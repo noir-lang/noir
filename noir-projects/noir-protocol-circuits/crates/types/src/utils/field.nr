@@ -51,7 +51,7 @@ unconstrained fn bytes_field_test() {
         84, 62, 10, 102, 66, 255, 235, 128, 57, 41, 104, 97, 118, 90, 83, 64, 123, 186, 98, 189, 28, 151, 202, 67, 55, 77, 233, 80, 187, 224, 167
     ];
     let field = field_from_bytes(inputs, true);
-    let return_bytes = field.to_be_bytes(31);
+    let return_bytes: [u8; 31] = field.to_be_bytes();
     for i in 0..31 {
         assert_eq(inputs[i], return_bytes[i]);
     }
@@ -60,7 +60,7 @@ unconstrained fn bytes_field_test() {
         84, 62, 10, 102, 66, 255, 235, 128, 57, 41, 104, 97, 118, 90, 83, 64, 123, 186, 98, 189, 28, 151, 202, 67, 55, 77, 233, 80, 187, 224, 167, 158
     ];
     let field2 = field_from_bytes_32_trunc(inputs2);
-    let return_bytes2 = field.to_be_bytes(31);
+    let return_bytes2: [u8; 31] = field.to_be_bytes();
 
     for i in 0..31 {
         assert_eq(return_bytes2[i], return_bytes[i]);
@@ -75,7 +75,7 @@ unconstrained fn max_field_test() {
     let max_value = crate::constants::MAX_FIELD_VALUE;
     assert_eq(max_value, 0 - 1);
     // modulus == 0 is tested elsewhere, so below is more of a sanity check
-    let max_bytes = max_value.to_be_bytes(32);
+    let max_bytes: [u8; 32] = max_value.to_be_bytes();
     let mod_bytes = std::field::modulus_be_bytes();
     for i in 0..31 {
         assert_eq(max_bytes[i], mod_bytes[i]);

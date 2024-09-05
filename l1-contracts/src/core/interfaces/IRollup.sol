@@ -19,10 +19,7 @@ interface IRollup {
   event L2ProofVerified(uint256 indexed blockNumber, bytes32 indexed proverId);
   event PrunedPending(uint256 provenBlockCount, uint256 pendingBlockCount);
 
-  function canProposeAtTime(uint256 _ts, address _proposer, bytes32 _archive)
-    external
-    view
-    returns (uint256, uint256);
+  function canProposeAtTime(uint256 _ts, bytes32 _archive) external view returns (uint256, uint256);
   function validateHeader(
     bytes calldata _header,
     SignatureLib.Signature[] memory _signatures,

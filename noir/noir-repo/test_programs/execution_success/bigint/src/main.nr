@@ -35,7 +35,7 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
 
     let d = d - b;
     let mut result = [0; 32];
-    let result_slice = (a_field * b_field - b_field).to_le_bytes(32);
+    let result_slice: [u8; 32] = (a_field * b_field - b_field).to_le_bytes();
     for i in 0..32 {
         result[i] = result_slice[i];
     }

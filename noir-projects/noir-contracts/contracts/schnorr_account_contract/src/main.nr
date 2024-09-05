@@ -5,7 +5,7 @@ mod public_key_note;
 contract SchnorrAccount {
     use dep::std;
 
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
+    use dep::aztec::prelude::{AztecAddress, PrivateContext, PrivateImmutable};
     use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
@@ -14,7 +14,7 @@ contract SchnorrAccount {
     use dep::aztec::{hash::compute_siloed_nullifier, keys::getters::get_current_public_keys};
     use dep::aztec::oracle::get_nullifier_membership_witness::get_low_nullifier_membership_witness;
 
-    use crate::public_key_note::{PublicKeyNote, PUBLIC_KEY_NOTE_LEN};
+    use crate::public_key_note::PublicKeyNote;
 
     #[aztec(storage)]
     struct Storage {
@@ -71,11 +71,11 @@ contract SchnorrAccount {
         }
 
         // Verify signature of the payload bytes
-        let verification = std::schnorr::verify_signature_slice(
+        let verification = std::schnorr::verify_signature(
             public_key.x,
             public_key.y,
             signature,
-            outer_hash.to_be_bytes(32)
+            outer_hash.to_be_bytes::<32>()
         );
         assert(verification == true);
         // docs:end:entrypoint
@@ -98,11 +98,11 @@ contract SchnorrAccount {
         for i in 0..64 {
             signature[i] = witness[i] as u8;
         }
-        let valid_in_private = std::schnorr::verify_signature_slice(
+        let valid_in_private = std::schnorr::verify_signature(
             public_key.x,
             public_key.y,
             signature,
-            message_hash.to_be_bytes(32)
+            message_hash.to_be_bytes::<32>()
         );
 
         // Compute the nullifier and check if it is spent
