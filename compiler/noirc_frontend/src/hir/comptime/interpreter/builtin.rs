@@ -1773,7 +1773,7 @@ fn function_def_add_attribute(
         });
     }
 
-    let token = tokens[0].token();
+    let token = tokens.into_iter().next().unwrap().into_token();
     let Token::Attribute(attribute) = token else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -1786,7 +1786,7 @@ fn function_def_add_attribute(
 
     let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
 
-    match attribute {
+    match &attribute {
         Attribute::Function(attribute) => {
             function_modifiers.attributes.function = Some(attribute.clone());
         }
@@ -1797,7 +1797,7 @@ fn function_def_add_attribute(
 
     if let Attribute::Secondary(SecondaryAttribute::Custom(attribute)) = attribute {
         let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-        func_meta.custom_attributes.push(attribute.clone());
+        func_meta.custom_attributes.push(attribute);
     }
 
     Ok(Value::Unit)
