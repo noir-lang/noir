@@ -615,7 +615,10 @@ fn type_as_constant(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Constant(n) = typ {
+        // Prefer to use `evaluate_to_u32` over matching on `Type::Constant`
+        // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
+        // constants but are not actually the `Type::Constant` variant.
+        if let Some(n) = typ.evaluate_to_u32() {
             Some(Value::U32(n))
         } else {
             None
