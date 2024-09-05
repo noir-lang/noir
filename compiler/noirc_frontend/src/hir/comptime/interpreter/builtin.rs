@@ -132,9 +132,13 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
+            "struct_def_add_attribute" => struct_def_add_attribute(self, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
+            "struct_def_has_named_attribute" => {
+                struct_def_has_named_attribute(interner, arguments, location)
+            }
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
@@ -265,6 +269,50 @@ fn str_as_bytes(
     Ok(Value::Array(bytes, byte_array_type))
 }
 
+// fn add_attribute<let N: u32>(self, attribute: str<N>)
+fn struct_def_add_attribute(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_str(interpreter.elaborator.interner, attribute)?;
+
+    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
+    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
+        tokens.pop();
+    }
+    if tokens.len() != 1 {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    }
+
+    let token = tokens.into_iter().next().unwrap().into_token();
+    let Token::Attribute(attribute) = token else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    };
+
+    let Attribute::Secondary(attribute) = attribute else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    };
+
+    let struct_id = get_struct(self_argument)?;
+    interpreter.elaborator.interner.update_struct_attributes(struct_id, |attributes| {
+        attributes.push(attribute.clone());
+    });
+
+    Ok(Value::Unit)
+}
+
 /// fn as_type(self) -> Type
 fn struct_def_as_type(
     interner: &NodeInterner,
@@ -300,6 +348,43 @@ fn struct_def_generics(
 
     let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Type)));
     Ok(Value::Slice(generics.collect(), typ))
+}
+
+// fn has_named_attribute(self, name: Quoted) -> bool
+fn struct_def_has_named_attribute(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+    let name = get_quoted(name)?;
+    let attributes = interner.struct_attributes(&struct_id);
+    let attributes: Vec<_> =
+        attributes.iter().filter_map(|attribute| attribute.as_custom()).collect();
+
+    if attributes.is_empty() {
+        return Ok(Value::Bool(false));
+    };
+
+    let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
+
+    for attribute in attributes {
+        let parse_result = Elaborator::parse_attribute(&attribute.contents, location);
+        let Ok(Some((function, _arguments))) = parse_result else {
+            continue;
+        };
+
+        let ExpressionKind::Variable(path) = function.kind else {
+            continue;
+        };
+
+        if path.last_name() == name {
+            return Ok(Value::Bool(true));
+        }
+    }
+
+    Ok(Value::Bool(false))
 }
 
 /// fn fields(self) -> [(Quoted, Type)]
