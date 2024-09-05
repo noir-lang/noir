@@ -28,28 +28,6 @@ impl<T, let N: u32> [T; N] {
         }
     }
 
-    /// Returns the index of the elements in the array that would sort it, using the provided custom sorting function.
-    unconstrained fn get_sorting_index<Env>(self, ordering: fn[Env](T, T) -> bool) -> [u32; N] {
-        let mut result = [0; N];
-        let mut a = self;
-        for i in 0..N {
-            result[i] = i;
-        }
-        for i in 1..N {
-            for j in 0..i {
-                if ordering(a[i], a[j]) {
-                    let old_a_j = a[j];
-                    a[j] = a[i];
-                    a[i] = old_a_j;
-                    let old_j = result[j];
-                    result[j] = result[i];
-                    result[i] = old_j;
-                }
-            }
-        }
-        result
-    }
-
     #[builtin(as_slice)]
     pub fn as_slice(self) -> [T] {}
 
@@ -111,18 +89,6 @@ impl<let N: u32> [u8; N] {
     /// This function performs no UTF-8 validation or similar.
     #[builtin(array_as_str_unchecked)]
     pub fn as_str_unchecked(self) -> str<N> {}
-}
-
-// helper function used to look up the position of a value in an array of Field
-// Note that function returns 0 if the value is not found
-unconstrained fn find_index<let N: u32>(a: [u32; N], find: u32) -> u32 {
-    let mut result = 0;
-    for i in 0..a.len() {
-        if a[i] == find {
-            result = i;
-        }
-    }
-    result
 }
 
 impl<let N: u32> From<str<N>> for [u8; N] {
