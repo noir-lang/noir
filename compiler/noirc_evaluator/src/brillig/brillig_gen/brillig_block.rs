@@ -633,7 +633,11 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
-                self.validate_array_index(array_variable, index_variable);
+
+                if !dfg.is_safe_index(*index, *array) {
+                    self.validate_array_index(array_variable, index_variable);
+                }
+
                 self.retrieve_variable_from_array(
                     array_pointer,
                     index_variable,
@@ -652,7 +656,11 @@ impl<'block> BrilligBlock<'block> {
                     result_ids[0],
                     dfg,
                 );
-                self.validate_array_index(source_variable, index_register);
+
+                if !dfg.is_safe_index(*index, *array) {
+                    self.validate_array_index(source_variable, index_register);
+                }
+
                 self.convert_ssa_array_set(
                     source_variable,
                     destination_variable,
