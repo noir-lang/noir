@@ -65,3 +65,12 @@ each parameter pattern to be a syntactically valid parameter.
 Mutates the function's return type to a new type. This is only valid
 on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
+
+### set_return_visibility
+
+#include_code set_return_visibility noir_stdlib/src/meta/function_def.nr rust
+
+Mutates the function's return visibility to a new one that's parsed from the given
+`Quoted` value. This is only valid on functions in the current crate which have not 
+yet been resolved. This means any functions called at compile-time are invalid targets 
+for this method.

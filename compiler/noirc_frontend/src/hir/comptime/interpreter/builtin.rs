@@ -109,6 +109,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_set_return_type" => {
                 function_def_set_return_type(self, arguments, location)
             }
+            "function_def_set_return_visibility" => {
+                function_def_set_return_visibility(self, arguments, location)
+            }
             "module_functions" => module_functions(self, arguments, location),
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
@@ -1866,6 +1869,27 @@ fn function_def_set_return_type(
             span: location.span,
         });
         replace_func_meta_return_type(&mut func_meta.typ, return_type);
+    });
+
+    Ok(Value::Unit)
+}
+
+// fn set_return_visibility(self, visibility: Quoted)
+fn function_def_set_return_visibility(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, visibility) = check_two_arguments(arguments, location)?;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let parser = parser::visibility();
+    let visibility = parse(visibility, parser, "a visibility")?;
+
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.return_visibility = visibility;
     });
 
     Ok(Value::Unit)
