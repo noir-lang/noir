@@ -244,7 +244,7 @@ impl Context {
                             }
                         },
                         Value::ForeignFunction(..) => {
-                            panic!("Should not be able to reach foreign function from non-brillig functions");
+                            panic!("Should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
                         }
                         Value::Array { .. }
                         | Value::Instruction { .. }

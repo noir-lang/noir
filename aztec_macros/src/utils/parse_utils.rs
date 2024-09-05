@@ -50,9 +50,10 @@ fn empty_item(item: &mut Item) {
             empty_parsed_submodule(parsed_submodule);
         }
         ItemKind::ModuleDecl(module_declaration) => empty_module_declaration(module_declaration),
-        ItemKind::Import(use_tree) => empty_use_tree(use_tree),
+        ItemKind::Import(use_tree, _) => empty_use_tree(use_tree),
         ItemKind::Struct(noir_struct) => empty_noir_struct(noir_struct),
         ItemKind::TypeAlias(noir_type_alias) => empty_noir_type_alias(noir_type_alias),
+        ItemKind::InnerAttribute(_) => (),
     }
 }
 
@@ -404,9 +405,9 @@ fn empty_pattern(pattern: &mut Pattern) {
 }
 
 fn empty_unresolved_trait_constraints(
-    unresolved_trait_constriants: &mut [UnresolvedTraitConstraint],
+    unresolved_trait_constraints: &mut [UnresolvedTraitConstraint],
 ) {
-    for trait_constraint in unresolved_trait_constriants.iter_mut() {
+    for trait_constraint in unresolved_trait_constraints.iter_mut() {
         empty_unresolved_trait_constraint(trait_constraint);
     }
 }

@@ -453,6 +453,7 @@ impl<'a> Context<'a> {
         }
 
         warnings.extend(return_warnings);
+        warnings.extend(self.acir_context.warnings.clone());
 
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
@@ -770,10 +771,12 @@ impl<'a> Context<'a> {
                                     .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
                                     .sum();
 
-                                let acir_function_id = ssa
-                                    .entry_point_to_generated_index
-                                    .get(id)
-                                    .expect("ICE: should have an associated final index");
+                                let Some(acir_function_id) =
+                                    ssa.entry_point_to_generated_index.get(id)
+                                else {
+                                    unreachable!("Expected an associated final index for call to acir function {id} with args {arguments:?}");
+                                };
+
                                 let output_vars = self.acir_context.call_acir_function(
                                     AcirFunctionId(*acir_function_id),
                                     inputs,

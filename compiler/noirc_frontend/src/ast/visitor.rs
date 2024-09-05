@@ -16,13 +16,14 @@ use crate::{
         QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::Tokens,
+    token::{SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
 use super::{
-    FunctionReturnType, GenericTypeArgs, IntegerBitSize, Pattern, Signedness, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern, Signedness,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 
 /// Implements the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) for Noir's AST.
@@ -252,7 +253,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_import(&mut self, _: &UseTree) -> bool {
+    fn visit_import(&mut self, _: &UseTree, _visibility: ItemVisibility) -> bool {
         true
     }
 
@@ -431,6 +432,8 @@ pub trait Visitor {
     fn visit_struct_pattern(&mut self, _: &Path, _: &[(Ident, Pattern)], _: Span) -> bool {
         true
     }
+
+    fn visit_secondary_attribute(&mut self, _: &SecondaryAttribute, _: Span) {}
 }
 
 impl ParsedModule {
@@ -470,8 +473,8 @@ impl Item {
                 }
             }
             ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
-            ItemKind::Import(use_tree) => {
-                if visitor.visit_import(use_tree) {
+            ItemKind::Import(use_tree, visibility) => {
+                if visitor.visit_import(use_tree, *visibility) {
                     use_tree.accept(visitor);
                 }
             }
@@ -479,6 +482,9 @@ impl Item {
             ItemKind::Struct(noir_struct) => noir_struct.accept(self.span, visitor),
             ItemKind::ModuleDecl(module_declaration) => {
                 module_declaration.accept(self.span, visitor);
+            }
+            ItemKind::InnerAttribute(attribute) => {
+                attribute.accept(self.span, visitor);
             }
         }
     }
@@ -1285,6 +1291,12 @@ impl Pattern {
                 }
             }
         }
+    }
+}
+
+impl SecondaryAttribute {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        visitor.visit_secondary_attribute(self, span);
     }
 }
 

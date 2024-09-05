@@ -20,6 +20,7 @@ pub mod monomorphization;
 pub mod node_interner;
 pub mod parser;
 pub mod resolve_locations;
+pub mod usage_tracker;
 
 pub mod hir;
 pub mod hir_def;

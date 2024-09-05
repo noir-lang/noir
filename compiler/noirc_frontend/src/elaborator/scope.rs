@@ -60,12 +60,6 @@ impl<'context> Elaborator<'context> {
         let mut module_id = self.module_id();
         let mut path = path;
 
-        if path.kind == PathKind::Plain {
-            let def_map = self.def_maps.get_mut(&self.crate_id).unwrap();
-            let module_data = &mut def_map.modules[module_id.local_id.0];
-            module_data.use_import(&path.segments[0].ident);
-        }
-
         if path.kind == PathKind::Plain && path.first_name() == SELF_TYPE_NAME {
             if let Some(Type::Struct(struct_type, _)) = &self.self_type {
                 let struct_type = struct_type.borrow();
@@ -90,33 +84,46 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
         let resolver = StandardPathResolver::new(module_id);
-        let path_resolution;
 
-        if self.interner.lsp_mode {
-            let last_segment = path.last_ident();
-            let location = Location::new(last_segment.span(), self.file);
-            let is_self_type_name = last_segment.is_self_type_name();
-
-            let mut references: Vec<_> = Vec::new();
-            path_resolution =
-                resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
-
-            for (referenced, segment) in references.iter().zip(path.segments) {
-                self.interner.add_reference(
-                    *referenced,
-                    Location::new(segment.ident.span(), self.file),
-                    segment.ident.is_self_type_name(),
-                );
-            }
-
-            self.interner.add_module_def_id_reference(
-                path_resolution.module_def_id,
-                location,
-                is_self_type_name,
+        if !self.interner.lsp_mode {
+            return resolver.resolve(
+                self.def_maps,
+                path,
+                &mut self.interner.usage_tracker,
+                &mut None,
             );
-        } else {
-            path_resolution = resolver.resolve(self.def_maps, path, &mut None)?;
         }
+
+        let last_segment = path.last_ident();
+        let location = Location::new(last_segment.span(), self.file);
+        let is_self_type_name = last_segment.is_self_type_name();
+
+        let mut references: Vec<_> = Vec::new();
+        let path_resolution = resolver.resolve(
+            self.def_maps,
+            path.clone(),
+            &mut self.interner.usage_tracker,
+            &mut Some(&mut references),
+        );
+
+        for (referenced, segment) in references.iter().zip(path.segments) {
+            self.interner.add_reference(
+                *referenced,
+                Location::new(segment.ident.span(), self.file),
+                segment.ident.is_self_type_name(),
+            );
+        }
+
+        let path_resolution = match path_resolution {
+            Ok(path_resolution) => path_resolution,
+            Err(err) => return Err(err),
+        };
+
+        self.interner.add_module_def_id_reference(
+            path_resolution.module_def_id,
+            location,
+            is_self_type_name,
+        );
 
         Ok(path_resolution)
     }

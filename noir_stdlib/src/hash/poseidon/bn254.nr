@@ -2,7 +2,7 @@
 mod perm;
 mod consts;
 
-use crate::hash::poseidon::{PoseidonConfig, absorb};
+use crate::hash::poseidon::absorb;
 
 // Variable-length Poseidon-128 sponge as suggested in second bullet point of §3 of https://eprint.iacr.org/2019/458.pdf
 #[field(bn254)]

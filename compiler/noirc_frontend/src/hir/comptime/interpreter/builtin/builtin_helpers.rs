@@ -104,6 +104,19 @@ pub(crate) fn get_slice(
     }
 }
 
+pub(crate) fn get_str(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<Rc<String>> {
+    match value {
+        Value::String(string) => Ok(string),
+        value => {
+            let expected = Type::String(Box::new(interner.next_type_variable()));
+            type_mismatch(value, expected, location)
+        }
+    }
+}
+
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
     (value, location): (Value, Location),
@@ -173,6 +186,20 @@ pub(crate) fn get_expr(
             _ => Ok(expr),
         },
         value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
+    }
+}
+
+pub(crate) fn get_format_string(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<(Rc<String>, Type)> {
+    match value {
+        Value::FormatString(value, typ) => Ok((value, typ)),
+        value => {
+            let n = Box::new(interner.next_type_variable());
+            let e = Box::new(interner.next_type_variable());
+            type_mismatch(value, Type::FmtString(n, e), location)
+        }
     }
 }
 
