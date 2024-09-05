@@ -43,3 +43,32 @@ comptime fn example(foo: StructDefinition) {
 #include_code fields noir_stdlib/src/meta/struct_def.nr rust
 
 Returns each field of this struct as a pair of (field name, field type).
+
+### set_fields
+
+#include_code set_fields noir_stdlib/src/meta/struct_def.nr rust
+
+Sets the fields of this struct to the given fields list where each element
+is a pair of the field's name and the field's type. Expects each field name
+to be a single identifier. Note that this will override any previous fields
+on this struct. If those should be preserved, use `.fields()` to retrieve the
+current fields on the struct type and append the new fields from there.
+
+Example:
+
+```rust
+// Change this struct to:
+// struct Foo {
+//     a: u32,
+//     b: i8,
+// }
+#[mangle_fields]
+struct Foo { x: Field }
+
+comptime fn mangle_fields(s: StructDefinition) {
+    s.set_fields(&[
+        (quote { a }, quote { u32 }.as_type()),
+        (quote { b }, quote { i8 }.as_type()),
+    ]);
+}
+```

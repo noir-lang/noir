@@ -2,7 +2,7 @@ use super::big_int::BigIntContext;
 use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalError, RuntimeError, SsaReport};
+use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
@@ -126,6 +126,8 @@ pub(crate) struct AcirContext<F: AcirField> {
     big_int_ctx: BigIntContext,
 
     expression_width: ExpressionWidth,
+
+    pub(crate) warnings: Vec<SsaReport>,
 }
 
 impl<F: AcirField> AcirContext<F> {
@@ -517,6 +519,12 @@ impl<F: AcirField> AcirContext<F> {
             // Constraint is always true - assertion is unnecessary.
             self.mark_variables_equivalent(lhs, rhs)?;
             return Ok(());
+        }
+        if diff_expr.is_const() {
+            // Constraint is always false
+            self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed {
+                call_stack: self.get_call_stack(),
+            }));
         }
 
         self.acir_ir.assert_is_zero(diff_expr);

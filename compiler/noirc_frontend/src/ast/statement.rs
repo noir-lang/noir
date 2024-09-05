@@ -292,6 +292,7 @@ pub trait Recoverable {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
     pub ident: Ident,
+    pub outer_attributes: Vec<SecondaryAttribute>,
 }
 
 impl std::fmt::Display for ModuleDeclaration {

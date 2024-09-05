@@ -202,6 +202,11 @@ pub enum InterpreterError {
     TypeAnnotationsNeededForMethodCall {
         location: Location,
     },
+    ExpectedIdentForStructField {
+        value: String,
+        index: usize,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -269,6 +274,7 @@ impl InterpreterError {
             | InterpreterError::FailedToResolveTraitBound { location, .. }
             | InterpreterError::FunctionAlreadyResolved { location, .. }
             | InterpreterError::MultipleMatchingImpls { location, .. }
+            | InterpreterError::ExpectedIdentForStructField { location, .. }
             | InterpreterError::TypeAnnotationsNeededForMethodCall { location } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
@@ -488,7 +494,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::UnsupportedTopLevelItemUnquote { item, location } => {
                 let msg = "Unsupported statement type to unquote".into();
                 let secondary =
-                    "Only functions, globals, and trait impls can be unquoted here".into();
+                    "Only functions, structs, globals, and impls can be unquoted here".into();
                 let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
@@ -565,6 +571,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Try adding a type annotation for the object type before this method call";
                 error.add_note(message.to_string());
                 error
+            }
+            InterpreterError::ExpectedIdentForStructField { value, index, location } => {
+                let msg = format!(
+                    "Quoted value in index {index} of this slice is not a valid field name"
+                );
+                let secondary = format!("`{value}` is not a valid field name for `set_fields`");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
         }
     }
