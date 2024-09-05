@@ -300,10 +300,8 @@ impl<'f> PerFunctionContext<'f> {
                 // function calls in-between, we can remove the previous store.
                 if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
-                    if let Some(PerFuncLoadResultContext { result_counter, .. }) =
-                        self.load_results.get_mut(&value)
-                    {
-                        *result_counter -= 1;
+                    if let Some(context) = self.load_results.get_mut(&value) {
+                        context.result_counter -= 1;
                     }
                 }
 
