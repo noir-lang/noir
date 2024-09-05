@@ -31,7 +31,7 @@ use crate::{
 use super::{Elaborator, FunctionContext, ResolverMeta};
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct AttributeContext {
+struct AttributeContext {
     // The file where generated items should be added
     file: FileId,
     // The module where generated items should be added
