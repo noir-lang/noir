@@ -605,12 +605,9 @@ impl<'f> PerFunctionContext<'f> {
             self.instructions_to_remove.insert(*store_instruction);
 
             // Map any remaining load results to the value from the removed store
-            for (
-                result,
-                PerFuncLoadResultContext { load_instruction, instructions_using_result, .. },
-            ) in self.load_results.iter()
-            {
-                let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
+            for (result, context) in self.load_results.iter() {
+                let Instruction::Load { address } =
+                    self.inserter.function.dfg[context.load_instruction]
                 else {
                     unreachable!("Should only have a load instruction here");
                 };
@@ -619,7 +616,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
 
                 self.inserter.map_value(*result, value);
-                for (instruction, block_id) in instructions_using_result {
+                for (instruction, block_id) in &context.instructions_using_result {
                     if self.instructions_to_remove.contains(instruction) {
                         continue;
                     }
@@ -638,7 +635,7 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
 
-                self.instructions_to_remove.insert(*load_instruction);
+                self.instructions_to_remove.insert(context.load_instruction);
             }
         }
     }
