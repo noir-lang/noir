@@ -271,7 +271,6 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
-        enable_arithmetic_generics: bool,
         error_on_unused_items: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
@@ -291,7 +290,6 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 debug_comptime_in_file,
-                enable_arithmetic_generics,
                 error_on_usage_tracker,
                 macro_processors,
             ));
@@ -471,13 +469,8 @@ impl DefCollector {
             })
         });
 
-        let mut more_errors = Elaborator::elaborate(
-            context,
-            crate_id,
-            def_collector.items,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        );
+        let mut more_errors =
+            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
 
         errors.append(&mut more_errors);
 
