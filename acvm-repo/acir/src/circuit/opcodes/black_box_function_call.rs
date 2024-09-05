@@ -45,22 +45,20 @@ impl<F> FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
-#[error("FunctionInput value has too many bits: value: {value}, {value_num_bits} >= {num_bits}")]
-pub struct InvalidInputBitSize {
-    pub value: String,
-    pub value_num_bits: u32,
-    pub num_bits: u32,
+#[error("FunctionInput value has too many bits: value: {value}, {} >= {max_bits}", value.num_bits())]
+pub struct InvalidInputBitSize<F: AcirField> {
+    pub value: F,
+    pub max_bits: u32,
 }
 
 impl<F: AcirField> FunctionInput<F> {
-    pub fn constant(value: F, num_bits: u32) -> Result<FunctionInput<F>, InvalidInputBitSize> {
-        if value.num_bits() <= num_bits {
-            Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits })
+    pub fn constant(value: F, max_bits: u32) -> Result<FunctionInput<F>, InvalidInputBitSize<F>> {
+        if value.num_bits() <= max_bits {
+            Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
         } else {
             Err(InvalidInputBitSize {
-                value: format!("{}", value),
-                value_num_bits: value.num_bits(),
-                num_bits,
+                value,
+                max_bits,
             })
         }
     }

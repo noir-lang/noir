@@ -49,7 +49,7 @@ impl AcvmBigIntSolver {
         Ok(())
     }
 
-    pub(crate) fn bigint_op<F>(
+    pub(crate) fn bigint_op<F: AcirField>(
         &mut self,
         lhs: u32,
         rhs: u32,

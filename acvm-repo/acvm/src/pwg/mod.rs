@@ -39,7 +39,7 @@ pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
 pub use brillig::ForeignCallWaitInfo;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ACVMStatus<F> {
+pub enum ACVMStatus<F: AcirField> {
     /// All opcodes have been solved.
     Solved,
 
@@ -64,7 +64,7 @@ pub enum ACVMStatus<F> {
     RequiresAcirCall(AcirCallWaitInfo<F>),
 }
 
-impl<F> std::fmt::Display for ACVMStatus<F> {
+impl<F: AcirField> std::fmt::Display for ACVMStatus<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ACVMStatus::Solved => write!(f, "Solved"),
@@ -76,7 +76,7 @@ impl<F> std::fmt::Display for ACVMStatus<F> {
     }
 }
 
-pub enum StepResult<'a, F, B: BlackBoxFunctionSolver<F>> {
+pub enum StepResult<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     Status(ACVMStatus<F>),
     IntoBrillig(BrilligSolver<'a, F, B>),
 }
@@ -120,7 +120,7 @@ impl std::fmt::Display for ErrorLocation {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
-pub enum OpcodeResolutionError<F> {
+pub enum OpcodeResolutionError<F: AcirField> {
     #[error("Cannot solve opcode: {0}")]
     OpcodeNotSolvable(#[from] OpcodeNotSolvable<F>),
     #[error("Cannot satisfy constraint")]
@@ -133,7 +133,7 @@ pub enum OpcodeResolutionError<F> {
     #[error("Cannot solve opcode: {invalid_input_bit_size}")]
     InvalidInputBitSize {
         opcode_location: ErrorLocation,
-        invalid_input_bit_size: InvalidInputBitSize,
+        invalid_input_bit_size: InvalidInputBitSize<F>,
     },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
     BlackBoxFunctionFailed(BlackBoxFunc, String),
@@ -149,7 +149,7 @@ pub enum OpcodeResolutionError<F> {
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
 }
 
-impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
+impl<F: AcirField> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
     fn from(value: BlackBoxResolutionError) -> Self {
         match value {
             BlackBoxResolutionError::Failed(func, reason) => {
@@ -159,8 +159,8 @@ impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
     }
 }
 
-impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
-    fn from(invalid_input_bit_size: InvalidInputBitSize) -> Self {
+impl<F: AcirField> From<InvalidInputBitSize<F>> for OpcodeResolutionError<F> {
+    fn from(invalid_input_bit_size: InvalidInputBitSize<F>) -> Self {
         Self::InvalidInputBitSize {
             opcode_location: ErrorLocation::Unresolved,
             invalid_input_bit_size,
@@ -168,7 +168,7 @@ impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
     }
 }
 
-pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
+pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
 
     backend: &'a B,
@@ -646,7 +646,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 // Returns the concrete value for a particular witness
 // If the witness has no assignment, then
 // an error is returned
-pub fn witness_to_value<F>(
+pub fn witness_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     witness: Witness,
 ) -> Result<&F, OpcodeResolutionError<F>> {
@@ -670,9 +670,8 @@ pub fn input_to_value<F: AcirField>(
                     opcode_location: ErrorLocation::Unresolved,
 
                     invalid_input_bit_size: InvalidInputBitSize {
-                        value: format!("{}", initial_value),
-                        value_num_bits: initial_value.num_bits(),
-                        num_bits: input.num_bits(),
+                        value: initial_value,
+                        max_bits: input.num_bits(),
                     },
                 })
             }
