@@ -124,6 +124,10 @@ struct PerFunctionContext<'f> {
     /// Track whether a reference was passed into another entry point
     /// This is needed to determine whether we can remove a store.
     calls_reference_input: HashSet<ValueId>,
+
+    /// Track whether the last instruction is an inc_rc/dec_rc instruction.
+    /// If it is we should not remove any known store values.
+    inside_rc_reload: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -156,6 +160,7 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashMap::default(),
             load_results: HashMap::default(),
             calls_reference_input: HashSet::default(),
+            inside_rc_reload: false,
         }
     }
 
@@ -281,6 +286,10 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
+                    references.expressions.insert(result, Expression::Other(result));
+                    references.aliases.insert(Expression::Other(result), AliasSet::known(result));
+                    references.set_known_value(result, address);
+
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
                     let load_counter = self
@@ -302,6 +311,14 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                     if let Some(context) = self.load_results.get_mut(&value) {
                         context.result_counter -= 1;
+                    }
+                }
+
+                let known_value = references.get_known_value(value);
+                if let Some(known_value) = known_value {
+                    let known_value_is_address = known_value == address;
+                    if known_value_is_address && !self.inside_rc_reload {
+                        self.instructions_to_remove.insert(instruction);
                     }
                 }
 
@@ -365,6 +382,18 @@ impl<'f> PerFunctionContext<'f> {
                 self.mark_all_unknown(arguments, references);
             }
             _ => (),
+        }
+
+        self.track_rc_reload_state(instruction);
+    }
+
+    fn track_rc_reload_state(&mut self, instruction: InstructionId) {
+        match &self.inserter.function.dfg[instruction] {
+            // We just had an increment or decrement to an array's reference counter
+            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
+                self.inside_rc_reload = true;
+            }
+            _ => self.inside_rc_reload = false,
         }
     }
 
