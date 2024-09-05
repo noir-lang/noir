@@ -1,6 +1,9 @@
 use crate::cmp::Ord;
 use crate::convert::From;
 
+mod check_shuffle;
+mod quicksort;
+
 impl<T, let N: u32> [T; N] {
     /// Returns the length of the slice.
     #[builtin(array_len)]
@@ -11,29 +14,18 @@ impl<T, let N: u32> [T; N] {
     }
 
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        let sorted_index = unsafe {
-            // Safety: These indices are asserted to be the sorted element indices via `find_index`
-            let sorted_index: [u32; N] = self.get_sorting_index(ordering);
+        unsafe {
+            // Safety: `sorted` array is checked to be:
+            //   a. a permutation of `input`'s elements
+            //   b. satisfying the predicate `ordering`
+            let sorted = quicksort::quicksort(input);
 
-            for i in 0..N {
-                let pos = find_index(sorted_index, i);
-                assert(sorted_index[pos] == i);
+            for i in 0..N - 1 {
+                assert(ordering(sorted[i], sorted[i + 1]));
             }
-
-            sorted_index
-        };
-
-        // Sort the array using the indexes
-        let mut result = self;
-        for i in 0..N {
-            result[i] = self[sorted_index[i]];
+            check_shuffle::check_shuffle(input, sorted);
+            sorted
         }
-        // Ensure the array is sorted
-        for i in 0..N - 1 {
-            assert(ordering(result[i], result[i + 1]));
-        }
-
-        result
     }
 
     /// Returns the index of the elements in the array that would sort it, using the provided custom sorting function.
