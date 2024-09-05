@@ -377,7 +377,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         radix: u32,
         limb_count: u32,
         bit_size: u32,
-    ) -> Result<Vec<Witness>, RuntimeError> {
+    ) -> Result<Vec<Witness>, RuntimeError<F>> {
         let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
@@ -549,7 +549,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         &mut self,
         witness: Witness,
         num_bits: u32,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<F>> {
         // We class this as an error because users should instead
         // do `as Field`.
         if num_bits >= F::max_num_bits() {

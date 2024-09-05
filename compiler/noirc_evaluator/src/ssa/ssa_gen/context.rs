@@ -272,7 +272,7 @@ impl<'a> FunctionContext<'a> {
         value: impl Into<FieldElement>,
         negative: bool,
         typ: Type,
-    ) -> Result<ValueId, RuntimeError> {
+    ) -> Result<ValueId, RuntimeError<FieldElement>> {
         let value = value.into();
 
         if let Type::Numeric(numeric_type) = typ {
@@ -703,7 +703,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn extract_current_value(
         &mut self,
         lvalue: &ast::LValue,
-    ) -> Result<LValue, RuntimeError> {
+    ) -> Result<LValue, RuntimeError<FieldElement>> {
         Ok(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
@@ -755,7 +755,7 @@ impl<'a> FunctionContext<'a> {
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
+    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError<FieldElement>> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
         let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
@@ -782,7 +782,7 @@ impl<'a> FunctionContext<'a> {
     fn extract_current_value_recursive(
         &mut self,
         lvalue: &ast::LValue,
-    ) -> Result<(Values, LValue), RuntimeError> {
+    ) -> Result<(Values, LValue), RuntimeError<FieldElement>> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);

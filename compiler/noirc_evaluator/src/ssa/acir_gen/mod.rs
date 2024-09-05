@@ -292,7 +292,7 @@ impl Ssa {
         self,
         brillig: &Brillig,
         expression_width: ExpressionWidth,
-    ) -> Result<Artifacts, RuntimeError> {
+    ) -> Result<Artifacts, RuntimeError<FieldElement>> {
         let mut acirs = Vec::new();
         // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
@@ -373,7 +373,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         function: &Function,
         brillig: &Brillig,
-    ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
+    ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError<FieldElement>> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
@@ -405,7 +405,7 @@ impl<'a> Context<'a> {
         main_func: &Function,
         ssa: &Ssa,
         brillig: &Brillig,
-    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
+    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError<FieldElement>> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
@@ -463,7 +463,7 @@ impl<'a> Context<'a> {
         mut self,
         main_func: &Function,
         brillig: &Brillig,
-    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
+    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError<FieldElement>> {
         let dfg = &main_func.dfg;
 
         let inputs = try_vecmap(dfg[main_func.entry_block()].parameters(), |param_id| {
@@ -521,7 +521,7 @@ impl<'a> Context<'a> {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> Result<Vec<Witness>, RuntimeError> {
+    ) -> Result<Vec<Witness>, RuntimeError<FieldElement>> {
         // The first witness (if any) is the next one
         let start_witness = self.acir_context.current_witness_index().0;
         for param_id in params {
@@ -554,15 +554,15 @@ impl<'a> Context<'a> {
         Ok(witnesses)
     }
 
-    fn convert_ssa_block_param(&mut self, param_type: &Type) -> Result<AcirValue, RuntimeError> {
+    fn convert_ssa_block_param(&mut self, param_type: &Type) -> Result<AcirValue, RuntimeError<FieldElement>> {
         self.create_value_from_type(param_type, &mut |this, typ| this.add_numeric_input_var(&typ))
     }
 
     fn create_value_from_type(
         &mut self,
         param_type: &Type,
-        make_var: &mut impl FnMut(&mut Self, NumericType) -> Result<AcirVar, RuntimeError>,
-    ) -> Result<AcirValue, RuntimeError> {
+        make_var: &mut impl FnMut(&mut Self, NumericType) -> Result<AcirVar, RuntimeError<FieldElement>>,
+    ) -> Result<AcirValue, RuntimeError<FieldElement>> {
         match param_type {
             Type::Numeric(numeric_type) => {
                 let typ = AcirType::new(*numeric_type);
@@ -618,7 +618,7 @@ impl<'a> Context<'a> {
     fn add_numeric_input_var(
         &mut self,
         numeric_type: &NumericType,
-    ) -> Result<AcirVar, RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError<FieldElement>> {
         let acir_var = self.acir_context.add_variable();
         if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
             self.acir_context.range_constrain_var(acir_var, numeric_type, None)?;
@@ -633,7 +633,7 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
         ssa: &Ssa,
         brillig: &Brillig,
-    ) -> Result<Vec<SsaReport>, RuntimeError> {
+    ) -> Result<Vec<SsaReport>, RuntimeError<FieldElement>> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
         let mut warnings = Vec::new();
@@ -752,7 +752,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         brillig: &Brillig,
         result_ids: &[ValueId],
-    ) -> Result<Vec<SsaReport>, RuntimeError> {
+    ) -> Result<Vec<SsaReport>, RuntimeError<FieldElement>> {
         let mut warnings = Vec::new();
 
         match instruction {
@@ -894,7 +894,7 @@ impl<'a> Context<'a> {
         result_ids: &[ValueId],
         output_values: Vec<AcirValue>,
         dfg: &DataFlowGraph,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<FieldElement>> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = dfg.resolve(*result_id);
@@ -988,7 +988,7 @@ impl<'a> Context<'a> {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<FieldElement>> {
         let mut mutable_array_set = false;
 
         // Pass the instruction between array methods rather than the internal fields themselves
@@ -1065,7 +1065,7 @@ impl<'a> Context<'a> {
         array: ValueId,
         index: ValueId,
         store_value: Option<ValueId>,
-    ) -> Result<bool, RuntimeError> {
+    ) -> Result<bool, RuntimeError<FieldElement>> {
         let array_id = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array_id);
         // Compiler sanity checks
@@ -1104,7 +1104,7 @@ impl<'a> Context<'a> {
         array: Vector<AcirValue>,
         index: FieldElement,
         store_value: Option<AcirValue>,
-    ) -> Result<bool, RuntimeError> {
+    ) -> Result<bool, RuntimeError<FieldElement>> {
         let array_size: usize = array.len();
         let index = match index.try_to_u64() {
             Some(index_const) => index_const as usize,
@@ -1161,7 +1161,7 @@ impl<'a> Context<'a> {
         index: ValueId,
         store_value: Option<ValueId>,
         offset: usize,
-    ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
+    ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError<FieldElement>> {
         let array_typ = dfg.type_of_value(array_id);
         let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
@@ -1210,7 +1210,7 @@ impl<'a> Context<'a> {
         &mut self,
         store_value: &AcirValue,
         dummy_value: &AcirValue,
-    ) -> Result<AcirValue, RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError<FieldElement>> {
         match (store_value, dummy_value) {
             (AcirValue::Var(store_var, _), AcirValue::Var(dummy_var, _)) => {
                 let true_pred =
@@ -1257,7 +1257,7 @@ impl<'a> Context<'a> {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                    Ok::<AcirValue, RuntimeError<FieldElement>>(AcirValue::Var(read, AcirType::field()))
                 })?;
 
                 let mut elements = im::Vector::new();
@@ -1285,7 +1285,7 @@ impl<'a> Context<'a> {
         mut var_index: AcirVar,
         dfg: &DataFlowGraph,
         mut index_side_effect: bool,
-    ) -> Result<AcirValue, RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError<FieldElement>> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
@@ -1348,7 +1348,7 @@ impl<'a> Context<'a> {
         ssa_type: &Type,
         block_id: BlockId,
         var_index: &mut AcirVar,
-    ) -> Result<AcirValue, RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError<FieldElement>> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
@@ -1389,7 +1389,7 @@ impl<'a> Context<'a> {
         store_value: AcirValue,
         dfg: &DataFlowGraph,
         mutate_array: bool,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<FieldElement>> {
         // Pass the instruction between array methods rather than the internal fields themselves
         let array = match dfg[instruction] {
             Instruction::ArraySet { array, .. } => array,
@@ -1464,7 +1464,7 @@ impl<'a> Context<'a> {
         value: &AcirValue,
         block_id: BlockId,
         var_index: &mut AcirVar,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<FieldElement>> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match value {
             AcirValue::Var(store_var, _) => {
@@ -1483,7 +1483,7 @@ impl<'a> Context<'a> {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                    Ok::<AcirValue, RuntimeError<FieldElement>>(AcirValue::Var(read, AcirType::field()))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
@@ -1495,7 +1495,7 @@ impl<'a> Context<'a> {
         &mut self,
         array: ValueId,
         dfg: &DataFlowGraph,
-    ) -> Result<BlockId, RuntimeError> {
+    ) -> Result<BlockId, RuntimeError<FieldElement>> {
         // Use the SSA ID to get or create its block ID
         let block_id = self.block_id(&array);
 
@@ -1534,7 +1534,7 @@ impl<'a> Context<'a> {
         array_id: ValueId,
         supplied_acir_value: Option<&AcirValue>,
         dfg: &DataFlowGraph,
-    ) -> Result<BlockId, RuntimeError> {
+    ) -> Result<BlockId, RuntimeError<FieldElement>> {
         let element_type_sizes = self.internal_block_id(&array_id);
         // Check whether an internal type sizes array has already been initialized
         // Need to look into how to optimize for slices as this could lead to different element type sizes
@@ -1650,12 +1650,12 @@ impl<'a> Context<'a> {
         source: BlockId,
         destination: BlockId,
         array_len: usize,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<FieldElement>> {
         let init_values = try_vecmap(0..array_len, |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
-            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+            Ok::<AcirValue, RuntimeError<FieldElement>>(AcirValue::Var(read, AcirType::field()))
         })?;
         let array: Vector<AcirValue> = init_values.into();
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
@@ -1668,7 +1668,7 @@ impl<'a> Context<'a> {
         array_id: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
-    ) -> Result<AcirVar, RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError<FieldElement>> {
         if !can_omit_element_sizes_array(array_typ) {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
@@ -1812,7 +1812,7 @@ impl<'a> Context<'a> {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError> {
+    ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError<FieldElement>> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, call_stack.clone())
@@ -1929,7 +1929,7 @@ impl<'a> Context<'a> {
         &mut self,
         binary: &Binary,
         dfg: &DataFlowGraph,
-    ) -> Result<AcirVar, RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError<FieldElement>> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
 
@@ -2012,7 +2012,7 @@ impl<'a> Context<'a> {
         rhs: ValueId,
         dfg: &DataFlowGraph,
         op: BinaryOp,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<FieldElement>> {
         // We try to optimize away operations that are guaranteed not to overflow
         let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
         let max_rhs_bits = dfg.get_value_max_num_bits(rhs);
@@ -2105,7 +2105,7 @@ impl<'a> Context<'a> {
         bit_size: u32,
         max_bit_size: u32,
         dfg: &DataFlowGraph,
-    ) -> Result<AcirVar, RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError<FieldElement>> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
@@ -2140,7 +2140,7 @@ impl<'a> Context<'a> {
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
-    ) -> Result<Vec<AcirValue>, RuntimeError> {
+    ) -> Result<Vec<AcirValue>, RuntimeError<FieldElement>> {
         match intrinsic {
             Intrinsic::BlackBox(black_box) => {
                 // Slices are represented as a tuple of (length, slice contents).
@@ -2778,7 +2778,7 @@ impl<'a> Context<'a> {
         &mut self,
         old_slice: &mut Vector<AcirValue>,
         input: AcirValue,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeError<FieldElement>> {
         match input {
             AcirValue::Var(_, _) => {
                 old_slice.push_back(input);
