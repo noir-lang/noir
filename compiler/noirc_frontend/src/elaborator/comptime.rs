@@ -107,7 +107,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn run_comptime_attributes_on_item(
+    fn run_comptime_attributes_on_item(
         &mut self,
         attributes: &[SecondaryAttribute],
         item: Value,
