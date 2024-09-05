@@ -7,6 +7,14 @@ a function definition in the source program.
 
 ## Methods
 
+### add_attribute
+
+#include_code add_attribute noir_stdlib/src/meta/function_def.nr rust
+
+Adds an attribute to the function. This is only valid 
+on functions in the current crate which have not yet been resolved.
+This means any functions called at compile-time are invalid targets for this method.
+
 ### body
 
 #include_code body noir_stdlib/src/meta/function_def.nr rust
