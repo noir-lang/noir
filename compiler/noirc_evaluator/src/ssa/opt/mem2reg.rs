@@ -292,10 +292,8 @@ impl<'f> PerFunctionContext<'f> {
 
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
-                    let last_load = self
-                        .last_loads
-                        .entry(address)
-                        .or_insert((instruction, block_id, 0));
+                    let last_load =
+                        self.last_loads.entry(address).or_insert((instruction, block_id, 0));
                     last_load.load_counter += 1;
                 }
             }
