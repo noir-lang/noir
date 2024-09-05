@@ -283,7 +283,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
-                     let load_counter = self
+                    let load_counter = self
                         .last_loads
                         .get(&address)
                         .map_or(1, |(_, _, load_counter)| *load_counter + 1);
