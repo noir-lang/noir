@@ -5,6 +5,7 @@ use noirc_errors::Location;
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
 /// children, and scope with all definitions defined within the scope.
@@ -24,10 +25,25 @@ pub struct ModuleData {
 
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
+
+    pub outer_attributes: Vec<String>,
+    pub inner_attributes: Vec<String>,
 }
 
 impl ModuleData {
-    pub fn new(parent: Option<LocalModuleId>, location: Location, is_contract: bool) -> ModuleData {
+    pub fn new(
+        parent: Option<LocalModuleId>,
+        location: Location,
+        outer_attributes: Vec<SecondaryAttribute>,
+        inner_attributes: Vec<SecondaryAttribute>,
+        is_contract: bool,
+    ) -> ModuleData {
+        let outer_attributes = outer_attributes.iter().filter_map(|attr| attr.as_custom());
+        let outer_attributes = outer_attributes.map(|attr| attr.contents.to_string()).collect();
+
+        let inner_attributes = inner_attributes.iter().filter_map(|attr| attr.as_custom());
+        let inner_attributes = inner_attributes.map(|attr| attr.contents.to_string()).collect();
+
         ModuleData {
             parent,
             children: HashMap::new(),
@@ -35,6 +51,8 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
+            outer_attributes,
+            inner_attributes,
         }
     }
 

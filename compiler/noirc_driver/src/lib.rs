@@ -452,9 +452,13 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(
-                |attr| if let SecondaryAttribute::Custom(tag) = attr { Some(tag) } else { None },
-            )
+            .filter_map(|attr| {
+                if let SecondaryAttribute::Custom(attribute) = attr {
+                    Some(&attribute.contents)
+                } else {
+                    None
+                }
+            })
             .cloned()
             .collect();
 

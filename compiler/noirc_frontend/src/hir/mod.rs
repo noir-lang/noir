@@ -272,14 +272,14 @@ impl Context<'_, '_> {
     /// Each result is returned in a list rather than returned as a single result as to allow
     /// definition collection to provide an error for each ill-formed numeric generic.
     pub(crate) fn resolve_generics(
-        &mut self,
+        interner: &NodeInterner,
         generics: &UnresolvedGenerics,
         errors: &mut Vec<(CompilationError, FileId)>,
         file_id: FileId,
     ) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
-            let id = self.def_interner.next_type_variable_id();
+            let id = interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(id);
             let ident = generic.ident();
             let span = ident.0.span();
