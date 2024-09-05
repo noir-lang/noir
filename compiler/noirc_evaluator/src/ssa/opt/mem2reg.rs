@@ -310,10 +310,8 @@ impl<'f> PerFunctionContext<'f> {
 
                     let num_loads =
                         self.last_loads.get(&address).map_or(1, |context| context.num_loads + 1);
-                    self.last_loads.insert(
-                        address,
-                        PerFuncLastLoadContext::new(instruction, block_id, num_loads),
-                    );
+                    let last_load = PerFuncLastLoadContext::new(instruction, block_id, num_loads);
+                    self.last_loads.insert(address, last_load);
                 }
             }
             Instruction::Store { address, value } => {
