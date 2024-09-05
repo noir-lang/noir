@@ -41,7 +41,9 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
-    pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError<FieldElement>> {
+    pub(crate) fn unroll_loops_iteratively(
+        mut ssa: Ssa,
+    ) -> Result<Ssa, RuntimeError<FieldElement>> {
         // Try to unroll loops first:
         let mut unroll_errors;
         (ssa, unroll_errors) = ssa.try_to_unroll_loops();

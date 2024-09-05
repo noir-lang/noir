@@ -124,7 +124,10 @@ pub(crate) fn generate_ssa(
 impl<'a> FunctionContext<'a> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
-    fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError<FieldElement>> {
+    fn codegen_function_body(
+        &mut self,
+        body: &Expression,
+    ) -> Result<(), RuntimeError<FieldElement>> {
         let entry_block = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
@@ -134,7 +137,10 @@ impl<'a> FunctionContext<'a> {
         Ok(())
     }
 
-    fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, RuntimeError<FieldElement>> {
+    fn codegen_expression(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<Values, RuntimeError<FieldElement>> {
         match expr {
             Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
             Expression::Literal(literal) => self.codegen_literal(literal),
@@ -163,7 +169,10 @@ impl<'a> FunctionContext<'a> {
 
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
-    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> Result<ValueId, RuntimeError<FieldElement>> {
+    fn codegen_non_tuple_expression(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<ValueId, RuntimeError<FieldElement>> {
         Ok(self.codegen_expression(expr)?.into_leaf().eval(self))
     }
 
@@ -192,7 +201,10 @@ impl<'a> FunctionContext<'a> {
         self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
     }
 
-    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError<FieldElement>> {
+    fn codegen_literal(
+        &mut self,
+        literal: &ast::Literal,
+    ) -> Result<Values, RuntimeError<FieldElement>> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements =
@@ -294,7 +306,10 @@ impl<'a> FunctionContext<'a> {
         self.builder.array_constant(array, typ).into()
     }
 
-    fn codegen_block(&mut self, block: &[Expression]) -> Result<Values, RuntimeError<FieldElement>> {
+    fn codegen_block(
+        &mut self,
+        block: &[Expression],
+    ) -> Result<Values, RuntimeError<FieldElement>> {
         let mut result = Self::unit_value();
         for expr in block {
             result = self.codegen_expression(expr)?;
@@ -351,7 +366,10 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
-    fn codegen_reference(&mut self, expr: &Expression) -> Result<Values, RuntimeError<FieldElement>> {
+    fn codegen_reference(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<Values, RuntimeError<FieldElement>> {
         match expr {
             Expression::Ident(ident) => Ok(self.codegen_ident_reference(ident)),
             Expression::ExtractTupleField(tuple, index) => {
@@ -362,7 +380,10 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Values, RuntimeError<FieldElement>> {
+    fn codegen_binary(
+        &mut self,
+        binary: &ast::Binary,
+    ) -> Result<Values, RuntimeError<FieldElement>> {
         let lhs = self.codegen_non_tuple_expression(&binary.lhs)?;
         let rhs = self.codegen_non_tuple_expression(&binary.rhs)?;
         Ok(self.insert_binary(lhs, binary.operator, rhs, binary.location))
@@ -589,7 +610,10 @@ impl<'a> FunctionContext<'a> {
         Ok(result)
     }
 
-    fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError<FieldElement>> {
+    fn codegen_tuple(
+        &mut self,
+        tuple: &[Expression],
+    ) -> Result<Values, RuntimeError<FieldElement>> {
         Ok(Tree::Branch(try_vecmap(tuple, |expr| self.codegen_expression(expr))?))
     }
 
@@ -721,7 +745,10 @@ impl<'a> FunctionContext<'a> {
         Ok(Some(ConstrainError::Dynamic(error_type_id, values)))
     }
 
-    fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError<FieldElement>> {
+    fn codegen_assign(
+        &mut self,
+        assign: &ast::Assign,
+    ) -> Result<Values, RuntimeError<FieldElement>> {
         let lhs = self.extract_current_value(&assign.lvalue)?;
         let rhs = self.codegen_expression(&assign.expression)?;
 

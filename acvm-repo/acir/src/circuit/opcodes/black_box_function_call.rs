@@ -56,10 +56,7 @@ impl<F: AcirField> FunctionInput<F> {
         if value.num_bits() <= max_bits {
             Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
         } else {
-            Err(InvalidInputBitSize {
-                value,
-                max_bits,
-            })
+            Err(InvalidInputBitSize { value, max_bits })
         }
     }
 }

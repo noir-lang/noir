@@ -383,7 +383,11 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
     /// 0 otherwise.
-    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError<F>> {
+    pub(crate) fn eq_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, RuntimeError<F>> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
@@ -595,7 +599,11 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the multiplication of `lhs` and `rhs`
-    pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError<F>> {
+    pub(crate) fn mul_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, RuntimeError<F>> {
         let lhs_data = self.vars[&lhs].clone();
         let rhs_data = self.vars[&rhs].clone();
 
@@ -676,14 +684,22 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the subtraction of `lhs` and `rhs`
-    pub(crate) fn sub_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError<F>> {
+    pub(crate) fn sub_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, RuntimeError<F>> {
         let neg_rhs = self.neg_var(rhs);
         self.add_var(lhs, neg_rhs)
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the addition of `lhs` and `rhs`
-    pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError<F>> {
+    pub(crate) fn add_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, RuntimeError<F>> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
@@ -746,7 +762,12 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the expression `lhs + k * rhs`
-    fn add_mul_var(&mut self, lhs: AcirVar, k: F, rhs: AcirVar) -> Result<AcirVar, RuntimeError<F>> {
+    fn add_mul_var(
+        &mut self,
+        lhs: AcirVar,
+        k: F,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, RuntimeError<F>> {
         let k_var = self.add_constant(k);
 
         let intermediate = self.mul_var(k_var, rhs)?;
@@ -754,7 +775,11 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
-    pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError<F>> {
+    pub(crate) fn not_var(
+        &mut self,
+        x: AcirVar,
+        typ: AcirType,
+    ) -> Result<AcirVar, RuntimeError<F>> {
         let bit_size = typ.bit_size::<F>();
         // Subtracting from max flips the bits
         let max = self.add_constant((1_u128 << bit_size) - 1);
@@ -1422,7 +1447,9 @@ impl<F: AcirField> AcirContext<F> {
                 let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
                 let input_size: usize = match inputs.first().expect(invalid_input) {
                     AcirValue::Array(values) => Ok::<usize, RuntimeError<F>>(values.len()),
-                    AcirValue::DynamicArray(dyn_array) => Ok::<usize, RuntimeError<F>>(dyn_array.len),
+                    AcirValue::DynamicArray(dyn_array) => {
+                        Ok::<usize, RuntimeError<F>>(dyn_array.len)
+                    }
                     _ => {
                         return Err(RuntimeError::InternalError(InternalError::General {
                             message: "aes128_encrypt requires an array of inputs".to_string(),

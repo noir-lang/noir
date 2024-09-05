@@ -554,7 +554,10 @@ impl<'a> Context<'a> {
         Ok(witnesses)
     }
 
-    fn convert_ssa_block_param(&mut self, param_type: &Type) -> Result<AcirValue, RuntimeError<FieldElement>> {
+    fn convert_ssa_block_param(
+        &mut self,
+        param_type: &Type,
+    ) -> Result<AcirValue, RuntimeError<FieldElement>> {
         self.create_value_from_type(param_type, &mut |this, typ| this.add_numeric_input_var(&typ))
     }
 
@@ -1257,7 +1260,10 @@ impl<'a> Context<'a> {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError<FieldElement>>(AcirValue::Var(read, AcirType::field()))
+                    Ok::<AcirValue, RuntimeError<FieldElement>>(AcirValue::Var(
+                        read,
+                        AcirType::field(),
+                    ))
                 })?;
 
                 let mut elements = im::Vector::new();
@@ -1483,7 +1489,10 @@ impl<'a> Context<'a> {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError<FieldElement>>(AcirValue::Var(read, AcirType::field()))
+                    Ok::<AcirValue, RuntimeError<FieldElement>>(AcirValue::Var(
+                        read,
+                        AcirType::field(),
+                    ))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }

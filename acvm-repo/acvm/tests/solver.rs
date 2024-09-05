@@ -1317,8 +1317,10 @@ where
     let equal_inputs = drop_use_constant_eq(&inputs, &distinct_inputs);
     let message = format!("not injective:\n{:?}\n{:?}", &inputs, &distinct_inputs);
     let outputs_not_equal =
-        solve_array_input_blackbox_call(inputs, num_outputs, num_bits, op.clone()).unwrap()
-            != solve_array_input_blackbox_call(distinct_inputs, num_outputs, num_bits, op).unwrap();
+        solve_array_input_blackbox_call(inputs, num_outputs, num_bits, op.clone())
+            .expect("injectivity test operations to have valid input")
+            != solve_array_input_blackbox_call(distinct_inputs, num_outputs, num_bits, op)
+                .expect("injectivity test operations to have valid input");
     (equal_inputs || outputs_not_equal, message)
 }
 
