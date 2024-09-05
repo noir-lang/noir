@@ -292,11 +292,11 @@ impl<'f> PerFunctionContext<'f> {
 
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));
 
-                    let load_counter = self
+                    let last_load = self
                         .last_loads
-                        .get(&address)
-                        .map_or(1, |(_, _, load_counter)| *load_counter + 1);
-                    self.last_loads.insert(address, (instruction, block_id, load_counter));
+                        .entry(address)
+                        .or_insert((instruction, block_id, 0));
+                    last_load.load_counter += 1;
                 }
             }
             Instruction::Store { address, value } => {
