@@ -504,11 +504,7 @@ impl<'f> PerFunctionContext<'f> {
 
             // If the load result's counter is equal to zero we can safely remove that load instruction.
             if *result_counter == 0 {
-                if let Some(counter) = removed_loads.get_mut(&address) {
-                    *counter += 1;
-                } else {
-                    removed_loads.insert(address, 1);
-                }
+                removed_loads.entry(address).and_modify(|counter| *counter += 1).or_insert(1);
 
                 self.instructions_to_remove.insert(*load_instruction);
             }
