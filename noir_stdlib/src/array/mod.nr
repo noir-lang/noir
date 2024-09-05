@@ -18,12 +18,12 @@ impl<T, let N: u32> [T; N] {
             // Safety: `sorted` array is checked to be:
             //   a. a permutation of `input`'s elements
             //   b. satisfying the predicate `ordering`
-            let sorted = quicksort::quicksort(input);
+            let sorted = quicksort::quicksort(self);
 
             for i in 0..N - 1 {
                 assert(ordering(sorted[i], sorted[i + 1]));
             }
-            check_shuffle::check_shuffle(input, sorted);
+            check_shuffle::check_shuffle(self, sorted);
             sorted
         }
     }
