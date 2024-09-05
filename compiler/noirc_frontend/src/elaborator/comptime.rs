@@ -89,6 +89,39 @@ impl<'context> Elaborator<'context> {
         result
     }
 
+    pub fn elaborate_item_in_module<'a, T>(
+        &'a mut self,
+        module: ModuleId,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        // Create a fresh elaborator to ensure no state is changed from
+        // this elaborator
+        let mut elaborator = Elaborator::new(
+            self.interner,
+            self.def_maps,
+            module.krate,
+            self.debug_comptime_in_file,
+            self.enable_arithmetic_generics,
+            self.interpreter_call_stack.clone(),
+        );
+
+        elaborator.function_context.push(FunctionContext::default());
+        elaborator.scopes.start_function();
+
+        elaborator.current_item = None;
+        elaborator.crate_id = module.krate;
+        elaborator.local_module = module.local_id;
+        // TODO: elaborator.file = meta.source_file;
+
+        elaborator.populate_scope_from_comptime_scopes();
+
+        let result = f(&mut elaborator);
+        elaborator.check_and_pop_function_context();
+
+        self.errors.append(&mut elaborator.errors);
+        result
+    }
+
     fn populate_scope_from_comptime_scopes(&mut self) {
         // Take the comptime scope to be our runtime scope.
         // Iterate from global scope to the most local scope so that the

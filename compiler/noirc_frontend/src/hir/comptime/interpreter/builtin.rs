@@ -25,22 +25,12 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-<<<<<<< Updated upstream
     hir::comptime::{
         errors::IResult,
         value::{ExprValue, TypedExpr},
         InterpreterError, Value,
-=======
-    elaborator::{self, Elaborator},
-    hir::{
-        comptime::{
-            errors::IResult,
-            value::{ExprValue, TypedExpr},
-            InterpreterError, Value,
-        },
-        def_collector::dc_crate::CollectedItems,
->>>>>>> Stashed changes
     },
+    hir::def_collector::dc_crate::CollectedItems,
     hir_def::function::FunctionBody,
     lexer::Lexer,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
@@ -2036,7 +2026,9 @@ fn module_add_item(
     // How to do this?
 
     let mut generated_items = CollectedItems::default();
-    interpreter.elaborator.add_item(top_level_statement, &mut generated_items, location);
+    interpreter.elaborate_in_module(module_id, |elaborator| {
+        elaborator.add_item(top_level_statement, &mut generated_items, location);
+    });
 
     if !generated_items.is_empty() {
         interpreter.elaborate_item(interpreter.current_function, |elaborator| {

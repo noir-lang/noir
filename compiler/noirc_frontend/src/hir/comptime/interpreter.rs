@@ -10,6 +10,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
+use crate::hir::def_map::ModuleId;
 use crate::hir_def::expr::ImplKind;
 use crate::hir_def::function::FunctionBody;
 use crate::macros_api::UnaryOp;
@@ -190,6 +191,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> T {
         self.unbind_generics_from_previous_function();
         let result = self.elaborator.elaborate_item_from_comptime(function, f);
+        self.rebind_generics_from_previous_function();
+        result
+    }
+
+    fn elaborate_in_module<T>(
+        &mut self,
+        module: ModuleId,
+        f: impl FnOnce(&mut Elaborator) -> T,
+    ) -> T {
+        self.unbind_generics_from_previous_function();
+        let result = self.elaborator.elaborate_item_in_module(module, f);
         self.rebind_generics_from_previous_function();
         result
     }
