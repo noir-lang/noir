@@ -121,64 +121,56 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
         return;
     }
 
-    if let Some(TerminatorInstruction::Jmp { destination: final_destination, arguments, .. }) =
+    let Some(TerminatorInstruction::Jmp { destination: final_destination, arguments, .. }) =
         function.dfg[block].terminator()
-    {
-        let final_destination = *final_destination;
+    else {
+        return;
+    };
 
-        if !arguments.is_empty() {
-            return;
-        }
+    if !arguments.is_empty() {
+        return;
+    }
 
-        let predecessors: Vec<_> = cfg.predecessors(block).collect();
-        for predecessor_block in predecessors {
-            let terminator_instruction = function.dfg[predecessor_block].take_terminator();
-            let redirected_terminator_instruction = match terminator_instruction {
+    let final_destination = *final_destination;
+
+    let predecessors: Vec<_> = cfg.predecessors(block).collect();
+    for predecessor_block in predecessors {
+        let terminator_instruction = function.dfg[predecessor_block].take_terminator();
+        let redirected_terminator_instruction = match terminator_instruction {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
+                let then_destination =
+                    if then_destination == block { final_destination } else { then_destination };
+                let else_destination =
+                    if else_destination == block { final_destination } else { else_destination };
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
                     else_destination,
                     call_stack,
-                } => {
-                    let then_destination = if then_destination == block {
-                        final_destination
-                    } else {
-                        then_destination
-                    };
-                    let else_destination = if else_destination == block {
-                        final_destination
-                    } else {
-                        else_destination
-                    };
-                    TerminatorInstruction::JmpIf {
-                        condition,
-                        then_destination,
-                        else_destination,
-                        call_stack,
-                    }
                 }
-                TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
-                    assert_eq!(
-                        destination, block,
-                        "ICE: predecessor block doesn't jump to current block"
-                    );
-                    assert!(arguments.is_empty(), "ICE: predecessor jmp has arguments");
-                    TerminatorInstruction::Jmp {
-                        destination: final_destination,
-                        arguments,
-                        call_stack,
-                    }
-                }
-                TerminatorInstruction::Return { .. } => unreachable!(
-                    "ICE: predecessor block should not have return terminator instruction"
-                ),
-            };
+            }
+            TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
+                assert_eq!(
+                    destination, block,
+                    "ICE: predecessor block doesn't jump to current block"
+                );
+                assert!(arguments.is_empty(), "ICE: predecessor jmp has arguments");
+                TerminatorInstruction::Jmp { destination: final_destination, arguments, call_stack }
+            }
+            TerminatorInstruction::Return { .. } => {
+                unreachable!("ICE: predecessor block should not have return terminator instruction")
+            }
+        };
 
-            function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);
-            cfg.recompute_block(function, predecessor_block);
-        }
-        cfg.recompute_block(function, block);
+        function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);
+        cfg.recompute_block(function, predecessor_block);
     }
+    cfg.recompute_block(function, block);
 }
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
