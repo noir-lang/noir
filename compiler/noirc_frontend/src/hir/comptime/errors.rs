@@ -601,19 +601,31 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
-                let msg = format!("Generic name needs to be a valid identifer (one word beginning with a letter)");
+                let msg =
+                    "Generic name needs to be a valid identifer (one word beginning with a letter)"
+                        .to_string();
                 let secondary = format!("`{name}` is not a valid identifier");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
-            },
-            InterpreterError::DuplicateGeneric { name, struct_name, duplicate_location, existing_location } => {
+            }
+            InterpreterError::DuplicateGeneric {
+                name,
+                struct_name,
+                duplicate_location,
+                existing_location,
+            } => {
                 let msg = format!("`{struct_name}` already has a generic named `{name}`");
                 let secondary = format!("`{name}` added here a second time");
-                let mut error = CustomDiagnostic::simple_error(msg, secondary, duplicate_location.span);
+                let mut error =
+                    CustomDiagnostic::simple_error(msg, secondary, duplicate_location.span);
 
                 let existing_msg = format!("`{name}` was previously defined here");
-                error.add_secondary_with_file(existing_msg, existing_location.span, existing_location.file);
+                error.add_secondary_with_file(
+                    existing_msg,
+                    existing_location.span,
+                    existing_location.file,
+                );
                 error
-            },
+            }
         }
     }
 }

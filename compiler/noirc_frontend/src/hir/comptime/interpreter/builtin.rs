@@ -332,7 +332,7 @@ fn struct_def_add_generic(
     let generic_location = generic.1;
     let generic = get_str(interner, generic)?;
 
-    let mut tokens = Lexer::lex(&generic).0.0;
+    let mut tokens = Lexer::lex(&generic).0 .0;
     if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
         tokens.pop();
     }
