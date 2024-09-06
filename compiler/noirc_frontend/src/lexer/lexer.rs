@@ -623,7 +623,7 @@ impl<'a> Lexer<'a> {
         };
         let comment = self.eat_while(None, |ch| ch != '\n');
 
-        if self.skip_comments {
+        if doc_style.is_none() && self.skip_comments {
             return self.next_token();
         }
 
@@ -668,7 +668,7 @@ impl<'a> Lexer<'a> {
         }
 
         if depth == 0 {
-            if self.skip_comments {
+            if doc_style.is_none() && self.skip_comments {
                 return self.next_token();
             }
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))

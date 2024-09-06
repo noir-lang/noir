@@ -59,6 +59,7 @@ use noirc_errors::{Span, Spanned};
 
 mod assertion;
 mod attributes;
+mod doc_comments;
 mod function;
 mod lambdas;
 mod literals;

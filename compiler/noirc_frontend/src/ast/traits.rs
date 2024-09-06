@@ -35,6 +35,7 @@ pub enum TraitItem {
         return_type: FunctionReturnType,
         where_clause: Vec<UnresolvedTraitConstraint>,
         body: Option<BlockExpression>,
+        doc_comments: Vec<String>,
     },
     Constant {
         name: Ident,
@@ -140,7 +141,15 @@ impl Display for NoirTrait {
 impl Display for TraitItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+            TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body,
+                doc_comments: _,
+            } => {
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);

@@ -236,6 +236,7 @@ pub fn generate_storage_implementation(
         &BlockExpression { statements: vec![storage_constructor_statement] },
         &[],
         &return_type(chained_path!("Self")),
+        Vec::new(),
     ));
 
     let ordered_args = vec![generic_context_type.clone()];

@@ -15,7 +15,9 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::macros_api::{Expression, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData};
+use crate::macros_api::{
+    Expression, ModuleDefId, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData,
+};
 use crate::node_interner::ModuleAttributes;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
@@ -414,6 +416,7 @@ impl<'a> ModCollector<'a> {
                         return_type,
                         where_clause,
                         body,
+                        doc_comments,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
                         method_ids.insert(name.to_string(), func_id);
@@ -447,6 +450,7 @@ impl<'a> ModCollector<'a> {
                                             body,
                                             where_clause,
                                             return_type,
+                                            doc_comments.clone(),
                                         ));
                                     unresolved_functions.push_fn(
                                         self.module_id,
@@ -914,6 +918,13 @@ pub fn collect_struct(
             return None;
         }
     };
+
+    // For now we only collect docs in LSP mode, until we have a doc generator
+    if interner.is_in_lsp_mode() && !unresolved.struct_def.doc_comments.is_empty() {
+        interner
+            .doc_comments
+            .insert(ModuleDefId::TypeId(id), unresolved.struct_def.doc_comments.clone());
+    }
 
     // Add the struct to scope so its path can be looked up later
     let result = def_map.modules[module_id.0].declare_struct(name.clone(), id);

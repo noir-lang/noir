@@ -8,7 +8,7 @@ use noirc_frontend::{
     graph::CrateId,
     hir::def_map::ModuleId,
     hir_def::{stmt::HirPattern, traits::Trait},
-    macros_api::{NodeInterner, StructId},
+    macros_api::{ModuleDefId, NodeInterner, StructId},
     node_interner::{
         DefinitionId, DefinitionKind, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
@@ -108,6 +108,9 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str(",\n");
     }
     string.push_str("    }");
+
+    append_doc_comments(args.interner, ModuleDefId::TypeId(id), &mut string);
+
     string
 }
 
@@ -220,6 +223,8 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
+    append_doc_comments(args.interner, ModuleDefId::FunctionId(id), &mut string);
+
     string
 }
 
@@ -270,6 +275,7 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
+/// Some doc comments
 fn format_generics(generics: &Generics, string: &mut String) {
     if generics.is_empty() {
         return;
@@ -511,6 +517,16 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
         location.range.end.line + 1,
         location.range.end.character + 1
     )
+}
+
+fn append_doc_comments(interner: &NodeInterner, id: ModuleDefId, string: &mut String) {
+    if let Some(doc_comments) = interner.doc_comments(id) {
+        string.push_str("\n\n---\n\n");
+        for comment in doc_comments {
+            string.push_str(comment);
+            string.push('\n');
+        }
+    }
 }
 
 #[cfg(test)]

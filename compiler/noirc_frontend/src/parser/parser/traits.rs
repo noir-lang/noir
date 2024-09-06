@@ -1,6 +1,7 @@
 use chumsky::prelude::*;
 
 use super::attributes::{attributes, validate_secondary_attributes};
+use super::doc_comments::outer_doc_comments;
 use super::function::function_return_type;
 use super::path::path_no_turbofish;
 use super::{
@@ -97,16 +98,30 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
             }
         });
 
-    keyword(Keyword::Fn)
-        .ignore_then(ident())
+    outer_doc_comments()
+        .then_ignore(keyword(Keyword::Fn))
+        .then(ident())
         .then(function::generics())
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(trait_function_body_or_semicolon_or_error)
-        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-        })
+        .map(
+            |(
+                (((((doc_comments, name), generics), parameters), return_type), where_clause),
+                body,
+            )| {
+                TraitItem::Function {
+                    name,
+                    generics,
+                    parameters,
+                    return_type,
+                    where_clause,
+                    body,
+                    doc_comments,
+                }
+            },
+        )
 }
 
 /// trait_type_declaration: 'type' ident generics

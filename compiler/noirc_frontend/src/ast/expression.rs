@@ -479,6 +479,8 @@ pub struct FunctionDefinition {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
+
+    pub doc_comments: Vec<String>,
 }
 
 impl FunctionDefinition {
@@ -788,6 +790,7 @@ impl FunctionDefinition {
         body: &BlockExpression,
         where_clause: &[UnresolvedTraitConstraint],
         return_type: &FunctionReturnType,
+        doc_comments: Vec<String>,
     ) -> FunctionDefinition {
         let p = parameters
             .iter()
@@ -812,6 +815,7 @@ impl FunctionDefinition {
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
+            doc_comments,
         }
     }
 

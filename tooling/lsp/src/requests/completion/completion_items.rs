@@ -1,10 +1,11 @@
 use lsp_types::{
-    Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
+    Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
+    InsertTextFormat, MarkupContent, MarkupKind,
 };
 use noirc_frontend::{
     ast::AttributeTarget,
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    macros_api::ModuleDefId,
+    macros_api::{ModuleDefId, StructId},
     node_interner::{FuncId, GlobalId},
     QuotedType, Type,
 };
@@ -63,15 +64,26 @@ impl<'a> NodeFinder<'a> {
                 attribute_first_type.as_ref(),
                 false, // self_prefix
             ),
-            ModuleDefId::TypeId(..) => Some(self.struct_completion_item(name)),
+            ModuleDefId::TypeId(struct_id) => Some(self.struct_completion_item(name, struct_id)),
             ModuleDefId::TypeAliasId(..) => Some(self.type_alias_completion_item(name)),
             ModuleDefId::TraitId(..) => Some(self.trait_completion_item(name)),
             ModuleDefId::GlobalId(global_id) => Some(self.global_completion_item(name, global_id)),
         }
     }
 
-    fn struct_completion_item(&self, name: String) -> CompletionItem {
-        simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name))
+    fn struct_completion_item(&self, name: String, struct_id: StructId) -> CompletionItem {
+        let mut completion_item =
+            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+
+        if let Some(doc_comments) = self.interner.doc_comments(ModuleDefId::TypeId(struct_id)) {
+            let docs = doc_comments.join("\n");
+            completion_item.documentation = Some(Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: docs,
+            }));
+        }
+
+        completion_item
     }
 
     fn type_alias_completion_item(&self, name: String) -> CompletionItem {
@@ -204,12 +216,20 @@ impl<'a> NodeFinder<'a> {
             completion_item
         };
 
-        let completion_item = match function_completion_kind {
+        let mut completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => completion_item,
             FunctionCompletionKind::NameAndParameters => {
                 completion_item_with_trigger_parameter_hints_command(completion_item)
             }
         };
+
+        if let Some(doc_comments) = self.interner.doc_comments(ModuleDefId::FunctionId(func_id)) {
+            let docs = doc_comments.join("\n");
+            completion_item.documentation = Some(Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: docs,
+            }));
+        }
 
         Some(completion_item)
     }

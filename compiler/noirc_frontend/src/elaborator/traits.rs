@@ -74,6 +74,7 @@ impl<'context> Elaborator<'context> {
                 return_type,
                 where_clause,
                 body: _,
+                doc_comments,
             } = item
             {
                 self.recover_generics(|this| {
@@ -104,6 +105,7 @@ impl<'context> Elaborator<'context> {
                         parameters,
                         return_type,
                         where_clause,
+                        doc_comments.clone(),
                         func_id,
                     );
 
@@ -157,6 +159,7 @@ impl<'context> Elaborator<'context> {
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
         where_clause: &[UnresolvedTraitConstraint],
+        doc_comments: Vec<String>,
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
@@ -182,6 +185,7 @@ impl<'context> Elaborator<'context> {
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
+            doc_comments,
         };
 
         let mut function = NoirFunction { kind, def };
