@@ -85,7 +85,7 @@ array and the index.
 
 #include_code as_integer noir_stdlib/src/meta/expr.nr rust
 
-If this expressoin is an integer literal, return the integer as a field
+If this expression is an integer literal, return the integer as a field
 as well as whether the integer is negative (true) or not (false).
 
 ### as_let
