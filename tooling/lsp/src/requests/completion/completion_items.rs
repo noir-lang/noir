@@ -43,6 +43,7 @@ impl<'a> NodeFinder<'a> {
                 func_id,
                 function_completion_kind,
                 function_kind,
+                false, // self_prefix
             ),
             ModuleDefId::TypeId(..) => Some(self.struct_completion_item(name)),
             ModuleDefId::TypeAliasId(..) => Some(self.type_alias_completion_item(name)),
@@ -77,6 +78,7 @@ impl<'a> NodeFinder<'a> {
         func_id: FuncId,
         function_completion_kind: FunctionCompletionKind,
         function_kind: FunctionKind,
+        self_prefix: bool,
     ) -> Option<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
 
@@ -135,6 +137,8 @@ impl<'a> NodeFinder<'a> {
         } else {
             false
         };
+        let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
+        let name = &name;
         let description = func_meta_type_to_string(func_meta, func_self_type.is_some());
 
         let completion_item = match function_completion_kind {
@@ -294,12 +298,24 @@ fn type_to_self_string(typ: &Type, string: &mut String) {
     }
 }
 
-pub(super) fn struct_field_completion_item(field: &str, typ: &Type) -> CompletionItem {
-    field_completion_item(field, typ.to_string())
+pub(super) fn struct_field_completion_item(
+    field: &str,
+    typ: &Type,
+    self_type: bool,
+) -> CompletionItem {
+    field_completion_item(field, typ.to_string(), self_type)
 }
 
-pub(super) fn field_completion_item(field: &str, typ: impl Into<String>) -> CompletionItem {
-    simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.into()))
+pub(super) fn field_completion_item(
+    field: &str,
+    typ: impl Into<String>,
+    self_type: bool,
+) -> CompletionItem {
+    if self_type {
+        simple_completion_item(format!("self.{field}"), CompletionItemKind::FIELD, Some(typ.into()))
+    } else {
+        simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.into()))
+    }
 }
 
 pub(super) fn simple_completion_item(

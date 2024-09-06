@@ -7,6 +7,12 @@ This type corresponds to `struct Name { field1: Type1, ... }` items in the sourc
 
 ## Methods
 
+### add_attribute
+
+#include_code add_attribute noir_stdlib/src/meta/struct_def.nr rust
+
+Adds an attribute to the struct.
+
 ### as_type
 
 #include_code as_type noir_stdlib/src/meta/struct_def.nr rust
@@ -43,6 +49,12 @@ comptime fn example(foo: StructDefinition) {
 #include_code fields noir_stdlib/src/meta/struct_def.nr rust
 
 Returns each field of this struct as a pair of (field name, field type).
+
+### has_named_attribute
+
+#include_code has_named_attribute noir_stdlib/src/meta/struct_def.nr rust
+
+Returns true if this struct has a custom attribute with the given name.
 
 ### set_fields
 
