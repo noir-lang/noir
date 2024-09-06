@@ -32,26 +32,11 @@ pub fn verify_signature_noir<let N: u32>(public_key: EmbeddedCurvePoint, signatu
         & (!public_key.is_infinite);
 
     if ((sig_s.lo != 0) | (sig_s.hi != 0)) & ((sig_e.lo != 0) | (sig_e.hi != 0)) {
-        let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
-        let r = crate::embedded_curve_ops::multi_scalar_mul([g1, public_key], [sig_s, sig_e]);
-        // compare the _hashes_ rather than field elements modulo r
-        let pedersen_hash = crate::hash::pedersen_hash([r.x, public_key.x, public_key.y]);
-        let pde: [u8; 32] = pedersen_hash.to_be_bytes();
+        let (r_is_infinite, result) = calculate_signature_challenge(public_key, sig_s, sig_e, message);
 
-        let mut hash_input = Vec::new();
+        is_ok = !r_is_infinite;
         for i in 0..32 {
-            hash_input.push(pde[i]);
-        }
-        for i in 0..N {
-            hash_input.push(message[i]);
-        }
-
-        let result = crate::hash::blake2s_slice(hash_input.slice);
-        is_ok = !r.is_infinite;
-        for i in 0..32 {
-            if result[i] != signature[32 + i] {
-                is_ok = false;
-            }
+            is_ok &= result[i] == signature[32 + i];
         }
     }
     is_ok
@@ -69,6 +54,20 @@ pub fn assert_valid_signature<let N: u32>(public_key: EmbeddedCurvePoint, signat
     assert((sig_s.lo != 0) | (sig_s.hi != 0));
     assert((sig_e.lo != 0) | (sig_e.hi != 0));
 
+    let (r_is_infinite, result) = calculate_signature_challenge(public_key, sig_s, sig_e, message);
+
+    assert(!r_is_infinite);
+    for i in 0..32 {
+        assert(result[i] == signature[32 + i]);
+    }
+}
+
+fn calculate_signature_challenge<let N: u32>(
+    public_key: EmbeddedCurvePoint,
+    sig_s: EmbeddedCurveScalar,
+    sig_e: EmbeddedCurveScalar,
+    message: [u8; N]
+) -> (bool, [u8; 32]) {
     let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
     let r = crate::embedded_curve_ops::multi_scalar_mul([g1, public_key], [sig_s, sig_e]);
     // compare the _hashes_ rather than field elements modulo r
@@ -84,9 +83,5 @@ pub fn assert_valid_signature<let N: u32>(public_key: EmbeddedCurvePoint, signat
     }
 
     let result = crate::hash::blake2s_slice(hash_input.slice);
-
-    assert(!r.is_infinite);
-    for i in 0..32 {
-        assert(result[i] == signature[32 + i]);
-    }
+    (r.is_infinite, result)
 }
