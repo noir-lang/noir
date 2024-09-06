@@ -106,6 +106,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
             }
+            "function_def_is_unconstrained" => {
+                function_def_is_unconstrained(interner, arguments, location)
+            }
             "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -117,6 +120,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "function_def_set_return_public" => {
                 function_def_set_return_public(self, arguments, location)
+            }
+            "function_def_set_unconstrained" => {
+                function_def_set_unconstrained(self, arguments, location)
             }
             "module_add_item" => module_add_item(self, arguments, location),
             "module_functions" => module_functions(self, arguments, location),
@@ -1927,6 +1933,18 @@ fn function_def_has_named_attribute(
     Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
 }
 
+// fn is_unconstrained(self) -> bool
+fn function_def_is_unconstrained(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let is_unconstrained = interner.function_modifiers(&func_id).is_unconstrained;
+    Ok(Value::Bool(is_unconstrained))
+}
+
 // fn module(self) -> Module
 fn function_def_module(
     interner: &NodeInterner,
@@ -2120,6 +2138,25 @@ fn function_def_set_return_public(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+
+    Ok(Value::Unit)
+}
+
+// fn set_unconstrained(self, value: bool)
+fn function_def_set_unconstrained(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, unconstrained) = check_two_arguments(arguments, location)?;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let unconstrained = get_bool(unconstrained)?;
+
+    let modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+    modifiers.is_unconstrained = unconstrained;
 
     Ok(Value::Unit)
 }
