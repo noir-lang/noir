@@ -15,7 +15,7 @@ use crate::{
 };
 use fxhash::FxHashMap as HashMap;
 
-use super::variable_liveness::VariableLiveness;
+use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
@@ -25,6 +25,8 @@ pub(crate) struct FunctionContext {
     pub(crate) blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
     pub(crate) liveness: VariableLiveness,
+    /// Information on where to allocate constants
+    pub(crate) constant_allocation: ConstantAllocation,
 }
 
 impl FunctionContext {
@@ -36,11 +38,15 @@ impl FunctionContext {
         reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
         reverse_post_order.reverse();
 
+        let constants = ConstantAllocation::from_function(function);
+        let liveness = VariableLiveness::from_function(function, &constants);
+
         Self {
             function_id: id,
             ssa_value_allocations: HashMap::default(),
             blocks: reverse_post_order,
-            liveness: VariableLiveness::from_function(function),
+            liveness,
+            constant_allocation: constants,
         }
     }
 
