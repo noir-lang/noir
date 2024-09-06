@@ -42,6 +42,22 @@ fn outer_attribute_separate_module(m: Module) {
     increment_counter();
 }
 
+struct Foo {}
+
+#[add_function]
+mod add_to_me {
+    fn add_to_me_function() {}
+}
+
+fn add_function(m: Module) {
+    m.add_item(
+        quote { pub fn added_function() -> super::Foo {
+            add_to_me_function();
+            super::Foo {}
+    } }
+    );
+}
+
 fn main() {
     comptime
     {
@@ -73,6 +89,8 @@ fn main() {
 
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();
+
+    let _ = add_to_me::added_function();
 }
 
 // docs:start:as_module_example

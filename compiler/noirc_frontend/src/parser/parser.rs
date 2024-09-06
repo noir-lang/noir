@@ -175,7 +175,7 @@ fn program() -> impl NoirParser<ParsedModule> {
 
 /// module: top_level_statement module
 ///       | %empty
-fn module() -> impl NoirParser<ParsedModule> {
+pub fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
         empty()
             .to(ParsedModule::default())
@@ -202,7 +202,7 @@ pub fn top_level_items() -> impl NoirParser<Vec<TopLevelStatement>> {
 ///                    | module_declaration
 ///                    | use_statement
 ///                    | global_declaration
-fn top_level_statement<'a>(
+pub fn top_level_statement<'a>(
     module_parser: impl NoirParser<ParsedModule> + 'a,
 ) -> impl NoirParser<TopLevelStatement> + 'a {
     choice((

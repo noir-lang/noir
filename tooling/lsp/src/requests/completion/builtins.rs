@@ -1,5 +1,5 @@
 use lsp_types::CompletionItemKind;
-use noirc_frontend::token::Keyword;
+use noirc_frontend::{ast::AttributeTarget, token::Keyword};
 use strum::IntoEnumIterator;
 
 use super::{
@@ -81,6 +81,40 @@ impl<'a> NodeFinder<'a> {
                     CompletionItemKind::STRUCT,
                     Some(typ.to_string()),
                 ));
+            }
+        }
+    }
+
+    pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
+        match target {
+            AttributeTarget::Module => (),
+            AttributeTarget::Struct => {
+                self.suggest_one_argument_attributes(prefix, &["abi"]);
+            }
+            AttributeTarget::Function => {
+                let no_arguments_attributes = &[
+                    "contract_library_method",
+                    "deprecated",
+                    "export",
+                    "fold",
+                    "no_predicates",
+                    "recursive",
+                    "test",
+                    "varargs",
+                ];
+                self.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
+
+                let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
+                self.suggest_one_argument_attributes(prefix, one_argument_attributes);
+
+                if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "test(should_fail_with=\"...\")",
+                        CompletionItemKind::METHOD,
+                        "test(should_fail_with=\"${1:message}\")",
+                        None,
+                    ));
+                }
             }
         }
     }
