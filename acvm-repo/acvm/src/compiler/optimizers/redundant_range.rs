@@ -109,22 +109,28 @@ impl<F: AcirField> RangeOptimizer<F> {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let (witness, num_bits) = match opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input })
-                    if matches!(input.input_ref(), ConstantOrWitnessEnum::Witness(..)) =>
-                {
-                    if let ConstantOrWitnessEnum::Witness(witness) = input.input() {
-                        (witness, input.num_bits())
-                    } else {
-                        unreachable!("The matches! above ensures only a witness is possible")
-                    }
-                }
-                _ => {
-                    // If its not the range opcode, add it to the opcode
-                    // list and continue;
+            let (witness, num_bits) = {
+                // If its not the range opcode, add it to the opcode
+                // list and continue;
+                let mut push_non_range_opcode = || {
                     optimized_opcodes.push(opcode.clone());
                     new_order_list.push(order_list[idx]);
-                    continue;
+                };
+
+                match opcode {
+                    Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
+                        match input.input() {
+                            ConstantOrWitnessEnum::Witness(witness) => (witness, input.num_bits()),
+                            _ => {
+                                push_non_range_opcode();
+                                continue;
+                            }
+                        }
+                    }
+                    _ => {
+                        push_non_range_opcode();
+                        continue;
+                    }
                 }
             };
             // If we've already applied the range constraint for this witness then skip this opcode.
