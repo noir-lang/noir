@@ -25,13 +25,10 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::{
-        comptime::{
-            errors::IResult,
-            value::{ExprValue, TypedExpr},
-            InterpreterError, Value,
-        },
-        def_map::ModuleId,
+    hir::comptime::{
+        errors::IResult,
+        value::{ExprValue, TypedExpr},
+        InterpreterError, Value,
     },
     hir_def::function::FunctionBody,
     lexer::Lexer,
@@ -1839,8 +1836,7 @@ fn function_def_module(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let func_meta = interner.function_meta(&func_id);
-    let module = ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
+    let module = interner.function_module(func_id);
     Ok(Value::ModuleDefinition(module))
 }
 
