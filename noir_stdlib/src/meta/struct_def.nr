@@ -34,6 +34,11 @@ impl StructDefinition {
     fn module(self) -> Module {}
     // docs:end:module
 
+    #[builtin(struct_def_name)]
+    // docs:start:name
+    fn name(self) -> Quoted {}
+    // docs:end:name
+
     /// Sets the fields of this struct to the given fields list.
     /// All existing fields of the struct will be overridden with the given fields.
     /// Each element of the fields list corresponds to the name and type of a field.

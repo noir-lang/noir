@@ -147,6 +147,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
                 struct_def_has_named_attribute(interner, arguments, location)
             }
             "struct_def_module" => struct_def_module(self, arguments, location),
+            "struct_def_name" => struct_def_name(interner, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
@@ -421,6 +422,20 @@ fn struct_def_module(
     let parent = ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
 
     Ok(Value::ModuleDefinition(parent))
+}
+
+// fn name(self) -> Quoted
+fn struct_def_name(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+    let the_struct = interner.get_struct(struct_id);
+
+    let name = Token::Ident(the_struct.borrow().name.to_string());
+    Ok(Value::Quoted(Rc::new(vec![name])))
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}

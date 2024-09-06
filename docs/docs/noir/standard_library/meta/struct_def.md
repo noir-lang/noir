@@ -62,6 +62,15 @@ Returns true if this struct has a custom attribute with the given name.
 
 Returns the module where the struct is defined.
 
+### name
+
+#include_code name noir_stdlib/src/meta/struct_def.nr rust
+
+Returns the name of this struct
+
+Note that the returned quoted value will be just the struct name, it will
+not be the full path to the struct, nor will it include any generics.
+
 ### set_fields
 
 #include_code set_fields noir_stdlib/src/meta/struct_def.nr rust
