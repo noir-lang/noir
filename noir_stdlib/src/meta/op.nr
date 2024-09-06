@@ -40,7 +40,7 @@ impl UnaryOp {
             quote { * }
         } else {
             let op = self;
-            panic(f"Unexpected unary operator in UnaryOp::quoted: {op}")
+            std::panic::panic(f"Unexpected unary operator in UnaryOp::quoted: {op}")
         }
     }
 }
@@ -183,7 +183,7 @@ impl BinaryOp {
             quote { % }
         } else {
             let op = self;
-            panic(f"Unexpected binary operator in BinaryOp::quoted: {op}")
+            std::panic::panic(f"Unexpected binary operator in BinaryOp::quoted: {op}")
         }
     }
 }
