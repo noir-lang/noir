@@ -854,7 +854,7 @@ mod tests {
 
         // Loop body
         builder.switch_to_block(b2);
-        let v5 = builder.insert_load(v2, v2_type);
+        let v5 = builder.insert_load(v2, v2_type.clone());
         let two = builder.numeric_constant(2u128, Type::field());
         builder.insert_store(v5, two);
         let one = builder.numeric_constant(1u128, Type::field());
@@ -863,12 +863,12 @@ mod tests {
 
         builder.switch_to_block(b3);
         let v9 = builder.insert_load(v0, Type::field());
-        let v10 = builder.insert_binary(v9, BinaryOp::Eq, two);
+        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
 
         builder.insert_constrain(v9, two, None);
-        let v11 = builder.insert_load(v2, Type::field());
-        let v12 = builder.insert_load(v10, Type::field());
-        let v13 = builder.insert_binary(v12, BinaryOp::Eq, two);
+        let v11 = builder.insert_load(v2, v2_type);
+        let v12 = builder.insert_load(v11, Type::field());
+        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
 
         builder.insert_constrain(v11, two, None);
         builder.terminate_with_return(vec![]);
