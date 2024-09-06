@@ -506,6 +506,7 @@ impl<'a> NodeFinder<'a> {
                     self.collect_local_variables(pattern);
                 }
             }
+            Pattern::Interned(..) => (),
         }
     }
 
@@ -799,7 +800,7 @@ impl<'a> NodeFinder<'a> {
                 }
             }
             Pattern::Mutable(pattern, ..) => self.try_set_self_type(pattern),
-            Pattern::Tuple(..) | Pattern::Struct(..) => (),
+            Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) => (),
         }
     }
 

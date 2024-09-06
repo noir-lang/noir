@@ -13,7 +13,7 @@ use super::{
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::{SecondaryAttribute, UnresolvedTypeData};
-use crate::node_interner::{InternedExpressionKind, InternedStatementKind};
+use crate::node_interner::{InternedExpressionKind, InternedPattern, InternedStatementKind};
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 
@@ -565,6 +565,7 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
+    Interned(InternedPattern, Span),
 }
 
 impl Pattern {
@@ -577,7 +578,8 @@ impl Pattern {
             Pattern::Identifier(ident) => ident.span(),
             Pattern::Mutable(_, span, _)
             | Pattern::Tuple(_, span)
-            | Pattern::Struct(_, _, span) => *span,
+            | Pattern::Struct(_, _, span)
+            | Pattern::Interned(_, span) => *span,
         }
     }
     pub fn name_ident(&self) -> &Ident {
@@ -904,6 +906,9 @@ impl Display for Pattern {
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+            Pattern::Interned(_, _) => {
+                write!(f, "?Interned")
             }
         }
     }

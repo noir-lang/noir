@@ -66,6 +66,11 @@ impl Expr {
     fn as_index(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_index
 
+    #[builtin(expr_as_let)]
+    // docs:start:as_let
+    fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)> {}
+    // docs:end:as_let
+
     #[builtin(expr_as_member_access)]
     // docs:start:as_member_access
     fn as_member_access(self) -> Option<(Expr, Quoted)> {}
@@ -134,6 +139,7 @@ impl Expr {
         let result = result.or_else(|| modify_comptime(self, f));
         let result = result.or_else(|| modify_if(self, f));
         let result = result.or_else(|| modify_index(self, f));
+        let result = result.or_else(|| modify_let(self, f));
         let result = result.or_else(|| modify_function_call(self, f));
         let result = result.or_else(|| modify_member_access(self, f));
         let result = result.or_else(|| modify_method_call(self, f));
@@ -280,6 +286,17 @@ fn modify_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Exp
     )
 }
 
+fn modify_let<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_let().map(
+        |expr: (Expr, Option<UnresolvedType>, Expr)| {
+        let (pattern, typ, expr) = expr;
+        let pattern = pattern.modify(f);
+        let expr = expr.modify(f);
+        new_let(pattern, typ, expr)
+    }
+    )
+}
+
 fn modify_member_access<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_member_access().map(
         |expr: (Expr, Quoted)| {
@@ -421,6 +438,15 @@ fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr
 
 fn new_index(object: Expr, index: Expr) -> Expr {
     quote { $object[$index] }.as_expr().unwrap()
+}
+
+fn new_let(pattern: Expr, typ: Option<UnresolvedType>, expr: Expr) -> Expr {
+    if typ.is_some() {
+        let typ = typ.unwrap();
+        quote { let $pattern : $typ = $expr; }.as_expr().unwrap()
+    } else {
+        quote { let $pattern = $expr; }.as_expr().unwrap()
+    }
 }
 
 fn new_member_access(object: Expr, name: Quoted) -> Expr {

@@ -12,8 +12,8 @@ use crate::{
         UseTreeKind,
     },
     node_interner::{
-        ExprId, InternedExpressionKind, InternedStatementKind, InternedUnresolvedTypeData,
-        QuotedTypeId,
+        ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
+        InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{SecondaryAttribute, Tokens},
@@ -432,6 +432,8 @@ pub trait Visitor {
     fn visit_struct_pattern(&mut self, _: &Path, _: &[(Ident, Pattern)], _: Span) -> bool {
         true
     }
+
+    fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {}
 
     fn visit_secondary_attribute(&mut self, _: &SecondaryAttribute, _: Span) {}
 }
@@ -1289,6 +1291,9 @@ impl Pattern {
                         pattern.accept(visitor);
                     }
                 }
+            }
+            Pattern::Interned(id, span) => {
+                visitor.visit_interned_pattern(id, *span);
             }
         }
     }

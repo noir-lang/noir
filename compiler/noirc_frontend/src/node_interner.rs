@@ -16,6 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::ExpressionKind;
 use crate::ast::Ident;
 use crate::ast::LValue;
+use crate::ast::Pattern;
 use crate::ast::StatementKind;
 use crate::ast::UnresolvedTypeData;
 use crate::graph::CrateId;
@@ -221,6 +222,9 @@ pub struct NodeInterner {
 
     // Interned `UnresolvedTypeData`s during comptime code.
     interned_unresolved_type_datas: noirc_arena::Arena<UnresolvedTypeData>,
+
+    // Interned `Pattern`s during comptime code.
+    interned_patterns: noirc_arena::Arena<Pattern>,
 
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
@@ -607,6 +611,9 @@ pub struct InternedStatementKind(noirc_arena::Index);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedUnresolvedTypeData(noirc_arena::Index);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedPattern(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -647,6 +654,7 @@ impl Default for NodeInterner {
             interned_expression_kinds: Default::default(),
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_datas: Default::default(),
+            interned_patterns: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -2095,6 +2103,14 @@ impl NodeInterner {
 
     pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+    }
+
+    pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {
+        InternedPattern(self.interned_patterns.insert(pattern))
+    }
+
+    pub fn get_pattern(&self, id: InternedPattern) -> &Pattern {
+        &self.interned_patterns[id.0]
     }
 
     pub fn push_unresolved_type_data(
