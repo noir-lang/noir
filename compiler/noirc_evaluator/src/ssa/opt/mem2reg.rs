@@ -865,9 +865,7 @@ mod tests {
         let v9 = builder.insert_load(v0, Type::field());
         let v10 = builder.insert_binary(v9, BinaryOp::Eq, two);
 
-        // let v9_equals_two = builder.insert_binary(v9, BinaryOp::Eq, two);
         builder.insert_constrain(v9, two, None);
-        // let v9_equals_two = builder.
         let v11 = builder.insert_load(v2, Type::field());
         let v12 = builder.insert_load(v10, Type::field());
         let v13 = builder.insert_binary(v12, BinaryOp::Eq, two);
