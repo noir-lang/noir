@@ -802,7 +802,7 @@ impl<'a> NodeFinder<'a> {
                     "deprecated",
                     "export",
                     "fold",
-                    "no_predicated",
+                    "no_predicates",
                     "recursive",
                     "test",
                     "varargs",
@@ -812,7 +812,7 @@ impl<'a> NodeFinder<'a> {
                 let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
                 self.suggest_one_argument_attributes(prefix, one_argument_attributes);
 
-                if "test".starts_with(prefix) {
+                if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
                     self.completion_items.push(snippet_completion_item(
                         "test(should_fail_with=\"...\")",
                         CompletionItemKind::METHOD,
@@ -840,7 +840,7 @@ impl<'a> NodeFinder<'a> {
 
     fn suggest_no_arguments_attributes(&mut self, prefix: &str, attributes: &[&str]) {
         for name in attributes {
-            if name.starts_with(prefix) {
+            if name_matches(name, prefix) {
                 self.completion_items.push(simple_completion_item(
                     *name,
                     CompletionItemKind::METHOD,
@@ -852,7 +852,7 @@ impl<'a> NodeFinder<'a> {
 
     fn suggest_one_argument_attributes(&mut self, prefix: &str, attributes: &[&str]) {
         for name in attributes {
-            if name.starts_with(prefix) {
+            if name_matches(name, prefix) {
                 self.completion_items.push(snippet_completion_item(
                     format!("{}(…)", name),
                     CompletionItemKind::METHOD,
