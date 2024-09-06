@@ -11,7 +11,13 @@ trait Eq {
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
     let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
     let for_each_field = |name| quote { (_self.$name == _other.$name) };
-    let body = |fields| fields;
+    let body = |fields| {
+        if s.fields().len() == 0 {
+            quote { true }
+        } else {
+            fields
+        }
+    };
     crate::meta::make_trait_impl(s, quote { Eq }, signature, for_each_field, quote { & }, body)
 }
 // docs:end:derive_eq
