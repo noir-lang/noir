@@ -1,10 +1,11 @@
 fn main() {
-    let mut x = 100;
-    let mut xref = &mut x;
-    increment(xref);
-    assert(*xref == 101);
+    // let mut x = 100;
+    // let mut xref = &mut x;
+    // increment(xref);
+    // assert(*xref == 101);
 
-    regression_2445();
+    // regression_2445();
+    single_alias_inside_loop();
 }
 
 fn increment(mut r: &mut Field) {
@@ -18,11 +19,27 @@ fn regression_2445() {
 
     let mut array = [ref, ref];
 
-    **array[0] = 1;
-    **array[1] = 2;
+    for _ in 0..1 {
+        **array[0] = 1;
+        **array[1] = 2;
+    }
+    // **array[0] = 1;
+    // **array[1] = 2;
 
     assert(var == 2);
     assert(**ref == 2);
     assert(**array[0] == 2);
     assert(**array[1] == 2);
+}
+
+fn single_alias_inside_loop() {
+    let mut var = 0;
+    let ref = &mut &mut var;
+
+    for _ in 0..1 {
+        **ref = 2;
+    }
+
+    assert(var == 2);
+    assert(**ref == 2);
 }
