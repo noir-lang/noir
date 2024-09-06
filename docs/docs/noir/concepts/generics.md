@@ -189,10 +189,10 @@ impl Serialize<1> for Field {
     }
 }
 
-impl<T, let N: u32, M: u32> Serialize<N * M> for [T; N]
+impl<T, let N: u32, let M: u32> Serialize<N * M> for [T; N]
     where T: Serialize<M> { .. }
 
-impl<T, U, let N: u32, M: u32> Serialize<N + M> for (T, U)
+impl<T, U, let N: u32, let M: u32> Serialize<N + M> for (T, U)
     where T: Serialize<N>, U: Serialize<M> { .. }
 
 fn main() {
