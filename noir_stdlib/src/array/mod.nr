@@ -66,10 +66,12 @@ impl<T, let N: u32> [T; N] {
 }
 
 impl<T, let N: u32> [T; N] where T: Ord + Eq {
-
     pub fn sort(self) -> Self {
         self.sort_via(|a: T, b: T| a <= b)
     }
+}
+
+impl<T, let N: u32> [T; N] where T: Eq {
 
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
         unsafe {
