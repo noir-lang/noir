@@ -1,4 +1,4 @@
-use crate::cmp::Ord;
+use crate::cmp::{Eq, Ord};
 use crate::convert::From;
 
 mod check_shuffle;
@@ -8,25 +8,6 @@ impl<T, let N: u32> [T; N] {
     /// Returns the length of the slice.
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
-
-    pub fn sort(self) -> Self where T: Ord {
-        self.sort_via(|a: T, b: T| a <= b)
-    }
-
-    pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        unsafe {
-            // Safety: `sorted` array is checked to be:
-            //   a. a permutation of `input`'s elements
-            //   b. satisfying the predicate `ordering`
-            let sorted = quicksort::quicksort(self);
-
-            for i in 0..N - 1 {
-                assert(ordering(sorted[i], sorted[i + 1]));
-            }
-            check_shuffle::check_shuffle(self, sorted);
-            sorted
-        }
-    }
 
     #[builtin(as_slice)]
     pub fn as_slice(self) -> [T] {}
@@ -81,6 +62,28 @@ impl<T, let N: u32> [T; N] {
             ret |= predicate(elem);
         }
         ret
+    }
+}
+
+impl<T, let N: u32> [T; N] where T: Ord + Eq {
+
+    pub fn sort(self) -> Self {
+        self.sort_via(|a: T, b: T| a <= b)
+    }
+
+    pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
+        unsafe {
+            // Safety: `sorted` array is checked to be:
+            //   a. a permutation of `input`'s elements
+            //   b. satisfying the predicate `ordering`
+            let sorted = quicksort::quicksort(self, ordering);
+
+            for i in 0..N - 1 {
+                assert(ordering(sorted[i], sorted[i + 1]));
+            }
+            check_shuffle::check_shuffle(self, sorted);
+            sorted
+        }
     }
 }
 
