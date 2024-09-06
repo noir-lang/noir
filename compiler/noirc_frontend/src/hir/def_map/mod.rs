@@ -76,7 +76,6 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         debug_comptime_in_file: Option<&str>,
-        enable_arithmetic_generics: bool,
         error_on_unused_imports: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
@@ -133,7 +132,6 @@ impl CrateDefMap {
             ast,
             root_file_id,
             debug_comptime_in_file,
-            enable_arithmetic_generics,
             error_on_unused_imports,
             macro_processors,
         ));

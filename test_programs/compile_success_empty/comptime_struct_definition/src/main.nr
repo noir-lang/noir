@@ -1,5 +1,3 @@
-fn main() {}
-
 #[my_comptime_fn]
 struct MyType<A, B, C> {
     field1: [A; 10],
@@ -24,3 +22,15 @@ comptime fn mutate_struct_fields(s: StructDefinition) {
     ];
     s.set_fields(fields);
 }
+
+mod foo {
+    #[attr]
+    struct Foo {}
+
+    fn attr(s: StructDefinition) {
+        assert_eq(s.module().name(), quote { foo });
+    }
+}
+
+fn main() {}
+

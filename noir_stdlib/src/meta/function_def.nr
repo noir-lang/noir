@@ -14,6 +14,11 @@ impl FunctionDefinition {
     fn has_named_attribute(self, name: Quoted) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(function_def_module)]
+    // docs:start:module
+    fn module(self) -> Module {}
+    // docs:end:module
+
     #[builtin(function_def_name)]
     // docs:start:name
     fn name(self) -> Quoted {}
