@@ -569,9 +569,10 @@ fn quoted_as_module(
 
     let path = parse(argument, parser::path_no_turbofish(), "a path").ok();
     let option_value = path.and_then(|path| {
-        let module = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
-            elaborator.resolve_module_by_path(path)
-        });
+        let module = interpreter
+            .elaborate_in_function(interpreter.current_function, |elaborator| {
+                elaborator.resolve_module_by_path(path)
+            });
         module.map(Value::ModuleDefinition)
     });
 
@@ -587,7 +588,7 @@ fn quoted_as_trait_constraint(
     let argument = check_one_argument(arguments, location)?;
     let trait_bound = parse(argument, parser::trait_bound(), "a trait constraint")?;
     let bound = interpreter
-        .elaborate_item(interpreter.current_function, |elaborator| {
+        .elaborate_in_function(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
@@ -603,8 +604,8 @@ fn quoted_as_type(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(argument, parser::parse_type(), "a type")?;
-    let typ =
-        interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let typ = interpreter
+        .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
 }
 
@@ -1675,23 +1676,25 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    let value = interpreter.elaborate_item(function_to_resolve_in, |elaborator| match expr_value {
-        ExprValue::Expression(expression_kind) => {
-            let expr = Expression { kind: expression_kind, span: self_argument_location.span };
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Value::TypedExpr(TypedExpr::ExprId(expr_id))
-        }
-        ExprValue::Statement(statement_kind) => {
-            let statement = Statement { kind: statement_kind, span: self_argument_location.span };
-            let (stmt_id, _) = elaborator.elaborate_statement(statement);
-            Value::TypedExpr(TypedExpr::StmtId(stmt_id))
-        }
-        ExprValue::LValue(lvalue) => {
-            let expr = lvalue.as_expression();
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Value::TypedExpr(TypedExpr::ExprId(expr_id))
-        }
-    });
+    let value =
+        interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
+            ExprValue::Expression(expression_kind) => {
+                let expr = Expression { kind: expression_kind, span: self_argument_location.span };
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Value::TypedExpr(TypedExpr::ExprId(expr_id))
+            }
+            ExprValue::Statement(statement_kind) => {
+                let statement =
+                    Statement { kind: statement_kind, span: self_argument_location.span };
+                let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                Value::TypedExpr(TypedExpr::StmtId(stmt_id))
+            }
+            ExprValue::LValue(lvalue) => {
+                let expr = lvalue.as_expression();
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Value::TypedExpr(TypedExpr::ExprId(expr_id))
+            }
+        });
 
     Ok(value)
 }
@@ -1942,7 +1945,7 @@ fn function_def_set_parameters(
             "a pattern",
         )?;
 
-        let hir_pattern = interpreter.elaborate_item(Some(func_id), |elaborator| {
+        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),

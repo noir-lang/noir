@@ -172,7 +172,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborate_item(None, |elaborator| {
+                    self.elaborate_in_function(None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -185,13 +185,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn elaborate_item<T>(
+    fn elaborate_in_function<T>(
         &mut self,
         function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime(function, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -203,7 +203,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_in_module(module, file, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, file, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -1258,7 +1258,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
-                    let expr = self.elaborate_item(self.current_function, |elaborator| {
+                    let expr = self.elaborate_in_function(self.current_function, |elaborator| {
                         elaborator.elaborate_expression(expr).0
                     });
                     result = self.evaluate(expr)?;
