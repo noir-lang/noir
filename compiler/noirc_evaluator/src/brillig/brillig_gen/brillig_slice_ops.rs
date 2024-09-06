@@ -24,7 +24,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we copy the source vector into the target vector
-        self.brillig_context.codegen_copy_array(
+        self.brillig_context.codegen_mem_copy(
             source_vector.pointer,
             target_vector.pointer,
             SingleAddrVariable::new_usize(source_vector.size),
@@ -74,7 +74,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         // Now we copy the source vector into the target vector starting at index variables_to_insert.len()
-        self.brillig_context.codegen_copy_array(
+        self.brillig_context.codegen_mem_copy(
             source_vector.pointer,
             destination_copy_pointer,
             SingleAddrVariable::new_usize(source_vector.size),
@@ -121,7 +121,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         // Now we copy the source vector starting at index removed_items.len() into the target vector
-        self.brillig_context.codegen_copy_array(
+        self.brillig_context.codegen_mem_copy(
             source_copy_pointer,
             target_vector.pointer,
             SingleAddrVariable::new_usize(target_vector.size),
@@ -154,7 +154,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
 
         // Now we copy all elements except the last items into the target vector
-        self.brillig_context.codegen_copy_array(
+        self.brillig_context.codegen_mem_copy(
             source_vector.pointer,
             target_vector.pointer,
             SingleAddrVariable::new_usize(target_vector.size),
@@ -192,11 +192,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
-        self.brillig_context.codegen_copy_array(
-            source_vector.pointer,
-            target_vector.pointer,
-            index,
-        );
+        self.brillig_context.codegen_mem_copy(source_vector.pointer, target_vector.pointer, index);
 
         // Compute the source pointer just at the index
         let source_pointer_at_index = self.brillig_context.allocate_register();
@@ -231,7 +227,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         // Copy the elements to the right of the index
-        self.brillig_context.codegen_copy_array(
+        self.brillig_context.codegen_mem_copy(
             source_pointer_at_index,
             target_pointer_after_index,
             SingleAddrVariable::new_usize(item_count),
@@ -279,11 +275,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
-        self.brillig_context.codegen_copy_array(
-            source_vector.pointer,
-            target_vector.pointer,
-            index,
-        );
+        self.brillig_context.codegen_mem_copy(source_vector.pointer, target_vector.pointer, index);
 
         // Compute the source pointer after the removed items
         let source_pointer_after_index = self.brillig_context.allocate_register();
@@ -323,7 +315,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         // Copy the elements to the right of the index
-        self.brillig_context.codegen_copy_array(
+        self.brillig_context.codegen_mem_copy(
             source_pointer_after_index,
             target_pointer_at_index,
             SingleAddrVariable::new_usize(item_count),
@@ -371,10 +363,11 @@ mod tests {
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
-    use crate::brillig::brillig_ir::artifact::BrilligParameter;
+    use crate::brillig::brillig_ir::artifact::{BrilligParameter, Label};
     use crate::brillig::brillig_ir::brillig_variable::{
         BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
     };
+    use crate::brillig::brillig_ir::registers::Stack;
     use crate::brillig::brillig_ir::tests::{
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
@@ -384,12 +377,14 @@ mod tests {
     use crate::ssa::ir::map::Id;
     use crate::ssa::ssa_gen::Ssa;
 
-    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement>) {
+    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
         builder.set_runtime(RuntimeType::Brillig);
 
         let ssa = builder.finish();
-        let brillig_context = create_context();
+        let mut brillig_context = create_context(ssa.main_id);
+        brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(0)));
+        brillig_context.disable_procedures();
 
         let function_context = FunctionContext::new(ssa.main());
         (ssa, function_context, brillig_context)
@@ -397,7 +392,7 @@ mod tests {
 
     fn create_brillig_block<'a>(
         function_context: &'a mut FunctionContext,
-        brillig_context: &'a mut BrilligContext<FieldElement>,
+        brillig_context: &'a mut BrilligContext<FieldElement, Stack>,
     ) -> BrilligBlock<'a> {
         let variables = BlockVariables::default();
         BrilligBlock {

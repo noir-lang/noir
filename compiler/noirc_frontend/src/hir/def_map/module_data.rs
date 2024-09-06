@@ -1,10 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use noirc_errors::Location;
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
 /// children, and scope with all definitions defined within the scope.
@@ -25,13 +26,24 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
-    /// List of all unused imports. Each time something is imported into this module it's added
-    /// to this set. When it's used, it's removed. At the end of the program only unused imports remain.
-    unused_imports: HashSet<Ident>,
+    pub outer_attributes: Vec<String>,
+    pub inner_attributes: Vec<String>,
 }
 
 impl ModuleData {
-    pub fn new(parent: Option<LocalModuleId>, location: Location, is_contract: bool) -> ModuleData {
+    pub fn new(
+        parent: Option<LocalModuleId>,
+        location: Location,
+        outer_attributes: Vec<SecondaryAttribute>,
+        inner_attributes: Vec<SecondaryAttribute>,
+        is_contract: bool,
+    ) -> ModuleData {
+        let outer_attributes = outer_attributes.iter().filter_map(|attr| attr.as_custom());
+        let outer_attributes = outer_attributes.map(|attr| attr.contents.to_string()).collect();
+
+        let inner_attributes = inner_attributes.iter().filter_map(|attr| attr.as_custom());
+        let inner_attributes = inner_attributes.map(|attr| attr.contents.to_string()).collect();
+
         ModuleData {
             parent,
             children: HashMap::new(),
@@ -39,7 +51,8 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
-            unused_imports: HashSet::new(),
+            outer_attributes,
+            inner_attributes,
         }
     }
 
@@ -123,15 +136,11 @@ impl ModuleData {
     pub fn import(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         id: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
-        // Empty spans could come from implicitly injected imports, and we don't want to track those
-        if name.span().start() < name.span().end() {
-            self.unused_imports.insert(name.clone());
-        }
-
-        self.scope.add_item_to_namespace(name, ItemVisibility::Public, id, None, is_prelude)
+        self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {
@@ -146,15 +155,5 @@ impl ModuleData {
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
-    }
-
-    /// Marks an ident as being used by an import.
-    pub fn use_import(&mut self, ident: &Ident) {
-        self.unused_imports.remove(ident);
-    }
-
-    /// Returns the list of all unused imports at this moment.
-    pub fn unused_imports(&self) -> &HashSet<Ident> {
-        &self.unused_imports
     }
 }

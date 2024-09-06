@@ -82,6 +82,7 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
+
     let mut ssa = SsaBuilder::new(
         program,
         options.enable_ssa_logging,
@@ -127,11 +128,12 @@ pub(crate) fn optimize_into_acir(
             ssa.check_for_underconstrained_values()
         })
     };
+
+    drop(ssa_gen_span_guard);
+
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
-
-    drop(ssa_gen_span_guard);
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, options.expression_width)
@@ -417,8 +419,9 @@ impl SsaBuilder {
         Ok(self.print(msg))
     }
 
-    fn print(self, msg: &str) -> Self {
+    fn print(mut self, msg: &str) -> Self {
         if self.print_ssa_passes {
+            self.ssa.normalize_ids();
             println!("{msg}\n{}", self.ssa);
         }
         self

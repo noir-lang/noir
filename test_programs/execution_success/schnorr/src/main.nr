@@ -11,7 +11,7 @@ fn main(
 ) {
     // Regression for issue #2421
     // We want to make sure that we can accurately verify a signature whose message is a slice vs. an array
-    let message_field_bytes = message_field.to_be_bytes(10);
+    let message_field_bytes: [u8; 10] = message_field.to_be_bytes();
     let mut message2 = [0; 42];
     for i in 0..10 {
         assert(message[i] == message_field_bytes[i]);

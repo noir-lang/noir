@@ -7,7 +7,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, Expression, ExpressionKind, GenericTypeArgs, IndexExpression,
+    BlockExpression, Expression, ExpressionKind, GenericTypeArgs, IndexExpression, ItemVisibility,
     MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::elaborator::types::SELF_TYPE_NAME;
@@ -136,7 +136,9 @@ impl Recoverable for StatementKind {
 
 impl StatementKind {
     pub fn new_let(
-        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+        pattern: Pattern,
+        r#type: UnresolvedType,
+        expression: Expression,
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
@@ -290,6 +292,7 @@ pub trait Recoverable {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
     pub ident: Ident,
+    pub outer_attributes: Vec<SecondaryAttribute>,
 }
 
 impl std::fmt::Display for ModuleDeclaration {
@@ -300,6 +303,7 @@ impl std::fmt::Display for ModuleDeclaration {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {
+    pub visibility: ItemVisibility,
     pub path: Path,
     pub alias: Option<Ident>,
 }
@@ -348,7 +352,7 @@ pub enum UseTreeKind {
 }
 
 impl UseTree {
-    pub fn desugar(self, root: Option<Path>) -> Vec<ImportStatement> {
+    pub fn desugar(self, root: Option<Path>, visibility: ItemVisibility) -> Vec<ImportStatement> {
         let prefix = if let Some(mut root) = root {
             root.segments.extend(self.prefix.segments);
             root
@@ -358,10 +362,11 @@ impl UseTree {
 
         match self.kind {
             UseTreeKind::Path(name, alias) => {
-                vec![ImportStatement { path: prefix.join(name), alias }]
+                vec![ImportStatement { visibility, path: prefix.join(name), alias }]
             }
             UseTreeKind::List(trees) => {
-                trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()
+                let trees = trees.into_iter();
+                trees.flat_map(|tree| tree.desugar(Some(prefix.clone()), visibility)).collect()
             }
         }
     }
@@ -715,13 +720,11 @@ impl ForRange {
 
                 // let fresh1 = array;
                 let let_array = Statement {
-                    kind: StatementKind::Let(LetStatement {
-                        pattern: Pattern::Identifier(array_ident.clone()),
-                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                        expression: array,
-                        comptime: false,
-                        attributes: vec![],
-                    }),
+                    kind: StatementKind::new_let(
+                        Pattern::Identifier(array_ident.clone()),
+                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        array,
+                    ),
                     span: array_span,
                 };
 
@@ -761,13 +764,11 @@ impl ForRange {
 
                 // let elem = array[i];
                 let let_elem = Statement {
-                    kind: StatementKind::Let(LetStatement {
-                        pattern: Pattern::Identifier(identifier),
-                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                        expression: Expression::new(loop_element, array_span),
-                        comptime: false,
-                        attributes: vec![],
-                    }),
+                    kind: StatementKind::new_let(
+                        Pattern::Identifier(identifier),
+                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        Expression::new(loop_element, array_span),
+                    ),
                     span: array_span,
                 };
 

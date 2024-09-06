@@ -70,7 +70,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         current_function: Option<FuncId>,
     ) -> Self {
         let bound_generics = Vec::new();
-        Self { elaborator, crate_id, current_function, bound_generics, in_loop: false }
+        let in_loop = false;
+        Self { elaborator, crate_id, current_function, bound_generics, in_loop }
     }
 
     pub(crate) fn call_function(
@@ -99,8 +100,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
+        self.elaborator.interpreter_call_stack.push_back(location);
+
         let result = self.call_function_inner(function, arguments, location);
 
+        self.elaborator.interpreter_call_stack.pop_back();
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         self.rebind_generics_from_previous_function();
@@ -582,7 +586,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     consuming = false;
 
                     if let Some(value) = values.pop_front() {
-                        result.push_str(&value.display(self.elaborator.interner).to_string());
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        if let Value::Quoted(tokens) = value {
+                            for (index, token) in tokens.iter().enumerate() {
+                                if index > 0 {
+                                    result.push(' ');
+                                }
+                                result
+                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                            }
+                        } else {
+                            result.push_str(&value.display(self.elaborator.interner).to_string());
+                        }
                     }
                 }
                 other if !consuming => {
@@ -1462,7 +1478,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 let message =
                     message.map(|value| value.display(self.elaborator.interner).to_string());
-                Err(InterpreterError::FailingConstraint { location, message })
+                let call_stack = self.elaborator.interpreter_call_stack.clone();
+                Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
             value => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
@@ -1648,10 +1665,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         assert_eq!(arguments.len(), 2);
 
         let print_newline = arguments[0].0 == Value::Bool(true);
-        if print_newline {
-            println!("{}", arguments[1].0.display(self.elaborator.interner));
+        let contents = arguments[1].0.display(self.elaborator.interner);
+        if self.elaborator.interner.is_in_lsp_mode() {
+            // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
+            // the connection. If we use `eprintln!` not only it doesn't crash, but the output
+            // appears in the "Noir Language Server" output window in case you want to see it.
+            if print_newline {
+                eprintln!("{}", contents);
+            } else {
+                eprint!("{}", contents);
+            }
+        } else if print_newline {
+            println!("{}", contents);
         } else {
-            print!("{}", arguments[1].0.display(self.elaborator.interner));
+            print!("{}", contents);
         }
 
         Ok(Value::Unit)

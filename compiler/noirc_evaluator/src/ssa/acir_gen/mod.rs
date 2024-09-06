@@ -453,6 +453,7 @@ impl<'a> Context<'a> {
         }
 
         warnings.extend(return_warnings);
+        warnings.extend(self.acir_context.warnings.clone());
 
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
@@ -647,10 +648,10 @@ impl<'a> Context<'a> {
 
                 let assert_payload = if let Some(error) = assert_message {
                     match error {
-                        ConstrainError::Intrinsic(string) => {
+                        ConstrainError::StaticString(string) => {
                             Some(AssertionPayload::StaticString(string.clone()))
                         }
-                        ConstrainError::UserDefined(error_selector, values) => {
+                        ConstrainError::Dynamic(error_selector, values) => {
                             if let Some(constant_string) = try_to_extract_string_from_error_payload(
                                 *error_selector,
                                 values,
@@ -770,10 +771,12 @@ impl<'a> Context<'a> {
                                     .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
                                     .sum();
 
-                                let acir_function_id = ssa
-                                    .entry_point_to_generated_index
-                                    .get(id)
-                                    .expect("ICE: should have an associated final index");
+                                let Some(acir_function_id) =
+                                    ssa.entry_point_to_generated_index.get(id)
+                                else {
+                                    unreachable!("Expected an associated final index for call to acir function {id} with args {arguments:?}");
+                                };
+
                                 let output_vars = self.acir_context.call_acir_function(
                                     AcirFunctionId(*acir_function_id),
                                     inputs,
@@ -956,13 +959,13 @@ impl<'a> Context<'a> {
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             arguments,
             BrilligFunctionContext::return_values(func),
-            BrilligFunctionContext::function_id_to_function_label(func.id()),
+            func.id(),
         );
         entry_point.name = func.name().to_string();
 
         // Link the entry point with all dependencies
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-            let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone());
+            let artifact = &brillig.find_by_label(unresolved_fn_label);
             let artifact = match artifact {
                 Some(artifact) => artifact,
                 None => {
@@ -2177,19 +2180,38 @@ impl<'a> Context<'a> {
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
-                let limb_size = self.convert_value(arguments[2], dfg).into_var()?;
 
-                let result_type = Self::array_element_type(dfg, result_ids[1]);
+                let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
+                else {
+                    unreachable!("ICE: ToRadix result must be an array");
+                };
 
-                self.acir_context.radix_decompose(endian, field, radix, limb_size, result_type)
+                self.acir_context
+                    .radix_decompose(
+                        endian,
+                        field,
+                        radix,
+                        array_length as u32,
+                        result_type[0].clone().into(),
+                    )
+                    .map(|array| vec![array])
             }
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
-                let bit_size = self.convert_value(arguments[1], dfg).into_var()?;
 
-                let result_type = Self::array_element_type(dfg, result_ids[1]);
+                let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
+                else {
+                    unreachable!("ICE: ToRadix result must be an array");
+                };
 
-                self.acir_context.bit_decompose(endian, field, bit_size, result_type)
+                self.acir_context
+                    .bit_decompose(
+                        endian,
+                        field,
+                        array_length as u32,
+                        result_type[0].clone().into(),
+                    )
+                    .map(|array| vec![array])
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {

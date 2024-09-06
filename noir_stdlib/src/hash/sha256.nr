@@ -67,15 +67,8 @@ fn verify_msg_block<let N: u32>(
 
     for k in msg_start..msg_end {
         if k as u64 < message_size {
+            assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
-        }
-    }
-
-    for i in 0..BLOCK_SIZE {
-        if i as u64 >= msg_byte_ptr {
-            assert_eq(msg_block[i], 0);
-        } else {
-            assert_eq(msg_block[i], msg[msg_start + i - extra_bytes]);
         }
     }
 
@@ -93,20 +86,29 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let mut msg_byte_ptr = 0; // Pointer into msg_block
 
     for i in 0..num_blocks {
+        let msg_start = BLOCK_SIZE * i;
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, BLOCK_SIZE * i)
+            build_msg_block_iter(msg, message_size, msg_start)
         };
-        msg_block = new_msg_block;
+        if msg_start as u64 < message_size {
+            msg_block = new_msg_block;
+        }
 
         if !is_unconstrained() {
             // Verify the block we are compressing was appropriately constructed
-            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, BLOCK_SIZE * i);
-        } else {
+            let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
+            if msg_start as u64 < message_size {
+                msg_byte_ptr = new_msg_byte_ptr;
+            }
+        } else if msg_start as u64 < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
         }
 
-        // Compress the block
-        h = sha256_compression(msg_u8_to_u32(msg_block), h);
+        // If the block is filled, compress it. 
+        // An un-filled block is handled after this loop.
+        if msg_byte_ptr == 64 {
+            h = sha256_compression(msg_u8_to_u32(msg_block), h);
+        }
     }
 
     let modulo = N % BLOCK_SIZE;
@@ -114,14 +116,21 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     // This case is only hit if the msg is less than the block size, 
     // or our message cannot be evenly split into blocks. 
     if modulo != 0 {
+        let msg_start = BLOCK_SIZE * num_blocks;
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, BLOCK_SIZE * num_blocks)
+            build_msg_block_iter(msg, message_size, msg_start)
         };
-        msg_block = new_msg_block;
+
+        if msg_start as u64 < message_size {
+            msg_block = new_msg_block;
+        }
 
         if !is_unconstrained() {
-            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, BLOCK_SIZE * num_blocks);
-        } else {
+            let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
+            if msg_start as u64 < message_size {
+                msg_byte_ptr = new_msg_byte_ptr;
+            }
+        } else if msg_start as u64 < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
         }
     }
@@ -185,7 +194,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         }
 
         let len = 8 * message_size;
-        let len_bytes = (len as Field).to_be_bytes(8);
+        let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
         for i in 56..64 {
             assert_eq(msg_block[i], len_bytes[i - 56]);
         }
@@ -213,7 +222,7 @@ unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64) -
 
 unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64, message_size: u64) -> [u8; 64] {
     let len = 8 * message_size;
-    let len_bytes = (len as Field).to_be_bytes(8);
+    let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
     for _i in 0..64 {
         // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
         if msg_byte_ptr < 56 {
@@ -237,7 +246,7 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes = (state[7 - j] as Field).to_le_bytes(4);
+        let h_bytes: [u8; 4] = (state[7 - j] as Field).to_le_bytes();
         for k in 0..4 {
             out_h[31 - 4*j - k] = h_bytes[k];
         }

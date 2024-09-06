@@ -8,10 +8,11 @@ use crate::{
         BlockExpression, ExpressionKind, IntegerBitSize, LValue, Signedness, StatementKind,
         UnresolvedTypeData,
     },
+    elaborator::Elaborator,
     hir::{
         comptime::{
             errors::IResult,
-            value::{add_token_spans, ExprValue},
+            value::{add_token_spans, ExprValue, TypedExpr},
             Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
@@ -90,6 +91,13 @@ pub(crate) fn get_array(
     }
 }
 
+pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
+    match value {
+        Value::Bool(value) => Ok(value),
+        value => type_mismatch(value, Type::Bool, location),
+    }
+}
+
 pub(crate) fn get_slice(
     interner: &NodeInterner,
     (value, location): (Value, Location),
@@ -99,6 +107,19 @@ pub(crate) fn get_slice(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Slice(type_var);
+            type_mismatch(value, expected, location)
+        }
+    }
+}
+
+pub(crate) fn get_str(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<Rc<String>> {
+    match value {
+        Value::String(string) => Ok(string),
+        value => {
+            let expected = Type::String(Box::new(interner.next_type_variable()));
             type_mismatch(value, expected, location)
         }
     }
@@ -176,6 +197,20 @@ pub(crate) fn get_expr(
     }
 }
 
+pub(crate) fn get_format_string(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<(Rc<String>, Type)> {
+    match value {
+        Value::FormatString(value, typ) => Ok((value, typ)),
+        value => {
+            let n = Box::new(interner.next_type_variable());
+            let e = Box::new(interner.next_type_variable());
+            type_mismatch(value, Type::FmtString(n, e), location)
+        }
+    }
+}
+
 pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => Ok(id),
@@ -224,6 +259,13 @@ pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
         value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
+    }
+}
+
+pub(crate) fn get_typed_expr((value, location): (Value, Location)) -> IResult<TypedExpr> {
+    match value {
+        Value::TypedExpr(typed_expr) => Ok(typed_expr),
+        value => type_mismatch(value, Type::Quoted(QuotedType::TypedExpr), location),
     }
 }
 
@@ -402,4 +444,27 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
     Value::Slice(statements, typ)
+}
+
+pub(super) fn has_named_attribute<'a>(
+    name: &'a str,
+    attributes: impl Iterator<Item = &'a String>,
+    location: Location,
+) -> bool {
+    for attribute in attributes {
+        let parse_result = Elaborator::parse_attribute(attribute, location);
+        let Ok(Some((function, _arguments))) = parse_result else {
+            continue;
+        };
+
+        let ExpressionKind::Variable(path) = function.kind else {
+            continue;
+        };
+
+        if path.last_name() == name {
+            return true;
+        }
+    }
+
+    false
 }

@@ -120,27 +120,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
 
-    /// Temporary flag to enable the experimental arithmetic generics feature
-    #[arg(long, hide = true)]
-    pub arithmetic_generics: bool,
-
     /// Flag to turn off the compiler check for under constrained values.
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
     /// This check should always be run on production code.
     #[arg(long)]
     pub skip_underconstrained_check: bool,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct CheckOptions {
-    pub compile_options: CompileOptions,
-    pub error_on_unused_imports: bool,
-}
-
-impl CheckOptions {
-    pub fn new(compile_options: &CompileOptions, error_on_unused_imports: bool) -> Self {
-        Self { compile_options: compile_options.clone(), error_on_unused_imports }
-    }
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -290,20 +274,18 @@ pub fn add_dep(
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
-    check_options: &CheckOptions,
+    options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let options = &check_options.compile_options;
-
     let macros: &[&dyn MacroProcessor] =
         if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
 
     let mut errors = vec![];
+    let error_on_unused_imports = true;
     let diagnostics = CrateDefMap::collect_defs(
         crate_id,
         context,
         options.debug_comptime_in_file.as_deref(),
-        options.arithmetic_generics,
-        check_options.error_on_unused_imports,
+        error_on_unused_imports,
         macros,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
@@ -337,10 +319,7 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let error_on_unused_imports = true;
-    let check_options = CheckOptions::new(options, error_on_unused_imports);
-
-    let (_, mut warnings) = check_crate(context, crate_id, &check_options)?;
+    let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -375,9 +354,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let error_on_unused_imports = true;
-    let check_options = CheckOptions::new(options, error_on_unused_imports);
-    let (_, warnings) = check_crate(context, crate_id, &check_options)?;
+    let (_, warnings) = check_crate(context, crate_id, options)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
@@ -470,9 +447,13 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(
-                |attr| if let SecondaryAttribute::Custom(tag) = attr { Some(tag) } else { None },
-            )
+            .filter_map(|attr| {
+                if let SecondaryAttribute::Custom(attribute) = attr {
+                    Some(&attribute.contents)
+                } else {
+                    None
+                }
+            })
             .cloned()
             .collect();
 
@@ -484,6 +465,7 @@ fn compile_contract_inner(
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
             names: function.names,
+            brillig_names: function.brillig_names,
         });
     }
 
