@@ -286,8 +286,19 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
-                    references.expressions.insert(result, Expression::Other(result));
-                    references.aliases.insert(Expression::Other(result), AliasSet::known(result));
+                    let expression =
+                        references.expressions.entry(result).or_insert(Expression::Other(result));
+                    // Make sure this load result is marked an alias to itself
+                    if let Some(aliases) = references.aliases.get_mut(expression) {
+                        // If we have an alias set, add to the set
+                        aliases.insert(result);
+                    } else {
+                        // Otherwise, create a new alias set containing just the load result
+                        references
+                            .aliases
+                            .insert(Expression::Other(result), AliasSet::known(result));
+                    }
+                    // Mark that we know a load result is equivalent to the address of a load.
                     references.set_known_value(result, address);
 
                     self.last_loads.insert(address, (instruction, block_id));

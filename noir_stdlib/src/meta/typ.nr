@@ -1,6 +1,11 @@
 use crate::cmp::Eq;
 use crate::option::Option;
 
+#[builtin(fresh_type_variable)]
+// docs:start:fresh_type_variable
+pub fn fresh_type_variable() -> Type {}
+// docs:end:fresh_type_variable
+
 impl Type {
     #[builtin(type_as_array)]
 // docs:start:as_array

@@ -25,10 +25,13 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{
-        errors::IResult,
-        value::{ExprValue, TypedExpr},
-        InterpreterError, Value,
+    hir::{
+        comptime::{
+            errors::IResult,
+            value::{ExprValue, TypedExpr},
+            InterpreterError, Value,
+        },
+        def_map::ModuleId,
     },
     hir::def_collector::dc_crate::CollectedItems,
     hir_def::function::FunctionBody,
@@ -97,11 +100,13 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
+            "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
             }
+            "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
@@ -143,6 +148,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_has_named_attribute" => {
                 struct_def_has_named_attribute(interner, arguments, location)
             }
+            "struct_def_module" => struct_def_module(self, arguments, location),
+            "struct_def_name" => struct_def_name(interner, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
@@ -398,6 +405,39 @@ fn struct_def_fields(
         Type::Quoted(QuotedType::Type),
     ])));
     Ok(Value::Slice(fields, typ))
+}
+
+// fn module(self) -> Module
+fn struct_def_module(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+    let struct_module_id = struct_id.module_id();
+
+    // A struct's module is its own module. To get the module where its defined we need
+    // to look for its parent.
+    let module_data = interpreter.elaborator.get_module(struct_module_id);
+    let parent_local_id = module_data.parent.expect("Expected struct module parent to exist");
+    let parent = ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
+
+    Ok(Value::ModuleDefinition(parent))
+}
+
+// fn name(self) -> Quoted
+fn struct_def_name(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+    let the_struct = interner.get_struct(struct_id);
+
+    let name = Token::Ident(the_struct.borrow().name.to_string());
+    Ok(Value::Quoted(Rc::new(vec![name])))
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
@@ -683,11 +723,10 @@ fn type_as_constant(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Constant(n) = typ {
-            Some(Value::U32(n))
-        } else {
-            None
-        }
+        // Prefer to use `evaluate_to_u32` over matching on `Type::Constant`
+        // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
+        // constants but are not actually the `Type::Constant` variant.
+        typ.evaluate_to_u32().map(Value::U32)
     })
 }
 
@@ -789,7 +828,7 @@ where
     F: FnOnce(Type) -> Option<Value>,
 {
     let value = check_one_argument(arguments, location)?;
-    let typ = get_type(value)?;
+    let typ = get_type(value)?.follow_bindings();
 
     let option_value = f(typ);
 
@@ -818,13 +857,13 @@ fn type_get_trait_impl(
     let typ = get_type(typ)?;
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
-    let option_value = match interner.try_lookup_trait_implementation(
+    let option_value = match interner.lookup_trait_implementation(
         &typ,
         trait_id,
         &generics.ordered,
         &generics.named,
     ) {
-        Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
+        Ok(TraitImplKind::Normal(trait_impl_id)) => Some(Value::TraitImpl(trait_impl_id)),
         _ => None,
     };
 
@@ -843,7 +882,7 @@ fn type_implements(
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
     let implements = interner
-        .try_lookup_trait_implementation(&typ, trait_id, &generics.ordered, &generics.named)
+        .lookup_trait_implementation(&typ, trait_id, &generics.ordered, &generics.named)
         .is_ok();
     Ok(Value::Bool(implements))
 }
@@ -1741,6 +1780,11 @@ fn fmtstr_quoted_contents(
     Ok(Value::Quoted(Rc::new(tokens)))
 }
 
+// fn fresh_type_variable() -> Type
+fn fresh_type_variable(interner: &NodeInterner) -> IResult<Value> {
+    Ok(Value::Type(interner.next_type_variable()))
+}
+
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
 fn function_def_add_attribute(
     interpreter: &mut Interpreter,
@@ -1825,6 +1869,18 @@ fn function_def_has_named_attribute(
     let attributes = attributes.iter().map(|attribute| &attribute.contents);
 
     Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
+}
+
+// fn module(self) -> Module
+fn function_def_module(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let module = interner.function_module(func_id);
+    Ok(Value::ModuleDefinition(module))
 }
 
 // fn name(self) -> Quoted
