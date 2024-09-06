@@ -56,6 +56,12 @@ Returns each field of this struct as a pair of (field name, field type).
 
 Returns true if this struct has a custom attribute with the given name.
 
+### module
+
+#include_code module noir_stdlib/src/meta/struct_def.nr rust
+
+Returns the module where the struct is defined.
+
 ### set_fields
 
 #include_code set_fields noir_stdlib/src/meta/struct_def.nr rust

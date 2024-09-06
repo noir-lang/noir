@@ -25,10 +25,13 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{
-        errors::IResult,
-        value::{ExprValue, TypedExpr},
-        InterpreterError, Value,
+    hir::{
+        comptime::{
+            errors::IResult,
+            value::{ExprValue, TypedExpr},
+            InterpreterError, Value,
+        },
+        def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
     lexer::Lexer,
@@ -143,6 +146,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_has_named_attribute" => {
                 struct_def_has_named_attribute(interner, arguments, location)
             }
+            "struct_def_module" => struct_def_module(self, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
@@ -398,6 +402,25 @@ fn struct_def_fields(
         Type::Quoted(QuotedType::Type),
     ])));
     Ok(Value::Slice(fields, typ))
+}
+
+// fn module(self) -> Module
+fn struct_def_module(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+    let struct_module_id = struct_id.module_id();
+
+    // A struct's module is its own module. To get the module where its defined we need
+    // to look for its parent.
+    let module_data = interpreter.elaborator.get_module(struct_module_id);
+    let parent_local_id = module_data.parent.expect("Expected struct module parent to exist");
+    let parent = ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
+
+    Ok(Value::ModuleDefinition(parent))
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
