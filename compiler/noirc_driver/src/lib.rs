@@ -120,10 +120,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
 
-    /// Temporary flag to enable the experimental arithmetic generics feature
-    #[arg(long, hide = true)]
-    pub arithmetic_generics: bool,
-
     /// Flag to turn off the compiler check for under constrained values.
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
     /// This check should always be run on production code.
@@ -289,7 +285,6 @@ pub fn check_crate(
         crate_id,
         context,
         options.debug_comptime_in_file.as_deref(),
-        options.arithmetic_generics,
         error_on_unused_imports,
         macros,
     );
