@@ -39,7 +39,7 @@ use crate::{
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
     token::{Attribute, SecondaryAttribute, Token},
-    QuotedType, Shared, Type,
+    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
 use self::builtin_helpers::{get_array, get_str, get_u8};
@@ -139,7 +139,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
-            "struct_def_add_attribute" => struct_def_add_attribute(self, arguments, location),
+            "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
+            "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
@@ -279,13 +280,13 @@ fn str_as_bytes(
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
 fn struct_def_add_attribute(
-    interpreter: &mut Interpreter,
+    interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
-    let attribute = get_str(interpreter.elaborator.interner, attribute)?;
+    let attribute = get_str(interner, attribute)?;
 
     let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
     if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
@@ -314,11 +315,66 @@ fn struct_def_add_attribute(
     };
 
     let struct_id = get_struct(self_argument)?;
-    interpreter.elaborator.interner.update_struct_attributes(struct_id, |attributes| {
+    interner.update_struct_attributes(struct_id, |attributes| {
         attributes.push(attribute.clone());
     });
 
     Ok(Value::Unit)
+}
+
+// fn add_generic<let N: u32>(self, generic_name: str<N>)
+fn struct_def_add_generic(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, generic) = check_two_arguments(arguments, location)?;
+    let generic_location = generic.1;
+    let generic = get_str(interner, generic)?;
+
+    let mut tokens = Lexer::lex(&generic).0.0;
+    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
+        tokens.pop();
+    }
+
+    if tokens.len() != 1 {
+        return Err(InterpreterError::GenericNameShouldBeAnIdent {
+            name: generic,
+            location: generic_location,
+        });
+    }
+
+    let Token::Ident(generic_name) = tokens.pop().unwrap().into_token() else {
+        return Err(InterpreterError::GenericNameShouldBeAnIdent {
+            name: generic,
+            location: generic_location,
+        });
+    };
+
+    let struct_id = get_struct(self_argument)?;
+    let the_struct = interner.get_struct(struct_id);
+    let mut the_struct = the_struct.borrow_mut();
+    let name = Rc::new(generic_name);
+
+    for generic in &the_struct.generics {
+        if generic.name == name {
+            return Err(InterpreterError::DuplicateGeneric {
+                name,
+                struct_name: the_struct.name.to_string(),
+                existing_location: Location::new(generic.span, the_struct.location.file),
+                duplicate_location: generic_location,
+            });
+        }
+    }
+
+    let type_var = TypeVariable::unbound(interner.next_type_variable_id());
+    let span = generic_location.span;
+    let kind = Kind::Normal;
+    let typ = Type::NamedGeneric(type_var.clone(), name.clone(), kind.clone());
+    let new_generic = ResolvedGeneric { name, type_var, span, kind };
+    the_struct.generics.push(new_generic);
+
+    Ok(Value::Type(typ))
 }
 
 /// fn as_type(self) -> Type
