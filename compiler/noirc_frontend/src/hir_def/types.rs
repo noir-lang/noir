@@ -1099,12 +1099,18 @@ impl Type {
             | Type::Unit
             | Type::Constant(_)
             | Type::Slice(_)
-            | Type::TypeVariable(_, _)
-            | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::InfixExpr(..)
             | Type::Error => true,
+
+            Type::TypeVariable(type_var, _) | Type::NamedGeneric(type_var, _, _) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    typ.is_valid_for_unconstrained_boundary()
+                } else {
+                    true
+                }
+            }
 
             // Quoted objects only exist at compile-time where the only execution
             // environment is the interpreter. In this environment, they are valid.
