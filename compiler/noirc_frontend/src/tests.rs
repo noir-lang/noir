@@ -96,7 +96,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
         };
 
         let debug_comptime_in_file = None;
-        let enable_arithmetic_generics = false;
         let error_on_unused_imports = true;
         let macro_processors = &[];
 
@@ -107,7 +106,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             program.clone().into_sorted(),
             root_file_id,
             debug_comptime_in_file,
-            enable_arithmetic_generics,
             error_on_unused_imports,
             macro_processors,
         ));
