@@ -26,8 +26,8 @@ fail.
 
 Example:
 
-#include_code serialize-setup test_program/compile_success_empty/comptime_type/src/main.nr rust
-#include_code fresh-type-variable-example test_program/compile_success_empty/comptime_type/src/main.nr rust
+#include_code serialize-setup test_programs/compile_success_empty/comptime_type/src/main.nr rust
+#include_code fresh-type-variable-example test_programs/compile_success_empty/comptime_type/src/main.nr rust
 
 ## Methods
 
