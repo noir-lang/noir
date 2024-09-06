@@ -6,13 +6,13 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
-    check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_field,
+    check_one_argument, check_three_arguments, check_two_arguments, get_bool, get_expr, get_field,
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
-    get_u32, get_unresolved_type, hir_pattern_to_tokens, mutate_func_meta_type, parse,
-    replace_func_meta_parameters, replace_func_meta_return_type,
+    get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
+    mutate_func_meta_type, parse, replace_func_meta_parameters, replace_func_meta_return_type,
 };
-use chumsky::{prelude::choice, Parser};
+use chumsky::{chain::Chain, prelude::choice, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -25,7 +25,6 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    elaborator::Elaborator,
     hir::comptime::{
         errors::IResult,
         value::{ExprValue, TypedExpr},
@@ -33,10 +32,10 @@ use crate::{
     },
     hir_def::function::FunctionBody,
     lexer::Lexer,
-    macros_api::{HirExpression, HirLiteral, ModuleDefId, NodeInterner, Signedness},
+    macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
-    token::Token,
+    token::{Attribute, SecondaryAttribute, Token},
     QuotedType, Shared, Type,
 };
 
@@ -97,6 +96,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
+            "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -108,6 +108,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_set_parameters" => function_def_set_parameters(self, arguments, location),
             "function_def_set_return_type" => {
                 function_def_set_return_type(self, arguments, location)
+            }
+            "function_def_set_return_public" => {
+                function_def_set_return_public(self, arguments, location)
             }
             "module_functions" => module_functions(self, arguments, location),
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
@@ -123,6 +126,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
+            "quoted_tokens" => quoted_tokens(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
             "slice_pop_back" => slice_pop_back(interner, arguments, location, call_stack),
             "slice_pop_front" => slice_pop_front(interner, arguments, location, call_stack),
@@ -130,9 +134,14 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
+            "struct_def_add_attribute" => struct_def_add_attribute(self, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
+            "struct_def_has_named_attribute" => {
+                struct_def_has_named_attribute(interner, arguments, location)
+            }
+            "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
@@ -262,6 +271,50 @@ fn str_as_bytes(
     Ok(Value::Array(bytes, byte_array_type))
 }
 
+// fn add_attribute<let N: u32>(self, attribute: str<N>)
+fn struct_def_add_attribute(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_str(interpreter.elaborator.interner, attribute)?;
+
+    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
+    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
+        tokens.pop();
+    }
+    if tokens.len() != 1 {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    }
+
+    let token = tokens.into_iter().next().unwrap().into_token();
+    let Token::Attribute(attribute) = token else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    };
+
+    let Attribute::Secondary(attribute) = attribute else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    };
+
+    let struct_id = get_struct(self_argument)?;
+    interpreter.elaborator.interner.update_struct_attributes(struct_id, |attributes| {
+        attributes.push(attribute.clone());
+    });
+
+    Ok(Value::Unit)
+}
+
 /// fn as_type(self) -> Type
 fn struct_def_as_type(
     interner: &NodeInterner,
@@ -299,6 +352,25 @@ fn struct_def_generics(
     Ok(Value::Slice(generics.collect(), typ))
 }
 
+// fn has_named_attribute(self, name: Quoted) -> bool
+fn struct_def_has_named_attribute(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+
+    let name = get_quoted(name)?;
+    let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
+
+    let attributes = interner.struct_attributes(&struct_id);
+    let attributes = attributes.iter().filter_map(|attribute| attribute.as_custom());
+    let attributes = attributes.map(|attribute| &attribute.contents);
+
+    Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
+}
+
 /// fn fields(self) -> [(Quoted, Type)]
 /// Returns (name, type) pairs of each field of this StructDefinition
 fn struct_def_fields(
@@ -324,6 +396,64 @@ fn struct_def_fields(
         Type::Quoted(QuotedType::Type),
     ])));
     Ok(Value::Slice(fields, typ))
+}
+
+/// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
+/// Returns (name, type) pairs of each field of this StructDefinition
+fn struct_def_set_fields(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (the_struct, fields) = check_two_arguments(arguments, location)?;
+    let struct_id = get_struct(the_struct)?;
+
+    let struct_def = interner.get_struct(struct_id);
+    let mut struct_def = struct_def.borrow_mut();
+
+    let field_location = fields.1;
+    let fields = get_slice(interner, fields)?.0;
+
+    let new_fields = fields
+        .into_iter()
+        .flat_map(|field_pair| get_tuple(interner, (field_pair, field_location)))
+        .enumerate()
+        .map(|(index, mut field_pair)| {
+            if field_pair.len() == 2 {
+                let typ = field_pair.pop().unwrap();
+                let name_value = field_pair.pop().unwrap();
+
+                let name_tokens = get_quoted((name_value.clone(), field_location))?;
+                let typ = get_type((typ, field_location))?;
+
+                match name_tokens.first() {
+                    Some(Token::Ident(name)) if name_tokens.len() == 1 => {
+                        Ok((Ident::new(name.clone(), field_location.span), typ))
+                    }
+                    _ => {
+                        let value = name_value.display(interner).to_string();
+                        let location = field_location;
+                        Err(InterpreterError::ExpectedIdentForStructField {
+                            value,
+                            index,
+                            location,
+                        })
+                    }
+                }
+            } else {
+                let type_var = interner.next_type_variable();
+                let expected = Type::Tuple(vec![type_var.clone(), type_var]);
+
+                let actual =
+                    Type::Tuple(vecmap(&field_pair, |value| value.get_type().into_owned()));
+
+                Err(InterpreterError::TypeMismatch { expected, actual, location })
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    struct_def.set_fields(new_fields);
+    Ok(Value::Unit)
 }
 
 fn slice_remove(
@@ -474,6 +604,17 @@ fn quoted_as_type(
     let typ =
         interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
+}
+
+// fn tokens(quoted: Quoted) -> [Quoted]
+fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let value = get_quoted(argument)?;
+
+    Ok(Value::Slice(
+        value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
+        Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted))),
+    ))
 }
 
 fn to_le_radix(
@@ -1595,6 +1736,57 @@ fn fmtstr_quoted_contents(
     Ok(Value::Quoted(Rc::new(tokens)))
 }
 
+// fn add_attribute<let N: u32>(self, attribute: str<N>)
+fn function_def_add_attribute(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_str(interpreter.elaborator.interner, attribute)?;
+
+    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
+    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
+        tokens.pop();
+    }
+    if tokens.len() != 1 {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    }
+
+    let token = tokens.into_iter().next().unwrap().into_token();
+    let Token::Attribute(attribute) = token else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.to_string(),
+            location: attribute_location,
+        });
+    };
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+
+    match &attribute {
+        Attribute::Function(attribute) => {
+            function_modifiers.attributes.function = Some(attribute.clone());
+        }
+        Attribute::Secondary(attribute) => {
+            function_modifiers.attributes.secondary.push(attribute.clone());
+        }
+    }
+
+    if let Attribute::Secondary(SecondaryAttribute::Custom(attribute)) = attribute {
+        let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+        func_meta.custom_attributes.push(attribute);
+    }
+
+    Ok(Value::Unit)
+}
+
 // fn body(self) -> Expr
 fn function_def_body(
     interner: &NodeInterner,
@@ -1619,31 +1811,15 @@ fn function_def_has_named_attribute(
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let name = get_quoted(name)?;
     let func_meta = interner.function_meta(&func_id);
-    let attributes = &func_meta.custom_attributes;
-    if attributes.is_empty() {
-        return Ok(Value::Bool(false));
-    };
 
+    let name = get_quoted(name)?;
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
-    for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(&attribute.contents, location);
-        let Ok(Some((function, _arguments))) = parse_result else {
-            continue;
-        };
+    let attributes = &func_meta.custom_attributes;
+    let attributes = attributes.iter().map(|attribute| &attribute.contents);
 
-        let ExpressionKind::Variable(path) = function.kind else {
-            continue;
-        };
-
-        if path.last_name() == name {
-            return Ok(Value::Bool(true));
-        }
-    }
-
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
 }
 
 // fn name(self) -> Quoted
@@ -1812,6 +1988,25 @@ fn function_def_set_return_type(
     Ok(Value::Unit)
 }
 
+// fn set_return_public(self, public: bool)
+fn function_def_set_return_public(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, public) = check_two_arguments(arguments, location)?;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let public = get_bool(public)?;
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+
+    Ok(Value::Unit)
+}
+
 // fn functions(self) -> [FunctionDefinition]
 fn module_functions(
     interpreter: &Interpreter,
@@ -1845,27 +2040,13 @@ fn module_has_named_attribute(
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
-    let name = get_quoted(name)?;
 
+    let name = get_quoted(name)?;
     let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
 
     let attributes = module_data.outer_attributes.iter().chain(&module_data.inner_attributes);
-    for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location);
-        let Ok(Some((function, _arguments))) = parse_result else {
-            continue;
-        };
 
-        let ExpressionKind::Variable(path) = function.kind else {
-            continue;
-        };
-
-        if path.last_name() == name {
-            return Ok(Value::Bool(true));
-        }
-    }
-
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
 }
 
 // fn is_contract(self) -> bool

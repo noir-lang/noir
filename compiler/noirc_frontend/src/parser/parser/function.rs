@@ -1,10 +1,10 @@
 use super::{
     attributes::{attributes, validate_attributes},
-    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_visibility,
-    parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
+    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, parameter_name_recovery,
+    parameter_recovery, parenthesized, parse_type, pattern,
     primitives::token_kind,
     self_parameter,
-    visibility::visibility_modifier,
+    visibility::{item_visibility, visibility},
     where_clause, NoirParser,
 };
 use crate::token::{Keyword, Token, TokenKind};
@@ -79,13 +79,9 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
 ///
 /// returns (is_unconstrained, visibility) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
-    keyword(Keyword::Unconstrained)
-        .or_not()
-        .then(visibility_modifier())
-        .then(maybe_comp_time())
-        .map(|((unconstrained, visibility), comptime)| {
-            (unconstrained.is_some(), visibility, comptime)
-        })
+    keyword(Keyword::Unconstrained).or_not().then(item_visibility()).then(maybe_comp_time()).map(
+        |((unconstrained, visibility), comptime)| (unconstrained.is_some(), visibility, comptime),
+    )
 }
 
 pub(super) fn numeric_generic() -> impl NoirParser<UnresolvedGeneric> {
@@ -142,14 +138,12 @@ pub(super) fn generics() -> impl NoirParser<UnresolvedGenerics> {
 
 pub(super) fn function_return_type() -> impl NoirParser<(Visibility, FunctionReturnType)> {
     #[allow(deprecated)]
-    just(Token::Arrow)
-        .ignore_then(optional_visibility())
-        .then(spanned(parse_type()))
-        .or_not()
-        .map_with_span(|ret, span| match ret {
+    just(Token::Arrow).ignore_then(visibility()).then(spanned(parse_type())).or_not().map_with_span(
+        |ret, span| match ret {
             Some((visibility, (ty, _))) => (visibility, FunctionReturnType::Ty(ty)),
             None => (Visibility::Private, FunctionReturnType::Default(span)),
-        })
+        },
+    )
 }
 
 fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
@@ -158,7 +152,7 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
     let full_parameter = pattern()
         .recover_via(parameter_name_recovery())
         .then_ignore(just(Token::Colon))
-        .then(optional_visibility())
+        .then(visibility())
         .then(typ)
         .map_with_span(|((pattern, visibility), typ), span| Param {
             visibility,
