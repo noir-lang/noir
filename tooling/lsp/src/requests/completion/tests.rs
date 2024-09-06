@@ -1917,4 +1917,18 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_suggests_function_attribute() {
+        let src = r#"
+            #[dep>|<]
+            fn foo() {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item("deprecated", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
 }
