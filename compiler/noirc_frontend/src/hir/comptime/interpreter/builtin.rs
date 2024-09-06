@@ -25,10 +25,13 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{
-        errors::IResult,
-        value::{ExprValue, TypedExpr},
-        InterpreterError, Value,
+    hir::{
+        comptime::{
+            errors::IResult,
+            value::{ExprValue, TypedExpr},
+            InterpreterError, Value,
+        },
+        def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
     lexer::Lexer,
@@ -102,6 +105,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
             }
+            "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
@@ -1825,6 +1829,19 @@ fn function_def_has_named_attribute(
     let attributes = attributes.iter().map(|attribute| &attribute.contents);
 
     Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
+}
+
+// fn module(self) -> Module
+fn function_def_module(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let func_meta = interner.function_meta(&func_id);
+    let module = ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
+    Ok(Value::ModuleDefinition(module))
 }
 
 // fn name(self) -> Quoted
