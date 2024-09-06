@@ -1,5 +1,5 @@
 [package]
-name = "comptime_type_definition"
+name = "comptime_struct_definition"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

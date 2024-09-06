@@ -29,6 +29,12 @@ This means any functions called at compile-time are invalid targets for this met
 
 Returns true if this function has a custom attribute with the given name.
 
+### module
+
+#include_code module noir_stdlib/src/meta/function_def.nr rust
+
+Returns the module where the function is defined.
+
 ### name
 
 #include_code name noir_stdlib/src/meta/function_def.nr rust
