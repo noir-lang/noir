@@ -5,7 +5,7 @@ use std::{
 
 use async_lsp::ResponseError;
 use completion_items::{
-    crate_completion_item, field_completion_item, simple_completion_item,
+    crate_completion_item, field_completion_item, simple_completion_item, snippet_completion_item,
     struct_field_completion_item,
 };
 use convert_case::{Case, Casing};
@@ -15,11 +15,11 @@ use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Completion
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression, ItemVisibility,
-        Lambda, LetStatement, MemberAccessExpression, MethodCallExpression, NoirFunction,
-        NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement, TypeImpl, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
+        AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
+        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
+        ItemVisibility, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
+        NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement, TypeImpl,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
@@ -27,6 +27,7 @@ use noirc_frontend::{
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
     parser::{Item, ItemKind, ParsedSubModule},
+    token::CustomAtrribute,
     ParsedModule, StructType, Type,
 };
 use sort_text::underscore_sort_text;
@@ -359,6 +360,7 @@ impl<'a> NodeFinder<'a> {
                     self.builtin_types_completion(&prefix);
                     self.type_parameters_completion(&prefix);
                 }
+                RequestedItems::OnlyAttributeFunctions(..) => (),
             }
             self.complete_auto_imports(&prefix, requested_items, function_completion_kind);
         }
@@ -606,6 +608,7 @@ impl<'a> NodeFinder<'a> {
                         func_id,
                         function_completion_kind,
                         function_kind,
+                        None, // attribute first type
                         self_prefix,
                     ) {
                         self.completion_items.push(completion_item);
@@ -632,6 +635,7 @@ impl<'a> NodeFinder<'a> {
                     *func_id,
                     function_completion_kind,
                     function_kind,
+                    None, // attribute first type
                     self_prefix,
                 ) {
                     self.completion_items.push(completion_item);
@@ -786,6 +790,49 @@ impl<'a> NodeFinder<'a> {
         None
     }
 
+    fn suggest_attributes(&mut self, prefix: &str, target: AttributeTarget) {
+        self.suggest_builtin_attributes(prefix, target);
+
+        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
+        let requested_items = RequestedItems::OnlyAttributeFunctions(target);
+
+        self.complete_in_module(
+            self.module_id,
+            prefix,
+            PathKind::Plain,
+            true,
+            function_completion_kind,
+            requested_items,
+        );
+
+        self.complete_auto_imports(prefix, requested_items, function_completion_kind);
+    }
+
+    fn suggest_no_arguments_attributes(&mut self, prefix: &str, attributes: &[&str]) {
+        for name in attributes {
+            if name_matches(name, prefix) {
+                self.completion_items.push(simple_completion_item(
+                    *name,
+                    CompletionItemKind::METHOD,
+                    None,
+                ));
+            }
+        }
+    }
+
+    fn suggest_one_argument_attributes(&mut self, prefix: &str, attributes: &[&str]) {
+        for name in attributes {
+            if name_matches(name, prefix) {
+                self.completion_items.push(snippet_completion_item(
+                    format!("{}(…)", name),
+                    CompletionItemKind::METHOD,
+                    format!("{}(${{1:name}})", name),
+                    None,
+                ));
+            }
+        }
+    }
+
     fn try_set_self_type(&mut self, pattern: &Pattern) {
         match pattern {
             Pattern::Identifier(ident) => {
@@ -855,6 +902,10 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
+        for attribute in noir_function.secondary_attributes() {
+            attribute.accept(AttributeTarget::Function, self);
+        }
+
         let old_type_parameters = self.type_parameters.clone();
         self.collect_type_parameters_in_generics(&noir_function.def.generics);
 
@@ -915,6 +966,10 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_noir_struct(&mut self, noir_struct: &NoirStruct, _: Span) -> bool {
+        for attribute in &noir_struct.attributes {
+            attribute.accept(AttributeTarget::Struct, self);
+        }
+
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&noir_struct.generics);
 
@@ -1262,6 +1317,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.find_in_path(path, RequestedItems::OnlyTypes);
         unresolved_types.accept(self);
         false
+    }
+
+    fn visit_custom_attribute(&mut self, attribute: &CustomAtrribute, target: AttributeTarget) {
+        if self.byte_index != attribute.contents_span.end() as usize {
+            return;
+        }
+
+        self.suggest_attributes(&attribute.contents, target);
     }
 }
 
