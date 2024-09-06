@@ -3366,7 +3366,7 @@ fn warns_on_re_export_of_item_with_less_visibility() {
 }
 
 #[test]
-fn unoquted_integer_as_integer_token() {
+fn unquoted_integer_as_integer_token() {
     let src = r#"
     trait Serialize<let N: u32> {
         fn serialize() {}
@@ -3377,7 +3377,7 @@ fn unoquted_integer_as_integer_token() {
 
     fn attr(_f: FunctionDefinition) -> Quoted {
         let serialized_len = 1;
-        // We are testing that when we unoqute $serialized_len, it's unquoted
+        // We are testing that when we unquote $serialized_len, it's unquoted
         // as the token `1` and not as something else that later won't be parsed correctly
         // in the context of a generic argument.
         quote {

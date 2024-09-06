@@ -653,9 +653,15 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::FunctionDefinition(function_id) => {
                 write!(f, "{}", self.interner.function_name(function_id))
             }
-            Value::ModuleDefinition(_) => write!(f, "(module)"),
+            Value::ModuleDefinition(module_id) => {
+                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
+                    write!(f, "{}", &attributes.name)
+                } else {
+                    write!(f, "(crate root)")
+                }
+            }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{}", typ),
+            Value::Type(typ) => write!(f, "{:?}", typ),
             Value::Expr(ExprValue::Expression(expr)) => {
                 write!(f, "{}", remove_interned_in_expression_kind(self.interner, expr.clone()))
             }
