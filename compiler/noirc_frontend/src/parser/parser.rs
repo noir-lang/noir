@@ -28,7 +28,8 @@ use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable}
 use self::types::{generic_type_args, maybe_comp_time};
 use attributes::{attributes, inner_attribute, validate_secondary_attributes};
 pub use types::parse_type;
-use visibility::visibility_modifier;
+use visibility::item_visibility;
+pub use visibility::visibility;
 
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
@@ -459,7 +460,7 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    visibility_modifier()
+    item_visibility()
         .then_ignore(keyword(Keyword::Use))
         .then(use_tree())
         .map(|(visibility, use_tree)| TopLevelStatement::Import(use_tree, visibility))
@@ -735,15 +736,6 @@ fn call_data() -> impl NoirParser<Visibility> {
             }
         }
     })
-}
-
-fn optional_visibility() -> impl NoirParser<Visibility> {
-    keyword(Keyword::Pub)
-        .map(|_| Visibility::Public)
-        .or(call_data())
-        .or(keyword(Keyword::ReturnData).map(|_| Visibility::ReturnData))
-        .or_not()
-        .map(|opt| opt.unwrap_or(Visibility::Private))
 }
 
 pub fn expression() -> impl ExprParser {

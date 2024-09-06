@@ -302,8 +302,19 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
-                    references.expressions.insert(result, Expression::Other(result));
-                    references.aliases.insert(Expression::Other(result), AliasSet::known(result));
+                    let expression = if let Some(expression) = references.expressions.get(&result) {
+                        expression.clone()
+                    } else {
+                        references.expressions.insert(result, Expression::Other(result));
+                        Expression::Other(result)
+                    };
+                    if let Some(aliases) = references.aliases.get_mut(&expression) {
+                        aliases.insert(result);
+                    } else {
+                        references
+                            .aliases
+                            .insert(Expression::Other(result), AliasSet::known(result));
+                    }
                     references.set_known_value(result, address);
 
                     self.load_results.insert(result, PerFuncLoadResultContext::new(instruction));

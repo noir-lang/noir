@@ -207,6 +207,10 @@ pub enum InterpreterError {
         index: usize,
         location: Location,
     },
+    InvalidAttribute {
+        attribute: String,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -276,6 +280,7 @@ impl InterpreterError {
             | InterpreterError::MultipleMatchingImpls { location, .. }
             | InterpreterError::ExpectedIdentForStructField { location, .. }
             | InterpreterError::TypeAnnotationsNeededForMethodCall { location } => *location,
+            InterpreterError::InvalidAttribute { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -577,6 +582,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Quoted value in index {index} of this slice is not a valid field name"
                 );
                 let secondary = format!("`{value}` is not a valid field name for `set_fields`");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::InvalidAttribute { attribute, location } => {
+                let msg = format!("`{attribute}` is not a valid attribute");
+                let secondary = "Note that this method expects attribute contents, without the leading `#[` or trailing `]`".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
         }
