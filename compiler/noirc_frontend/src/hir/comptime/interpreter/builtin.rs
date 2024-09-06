@@ -25,6 +25,7 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
+    hir::def_collector::dc_crate::CollectedItems,
     hir::{
         comptime::{
             errors::IResult,
@@ -33,7 +34,6 @@ use crate::{
         },
         def_map::ModuleId,
     },
-    hir::def_collector::dc_crate::CollectedItems,
     hir_def::function::FunctionBody,
     lexer::Lexer,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
