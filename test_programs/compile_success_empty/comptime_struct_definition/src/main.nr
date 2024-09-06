@@ -13,6 +13,7 @@ comptime fn my_comptime_fn(typ: StructDefinition) {
     let _ = typ.as_type();
     assert_eq(typ.generics().len(), 3);
     assert_eq(typ.fields().len(), 2);
+    assert_eq(typ.name(), quote { MyType });
 }
 
 comptime fn mutate_struct_fields(s: StructDefinition) {
