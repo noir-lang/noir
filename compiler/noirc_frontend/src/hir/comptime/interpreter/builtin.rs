@@ -2017,24 +2017,22 @@ fn module_add_item(
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
 
-    let parser = parser::top_level_statement(parser::module());
-    let top_level_statement = parse(item, parser, "a top-level item")?;
+    let parser = parser::top_level_items();
+    let top_level_statements = parse(item, parser, "a top-level item")?;
 
-    // TODO: we need to type-check the top-level statement relative to the current function
-    // (interpreter.current_function) but we need to add it to the given module (module_id).
-    // How to do this?
+    interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
+        let mut generated_items = CollectedItems::default();
 
-    let mut generated_items = CollectedItems::default();
-    interpreter.elaborate_in_module(module_id, |elaborator| {
-        elaborator.add_item(top_level_statement, &mut generated_items, location);
-    });
+        for top_level_statement in top_level_statements {
+            elaborator.add_item(top_level_statement, &mut generated_items, location);
+        }
 
-    if !generated_items.is_empty() {
-        interpreter.elaborate_item(interpreter.current_function, |elaborator| {
+        if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
-        });
-    }
+        }
+    });
 
     Ok(Value::Unit)
 }

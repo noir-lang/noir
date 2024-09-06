@@ -92,6 +92,7 @@ impl<'context> Elaborator<'context> {
     pub fn elaborate_item_in_module<'a, T>(
         &'a mut self,
         module: ModuleId,
+        file: FileId,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
     ) -> T {
         // Create a fresh elaborator to ensure no state is changed from
@@ -99,7 +100,7 @@ impl<'context> Elaborator<'context> {
         let mut elaborator = Elaborator::new(
             self.interner,
             self.def_maps,
-            module.krate,
+            self.crate_id,
             self.debug_comptime_in_file,
             self.enable_arithmetic_generics,
             self.interpreter_call_stack.clone(),
@@ -111,7 +112,7 @@ impl<'context> Elaborator<'context> {
         elaborator.current_item = None;
         elaborator.crate_id = module.krate;
         elaborator.local_module = module.local_id;
-        // TODO: elaborator.file = meta.source_file;
+        elaborator.file = file;
 
         elaborator.populate_scope_from_comptime_scopes();
 

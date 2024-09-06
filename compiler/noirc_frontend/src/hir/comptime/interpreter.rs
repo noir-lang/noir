@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -198,10 +199,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_module<T>(
         &mut self,
         module: ModuleId,
+        file: FileId,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_in_module(module, f);
+        let result = self.elaborator.elaborate_item_in_module(module, file, f);
         self.rebind_generics_from_previous_function();
         result
     }
