@@ -178,73 +178,12 @@ apply the distributive law and thus sees these as different types.
 
 Even with this limitation though, the compiler can handle common cases decently well:
 
-```rs
-trait Serialize<let N: u32> {
-    fn serialize(self) -> [Field; N];
-}
-
-impl Serialize<1> for Field { .. }
-
-impl<T, let N: u32, M: u32> Serialize<N * M> for [T; N]
-    where T: Serialize<M> { .. }
-
-impl<T, U, let N: u32, M: u32> Serialize<N + M> for (T, U)
-    where T: Serialize<N>, U: Serialize<M> { .. }
-
-fn main() {
-    let data = (1, [2, 3, 4]);
-    assert(data.serialize().len(), 4);
-}
-```
+#include_code arithmetic-generics compiler/noirc_frontend/src/tests.rs rust
 
 Note that if there is any over or underflow the types will fail to unify:
 
-```rs
-fn pop<let N: u32>(array: [Field; N]) -> [Field; N - 1] {
-    let mut result: [Field; N - 1] = std::mem::zeroed();
-    for i in 0 .. N {
-        result[i] = array[i];
-    }
-    result
-}
-
-fn main() {
-    // error: Could not determine array length `(0 - 1)`
-    pop([]);
-}
-```
+#include_code underflow-example test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr rust
 
 This also applies if there is underflow in an intermediate calculation:
 
-```rs
-fn pop<let N: u32>(array: [Field; N]) -> [Field; N - 1] {
-    let mut result: [Field; N - 1] = std::mem::zeroed();
-    for i in 0 .. N {
-        result[i] = array[i];
-    }
-    result
-}
-
-fn push_zero<let N: u32>(array: [Field; N]) -> [Field; N + 1] {
-    let mut result: [Field; N + 1] = std::mem::zeroed();
-    for i in 0 .. N {
-        result[i] = array[i];
-    }
-    // index N is already zeroed
-    result
-}
-
-fn main() {
-    // From main it looks like there's nothing sketchy going on
-    seems_fine([]);
-}
-
-// Since `seems_fine` says it can receive and return any length N
-fn seems_fine<let N: u32>(array: [Field; N]) -> [Field; N] {
-    // But inside `seems_fine` we pop from the array which
-    // requires the length to be greater than zero.
-
-    // error: Could not determine array length `(0 - 1)`
-    push_zero(pop(array))
-}
-```
+#include_code intermediate-underflow-example test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr rust

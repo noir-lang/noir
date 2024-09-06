@@ -3424,3 +3424,29 @@ fn errors_on_unused_function() {
     assert_eq!(ident.to_string(), "foo");
     assert_eq!(*item_type, "function");
 }
+
+#[test]
+fn arithmetic_generics_example() {
+    let src = r#"
+// docs:start:arithmetic-generics
+trait Serialize<let N: u32> {
+    fn serialize(self) -> [Field; N];
+}
+
+impl Serialize<1> for Field { .. }
+
+impl<T, let N: u32, M: u32> Serialize<N * M> for [T; N]
+    where T: Serialize<M> { .. }
+
+impl<T, U, let N: u32, M: u32> Serialize<N + M> for (T, U)
+    where T: Serialize<N>, U: Serialize<M> { .. }
+
+fn main() {
+    let data = (1, [2, 3, 4]);
+    assert(data.serialize().len(), 4);
+}
+// docs:end:arithmetic-generics
+    "#;
+
+    assert_no_errors(src);
+}
