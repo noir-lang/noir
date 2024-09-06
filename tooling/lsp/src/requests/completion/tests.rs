@@ -1919,7 +1919,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_suggests_function_attribute() {
+    async fn test_suggests_built_in_function_attribute() {
         let src = r#"
             #[dep>|<]
             fn foo() {}
@@ -1928,6 +1928,27 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item("deprecated", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_function_attribute() {
+        let src = r#"
+            #[some>|<]
+            fn foo() {}
+
+            fn some_attr(f: FunctionDefinition, x: Field) {}
+            fn some_other_function(x: Field) {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item(
+                "some_attr(…)",
+                "some_attr(${1:x})",
+                "fn(FunctionDefinition, Field)",
+            )],
         )
         .await;
     }

@@ -360,6 +360,7 @@ impl<'a> NodeFinder<'a> {
                     self.builtin_types_completion(&prefix);
                     self.type_parameters_completion(&prefix);
                 }
+                RequestedItems::OnlyAttributeFunctions(..) => (),
             }
             self.complete_auto_imports(&prefix, requested_items, function_completion_kind);
         }
@@ -607,6 +608,7 @@ impl<'a> NodeFinder<'a> {
                         func_id,
                         function_completion_kind,
                         function_kind,
+                        None, // attribute first type
                         self_prefix,
                     ) {
                         self.completion_items.push(completion_item);
@@ -633,6 +635,7 @@ impl<'a> NodeFinder<'a> {
                     *func_id,
                     function_completion_kind,
                     function_kind,
+                    None, // attribute first type
                     self_prefix,
                 ) {
                     self.completion_items.push(completion_item);
@@ -819,6 +822,20 @@ impl<'a> NodeFinder<'a> {
                 }
             }
         }
+
+        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
+        let requested_items = RequestedItems::OnlyAttributeFunctions(target);
+
+        self.complete_in_module(
+            self.module_id,
+            prefix,
+            PathKind::Plain,
+            true,
+            function_completion_kind,
+            requested_items,
+        );
+
+        self.complete_auto_imports(prefix, requested_items, function_completion_kind);
     }
 
     fn suggest_no_arguments_attributes(&mut self, prefix: &str, attributes: &[&str]) {

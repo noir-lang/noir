@@ -134,9 +134,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_module_declaration(&mut self, _: &ModuleDeclaration, _: Span) -> bool {
-        true
-    }
+    fn visit_module_declaration(&mut self, _: &ModuleDeclaration, _: Span) {}
 
     fn visit_expression(&mut self, _: &Expression) -> bool {
         true
@@ -509,16 +507,16 @@ impl Item {
 
 impl ParsedSubModule {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        for attribute in &self.outer_attributes {
+            attribute.accept(AttributeTarget::Module, visitor);
+        }
+
         if visitor.visit_parsed_submodule(self, span) {
             self.accept_children(visitor);
         }
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        for attribute in &self.outer_attributes {
-            attribute.accept(AttributeTarget::Module, visitor);
-        }
-
         self.contents.accept(visitor);
     }
 }
@@ -723,11 +721,11 @@ impl NoirTypeAlias {
 
 impl ModuleDeclaration {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
-        if visitor.visit_module_declaration(self, span) {
-            for attribute in &self.outer_attributes {
-                attribute.accept(AttributeTarget::Module, visitor);
-            }
+        for attribute in &self.outer_attributes {
+            attribute.accept(AttributeTarget::Module, visitor);
         }
+
+        visitor.visit_module_declaration(self, span);
     }
 }
 
