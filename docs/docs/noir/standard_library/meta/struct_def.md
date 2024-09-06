@@ -24,7 +24,7 @@ the struct already has a generic with the same name.
 This method should be used carefully, if there is existing code referring
 to the struct type it may be checked before this function is called and
 see the struct with the original number of generics. This method should
-thus be prefered to use on code generated from other macros and structs
+thus be preferred to use on code generated from other macros and structs
 that are not used in function signatures.
 
 Example:
