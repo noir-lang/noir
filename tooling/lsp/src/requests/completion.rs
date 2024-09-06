@@ -791,37 +791,7 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn suggest_attributes(&mut self, prefix: &str, target: AttributeTarget) {
-        match target {
-            AttributeTarget::Module => (),
-            AttributeTarget::Struct => {
-                self.suggest_one_argument_attributes(prefix, &["abi"]);
-            }
-            AttributeTarget::Function => {
-                let no_arguments_attributes = &[
-                    "contract_library_method",
-                    "deprecated",
-                    "export",
-                    "fold",
-                    "no_predicates",
-                    "recursive",
-                    "test",
-                    "varargs",
-                ];
-                self.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
-
-                let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
-                self.suggest_one_argument_attributes(prefix, one_argument_attributes);
-
-                if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
-                    self.completion_items.push(snippet_completion_item(
-                        "test(should_fail_with=\"...\")",
-                        CompletionItemKind::METHOD,
-                        "test(should_fail_with=\"${1:message}\")",
-                        None,
-                    ));
-                }
-            }
-        }
+        self.suggest_builtin_attributes(prefix, target);
 
         let function_completion_kind = FunctionCompletionKind::NameAndParameters;
         let requested_items = RequestedItems::OnlyAttributeFunctions(target);
