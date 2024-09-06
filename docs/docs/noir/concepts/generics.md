@@ -178,7 +178,28 @@ apply the distributive law and thus sees these as different types.
 
 Even with this limitation though, the compiler can handle common cases decently well:
 
-#include_code arithmetic-generics compiler/noirc_frontend/src/tests.rs rust
+```rust
+trait Serialize<let N: u32> {
+    fn serialize(self) -> [Field; N];
+}
+
+impl Serialize<1> for Field {
+    fn serialize(self) -> [Field; 1] {
+        [self]
+    }
+}
+
+impl<T, let N: u32, M: u32> Serialize<N * M> for [T; N]
+    where T: Serialize<M> { .. }
+
+impl<T, U, let N: u32, M: u32> Serialize<N + M> for (T, U)
+    where T: Serialize<N>, U: Serialize<M> { .. }
+
+fn main() {
+    let data = (1, [2, 3, 4]);
+    assert(data.serialize().len(), 4);
+}
+```
 
 Note that if there is any over or underflow the types will fail to unify:
 
