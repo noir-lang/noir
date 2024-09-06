@@ -23,7 +23,7 @@ pub fn verify_signature_slice(
 // docs:end:schnorr_verify_slice
 {}
 
-fn verify_signature_noir<let N: u32>(public_key: EmbeddedCurvePoint, signature: [u8; 64], message: [u8; N]) -> bool {
+pub fn verify_signature_noir<let N: u32>(public_key: EmbeddedCurvePoint, signature: [u8; 64], message: [u8; N]) -> bool {
     //scalar lo/hi from bytes
     let sig_s = EmbeddedCurveScalar::from_bytes(signature, 0);
     let sig_e = EmbeddedCurveScalar::from_bytes(signature, 32);
@@ -36,7 +36,7 @@ fn verify_signature_noir<let N: u32>(public_key: EmbeddedCurvePoint, signature: 
         let r = crate::embedded_curve_ops::multi_scalar_mul([g1, public_key], [sig_s, sig_e]);
         // compare the _hashes_ rather than field elements modulo r
         let pedersen_hash = crate::hash::pedersen_hash([r.x, public_key.x, public_key.y]);
-        let pde = pedersen_hash.to_be_bytes(32);
+        let pde: [u8; 32] = pedersen_hash.to_be_bytes();
 
         let mut hash_input = Vec::new();
         for i in 0..32 {
@@ -57,7 +57,7 @@ fn verify_signature_noir<let N: u32>(public_key: EmbeddedCurvePoint, signature: 
     is_ok
 }
 
-fn assert_valid_signature<let N: u32>(public_key: EmbeddedCurvePoint, signature: [u8; 64], message: [u8; N]) {
+pub fn assert_valid_signature<let N: u32>(public_key: EmbeddedCurvePoint, signature: [u8; 64], message: [u8; N]) {
     //scalar lo/hi from bytes
     let sig_s = EmbeddedCurveScalar::from_bytes(signature, 0);
     let sig_e = EmbeddedCurveScalar::from_bytes(signature, 32);
@@ -73,7 +73,7 @@ fn assert_valid_signature<let N: u32>(public_key: EmbeddedCurvePoint, signature:
     let r = crate::embedded_curve_ops::multi_scalar_mul([g1, public_key], [sig_s, sig_e]);
     // compare the _hashes_ rather than field elements modulo r
     let pedersen_hash = crate::hash::pedersen_hash([r.x, public_key.x, public_key.y]);
-    let pde = pedersen_hash.to_be_bytes(32);
+    let pde: [u8; 32] = pedersen_hash.to_be_bytes();
 
     let mut hash_input = Vec::new();
     for i in 0..32 {
