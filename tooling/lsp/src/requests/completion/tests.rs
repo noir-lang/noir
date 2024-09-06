@@ -7,8 +7,7 @@ mod completion_tests {
                 completion_items::{
                     completion_item_with_sort_text,
                     completion_item_with_trigger_parameter_hints_command, crate_completion_item,
-                    field_completion_item, module_completion_item, simple_completion_item,
-                    snippet_completion_item,
+                    module_completion_item, simple_completion_item, snippet_completion_item,
                 },
                 sort_text::{auto_import_sort_text, self_mismatch_sort_text},
             },
@@ -114,6 +113,10 @@ mod completion_tests {
             insert_text,
             Some(description.into()),
         ))
+    }
+
+    fn field_completion_item(field: &str, typ: impl Into<String>) -> CompletionItem {
+        crate::requests::completion::field_completion_item(field, typ, false)
     }
 
     #[test]
@@ -1887,5 +1890,31 @@ mod completion_tests {
             item.label_details.as_ref().unwrap().detail,
             Some("(use super::barbaz)".to_string()),
         );
+    }
+
+    #[test]
+    async fn test_suggests_self_fields_and_methods() {
+        let src = r#"
+            struct Foo {
+                foobar: Field,
+            }
+
+            impl Foo {
+                fn foobarbaz(self) {}
+
+                fn some_method(self) {
+                    foob>|<
+                }
+            }
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![
+                field_completion_item("self.foobar", "Field"),
+                function_completion_item("self.foobarbaz()", "self.foobarbaz()", "fn(self)"),
+            ],
+        )
+        .await;
     }
 }
