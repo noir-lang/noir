@@ -45,7 +45,7 @@ fn empty_item(item: &mut Item) {
         ItemKind::Impl(type_impl) => {
             empty_type_impl(type_impl);
         }
-        ItemKind::Global(let_statement, _) => empty_let_statement(let_statement),
+        ItemKind::Global(let_statement) => empty_let_statement(let_statement),
         ItemKind::Submodules(parsed_submodule) => {
             empty_parsed_submodule(parsed_submodule);
         }
@@ -64,7 +64,7 @@ fn empty_noir_trait(noir_trait: &mut NoirTrait) {
     empty_unresolved_generics(&mut noir_trait.generics);
     empty_unresolved_trait_constraints(&mut noir_trait.where_clause);
     for item in noir_trait.items.iter_mut() {
-        empty_trait_item(item);
+        empty_trait_item(&mut item.item);
     }
 }
 
@@ -74,7 +74,7 @@ fn empty_noir_trait_impl(noir_trait_impl: &mut NoirTraitImpl) {
     empty_unresolved_type(&mut noir_trait_impl.object_type);
     empty_unresolved_trait_constraints(&mut noir_trait_impl.where_clause);
     for item in noir_trait_impl.items.iter_mut() {
-        empty_trait_impl_item(item);
+        empty_trait_impl_item(&mut item.item);
     }
 }
 
@@ -84,7 +84,7 @@ fn empty_type_impl(type_impl: &mut TypeImpl) {
     empty_unresolved_generics(&mut type_impl.generics);
     empty_unresolved_trait_constraints(&mut type_impl.where_clause);
     for (noir_function, _) in type_impl.methods.iter_mut() {
-        empty_noir_function(noir_function);
+        empty_noir_function(&mut noir_function.item);
     }
 }
 
@@ -108,15 +108,7 @@ fn empty_noir_function(noir_function: &mut NoirFunction) {
 
 fn empty_trait_item(trait_item: &mut TraitItem) {
     match trait_item {
-        TraitItem::Function {
-            name,
-            generics,
-            parameters,
-            return_type,
-            where_clause,
-            body,
-            doc_comments: _,
-        } => {
+        TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
             empty_ident(name);
             empty_unresolved_generics(generics);
             for (name, typ) in parameters.iter_mut() {

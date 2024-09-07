@@ -24,7 +24,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatementKind},
+    parser::{self, TopLevelStatement, TopLevelStatementKind},
     Type, TypeBindings, UnificationError,
 };
 
@@ -366,7 +366,7 @@ impl<'context> Elaborator<'context> {
 
     fn add_items(
         &mut self,
-        items: Vec<TopLevelStatementKind>,
+        items: Vec<TopLevelStatement>,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
@@ -377,11 +377,11 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn add_item(
         &mut self,
-        item: TopLevelStatementKind,
+        item: TopLevelStatement,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        match item {
+        match item.kind {
             TopLevelStatementKind::Function(function) => {
                 let module_id = self.module_id();
 
@@ -391,6 +391,7 @@ impl<'context> Elaborator<'context> {
                     &function,
                     module_id,
                     self.file,
+                    item.doc_comments,
                     &mut self.errors,
                 ) {
                     let functions = vec![(self.local_module, id, function)];
@@ -432,12 +433,12 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatementKind::Global(global, doc_comments) => {
+            TopLevelStatementKind::Global(global) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     global,
-                    doc_comments,
+                    item.doc_comments,
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -456,6 +457,7 @@ impl<'context> Elaborator<'context> {
                     self.file,
                     self.local_module,
                     self.crate_id,
+                    item.doc_comments,
                     &mut self.errors,
                 ) {
                     generated_items.types.insert(type_id, the_struct);
@@ -475,7 +477,7 @@ impl<'context> Elaborator<'context> {
             | TopLevelStatementKind::TypeAlias(_)
             | TopLevelStatementKind::SubModule(_)
             | TopLevelStatementKind::InnerAttribute(_) => {
-                let item = item.to_string();
+                let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());
             }

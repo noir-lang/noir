@@ -1,8 +1,6 @@
 use super::{
     attributes::{attributes, validate_attributes},
-    block,
-    doc_comments::outer_doc_comments,
-    fresh_statement, ident, keyword, maybe_comp_time, nothing, parameter_name_recovery,
+    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, parameter_name_recovery,
     parameter_recovery, parenthesized, parse_type, pattern,
     primitives::token_kind,
     self_parameter,
@@ -45,8 +43,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
             }
         });
 
-    outer_doc_comments()
-        .then(attributes())
+    attributes()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
@@ -56,7 +53,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         .then(where_clause())
         .then(body_or_error)
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
-            let (((((doc_comments, attributes), modifiers), name), generics), parameters) = args;
+            let ((((attributes, modifiers), name), generics), parameters) = args;
 
             // Validate collected attributes, filtering them into function and secondary variants
             let attributes = validate_attributes(attributes, span, emit);
@@ -73,7 +70,6 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
                 where_clause,
                 return_type: ret.1,
                 return_visibility: ret.0,
-                doc_comments,
             }
             .into()
         })

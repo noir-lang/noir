@@ -10,9 +10,9 @@ use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
-    NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
-    TypeImpl,
+    Documented, FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration,
+    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem,
+    TraitItem, TypeImpl,
 };
 use crate::hir::resolution::errors::ResolverError;
 use crate::macros_api::{
@@ -69,10 +69,11 @@ pub fn collect_defs(
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(
             context,
-            decl,
+            decl.item,
             crate_id,
             file_id,
             module_id,
+            decl.doc_comments,
             macro_processors,
         ));
     }
@@ -148,16 +149,16 @@ impl<'a> ModCollector<'a> {
     fn collect_globals(
         &mut self,
         context: &mut Context,
-        globals: Vec<(LetStatement, Vec<String>)>,
+        globals: Vec<Documented<LetStatement>>,
         crate_id: CrateId,
     ) -> Vec<(CompilationError, fm::FileId)> {
         let mut errors = vec![];
-        for (global, doc_comments) in globals {
+        for global in globals {
             let (global, error) = collect_global(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
-                global,
-                doc_comments,
+                global.item,
+                global.doc_comments,
                 self.file_id,
                 self.module_id,
                 crate_id,
@@ -238,7 +239,7 @@ impl<'a> ModCollector<'a> {
     fn collect_functions(
         &mut self,
         context: &mut Context,
-        functions: Vec<NoirFunction>,
+        functions: Vec<Documented<NoirFunction>>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut unresolved_functions = UnresolvedFunctions {
@@ -255,9 +256,10 @@ impl<'a> ModCollector<'a> {
             let Some(func_id) = collect_function(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
-                &function,
+                &function.item,
                 module,
                 self.file_id,
+                function.doc_comments,
                 &mut errors,
             ) else {
                 continue;
@@ -269,7 +271,7 @@ impl<'a> ModCollector<'a> {
             // and replace it
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
-            unresolved_functions.push_fn(self.module_id, func_id, function);
+            unresolved_functions.push_fn(self.module_id, func_id, function.item);
         }
 
         self.def_collector.items.functions.push(unresolved_functions);
@@ -282,7 +284,7 @@ impl<'a> ModCollector<'a> {
     fn collect_structs(
         &mut self,
         context: &mut Context,
-        types: Vec<NoirStruct>,
+        types: Vec<Documented<NoirStruct>>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut definition_errors = vec![];
@@ -290,10 +292,11 @@ impl<'a> ModCollector<'a> {
             if let Some((id, the_struct)) = collect_struct(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
-                struct_definition,
+                struct_definition.item,
                 self.file_id,
                 self.module_id,
                 krate,
+                struct_definition.doc_comments,
                 &mut definition_errors,
             ) {
                 self.def_collector.items.types.insert(id, the_struct);
@@ -409,7 +412,7 @@ impl<'a> ModCollector<'a> {
             let mut associated_types = Generics::new();
 
             for trait_item in &trait_definition.items {
-                match trait_item {
+                match &trait_item.item {
                     TraitItem::Function {
                         name,
                         generics,
@@ -417,7 +420,6 @@ impl<'a> ModCollector<'a> {
                         return_type,
                         where_clause,
                         body,
-                        doc_comments,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
                         method_ids.insert(name.to_string(), func_id);
@@ -438,6 +440,13 @@ impl<'a> ModCollector<'a> {
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
+                        if !trait_item.doc_comments.is_empty() {
+                            context.def_interner.doc_comments.insert(
+                                ModuleDefId::FunctionId(func_id),
+                                trait_item.doc_comments.clone(),
+                            );
+                        }
+
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
                             .declare_function(name.clone(), ItemVisibility::Public, func_id)
                         {
@@ -451,7 +460,6 @@ impl<'a> ModCollector<'a> {
                                             body,
                                             where_clause,
                                             return_type,
-                                            doc_comments.clone(),
                                         ));
                                     unresolved_functions.push_fn(
                                         self.module_id,
@@ -564,12 +572,15 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         crate_id: CrateId,
         parent_module_id: LocalModuleId,
-        submodules: Vec<SortedSubModule>,
+        submodules: Vec<Documented<SortedSubModule>>,
         file_id: FileId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
+            let mut doc_comments = submodule.doc_comments;
+            let submodule = submodule.item;
+
             match self.push_child_module(
                 context,
                 &submodule.name,
@@ -589,10 +600,8 @@ impl<'a> ModCollector<'a> {
                         false,
                     );
 
-                    if !submodule.outer_doc_comments.is_empty()
-                        || !submodule.contents.inner_doc_comments.is_empty()
+                    if !doc_comments.is_empty() || !submodule.contents.inner_doc_comments.is_empty()
                     {
-                        let mut doc_comments = submodule.outer_doc_comments;
                         doc_comments.extend(submodule.contents.inner_doc_comments.clone());
 
                         context
@@ -629,6 +638,7 @@ impl<'a> ModCollector<'a> {
         crate_id: CrateId,
         parent_file_id: FileId,
         parent_module_id: LocalModuleId,
+        doc_comments: Vec<String>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -708,11 +718,11 @@ impl<'a> ModCollector<'a> {
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 context.def_interner.add_module_reference(child_mod_id, location);
 
-                if !mod_decl.outer_doc_comments.is_empty() {
+                if !doc_comments.is_empty() {
                     context
                         .def_interner
                         .doc_comments
-                        .insert(ModuleDefId::ModuleId(child_mod_id), mod_decl.outer_doc_comments);
+                        .insert(ModuleDefId::ModuleId(child_mod_id), doc_comments);
                 }
 
                 errors.extend(collect_defs(
@@ -851,6 +861,7 @@ pub fn collect_function(
     function: &NoirFunction,
     module: ModuleId,
     file: FileId,
+    doc_comments: Vec<String>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Option<crate::node_interner::FuncId> {
     if let Some(field) = function.attributes().get_field_attribute() {
@@ -882,6 +893,10 @@ pub fn collect_function(
         interner.usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
 
+    if !doc_comments.is_empty() {
+        interner.doc_comments.insert(ModuleDefId::FunctionId(func_id), doc_comments);
+    }
+
     // Add function to scope/ns of the module
     let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
     if let Err((first_def, second_def)) = result {
@@ -902,6 +917,7 @@ pub fn collect_struct(
     file_id: FileId,
     module_id: LocalModuleId,
     krate: CrateId,
+    doc_comments: Vec<String>,
     definition_errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Option<(StructId, UnresolvedStruct)> {
     check_duplicate_field_names(&struct_definition, file_id, definition_errors);
@@ -939,10 +955,8 @@ pub fn collect_struct(
         }
     };
 
-    if !unresolved.struct_def.doc_comments.is_empty() {
-        interner
-            .doc_comments
-            .insert(ModuleDefId::TypeId(id), unresolved.struct_def.doc_comments.clone());
+    if !doc_comments.is_empty() {
+        interner.doc_comments.insert(ModuleDefId::TypeId(id), doc_comments.clone());
     }
 
     // Add the struct to scope so its path can be looked up later
@@ -975,12 +989,18 @@ pub fn collect_impl(
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
 
-    for (mut method, _) in r#impl.methods {
+    for (method, _) in r#impl.methods {
+        let doc_comments = method.doc_comments;
+        let mut method = method.item;
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
         let location = Location::new(method.span(), file_id);
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
+
+        if !doc_comments.is_empty() {
+            interner.doc_comments.insert(ModuleDefId::FunctionId(func_id), doc_comments);
+        }
     }
 
     let key = (r#impl.object_type, module_id.local_id);
@@ -1094,7 +1114,7 @@ pub(crate) fn collect_trait_impl_items(
     let module = ModuleId { krate, local_id };
 
     for item in std::mem::take(&mut trait_impl.items) {
-        match item {
+        match item.item {
             TraitImplItem::Function(impl_method) => {
                 let func_id = interner.push_empty_fn();
                 let location = Location::new(impl_method.span(), file_id);

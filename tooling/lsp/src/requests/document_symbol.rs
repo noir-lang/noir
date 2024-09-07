@@ -223,7 +223,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for item in &noir_trait.items {
-            item.accept(self);
+            item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -350,7 +350,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for trait_impl_item in &noir_trait_impl.items {
-            trait_impl_item.accept(self);
+            trait_impl_item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -405,7 +405,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.accept(*noir_function_span, self);
+            noir_function.item.accept(*noir_function_span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);

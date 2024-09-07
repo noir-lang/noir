@@ -11,7 +11,7 @@ use crate::{
     hir_def::{function::Parameters, traits::TraitFunction},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
+        ModuleDefId, NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
@@ -74,8 +74,7 @@ impl<'context> Elaborator<'context> {
                 return_type,
                 where_clause,
                 body: _,
-                doc_comments,
-            } = item
+            } = &item.item
             {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
@@ -105,9 +104,14 @@ impl<'context> Elaborator<'context> {
                         parameters,
                         return_type,
                         where_clause,
-                        doc_comments.clone(),
                         func_id,
                     );
+
+                    if !item.doc_comments.is_empty() {
+                        this.interner
+                            .doc_comments
+                            .insert(ModuleDefId::FunctionId(func_id), item.doc_comments.clone());
+                    }
 
                     let func_meta = this.interner.function_meta(&func_id);
 
@@ -159,7 +163,6 @@ impl<'context> Elaborator<'context> {
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
         where_clause: &[UnresolvedTraitConstraint],
-        doc_comments: Vec<String>,
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
@@ -185,7 +188,6 @@ impl<'context> Elaborator<'context> {
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
-            doc_comments,
         };
 
         let mut function = NoirFunction { kind, def };

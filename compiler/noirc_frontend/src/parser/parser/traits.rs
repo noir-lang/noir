@@ -9,8 +9,8 @@ use super::{
 };
 
 use crate::ast::{
-    Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
-    UnresolvedTraitConstraint, UnresolvedType,
+    Documented, Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem,
+    TraitItem, UnresolvedTraitConstraint, UnresolvedType,
 };
 use crate::macros_api::Pattern;
 use crate::{
@@ -59,10 +59,12 @@ pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatementKind> {
         })
 }
 
-fn trait_body() -> impl NoirParser<Vec<TraitItem>> {
-    trait_function_declaration()
-        .or(trait_type_declaration())
-        .or(trait_constant_declaration())
+fn trait_body() -> impl NoirParser<Vec<Documented<TraitItem>>> {
+    let item =
+        trait_function_declaration().or(trait_type_declaration()).or(trait_constant_declaration());
+    outer_doc_comments()
+        .then(item)
+        .map(|(doc_comments, item)| Documented::new(item, doc_comments))
         .repeated()
 }
 
@@ -98,30 +100,16 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
             }
         });
 
-    outer_doc_comments()
-        .then_ignore(keyword(Keyword::Fn))
-        .then(ident())
+    keyword(Keyword::Fn)
+        .ignore_then(ident())
         .then(function::generics())
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(trait_function_body_or_semicolon_or_error)
-        .map(
-            |(
-                (((((doc_comments, name), generics), parameters), return_type), where_clause),
-                body,
-            )| {
-                TraitItem::Function {
-                    name,
-                    generics,
-                    parameters,
-                    return_type,
-                    where_clause,
-                    body,
-                    doc_comments,
-                }
-            },
-        )
+        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
+        })
 }
 
 /// trait_type_declaration: 'type' ident generics
@@ -178,7 +166,7 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatementKind> {
         })
 }
 
-fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
+fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>> {
     let function = function::function_definition(true).validate(|mut f, span, emit| {
         if f.def().is_unconstrained || f.def().visibility != ItemVisibility::Private {
             emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
@@ -205,7 +193,11 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
         },
     );
 
-    choice((function, alias, let_statement)).repeated()
+    let item = choice((function, alias, let_statement));
+    outer_doc_comments()
+        .then(item)
+        .map(|(doc_comments, item)| Documented::new(item, doc_comments))
+        .repeated()
 }
 
 pub(super) fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {

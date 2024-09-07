@@ -937,7 +937,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.collect_type_parameters_in_generics(&noir_trait_impl.impl_generics);
 
         for item in &noir_trait_impl.items {
-            item.accept(self);
+            item.item.accept(self);
         }
 
         self.type_parameters.clear();
@@ -952,7 +952,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.collect_type_parameters_in_generics(&type_impl.generics);
 
         for (method, span) in &type_impl.methods {
-            method.accept(*span, self);
+            method.item.accept(*span, self);
 
             // Optimization: stop looking in functions past the completion cursor
             if span.end() as usize > self.byte_index {

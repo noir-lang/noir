@@ -13,7 +13,6 @@ pub struct NoirStruct {
     pub attributes: Vec<SecondaryAttribute>,
     pub generics: UnresolvedGenerics,
     pub fields: Vec<(Ident, UnresolvedType)>,
-    pub doc_comments: Vec<String>,
     pub span: Span,
 }
 

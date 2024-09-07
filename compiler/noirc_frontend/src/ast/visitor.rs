@@ -482,7 +482,7 @@ impl Item {
                 noir_trait_impl.accept(self.span, visitor);
             }
             ItemKind::Impl(type_impl) => type_impl.accept(self.span, visitor),
-            ItemKind::Global(let_statement, _doc_comments) => {
+            ItemKind::Global(let_statement) => {
                 if visitor.visit_global(let_statement, self.span) {
                     let_statement.accept(visitor);
                 }
@@ -553,7 +553,7 @@ impl NoirTraitImpl {
         self.object_type.accept(visitor);
 
         for item in &self.items {
-            item.accept(visitor);
+            item.item.accept(visitor);
         }
     }
 }
@@ -602,7 +602,7 @@ impl TypeImpl {
         self.object_type.accept(visitor);
 
         for (method, span) in &self.methods {
-            method.accept(*span, visitor);
+            method.item.accept(*span, visitor);
         }
     }
 }
@@ -616,7 +616,7 @@ impl NoirTrait {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         for item in &self.items {
-            item.accept(visitor);
+            item.item.accept(visitor);
         }
     }
 }
@@ -630,15 +630,7 @@ impl TraitItem {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            TraitItem::Function {
-                name,
-                generics,
-                parameters,
-                return_type,
-                where_clause,
-                body,
-                doc_comments: _,
-            } => {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
                 if visitor.visit_trait_item_function(
                     name,
                     generics,

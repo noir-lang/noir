@@ -1,8 +1,8 @@
 use acvm::acir::AcirField;
 use noirc_errors::Span;
 use noirc_frontend::ast::{
-    BlockExpression, Expression, ExpressionKind, FunctionDefinition, GenericTypeArgs, Ident,
-    Literal, NoirFunction, NoirStruct, Pattern, StatementKind, TypeImpl, UnresolvedType,
+    BlockExpression, Documented, Expression, ExpressionKind, FunctionDefinition, GenericTypeArgs,
+    Ident, Literal, NoirFunction, NoirStruct, Pattern, StatementKind, TypeImpl, UnresolvedType,
     UnresolvedTypeData,
 };
 use noirc_frontend::{
@@ -38,6 +38,7 @@ pub fn check_for_storage_definition(
     let result: Vec<&NoirStruct> = module
         .types
         .iter()
+        .map(|t| &t.item)
         .filter(|r#struct| {
             r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
         })
@@ -88,6 +89,7 @@ pub fn inject_context_in_storage(module: &mut SortedModule) -> Result<(), AztecM
     let storage_struct = module
         .types
         .iter_mut()
+        .map(|t| &mut t.item)
         .find(|r#struct| {
             r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
         })
@@ -200,6 +202,7 @@ pub fn generate_storage_implementation(
     let definition = module
         .types
         .iter()
+        .map(|t| &t.item)
         .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
         .unwrap();
 
@@ -236,7 +239,6 @@ pub fn generate_storage_implementation(
         &BlockExpression { statements: vec![storage_constructor_statement] },
         &[],
         &return_type(chained_path!("Self")),
-        Vec::new(),
     ));
 
     let ordered_args = vec![generic_context_type.clone()];
@@ -250,7 +252,7 @@ pub fn generate_storage_implementation(
         type_span: Span::default(),
         generics: vec![generic_context_ident.into()],
 
-        methods: vec![(init, Span::default())],
+        methods: vec![(Documented::not_documented(init), Span::default())],
 
         where_clause: vec![],
     };
@@ -510,6 +512,7 @@ pub fn generate_storage_layout(
     let definition = module
         .types
         .iter()
+        .map(|t| &t.item)
         .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
         .unwrap();
 

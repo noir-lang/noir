@@ -792,12 +792,6 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        if !func.def.doc_comments.is_empty() {
-            self.interner
-                .doc_comments
-                .insert(ModuleDefId::FunctionId(func_id), func.def.doc_comments.clone());
-        }
-
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());

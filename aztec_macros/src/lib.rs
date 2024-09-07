@@ -66,7 +66,9 @@ fn transform(
 
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
     // Covers all functions in the ast
-    for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
+    for submodule in
+        ast.submodules.iter_mut().map(|m| &mut m.item).filter(|submodule| submodule.is_contract)
+    {
         if transform_module(
             &file_id,
             &mut submodule.contents,
@@ -111,7 +113,8 @@ fn transform_module(
     }
 
     let has_initializer = module.functions.iter().any(|func| {
-        func.def
+        func.item
+            .def
             .attributes
             .secondary
             .iter()
@@ -121,6 +124,7 @@ fn transform_module(
     let mut stubs: Vec<_> = vec![];
 
     for func in module.functions.iter_mut() {
+        let func = &mut func.item;
         let mut is_private = false;
         let mut is_public = false;
         let mut is_initializer = false;
@@ -175,6 +179,7 @@ fn transform_module(
         let private_functions: Vec<_> = module
             .functions
             .iter()
+            .map(|t| &t.item)
             .filter(|func| {
                 func.def
                     .attributes
@@ -187,6 +192,7 @@ fn transform_module(
         let public_functions: Vec<_> = module
             .functions
             .iter()
+            .map(|func| &func.item)
             .filter(|func| {
                 func.def
                     .attributes

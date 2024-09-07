@@ -151,7 +151,7 @@ impl super::FmtVisitor<'_> {
     }
 
     fn visit_module(&mut self, module: ParsedModule) {
-        for Item { kind, span } in module.items {
+        for Item { kind, span, doc_comments } in module.items {
             match kind {
                 ItemKind::Function(func) => {
                     self.visit_function(span, func);
@@ -165,7 +165,7 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
-                    for doc_comment in module.outer_doc_comments {
+                    for doc_comment in doc_comments {
                         self.push_str(&format!("///{doc_comment}\n"));
                         self.push_str(&self.indent.to_string());
                     }
@@ -219,7 +219,7 @@ impl super::FmtVisitor<'_> {
                         self.indent.block_indent(self.config);
 
                         for (method, span) in impl_.methods {
-                            self.visit_function(span, method);
+                            self.visit_function(span, method.item);
                         }
 
                         self.close_block((self.last_position..span.end() - 1).into());
@@ -236,7 +236,7 @@ impl super::FmtVisitor<'_> {
                 | ItemKind::Trait(_)
                 | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)
-                | ItemKind::Global(_, _)
+                | ItemKind::Global(_)
                 | ItemKind::ModuleDecl(_)
                 | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);
