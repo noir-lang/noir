@@ -1,3 +1,4 @@
+use core::str;
 use std::path::Path;
 use std::rc::Rc;
 use std::vec;
@@ -67,11 +68,10 @@ pub fn collect_defs(
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(
             context,
-            decl.item,
+            decl,
             crate_id,
             file_id,
             module_id,
-            decl.doc_comments,
             macro_processors,
         ));
     }
@@ -155,8 +155,7 @@ impl<'a> ModCollector<'a> {
             let (global, error) = collect_global(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
-                global.item,
-                global.doc_comments,
+                global,
                 self.file_id,
                 self.module_id,
                 crate_id,
@@ -290,11 +289,10 @@ impl<'a> ModCollector<'a> {
             if let Some((id, the_struct)) = collect_struct(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
-                struct_definition.item,
+                struct_definition,
                 self.file_id,
                 self.module_id,
                 krate,
-                struct_definition.doc_comments,
                 &mut definition_errors,
             ) {
                 self.def_collector.items.types.insert(id, the_struct);
@@ -647,16 +645,19 @@ impl<'a> ModCollector<'a> {
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
+    #[allow(clippy::too_many_arguments)]
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
-        mod_decl: ModuleDeclaration,
+        mod_decl: Documented<ModuleDeclaration>,
         crate_id: CrateId,
         parent_file_id: FileId,
         parent_module_id: LocalModuleId,
-        doc_comments: Vec<String>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
+        let doc_comments = mod_decl.doc_comments;
+        let mod_decl = mod_decl.item;
+
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id = match find_module(&context.file_manager, self.file_id, &mod_decl.ident)
         {
@@ -929,13 +930,15 @@ pub fn collect_function(
 pub fn collect_struct(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,
-    struct_definition: NoirStruct,
+    struct_definition: Documented<NoirStruct>,
     file_id: FileId,
     module_id: LocalModuleId,
     krate: CrateId,
-    doc_comments: Vec<String>,
     definition_errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Option<(StructId, UnresolvedStruct)> {
+    let doc_comments = struct_definition.doc_comments;
+    let struct_definition = struct_definition.item;
+
     check_duplicate_field_names(&struct_definition, file_id, definition_errors);
 
     let name = struct_definition.name.clone();
@@ -1160,12 +1163,14 @@ pub(crate) fn collect_trait_impl_items(
 pub(crate) fn collect_global(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,
-    global: LetStatement,
-    doc_comments: Vec<String>,
+    global: Documented<LetStatement>,
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
 ) -> (UnresolvedGlobal, Option<(CompilationError, FileId)>) {
+    let doc_comments = global.doc_comments;
+    let global = global.item;
+
     let name = global.pattern.name_ident().clone();
 
     let global_id = interner.push_empty_global(

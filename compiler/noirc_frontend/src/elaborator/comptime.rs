@@ -6,6 +6,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
+    ast::Documented,
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -437,8 +438,7 @@ impl<'context> Elaborator<'context> {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    global,
-                    item.doc_comments,
+                    Documented::new(global, item.doc_comments),
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -453,11 +453,10 @@ impl<'context> Elaborator<'context> {
                 if let Some((type_id, the_struct)) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    struct_def,
+                    Documented::new(struct_def, item.doc_comments),
                     self.file,
                     self.local_module,
                     self.crate_id,
-                    item.doc_comments,
                     &mut self.errors,
                 ) {
                     generated_items.types.insert(type_id, the_struct);

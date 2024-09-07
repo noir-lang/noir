@@ -319,14 +319,14 @@ impl ParsedModule {
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
                 ItemKind::TypeAlias(type_alias) => {
-                    module.push_type_alias(type_alias, item.doc_comments)
+                    module.push_type_alias(type_alias, item.doc_comments);
                 }
                 ItemKind::Global(global) => module.push_global(global, item.doc_comments),
                 ItemKind::ModuleDecl(mod_name) => {
-                    module.push_module_decl(mod_name, item.doc_comments)
+                    module.push_module_decl(mod_name, item.doc_comments);
                 }
                 ItemKind::Submodules(submodule) => {
-                    module.push_submodule(submodule.into_sorted(), item.doc_comments)
+                    module.push_submodule(submodule.into_sorted(), item.doc_comments);
                 }
                 ItemKind::InnerAttribute(attribute) => module.inner_attributes.push(attribute),
             }
