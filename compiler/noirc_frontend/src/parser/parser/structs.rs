@@ -9,12 +9,12 @@ use crate::{
             function, parse_type,
             primitives::{ident, keyword},
         },
-        NoirParser, TopLevelStatement,
+        NoirParser, TopLevelStatementKind,
     },
     token::{Keyword, Token},
 };
 
-pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
+pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatementKind> {
     use self::Keyword::Struct;
     use Token::*;
 
@@ -36,7 +36,7 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .then(fields)
         .validate(|((((doc_comments, attributes), name), generics), fields), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatement::Struct(NoirStruct {
+            TopLevelStatementKind::Struct(NoirStruct {
                 name,
                 attributes,
                 generics,

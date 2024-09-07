@@ -3,7 +3,7 @@ use noirc_errors::Span;
 use crate::lexer::token::BorrowedToken;
 use crate::lexer::token as noir_token;
 use crate::lexer::errors::LexerErrorKind;
-use crate::parser::TopLevelStatement;
+use crate::parser::TopLevelStatementKind;
 use crate::ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind};
 
 use lalrpop_util::ErrorRecovery;
@@ -101,9 +101,9 @@ extern {
     }
 }
 
-pub(crate) TopLevelStatement: TopLevelStatement = {
+pub(crate) TopLevelStatementKind: TopLevelStatementKind = {
     "use" r"[\t\r\n ]+" <use_tree:UseTree> ";" <trailing_spaces:r"[\t\r\n ]+"?> EOF => {
-        TopLevelStatement::Import(use_tree, crate::ast::ItemVisibility::Private)
+        TopLevelStatementKind::Import(use_tree, crate::ast::ItemVisibility::Private)
     }
 }
 

@@ -31,7 +31,13 @@ pub use parser::{
 };
 
 #[derive(Debug, Clone)]
-pub enum TopLevelStatement {
+pub struct TopLevelStatement {
+    pub kind: TopLevelStatementKind,
+    pub doc_comments: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum TopLevelStatementKind {
     Function(NoirFunction),
     Module(ModuleDeclaration),
     Import(UseTree, ItemVisibility),
@@ -46,21 +52,23 @@ pub enum TopLevelStatement {
     Error,
 }
 
-impl TopLevelStatement {
+impl TopLevelStatementKind {
     pub fn into_item_kind(self) -> Option<ItemKind> {
         match self {
-            TopLevelStatement::Function(f) => Some(ItemKind::Function(f)),
-            TopLevelStatement::Module(m) => Some(ItemKind::ModuleDecl(m)),
-            TopLevelStatement::Import(i, visibility) => Some(ItemKind::Import(i, visibility)),
-            TopLevelStatement::Struct(s) => Some(ItemKind::Struct(s)),
-            TopLevelStatement::Trait(t) => Some(ItemKind::Trait(t)),
-            TopLevelStatement::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
-            TopLevelStatement::Impl(i) => Some(ItemKind::Impl(i)),
-            TopLevelStatement::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
-            TopLevelStatement::SubModule(s) => Some(ItemKind::Submodules(s)),
-            TopLevelStatement::Global(c, doc_comments) => Some(ItemKind::Global(c, doc_comments)),
-            TopLevelStatement::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
-            TopLevelStatement::Error => None,
+            TopLevelStatementKind::Function(f) => Some(ItemKind::Function(f)),
+            TopLevelStatementKind::Module(m) => Some(ItemKind::ModuleDecl(m)),
+            TopLevelStatementKind::Import(i, visibility) => Some(ItemKind::Import(i, visibility)),
+            TopLevelStatementKind::Struct(s) => Some(ItemKind::Struct(s)),
+            TopLevelStatementKind::Trait(t) => Some(ItemKind::Trait(t)),
+            TopLevelStatementKind::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
+            TopLevelStatementKind::Impl(i) => Some(ItemKind::Impl(i)),
+            TopLevelStatementKind::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
+            TopLevelStatementKind::SubModule(s) => Some(ItemKind::Submodules(s)),
+            TopLevelStatementKind::Global(c, doc_comments) => {
+                Some(ItemKind::Global(c, doc_comments))
+            }
+            TopLevelStatementKind::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
+            TopLevelStatementKind::Error => None,
         }
     }
 }
@@ -222,11 +230,11 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
 }
 
-fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
+fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatementKind> {
     none_of([Token::RightBrace, Token::EOF])
         .repeated()
         .ignore_then(one_of([Token::Semicolon]))
-        .map(|_| TopLevelStatement::Error)
+        .map(|_| TopLevelStatementKind::Error)
 }
 
 /// Force the given parser to succeed, logging any errors it had
@@ -510,27 +518,27 @@ impl Precedence {
     }
 }
 
-impl std::fmt::Display for TopLevelStatement {
+impl std::fmt::Display for TopLevelStatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopLevelStatement::Function(fun) => fun.fmt(f),
-            TopLevelStatement::Module(m) => m.fmt(f),
-            TopLevelStatement::Import(tree, visibility) => {
+            TopLevelStatementKind::Function(fun) => fun.fmt(f),
+            TopLevelStatementKind::Module(m) => m.fmt(f),
+            TopLevelStatementKind::Import(tree, visibility) => {
                 if visibility == &ItemVisibility::Private {
                     write!(f, "use {tree}")
                 } else {
                     write!(f, "{visibility} use {tree}")
                 }
             }
-            TopLevelStatement::Trait(t) => t.fmt(f),
-            TopLevelStatement::TraitImpl(i) => i.fmt(f),
-            TopLevelStatement::Struct(s) => s.fmt(f),
-            TopLevelStatement::Impl(i) => i.fmt(f),
-            TopLevelStatement::TypeAlias(t) => t.fmt(f),
-            TopLevelStatement::SubModule(s) => s.fmt(f),
-            TopLevelStatement::Global(c, _) => c.fmt(f),
-            TopLevelStatement::InnerAttribute(a) => write!(f, "#![{}]", a),
-            TopLevelStatement::Error => write!(f, "error"),
+            TopLevelStatementKind::Trait(t) => t.fmt(f),
+            TopLevelStatementKind::TraitImpl(i) => i.fmt(f),
+            TopLevelStatementKind::Struct(s) => s.fmt(f),
+            TopLevelStatementKind::Impl(i) => i.fmt(f),
+            TopLevelStatementKind::TypeAlias(t) => t.fmt(f),
+            TopLevelStatementKind::SubModule(s) => s.fmt(f),
+            TopLevelStatementKind::Global(c, _) => c.fmt(f),
+            TopLevelStatementKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+            TopLevelStatementKind::Error => write!(f, "error"),
         }
     }
 }

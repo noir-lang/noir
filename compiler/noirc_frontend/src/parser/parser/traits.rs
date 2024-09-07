@@ -16,14 +16,14 @@ use crate::macros_api::Pattern;
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
-        ParserErrorReason, TopLevelStatement,
+        ParserErrorReason, TopLevelStatementKind,
     },
     token::{Keyword, Token},
 };
 
 use super::{generic_type_args, parse_type, primitives::ident};
 
-pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
+pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatementKind> {
     let trait_body_or_error = just(Token::LeftBrace)
         .ignore_then(trait_body())
         .then_ignore(just(Token::RightBrace))
@@ -48,7 +48,7 @@ pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body_or_error)
         .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatement::Trait(NoirTrait {
+            TopLevelStatementKind::Trait(NoirTrait {
                 name,
                 generics,
                 where_clause,
@@ -137,7 +137,7 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 /// and an optional `where` clause is also useable.
 ///
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
-pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
+pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatementKind> {
     let body_or_error =
         just(Token::LeftBrace)
             .ignore_then(trait_implementation_body())
@@ -167,7 +167,7 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .map(|args| {
             let (((other_args, object_type), where_clause), items) = args;
             let ((impl_generics, trait_name), trait_generics) = other_args;
-            TopLevelStatement::TraitImpl(NoirTraitImpl {
+            TopLevelStatementKind::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
                 trait_generics,
@@ -306,7 +306,7 @@ mod test {
         assert_eq!(errors[0].message, "expected <, where or { after trait name");
 
         let top_level_statement = top_level_statement.unwrap();
-        let TopLevelStatement::Trait(trait_) = top_level_statement else {
+        let TopLevelStatementKind::Trait(trait_) = top_level_statement else {
             panic!("Expected to parse a trait");
         };
 
@@ -323,7 +323,7 @@ mod test {
         assert_eq!(errors[0].message, "expected <, where or { after trait impl for type");
 
         let top_level_statement = top_level_statement.unwrap();
-        let TopLevelStatement::TraitImpl(trait_impl) = top_level_statement else {
+        let TopLevelStatementKind::TraitImpl(trait_impl) = top_level_statement else {
             panic!("Expected to parse a trait impl");
         };
 
