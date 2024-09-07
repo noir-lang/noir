@@ -235,8 +235,6 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
-    eprintln!("Function id: {:?}", id);
-
     append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
 
     string
