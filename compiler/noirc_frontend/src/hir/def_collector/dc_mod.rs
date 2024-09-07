@@ -644,7 +644,7 @@ impl<'a> ModCollector<'a> {
         parent_module_id: LocalModuleId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
-        let doc_comments = mod_decl.doc_comments;
+        let mut doc_comments = mod_decl.doc_comments;
         let mod_decl = mod_decl.item;
 
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -724,7 +724,9 @@ impl<'a> ModCollector<'a> {
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 context.def_interner.add_module_reference(child_mod_id, location);
 
-                if !doc_comments.is_empty() {
+                if !doc_comments.is_empty() || !ast.inner_doc_comments.is_empty() {
+                    doc_comments.extend(ast.inner_doc_comments.clone());
+
                     context
                         .def_interner
                         .set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
