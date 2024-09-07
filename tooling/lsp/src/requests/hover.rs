@@ -60,30 +60,36 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
     let crate_root = args.def_maps[&id.krate].root();
 
-    if id.local_id == crate_root {
-        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate);
-        return dep.map(|dep| format!("    crate {}", dep.name));
-    }
-
-    // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
-    // This is a workaround to avoid panicking in that case (which brings the LSP server down).
-    // Cases where this happens are related to generated code, so once that stops happening
-    // this won't be an issue anymore.
-    let module_attributes = args.interner.try_module_attributes(&id)?;
-
     let mut string = String::new();
-    if let Some(parent_local_id) = module_attributes.parent {
-        if format_parent_module_from_module_id(
-            &ModuleId { krate: id.krate, local_id: parent_local_id },
-            args,
-            &mut string,
-        ) {
-            string.push('\n');
+
+    if id.local_id == crate_root {
+        let Some(dep) = args.dependencies.iter().find(|dep| dep.crate_id == id.krate) else {
+            return None;
+        };
+        string.push_str("    crate ");
+        string.push_str(&dep.name.to_string());
+    } else {
+        // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
+        // This is a workaround to avoid panicking in that case (which brings the LSP server down).
+        // Cases where this happens are related to generated code, so once that stops happening
+        // this won't be an issue anymore.
+        let module_attributes = args.interner.try_module_attributes(&id)?;
+
+        if let Some(parent_local_id) = module_attributes.parent {
+            if format_parent_module_from_module_id(
+                &ModuleId { krate: id.krate, local_id: parent_local_id },
+                args,
+                &mut string,
+            ) {
+                string.push('\n');
+            }
         }
+        string.push_str("    ");
+        string.push_str("mod ");
+        string.push_str(&module_attributes.name);
     }
-    string.push_str("    ");
-    string.push_str("mod ");
-    string.push_str(&module_attributes.name);
+
+    eprintln!("Module ID: {:?}", id);
 
     append_doc_comments(args.interner, ReferenceId::Module(id), &mut string);
 

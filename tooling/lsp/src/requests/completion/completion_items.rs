@@ -72,6 +72,14 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    pub(super) fn crate_completion_item(
+        &self,
+        name: impl Into<String>,
+        id: ModuleId,
+    ) -> CompletionItem {
+        self.module_completion_item(name, id)
+    }
+
     pub(super) fn module_completion_item(
         &self,
         name: impl Into<String>,
@@ -336,13 +344,6 @@ impl<'a> NodeFinder<'a> {
 }
 
 pub(super) fn module_completion_item(name: impl Into<String>) -> CompletionItem {
-    completion_item_with_sort_text(
-        simple_completion_item(name, CompletionItemKind::MODULE, None),
-        crate_or_module_sort_text(),
-    )
-}
-
-pub(super) fn crate_completion_item(name: impl Into<String>) -> CompletionItem {
     completion_item_with_sort_text(
         simple_completion_item(name, CompletionItemKind::MODULE, None),
         crate_or_module_sort_text(),

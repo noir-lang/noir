@@ -4,9 +4,7 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use completion_items::{
-    crate_completion_item, field_completion_item, simple_completion_item, snippet_completion_item,
-};
+use completion_items::{field_completion_item, simple_completion_item, snippet_completion_item};
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
@@ -754,7 +752,10 @@ impl<'a> NodeFinder<'a> {
             for dependency in self.dependencies {
                 let dependency_name = dependency.as_name();
                 if name_matches(&dependency_name, prefix) {
-                    self.completion_items.push(crate_completion_item(dependency_name));
+                    let root_id = self.def_maps[&dependency.crate_id].root();
+                    let module_id = ModuleId { krate: dependency.crate_id, local_id: root_id };
+                    self.completion_items
+                        .push(self.crate_completion_item(dependency_name, module_id));
                 }
             }
 
