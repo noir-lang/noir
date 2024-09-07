@@ -975,6 +975,14 @@ pub fn collect_struct(
         interner.doc_comments.insert(ReferenceId::Struct(id), doc_comments.clone());
     }
 
+    for (index, field) in unresolved.struct_def.fields.iter().enumerate() {
+        if !field.doc_comments.is_empty() {
+            interner
+                .doc_comments
+                .insert(ReferenceId::StructMember(id, index), field.doc_comments.clone());
+        }
+    }
+
     // Add the struct to scope so its path can be looked up later
     let result = def_map.modules[module_id.0].declare_struct(name.clone(), id);
 
@@ -1193,7 +1201,9 @@ fn check_duplicate_field_names(
     definition_errors: &mut Vec<(CompilationError, FileId)>,
 ) {
     let mut seen_field_names = std::collections::HashSet::new();
-    for (field_name, _) in &struct_definition.fields {
+    for field in &struct_definition.fields {
+        let field_name = &field.item.name;
+
         if seen_field_names.insert(field_name) {
             continue;
         }

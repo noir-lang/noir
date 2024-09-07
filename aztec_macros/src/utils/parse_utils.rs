@@ -187,9 +187,9 @@ fn empty_use_tree(use_tree: &mut UseTree) {
 fn empty_noir_struct(noir_struct: &mut NoirStruct) {
     noir_struct.span = Default::default();
     empty_ident(&mut noir_struct.name);
-    for (name, typ) in noir_struct.fields.iter_mut() {
-        empty_ident(name);
-        empty_unresolved_type(typ);
+    for field in noir_struct.fields.iter_mut() {
+        empty_ident(&mut field.item.name);
+        empty_unresolved_type(&mut field.item.typ);
     }
     empty_unresolved_generics(&mut noir_struct.generics);
 }

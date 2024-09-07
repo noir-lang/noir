@@ -171,7 +171,9 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         };
 
         let mut children = Vec::new();
-        for (field_name, typ) in &noir_struct.fields {
+        for field in &noir_struct.fields {
+            let field_name = &field.item.name;
+            let typ = &field.item.typ;
             let span = Span::from(field_name.span().start()..typ.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {

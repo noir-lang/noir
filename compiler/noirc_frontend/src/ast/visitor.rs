@@ -701,8 +701,8 @@ impl NoirStruct {
             attribute.accept(AttributeTarget::Struct, visitor);
         }
 
-        for (_name, unresolved_type) in &self.fields {
-            unresolved_type.accept(visitor);
+        for field in &self.fields {
+            field.item.typ.accept(visitor);
         }
     }
 }

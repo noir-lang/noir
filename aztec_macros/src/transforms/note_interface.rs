@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 use noirc_frontend::ast::{
-    Documented, ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, TraitImplItem,
-    TypeImpl, UnresolvedTypeData, UnresolvedTypeExpression,
+    Documented, ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, StructField,
+    TraitImplItem, TypeImpl, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use noirc_frontend::{
     graph::CrateId,
@@ -110,26 +110,28 @@ pub fn generate_note_interface_impl(
             );
 
         // Automatically inject the header field if it's not present
-        let (header_field_name, _) = if let Some(existing_header) =
-            note_struct.fields.iter().find(|(_, field_type)| match &field_type.typ {
+        let header_field_name = if let Some(existing_header) =
+            note_struct.fields.iter().find(|field| match &field.item.typ.typ {
                 UnresolvedTypeData::Named(path, _, _) => path.last_name() == "NoteHeader",
                 _ => false,
             }) {
-            existing_header.clone()
+            existing_header.clone().item.name
         } else {
-            let generated_header = (
-                ident("header"),
-                make_type(UnresolvedTypeData::Named(
+            let generated_header = StructField {
+                name: ident("header"),
+                typ: make_type(UnresolvedTypeData::Named(
                     chained_dep!("aztec", "note", "note_header", "NoteHeader"),
                     Default::default(),
                     false,
                 )),
-            );
-            note_struct.fields.push(generated_header.clone());
-            generated_header
+            };
+            note_struct.fields.push(Documented::not_documented(generated_header.clone()));
+            generated_header.name
         };
 
-        for (field_ident, field_type) in note_struct.fields.iter() {
+        for field in note_struct.fields.iter() {
+            let field_ident = &field.item.name;
+            let field_type = &field.item.typ;
             note_fields.push((
                 field_ident.0.contents.to_string(),
                 field_type.typ.to_string().replace("plain::", ""),

@@ -53,7 +53,9 @@ pub fn generate_event_impls(
 
             let mut event_fields = vec![];
 
-            for (field_ident, field_type) in event_struct.fields.iter() {
+            for field in event_struct.fields.iter() {
+                let field_ident = &field.item.name;
+                let field_type = &field.item.typ;
                 event_fields.push((
                     field_ident.0.contents.to_string(),
                     field_type.typ.to_string().replace("plain::", ""),

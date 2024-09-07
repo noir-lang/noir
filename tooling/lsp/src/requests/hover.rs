@@ -137,6 +137,9 @@ fn format_struct_member(
     string.push_str(": ");
     string.push_str(&format!("{}", field_type));
     string.push_str(&go_to_type_links(field_type, args.interner, args.files));
+
+    append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
+
     string
 }
 

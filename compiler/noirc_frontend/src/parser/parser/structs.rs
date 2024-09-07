@@ -1,6 +1,6 @@
 use chumsky::prelude::*;
 
-use crate::ast::{Ident, NoirStruct, UnresolvedType};
+use crate::ast::{Documented, NoirStruct, StructField};
 use crate::{
     parser::{
         parser::{
@@ -12,6 +12,8 @@ use crate::{
     },
     token::{Keyword, Token},
 };
+
+use super::doc_comments::outer_doc_comments;
 
 pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatementKind> {
     use self::Keyword::Struct;
@@ -38,12 +40,12 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatementKind> {
         })
 }
 
-fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    ident()
-        .then_ignore(just(Token::Colon))
-        .then(parse_type())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
+fn struct_fields() -> impl NoirParser<Vec<Documented<StructField>>> {
+    let field = ident().then_ignore(just(Token::Colon)).then(parse_type());
+    let field = outer_doc_comments().then(field).map(|(doc_comments, (name, typ))| {
+        Documented::new(StructField { name, typ }, doc_comments)
+    });
+    field.separated_by(just(Token::Comma)).allow_trailing()
 }
 
 #[cfg(test)]

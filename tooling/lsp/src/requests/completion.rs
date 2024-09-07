@@ -6,7 +6,6 @@ use std::{
 use async_lsp::ResponseError;
 use completion_items::{
     crate_completion_item, field_completion_item, simple_completion_item, snippet_completion_item,
-    struct_field_completion_item,
 };
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
@@ -183,20 +182,23 @@ impl<'a> NodeFinder<'a> {
         let struct_type = struct_type.borrow();
 
         // First get all of the struct's fields
-        let mut fields = HashMap::new();
-        let fields_as_written = struct_type.get_fields_as_written();
-        for (field, typ) in &fields_as_written {
-            fields.insert(field, typ);
-        }
+        let mut fields: Vec<_> =
+            struct_type.get_fields_as_written().into_iter().enumerate().collect();
 
         // Remove the ones that already exists in the constructor
-        for (field, _) in &constructor_expression.fields {
-            fields.remove(&field.0.contents);
+        for (used_name, _) in &constructor_expression.fields {
+            fields.retain(|(_, (name, _))| name != &used_name.0.contents);
         }
 
         let self_prefix = false;
-        for (field, typ) in fields {
-            self.completion_items.push(struct_field_completion_item(field, typ, self_prefix));
+        for (field_index, (field, typ)) in &fields {
+            self.completion_items.push(self.struct_field_completion_item(
+                field,
+                typ,
+                struct_type.id,
+                *field_index,
+                self_prefix,
+            ));
         }
     }
 
@@ -652,9 +654,15 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (name, typ) in &struct_type.get_fields(generics) {
+        for (field_index, (name, typ)) in struct_type.get_fields(generics).iter().enumerate() {
             if name_matches(name, prefix) {
-                self.completion_items.push(struct_field_completion_item(name, typ, self_prefix));
+                self.completion_items.push(self.struct_field_completion_item(
+                    name,
+                    typ,
+                    struct_type.id,
+                    field_index,
+                    self_prefix,
+                ));
             }
         }
     }
@@ -973,8 +981,8 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&noir_struct.generics);
 
-        for (_name, unresolved_type) in &noir_struct.fields {
-            unresolved_type.accept(self);
+        for field in &noir_struct.fields {
+            field.item.typ.accept(self);
         }
 
         self.type_parameters.clear();
