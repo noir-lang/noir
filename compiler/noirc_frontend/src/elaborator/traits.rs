@@ -108,9 +108,8 @@ impl<'context> Elaborator<'context> {
                     );
 
                     if !item.doc_comments.is_empty() {
-                        this.interner
-                            .doc_comments
-                            .insert(ReferenceId::Function(func_id), item.doc_comments.clone());
+                        let id = ReferenceId::Function(func_id);
+                        this.interner.set_doc_comments(id, item.doc_comments.clone());
                     }
 
                     let func_meta = this.interner.function_meta(&func_id);

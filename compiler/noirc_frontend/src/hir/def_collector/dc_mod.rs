@@ -332,12 +332,7 @@ impl<'a> ModCollector<'a> {
             let type_alias_id =
                 context.def_interner.push_type_alias(&unresolved, resolved_generics);
 
-            if !doc_comments.is_empty() {
-                context
-                    .def_interner
-                    .doc_comments
-                    .insert(ReferenceId::Alias(type_alias_id), doc_comments);
-            }
+            context.def_interner.set_doc_comments(ReferenceId::Alias(type_alias_id), doc_comments);
 
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
@@ -394,12 +389,7 @@ impl<'a> ModCollector<'a> {
                 }
             };
 
-            if !doc_comments.is_empty() {
-                context
-                    .def_interner
-                    .doc_comments
-                    .insert(ReferenceId::Trait(trait_id), doc_comments);
-            }
+            context.def_interner.set_doc_comments(ReferenceId::Trait(trait_id), doc_comments);
 
             // Add the trait to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
@@ -455,7 +445,7 @@ impl<'a> ModCollector<'a> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         if !trait_item.doc_comments.is_empty() {
-                            context.def_interner.doc_comments.insert(
+                            context.def_interner.set_doc_comments(
                                 ReferenceId::Function(func_id),
                                 trait_item.doc_comments.clone(),
                             );
@@ -620,8 +610,7 @@ impl<'a> ModCollector<'a> {
 
                         context
                             .def_interner
-                            .doc_comments
-                            .insert(ReferenceId::Module(child), doc_comments);
+                            .set_doc_comments(ReferenceId::Module(child), doc_comments);
                     }
 
                     errors.extend(collect_defs(
@@ -738,8 +727,7 @@ impl<'a> ModCollector<'a> {
                 if !doc_comments.is_empty() {
                     context
                         .def_interner
-                        .doc_comments
-                        .insert(ReferenceId::Module(child_mod_id), doc_comments);
+                        .set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
                 }
 
                 errors.extend(collect_defs(
@@ -910,9 +898,7 @@ pub fn collect_function(
         interner.usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
 
-    if !doc_comments.is_empty() {
-        interner.doc_comments.insert(ReferenceId::Function(func_id), doc_comments);
-    }
+    interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
 
     // Add function to scope/ns of the module
     let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
@@ -974,15 +960,12 @@ pub fn collect_struct(
         }
     };
 
-    if !doc_comments.is_empty() {
-        interner.doc_comments.insert(ReferenceId::Struct(id), doc_comments.clone());
-    }
+    interner.set_doc_comments(ReferenceId::Struct(id), doc_comments);
 
     for (index, field) in unresolved.struct_def.fields.iter().enumerate() {
         if !field.doc_comments.is_empty() {
             interner
-                .doc_comments
-                .insert(ReferenceId::StructMember(id, index), field.doc_comments.clone());
+                .set_doc_comments(ReferenceId::StructMember(id, index), field.doc_comments.clone());
         }
     }
 
@@ -1024,10 +1007,7 @@ pub fn collect_impl(
         let location = Location::new(method.span(), file_id);
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
-
-        if !doc_comments.is_empty() {
-            interner.doc_comments.insert(ReferenceId::Function(func_id), doc_comments);
-        }
+        interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
     }
 
     let key = (r#impl.object_type, module_id.local_id);
@@ -1192,9 +1172,7 @@ pub(crate) fn collect_global(
         (err.into(), file_id)
     });
 
-    if !doc_comments.is_empty() {
-        interner.doc_comments.insert(ReferenceId::Global(global_id), doc_comments);
-    }
+    interner.set_doc_comments(ReferenceId::Global(global_id), doc_comments);
 
     let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
     (global, error)

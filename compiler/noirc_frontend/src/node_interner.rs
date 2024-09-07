@@ -2201,6 +2201,12 @@ impl NodeInterner {
         bindings
     }
 
+    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<String>) {
+        if !doc_comments.is_empty() {
+            self.doc_comments.insert(id, doc_comments);
+        }
+    }
+
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
     }
