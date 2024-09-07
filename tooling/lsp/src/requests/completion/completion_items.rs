@@ -7,7 +7,7 @@ use noirc_frontend::{
     hir::def_map::ModuleId,
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::{ModuleDefId, StructId},
-    node_interner::{FuncId, GlobalId, TraitId},
+    node_interner::{FuncId, GlobalId, TraitId, TypeAliasId},
     QuotedType, Type,
 };
 
@@ -66,7 +66,7 @@ impl<'a> NodeFinder<'a> {
                 false, // self_prefix
             ),
             ModuleDefId::TypeId(struct_id) => Some(self.struct_completion_item(name, struct_id)),
-            ModuleDefId::TypeAliasId(..) => Some(self.type_alias_completion_item(name)),
+            ModuleDefId::TypeAliasId(id) => Some(self.type_alias_completion_item(name, id)),
             ModuleDefId::TraitId(trait_id) => Some(self.trait_completion_item(name, trait_id)),
             ModuleDefId::GlobalId(global_id) => Some(self.global_completion_item(name, global_id)),
         }
@@ -87,8 +87,10 @@ impl<'a> NodeFinder<'a> {
         self.completion_item_with_doc_comments(ModuleDefId::TypeId(struct_id), completion_item)
     }
 
-    fn type_alias_completion_item(&self, name: String) -> CompletionItem {
-        simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name))
+    fn type_alias_completion_item(&self, name: String, id: TypeAliasId) -> CompletionItem {
+        let completion_item =
+            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ModuleDefId::TypeAliasId(id), completion_item)
     }
 
     fn trait_completion_item(&self, name: String, trait_id: TraitId) -> CompletionItem {

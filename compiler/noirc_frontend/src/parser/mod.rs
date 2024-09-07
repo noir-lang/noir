@@ -248,7 +248,7 @@ pub struct SortedModule {
     pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
-    pub type_aliases: Vec<NoirTypeAlias>,
+    pub type_aliases: Vec<Documented<NoirTypeAlias>>,
     pub globals: Vec<Documented<LetStatement>>,
 
     /// Module declarations like `mod foo;`
@@ -318,7 +318,9 @@ impl ParsedModule {
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
-                ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
+                ItemKind::TypeAlias(type_alias) => {
+                    module.push_type_alias(type_alias, item.doc_comments)
+                }
                 ItemKind::Global(global) => module.push_global(global, item.doc_comments),
                 ItemKind::ModuleDecl(mod_name) => {
                     module.push_module_decl(mod_name, item.doc_comments)
@@ -420,8 +422,8 @@ impl SortedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias) {
-        self.type_aliases.push(type_alias);
+    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, doc_comments: Vec<String>) {
+        self.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 
     fn push_import(&mut self, import_stmt: UseTree, visibility: ItemVisibility) {

@@ -249,6 +249,9 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&type_alias.name.0.contents);
     string.push_str(" = ");
     string.push_str(&format!("{}", &type_alias.typ));
+
+    append_doc_comments(args.interner, ModuleDefId::TypeAliasId(id), &mut string);
+
     string
 }
 

@@ -310,11 +310,13 @@ impl<'a> ModCollector<'a> {
     fn collect_type_aliases(
         &mut self,
         context: &mut Context,
-        type_aliases: Vec<NoirTypeAlias>,
+        type_aliases: Vec<Documented<NoirTypeAlias>>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for type_alias in type_aliases {
+            let doc_comments = type_alias.doc_comments;
+            let type_alias = type_alias.item;
             let name = type_alias.name.clone();
 
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
@@ -333,6 +335,13 @@ impl<'a> ModCollector<'a> {
 
             let type_alias_id =
                 context.def_interner.push_type_alias(&unresolved, resolved_generics);
+
+            if !doc_comments.is_empty() {
+                context
+                    .def_interner
+                    .doc_comments
+                    .insert(ModuleDefId::TypeAliasId(type_alias_id), doc_comments);
+            }
 
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
