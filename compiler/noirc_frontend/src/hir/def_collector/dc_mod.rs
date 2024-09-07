@@ -1126,6 +1126,7 @@ pub(crate) fn collect_trait_impl_items(
                 let func_id = interner.push_empty_fn();
                 let location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, &impl_method.def, module, location);
+                interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
                 unresolved_functions.push_fn(local_id, func_id, impl_method);
             }
             TraitImplItem::Constant(name, typ, expr) => {
