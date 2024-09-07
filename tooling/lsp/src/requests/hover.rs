@@ -89,8 +89,6 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
         string.push_str(&module_attributes.name);
     }
 
-    eprintln!("Module ID: {:?}", id);
-
     append_doc_comments(args.interner, ReferenceId::Module(id), &mut string);
 
     Some(string)

@@ -70,9 +70,6 @@ pub(super) mod traits;
 mod types;
 mod visibility;
 
-// synthesized by LALRPOP
-// lalrpop_mod!(pub noir_parser);
-
 #[cfg(test)]
 mod test_helpers;
 

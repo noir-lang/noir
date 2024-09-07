@@ -24,21 +24,6 @@ pub struct Lexer<'a> {
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 
-// pub(crate) fn from_spanned_token_result(
-//     token_result: &SpannedTokenResult,
-// ) -> Result<(usize, BorrowedToken<'_>, usize), LexerErrorKind> {
-//     token_result
-//         .as_ref()
-//         .map(|spanned_token| {
-//             (
-//                 spanned_token.to_span().start() as usize,
-//                 token_to_borrowed_token(spanned_token.into()),
-//                 spanned_token.to_span().end() as usize,
-//             )
-//         })
-//         .map_err(Clone::clone)
-// }
-
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
     /// in order, along with any lexing errors that occurred.
