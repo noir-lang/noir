@@ -151,6 +151,9 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("trait ");
     string.push_str(&a_trait.name.0.contents);
     format_generics(&a_trait.generics, &mut string);
+
+    append_doc_comments(args.interner, ModuleDefId::TraitId(id), &mut string);
+
     string
 }
 

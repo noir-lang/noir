@@ -245,7 +245,7 @@ pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<Documented<NoirFunction>>,
     pub types: Vec<Documented<NoirStruct>>,
-    pub traits: Vec<NoirTrait>,
+    pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
     pub type_aliases: Vec<NoirTypeAlias>,
@@ -315,7 +315,7 @@ impl ParsedModule {
                 ItemKind::Import(import, visibility) => module.push_import(import, visibility),
                 ItemKind::Function(func) => module.push_function(func, item.doc_comments),
                 ItemKind::Struct(typ) => module.push_type(typ, item.doc_comments),
-                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
+                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
                 ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
@@ -408,8 +408,8 @@ impl SortedModule {
         self.types.push(Documented::new(typ, doc_comments));
     }
 
-    fn push_trait(&mut self, noir_trait: NoirTrait) {
-        self.traits.push(noir_trait);
+    fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<String>) {
+        self.traits.push(Documented::new(noir_trait, doc_comments));
     }
 
     fn push_trait_impl(&mut self, trait_impl: NoirTraitImpl) {

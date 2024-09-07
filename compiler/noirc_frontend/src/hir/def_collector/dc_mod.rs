@@ -363,11 +363,13 @@ impl<'a> ModCollector<'a> {
     fn collect_traits(
         &mut self,
         context: &mut Context,
-        traits: Vec<NoirTrait>,
+        traits: Vec<Documented<NoirTrait>>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for trait_definition in traits {
+            let doc_comments = trait_definition.doc_comments;
+            let trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
 
             // Create the corresponding module for the trait namespace
@@ -386,6 +388,13 @@ impl<'a> ModCollector<'a> {
                     continue;
                 }
             };
+
+            if !doc_comments.is_empty() {
+                context
+                    .def_interner
+                    .doc_comments
+                    .insert(ModuleDefId::TraitId(trait_id), doc_comments);
+            }
 
             // Add the trait to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
