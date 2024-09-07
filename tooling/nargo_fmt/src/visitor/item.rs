@@ -231,7 +231,7 @@ impl super::FmtVisitor<'_> {
                 | ItemKind::Trait(_)
                 | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)
-                | ItemKind::Global(_)
+                | ItemKind::Global(_, _)
                 | ItemKind::ModuleDecl(_)
                 | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);

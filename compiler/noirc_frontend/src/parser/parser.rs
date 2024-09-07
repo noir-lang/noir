@@ -27,6 +27,7 @@ use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
 use attributes::{attributes, inner_attribute, validate_secondary_attributes};
+use doc_comments::outer_doc_comments;
 pub use types::parse_type;
 use visibility::item_visibility;
 pub use visibility::visibility;
@@ -263,7 +264,8 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
-    let p = attributes::attributes()
+    let p = outer_doc_comments()
+        .then(attributes::attributes())
         .then(maybe_comp_time())
         .then(spanned(keyword(Keyword::Mut)).or_not())
         .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
@@ -273,7 +275,12 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
     p.validate(
-        |(((((attributes, comptime), mutable), mut pattern), r#type), expression), span, emit| {
+        |(
+            (((((doc_comments, attributes), comptime), mutable), mut pattern), r#type),
+            expression,
+        ),
+         span,
+         emit| {
             let global_attributes =
                 attributes::validate_secondary_attributes(attributes, span, emit);
 
@@ -283,10 +290,19 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
                 let span = mut_span.merge(pattern.span());
                 pattern = Pattern::Mutable(Box::new(pattern), span, false);
             }
-            LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
+            (
+                LetStatement {
+                    pattern,
+                    r#type,
+                    comptime,
+                    expression,
+                    attributes: global_attributes,
+                },
+                doc_comments,
+            )
         },
     )
-    .map(TopLevelStatement::Global)
+    .map(|(let_statement, doc_comments)| TopLevelStatement::Global(let_statement, doc_comments))
 }
 
 /// submodule: 'mod' ident '{' module '}'

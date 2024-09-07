@@ -45,7 +45,7 @@ fn empty_item(item: &mut Item) {
         ItemKind::Impl(type_impl) => {
             empty_type_impl(type_impl);
         }
-        ItemKind::Global(let_statement) => empty_let_statement(let_statement),
+        ItemKind::Global(let_statement, _) => empty_let_statement(let_statement),
         ItemKind::Submodules(parsed_submodule) => {
             empty_parsed_submodule(parsed_submodule);
         }

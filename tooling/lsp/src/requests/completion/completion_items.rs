@@ -72,18 +72,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn struct_completion_item(&self, name: String, struct_id: StructId) -> CompletionItem {
-        let mut completion_item =
+        let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-
-        if let Some(doc_comments) = self.interner.doc_comments(ModuleDefId::TypeId(struct_id)) {
-            let docs = doc_comments.join("\n");
-            completion_item.documentation = Some(Documentation::MarkupContent(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: docs,
-            }));
-        }
-
-        completion_item
+        self.completion_item_with_doc_comments(ModuleDefId::TypeId(struct_id), completion_item)
     }
 
     fn type_alias_completion_item(&self, name: String) -> CompletionItem {
@@ -99,7 +90,9 @@ impl<'a> NodeFinder<'a> {
         let typ = self.interner.definition_type(global.definition_id);
         let description = typ.to_string();
 
-        simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description))
+        let completion_item =
+            simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
+        self.completion_item_with_doc_comments(ModuleDefId::GlobalId(global_id), completion_item)
     }
 
     pub(super) fn function_completion_item(
@@ -216,21 +209,14 @@ impl<'a> NodeFinder<'a> {
             completion_item
         };
 
-        let mut completion_item = match function_completion_kind {
+        let completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => completion_item,
             FunctionCompletionKind::NameAndParameters => {
                 completion_item_with_trigger_parameter_hints_command(completion_item)
             }
         };
-
-        if let Some(doc_comments) = self.interner.doc_comments(ModuleDefId::FunctionId(func_id)) {
-            let docs = doc_comments.join("\n");
-            completion_item.documentation = Some(Documentation::MarkupContent(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: docs,
-            }));
-        }
-
+        let completion_item = self
+            .completion_item_with_doc_comments(ModuleDefId::FunctionId(func_id), completion_item);
         Some(completion_item)
     }
 
@@ -277,6 +263,25 @@ impl<'a> NodeFinder<'a> {
         }
         text.push(')');
         text
+    }
+
+    fn completion_item_with_doc_comments(
+        &self,
+        id: ModuleDefId,
+        completion_item: CompletionItem,
+    ) -> CompletionItem {
+        if let Some(doc_comments) = self.interner.doc_comments(id) {
+            let docs = doc_comments.join("\n");
+            CompletionItem {
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: docs,
+                })),
+                ..completion_item
+            }
+        } else {
+            completion_item
+        }
     }
 
     fn hir_pattern_to_argument(&self, pattern: &HirPattern, text: &mut String) {

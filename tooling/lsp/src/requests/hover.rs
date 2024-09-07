@@ -166,6 +166,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
+    append_doc_comments(args.interner, ModuleDefId::GlobalId(id), &mut string);
+
     string
 }
 

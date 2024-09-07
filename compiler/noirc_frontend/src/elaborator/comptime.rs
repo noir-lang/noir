@@ -432,11 +432,12 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatement::Global(global) => {
+            TopLevelStatement::Global(global, doc_comments) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     global,
+                    doc_comments,
                     self.file,
                     self.local_module,
                     self.crate_id,

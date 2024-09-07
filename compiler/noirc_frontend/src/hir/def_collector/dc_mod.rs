@@ -148,15 +148,16 @@ impl<'a> ModCollector<'a> {
     fn collect_globals(
         &mut self,
         context: &mut Context,
-        globals: Vec<LetStatement>,
+        globals: Vec<(LetStatement, Vec<String>)>,
         crate_id: CrateId,
     ) -> Vec<(CompilationError, fm::FileId)> {
         let mut errors = vec![];
-        for global in globals {
+        for (global, doc_comments) in globals {
             let (global, error) = collect_global(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
                 global,
+                doc_comments,
                 self.file_id,
                 self.module_id,
                 crate_id,
@@ -1097,6 +1098,7 @@ pub(crate) fn collect_global(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,
     global: LetStatement,
+    doc_comments: Vec<String>,
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
@@ -1121,6 +1123,10 @@ pub(crate) fn collect_global(
             DefCollectorErrorKind::Duplicate { typ: DuplicateType::Global, first_def, second_def };
         (err.into(), file_id)
     });
+
+    if !doc_comments.is_empty() {
+        interner.doc_comments.insert(ModuleDefId::GlobalId(global_id), doc_comments);
+    }
 
     let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
     (global, error)

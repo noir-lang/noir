@@ -41,7 +41,7 @@ pub enum TopLevelStatement {
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     SubModule(ParsedSubModule),
-    Global(LetStatement),
+    Global(LetStatement, Vec<String> /* doc comments */),
     InnerAttribute(SecondaryAttribute),
     Error,
 }
@@ -58,7 +58,7 @@ impl TopLevelStatement {
             TopLevelStatement::Impl(i) => Some(ItemKind::Impl(i)),
             TopLevelStatement::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
             TopLevelStatement::SubModule(s) => Some(ItemKind::Submodules(s)),
-            TopLevelStatement::Global(c) => Some(ItemKind::Global(c)),
+            TopLevelStatement::Global(c, doc_comments) => Some(ItemKind::Global(c, doc_comments)),
             TopLevelStatement::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
             TopLevelStatement::Error => None,
         }
@@ -243,7 +243,7 @@ pub struct SortedModule {
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
     pub type_aliases: Vec<NoirTypeAlias>,
-    pub globals: Vec<LetStatement>,
+    pub globals: Vec<(LetStatement, Vec<String> /* doc comments */)>,
 
     /// Module declarations like `mod foo;`
     pub module_decls: Vec<ModuleDeclaration>,
@@ -264,7 +264,7 @@ impl std::fmt::Display for SortedModule {
             write!(f, "{import}")?;
         }
 
-        for global_const in &self.globals {
+        for (global_const, _) in &self.globals {
             write!(f, "{global_const}")?;
         }
 
@@ -311,7 +311,7 @@ impl ParsedModule {
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
                 ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
-                ItemKind::Global(global) => module.push_global(global),
+                ItemKind::Global(global, doc_comments) => module.push_global(global, doc_comments),
                 ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
                 ItemKind::Submodules(submodule) => module.push_submodule(submodule.into_sorted()),
                 ItemKind::InnerAttribute(attribute) => module.inner_attributes.push(attribute),
@@ -337,7 +337,7 @@ pub enum ItemKind {
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
-    Global(LetStatement),
+    Global(LetStatement, Vec<String> /* doc comments */),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
     InnerAttribute(SecondaryAttribute),
@@ -421,8 +421,8 @@ impl SortedModule {
         self.submodules.push(submodule);
     }
 
-    fn push_global(&mut self, global: LetStatement) {
-        self.globals.push(global);
+    fn push_global(&mut self, global: LetStatement, doc_comments: Vec<String>) {
+        self.globals.push((global, doc_comments));
     }
 }
 
@@ -521,7 +521,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Impl(i) => i.fmt(f),
             TopLevelStatement::TypeAlias(t) => t.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),
-            TopLevelStatement::Global(c) => c.fmt(f),
+            TopLevelStatement::Global(c, _) => c.fmt(f),
             TopLevelStatement::InnerAttribute(a) => write!(f, "#![{}]", a),
             TopLevelStatement::Error => write!(f, "error"),
         }

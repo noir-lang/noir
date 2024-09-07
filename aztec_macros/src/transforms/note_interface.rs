@@ -579,7 +579,7 @@ fn generate_note_exports_global(
     }
 
     let mut global_ast = global_ast.into_sorted();
-    Ok(global_ast.globals.pop().unwrap())
+    Ok(global_ast.globals.pop().unwrap().0)
 }
 
 // Source code generator functions. These utility methods produce Noir code as strings, that are then parsed and added to the AST.
