@@ -792,8 +792,7 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        // For now we only collect docs in LSP mode, until we have a doc generator
-        if self.interner.is_in_lsp_mode() && !func.def.doc_comments.is_empty() {
+        if !func.def.doc_comments.is_empty() {
             self.interner
                 .doc_comments
                 .insert(ModuleDefId::FunctionId(func_id), func.def.doc_comments.clone());

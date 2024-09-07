@@ -919,8 +919,7 @@ pub fn collect_struct(
         }
     };
 
-    // For now we only collect docs in LSP mode, until we have a doc generator
-    if interner.is_in_lsp_mode() && !unresolved.struct_def.doc_comments.is_empty() {
+    if !unresolved.struct_def.doc_comments.is_empty() {
         interner
             .doc_comments
             .insert(ModuleDefId::TypeId(id), unresolved.struct_def.doc_comments.clone());
