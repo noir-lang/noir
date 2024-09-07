@@ -15,10 +15,8 @@ use crate::ast::{
     TraitItem, TypeImpl,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::macros_api::{
-    Expression, ModuleDefId, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData,
-};
-use crate::node_interner::ModuleAttributes;
+use crate::macros_api::{Expression, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData};
+use crate::node_interner::{ModuleAttributes, ReferenceId};
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{
@@ -340,7 +338,7 @@ impl<'a> ModCollector<'a> {
                 context
                     .def_interner
                     .doc_comments
-                    .insert(ModuleDefId::TypeAliasId(type_alias_id), doc_comments);
+                    .insert(ReferenceId::Alias(type_alias_id), doc_comments);
             }
 
             // Add the type alias to scope so its path can be looked up later
@@ -402,7 +400,7 @@ impl<'a> ModCollector<'a> {
                 context
                     .def_interner
                     .doc_comments
-                    .insert(ModuleDefId::TraitId(trait_id), doc_comments);
+                    .insert(ReferenceId::Trait(trait_id), doc_comments);
             }
 
             // Add the trait to scope so its path can be looked up later
@@ -460,7 +458,7 @@ impl<'a> ModCollector<'a> {
 
                         if !trait_item.doc_comments.is_empty() {
                             context.def_interner.doc_comments.insert(
-                                ModuleDefId::FunctionId(func_id),
+                                ReferenceId::Function(func_id),
                                 trait_item.doc_comments.clone(),
                             );
                         }
@@ -625,7 +623,7 @@ impl<'a> ModCollector<'a> {
                         context
                             .def_interner
                             .doc_comments
-                            .insert(ModuleDefId::ModuleId(child), doc_comments);
+                            .insert(ReferenceId::Module(child), doc_comments);
                     }
 
                     errors.extend(collect_defs(
@@ -740,7 +738,7 @@ impl<'a> ModCollector<'a> {
                     context
                         .def_interner
                         .doc_comments
-                        .insert(ModuleDefId::ModuleId(child_mod_id), doc_comments);
+                        .insert(ReferenceId::Module(child_mod_id), doc_comments);
                 }
 
                 errors.extend(collect_defs(
@@ -912,7 +910,7 @@ pub fn collect_function(
     }
 
     if !doc_comments.is_empty() {
-        interner.doc_comments.insert(ModuleDefId::FunctionId(func_id), doc_comments);
+        interner.doc_comments.insert(ReferenceId::Function(func_id), doc_comments);
     }
 
     // Add function to scope/ns of the module
@@ -974,7 +972,7 @@ pub fn collect_struct(
     };
 
     if !doc_comments.is_empty() {
-        interner.doc_comments.insert(ModuleDefId::TypeId(id), doc_comments.clone());
+        interner.doc_comments.insert(ReferenceId::Struct(id), doc_comments.clone());
     }
 
     // Add the struct to scope so its path can be looked up later
@@ -1017,7 +1015,7 @@ pub fn collect_impl(
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
 
         if !doc_comments.is_empty() {
-            interner.doc_comments.insert(ModuleDefId::FunctionId(func_id), doc_comments);
+            interner.doc_comments.insert(ReferenceId::Function(func_id), doc_comments);
         }
     }
 
@@ -1182,7 +1180,7 @@ pub(crate) fn collect_global(
     });
 
     if !doc_comments.is_empty() {
-        interner.doc_comments.insert(ModuleDefId::GlobalId(global_id), doc_comments);
+        interner.doc_comments.insert(ReferenceId::Global(global_id), doc_comments);
     }
 
     let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };

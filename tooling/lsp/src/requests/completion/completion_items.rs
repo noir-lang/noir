@@ -7,7 +7,7 @@ use noirc_frontend::{
     hir::def_map::ModuleId,
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::{ModuleDefId, StructId},
-    node_interner::{FuncId, GlobalId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
     QuotedType, Type,
 };
 
@@ -78,25 +78,25 @@ impl<'a> NodeFinder<'a> {
         id: ModuleId,
     ) -> CompletionItem {
         let completion_item = module_completion_item(name);
-        self.completion_item_with_doc_comments(ModuleDefId::ModuleId(id), completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Module(id), completion_item)
     }
 
     fn struct_completion_item(&self, name: String, struct_id: StructId) -> CompletionItem {
         let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ModuleDefId::TypeId(struct_id), completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Struct(struct_id), completion_item)
     }
 
     fn type_alias_completion_item(&self, name: String, id: TypeAliasId) -> CompletionItem {
         let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ModuleDefId::TypeAliasId(id), completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Alias(id), completion_item)
     }
 
     fn trait_completion_item(&self, name: String, trait_id: TraitId) -> CompletionItem {
         let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name));
-        self.completion_item_with_doc_comments(ModuleDefId::TraitId(trait_id), completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Trait(trait_id), completion_item)
     }
 
     fn global_completion_item(&self, name: String, global_id: GlobalId) -> CompletionItem {
@@ -106,7 +106,7 @@ impl<'a> NodeFinder<'a> {
 
         let completion_item =
             simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
-        self.completion_item_with_doc_comments(ModuleDefId::GlobalId(global_id), completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Global(global_id), completion_item)
     }
 
     pub(super) fn function_completion_item(
@@ -229,8 +229,8 @@ impl<'a> NodeFinder<'a> {
                 completion_item_with_trigger_parameter_hints_command(completion_item)
             }
         };
-        let completion_item = self
-            .completion_item_with_doc_comments(ModuleDefId::FunctionId(func_id), completion_item);
+        let completion_item =
+            self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item);
         Some(completion_item)
     }
 
@@ -281,7 +281,7 @@ impl<'a> NodeFinder<'a> {
 
     fn completion_item_with_doc_comments(
         &self,
-        id: ModuleDefId,
+        id: ReferenceId,
         completion_item: CompletionItem,
     ) -> CompletionItem {
         if let Some(doc_comments) = self.interner.doc_comments(id) {

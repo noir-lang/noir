@@ -271,7 +271,7 @@ pub struct NodeInterner {
     pub(crate) usage_tracker: UsageTracker,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
-    pub(crate) doc_comments: HashMap<ModuleDefId, Vec<String>>,
+    pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -2201,7 +2201,7 @@ impl NodeInterner {
         bindings
     }
 
-    pub fn doc_comments(&self, id: ModuleDefId) -> Option<&Vec<String>> {
+    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
     }
 }

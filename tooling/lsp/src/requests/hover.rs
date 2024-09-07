@@ -8,7 +8,7 @@ use noirc_frontend::{
     graph::CrateId,
     hir::def_map::ModuleId,
     hir_def::{stmt::HirPattern, traits::Trait},
-    macros_api::{ModuleDefId, NodeInterner, StructId},
+    macros_api::{NodeInterner, StructId},
     node_interner::{
         DefinitionId, DefinitionKind, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
@@ -85,7 +85,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     string.push_str("mod ");
     string.push_str(&module_attributes.name);
 
-    append_doc_comments(args.interner, ModuleDefId::ModuleId(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Module(id), &mut string);
 
     Some(string)
 }
@@ -112,7 +112,7 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    }");
 
-    append_doc_comments(args.interner, ModuleDefId::TypeId(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Struct(id), &mut string);
 
     string
 }
@@ -152,7 +152,7 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&a_trait.name.0.contents);
     format_generics(&a_trait.generics, &mut string);
 
-    append_doc_comments(args.interner, ModuleDefId::TraitId(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Trait(id), &mut string);
 
     string
 }
@@ -173,7 +173,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&format!("{}", typ));
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
 
-    append_doc_comments(args.interner, ModuleDefId::GlobalId(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Global(id), &mut string);
 
     string
 }
@@ -232,7 +232,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
-    append_doc_comments(args.interner, ModuleDefId::FunctionId(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
 
     string
 }
@@ -250,7 +250,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(" = ");
     string.push_str(&format!("{}", &type_alias.typ));
 
-    append_doc_comments(args.interner, ModuleDefId::TypeAliasId(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Alias(id), &mut string);
 
     string
 }
@@ -531,7 +531,7 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
     )
 }
 
-fn append_doc_comments(interner: &NodeInterner, id: ModuleDefId, string: &mut String) {
+fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) {
     if let Some(doc_comments) = interner.doc_comments(id) {
         string.push_str("\n\n---\n\n");
         for comment in doc_comments {

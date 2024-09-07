@@ -11,9 +11,9 @@ use crate::{
     hir_def::{function::Parameters, traits::TraitFunction},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        ModuleDefId, NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
+        NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
     },
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, ReferenceId, TraitId},
     token::Attributes,
     Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
 };
@@ -110,7 +110,7 @@ impl<'context> Elaborator<'context> {
                     if !item.doc_comments.is_empty() {
                         this.interner
                             .doc_comments
-                            .insert(ModuleDefId::FunctionId(func_id), item.doc_comments.clone());
+                            .insert(ReferenceId::Function(func_id), item.doc_comments.clone());
                     }
 
                     let func_meta = this.interner.function_meta(&func_id);
