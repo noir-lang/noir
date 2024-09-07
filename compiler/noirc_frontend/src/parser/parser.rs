@@ -27,7 +27,7 @@ use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
 use attributes::{attributes, inner_attribute, validate_secondary_attributes};
-use doc_comments::outer_doc_comments;
+use doc_comments::{inner_doc_comments, outer_doc_comments};
 pub use types::parse_type;
 use visibility::item_visibility;
 pub use visibility::visibility;
@@ -179,13 +179,20 @@ fn program() -> impl NoirParser<ParsedModule> {
 ///       | %empty
 pub fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
-        empty()
-            .to(ParsedModule::default())
-            .then(spanned(top_level_statement(module_parser)).repeated())
-            .foldl(|mut program, (statement, span)| {
-                if let Some(kind) = statement.into_item_kind() {
-                    program.items.push(Item { kind, span });
-                }
+        inner_doc_comments()
+            .then(
+                empty()
+                    .to(ParsedModule::default())
+                    .then(spanned(top_level_statement(module_parser)).repeated())
+                    .foldl(|mut program, (statement, span)| {
+                        if let Some(kind) = statement.into_item_kind() {
+                            program.items.push(Item { kind, span });
+                        }
+                        program
+                    }),
+            )
+            .map(|(doc_comments, mut program)| {
+                program.inner_doc_comments = doc_comments;
                 program
             })
     })
@@ -307,18 +314,20 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
 
 /// submodule: 'mod' ident '{' module '}'
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
-    attributes()
+    outer_doc_comments()
+        .then(attributes())
         .then_ignore(keyword(Keyword::Mod))
         .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .validate(|((attributes, name), contents), span, emit| {
+        .validate(|(((doc_comments, attributes), name), contents), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
             TopLevelStatement::SubModule(ParsedSubModule {
                 name,
                 contents,
                 outer_attributes: attributes,
+                outer_doc_comments: doc_comments,
                 is_contract: false,
             })
         })
@@ -326,18 +335,20 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
 
 /// contract: 'contract' ident '{' module '}'
 fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
-    attributes()
+    outer_doc_comments()
+        .then(attributes())
         .then_ignore(keyword(Keyword::Contract))
         .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .validate(|((attributes, name), contents), span, emit| {
+        .validate(|(((doc_comments, attributes), name), contents), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
             TopLevelStatement::SubModule(ParsedSubModule {
                 name,
                 contents,
                 outer_attributes: attributes,
+                outer_doc_comments: doc_comments,
                 is_contract: true,
             })
         })
@@ -468,12 +479,18 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
-    attributes().then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
-        |(attributes, ident), span, emit| {
+    outer_doc_comments()
+        .then(attributes())
+        .then_ignore(keyword(Keyword::Mod))
+        .then(ident())
+        .validate(|((doc_comments, attributes), ident), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatement::Module(ModuleDeclaration { ident, outer_attributes: attributes })
-        },
-    )
+            TopLevelStatement::Module(ModuleDeclaration {
+                ident,
+                outer_attributes: attributes,
+                outer_doc_comments: doc_comments,
+            })
+        })
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {

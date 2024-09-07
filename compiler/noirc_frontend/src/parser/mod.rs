@@ -252,6 +252,7 @@ pub struct SortedModule {
     pub submodules: Vec<SortedSubModule>,
 
     pub inner_attributes: Vec<SecondaryAttribute>,
+    pub inner_doc_comments: Vec<String>,
 }
 
 impl std::fmt::Display for SortedModule {
@@ -296,6 +297,7 @@ impl std::fmt::Display for SortedModule {
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
+    pub inner_doc_comments: Vec<String>,
 }
 
 impl ParsedModule {
@@ -317,6 +319,8 @@ impl ParsedModule {
                 ItemKind::InnerAttribute(attribute) => module.inner_attributes.push(attribute),
             }
         }
+
+        module.inner_doc_comments = self.inner_doc_comments;
 
         module
     }
@@ -350,6 +354,7 @@ pub struct ParsedSubModule {
     pub name: Ident,
     pub contents: ParsedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
+    pub outer_doc_comments: Vec<String>,
     pub is_contract: bool,
 }
 
@@ -359,6 +364,7 @@ impl ParsedSubModule {
             name: self.name,
             contents: self.contents.into_sorted(),
             outer_attributes: self.outer_attributes,
+            outer_doc_comments: self.outer_doc_comments,
             is_contract: self.is_contract,
         }
     }
@@ -381,6 +387,7 @@ pub struct SortedSubModule {
     pub name: Ident,
     pub contents: SortedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
+    pub outer_doc_comments: Vec<String>,
     pub is_contract: bool,
 }
 

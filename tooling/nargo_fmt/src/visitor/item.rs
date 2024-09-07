@@ -165,6 +165,11 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
+                    for doc_comment in module.outer_doc_comments {
+                        self.push_str(&format!("///{doc_comment}\n"));
+                        self.push_str(&self.indent.to_string());
+                    }
+
                     for attribute in module.outer_attributes {
                         self.push_str(&format!("#[{}]\n", attribute.as_ref()));
                         self.push_str(&self.indent.to_string());

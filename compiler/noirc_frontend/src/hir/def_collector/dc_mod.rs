@@ -589,6 +589,18 @@ impl<'a> ModCollector<'a> {
                         false,
                     );
 
+                    if !submodule.outer_doc_comments.is_empty()
+                        || !submodule.contents.inner_doc_comments.is_empty()
+                    {
+                        let mut doc_comments = submodule.outer_doc_comments;
+                        doc_comments.extend(submodule.contents.inner_doc_comments.clone());
+
+                        context
+                            .def_interner
+                            .doc_comments
+                            .insert(ModuleDefId::ModuleId(child), doc_comments);
+                    }
+
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
@@ -695,6 +707,13 @@ impl<'a> ModCollector<'a> {
 
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 context.def_interner.add_module_reference(child_mod_id, location);
+
+                if !mod_decl.outer_doc_comments.is_empty() {
+                    context
+                        .def_interner
+                        .doc_comments
+                        .insert(ModuleDefId::ModuleId(child_mod_id), mod_decl.outer_doc_comments);
+                }
 
                 errors.extend(collect_defs(
                     self.def_collector,

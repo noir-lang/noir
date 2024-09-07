@@ -20,3 +20,17 @@ fn outer_doc_comment() -> impl NoirParser<String> {
 pub(super) fn outer_doc_comments() -> impl NoirParser<Vec<String>> {
     outer_doc_comment().repeated()
 }
+
+fn inner_doc_comment() -> impl NoirParser<String> {
+    token_kind(TokenKind::InnerDocComment).map(|token| match token {
+        Token::LineComment(comment, Some(DocStyle::Inner)) => comment,
+        Token::BlockComment(comment, Some(DocStyle::Inner)) => comment,
+        _ => unreachable!(
+            "Parser should have already errored due to token not being an inner doc comment"
+        ),
+    })
+}
+
+pub(super) fn inner_doc_comments() -> impl NoirParser<Vec<String>> {
+    inner_doc_comment().repeated()
+}

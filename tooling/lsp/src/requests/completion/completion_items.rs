@@ -4,6 +4,7 @@ use lsp_types::{
 };
 use noirc_frontend::{
     ast::AttributeTarget,
+    hir::def_map::ModuleId,
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::{ModuleDefId, StructId},
     node_interner::{FuncId, GlobalId},
@@ -55,7 +56,7 @@ impl<'a> NodeFinder<'a> {
             };
 
         match module_def_id {
-            ModuleDefId::ModuleId(_) => Some(module_completion_item(name)),
+            ModuleDefId::ModuleId(id) => Some(self.module_completion_item(name, id)),
             ModuleDefId::FunctionId(func_id) => self.function_completion_item(
                 &name,
                 func_id,
@@ -69,6 +70,15 @@ impl<'a> NodeFinder<'a> {
             ModuleDefId::TraitId(..) => Some(self.trait_completion_item(name)),
             ModuleDefId::GlobalId(global_id) => Some(self.global_completion_item(name, global_id)),
         }
+    }
+
+    pub(super) fn module_completion_item(
+        &self,
+        name: impl Into<String>,
+        id: ModuleId,
+    ) -> CompletionItem {
+        let completion_item = module_completion_item(name);
+        self.completion_item_with_doc_comments(ModuleDefId::ModuleId(id), completion_item)
     }
 
     fn struct_completion_item(&self, name: String, struct_id: StructId) -> CompletionItem {

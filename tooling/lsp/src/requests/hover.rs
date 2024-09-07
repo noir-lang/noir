@@ -84,6 +84,9 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     string.push_str("    ");
     string.push_str("mod ");
     string.push_str(&module_attributes.name);
+
+    append_doc_comments(args.interner, ModuleDefId::ModuleId(id), &mut string);
+
     Some(string)
 }
 
