@@ -5,7 +5,6 @@ use fm::FileMap;
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::Visibility,
-    graph::CrateId,
     hir::def_map::ModuleId,
     hir_def::{stmt::HirPattern, traits::Trait},
     macros_api::{NodeInterner, StructId},
@@ -353,7 +352,7 @@ fn format_parent_module_from_module_id(
 
     // We don't record module attriubtes for the root module,
     // so we handle that case separately
-    if let CrateId::Root(_) = module.krate {
+    if module.krate.is_root() {
         segments.push(&args.crate_name);
     };
 
