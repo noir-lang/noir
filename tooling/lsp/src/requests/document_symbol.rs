@@ -10,7 +10,7 @@ use noirc_errors::Span;
 use noirc_frontend::{
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
+        NoirTraitImpl, TypeImpl, UnresolvedType, Visitor,
     },
     parser::ParsedSubModule,
     ParsedModule,
@@ -391,13 +391,9 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         };
 
-        let UnresolvedTypeData::Named(name_path, ..) = &type_impl.object_type.typ else {
-            return false;
-        };
+        let name = type_impl.object_type.typ.to_string();
 
-        let name = name_path.last_ident();
-
-        let Some(name_location) = self.to_lsp_location(name.span()) else {
+        let Some(name_location) = self.to_lsp_location(type_impl.object_type.span) else {
             return false;
         };
 
@@ -710,6 +706,23 @@ mod document_symbol_tests {
                         }
                     ]),
                 },
+                #[allow(deprecated)]
+                DocumentSymbol {
+                    name: "i32".to_string(),
+                    detail: None,
+                    kind: SymbolKind::NAMESPACE,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position { line: 27, character: 0 },
+                        end: Position { line: 27, character: 11 }
+                    },
+                    selection_range: Range {
+                        start: Position { line: 27, character: 5 },
+                        end: Position { line: 27, character: 8 }
+                    },
+                    children: Some(Vec::new())
+                }
             ]
         );
     }
