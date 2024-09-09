@@ -7,7 +7,7 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
 use lsp_types::{DiagnosticTag, Url};
-use noirc_driver::{check_crate, file_manager_with_stdlib};
+use noirc_driver::check_crate;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
 use crate::types::{
@@ -120,7 +120,8 @@ pub(crate) fn process_workspace_for_noir_document(
         ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
+
     insert_all_files_for_workspace_into_file_manager(
         state,
         &workspace,
