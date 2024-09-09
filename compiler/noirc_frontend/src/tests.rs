@@ -1938,7 +1938,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
 }
 
 #[test]
-fn implicit_numeric_generics_type_kind_mismatch() {
+fn numeric_generics_type_kind_mismatch() {
     let src = r#"
     fn foo<let N: u32>() -> u16 {
         N as u16
