@@ -1248,7 +1248,9 @@ impl<'context> Elaborator<'context> {
             let struct_def = this.interner.get_struct(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let fields = vecmap(&unresolved.fields, |(ident, typ)| {
+            let fields = vecmap(&unresolved.fields, |field| {
+                let ident = &field.item.name;
+                let typ = &field.item.typ;
                 (ident.clone(), this.resolve_type(typ.clone()))
             });
 

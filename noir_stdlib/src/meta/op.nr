@@ -39,7 +39,8 @@ impl UnaryOp {
         } else if self.is_dereference() {
             quote { * }
         } else {
-            crate::mem::zeroed()
+            let op = self;
+            crate::panic::panic(f"Unexpected unary operator in UnaryOp::quoted: {op}")
         }
     }
 }
@@ -181,7 +182,8 @@ impl BinaryOp {
         } else if self.is_modulo() {
             quote { % }
         } else {
-            crate::mem::zeroed()
+            let op = self;
+            crate::panic::panic(f"Unexpected binary operator in BinaryOp::quoted: {op}")
         }
     }
 }

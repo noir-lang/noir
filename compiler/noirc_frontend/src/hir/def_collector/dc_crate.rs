@@ -313,6 +313,11 @@ impl DefCollector {
         let crate_root = def_map.root;
         let mut def_collector = DefCollector::new(def_map);
 
+        let module_id = ModuleId { krate: crate_id, local_id: crate_root };
+        context
+            .def_interner
+            .set_doc_comments(ReferenceId::Module(module_id), ast.inner_doc_comments.clone());
+
         // Collecting module declarations with ModCollector
         // and lowering the functions
         // i.e. Use a mod collector to collect the nodes at the root module
