@@ -7,7 +7,6 @@ use crate::{
             value::ValueId,
         },
         ssa_gen::Ssa,
-        FieldElement,
     },
 };
 
@@ -25,7 +24,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(
         mut self,
-    ) -> Result<Ssa, RuntimeError<FieldElement>> {
+    ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             for block in function.reachable_blocks() {
                 // Unfortunately we can't just use instructions.retain(...) here since
@@ -55,7 +54,7 @@ impl Ssa {
 fn check_instruction(
     function: &mut Function,
     instruction: InstructionId,
-) -> Result<bool, RuntimeError<FieldElement>> {
+) -> Result<bool, RuntimeError> {
     let assert_constant_id = function.dfg.import_intrinsic(Intrinsic::AssertConstant);
     let static_assert_id = function.dfg.import_intrinsic(Intrinsic::StaticAssert);
     match &function.dfg[instruction] {
@@ -80,7 +79,7 @@ fn evaluate_assert_constant(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
-) -> Result<bool, RuntimeError<FieldElement>> {
+) -> Result<bool, RuntimeError> {
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else {
@@ -99,7 +98,7 @@ fn evaluate_static_assert(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
-) -> Result<bool, RuntimeError<FieldElement>> {
+) -> Result<bool, RuntimeError> {
     if arguments.len() != 2 {
         panic!("ICE: static_assert called with wrong number of arguments")
     }

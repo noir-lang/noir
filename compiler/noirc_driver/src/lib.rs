@@ -4,7 +4,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
-use acvm::{acir::circuit::ExpressionWidth, FieldElement};
+use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -142,7 +142,7 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
 #[derive(Debug)]
 pub enum CompileError {
     MonomorphizationError(MonomorphizationError),
-    RuntimeError(RuntimeError<FieldElement>),
+    RuntimeError(RuntimeError),
 }
 
 impl From<MonomorphizationError> for CompileError {
@@ -151,8 +151,8 @@ impl From<MonomorphizationError> for CompileError {
     }
 }
 
-impl From<RuntimeError<FieldElement>> for CompileError {
-    fn from(error: RuntimeError<FieldElement>) -> Self {
+impl From<RuntimeError> for CompileError {
+    fn from(error: RuntimeError) -> Self {
         Self::RuntimeError(error)
     }
 }

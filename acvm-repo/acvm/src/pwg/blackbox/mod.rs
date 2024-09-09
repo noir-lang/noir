@@ -108,7 +108,7 @@ pub(crate) fn solve<F: AcirField>(
             for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
                 let num_bits = input.num_bits() as usize;
                 assert_eq!(num_bits, 64);
-                let witness_assignment = input_to_value(initial_witness, *input)?;
+                let witness_assignment = input_to_value(initial_witness, *input, false)?;
                 let lane = witness_assignment.try_to_u64();
                 *it = lane.unwrap();
             }

@@ -79,7 +79,7 @@ pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 pub(crate) fn optimize_into_acir(
     program: Program,
     options: &SsaEvaluatorOptions,
-) -> Result<ArtifactsAndWarnings, RuntimeError<FieldElement>> {
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
@@ -207,7 +207,7 @@ impl SsaProgramArtifact {
 pub fn create_program(
     program: Program,
     options: &SsaEvaluatorOptions,
-) -> Result<SsaProgramArtifact, RuntimeError<FieldElement>> {
+) -> Result<SsaProgramArtifact, RuntimeError> {
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
@@ -385,7 +385,7 @@ impl SsaBuilder {
         force_brillig_runtime: bool,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
-    ) -> Result<SsaBuilder, RuntimeError<FieldElement>> {
+    ) -> Result<SsaBuilder, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
         if let Some(emit_ssa) = emit_ssa {
             let mut emit_ssa_dir = emit_ssa.clone();
@@ -412,9 +412,9 @@ impl SsaBuilder {
     /// The same as `run_pass` but for passes that may fail
     fn try_run_pass(
         mut self,
-        pass: fn(Ssa) -> Result<Ssa, RuntimeError<FieldElement>>,
+        pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
         msg: &str,
-    ) -> Result<Self, RuntimeError<FieldElement>> {
+    ) -> Result<Self, RuntimeError> {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
     }

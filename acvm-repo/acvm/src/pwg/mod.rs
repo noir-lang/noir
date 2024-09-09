@@ -133,7 +133,7 @@ pub enum OpcodeResolutionError<F: AcirField> {
     #[error("Cannot solve opcode: {invalid_input_bit_size}")]
     InvalidInputBitSize {
         opcode_location: ErrorLocation,
-        invalid_input_bit_size: InvalidInputBitSize<F>,
+        invalid_input_bit_size: InvalidInputBitSize,
     },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
     BlackBoxFunctionFailed(BlackBoxFunc, String),
@@ -159,8 +159,8 @@ impl<F: AcirField> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
     }
 }
 
-impl<F: AcirField> From<InvalidInputBitSize<F>> for OpcodeResolutionError<F> {
-    fn from(invalid_input_bit_size: InvalidInputBitSize<F>) -> Self {
+impl<F: AcirField> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
+    fn from(invalid_input_bit_size: InvalidInputBitSize) -> Self {
         Self::InvalidInputBitSize {
             opcode_location: ErrorLocation::Unresolved,
             invalid_input_bit_size,
@@ -656,21 +656,26 @@ pub fn witness_to_value<F: AcirField>(
     }
 }
 
+// TODO(https://github.com/noir-lang/noir/issues/5985):
+// remove skip_bitsize_checks
 pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     input: FunctionInput<F>,
+    skip_bitsize_checks: bool,
 ) -> Result<F, OpcodeResolutionError<F>> {
     match input.input() {
         ConstantOrWitnessEnum::Witness(witness) => {
             let initial_value = *witness_to_value(initial_witness, witness)?;
-            if initial_value.num_bits() <= input.num_bits() {
+            if skip_bitsize_checks || initial_value.num_bits() <= input.num_bits() {
                 Ok(initial_value)
             } else {
+                let value_num_bits = initial_value.num_bits();
+                let value = format!("{}", initial_value);
                 Err(OpcodeResolutionError::InvalidInputBitSize {
                     opcode_location: ErrorLocation::Unresolved,
-
                     invalid_input_bit_size: InvalidInputBitSize {
-                        value: initial_value,
+                        value,
+                        value_num_bits,
                         max_bits: input.num_bits(),
                     },
                 })

@@ -27,7 +27,7 @@ impl AcvmBigIntSolver {
     ) -> Result<(), OpcodeResolutionError<F>> {
         let bytes = inputs
             .iter()
-            .map(|input| input_to_value(initial_witness, *input).unwrap().to_u128() as u8)
+            .map(|input| input_to_value(initial_witness, *input, false).unwrap().to_u128() as u8)
             .collect::<Vec<u8>>();
         self.bigint_solver.bigint_from_bytes(&bytes, modulus, output)?;
         Ok(())

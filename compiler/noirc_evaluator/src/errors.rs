@@ -7,7 +7,7 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::{acir::InvalidInputBitSize, AcirField, FieldElement};
+use acvm::{acir::InvalidInputBitSize, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
@@ -16,7 +16,7 @@ use crate::ssa::ir::{dfg::CallStack, types::NumericType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
-pub enum RuntimeError<F: AcirField> {
+pub enum RuntimeError {
     #[error(transparent)]
     InternalError(#[from] InternalError),
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
@@ -55,7 +55,7 @@ pub enum RuntimeError<F: AcirField> {
     #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
     UnknownReference { call_stack: CallStack },
     #[error("{invalid_input_bit_size}")]
-    InvalidInputBitSize { invalid_input_bit_size: InvalidInputBitSize<F>, call_stack: CallStack },
+    InvalidInputBitSize { invalid_input_bit_size: InvalidInputBitSize, call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,7 +136,7 @@ pub enum InternalError {
     Unexpected { expected: String, found: String, call_stack: CallStack },
 }
 
-impl<F: AcirField> RuntimeError<F> {
+impl RuntimeError {
     fn call_stack(&self) -> &CallStack {
         match self {
             RuntimeError::InternalError(
@@ -168,8 +168,8 @@ impl<F: AcirField> RuntimeError<F> {
     }
 }
 
-impl<F: AcirField> From<RuntimeError<F>> for FileDiagnostic {
-    fn from(error: RuntimeError<F>) -> FileDiagnostic {
+impl From<RuntimeError> for FileDiagnostic {
+    fn from(error: RuntimeError) -> FileDiagnostic {
         let call_stack = vecmap(error.call_stack(), |location| *location);
         let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
         let diagnostic = error.into_diagnostic();
@@ -177,7 +177,7 @@ impl<F: AcirField> From<RuntimeError<F>> for FileDiagnostic {
     }
 }
 
-impl<F: AcirField> RuntimeError<F> {
+impl RuntimeError {
     fn into_diagnostic(self) -> Diagnostic {
         match self {
             RuntimeError::InternalError(cause) => {

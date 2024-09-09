@@ -33,7 +33,6 @@ use crate::{
             value::ValueId,
         },
         ssa_gen::Ssa,
-        FieldElement,
     },
 };
 use fxhash::FxHashMap as HashMap;
@@ -41,9 +40,7 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
-    pub(crate) fn unroll_loops_iteratively(
-        mut ssa: Ssa,
-    ) -> Result<Ssa, RuntimeError<FieldElement>> {
+    pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
         // Try to unroll loops first:
         let mut unroll_errors;
         (ssa, unroll_errors) = ssa.try_to_unroll_loops();
@@ -74,7 +71,7 @@ impl Ssa {
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     /// Returns the ssa along with all unrolling errors encountered
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn try_to_unroll_loops(mut self) -> (Ssa, Vec<RuntimeError<FieldElement>>) {
+    pub(crate) fn try_to_unroll_loops(mut self) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in self.functions.values_mut() {
             // Loop unrolling in brillig can lead to a code explosion currently. This can
@@ -150,7 +147,7 @@ fn find_all_loops(function: &Function) -> Loops {
 impl Loops {
     /// Unroll all loops within a given function.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
-    fn unroll_each_loop(mut self, function: &mut Function) -> Vec<RuntimeError<FieldElement>> {
+    fn unroll_each_loop(mut self, function: &mut Function) -> Vec<RuntimeError> {
         let mut unroll_errors = vec![];
         while let Some(next_loop) = self.yet_to_unroll.pop() {
             // If we've previously modified a block in this loop we need to refresh the context.
