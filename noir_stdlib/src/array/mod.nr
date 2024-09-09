@@ -87,7 +87,9 @@ impl<T, let N: u32> [T; N] where T: Eq {
 
             if !is_unconstrained() {
                 for i in 0..N - 1 {
-                    assert(ordering(sorted[i], sorted[i + 1]), "Array has not been sorted correctly according to `ordering`.");
+                    assert(
+                        ordering(sorted[i], sorted[i + 1]), "Array has not been sorted correctly according to `ordering`."
+                    );
                 }
                 check_shuffle::check_shuffle(self, sorted);
             }
