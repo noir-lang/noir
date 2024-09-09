@@ -87,7 +87,7 @@ impl<'a> NodeFinder<'a> {
 
     pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
         match target {
-            AttributeTarget::Module => (),
+            AttributeTarget::Module | AttributeTarget::Trait => (),
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
             }
