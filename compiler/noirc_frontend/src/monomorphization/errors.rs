@@ -8,6 +8,7 @@ pub enum MonomorphizationError {
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
+    ComptimeFnInRuntimeCode { name: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -15,6 +16,7 @@ impl MonomorphizationError {
         match self {
             MonomorphizationError::UnknownArrayLength { location, .. }
             | MonomorphizationError::InternalError { location, .. }
+            | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.get_location(),
         }
@@ -43,6 +45,12 @@ impl MonomorphizationError {
             }
             MonomorphizationError::InterpreterError(error) => return error.into(),
             MonomorphizationError::InternalError { message, .. } => message.to_string(),
+            MonomorphizationError::ComptimeFnInRuntimeCode { name, location } => {
+                let message = format!("Comptime function {name} used in runtime code");
+                let secondary =
+                    "Comptime functions must be in a comptime block to be called".into();
+                return CustomDiagnostic::simple_error(message, secondary, location.span);
+            }
         };
 
         let location = self.location();

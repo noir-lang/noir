@@ -1,6 +1,6 @@
 use convert_case::{Case, Casing};
 use noirc_errors::Span;
-use noirc_frontend::ast::{self, FunctionKind};
+use noirc_frontend::ast::{self, Documented, FunctionKind};
 use noirc_frontend::ast::{
     BlockExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
     ForLoopStatement, ForRange, FunctionReturnType, Ident, Literal, NoirFunction, NoirStruct,
@@ -131,7 +131,7 @@ pub fn transform_function(
 // Generates a global struct containing the original (before transform_function gets executed) function abi that gets exported
 // in the contract artifact after compilation. The abi will be later used to decode the function return values in the simulator.
 pub fn export_fn_abi(
-    types: &mut Vec<NoirStruct>,
+    types: &mut Vec<Documented<NoirStruct>>,
     func: &NoirFunction,
     empty_spans: bool,
 ) -> Result<(), AztecMacroError> {

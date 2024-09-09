@@ -22,13 +22,17 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, FunctionKind,
-        FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
-        UnresolvedType, UnresolvedTypeData, Visibility,
+        FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
+        UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{
-        errors::IResult,
-        value::{ExprValue, TypedExpr},
-        InterpreterError, Value,
+    hir::def_collector::dc_crate::CollectedItems,
+    hir::{
+        comptime::{
+            errors::IResult,
+            value::{ExprValue, TypedExpr},
+            InterpreterError, Value,
+        },
+        def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
     lexer::Lexer,
@@ -36,7 +40,7 @@ use crate::{
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
     token::{Attribute, SecondaryAttribute, Token},
-    QuotedType, Shared, Type,
+    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
 use self::builtin_helpers::{get_array, get_str, get_u8};
@@ -74,6 +78,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_if" => expr_as_if(interner, arguments, return_type, location),
             "expr_as_index" => expr_as_index(interner, arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(interner, arguments, return_type, location),
+            "expr_as_let" => expr_as_let(interner, arguments, return_type, location),
             "expr_as_member_access" => {
                 expr_as_member_access(interner, arguments, return_type, location)
             }
@@ -102,6 +107,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
             }
+            "function_def_is_unconstrained" => {
+                function_def_is_unconstrained(interner, arguments, location)
+            }
+            "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
@@ -113,6 +122,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_set_return_public" => {
                 function_def_set_return_public(self, arguments, location)
             }
+            "function_def_set_unconstrained" => {
+                function_def_set_unconstrained(self, arguments, location)
+            }
+            "module_add_item" => module_add_item(self, arguments, location),
             "module_functions" => module_functions(self, arguments, location),
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
@@ -135,13 +148,16 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
-            "struct_def_add_attribute" => struct_def_add_attribute(self, arguments, location),
+            "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
+            "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
             "struct_def_has_named_attribute" => {
                 struct_def_has_named_attribute(interner, arguments, location)
             }
+            "struct_def_module" => struct_def_module(self, arguments, location),
+            "struct_def_name" => struct_def_name(interner, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
@@ -274,13 +290,13 @@ fn str_as_bytes(
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
 fn struct_def_add_attribute(
-    interpreter: &mut Interpreter,
+    interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
-    let attribute = get_str(interpreter.elaborator.interner, attribute)?;
+    let attribute = get_str(interner, attribute)?;
 
     let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
     if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
@@ -309,11 +325,66 @@ fn struct_def_add_attribute(
     };
 
     let struct_id = get_struct(self_argument)?;
-    interpreter.elaborator.interner.update_struct_attributes(struct_id, |attributes| {
+    interner.update_struct_attributes(struct_id, |attributes| {
         attributes.push(attribute.clone());
     });
 
     Ok(Value::Unit)
+}
+
+// fn add_generic<let N: u32>(self, generic_name: str<N>)
+fn struct_def_add_generic(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, generic) = check_two_arguments(arguments, location)?;
+    let generic_location = generic.1;
+    let generic = get_str(interner, generic)?;
+
+    let mut tokens = Lexer::lex(&generic).0 .0;
+    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
+        tokens.pop();
+    }
+
+    if tokens.len() != 1 {
+        return Err(InterpreterError::GenericNameShouldBeAnIdent {
+            name: generic,
+            location: generic_location,
+        });
+    }
+
+    let Token::Ident(generic_name) = tokens.pop().unwrap().into_token() else {
+        return Err(InterpreterError::GenericNameShouldBeAnIdent {
+            name: generic,
+            location: generic_location,
+        });
+    };
+
+    let struct_id = get_struct(self_argument)?;
+    let the_struct = interner.get_struct(struct_id);
+    let mut the_struct = the_struct.borrow_mut();
+    let name = Rc::new(generic_name);
+
+    for generic in &the_struct.generics {
+        if generic.name == name {
+            return Err(InterpreterError::DuplicateGeneric {
+                name,
+                struct_name: the_struct.name.to_string(),
+                existing_location: Location::new(generic.span, the_struct.location.file),
+                duplicate_location: generic_location,
+            });
+        }
+    }
+
+    let type_var = TypeVariable::unbound(interner.next_type_variable_id());
+    let span = generic_location.span;
+    let kind = Kind::Normal;
+    let typ = Type::NamedGeneric(type_var.clone(), name.clone(), kind.clone());
+    let new_generic = ResolvedGeneric { name, type_var, span, kind };
+    the_struct.generics.push(new_generic);
+
+    Ok(Value::Type(typ))
 }
 
 /// fn as_type(self) -> Type
@@ -397,6 +468,39 @@ fn struct_def_fields(
         Type::Quoted(QuotedType::Type),
     ])));
     Ok(Value::Slice(fields, typ))
+}
+
+// fn module(self) -> Module
+fn struct_def_module(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+    let struct_module_id = struct_id.module_id();
+
+    // A struct's module is its own module. To get the module where its defined we need
+    // to look for its parent.
+    let module_data = interpreter.elaborator.get_module(struct_module_id);
+    let parent_local_id = module_data.parent.expect("Expected struct module parent to exist");
+    let parent = ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
+
+    Ok(Value::ModuleDefinition(parent))
+}
+
+// fn name(self) -> Quoted
+fn struct_def_name(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let struct_id = get_struct(self_argument)?;
+    let the_struct = interner.get_struct(struct_id);
+
+    let name = Token::Ident(the_struct.borrow().name.to_string());
+    Ok(Value::Quoted(Rc::new(vec![name])))
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
@@ -568,9 +672,10 @@ fn quoted_as_module(
 
     let path = parse(argument, parser::path_no_turbofish(), "a path").ok();
     let option_value = path.and_then(|path| {
-        let module = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
-            elaborator.resolve_module_by_path(path)
-        });
+        let module = interpreter
+            .elaborate_in_function(interpreter.current_function, |elaborator| {
+                elaborator.resolve_module_by_path(path)
+            });
         module.map(Value::ModuleDefinition)
     });
 
@@ -586,7 +691,7 @@ fn quoted_as_trait_constraint(
     let argument = check_one_argument(arguments, location)?;
     let trait_bound = parse(argument, parser::trait_bound(), "a trait constraint")?;
     let bound = interpreter
-        .elaborate_item(interpreter.current_function, |elaborator| {
+        .elaborate_in_function(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
@@ -602,8 +707,8 @@ fn quoted_as_type(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(argument, parser::parse_type(), "a type")?;
-    let typ =
-        interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let typ = interpreter
+        .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
 }
 
@@ -1396,6 +1501,41 @@ fn expr_as_integer(
     })
 }
 
+// fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)>
+fn expr_as_let(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+        ExprValue::Statement(StatementKind::Let(let_statement)) => {
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 3);
+            tuple_types.pop().unwrap();
+            let option_type = tuple_types.pop().unwrap();
+
+            let typ = if let_statement.r#type.typ == UnresolvedTypeData::Unspecified {
+                None
+            } else {
+                Some(Value::UnresolvedType(let_statement.r#type.typ))
+            };
+
+            let typ = option(option_type, typ).ok()?;
+
+            Some(Value::Tuple(vec![
+                Value::pattern(let_statement.pattern),
+                typ,
+                Value::expression(let_statement.expression.kind),
+            ]))
+        }
+        _ => None,
+    })
+}
+
 // fn as_member_access(self) -> Option<(Expr, Quoted)>
 fn expr_as_member_access(
     interner: &NodeInterner,
@@ -1673,25 +1813,33 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    let value = interpreter.elaborate_item(function_to_resolve_in, |elaborator| match expr_value {
+    interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
         ExprValue::Expression(expression_kind) => {
             let expr = Expression { kind: expression_kind, span: self_argument_location.span };
             let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Value::TypedExpr(TypedExpr::ExprId(expr_id))
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
         }
         ExprValue::Statement(statement_kind) => {
             let statement = Statement { kind: statement_kind, span: self_argument_location.span };
             let (stmt_id, _) = elaborator.elaborate_statement(statement);
-            Value::TypedExpr(TypedExpr::StmtId(stmt_id))
+            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
         }
         ExprValue::LValue(lvalue) => {
             let expr = lvalue.as_expression();
             let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Value::TypedExpr(TypedExpr::ExprId(expr_id))
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
         }
-    });
-
-    Ok(value)
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                let (expr_id, _) = elaborator.elaborate_expression(expression);
+                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+            } else {
+                let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
+                let location = self_argument_location;
+                Err(InterpreterError::CannotResolveExpression { location, expression })
+            }
+        }
+    })
 }
 
 fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
@@ -1712,6 +1860,9 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
             }
             ExprValue::LValue(LValue::Interned(id, span)) => {
                 expr_value = ExprValue::LValue(interner.get_lvalue(id, span).clone());
+            }
+            ExprValue::Pattern(Pattern::Interned(id, _)) => {
+                expr_value = ExprValue::Pattern(interner.get_pattern(id).clone());
             }
             _ => break,
         }
@@ -1827,6 +1978,30 @@ fn function_def_has_named_attribute(
     Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
 }
 
+// fn is_unconstrained(self) -> bool
+fn function_def_is_unconstrained(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let is_unconstrained = interner.function_modifiers(&func_id).is_unconstrained;
+    Ok(Value::Bool(is_unconstrained))
+}
+
+// fn module(self) -> Module
+fn function_def_module(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let module = interner.function_module(func_id);
+    Ok(Value::ModuleDefinition(module))
+}
+
 // fn name(self) -> Quoted
 fn function_def_name(
     interner: &NodeInterner,
@@ -1901,6 +2076,16 @@ fn function_def_set_body(
         }),
         ExprValue::Statement(statement_kind) => statement_kind,
         ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(interpreter.elaborator.interner) {
+                StatementKind::Expression(expression)
+            } else {
+                let expression =
+                    Value::pattern(pattern).display(interpreter.elaborator.interner).to_string();
+                let location = body_location;
+                return Err(InterpreterError::CannotSetFunctionBody { location, expression });
+            }
+        }
     };
 
     let statement = Statement { kind: statement_kind, span: body_location.span };
@@ -1945,7 +2130,7 @@ fn function_def_set_parameters(
             "a pattern",
         )?;
 
-        let hir_pattern = interpreter.elaborate_item(Some(func_id), |elaborator| {
+        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),
@@ -2008,6 +2193,53 @@ fn function_def_set_return_public(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+
+    Ok(Value::Unit)
+}
+
+// fn set_unconstrained(self, value: bool)
+fn function_def_set_unconstrained(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, unconstrained) = check_two_arguments(arguments, location)?;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let unconstrained = get_bool(unconstrained)?;
+
+    let modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+    modifiers.is_unconstrained = unconstrained;
+
+    Ok(Value::Unit)
+}
+
+// fn add_item(self, item: Quoted)
+fn module_add_item(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, item) = check_two_arguments(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
+
+    let parser = parser::top_level_items();
+    let top_level_statements = parse(item, parser, "a top-level item")?;
+
+    interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
+        let mut generated_items = CollectedItems::default();
+
+        for top_level_statement in top_level_statements {
+            elaborator.add_item(top_level_statement, &mut generated_items, location);
+        }
+
+        if !generated_items.is_empty() {
+            elaborator.elaborate_items(generated_items);
+        }
+    });
 
     Ok(Value::Unit)
 }

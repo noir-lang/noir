@@ -271,7 +271,6 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
-        enable_arithmetic_generics: bool,
         error_on_unused_items: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
@@ -291,7 +290,6 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 debug_comptime_in_file,
-                enable_arithmetic_generics,
                 error_on_usage_tracker,
                 macro_processors,
             ));
@@ -314,6 +312,11 @@ impl DefCollector {
         // It is now possible to collect all of the definitions of this crate.
         let crate_root = def_map.root;
         let mut def_collector = DefCollector::new(def_map);
+
+        let module_id = ModuleId { krate: crate_id, local_id: crate_root };
+        context
+            .def_interner
+            .set_doc_comments(ReferenceId::Module(module_id), ast.inner_doc_comments.clone());
 
         // Collecting module declarations with ModCollector
         // and lowering the functions
@@ -471,13 +474,8 @@ impl DefCollector {
             })
         });
 
-        let mut more_errors = Elaborator::elaborate(
-            context,
-            crate_id,
-            def_collector.items,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        );
+        let mut more_errors =
+            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
 
         errors.append(&mut more_errors);
 

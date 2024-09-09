@@ -1,4 +1,9 @@
 impl Module {
+    #[builtin(module_add_item)]
+    // docs:start:add_item
+    fn add_item(self, item: Quoted) {}
+    // docs:end:add_item
+
     #[builtin(module_has_named_attribute)]
     // docs:start:has_named_attribute
     fn has_named_attribute(self, name: Quoted) -> bool {}
