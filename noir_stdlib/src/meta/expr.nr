@@ -153,7 +153,7 @@ impl Expr {
     }
 
     // docs:start:quoted
-    fn quoted(self) -> Quoted {
+    comptime fn quoted(self) -> Quoted {
         // docs:end:quoted
         quote { $self }
     }
@@ -364,12 +364,12 @@ fn modify_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [
     exprs.map(|expr: Expr| expr.modify(f))
 }
 
-fn new_array(exprs: [Expr]) -> Expr {
+comptime fn new_array(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
     quote { [$exprs]}.as_expr().unwrap()
 }
 
-fn new_assert(predicate: Expr, msg: Option<Expr>) -> Expr {
+comptime fn new_assert(predicate: Expr, msg: Option<Expr>) -> Expr {
     if msg.is_some() {
         let msg = msg.unwrap();
         quote { assert($predicate, $msg) }.as_expr().unwrap()
@@ -378,7 +378,7 @@ fn new_assert(predicate: Expr, msg: Option<Expr>) -> Expr {
     }
 }
 
-fn new_assert_eq(lhs: Expr, rhs: Expr, msg: Option<Expr>) -> Expr {
+comptime fn new_assert_eq(lhs: Expr, rhs: Expr, msg: Option<Expr>) -> Expr {
     if msg.is_some() {
         let msg = msg.unwrap();
         quote { assert_eq($lhs, $rhs, $msg) }.as_expr().unwrap()
@@ -387,30 +387,30 @@ fn new_assert_eq(lhs: Expr, rhs: Expr, msg: Option<Expr>) -> Expr {
     }
 }
 
-fn new_assign(lhs: Expr, rhs: Expr) -> Expr {
+comptime fn new_assign(lhs: Expr, rhs: Expr) -> Expr {
     quote { $lhs = $rhs }.as_expr().unwrap()
 }
 
-fn new_binary_op(lhs: Expr, op: BinaryOp, rhs: Expr) -> Expr {
+comptime fn new_binary_op(lhs: Expr, op: BinaryOp, rhs: Expr) -> Expr {
     let op = op.quoted();
     quote { ($lhs) $op ($rhs) }.as_expr().unwrap()
 }
 
-fn new_block(exprs: [Expr]) -> Expr {
+comptime fn new_block(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { ; });
     quote { { $exprs }}.as_expr().unwrap()
 }
 
-fn new_cast(expr: Expr, typ: UnresolvedType) -> Expr {
+comptime fn new_cast(expr: Expr, typ: UnresolvedType) -> Expr {
     quote { ($expr) as $typ }.as_expr().unwrap()
 }
 
-fn new_comptime(exprs: [Expr]) -> Expr {
+comptime fn new_comptime(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { ; });
     quote { comptime { $exprs }}.as_expr().unwrap()
 }
 
-fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr {
+comptime fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr {
     if alternative.is_some() {
         let alternative = alternative.unwrap();
         quote { if $condition { $consequence } else { $alternative }}.as_expr().unwrap()
@@ -419,21 +419,21 @@ fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr
     }
 }
 
-fn new_index(object: Expr, index: Expr) -> Expr {
+comptime fn new_index(object: Expr, index: Expr) -> Expr {
     quote { $object[$index] }.as_expr().unwrap()
 }
 
-fn new_member_access(object: Expr, name: Quoted) -> Expr {
+comptime fn new_member_access(object: Expr, name: Quoted) -> Expr {
     quote { $object.$name }.as_expr().unwrap()
 }
 
-fn new_function_call(function: Expr, arguments: [Expr]) -> Expr {
+comptime fn new_function_call(function: Expr, arguments: [Expr]) -> Expr {
     let arguments = join_expressions(arguments, quote { , });
 
     quote { $function($arguments) }.as_expr().unwrap()
 }
 
-fn new_method_call(object: Expr, name: Quoted, generics: [UnresolvedType], arguments: [Expr]) -> Expr {
+comptime fn new_method_call(object: Expr, name: Quoted, generics: [UnresolvedType], arguments: [Expr]) -> Expr {
     let arguments = join_expressions(arguments, quote { , });
 
     if generics.len() == 0 {
@@ -444,30 +444,30 @@ fn new_method_call(object: Expr, name: Quoted, generics: [UnresolvedType], argum
     }
 }
 
-fn new_repeated_element_array(expr: Expr, length: Expr) -> Expr {
+comptime fn new_repeated_element_array(expr: Expr, length: Expr) -> Expr {
     quote { [$expr; $length] }.as_expr().unwrap()
 }
 
-fn new_repeated_element_slice(expr: Expr, length: Expr) -> Expr {
+comptime fn new_repeated_element_slice(expr: Expr, length: Expr) -> Expr {
     quote { &[$expr; $length] }.as_expr().unwrap()
 }
 
-fn new_slice(exprs: [Expr]) -> Expr {
+comptime fn new_slice(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
     quote { &[$exprs]}.as_expr().unwrap()
 }
 
-fn new_tuple(exprs: [Expr]) -> Expr {
+comptime fn new_tuple(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
     quote { ($exprs) }.as_expr().unwrap()
 }
 
-fn new_unary_op(op: UnaryOp, rhs: Expr) -> Expr {
+comptime fn new_unary_op(op: UnaryOp, rhs: Expr) -> Expr {
     let op = op.quoted();
     quote { $op($rhs) }.as_expr().unwrap()
 }
 
-fn new_unsafe(exprs: [Expr]) -> Expr {
+comptime fn new_unsafe(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { ; });
     quote { unsafe { $exprs }}.as_expr().unwrap()
 }

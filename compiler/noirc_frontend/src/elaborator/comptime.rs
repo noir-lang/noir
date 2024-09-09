@@ -159,6 +159,7 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         if let SecondaryAttribute::Custom(attribute) = attribute {
+            self.function_context.push(FunctionContext::default());
             if let Err(error) = self.run_comptime_attribute_name_on_item(
                 &attribute.contents,
                 item.clone(),
@@ -169,6 +170,7 @@ impl<'context> Elaborator<'context> {
             ) {
                 self.errors.push(error);
             }
+            self.check_and_pop_function_context();
         }
     }
 
@@ -517,6 +519,7 @@ impl<'context> Elaborator<'context> {
         module_attributes: &[ModuleAttribute],
     ) -> CollectedItems {
         let mut generated_items = CollectedItems::default();
+        self.in_comptime_context_override = true;
 
         for (trait_id, trait_) in traits {
             let attributes = &trait_.trait_def.attributes;
@@ -550,6 +553,7 @@ impl<'context> Elaborator<'context> {
 
         self.run_attributes_on_modules(module_attributes, &mut generated_items);
 
+        self.in_comptime_context_override = false;
         generated_items
     }
 
@@ -598,5 +602,23 @@ impl<'context> Elaborator<'context> {
                 );
             }
         }
+    }
+
+    /// Perform the given function in a comptime context.
+    /// This will set the `in_comptime_context` flag on `self` as well as
+    /// push a new function context to resolve any trait constraints early.
+    pub(super) fn elaborate_in_comptime_context<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        let old_comptime_value = std::mem::replace(&mut self.in_comptime_context_override, true);
+        // We have to push a new FunctionContext so that we can resolve any constraints
+        // in this comptime block early before the function as a whole finishes elaborating.
+        // Otherwise the interpreter below may find expressions for which the underlying trait
+        // call is not yet solved for.
+        self.function_context.push(Default::default());
+
+        let result = f(self);
+
+        self.check_and_pop_function_context();
+        self.in_comptime_context_override = old_comptime_value;
+        result
     }
 }

@@ -158,6 +158,10 @@ pub struct Elaborator<'context> {
     /// Initially empty, it is set whenever a new top-level item is resolved.
     local_module: LocalModuleId,
 
+    /// True if we're elaborating a comptime item such as a comptime function,
+    /// block, global, or attribute.
+    in_comptime_context_override: bool,
+
     crate_id: CrateId,
 
     /// The scope of --debug-comptime, or None if unset
@@ -215,6 +219,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             current_trait: None,
             interpreter_call_stack,
+            in_comptime_context_override: false,
         }
     }
 
@@ -1289,7 +1294,12 @@ impl<'context> Elaborator<'context> {
 
         let comptime = let_stmt.comptime;
 
-        let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
+        let (let_statement, _typ) = if comptime {
+            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
+        } else {
+            self.elaborate_let(let_stmt, Some(global_id))
+        };
+
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
@@ -1324,9 +1334,7 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
-            self.debug_comptime(location, |interner| {
-                interner.get_global(global_id).let_statement.to_display_ast(interner).kind
-            });
+            self.debug_comptime(location, |interner| value.display(interner).to_string());
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
@@ -1427,7 +1435,7 @@ impl<'context> Elaborator<'context> {
     fn in_comptime_context(&self) -> bool {
         // The first context is the global context, followed by the function-specific context.
         // Any context after that is a `comptime {}` block's.
-        if self.function_context.len() > 2 {
+        if self.in_comptime_context_override || self.function_context.len() > 2 {
             return true;
         }
 
