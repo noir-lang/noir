@@ -36,7 +36,7 @@ pub fn compile_workspace(
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
-        .par_iter()
+        .iter()
         .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
         .collect();
 

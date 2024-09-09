@@ -265,6 +265,24 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
+    fn count_increase_instruction(
+        &mut self,
+        value: ValueId,
+        instruction: InstructionId,
+        block_id: BasicBlockId,
+    ) {
+        if let Some(context) = self.load_results.get_mut(&value) {
+            context.uses += 1;
+            context.instructions_using_result.push((instruction, block_id));
+        }
+        let array_const = self.inserter.function.dfg.get_array_constant(value);
+        if let Some((values, _)) = array_const {
+            for array_value in values {
+                self.count_increase_instruction(array_value, instruction, block_id);
+            }
+        }
+    }
+
     fn analyze_instruction(
         &mut self,
         block_id: BasicBlockId,
@@ -279,14 +297,6 @@ impl<'f> PerFunctionContext<'f> {
         } else {
             return;
         }
-
-        // Track whether any load results were used in the instruction
-        self.inserter.function.dfg[instruction].for_each_value(|value| {
-            if let Some(context) = self.load_results.get_mut(&value) {
-                context.uses += 1;
-                context.instructions_using_result.push((instruction, block_id));
-            }
-        });
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
@@ -410,6 +420,16 @@ impl<'f> PerFunctionContext<'f> {
             _ => (),
         }
 
+        let mut collect_values = Vec::new();
+        // Track whether any load results were used in the instruction
+        self.inserter.function.dfg[instruction].for_each_value(|value| {
+            collect_values.push(value);
+        });
+
+        for value in collect_values {
+            self.count_increase_instruction(value, instruction, block_id);
+        }
+
         self.track_rc_reload_state(instruction);
     }
 
@@ -483,16 +503,22 @@ impl<'f> PerFunctionContext<'f> {
         self.inserter.function.dfg.data_bus = databus.map_values(|t| self.inserter.resolve(t));
     }
 
+    fn recursive_count_increase(&mut self, value: ValueId) {
+        if let Some(context) = self.load_results.get_mut(&value) {
+            context.uses += 1;
+        }
+        let array_const = self.inserter.function.dfg.get_array_constant(value);
+        if let Some((values, _)) = array_const {
+            for array_value in values {
+                self.recursive_count_increase(array_value);
+            }
+        }
+    }
+
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {
         self.inserter.map_terminator_in_place(block);
 
         let terminator = self.inserter.function.dfg[block].unwrap_terminator();
-
-        terminator.for_each_value(|value| {
-            if let Some(context) = self.load_results.get_mut(&value) {
-                context.uses += 1;
-            }
-        });
 
         match terminator {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
@@ -521,6 +547,15 @@ impl<'f> PerFunctionContext<'f> {
                 self.mark_all_unknown(return_values, references);
             }
         }
+
+        let mut collect_values = Vec::new();
+        terminator.for_each_value(|value| {
+            collect_values.push(value);
+        });
+
+        for value in collect_values.iter() {
+            self.recursive_count_increase(*value);
+        }
     }
 
     /// The mem2reg pass is sometimes unable to determine certain known values
@@ -546,7 +581,6 @@ impl<'f> PerFunctionContext<'f> {
             else {
                 unreachable!("Should only have a load instruction here");
             };
-
             // If the load result's counter is equal to zero we can safely remove that load instruction.
             if *uses == 0 {
                 removed_loads.entry(address).and_modify(|counter| *counter += 1).or_insert(1);
@@ -604,7 +638,16 @@ impl<'f> PerFunctionContext<'f> {
 
                 let is_not_used_in_reference_param =
                     self.calls_reference_input.get(store_address).is_none();
-                if remove_load && !is_reference_param && is_not_used_in_reference_param {
+                let is_reference_alias = block
+                    .expressions
+                    .get(store_address)
+                    .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
+
+                if remove_load
+                    && !is_reference_param
+                    && is_not_used_in_reference_param
+                    && !is_reference_alias
+                {
                     self.instructions_to_remove.insert(*store_instruction);
                     if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
                         *counter -= 1;
@@ -1155,5 +1198,228 @@ mod tests {
         assert_eq!(count_stores(b2, &main.dfg), 0);
         // Should only have one instruction in b3
         assert_eq!(main.dfg[b3].instructions().len(), 1);
+    }
+
+    #[test]
+    fn keep_store_to_alias_in_loop_block() {
+        // This test makes sure the instruction `store Field 2 at v5` in b2 remains after mem2reg.
+        // Although the only instruction on v5 is a lone store without any loads,
+        // v5 is an alias of the reference v0 which is stored in v2.
+        // This test makes sure that we are not inadvertently removing stores to aliases across blocks.
+        //
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v0 = allocate
+        //       store Field 0 at v0
+        //       v2 = allocate
+        //       store v0 at v2
+        //       jmp b1(Field 0)
+        //     b1(v3: Field):
+        //       v4 = eq v3, Field 0
+        //       jmpif v4 then: b2, else: b3
+        //     b2():
+        //       v5 = load v2
+        //       store Field 2 at v5
+        //       v8 = add v3, Field 1
+        //       jmp b1(v8)
+        //     b3():
+        //       v9 = load v0
+        //       v10 = eq v9, Field 2
+        //       constrain v9 == Field 2
+        //       v11 = load v2
+        //       v12 = load v10
+        //       v13 = eq v12, Field 2
+        //       constrain v11 == Field 2
+        //       return
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.insert_allocate(Type::field());
+        let zero = builder.numeric_constant(0u128, Type::field());
+        builder.insert_store(v0, zero);
+
+        let v2 = builder.insert_allocate(Type::field());
+        // Construct alias
+        builder.insert_store(v2, v0);
+        let v2_type = builder.current_function.dfg.type_of_value(v2);
+        assert!(builder.current_function.dfg.value_is_reference(v2));
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![zero]);
+
+        // Loop header
+        builder.switch_to_block(b1);
+        let v3 = builder.add_block_parameter(b1, Type::field());
+        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
+
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        builder.terminate_with_jmpif(is_zero, b2, b3);
+
+        // Loop body
+        builder.switch_to_block(b2);
+        let v5 = builder.insert_load(v2, v2_type.clone());
+        let two = builder.numeric_constant(2u128, Type::field());
+        builder.insert_store(v5, two);
+        let one = builder.numeric_constant(1u128, Type::field());
+        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
+
+        builder.switch_to_block(b3);
+        let v9 = builder.insert_load(v0, Type::field());
+        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
+
+        builder.insert_constrain(v9, two, None);
+        let v11 = builder.insert_load(v2, v2_type);
+        let v12 = builder.insert_load(v11, Type::field());
+        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
+
+        builder.insert_constrain(v11, two, None);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+
+        // We expect the same result as above.
+        let ssa = ssa.mem2reg();
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 4);
+
+        // The store from the original SSA should remain
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
+        assert_eq!(count_stores(b2, &main.dfg), 1);
+
+        assert_eq!(count_loads(b2, &main.dfg), 1);
+        assert_eq!(count_loads(b3, &main.dfg), 3);
+    }
+
+    #[test]
+    fn accurate_tracking_of_load_results() {
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v0 = allocate
+        //       store Field 5 at v0
+        //       v2 = allocate
+        //       store u32 10 at v2
+        //       v4 = load v0
+        //       v5 = load v2
+        //       v6 = allocate
+        //       store v4 at v6
+        //       v7 = allocate
+        //       store v5 at v7
+        //       v8 = load v6
+        //       v9 = load v7
+        //       v10 = load v6
+        //       v11 = load v7
+        //       v12 = allocate
+        //       store Field 0 at v12
+        //       v15 = eq v11, u32 0
+        //       jmpif v15 then: b1, else: b2
+        //     b1():
+        //       v16 = load v12
+        //       v17 = add v16, v8
+        //       store v17 at v12
+        //       jmp b2()
+        //     b2():
+        //       v18 = load v12
+        //       return [v18]
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.insert_allocate(Type::field());
+        let five = builder.numeric_constant(5u128, Type::field());
+        builder.insert_store(v0, five);
+
+        let v2 = builder.insert_allocate(Type::field());
+        let ten = builder.numeric_constant(10u128, Type::unsigned(32));
+        builder.insert_store(v2, ten);
+
+        let v4 = builder.insert_load(v0, Type::field());
+        let v5 = builder.insert_load(v2, Type::unsigned(32));
+        let v4_type = builder.current_function.dfg.type_of_value(v4);
+        let v5_type = builder.current_function.dfg.type_of_value(v5);
+
+        let v6 = builder.insert_allocate(Type::field());
+        builder.insert_store(v6, v4);
+        let v7 = builder.insert_allocate(Type::unsigned(32));
+        builder.insert_store(v7, v5);
+
+        let v8 = builder.insert_load(v6, v4_type.clone());
+        let _v9 = builder.insert_load(v7, v5_type.clone());
+
+        let _v10 = builder.insert_load(v6, v4_type);
+        let v11 = builder.insert_load(v7, v5_type);
+
+        let v12 = builder.insert_allocate(Type::field());
+        let zero = builder.numeric_constant(0u128, Type::field());
+        builder.insert_store(v12, zero);
+
+        let zero_u32 = builder.numeric_constant(0u128, Type::unsigned(32));
+        let v15 = builder.insert_binary(v11, BinaryOp::Eq, zero_u32);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        builder.terminate_with_jmpif(v15, b1, b2);
+
+        builder.switch_to_block(b1);
+
+        let v16 = builder.insert_load(v12, Type::field());
+        let v17 = builder.insert_binary(v16, BinaryOp::Add, v8);
+        builder.insert_store(v12, v17);
+
+        builder.terminate_with_jmp(b2, vec![]);
+
+        builder.switch_to_block(b2);
+        let v18 = builder.insert_load(v12, Type::field());
+
+        // Include the load result as part of an array constant to check that we are accounting for arrays
+        // when updating the reference counts of load results.
+        //
+        // If we were not accounting for arrays appropriately, the load of v18 would be removed.
+        // If v18 is the last load of a reference and is inadvertently removed,
+        // any stores to v12 will then be potentially removed as well and the program will be broken.
+        let return_array =
+            builder.array_constant(vector![v18], Type::Array(Arc::new(vec![Type::field()]), 1));
+        builder.terminate_with_return(vec![return_array]);
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+
+        // Expected result:
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v20 = allocate
+        //       v21 = allocate
+        //       v24 = allocate
+        //       v25 = allocate
+        //       v30 = allocate
+        //       store Field 0 at v30
+        //       jmpif u1 0 then: b1, else: b2
+        //     b1():
+        //       store Field 5 at v30
+        //       jmp b2()
+        //     b2():
+        //       v33 = load v30
+        //       return [v33]
+        //   }
+        let ssa = ssa.mem2reg();
+        println!("{}", ssa);
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 3);
+
+        // A single store from the entry block should remain.
+        // If we are not appropriately handling unused stores across a function,
+        // we would expect all five stores from the original SSA to remain.
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
+        // The store from the conditional block should remain,
+        // as it is loaded from in a successor block and used in the return terminator.
+        assert_eq!(count_stores(b1, &main.dfg), 1);
+
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_loads(b1, &main.dfg), 0);
+        assert_eq!(count_loads(b2, &main.dfg), 1);
     }
 }

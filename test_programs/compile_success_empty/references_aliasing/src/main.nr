@@ -5,6 +5,8 @@ fn main() {
     assert(*xref == 101);
 
     regression_2445();
+
+    assert(5 == struct_field_refs_across_blocks(MyStruct { a: 5, b: 10 })[0]);
 }
 
 fn increment(mut r: &mut Field) {
@@ -26,3 +28,21 @@ fn regression_2445() {
     assert(**array[0] == 2);
     assert(**array[1] == 2);
 }
+
+struct MyStruct {
+    a: Field,
+    b: u32,
+}
+
+fn struct_field_refs_across_blocks(mut my_struct: MyStruct) -> [Field; 1] {
+    [compute_dummy_hash(my_struct.a, my_struct.b, 20)]
+}
+
+fn compute_dummy_hash(input: Field, rhs: u32, in_len: u32) -> Field {
+    let mut res = 0;
+    if rhs < in_len {
+        res += input;
+    }
+    res
+}
+
