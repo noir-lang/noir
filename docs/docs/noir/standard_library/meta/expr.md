@@ -66,6 +66,13 @@ expression and the type to cast to.
 If this expression is a `comptime { stmt1; stmt2; ...; stmtN }` block,
 return each statement in the block.
 
+### as_constructor
+
+#include_code as_constructor noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a constructor `Type { field1: expr1, ..., fieldN: exprN }`,
+return the type and the fields.
+
 ### as_function_call
 
 #include_code as_function_call noir_stdlib/src/meta/expr.nr rust

@@ -5,7 +5,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Pattern, Signedness,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Path, Pattern, Signedness,
         StatementKind, UnresolvedTypeData,
     },
     elaborator::Elaborator,
@@ -470,4 +470,39 @@ pub(super) fn has_named_attribute<'a>(
     }
 
     false
+}
+
+pub(super) fn quote_ident(ident: &Ident) -> Value {
+    Value::Quoted(ident_to_tokens(ident))
+}
+
+pub(super) fn ident_to_tokens(ident: &Ident) -> Rc<Vec<Token>> {
+    Rc::new(vec![Token::Ident(ident.0.contents.clone())])
+}
+
+pub(super) fn quote_path(path: &Path, interner: &mut NodeInterner) -> Value {
+    Value::Quoted(path_to_tokens(path, interner))
+}
+
+pub(super) fn path_to_tokens(path: &Path, interner: &mut NodeInterner) -> Rc<Vec<Token>> {
+    let mut tokens = Vec::new();
+    for (index, segment) in path.segments.iter().enumerate() {
+        if index > 0 {
+            tokens.push(Token::DoubleColon);
+        }
+        tokens.push(Token::Ident(segment.ident.0.contents.clone()));
+        if let Some(generics) = &segment.generics {
+            tokens.push(Token::DoubleColon);
+            tokens.push(Token::Less);
+            for (index, generic) in generics.iter().enumerate() {
+                if index > 0 {
+                    tokens.push(Token::Comma);
+                }
+                let id = interner.push_unresolved_type_data(generic.typ.clone());
+                tokens.push(Token::InternedUnresolvedTypeData(id));
+            }
+            tokens.push(Token::Greater);
+        }
+    }
+    Rc::new(tokens)
 }

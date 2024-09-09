@@ -65,6 +65,13 @@ impl Expr {
     fn as_comptime(self) -> Option<[Expr]> {}
     // docs:end:as_comptime
 
+    /// If this expression is a constructor `Type { field1: expr1, ..., fieldN: exprN }`,
+    /// return the type and the fields.
+    #[builtin(expr_as_constructor)]
+    // docs:start:as_constructor
+    fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])> {}
+    // docs:end:as_constructor
+
     /// If this expression is a function call `foo(arg1, ..., argN)`, return
     /// the function and a slice of each argument.
     #[builtin(expr_as_function_call)]
@@ -208,6 +215,7 @@ impl Expr {
         let result = result.or_else(|| modify_block(self, f));
         let result = result.or_else(|| modify_cast(self, f));
         let result = result.or_else(|| modify_comptime(self, f));
+        let result = result.or_else(|| modify_constructor(self, f));
         let result = result.or_else(|| modify_if(self, f));
         let result = result.or_else(|| modify_index(self, f));
         let result = result.or_else(|| modify_let(self, f));
@@ -329,6 +337,19 @@ fn modify_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<
         |exprs: [Expr]| {
         let exprs = exprs.map(|expr: Expr| expr.modify(f));
         new_comptime(exprs)
+    }
+    )
+}
+
+fn modify_constructor<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_constructor().map(
+        |expr: (Quoted, [(Quoted, Expr)])| {
+        let (typ, fields) = expr;
+        let fields = fields.map(|field: (Quoted, Expr)| {
+            let (name, value) = field;
+            (name, value.modify(f))
+        });
+        new_constructor(typ, fields)
     }
     )
 }
@@ -506,6 +527,16 @@ fn new_cast(expr: Expr, typ: UnresolvedType) -> Expr {
 fn new_comptime(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { ; });
     quote { comptime { $exprs }}.as_expr().unwrap()
+}
+
+fn new_constructor(typ: Quoted, fields: [(Quoted, Expr)]) -> Expr {
+    let fields = fields.map(
+        |field: (Quoted, Expr)| {
+        let (name, value) = field;
+        quote { $name: $value }
+    }
+    ).join(quote { , });
+    quote { $typ { $fields }}.as_expr().unwrap()
 }
 
 fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr {

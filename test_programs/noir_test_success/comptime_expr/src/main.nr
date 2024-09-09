@@ -326,6 +326,36 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_expr_as_constructor() {
+        comptime
+        {
+            let expr = quote { Foo { a: 1, b: 2 } }.as_expr().unwrap();
+            let (typ, fields) = expr.as_constructor().unwrap();
+            assert_eq(typ, quote { Foo });
+            assert_eq(fields.len(), 2);
+            assert_eq(fields[0].0, quote { a });
+            assert_eq(fields[0].1.as_integer().unwrap(), (1, false));
+            assert_eq(fields[1].0, quote { b });
+            assert_eq(fields[1].1.as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_modify_for_constructor() {
+        comptime
+        {
+            let expr = quote { foo::bar::Baz::<i32, i64> { a: 1, b: 2 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (_typ, fields) = expr.as_constructor().unwrap();
+            assert_eq(fields.len(), 2);
+            assert_eq(fields[0].0, quote { a });
+            assert_eq(fields[0].1.as_integer().unwrap(), (2, false));
+            assert_eq(fields[1].0, quote { b });
+            assert_eq(fields[1].1.as_integer().unwrap(), (4, false));
+        }
+    }
+
     // This test can't only be around the comptime block since that will cause
     // `nargo fmt` to remove the comptime keyword.
     // docs:start:as_expr_example
