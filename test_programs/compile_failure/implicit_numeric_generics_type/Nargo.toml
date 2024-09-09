@@ -1,7 +1,0 @@
-[package]
-name = "implicit_numeric_generics_type"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

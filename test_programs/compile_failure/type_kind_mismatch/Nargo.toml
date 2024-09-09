@@ -1,7 +1,0 @@
-[package]
-name = "type_kind_mismatch"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

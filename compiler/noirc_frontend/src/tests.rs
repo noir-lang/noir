@@ -1938,13 +1938,40 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
 }
 
 #[test]
-fn implicit_numeric_generics_elaborator() {
+fn implicit_numeric_generics_type_kind_mismatch() {
+    let src = r#"
+    fn foo<let N: u32>() -> u16 {
+        N as u16
+    }
+
+    global J: u16 = 10;
+
+    fn bar<let N: u16>() -> u16 {
+        foo::<J>()
+    }
+
+    global M: u16 = 3;
+    
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn implicit_numeric_generics_value_kind_mismatch() {
     let src = r#"
     struct BoundedVec<T, let MaxLen: u32> {
         storage: [T; MaxLen],
         len: u64,
     }
-    
+
     impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         pub fn extend_from_bounded_vec<Len>(&mut self, _vec: BoundedVec<T, Len>) { 
             // We do this to avoid an unused variable warning on `self`

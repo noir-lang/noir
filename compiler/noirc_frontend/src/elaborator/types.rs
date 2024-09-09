@@ -161,18 +161,14 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        if let Type::NamedGeneric(_type_var, _name, resolved_kind) = &resolved_type {
-            assert_eq!(&resolved_type.kind(), resolved_kind);
-            if resolved_type.kind() != *kind {
-                let expected_typ_err =
-                    CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-                        expected_kind: kind.to_string(),
-                        expr_kind: resolved_type.kind().to_string(),
-                        expr_span: span,
-                    });
-                self.errors.push((expected_typ_err, self.file));
-                return Type::Error;
-            }
+        if resolved_type.kind() != *kind {
+            let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
+                expected_kind: kind.to_string(),
+                expr_kind: resolved_type.kind().to_string(),
+                expr_span: span,
+            });
+            self.errors.push((expected_typ_err, self.file));
+            return Type::Error;
         }
 
         resolved_type
