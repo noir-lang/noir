@@ -519,7 +519,7 @@ impl<'context> Elaborator<'context> {
         module_attributes: &[ModuleAttribute],
     ) -> CollectedItems {
         let mut generated_items = CollectedItems::default();
-        self.in_comptime_context_override = true;
+        self.in_comptime_context = true;
 
         for (trait_id, trait_) in traits {
             let attributes = &trait_.trait_def.attributes;
@@ -553,7 +553,7 @@ impl<'context> Elaborator<'context> {
 
         self.run_attributes_on_modules(module_attributes, &mut generated_items);
 
-        self.in_comptime_context_override = false;
+        self.in_comptime_context = false;
         generated_items
     }
 
@@ -608,7 +608,7 @@ impl<'context> Elaborator<'context> {
     /// This will set the `in_comptime_context` flag on `self` as well as
     /// push a new function context to resolve any trait constraints early.
     pub(super) fn elaborate_in_comptime_context<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        let old_comptime_value = std::mem::replace(&mut self.in_comptime_context_override, true);
+        let old_comptime_value = std::mem::replace(&mut self.in_comptime_context, true);
         // We have to push a new FunctionContext so that we can resolve any constraints
         // in this comptime block early before the function as a whole finishes elaborating.
         // Otherwise the interpreter below may find expressions for which the underlying trait
@@ -618,7 +618,23 @@ impl<'context> Elaborator<'context> {
         let result = f(self);
 
         self.check_and_pop_function_context();
-        self.in_comptime_context_override = old_comptime_value;
+        self.in_comptime_context = old_comptime_value;
         result
+    }
+
+    /// True if we're currently within a `comptime` block, function, or global
+    pub(super) fn in_comptime_context(&self) -> bool {
+        if self.in_comptime_context {
+            return true;
+        }
+
+        self.in_comptime_context
+            || match self.current_item {
+                Some(DependencyId::Function(id)) => {
+                    self.interner.function_modifiers(&id).is_comptime
+                }
+                Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
+                _ => false,
+            }
     }
 }

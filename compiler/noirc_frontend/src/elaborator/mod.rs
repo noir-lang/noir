@@ -160,7 +160,7 @@ pub struct Elaborator<'context> {
 
     /// True if we're elaborating a comptime item such as a comptime function,
     /// block, global, or attribute.
-    in_comptime_context_override: bool,
+    in_comptime_context: bool,
 
     crate_id: CrateId,
 
@@ -219,7 +219,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             current_trait: None,
             interpreter_call_stack,
-            in_comptime_context_override: false,
+            in_comptime_context: false,
         }
     }
 
@@ -1428,21 +1428,6 @@ impl<'context> Elaborator<'context> {
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None);
             });
-        }
-    }
-
-    /// True if we're currently within a `comptime` block, function, or global
-    fn in_comptime_context(&self) -> bool {
-        // The first context is the global context, followed by the function-specific context.
-        // Any context after that is a `comptime {}` block's.
-        if self.in_comptime_context_override || self.function_context.len() > 2 {
-            return true;
-        }
-
-        match self.current_item {
-            Some(DependencyId::Function(id)) => self.interner.function_modifiers(&id).is_comptime,
-            Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
-            _ => false,
         }
     }
 
