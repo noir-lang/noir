@@ -1996,7 +1996,6 @@ fn numeric_generics_value_kind_mismatch() {
         errors[1].0,
         CompilationError::ResolverError(ResolverError::VariableNotDeclared { .. }),
     ));
-    // N
     assert!(matches!(
         errors[2].0,
         CompilationError::TypeError(TypeCheckError::IntegerBitWidth {
