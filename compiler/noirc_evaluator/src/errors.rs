@@ -7,7 +7,7 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::{acir::InvalidInputBitSize, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
@@ -32,8 +32,13 @@ pub enum RuntimeError {
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]
     UnInitialized { name: String, call_stack: CallStack },
-    #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
+    #[error("Integer{} sized {num_bits:?} is over the max supported size of {max_num_bits:?}", opt_value.as_ref().map(|x| format!(" ({})", x)).unwrap_or("".to_string()))]
+    UnsupportedIntegerSize {
+        opt_value: Option<String>,
+        num_bits: u32,
+        max_num_bits: u32,
+        call_stack: CallStack,
+    },
     #[error("Could not determine loop bound at compile-time")]
     UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
@@ -54,8 +59,6 @@ pub enum RuntimeError {
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
     #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
     UnknownReference { call_stack: CallStack },
-    #[error("{invalid_input_bit_size}")]
-    InvalidInputBitSize { invalid_input_bit_size: InvalidInputBitSize, call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -160,7 +163,6 @@ impl RuntimeError {
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
-            | RuntimeError::InvalidInputBitSize { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,
