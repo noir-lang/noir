@@ -307,7 +307,13 @@ impl<'context> Elaborator<'context> {
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments, |arg| {
             let span = arg.span;
-            let (arg, typ) = self.elaborate_expression(arg);
+
+            let (arg, typ) = if call.is_macro_call {
+                self.elaborate_in_comptime_context(|this| this.elaborate_expression(arg))
+            } else {
+                self.elaborate_expression(arg)
+            };
+
             arguments.push(arg);
             (typ, arg, span)
         });

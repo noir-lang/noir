@@ -159,18 +159,18 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         if let SecondaryAttribute::Custom(attribute) = attribute {
-            self.function_context.push(FunctionContext::default());
-            if let Err(error) = self.run_comptime_attribute_name_on_item(
-                &attribute.contents,
-                item.clone(),
-                span,
-                attribute.contents_span,
-                attribute_context,
-                generated_items,
-            ) {
-                self.errors.push(error);
-            }
-            self.check_and_pop_function_context();
+            self.elaborate_in_comptime_context(|this| {
+                if let Err(error) = this.run_comptime_attribute_name_on_item(
+                    &attribute.contents,
+                    item.clone(),
+                    span,
+                    attribute.contents_span,
+                    attribute_context,
+                    generated_items,
+                ) {
+                    this.errors.push(error);
+                }
+            });
         }
     }
 
@@ -519,7 +519,6 @@ impl<'context> Elaborator<'context> {
         module_attributes: &[ModuleAttribute],
     ) -> CollectedItems {
         let mut generated_items = CollectedItems::default();
-        self.in_comptime_context = true;
 
         for (trait_id, trait_) in traits {
             let attributes = &trait_.trait_def.attributes;
@@ -553,7 +552,6 @@ impl<'context> Elaborator<'context> {
 
         self.run_attributes_on_modules(module_attributes, &mut generated_items);
 
-        self.in_comptime_context = false;
         generated_items
     }
 
