@@ -21,7 +21,7 @@ mod separate_module;
 
 comptime mut global counter = 0;
 
-fn increment_counter() {
+comptime fn increment_counter() {
     counter += 1;
 }
 
@@ -85,6 +85,7 @@ fn main() {
         assert(another_module.has_named_attribute(quote { some_attribute }));
     }
 
+    println(counter);
     assert_eq(counter, 4);
 
     yet_another_module::generated_outer_function();
