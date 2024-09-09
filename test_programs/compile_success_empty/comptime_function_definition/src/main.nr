@@ -74,7 +74,7 @@ mod foo {
     #[attr]
     pub fn some() {}
 
-    fn attr(f: FunctionDefinition) {
+    comptime fn attr(f: FunctionDefinition) {
         assert_eq(f.module().name(), quote { foo });
 
         assert(!f.is_unconstrained());
