@@ -1,11 +1,13 @@
 use lsp_types::{
-    Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
+    Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
+    InsertTextFormat, MarkupContent, MarkupKind,
 };
 use noirc_frontend::{
     ast::AttributeTarget,
+    hir::def_map::ModuleId,
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    macros_api::ModuleDefId,
-    node_interner::{FuncId, GlobalId},
+    macros_api::{ModuleDefId, StructId},
+    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
     QuotedType, Type,
 };
 
@@ -54,7 +56,7 @@ impl<'a> NodeFinder<'a> {
             };
 
         match module_def_id {
-            ModuleDefId::ModuleId(_) => Some(module_completion_item(name)),
+            ModuleDefId::ModuleId(id) => Some(self.module_completion_item(name, id)),
             ModuleDefId::FunctionId(func_id) => self.function_completion_item(
                 &name,
                 func_id,
@@ -63,23 +65,61 @@ impl<'a> NodeFinder<'a> {
                 attribute_first_type.as_ref(),
                 false, // self_prefix
             ),
-            ModuleDefId::TypeId(..) => Some(self.struct_completion_item(name)),
-            ModuleDefId::TypeAliasId(..) => Some(self.type_alias_completion_item(name)),
-            ModuleDefId::TraitId(..) => Some(self.trait_completion_item(name)),
+            ModuleDefId::TypeId(struct_id) => Some(self.struct_completion_item(name, struct_id)),
+            ModuleDefId::TypeAliasId(id) => Some(self.type_alias_completion_item(name, id)),
+            ModuleDefId::TraitId(trait_id) => Some(self.trait_completion_item(name, trait_id)),
             ModuleDefId::GlobalId(global_id) => Some(self.global_completion_item(name, global_id)),
         }
     }
 
-    fn struct_completion_item(&self, name: String) -> CompletionItem {
-        simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name))
+    pub(super) fn crate_completion_item(
+        &self,
+        name: impl Into<String>,
+        id: ModuleId,
+    ) -> CompletionItem {
+        self.module_completion_item(name, id)
     }
 
-    fn type_alias_completion_item(&self, name: String) -> CompletionItem {
-        simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name))
+    pub(super) fn module_completion_item(
+        &self,
+        name: impl Into<String>,
+        id: ModuleId,
+    ) -> CompletionItem {
+        let completion_item = module_completion_item(name);
+        self.completion_item_with_doc_comments(ReferenceId::Module(id), completion_item)
     }
 
-    fn trait_completion_item(&self, name: String) -> CompletionItem {
-        simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name))
+    fn struct_completion_item(&self, name: String, struct_id: StructId) -> CompletionItem {
+        let completion_item =
+            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Struct(struct_id), completion_item)
+    }
+
+    pub(super) fn struct_field_completion_item(
+        &self,
+        field: &str,
+        typ: &Type,
+        struct_id: StructId,
+        field_index: usize,
+        self_type: bool,
+    ) -> CompletionItem {
+        let completion_item = struct_field_completion_item(field, typ, self_type);
+        self.completion_item_with_doc_comments(
+            ReferenceId::StructMember(struct_id, field_index),
+            completion_item,
+        )
+    }
+
+    fn type_alias_completion_item(&self, name: String, id: TypeAliasId) -> CompletionItem {
+        let completion_item =
+            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Alias(id), completion_item)
+    }
+
+    fn trait_completion_item(&self, name: String, trait_id: TraitId) -> CompletionItem {
+        let completion_item =
+            simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Trait(trait_id), completion_item)
     }
 
     fn global_completion_item(&self, name: String, global_id: GlobalId) -> CompletionItem {
@@ -87,7 +127,9 @@ impl<'a> NodeFinder<'a> {
         let typ = self.interner.definition_type(global.definition_id);
         let description = typ.to_string();
 
-        simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description))
+        let completion_item =
+            simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
+        self.completion_item_with_doc_comments(ReferenceId::Global(global_id), completion_item)
     }
 
     pub(super) fn function_completion_item(
@@ -210,7 +252,8 @@ impl<'a> NodeFinder<'a> {
                 completion_item_with_trigger_parameter_hints_command(completion_item)
             }
         };
-
+        let completion_item =
+            self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item);
         Some(completion_item)
     }
 
@@ -259,6 +302,25 @@ impl<'a> NodeFinder<'a> {
         text
     }
 
+    fn completion_item_with_doc_comments(
+        &self,
+        id: ReferenceId,
+        completion_item: CompletionItem,
+    ) -> CompletionItem {
+        if let Some(doc_comments) = self.interner.doc_comments(id) {
+            let docs = doc_comments.join("\n");
+            CompletionItem {
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: docs,
+                })),
+                ..completion_item
+            }
+        } else {
+            completion_item
+        }
+    }
+
     fn hir_pattern_to_argument(&self, pattern: &HirPattern, text: &mut String) {
         match pattern {
             HirPattern::Identifier(hir_ident) => {
@@ -282,13 +344,6 @@ impl<'a> NodeFinder<'a> {
 }
 
 pub(super) fn module_completion_item(name: impl Into<String>) -> CompletionItem {
-    completion_item_with_sort_text(
-        simple_completion_item(name, CompletionItemKind::MODULE, None),
-        crate_or_module_sort_text(),
-    )
-}
-
-pub(super) fn crate_completion_item(name: impl Into<String>) -> CompletionItem {
     completion_item_with_sort_text(
         simple_completion_item(name, CompletionItemKind::MODULE, None),
         crate_or_module_sort_text(),

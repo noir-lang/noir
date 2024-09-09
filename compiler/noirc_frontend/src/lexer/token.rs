@@ -448,6 +448,8 @@ pub enum TokenKind {
     InternedUnresolvedTypeData,
     InternedPattern,
     UnquoteMarker,
+    OuterDocComment,
+    InnerDocComment,
 }
 
 impl fmt::Display for TokenKind {
@@ -467,6 +469,8 @@ impl fmt::Display for TokenKind {
             TokenKind::InternedUnresolvedTypeData => write!(f, "interned unresolved type"),
             TokenKind::InternedPattern => write!(f, "interned pattern"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
+            TokenKind::OuterDocComment => write!(f, "outer doc comment"),
+            TokenKind::InnerDocComment => write!(f, "inner doc comment"),
         }
     }
 }
@@ -491,6 +495,10 @@ impl Token {
             Token::InternedLValue(_) => TokenKind::InternedLValue,
             Token::InternedUnresolvedTypeData(_) => TokenKind::InternedUnresolvedTypeData,
             Token::InternedPattern(_) => TokenKind::InternedPattern,
+            Token::LineComment(_, Some(DocStyle::Outer))
+            | Token::BlockComment(_, Some(DocStyle::Outer)) => TokenKind::OuterDocComment,
+            Token::LineComment(_, Some(DocStyle::Inner))
+            | Token::BlockComment(_, Some(DocStyle::Inner)) => TokenKind::InnerDocComment,
             tok => TokenKind::Token(tok.clone()),
         }
     }
