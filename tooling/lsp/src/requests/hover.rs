@@ -350,7 +350,7 @@ fn format_parent_module_from_module_id(
         }
     }
 
-    // We don't record module attriubtes for the root module,
+    // We don't record module attributes for the root module,
     // so we handle that case separately
     if module.krate.is_root() {
         segments.push(&args.crate_name);
