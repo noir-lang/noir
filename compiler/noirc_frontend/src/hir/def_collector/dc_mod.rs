@@ -604,7 +604,8 @@ impl<'a> ModCollector<'a> {
                         false,
                     );
 
-                    if !(doc_comments.is_empty() && submodule.contents.inner_doc_comments.is_empty())
+                    if !(doc_comments.is_empty()
+                        && submodule.contents.inner_doc_comments.is_empty())
                     {
                         doc_comments.extend(submodule.contents.inner_doc_comments.clone());
 
