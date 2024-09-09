@@ -1807,30 +1807,32 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    let value =
-        interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
-            ExprValue::Expression(expression_kind) => {
-                let expr = Expression { kind: expression_kind, span: self_argument_location.span };
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Value::TypedExpr(TypedExpr::ExprId(expr_id))
+    interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
+        ExprValue::Expression(expression_kind) => {
+            let expr = Expression { kind: expression_kind, span: self_argument_location.span };
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+        }
+        ExprValue::Statement(statement_kind) => {
+            let statement = Statement { kind: statement_kind, span: self_argument_location.span };
+            let (stmt_id, _) = elaborator.elaborate_statement(statement);
+            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+        }
+        ExprValue::LValue(lvalue) => {
+            let expr = lvalue.as_expression();
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+        }
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                Ok(Value::expression(expression.kind))
+            } else {
+                let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
+                let location = self_argument_location;
+                Err(InterpreterError::CannotResolveExpression { location, expression })
             }
-            ExprValue::Statement(statement_kind) => {
-                let statement =
-                    Statement { kind: statement_kind, span: self_argument_location.span };
-                let (stmt_id, _) = elaborator.elaborate_statement(statement);
-                Value::TypedExpr(TypedExpr::StmtId(stmt_id))
-            }
-            ExprValue::LValue(lvalue) => {
-                let expr = lvalue.as_expression();
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Value::TypedExpr(TypedExpr::ExprId(expr_id))
-            }
-            ExprValue::Pattern(_) => {
-                todo!("Can't resolve a pattern");
-            }
-        });
-
-    Ok(value)
+        }
+    })
 }
 
 fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
@@ -2055,8 +2057,15 @@ fn function_def_set_body(
         }),
         ExprValue::Statement(statement_kind) => statement_kind,
         ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
-        ExprValue::Pattern(_) => {
-            todo!("Can't set function body to a pattern");
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(interpreter.elaborator.interner) {
+                StatementKind::Expression(expression)
+            } else {
+                let expression =
+                    Value::pattern(pattern).display(interpreter.elaborator.interner).to_string();
+                let location = body_location;
+                return Err(InterpreterError::CannotSetFunctionBody { location, expression });
+            }
         }
     };
 

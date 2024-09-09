@@ -7,12 +7,12 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, Expression, ExpressionKind, GenericTypeArgs, IndexExpression, ItemVisibility,
-    MemberAccessExpression, MethodCallExpression, UnresolvedType,
+    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
+    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::{SecondaryAttribute, UnresolvedTypeData};
+use crate::macros_api::{NodeInterner, SecondaryAttribute, UnresolvedTypeData};
 use crate::node_interner::{InternedExpressionKind, InternedPattern, InternedStatementKind};
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
@@ -595,6 +595,39 @@ impl Pattern {
             Pattern::Identifier(ident) => ident,
             Pattern::Mutable(pattern, _, _) => pattern.into_ident(),
             other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
+        }
+    }
+
+    pub(crate) fn try_as_expression(&self, interner: &NodeInterner) -> Option<Expression> {
+        match self {
+            Pattern::Identifier(ident) => Some(Expression {
+                kind: ExpressionKind::Variable(Path::from_ident(ident.clone())),
+                span: ident.span(),
+            }),
+            Pattern::Mutable(_, _, _) => None,
+            Pattern::Tuple(patterns, span) => {
+                let mut expressions = Vec::new();
+                for pattern in patterns {
+                    expressions.push(pattern.try_as_expression(interner)?);
+                }
+                Some(Expression { kind: ExpressionKind::Tuple(expressions), span: *span })
+            }
+            Pattern::Struct(path, patterns, span) => {
+                let mut fields = Vec::new();
+                for (field, pattern) in patterns {
+                    let expression = pattern.try_as_expression(interner)?;
+                    fields.push((field.clone(), expression));
+                }
+                Some(Expression {
+                    kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                        type_name: path.clone(),
+                        fields,
+                        struct_type: None,
+                    })),
+                    span: *span,
+                })
+            }
+            Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
     }
 }
