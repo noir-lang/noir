@@ -31,13 +31,6 @@ impl Expr {
     fn as_assign(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_assign
 
-    /// If this expression is an integer literal, return the integer as a field
-    /// as well as whether the integer is negative (true) or not (false).
-    #[builtin(expr_as_integer)]
-    // docs:start:as_integer
-    fn as_integer(self) -> Option<(Field, bool)> {}
-    // docs:end:as_integer
-
     /// If this expression is a binary operator operation `<lhs> <op> <rhs>`,
     /// return the left-hand side, operator, and the right-hand side of the operation.
     #[builtin(expr_as_binary_op)]
@@ -93,6 +86,13 @@ impl Expr {
     // docs:start:as_index
     fn as_index(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_index
+
+    /// If this expression is an integer literal, return the integer as a field
+    /// as well as whether the integer is negative (true) or not (false).
+    #[builtin(expr_as_integer)]
+    // docs:start:as_integer
+    fn as_integer(self) -> Option<(Field, bool)> {}
+    // docs:end:as_integer
 
     /// If this expression is a let statement, returns the let pattern as an `Expr`,
     /// the optional type annotation, and the assigned expression.
