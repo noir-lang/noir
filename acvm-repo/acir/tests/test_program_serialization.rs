@@ -164,10 +164,20 @@ fn simple_brillig_foreign_call() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            brillig::Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1_usize),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_usize),
+            },
             brillig::Opcode::CalldataCopy {
                 destination_address: MemoryAddress(0),
-                size: 1,
-                offset: 0,
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
             },
             brillig::Opcode::ForeignCall {
                 function: "invert".into(),
@@ -204,11 +214,12 @@ fn simple_brillig_foreign_call() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 80, 49, 10, 192, 32, 12, 52, 45, 45, 133, 110, 190,
-        68, 127, 224, 103, 28, 92, 28, 68, 124, 191, 130, 9, 4, 137, 46, 122, 16, 46, 119, 7, 33,
-        9, 168, 142, 175, 21, 96, 255, 32, 147, 230, 32, 207, 33, 155, 61, 88, 56, 55, 203, 240,
-        125, 175, 177, 1, 110, 170, 197, 101, 55, 242, 43, 100, 132, 159, 229, 33, 22, 159, 242,
-        234, 87, 51, 45, 121, 90, 200, 42, 48, 209, 35, 111, 164, 1, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 81, 49, 10, 128, 48, 12, 108, 196, 138, 224, 230,
+        75, 226, 15, 252, 140, 131, 139, 131, 136, 239, 111, 161, 9, 28, 165, 205, 210, 28, 132,
+        36, 119, 16, 114, 9, 133, 130, 53, 7, 73, 29, 37, 107, 143, 80, 238, 148, 204, 99, 56, 200,
+        111, 22, 227, 190, 83, 93, 16, 146, 193, 112, 22, 225, 34, 168, 205, 142, 174, 241, 218,
+        206, 179, 121, 49, 188, 109, 57, 84, 191, 159, 255, 122, 63, 235, 199, 189, 190, 197, 237,
+        13, 45, 1, 20, 245, 146, 30, 92, 2, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -230,20 +241,40 @@ fn complex_brillig_foreign_call() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            brillig::Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(3_usize),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_usize),
+            },
             brillig::Opcode::CalldataCopy {
                 destination_address: MemoryAddress(32),
-                size: 3,
-                offset: 0,
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
             },
             brillig::Opcode::Const {
                 destination: MemoryAddress(0),
                 value: FieldElement::from(32_usize),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
             },
+            brillig::Opcode::Const {
+                destination: MemoryAddress(3),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1_usize),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress(4),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(3_usize),
+            },
             brillig::Opcode::CalldataCopy {
                 destination_address: MemoryAddress(1),
-                size: 1,
-                offset: 3,
+                size_address: MemoryAddress(3),
+                offset_address: MemoryAddress(4),
             },
             // Oracles are named 'foreign calls' in brillig
             brillig::Opcode::ForeignCall {
@@ -307,15 +338,17 @@ fn complex_brillig_foreign_call() {
 
     let bytes = Program::serialize_program(&program);
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 84, 75, 10, 132, 48, 12, 77, 90, 199, 17, 102, 55,
-        39, 24, 152, 57, 64, 199, 19, 120, 23, 113, 167, 232, 210, 227, 107, 49, 98, 124, 22, 92,
-        88, 65, 31, 148, 244, 147, 207, 75, 66, 202, 52, 33, 27, 23, 203, 254, 33, 210, 136, 244,
-        247, 150, 214, 152, 117, 11, 145, 238, 24, 254, 28, 207, 151, 59, 139, 163, 185, 1, 71,
-        123, 2, 71, 82, 253, 191, 96, 191, 99, 246, 37, 106, 253, 108, 96, 126, 18, 154, 230, 43,
-        149, 243, 83, 100, 134, 133, 246, 70, 134, 182, 131, 183, 2, 78, 172, 247, 250, 1, 71, 132,
-        17, 196, 46, 137, 150, 105, 238, 82, 197, 133, 33, 254, 75, 101, 89, 182, 77, 87, 87, 189,
-        5, 85, 164, 251, 85, 251, 31, 188, 51, 216, 161, 173, 134, 254, 192, 66, 186, 28, 208, 219,
-        243, 253, 166, 165, 196, 115, 217, 7, 253, 216, 100, 109, 69, 5, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 85, 81, 14, 194, 48, 8, 133, 118, 206, 26, 255, 60,
+        129, 137, 30, 160, 211, 11, 120, 23, 227, 159, 70, 63, 61, 190, 146, 209, 140, 177, 46,
+        251, 24, 77, 182, 151, 44, 116, 45, 16, 120, 64, 139, 208, 34, 252, 63, 228, 245, 134, 165,
+        99, 73, 251, 30, 250, 72, 186, 55, 150, 113, 30, 26, 180, 243, 21, 75, 197, 232, 86, 16,
+        163, 47, 16, 35, 136, 250, 47, 176, 222, 150, 117, 49, 229, 207, 103, 230, 167, 130, 118,
+        190, 106, 254, 223, 178, 12, 154, 104, 50, 114, 48, 28, 188, 30, 82, 247, 236, 180, 23, 62,
+        171, 236, 178, 185, 202, 27, 194, 216, 119, 36, 54, 142, 35, 185, 149, 203, 233, 18, 131,
+        34, 220, 48, 167, 38, 176, 191, 18, 181, 168, 5, 63, 178, 179, 8, 123, 232, 186, 234, 254,
+        126, 125, 158, 143, 175, 87, 148, 74, 51, 194, 73, 172, 207, 234, 28, 149, 157, 182, 149,
+        144, 15, 70, 78, 23, 51, 122, 83, 190, 15, 208, 181, 70, 122, 152, 126, 56, 83, 244, 10,
+        181, 6, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)

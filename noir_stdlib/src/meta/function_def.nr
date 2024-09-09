@@ -14,6 +14,16 @@ impl FunctionDefinition {
     fn has_named_attribute(self, name: Quoted) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(function_def_is_unconstrained)]
+    // docs:start:is_unconstrained
+    fn is_unconstrained(self) -> bool {}
+    // docs:end:is_unconstrained
+
+    #[builtin(function_def_module)]
+    // docs:start:module
+    fn module(self) -> Module {}
+    // docs:end:module
+
     #[builtin(function_def_name)]
     // docs:start:name
     fn name(self) -> Quoted {}
@@ -48,4 +58,9 @@ impl FunctionDefinition {
     // docs:start:set_return_public
     fn set_return_public(self, public: bool) {}
     // docs:end:set_return_public
+
+    #[builtin(function_def_set_unconstrained)]
+    // docs:start:set_unconstrained
+    fn set_unconstrained(self, value: bool) {}
+    // docs:end:set_unconstrained
 }

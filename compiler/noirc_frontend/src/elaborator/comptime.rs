@@ -52,10 +52,41 @@ impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope.
     /// When this happens we require additional information to know
     /// what variables should be in scope.
-    pub fn elaborate_item_from_comptime<'a, T>(
+    pub fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            if let Some(function) = current_function {
+                let meta = elaborator.interner.function_meta(&function);
+                elaborator.current_item = Some(DependencyId::Function(function));
+                elaborator.crate_id = meta.source_crate;
+                elaborator.local_module = meta.source_module;
+                elaborator.file = meta.source_file;
+                elaborator.introduce_generics_into_scope(meta.all_generics.clone());
+            }
+        })
+    }
+
+    pub fn elaborate_item_from_comptime_in_module<'a, T>(
+        &'a mut self,
+        module: ModuleId,
+        file: FileId,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            elaborator.current_item = None;
+            elaborator.crate_id = module.krate;
+            elaborator.local_module = module.local_id;
+            elaborator.file = file;
+        })
+    }
+
+    fn elaborate_item_from_comptime<'a, T>(
+        &'a mut self,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+        setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
         // Create a fresh elaborator to ensure no state is changed from
         // this elaborator
@@ -64,21 +95,13 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.crate_id,
             self.debug_comptime_in_file,
-            self.enable_arithmetic_generics,
             self.interpreter_call_stack.clone(),
         );
 
         elaborator.function_context.push(FunctionContext::default());
         elaborator.scopes.start_function();
 
-        if let Some(function) = current_function {
-            let meta = elaborator.interner.function_meta(&function);
-            elaborator.current_item = Some(DependencyId::Function(function));
-            elaborator.crate_id = meta.source_crate;
-            elaborator.local_module = meta.source_module;
-            elaborator.file = meta.source_file;
-            elaborator.introduce_generics_into_scope(meta.all_generics.clone());
-        }
+        setup(&mut elaborator);
 
         elaborator.populate_scope_from_comptime_scopes();
 
@@ -352,7 +375,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_item(
+    pub(crate) fn add_item(
         &mut self,
         item: TopLevelStatement,
         generated_items: &mut CollectedItems,

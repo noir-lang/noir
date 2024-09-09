@@ -481,11 +481,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         self.debug_show.calldata_copy_instruction(destination, calldata_size, offset);
 
+        let size_var = self.make_usize_constant_instruction(calldata_size.into());
+        let offset_var = self.make_usize_constant_instruction(offset.into());
         self.push_opcode(BrilligOpcode::CalldataCopy {
             destination_address: destination,
-            size: calldata_size,
-            offset,
+            size_address: size_var.address,
+            offset_address: offset_var.address,
         });
+        self.deallocate_single_addr(size_var);
+        self.deallocate_single_addr(offset_var);
     }
 
     pub(super) fn trap_instruction(&mut self, revert_data: HeapArray) {

@@ -35,6 +35,9 @@ struct MyOtherOtherStruct<T> {
     x: T,
 }
 
+#[derive(Eq, Default, Hash, Ord)]
+struct EmptyStruct { }
+
 fn main() {
     let s = MyStruct { my_field: 1 };
     s.do_nothing();
@@ -53,6 +56,9 @@ fn main() {
     let mut hasher = TestHasher { result: 0 };
     o1.hash(&mut hasher);
     assert_eq(hasher.finish(), 12 + 24 + 54);
+
+    let empty = EmptyStruct {};
+    assert_eq(empty, empty);
 }
 
 struct TestHasher {

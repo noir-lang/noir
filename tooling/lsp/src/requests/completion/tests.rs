@@ -7,8 +7,7 @@ mod completion_tests {
                 completion_items::{
                     completion_item_with_sort_text,
                     completion_item_with_trigger_parameter_hints_command, crate_completion_item,
-                    field_completion_item, module_completion_item, simple_completion_item,
-                    snippet_completion_item,
+                    module_completion_item, simple_completion_item, snippet_completion_item,
                 },
                 sort_text::{auto_import_sort_text, self_mismatch_sort_text},
             },
@@ -114,6 +113,10 @@ mod completion_tests {
             insert_text,
             Some(description.into()),
         ))
+    }
+
+    fn field_completion_item(field: &str, typ: impl Into<String>) -> CompletionItem {
+        crate::requests::completion::field_completion_item(field, typ, false)
     }
 
     #[test]
@@ -1887,5 +1890,66 @@ mod completion_tests {
             item.label_details.as_ref().unwrap().detail,
             Some("(use super::barbaz)".to_string()),
         );
+    }
+
+    #[test]
+    async fn test_suggests_self_fields_and_methods() {
+        let src = r#"
+            struct Foo {
+                foobar: Field,
+            }
+
+            impl Foo {
+                fn foobarbaz(self) {}
+
+                fn some_method(self) {
+                    foob>|<
+                }
+            }
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![
+                field_completion_item("self.foobar", "Field"),
+                function_completion_item("self.foobarbaz()", "self.foobarbaz()", "fn(self)"),
+            ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_built_in_function_attribute() {
+        let src = r#"
+            #[dep>|<]
+            fn foo() {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item("deprecated", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_function_attribute() {
+        let src = r#"
+            #[some>|<]
+            fn foo() {}
+
+            fn some_attr(f: FunctionDefinition, x: Field) {}
+            fn some_other_function(x: Field) {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item(
+                "some_attr(…)",
+                "some_attr(${1:x})",
+                "fn(FunctionDefinition, Field)",
+            )],
+        )
+        .await;
     }
 }

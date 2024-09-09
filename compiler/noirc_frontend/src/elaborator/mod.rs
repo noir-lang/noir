@@ -168,9 +168,6 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    /// Temporary flag to enable the experimental arithmetic generics feature
-    enable_arithmetic_generics: bool,
-
     pub(crate) interpreter_call_stack: im::Vector<Location>,
 }
 
@@ -194,7 +191,6 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
         interpreter_call_stack: im::Vector<Location>,
     ) -> Self {
         Self {
@@ -217,7 +213,6 @@ impl<'context> Elaborator<'context> {
             current_trait_impl: None,
             debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
-            enable_arithmetic_generics,
             current_trait: None,
             interpreter_call_stack,
         }
@@ -227,14 +222,12 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
             crate_id,
             debug_comptime_in_file,
-            enable_arithmetic_generics,
             im::Vector::new(),
         )
     }
@@ -244,16 +237,8 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(
-            context,
-            crate_id,
-            items,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        )
-        .errors
+        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
     }
 
     pub fn elaborate_and_return_self(
@@ -261,20 +246,14 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Self {
-        let mut this = Self::from_context(
-            context,
-            crate_id,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        );
+        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
     }
 
-    fn elaborate_items(&mut self, mut items: CollectedItems) {
+    pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         //
