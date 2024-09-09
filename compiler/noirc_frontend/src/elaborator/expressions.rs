@@ -54,7 +54,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
-            ExpressionKind::Quote(quote) => self.elaborate_quote(quote),
+            ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.span),
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
@@ -307,7 +307,13 @@ impl<'context> Elaborator<'context> {
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments, |arg| {
             let span = arg.span;
-            let (arg, typ) = self.elaborate_expression(arg);
+
+            let (arg, typ) = if call.is_macro_call {
+                self.elaborate_in_comptime_context(|this| this.elaborate_expression(arg))
+            } else {
+                self.elaborate_expression(arg)
+            };
+
             arguments.push(arg);
             (typ, arg, span)
         });
@@ -735,20 +741,21 @@ impl<'context> Elaborator<'context> {
         (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
     }
 
-    fn elaborate_quote(&mut self, mut tokens: Tokens) -> (HirExpression, Type) {
+    fn elaborate_quote(&mut self, mut tokens: Tokens, span: Span) -> (HirExpression, Type) {
         tokens = self.find_unquoted_exprs_tokens(tokens);
-        (HirExpression::Quote(tokens), Type::Quoted(QuotedType::Quoted))
+
+        if self.in_comptime_context() {
+            (HirExpression::Quote(tokens), Type::Quoted(QuotedType::Quoted))
+        } else {
+            self.push_err(ResolverError::QuoteInRuntimeCode { span });
+            (HirExpression::Error, Type::Quoted(QuotedType::Quoted))
+        }
     }
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
-        // We have to push a new FunctionContext so that we can resolve any constraints
-        // in this comptime block early before the function as a whole finishes elaborating.
-        // Otherwise the interpreter below may find expressions for which the underlying trait
-        // call is not yet solved for.
-        self.function_context.push(Default::default());
-        let (block, _typ) = self.elaborate_block_expression(block);
+        let (block, _typ) =
+            self.elaborate_in_comptime_context(|this| this.elaborate_block_expression(block));
 
-        self.check_and_pop_function_context();
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
         let (id, typ) = self.inline_comptime_value(value, span);
