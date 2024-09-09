@@ -85,7 +85,6 @@ fn main() {
         assert(another_module.has_named_attribute(quote { some_attribute }));
     }
 
-    println(counter);
     assert_eq(counter, 4);
 
     yet_another_module::generated_outer_function();
