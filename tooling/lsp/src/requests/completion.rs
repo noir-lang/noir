@@ -4,10 +4,7 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use completion_items::{
-    crate_completion_item, field_completion_item, simple_completion_item, snippet_completion_item,
-    struct_field_completion_item,
-};
+use completion_items::{field_completion_item, simple_completion_item, snippet_completion_item};
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
