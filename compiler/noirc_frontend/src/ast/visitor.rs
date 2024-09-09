@@ -30,6 +30,7 @@ use super::{
 pub enum AttributeTarget {
     Module,
     Struct,
+    Trait,
     Function,
 }
 
@@ -615,6 +616,10 @@ impl NoirTrait {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Trait, visitor);
+        }
+
         for item in &self.items {
             item.item.accept(visitor);
         }
