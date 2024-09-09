@@ -2,10 +2,11 @@ use lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
 };
 use noirc_frontend::{
+    ast::AttributeTarget,
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::ModuleDefId,
     node_interner::{FuncId, GlobalId},
-    Type,
+    QuotedType, Type,
 };
 
 use super::{
@@ -33,8 +34,24 @@ impl<'a> NodeFinder<'a> {
                 | ModuleDefId::TypeAliasId(_)
                 | ModuleDefId::TraitId(_) => (),
             },
+            RequestedItems::OnlyAttributeFunctions(..) => {
+                if !matches!(module_def_id, ModuleDefId::FunctionId(..)) {
+                    return None;
+                }
+            }
             RequestedItems::AnyItems => (),
         }
+
+        let attribute_first_type =
+            if let RequestedItems::OnlyAttributeFunctions(target) = requested_items {
+                match target {
+                    AttributeTarget::Module => Some(Type::Quoted(QuotedType::Module)),
+                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
+                    AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
+                }
+            } else {
+                None
+            };
 
         match module_def_id {
             ModuleDefId::ModuleId(_) => Some(module_completion_item(name)),
@@ -43,6 +60,8 @@ impl<'a> NodeFinder<'a> {
                 func_id,
                 function_completion_kind,
                 function_kind,
+                attribute_first_type.as_ref(),
+                false, // self_prefix
             ),
             ModuleDefId::TypeId(..) => Some(self.struct_completion_item(name)),
             ModuleDefId::TypeAliasId(..) => Some(self.type_alias_completion_item(name)),
@@ -77,6 +96,8 @@ impl<'a> NodeFinder<'a> {
         func_id: FuncId,
         function_completion_kind: FunctionCompletionKind,
         function_kind: FunctionKind,
+        attribute_first_type: Option<&Type>,
+        self_prefix: bool,
     ) -> Option<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
 
@@ -94,6 +115,17 @@ impl<'a> NodeFinder<'a> {
         } else {
             None
         };
+
+        if let Some(attribute_first_type) = attribute_first_type {
+            if func_meta.parameters.is_empty() {
+                return None;
+            }
+
+            let (_, typ, _) = &func_meta.parameters.0[0];
+            if typ != attribute_first_type {
+                return None;
+            }
+        }
 
         match function_kind {
             FunctionKind::Any => (),
@@ -135,6 +167,8 @@ impl<'a> NodeFinder<'a> {
         } else {
             false
         };
+        let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
+        let name = &name;
         let description = func_meta_type_to_string(func_meta, func_self_type.is_some());
 
         let completion_item = match function_completion_kind {
@@ -143,7 +177,13 @@ impl<'a> NodeFinder<'a> {
             }
             FunctionCompletionKind::NameAndParameters => {
                 let kind = CompletionItemKind::FUNCTION;
-                let insert_text = self.compute_function_insert_text(func_meta, name, function_kind);
+                let skip_first_argument = attribute_first_type.is_some();
+                let insert_text = self.compute_function_insert_text(
+                    func_meta,
+                    name,
+                    function_kind,
+                    skip_first_argument,
+                );
                 let label = if insert_text.ends_with("()") {
                     format!("{}()", name)
                 } else {
@@ -179,13 +219,19 @@ impl<'a> NodeFinder<'a> {
         func_meta: &FuncMeta,
         name: &str,
         function_kind: FunctionKind,
+        skip_first_argument: bool,
     ) -> String {
         let mut text = String::new();
         text.push_str(name);
         text.push('(');
 
+        let mut parameters = func_meta.parameters.0.iter();
+        if skip_first_argument {
+            parameters.next();
+        }
+
         let mut index = 1;
-        for (pattern, _, _) in &func_meta.parameters.0 {
+        for (pattern, _, _) in parameters {
             if index == 1 {
                 match function_kind {
                     FunctionKind::SelfType(_) => {
@@ -294,12 +340,24 @@ fn type_to_self_string(typ: &Type, string: &mut String) {
     }
 }
 
-pub(super) fn struct_field_completion_item(field: &str, typ: &Type) -> CompletionItem {
-    field_completion_item(field, typ.to_string())
+pub(super) fn struct_field_completion_item(
+    field: &str,
+    typ: &Type,
+    self_type: bool,
+) -> CompletionItem {
+    field_completion_item(field, typ.to_string(), self_type)
 }
 
-pub(super) fn field_completion_item(field: &str, typ: impl Into<String>) -> CompletionItem {
-    simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.into()))
+pub(super) fn field_completion_item(
+    field: &str,
+    typ: impl Into<String>,
+    self_type: bool,
+) -> CompletionItem {
+    if self_type {
+        simple_completion_item(format!("self.{field}"), CompletionItemKind::FIELD, Some(typ.into()))
+    } else {
+        simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.into()))
+    }
 }
 
 pub(super) fn simple_completion_item(

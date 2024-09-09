@@ -1,8 +1,8 @@
 #[outer_attribute]
 mod foo {
     #![some_attribute]
-    fn x() {}
-    fn y() {}
+    pub fn x() {}
+    pub fn y() {}
 }
 
 contract bar {}
@@ -13,7 +13,7 @@ mod another_module {}
 #[outer_attribute_func]
 mod yet_another_module {
     #![super::inner_attribute_func]
-    fn foo() {}
+    pub fn foo() {}
 }
 
 #[outer_attribute_separate_module]
@@ -25,19 +25,37 @@ fn increment_counter() {
     counter += 1;
 }
 
-fn outer_attribute_func(m: Module) {
+fn outer_attribute_func(m: Module) -> Quoted {
     assert_eq(m.name(), quote { yet_another_module });
     increment_counter();
+    quote { pub fn generated_outer_function() {} }
 }
 
-fn inner_attribute_func(m: Module) {
+fn inner_attribute_func(m: Module) -> Quoted {
     assert_eq(m.name(), quote { yet_another_module });
     increment_counter();
+    quote { pub fn generated_inner_function() {} }
 }
 
 fn outer_attribute_separate_module(m: Module) {
     assert_eq(m.name(), quote { separate_module });
     increment_counter();
+}
+
+struct Foo {}
+
+#[add_function]
+mod add_to_me {
+    fn add_to_me_function() {}
+}
+
+fn add_function(m: Module) {
+    m.add_item(
+        quote { pub fn added_function() -> super::Foo {
+            add_to_me_function();
+            super::Foo {}
+    } }
+    );
 }
 
 fn main() {
@@ -68,6 +86,11 @@ fn main() {
     }
 
     assert_eq(counter, 4);
+
+    yet_another_module::generated_outer_function();
+    yet_another_module::generated_inner_function();
+
+    let _ = add_to_me::added_function();
 }
 
 // docs:start:as_module_example

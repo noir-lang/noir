@@ -26,7 +26,8 @@ use crate::{
         SecondaryAttribute, StructId,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
+        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, ReferenceId,
+        TraitId, TypeAliasId,
     },
     token::CustomAtrribute,
     Shared, Type, TypeVariable,
@@ -167,9 +168,6 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    /// Temporary flag to enable the experimental arithmetic generics feature
-    enable_arithmetic_generics: bool,
-
     pub(crate) interpreter_call_stack: im::Vector<Location>,
 }
 
@@ -193,7 +191,6 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
         interpreter_call_stack: im::Vector<Location>,
     ) -> Self {
         Self {
@@ -216,7 +213,6 @@ impl<'context> Elaborator<'context> {
             current_trait_impl: None,
             debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
-            enable_arithmetic_generics,
             current_trait: None,
             interpreter_call_stack,
         }
@@ -226,14 +222,12 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
             crate_id,
             debug_comptime_in_file,
-            enable_arithmetic_generics,
             im::Vector::new(),
         )
     }
@@ -243,16 +237,8 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(
-            context,
-            crate_id,
-            items,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        )
-        .errors
+        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
     }
 
     pub fn elaborate_and_return_self(
@@ -260,20 +246,14 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Self {
-        let mut this = Self::from_context(
-            context,
-            crate_id,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        );
+        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
     }
 
-    fn elaborate_items(&mut self, mut items: CollectedItems) {
+    pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         //
@@ -416,6 +396,10 @@ impl<'context> Elaborator<'context> {
 
         self.trait_bounds = func_meta.trait_constraints.clone();
         self.function_context.push(FunctionContext::default());
+
+        let modifiers = self.interner.function_modifiers(&id).clone();
+
+        self.run_function_lints(&func_meta, &modifiers);
 
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
@@ -731,20 +715,6 @@ impl<'context> Elaborator<'context> {
 
         let is_entry_point = self.is_entry_point_function(func, in_contract);
 
-        self.run_lint(|_| lints::inlining_attributes(func).map(Into::into));
-        self.run_lint(|_| lints::missing_pub(func, is_entry_point).map(Into::into));
-        self.run_lint(|elaborator| {
-            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func, in_contract))
-                .map(Into::into)
-        });
-        self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
-        self.run_lint(|elaborator| {
-            lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
-        });
-        self.run_lint(|_| {
-            lints::recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
-        });
-
         // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
@@ -856,6 +826,23 @@ impl<'context> Elaborator<'context> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+    }
+
+    fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
+        self.run_lint(|_| lints::inlining_attributes(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
+        self.run_lint(|_| {
+            let pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
+            lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
+        });
+        self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|elaborator| {
+            lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
+                .map(Into::into)
+        });
+        self.run_lint(|_| {
+            lints::recursive_non_entrypoint_function(func, modifiers).map(Into::into)
+        });
     }
 
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract

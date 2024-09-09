@@ -15,7 +15,7 @@ use crate::{
             },
             dc_mod,
         },
-        def_map::ModuleId,
+        def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
     },
     hir_def::expr::HirIdent,
@@ -30,14 +30,63 @@ use crate::{
 
 use super::{Elaborator, FunctionContext, ResolverMeta};
 
+#[derive(Debug, Copy, Clone)]
+struct AttributeContext {
+    // The file where generated items should be added
+    file: FileId,
+    // The module where generated items should be added
+    module: LocalModuleId,
+    // The file where the attribute is located
+    attribute_file: FileId,
+    // The module where the attribute is located
+    attribute_module: LocalModuleId,
+}
+
+impl AttributeContext {
+    fn new(file: FileId, module: LocalModuleId) -> Self {
+        Self { file, module, attribute_file: file, attribute_module: module }
+    }
+}
+
 impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope.
     /// When this happens we require additional information to know
     /// what variables should be in scope.
-    pub fn elaborate_item_from_comptime<'a, T>(
+    pub fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            if let Some(function) = current_function {
+                let meta = elaborator.interner.function_meta(&function);
+                elaborator.current_item = Some(DependencyId::Function(function));
+                elaborator.crate_id = meta.source_crate;
+                elaborator.local_module = meta.source_module;
+                elaborator.file = meta.source_file;
+                elaborator.introduce_generics_into_scope(meta.all_generics.clone());
+            }
+        })
+    }
+
+    pub fn elaborate_item_from_comptime_in_module<'a, T>(
+        &'a mut self,
+        module: ModuleId,
+        file: FileId,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            elaborator.current_item = None;
+            elaborator.crate_id = module.krate;
+            elaborator.local_module = module.local_id;
+            elaborator.file = file;
+        })
+    }
+
+    fn elaborate_item_from_comptime<'a, T>(
+        &'a mut self,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+        setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
         // Create a fresh elaborator to ensure no state is changed from
         // this elaborator
@@ -46,21 +95,13 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.crate_id,
             self.debug_comptime_in_file,
-            self.enable_arithmetic_generics,
             self.interpreter_call_stack.clone(),
         );
 
         elaborator.function_context.push(FunctionContext::default());
         elaborator.scopes.start_function();
 
-        if let Some(function) = current_function {
-            let meta = elaborator.interner.function_meta(&function);
-            elaborator.current_item = Some(DependencyId::Function(function));
-            elaborator.crate_id = meta.source_crate;
-            elaborator.local_module = meta.source_module;
-            elaborator.file = meta.source_file;
-            elaborator.introduce_generics_into_scope(meta.all_generics.clone());
-        }
+        setup(&mut elaborator);
 
         elaborator.populate_scope_from_comptime_scopes();
 
@@ -89,15 +130,22 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn run_comptime_attributes_on_item(
+    fn run_comptime_attributes_on_item(
         &mut self,
         attributes: &[SecondaryAttribute],
         item: Value,
         span: Span,
+        attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
-            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items);
+            self.run_comptime_attribute_on_item(
+                attribute,
+                &item,
+                span,
+                attribute_context,
+                generated_items,
+            );
         }
     }
 
@@ -106,6 +154,7 @@ impl<'context> Elaborator<'context> {
         attribute: &SecondaryAttribute,
         item: &Value,
         span: Span,
+        attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) {
         if let SecondaryAttribute::Custom(attribute) = attribute {
@@ -114,6 +163,7 @@ impl<'context> Elaborator<'context> {
                 item.clone(),
                 span,
                 attribute.contents_span,
+                attribute_context,
                 generated_items,
             ) {
                 self.errors.push(error);
@@ -127,8 +177,12 @@ impl<'context> Elaborator<'context> {
         item: Value,
         span: Span,
         attribute_span: Span,
+        attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
+        self.file = attribute_context.attribute_file;
+        self.local_module = attribute_context.attribute_module;
+
         let location = Location::new(attribute_span, self.file);
         let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
             // Do not issue an error if the attribute is unknown
@@ -155,6 +209,9 @@ impl<'context> Elaborator<'context> {
         let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
+
+        self.file = attribute_context.file;
+        self.local_module = attribute_context.module;
 
         let mut interpreter = self.setup_interpreter();
         let mut arguments = Self::handle_attribute_arguments(
@@ -318,7 +375,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_item(
+    pub(crate) fn add_item(
         &mut self,
         item: TopLevelStatement,
         generated_items: &mut CollectedItems,
@@ -463,18 +520,28 @@ impl<'context> Elaborator<'context> {
             let attributes = &trait_.trait_def.attributes;
             let item = Value::TraitDefinition(*trait_id);
             let span = trait_.trait_def.span;
-            self.local_module = trait_.module_id;
-            self.file = trait_.file_id;
-            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
+            let context = AttributeContext::new(trait_.file_id, trait_.module_id);
+            self.run_comptime_attributes_on_item(
+                attributes,
+                item,
+                span,
+                context,
+                &mut generated_items,
+            );
         }
 
         for (struct_id, struct_def) in types {
             let attributes = &struct_def.struct_def.attributes;
             let item = Value::StructDefinition(*struct_id);
             let span = struct_def.struct_def.span;
-            self.local_module = struct_def.module_id;
-            self.file = struct_def.file_id;
-            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
+            let context = AttributeContext::new(struct_def.file_id, struct_def.module_id);
+            self.run_comptime_attributes_on_item(
+                attributes,
+                item,
+                span,
+                context,
+                &mut generated_items,
+            );
         }
 
         self.run_attributes_on_functions(functions, &mut generated_items);
@@ -496,10 +563,14 @@ impl<'context> Elaborator<'context> {
             let attribute = &module_attribute.attribute;
             let span = Span::default();
 
-            self.local_module = module_attribute.attribute_module_id;
-            self.file = module_attribute.attribute_file_id;
+            let context = AttributeContext {
+                file: module_attribute.file_id,
+                module: module_attribute.module_id,
+                attribute_file: module_attribute.attribute_file_id,
+                attribute_module: module_attribute.attribute_module_id,
+            };
 
-            self.run_comptime_attribute_on_item(attribute, &item, span, generated_items);
+            self.run_comptime_attribute_on_item(attribute, &item, span, context, generated_items);
         }
     }
 
@@ -509,15 +580,20 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         for function_set in function_sets {
-            self.file = function_set.file_id;
             self.self_type = function_set.self_type.clone();
 
             for (local_module, function_id, function) in &function_set.functions {
-                self.local_module = *local_module;
+                let context = AttributeContext::new(function_set.file_id, *local_module);
                 let attributes = function.secondary_attributes();
                 let item = Value::FunctionDefinition(*function_id);
                 let span = function.span();
-                self.run_comptime_attributes_on_item(attributes, item, span, generated_items);
+                self.run_comptime_attributes_on_item(
+                    attributes,
+                    item,
+                    span,
+                    context,
+                    generated_items,
+                );
             }
         }
     }

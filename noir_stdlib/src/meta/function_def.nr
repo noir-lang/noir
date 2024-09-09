@@ -1,4 +1,9 @@
 impl FunctionDefinition {
+    #[builtin(function_def_add_attribute)]
+    // docs:start:add_attribute
+    fn add_attribute<let N: u32>(self, attribute: str<N>) {}
+    // docs:end:add_attribute
+
     #[builtin(function_def_body)]
     // docs:start:body
     fn body(self) -> Expr {}
@@ -8,6 +13,16 @@ impl FunctionDefinition {
     // docs:start:has_named_attribute
     fn has_named_attribute(self, name: Quoted) -> bool {}
     // docs:end:has_named_attribute
+
+    #[builtin(function_def_is_unconstrained)]
+    // docs:start:is_unconstrained
+    fn is_unconstrained(self) -> bool {}
+    // docs:end:is_unconstrained
+
+    #[builtin(function_def_module)]
+    // docs:start:module
+    fn module(self) -> Module {}
+    // docs:end:module
 
     #[builtin(function_def_name)]
     // docs:start:name
@@ -38,4 +53,14 @@ impl FunctionDefinition {
     // docs:start:set_return_type
     fn set_return_type(self, return_type: Type) {}
     // docs:end:set_return_type
+
+    #[builtin(function_def_set_return_public)]
+    // docs:start:set_return_public
+    fn set_return_public(self, public: bool) {}
+    // docs:end:set_return_public
+
+    #[builtin(function_def_set_unconstrained)]
+    // docs:start:set_unconstrained
+    fn set_unconstrained(self, value: bool) {}
+    // docs:end:set_unconstrained
 }
