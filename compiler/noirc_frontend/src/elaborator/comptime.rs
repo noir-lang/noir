@@ -622,10 +622,6 @@ impl<'context> Elaborator<'context> {
 
     /// True if we're currently within a `comptime` block, function, or global
     pub(super) fn in_comptime_context(&self) -> bool {
-        if self.in_comptime_context {
-            return true;
-        }
-
         self.in_comptime_context
             || match self.current_item {
                 Some(DependencyId::Function(id)) => {
