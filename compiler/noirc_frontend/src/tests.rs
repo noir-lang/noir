@@ -1965,7 +1965,7 @@ fn implicit_numeric_generics_type_kind_mismatch() {
 }
 
 #[test]
-fn implicit_numeric_generics_value_kind_mismatch() {
+fn numeric_generics_value_kind_mismatch() {
     let src = r#"
     struct BoundedVec<T, let MaxLen: u32> {
         storage: [T; MaxLen],
