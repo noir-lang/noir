@@ -1831,7 +1831,8 @@ fn expr_resolve(
         }
         ExprValue::Pattern(pattern) => {
             if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                Ok(Value::expression(expression.kind))
+                let (expr_id, _) = elaborator.elaborate_expression(expression);
+                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
             } else {
                 let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
                 let location = self_argument_location;
