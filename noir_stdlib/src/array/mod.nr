@@ -74,6 +74,11 @@ impl<T, let N: u32> [T; N] where T: Ord + Eq {
 
 impl<T, let N: u32> [T; N] where T: Eq {
 
+    /// Sorts the array using a custom predicate function `ordering`.
+    ///
+    /// # Safety
+    /// The `ordering` function must be designed to return `true` for equal valued inputs
+    /// If this is not done, `sort_via` will fail to sort inputs with duplicated elements.
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
         unsafe {
             // Safety: `sorted` array is checked to be:
@@ -83,7 +88,7 @@ impl<T, let N: u32> [T; N] where T: Eq {
 
             if !is_unconstrained() {
                 for i in 0..N - 1 {
-                    assert(ordering(sorted[i], sorted[i + 1]));
+                    assert(ordering(sorted[i], sorted[i + 1]), "Array has not been sorted correctly according to `ordering`.");
                 }
                 check_shuffle::check_shuffle(self, sorted);
             }
