@@ -222,15 +222,15 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
 
     let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
-    let Some(std_crate_id) = std_crate_id else {
-        return context.crate_graph.add_crate_root_and_stdlib(root_file_id);
-    };
+    if let Some(std_crate_id) = std_crate_id {
+        let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+        add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
 
-    add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
-
-    root_crate_id
+        root_crate_id
+    } else {
+        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+    }
 }
 
 pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
