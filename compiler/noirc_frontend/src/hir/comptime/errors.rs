@@ -220,6 +220,14 @@ pub enum InterpreterError {
         duplicate_location: Location,
         existing_location: Location,
     },
+    CannotResolveExpression {
+        location: Location,
+        expression: String,
+    },
+    CannotSetFunctionBody {
+        location: Location,
+        expression: String,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -291,7 +299,9 @@ impl InterpreterError {
             | InterpreterError::InvalidAttribute { location, .. }
             | InterpreterError::GenericNameShouldBeAnIdent { location, .. }
             | InterpreterError::DuplicateGeneric { duplicate_location: location, .. }
-            | InterpreterError::TypeAnnotationsNeededForMethodCall { location } => *location,
+            | InterpreterError::TypeAnnotationsNeededForMethodCall { location }
+            | InterpreterError::CannotResolveExpression { location, .. }
+            | InterpreterError::CannotSetFunctionBody { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -625,6 +635,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     existing_location.file,
                 );
                 error
+            }
+            InterpreterError::CannotResolveExpression { location, expression } => {
+                let msg = format!("Cannot resolve expression `{expression}`");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::CannotSetFunctionBody { location, expression } => {
+                let msg = format!("`{expression}` is not a valid function body");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
         }
     }

@@ -594,7 +594,15 @@ pub fn pattern() -> impl NoirParser<Pattern> {
             .delimited_by(just(Token::LeftParen), just(Token::RightParen))
             .map_with_span(Pattern::Tuple);
 
-        choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
+        let interned =
+            token_kind(TokenKind::InternedPattern).map_with_span(|token, span| match token {
+                Token::InternedPattern(id) => Pattern::Interned(id, span),
+                _ => unreachable!(
+                    "token_kind(InternedPattern) guarantees we parse an interned pattern"
+                ),
+            });
+
+        choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern, interned))
     })
     .labelled(ParsingRuleLabel::Pattern)
 }

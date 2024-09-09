@@ -401,6 +401,7 @@ fn empty_pattern(pattern: &mut Pattern) {
                 empty_pattern(pattern);
             }
         }
+        Pattern::Interned(_, _) => (),
     }
 }
 

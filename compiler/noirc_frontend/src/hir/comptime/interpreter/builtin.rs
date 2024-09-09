@@ -22,8 +22,8 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, FunctionKind,
-        FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
-        UnresolvedType, UnresolvedTypeData, Visibility,
+        FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
+        UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::def_collector::dc_crate::CollectedItems,
     hir::{
@@ -78,6 +78,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_if" => expr_as_if(interner, arguments, return_type, location),
             "expr_as_index" => expr_as_index(interner, arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(interner, arguments, return_type, location),
+            "expr_as_let" => expr_as_let(interner, arguments, return_type, location),
             "expr_as_member_access" => {
                 expr_as_member_access(interner, arguments, return_type, location)
             }
@@ -1500,6 +1501,41 @@ fn expr_as_integer(
     })
 }
 
+// fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)>
+fn expr_as_let(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+        ExprValue::Statement(StatementKind::Let(let_statement)) => {
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 3);
+            tuple_types.pop().unwrap();
+            let option_type = tuple_types.pop().unwrap();
+
+            let typ = if let_statement.r#type.typ == UnresolvedTypeData::Unspecified {
+                None
+            } else {
+                Some(Value::UnresolvedType(let_statement.r#type.typ))
+            };
+
+            let typ = option(option_type, typ).ok()?;
+
+            Some(Value::Tuple(vec![
+                Value::pattern(let_statement.pattern),
+                typ,
+                Value::expression(let_statement.expression.kind),
+            ]))
+        }
+        _ => None,
+    })
+}
+
 // fn as_member_access(self) -> Option<(Expr, Quoted)>
 fn expr_as_member_access(
     interner: &NodeInterner,
@@ -1777,27 +1813,33 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    let value =
-        interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
-            ExprValue::Expression(expression_kind) => {
-                let expr = Expression { kind: expression_kind, span: self_argument_location.span };
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Value::TypedExpr(TypedExpr::ExprId(expr_id))
+    interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
+        ExprValue::Expression(expression_kind) => {
+            let expr = Expression { kind: expression_kind, span: self_argument_location.span };
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+        }
+        ExprValue::Statement(statement_kind) => {
+            let statement = Statement { kind: statement_kind, span: self_argument_location.span };
+            let (stmt_id, _) = elaborator.elaborate_statement(statement);
+            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+        }
+        ExprValue::LValue(lvalue) => {
+            let expr = lvalue.as_expression();
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+        }
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                let (expr_id, _) = elaborator.elaborate_expression(expression);
+                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+            } else {
+                let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
+                let location = self_argument_location;
+                Err(InterpreterError::CannotResolveExpression { location, expression })
             }
-            ExprValue::Statement(statement_kind) => {
-                let statement =
-                    Statement { kind: statement_kind, span: self_argument_location.span };
-                let (stmt_id, _) = elaborator.elaborate_statement(statement);
-                Value::TypedExpr(TypedExpr::StmtId(stmt_id))
-            }
-            ExprValue::LValue(lvalue) => {
-                let expr = lvalue.as_expression();
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Value::TypedExpr(TypedExpr::ExprId(expr_id))
-            }
-        });
-
-    Ok(value)
+        }
+    })
 }
 
 fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
@@ -1818,6 +1860,9 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
             }
             ExprValue::LValue(LValue::Interned(id, span)) => {
                 expr_value = ExprValue::LValue(interner.get_lvalue(id, span).clone());
+            }
+            ExprValue::Pattern(Pattern::Interned(id, _)) => {
+                expr_value = ExprValue::Pattern(interner.get_pattern(id).clone());
             }
             _ => break,
         }
@@ -2031,6 +2076,16 @@ fn function_def_set_body(
         }),
         ExprValue::Statement(statement_kind) => statement_kind,
         ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(interpreter.elaborator.interner) {
+                StatementKind::Expression(expression)
+            } else {
+                let expression =
+                    Value::pattern(pattern).display(interpreter.elaborator.interner).to_string();
+                let location = body_location;
+                return Err(InterpreterError::CannotSetFunctionBody { location, expression });
+            }
+        }
     };
 
     let statement = Statement { kind: statement_kind, span: body_location.span };
