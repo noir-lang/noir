@@ -6,6 +6,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
+    ast::Documented,
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -24,7 +25,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement},
+    parser::{self, TopLevelStatement, TopLevelStatementKind},
     Type, TypeBindings, UnificationError,
 };
 
@@ -52,10 +53,41 @@ impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope.
     /// When this happens we require additional information to know
     /// what variables should be in scope.
-    pub fn elaborate_item_from_comptime<'a, T>(
+    pub fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            if let Some(function) = current_function {
+                let meta = elaborator.interner.function_meta(&function);
+                elaborator.current_item = Some(DependencyId::Function(function));
+                elaborator.crate_id = meta.source_crate;
+                elaborator.local_module = meta.source_module;
+                elaborator.file = meta.source_file;
+                elaborator.introduce_generics_into_scope(meta.all_generics.clone());
+            }
+        })
+    }
+
+    pub fn elaborate_item_from_comptime_in_module<'a, T>(
+        &'a mut self,
+        module: ModuleId,
+        file: FileId,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            elaborator.current_item = None;
+            elaborator.crate_id = module.krate;
+            elaborator.local_module = module.local_id;
+            elaborator.file = file;
+        })
+    }
+
+    fn elaborate_item_from_comptime<'a, T>(
+        &'a mut self,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+        setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
         // Create a fresh elaborator to ensure no state is changed from
         // this elaborator
@@ -70,14 +102,7 @@ impl<'context> Elaborator<'context> {
         elaborator.function_context.push(FunctionContext::default());
         elaborator.scopes.start_function();
 
-        if let Some(function) = current_function {
-            let meta = elaborator.interner.function_meta(&function);
-            elaborator.current_item = Some(DependencyId::Function(function));
-            elaborator.crate_id = meta.source_crate;
-            elaborator.local_module = meta.source_module;
-            elaborator.file = meta.source_file;
-            elaborator.introduce_generics_into_scope(meta.all_generics.clone());
-        }
+        setup(&mut elaborator);
 
         elaborator.populate_scope_from_comptime_scopes();
 
@@ -351,14 +376,14 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_item(
+    pub(crate) fn add_item(
         &mut self,
         item: TopLevelStatement,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        match item {
-            TopLevelStatement::Function(function) => {
+        match item.kind {
+            TopLevelStatementKind::Function(function) => {
                 let module_id = self.module_id();
 
                 if let Some(id) = dc_mod::collect_function(
@@ -367,6 +392,7 @@ impl<'context> Elaborator<'context> {
                     &function,
                     module_id,
                     self.file,
+                    item.doc_comments,
                     &mut self.errors,
                 ) {
                     let functions = vec![(self.local_module, id, function)];
@@ -378,7 +404,7 @@ impl<'context> Elaborator<'context> {
                     });
                 }
             }
-            TopLevelStatement::TraitImpl(mut trait_impl) => {
+            TopLevelStatementKind::TraitImpl(mut trait_impl) => {
                 let (methods, associated_types, associated_constants) =
                     dc_mod::collect_trait_impl_items(
                         self.interner,
@@ -408,11 +434,11 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatement::Global(global) => {
+            TopLevelStatementKind::Global(global) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    global,
+                    Documented::new(global, item.doc_comments),
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -423,11 +449,11 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error);
                 }
             }
-            TopLevelStatement::Struct(struct_def) => {
+            TopLevelStatementKind::Struct(struct_def) => {
                 if let Some((type_id, the_struct)) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    struct_def,
+                    Documented::new(struct_def, item.doc_comments),
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -436,21 +462,21 @@ impl<'context> Elaborator<'context> {
                     generated_items.types.insert(type_id, the_struct);
                 }
             }
-            TopLevelStatement::Impl(r#impl) => {
+            TopLevelStatementKind::Impl(r#impl) => {
                 let module = self.module_id();
                 dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
             }
 
             // Assume that an error has already been issued
-            TopLevelStatement::Error => (),
+            TopLevelStatementKind::Error => (),
 
-            TopLevelStatement::Module(_)
-            | TopLevelStatement::Import(..)
-            | TopLevelStatement::Trait(_)
-            | TopLevelStatement::TypeAlias(_)
-            | TopLevelStatement::SubModule(_)
-            | TopLevelStatement::InnerAttribute(_) => {
-                let item = item.to_string();
+            TopLevelStatementKind::Module(_)
+            | TopLevelStatementKind::Import(..)
+            | TopLevelStatementKind::Trait(_)
+            | TopLevelStatementKind::TypeAlias(_)
+            | TopLevelStatementKind::SubModule(_)
+            | TopLevelStatementKind::InnerAttribute(_) => {
+                let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());
             }

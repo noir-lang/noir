@@ -2,9 +2,7 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{
-        token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
-    },
+    token::{IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
@@ -25,21 +23,6 @@ pub struct Lexer<'a> {
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
-
-pub(crate) fn from_spanned_token_result(
-    token_result: &SpannedTokenResult,
-) -> Result<(usize, BorrowedToken<'_>, usize), LexerErrorKind> {
-    token_result
-        .as_ref()
-        .map(|spanned_token| {
-            (
-                spanned_token.to_span().start() as usize,
-                token_to_borrowed_token(spanned_token.into()),
-                spanned_token.to_span().end() as usize,
-            )
-        })
-        .map_err(Clone::clone)
-}
 
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
@@ -623,7 +606,7 @@ impl<'a> Lexer<'a> {
         };
         let comment = self.eat_while(None, |ch| ch != '\n');
 
-        if self.skip_comments {
+        if doc_style.is_none() && self.skip_comments {
             return self.next_token();
         }
 
@@ -668,7 +651,7 @@ impl<'a> Lexer<'a> {
         }
 
         if depth == 0 {
-            if self.skip_comments {
+            if doc_style.is_none() && self.skip_comments {
                 return self.next_token();
             }
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))

@@ -29,6 +29,12 @@ This means any functions called at compile-time are invalid targets for this met
 
 Returns true if this function has a custom attribute with the given name.
 
+### is_unconstrained
+
+#include_code is_unconstrained noir_stdlib/src/meta/function_def.nr rust
+
+Returns true if this function is unconstrained.
+
 ### module
 
 #include_code module noir_stdlib/src/meta/function_def.nr rust
@@ -85,5 +91,13 @@ This means any functions called at compile-time are invalid targets for this met
 #include_code set_return_public noir_stdlib/src/meta/function_def.nr rust
 
 Mutates the function's return visibility to public (if `true` is given) or private (if `false` is given). 
+This is only valid on functions in the current crate which have not yet been resolved. 
+This means any functions called at compile-time are invalid targets for this method.
+
+### set_unconstrained
+
+#include_code set_unconstrained noir_stdlib/src/meta/function_def.nr rust
+
+Mutates the function to be unconstrained (if `true` is given) or not (if `false` is given).
 This is only valid on functions in the current crate which have not yet been resolved. 
 This means any functions called at compile-time are invalid targets for this method.

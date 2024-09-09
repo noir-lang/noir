@@ -5,7 +5,7 @@ fn main() {
     assert(*xref == 101);
 
     regression_2445();
-
+    single_alias_inside_loop();
     assert(5 == struct_field_refs_across_blocks(MyStruct { a: 5, b: 10 })[0]);
 }
 
@@ -29,6 +29,18 @@ fn regression_2445() {
     assert(**array[1] == 2);
 }
 
+fn single_alias_inside_loop() {
+    let mut var = 0;
+    let ref = &mut &mut var;
+
+    for _ in 0..1 {
+        **ref = 2;
+    }
+
+    assert(var == 2);
+    assert(**ref == 2);
+}
+
 struct MyStruct {
     a: Field,
     b: u32,
@@ -45,4 +57,3 @@ fn compute_dummy_hash(input: Field, rhs: u32, in_len: u32) -> Field {
     }
     res
 }
-

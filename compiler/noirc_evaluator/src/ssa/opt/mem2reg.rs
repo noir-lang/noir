@@ -1332,8 +1332,8 @@ mod tests {
         let five = builder.numeric_constant(5u128, Type::field());
         builder.insert_store(v0, five);
 
-        let v2 = builder.insert_allocate(Type::field());
-        let ten = builder.numeric_constant(10u128, Type::unsigned(32));
+        let v2 = builder.insert_allocate(Type::unsigned(32));
+        let ten = builder.numeric_constant(5u128, Type::unsigned(32));
         builder.insert_store(v2, ten);
 
         let v4 = builder.insert_load(v0, Type::field());

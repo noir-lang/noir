@@ -122,7 +122,7 @@ pub(crate) fn module_id_path(
     if !is_relative {
         // We don't record module attributes for the root module,
         // so we handle that case separately
-        if let CrateId::Root(_) = target_module_id.krate {
+        if target_module_id.krate.is_root() {
             segments.push("crate");
         }
     }

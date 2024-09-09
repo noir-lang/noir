@@ -9,9 +9,7 @@ use async_lsp::{ErrorCode, ResponseError};
 use nargo::ops::report_errors;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::{
-    file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
 
 use crate::{
@@ -53,7 +51,7 @@ fn on_profile_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(
         state,
         &workspace,

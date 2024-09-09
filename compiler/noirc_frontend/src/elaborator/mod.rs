@@ -253,7 +253,7 @@ impl<'context> Elaborator<'context> {
         this
     }
 
-    fn elaborate_items(&mut self, mut items: CollectedItems) {
+    pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         //
@@ -1248,7 +1248,9 @@ impl<'context> Elaborator<'context> {
             let struct_def = this.interner.get_struct(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let fields = vecmap(&unresolved.fields, |(ident, typ)| {
+            let fields = vecmap(&unresolved.fields, |field| {
+                let ident = &field.item.name;
+                let typ = &field.item.typ;
                 (ident.clone(), this.resolve_type(typ.clone()))
             });
 
