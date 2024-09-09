@@ -1,3 +1,4 @@
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::parser::ParserError;
 use crate::parser::ParserErrorReason;
 use crate::token::SpannedToken;
@@ -15,8 +16,12 @@ pub enum LexerErrorKind {
     NotADoubleChar { span: Span, found: Token },
     #[error("Invalid integer literal, {:?} is not a integer", found)]
     InvalidIntegerLiteral { span: Span, found: String },
+    #[error("Integer literal is too large")]
+    IntegerLiteralTooLarge { span: Span, limit: String },
     #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
+    #[error("{:?} is not a valid inner attribute", found)]
+    InvalidInnerAttribute { span: Span, found: String },
     #[error("Logical and used instead of bitwise and")]
     LogicalAnd { span: Span },
     #[error("Unterminated block comment")]
@@ -27,6 +32,10 @@ pub enum LexerErrorKind {
         "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
     )]
     InvalidEscape { escaped: char, span: Span },
+    #[error("Invalid quote delimiter `{delimiter}`, valid delimiters are `{{`, `[`, and `(`")]
+    InvalidQuoteDelimiter { delimiter: SpannedToken },
+    #[error("Expected `{end_delim}` to close this {start_delim}")]
+    UnclosedQuote { start_delim: SpannedToken, end_delim: Token },
 }
 
 impl From<LexerErrorKind> for ParserError {
@@ -36,17 +45,27 @@ impl From<LexerErrorKind> for ParserError {
     }
 }
 
+impl From<LexerErrorKind> for CompilationError {
+    fn from(error: LexerErrorKind) -> Self {
+        ParserError::from(error).into()
+    }
+}
+
 impl LexerErrorKind {
     pub fn span(&self) -> Span {
         match self {
             LexerErrorKind::UnexpectedCharacter { span, .. } => *span,
             LexerErrorKind::NotADoubleChar { span, .. } => *span,
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
+            LexerErrorKind::IntegerLiteralTooLarge { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
+            LexerErrorKind::InvalidInnerAttribute { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
             LexerErrorKind::InvalidEscape { span, .. } => *span,
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_span(),
+            LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.to_span(),
         }
     }
 
@@ -77,9 +96,19 @@ impl LexerErrorKind {
                 format!(" {found} is not an integer"),
                 *span,
             ),
+            LexerErrorKind::IntegerLiteralTooLarge { span, limit } => (
+                "Integer literal is too large".to_string(),
+                format!("value exceeds limit of {limit}"),
+                *span,
+            ),
             LexerErrorKind::MalformedFuncAttribute { span, found } => (
                 "Malformed function attribute".to_string(),
                 format!(" {found} is not a valid attribute"),
+                *span,
+            ),
+            LexerErrorKind::InvalidInnerAttribute { span, found } => (
+                "Invalid inner attribute".to_string(),
+                format!(" {found} is not a valid inner attribute"),
                 *span,
             ),
             LexerErrorKind::LogicalAnd { span } => (
@@ -92,6 +121,12 @@ impl LexerErrorKind {
                 ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
             LexerErrorKind::InvalidEscape { escaped, span } =>
                 (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
+                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.to_span())
+            },
+            LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
+                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.to_span())
+            }
         }
     }
 }

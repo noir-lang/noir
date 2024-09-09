@@ -1,5 +1,7 @@
 fn main() {
-    assert_eq(fibonacci(3), fibonacci_hint(3));
+    unsafe {
+        assert_eq(fibonacci(3), fibonacci_hint(3));
+    }
 }
 
 unconstrained fn fibonacci_hint(x: u32) -> u32 {

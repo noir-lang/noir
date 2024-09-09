@@ -2,6 +2,7 @@ use chumsky::{primitive::just, Parser};
 
 use super::{parse_type, pattern};
 use crate::ast::{Expression, ExpressionKind, Lambda, Pattern, UnresolvedType};
+use crate::macros_api::UnresolvedTypeData;
 use crate::{
     parser::{labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery, NoirParser},
     token::Token,
@@ -23,9 +24,10 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
     let typ = parse_type().recover_via(parameter_recovery());
     let typ = just(Token::Colon).ignore_then(typ);
 
-    let parameter = pattern()
-        .recover_via(parameter_name_recovery())
-        .then(typ.or_not().map(|typ| typ.unwrap_or_else(UnresolvedType::unspecified)));
+    let parameter =
+        pattern().recover_via(parameter_name_recovery()).then(typ.or_not().map_with_span(
+            |typ, span| typ.unwrap_or(UnresolvedTypeData::Unspecified.with_span(span)),
+        ));
 
     parameter
         .separated_by(just(Token::Comma))
@@ -37,5 +39,5 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
     just(Token::Arrow)
         .ignore_then(parse_type())
         .or_not()
-        .map(|ret| ret.unwrap_or_else(UnresolvedType::unspecified))
+        .map_with_span(|ret, span| ret.unwrap_or(UnresolvedTypeData::Unspecified.with_span(span)))
 }

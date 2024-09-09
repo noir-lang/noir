@@ -22,7 +22,9 @@ impl Ssa {
     /// since we must go through every instruction to find all references to `assert_constant`
     /// while loop unrolling only touches blocks with loops in them.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn evaluate_assert_constant(mut self) -> Result<Ssa, RuntimeError> {
+    pub(crate) fn evaluate_static_assert_and_assert_constant(
+        mut self,
+    ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             for block in function.reachable_blocks() {
                 // Unfortunately we can't just use instructions.retain(...) here since
@@ -54,10 +56,13 @@ fn check_instruction(
     instruction: InstructionId,
 ) -> Result<bool, RuntimeError> {
     let assert_constant_id = function.dfg.import_intrinsic(Intrinsic::AssertConstant);
+    let static_assert_id = function.dfg.import_intrinsic(Intrinsic::StaticAssert);
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
             if *func == assert_constant_id {
                 evaluate_assert_constant(function, instruction, arguments)
+            } else if *func == static_assert_id {
+                evaluate_static_assert(function, instruction, arguments)
             } else {
                 Ok(true)
             }
@@ -80,5 +85,37 @@ fn evaluate_assert_constant(
     } else {
         let call_stack = function.dfg.get_call_stack(instruction);
         Err(RuntimeError::AssertConstantFailed { call_stack })
+    }
+}
+
+/// Evaluate a call to `static_assert`, returning an error if the value is false
+/// or not constant (see assert_constant).
+///
+/// When it passes, Ok(false) is returned. This signifies a
+/// success but also that the instruction need not be reinserted into the block being unrolled
+/// since it has already been evaluated.
+fn evaluate_static_assert(
+    function: &Function,
+    instruction: InstructionId,
+    arguments: &[ValueId],
+) -> Result<bool, RuntimeError> {
+    if arguments.len() != 2 {
+        panic!("ICE: static_assert called with wrong number of arguments")
+    }
+
+    if !function.dfg.is_constant(arguments[1]) {
+        let call_stack = function.dfg.get_call_stack(instruction);
+        return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
+    }
+
+    if function.dfg.is_constant_true(arguments[0]) {
+        Ok(false)
+    } else {
+        let call_stack = function.dfg.get_call_stack(instruction);
+        if function.dfg.is_constant(arguments[0]) {
+            Err(RuntimeError::StaticAssertFailed { call_stack })
+        } else {
+            Err(RuntimeError::StaticAssertDynamicPredicate { call_stack })
+        }
     }
 }

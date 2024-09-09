@@ -1,8 +1,8 @@
 // Tests a performance regression found in aztec-packages with brillig cow optimization
 
-global MAX_NEW_NOTE_HASHES_PER_TX: u64 = 64;
-global MAX_NEW_NULLIFIERS_PER_TX: u64 = 64;
-global MAX_NEW_L2_TO_L1_MSGS_PER_TX: u64 = 2;
+global MAX_NOTE_HASHES_PER_TX: u64 = 64;
+global MAX_NULLIFIERS_PER_TX: u64 = 64;
+global MAX_L2_TO_L1_MSGS_PER_TX: u64 = 2;
 global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 16;
 global MAX_NEW_CONTRACTS_PER_TX: u64 = 1;
 global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
@@ -30,10 +30,10 @@ impl NewContractData {
 }
 
 struct DataToHash {
-    new_note_hashes: [Field; MAX_NEW_NOTE_HASHES_PER_TX],
-    new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_TX],
+    new_note_hashes: [Field; MAX_NOTE_HASHES_PER_TX],
+    new_nullifiers: [Field; MAX_NULLIFIERS_PER_TX],
     public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
+    new_l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX],
     encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
@@ -104,21 +104,21 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
     let new_note_hashes = kernel_data.new_note_hashes;
     let new_nullifiers = kernel_data.new_nullifiers;
     let public_data_update_requests = kernel_data.public_data_update_requests;
-    let newL2ToL1msgs = kernel_data.new_l2_to_l1_msgs;
+    let l2ToL1Msgs = kernel_data.new_l2_to_l1_msgs;
     let encryptedLogsHash = kernel_data.encrypted_logs_hash;
     let unencryptedLogsHash = kernel_data.unencrypted_logs_hash;
 
     let mut offset = 0;
 
-    for j in 0..MAX_NEW_NOTE_HASHES_PER_TX {
+    for j in 0..MAX_NOTE_HASHES_PER_TX {
         tx_effects_hash_inputs[offset + j] = new_note_hashes[j];
     }
-    offset += MAX_NEW_NOTE_HASHES_PER_TX ;
+    offset += MAX_NOTE_HASHES_PER_TX ;
 
-    for j in 0..MAX_NEW_NULLIFIERS_PER_TX {
+    for j in 0..MAX_NULLIFIERS_PER_TX {
         tx_effects_hash_inputs[offset + j] = new_nullifiers[j];
     }
-    offset += MAX_NEW_NULLIFIERS_PER_TX ;
+    offset += MAX_NULLIFIERS_PER_TX ;
 
     for j in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
         tx_effects_hash_inputs[offset + j * 2] =
@@ -128,10 +128,10 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
     }
     offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
 
-    for j in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
-        tx_effects_hash_inputs[offset + j] = newL2ToL1msgs[j];
+    for j in 0..MAX_L2_TO_L1_MSGS_PER_TX {
+        tx_effects_hash_inputs[offset + j] = l2ToL1Msgs[j];
     }
-    offset += MAX_NEW_L2_TO_L1_MSGS_PER_TX;
+    offset += MAX_L2_TO_L1_MSGS_PER_TX;
 
     let contract_leaf = kernel_data.new_contracts[0];
     tx_effects_hash_inputs[offset] = contract_leaf.hash();
@@ -160,14 +160,14 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
 
     let mut hash_input_flattened = [0; TX_EFFECT_HASH_FULL_FIELDS * 32 + TX_EFFECT_HASH_LOG_FIELDS * 16];
     for offset in 0..TX_EFFECT_HASH_FULL_FIELDS {
-        let input_as_bytes = tx_effects_hash_inputs[offset].to_be_bytes(32);
+        let input_as_bytes: [u8; 32] = tx_effects_hash_inputs[offset].to_be_bytes();
         for byte_index in 0..32 {
             hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
         }
     }
 
     for log_field_index in 0..TX_EFFECT_HASH_LOG_FIELDS {
-        let input_as_bytes = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes(16);
+        let input_as_bytes: [u8; 16] = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0..16 {
             hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
         }

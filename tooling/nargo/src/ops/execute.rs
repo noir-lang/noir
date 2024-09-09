@@ -117,10 +117,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         _ => None,
                     };
 
+                    let brillig_function_id = match &error {
+                        OpcodeResolutionError::BrilligFunctionFailed { function_id, .. } => {
+                            Some(*function_id)
+                        }
+                        _ => None,
+                    };
+
                     return Err(NargoError::ExecutionError(match assertion_payload {
                         Some(payload) => ExecutionError::AssertionFailed(
                             payload,
                             call_stack.expect("Should have call stack for an assertion failure"),
+                            brillig_function_id,
                         ),
                         None => ExecutionError::SolvingError(error, call_stack),
                     }));
@@ -139,9 +147,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     });
 
                     // Set current function to the circuit we are about to execute
-                    self.current_function_index = call_info.id as usize;
+                    self.current_function_index = call_info.id.as_usize();
                     // Execute the ACIR call
-                    let acir_to_call = &self.functions[call_info.id as usize];
+                    let acir_to_call = &self.functions[call_info.id.as_usize()];
                     let initial_witness = call_info.initial_witness;
                     let call_solved_witness = self.execute_circuit(initial_witness)?;
 
@@ -163,10 +171,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         }
                     }
                     acvm.resolve_pending_acir_call(call_resolved_outputs);
-                    self.witness_stack.push(call_info.id, call_solved_witness);
+                    self.witness_stack.push(call_info.id.0, call_solved_witness);
                 }
             }
         }
+        // Clear the call stack if we have succeeded in executing the circuit.
+        // This needs to be done or else all successful ACIR call stacks will also be
+        // included in a failure case.
+        self.call_stack.clear();
 
         Ok(acvm.finalize())
     }

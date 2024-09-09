@@ -2,14 +2,15 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
+use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{file_manager_with_stdlib, DEFAULT_EXPRESSION_WIDTH};
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
 
 use noirc_frontend::graph::CrateName;
@@ -180,25 +181,30 @@ fn compile_programs(
             .map(|p| p.into())
     };
 
-    let program_results: Vec<CompilationResult<()>> = binary_packages
-        .par_iter()
-        .map(|package| {
-            let (program, warnings) = compile_program(
-                file_manager,
-                parsed_files,
-                package,
-                compile_options,
-                load_cached_program(package),
-            )?;
-            let program = nargo::ops::transform_program(program, compile_options.expression_width);
-            save_program_to_file(
-                &program.clone().into(),
-                &package.name,
-                workspace.target_directory_path(),
-            );
-            Ok(((), warnings))
-        })
-        .collect();
+    let compile_package = |package| {
+        let (program, warnings) = compile_program(
+            file_manager,
+            parsed_files,
+            workspace,
+            package,
+            compile_options,
+            load_cached_program(package),
+        )?;
+
+        let target_width =
+            get_target_width(package.expression_width, compile_options.expression_width);
+        let program = nargo::ops::transform_program(program, target_width);
+
+        save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
+
+        Ok(((), warnings))
+    };
+
+    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // Default is 2MB.
+    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    let program_results: Vec<CompilationResult<()>> =
+        pool.install(|| binary_packages.par_iter().map(compile_package).collect());
 
     // Collate any warnings/errors which were encountered during compilation.
     collect_errors(program_results).map(|(_, warnings)| ((), warnings))
@@ -216,8 +222,9 @@ fn compiled_contracts(
         .map(|package| {
             let (contract, warnings) =
                 compile_contract(file_manager, parsed_files, package, compile_options)?;
-            let contract =
-                nargo::ops::transform_contract(contract, compile_options.expression_width);
+            let target_width =
+                get_target_width(package.expression_width, compile_options.expression_width);
+            let contract = nargo::ops::transform_contract(contract, target_width);
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             Ok(((), warnings))
         })
@@ -241,5 +248,17 @@ fn save_contract(
     );
     if show_artifact_paths {
         println!("Saved contract artifact to: {}", artifact_path.display());
+    }
+}
+
+/// If a target width was not specified in the CLI we can safely override the default.
+pub(crate) fn get_target_width(
+    package_default_width: Option<ExpressionWidth>,
+    compile_options_width: Option<ExpressionWidth>,
+) -> ExpressionWidth {
+    if let (Some(manifest_default_width), None) = (package_default_width, compile_options_width) {
+        manifest_default_width
+    } else {
+        compile_options_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
     }
 }

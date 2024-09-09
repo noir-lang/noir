@@ -1,21 +1,48 @@
 use super::{
     attributes::{attributes, validate_attributes},
-    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_visibility,
-    parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
-    self_parameter, where_clause, NoirParser,
+    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, parameter_name_recovery,
+    parameter_recovery, parenthesized, parse_type, pattern,
+    primitives::token_kind,
+    self_parameter,
+    visibility::{item_visibility, visibility},
+    where_clause, NoirParser,
 };
-use crate::ast::{
-    FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param, Visibility,
+use crate::token::{Keyword, Token, TokenKind};
+use crate::{
+    ast::{BlockExpression, IntegerBitSize},
+    parser::spanned,
 };
-use crate::parser::labels::ParsingRuleLabel;
-use crate::parser::spanned;
-use crate::token::{Keyword, Token};
+use crate::{
+    ast::{
+        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
+    },
+    macros_api::UnresolvedTypeData,
+    parser::{ParserError, ParserErrorReason},
+};
+use crate::{
+    ast::{Signedness, UnresolvedGeneric, UnresolvedGenerics},
+    parser::labels::ParsingRuleLabel,
+};
 
 use chumsky::prelude::*;
+use noirc_errors::Span;
 
 /// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
+    let body_or_error =
+        spanned(block(fresh_statement()).or_not()).validate(|(body, body_span), span, emit| {
+            if let Some(body) = body {
+                (body, body_span)
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
+                    span,
+                ));
+                (BlockExpression { statements: vec![] }, Span::from(span.end()..span.end()))
+            }
+        });
+
     attributes()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
@@ -24,7 +51,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(where_clause())
-        .then(spanned(block(fresh_statement())))
+        .then(body_or_error)
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
@@ -48,32 +75,51 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         })
 }
 
-/// visibility_modifier: 'pub(crate)'? 'pub'? ''
-fn visibility_modifier() -> impl NoirParser<ItemVisibility> {
-    let is_pub_crate = (keyword(Keyword::Pub)
-        .then_ignore(just(Token::LeftParen))
-        .then_ignore(keyword(Keyword::Crate))
-        .then_ignore(just(Token::RightParen)))
-    .map(|_| ItemVisibility::PublicCrate);
-
-    let is_pub = keyword(Keyword::Pub).map(|_| ItemVisibility::Public);
-
-    let is_private = empty().map(|_| ItemVisibility::Private);
-
-    choice((is_pub_crate, is_pub, is_private))
-}
-
 /// function_modifiers: 'unconstrained'? (visibility)?
 ///
 /// returns (is_unconstrained, visibility) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
-    keyword(Keyword::Unconstrained)
-        .or_not()
-        .then(visibility_modifier())
-        .then(maybe_comp_time())
-        .map(|((unconstrained, visibility), comptime)| {
-            (unconstrained.is_some(), visibility, comptime)
+    keyword(Keyword::Unconstrained).or_not().then(item_visibility()).then(maybe_comp_time()).map(
+        |((unconstrained, visibility), comptime)| (unconstrained.is_some(), visibility, comptime),
+    )
+}
+
+pub(super) fn numeric_generic() -> impl NoirParser<UnresolvedGeneric> {
+    keyword(Keyword::Let)
+        .ignore_then(ident())
+        .then_ignore(just(Token::Colon))
+        .then(parse_type())
+        .map(|(ident, typ)| UnresolvedGeneric::Numeric { ident, typ })
+        .validate(|generic, span, emit| {
+            if let UnresolvedGeneric::Numeric { typ, .. } = &generic {
+                if let UnresolvedTypeData::Integer(signedness, bit_size) = typ.typ {
+                    if matches!(signedness, Signedness::Signed)
+                        || matches!(bit_size, IntegerBitSize::SixtyFour)
+                    {
+                        emit(ParserError::with_reason(
+                            ParserErrorReason::ForbiddenNumericGenericType,
+                            span,
+                        ));
+                    }
+                }
+            }
+            generic
         })
+}
+
+pub(super) fn generic_type() -> impl NoirParser<UnresolvedGeneric> {
+    ident().map(UnresolvedGeneric::Variable)
+}
+
+pub(super) fn resolved_generic() -> impl NoirParser<UnresolvedGeneric> {
+    token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
+        Token::QuotedType(id) => UnresolvedGeneric::Resolved(id, span),
+        _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
+    })
+}
+
+pub(super) fn generic() -> impl NoirParser<UnresolvedGeneric> {
+    generic_type().or(numeric_generic()).or(resolved_generic())
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
@@ -81,11 +127,10 @@ fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
 ///
 /// generics: '<' non_empty_ident_list '>'
 ///         | %empty
-pub(super) fn generics() -> impl NoirParser<Vec<Ident>> {
-    ident()
+pub(super) fn generics() -> impl NoirParser<UnresolvedGenerics> {
+    generic()
         .separated_by(just(Token::Comma))
         .allow_trailing()
-        .at_least(1)
         .delimited_by(just(Token::Less), just(Token::Greater))
         .or_not()
         .map(|opt| opt.unwrap_or_default())
@@ -93,14 +138,12 @@ pub(super) fn generics() -> impl NoirParser<Vec<Ident>> {
 
 pub(super) fn function_return_type() -> impl NoirParser<(Visibility, FunctionReturnType)> {
     #[allow(deprecated)]
-    just(Token::Arrow)
-        .ignore_then(optional_visibility())
-        .then(spanned(parse_type()))
-        .or_not()
-        .map_with_span(|ret, span| match ret {
+    just(Token::Arrow).ignore_then(visibility()).then(spanned(parse_type())).or_not().map_with_span(
+        |ret, span| match ret {
             Some((visibility, (ty, _))) => (visibility, FunctionReturnType::Ty(ty)),
             None => (Visibility::Private, FunctionReturnType::Default(span)),
-        })
+        },
+    )
 }
 
 fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
@@ -109,7 +152,7 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
     let full_parameter = pattern()
         .recover_via(parameter_name_recovery())
         .then_ignore(just(Token::Colon))
-        .then(optional_visibility())
+        .then(visibility())
         .then(typ)
         .map_with_span(|((pattern, visibility), typ), span| Param {
             visibility,
@@ -193,6 +236,7 @@ mod test {
                 // fn func_name(x: impl Eq) {} with error Expected an end of input but found end of input
                 // "fn func_name(x: impl Eq) {}",
                 "fn func_name<T>(x: impl Eq, y : T) where T: SomeTrait + Eq {}",
+                "fn func_name<let N: u32>(x: [Field; N]) {}",
             ],
         );
 
@@ -209,7 +253,31 @@ mod test {
                 // A leading plus is not allowed.
                 "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
+                // Test ill-formed numeric generics
+                "fn func_name<let T>(y: T) {}",
+                "fn func_name<let T:>(y: T) {}",
+                "fn func_name<T:>(y: T) {}",
+                // Test failure of missing `let`
+                "fn func_name<T: u32>(y: T) {}",
+                // Test that signed numeric generics are banned
+                "fn func_name<let N: i8>() {}",
+                // Test that `u64` is banned
+                "fn func_name<let N: u64>(x: [Field; N]) {}",
             ],
         );
+    }
+
+    #[test]
+    fn parse_recover_function_without_body() {
+        let src = "fn foo(x: i32)";
+
+        let (noir_function, errors) = parse_recover(function_definition(false), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected { or -> after function parameters");
+
+        let noir_function = noir_function.unwrap();
+        assert_eq!(noir_function.name(), "foo");
+        assert_eq!(noir_function.parameters().len(), 1);
+        assert!(noir_function.def.body.statements.is_empty());
     }
 }

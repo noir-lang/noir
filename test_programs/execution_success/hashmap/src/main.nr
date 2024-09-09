@@ -3,7 +3,6 @@ mod utils;
 use std::collections::map::HashMap;
 use std::hash::BuildHasherDefault;
 use std::hash::poseidon2::Poseidon2Hasher;
-use std::cmp::Eq;
 
 use utils::cut;
 

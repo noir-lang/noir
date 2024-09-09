@@ -9,10 +9,11 @@ use std::ec::swcurve::curvegroup::Point as SWG;
 
 use std::ec::montcurve::affine::Point as MGaffine;
 use std::ec::montcurve::curvegroup::Point as MG;
+use std::compat;
 
 fn main() {
     // This test only makes sense if Field is the right prime field.
-    if 21888242871839275222246405745257275088548364400416034343698204186575808495617 == 0 {
+    if compat::is_bn254() {
         // Define Baby Jubjub (ERC-2494) parameters in affine representation
         let bjj_affine = AffineCurve::new(
             168700,

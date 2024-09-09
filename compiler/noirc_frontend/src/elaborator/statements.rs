@@ -3,7 +3,6 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
-        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -40,11 +39,16 @@ impl<'context> Elaborator<'context> {
                 let (expr, _typ) = self.elaborate_expression(expr);
                 (HirStatement::Semi(expr), Type::Unit)
             }
+            StatementKind::Interned(id) => {
+                let kind = self.interner.get_statement_kind(id);
+                let statement = Statement { kind: kind.clone(), span: statement.span };
+                self.elaborate_statement_value(statement)
+            }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
 
-    pub(super) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+    pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         let span = statement.span;
         let (hir_statement, typ) = self.elaborate_statement_value(statement);
         let id = self.interner.push_stmt(hir_statement);
@@ -67,36 +71,31 @@ impl<'context> Elaborator<'context> {
     ) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-        let annotated_type = self.resolve_type(let_stmt.r#type);
+        let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
         let definition = match global_id {
             None => DefinitionKind::Local(Some(expression)),
             Some(id) => DefinitionKind::Global(id),
         };
 
-        // First check if the LHS is unspecified
-        // If so, then we give it the same type as the expression
-        let r#type = if annotated_type != Type::Error {
-            // Now check if LHS is the same type as the RHS
-            // Importantly, we do not coerce any types implicitly
-            self.unify_with_coercions(&expr_type, &annotated_type, expression, || {
-                TypeCheckError::TypeMismatch {
-                    expected_typ: annotated_type.to_string(),
-                    expr_typ: expr_type.to_string(),
-                    expr_span,
-                }
-            });
-            if annotated_type.is_unsigned() {
-                let errors = lints::overflowing_uint(self.interner, &expression, &annotated_type);
-                for error in errors {
-                    self.push_err(error);
-                }
+        // Now check if LHS is the same type as the RHS
+        // Importantly, we do not coerce any types implicitly
+        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_span, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: annotated_type.to_string(),
+                expr_typ: expr_type.to_string(),
+                expr_span,
             }
-            annotated_type
-        } else {
-            expr_type
-        };
+        });
 
+        if annotated_type.is_integer() {
+            let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
+            for error in errors {
+                self.push_err(error);
+            }
+        }
+
+        let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
             let_stmt.pattern,
             r#type.clone(),
@@ -137,7 +136,7 @@ impl<'context> Elaborator<'context> {
             self.push_err(TypeCheckError::VariableMustBeMutable { name, span });
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, || {
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, span, || {
             TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
@@ -206,7 +205,9 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
-        if !self.in_unconstrained_fn {
+        let in_constrained_function = self.in_constrained_function();
+
+        if in_constrained_function {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
         }
         if self.nested_loops == 0 {
@@ -253,6 +254,9 @@ impl<'context> Elaborator<'context> {
                     let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
+
+                let reference_location = Location::new(span, self.file);
+                self.interner.add_local_reference(ident.id, reference_location);
 
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
@@ -358,6 +362,10 @@ impl<'context> Elaborator<'context> {
                 let lvalue = HirLValue::Dereference { lvalue, element_type, location };
                 (lvalue, typ, true)
             }
+            LValue::Interned(id, span) => {
+                let lvalue = self.interner.get_lvalue(id, span).clone();
+                self.elaborate_lvalue(lvalue, assign_span)
+            }
         }
     }
 
@@ -375,6 +383,9 @@ impl<'context> Elaborator<'context> {
             Type::Struct(s, args) => {
                 let s = s.borrow();
                 if let Some((field, index)) = s.get_field(field_name, args) {
+                    let reference_location = Location::new(span, self.file);
+                    self.interner.add_struct_member_reference(s.id, index, reference_location);
+
                     return Some((field, index));
                 }
             }
@@ -417,7 +428,7 @@ impl<'context> Elaborator<'context> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { span });
         } else if lhs_type != Type::Error {
             self.push_err(TypeCheckError::AccessUnknownMember {
                 lhs_type,
@@ -430,11 +441,21 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
+        // We have to push a new FunctionContext so that we can resolve any constraints
+        // in this comptime block early before the function as a whole finishes elaborating.
+        // Otherwise the interpreter below may find expressions for which the underlying trait
+        // call is not yet solved for.
+        self.function_context.push(Default::default());
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        self.check_and_pop_function_context();
+        let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
+
+        let location = self.interner.id_location(hir_statement);
+        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+
         (HirStatement::Expression(expr), typ)
     }
 }

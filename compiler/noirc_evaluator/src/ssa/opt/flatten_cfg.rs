@@ -11,7 +11,7 @@
 //! elimination (DIE) pass.
 //!
 //! Though CFG information is lost during this pass, some key information is retained in the form
-//! of `EnableSideEffect` instructions. Each time the flattening pass enters and exits a branch of
+//! of `EnableSideEffectsIf` instructions. Each time the flattening pass enters and exits a branch of
 //! a jmpif, an instruction is inserted to capture a condition that is analogous to the activeness
 //! of the program point. For example:
 //!
@@ -214,6 +214,7 @@ struct Context<'f> {
 pub(crate) struct Store {
     old_value: ValueId,
     new_value: ValueId,
+    call_stack: CallStack,
 }
 
 #[derive(Clone)]
@@ -239,6 +240,8 @@ struct ConditionalContext {
     then_branch: ConditionalBranch,
     // First block of the else branch
     else_branch: Option<ConditionalBranch>,
+    // Call stack where the final location is that of the entire `if` expression
+    call_stack: CallStack,
 }
 
 fn flatten_function_cfg(function: &mut Function) {
@@ -289,7 +292,8 @@ impl<'f> Context<'f> {
         if let Some(context) = self.condition_stack.last() {
             let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
             let and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
-            self.insert_instruction(and, CallStack::new())
+            let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
+            self.insert_instruction(and, call_stack)
         } else {
             condition
         }
@@ -333,9 +337,20 @@ impl<'f> Context<'f> {
     ) -> Vec<BasicBlockId> {
         let terminator = self.inserter.function.dfg[block].unwrap_terminator().clone();
         match &terminator {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
                 self.arguments_stack.push(vec![]);
-                self.if_start(condition, then_destination, else_destination, &block)
+                self.if_start(
+                    condition,
+                    then_destination,
+                    else_destination,
+                    &block,
+                    call_stack.clone(),
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
@@ -370,6 +385,7 @@ impl<'f> Context<'f> {
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
         if_entry: &BasicBlockId,
+        call_stack: CallStack,
     ) -> Vec<BasicBlockId> {
         // manage conditions
         let old_condition = *condition;
@@ -389,6 +405,7 @@ impl<'f> Context<'f> {
             entry_block: *if_entry,
             then_branch: branch,
             else_branch: None,
+            call_stack,
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -400,8 +417,12 @@ impl<'f> Context<'f> {
         let mut cond_context = self.condition_stack.pop().unwrap();
         cond_context.then_branch.last_block = *block;
 
-        let else_condition =
-            self.insert_instruction(Instruction::Not(cond_context.condition), CallStack::new());
+        let condition_call_stack =
+            self.inserter.function.dfg.get_value_call_stack(cond_context.condition);
+        let else_condition = self.insert_instruction(
+            Instruction::Not(cond_context.condition),
+            condition_call_stack.clone(),
+        );
         let else_condition = self.link_condition(else_condition);
 
         // Make sure the else branch sees the previous values of each store
@@ -504,14 +525,16 @@ impl<'f> Context<'f> {
                 else_condition: cond_context.else_branch.as_ref().unwrap().condition,
                 else_value: else_arg,
             };
+            let call_stack = cond_context.call_stack.clone();
             self.inserter
                 .function
                 .dfg
-                .insert_instruction_and_results(instruction, block, None, CallStack::new())
+                .insert_instruction_and_results(instruction, block, None, call_stack)
                 .first()
         });
 
-        self.merge_stores(cond_context.then_branch, cond_context.else_branch);
+        let call_stack = cond_context.call_stack;
+        self.merge_stores(cond_context.then_branch, cond_context.else_branch, call_stack);
         self.arguments_stack.pop();
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
@@ -538,18 +561,19 @@ impl<'f> Context<'f> {
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStack,
     ) -> InsertInstructionResult {
         let block = self.inserter.function.entry_block();
         self.inserter.function.dfg.insert_instruction_and_results(
             instruction,
             block,
             ctrl_typevars,
-            CallStack::new(),
+            call_stack,
         )
     }
 
     /// Checks the branch condition on the top of the stack and uses it to build and insert an
-    /// `EnableSideEffects` instruction into the entry block.
+    /// `EnableSideEffectsIf` instruction into the entry block.
     ///
     /// If the stack is empty, a "true" u1 constant is taken to be the active condition. This is
     /// necessary for re-enabling side-effects when re-emerging to a branch depth of 0.
@@ -560,8 +584,9 @@ impl<'f> Context<'f> {
                 self.inserter.function.dfg.make_constant(FieldElement::one(), Type::unsigned(1))
             }
         };
-        let enable_side_effects = Instruction::EnableSideEffects { condition };
-        self.insert_instruction_with_typevars(enable_side_effects, None);
+        let enable_side_effects = Instruction::EnableSideEffectsIf { condition };
+        let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
+        self.insert_instruction_with_typevars(enable_side_effects, None, call_stack);
     }
 
     /// Merge any store instructions found in each branch.
@@ -573,6 +598,7 @@ impl<'f> Context<'f> {
         &mut self,
         then_branch: ConditionalBranch,
         else_branch: Option<ConditionalBranch>,
+        call_stack: CallStack,
     ) {
         // Address -> (then_value, else_value, value_before_the_if)
         let mut new_map = BTreeMap::new();
@@ -608,11 +634,9 @@ impl<'f> Context<'f> {
                 else_condition,
                 else_value: *else_case,
             };
-            let value = self
-                .inserter
-                .function
-                .dfg
-                .insert_instruction_and_results(instruction, block, None, CallStack::new())
+            let dfg = &mut self.inserter.function.dfg;
+            let value = dfg
+                .insert_instruction_and_results(instruction, block, None, call_stack.clone())
                 .first();
 
             new_values.insert(address, value);
@@ -622,18 +646,28 @@ impl<'f> Context<'f> {
         for (address, (_, _, old_value)) in &new_map {
             let value = new_values[address];
             let address = *address;
-            self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
+            self.insert_instruction_with_typevars(
+                Instruction::Store { address, value },
+                None,
+                call_stack.clone(),
+            );
 
             if let Some(store) = self.store_values.get_mut(&address) {
                 store.new_value = value;
             } else {
-                self.store_values
-                    .insert(address, Store { old_value: *old_value, new_value: value });
+                self.store_values.insert(
+                    address,
+                    Store {
+                        old_value: *old_value,
+                        new_value: value,
+                        call_stack: call_stack.clone(),
+                    },
+                );
             }
         }
     }
 
-    fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
+    fn remember_store(&mut self, address: ValueId, new_value: ValueId, call_stack: CallStack) {
         if !self.local_allocations.contains(&address) {
             if let Some(store_value) = self.store_values.get_mut(&address) {
                 store_value.new_value = new_value;
@@ -641,10 +675,11 @@ impl<'f> Context<'f> {
                 let load = Instruction::Load { address };
 
                 let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
-                let old_value =
-                    self.insert_instruction_with_typevars(load.clone(), load_type).first();
+                let old_value = self
+                    .insert_instruction_with_typevars(load.clone(), load_type, call_stack.clone())
+                    .first();
 
-                self.store_values.insert(address, Store { old_value, new_value });
+                self.store_values.insert(address, Store { old_value, new_value, call_stack });
             }
         }
     }
@@ -706,7 +741,7 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
-                    self.remember_store(address, value);
+                    self.remember_store(address, value, call_stack);
                     Instruction::Store { address, value }
                 }
                 Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -752,27 +787,24 @@ impl<'f> Context<'f> {
                         Instruction::Call { func, arguments }
                     }
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let mut array_with_predicate = im::Vector::new();
-                        let array_typ;
-                        if let Value::Array { array, typ } =
-                            &self.inserter.function.dfg[arguments[0]]
-                        {
-                            array_typ = typ.clone();
-                            for (i, value) in array.clone().iter().enumerate() {
-                                if i % 3 == 2 {
-                                    array_with_predicate.push_back(self.var_or_one(
-                                        *value,
-                                        condition,
-                                        call_stack.clone(),
-                                    ));
-                                } else {
-                                    array_with_predicate.push_back(*value);
-                                }
-                            }
+                        let points_array_idx = if matches!(
+                            self.inserter.function.dfg[arguments[0]],
+                            Value::Array { .. }
+                        ) {
+                            0
                         } else {
-                            unreachable!();
-                        }
-                        arguments[0] =
+                            // if the first argument is not an array, we assume it is a slice
+                            // which means the array is the second argument
+                            1
+                        };
+                        let (array_with_predicate, array_typ) = self
+                            .apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack.clone(),
+                            );
+
+                        arguments[points_array_idx] =
                             self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
                         Instruction::Call { func, arguments }
                     }
@@ -783,6 +815,40 @@ impl<'f> Context<'f> {
         } else {
             instruction
         }
+    }
+
+    /// When a MSM is done under a predicate, we need to apply the predicate
+    /// to the is_infinity property of the input points in order to ensure
+    /// that the points will be on the curve no matter what.
+    fn apply_predicate_to_msm_argument(
+        &mut self,
+        argument: ValueId,
+        predicate: ValueId,
+        call_stack: CallStack,
+    ) -> (im::Vector<ValueId>, Type) {
+        let array_typ;
+        let mut array_with_predicate = im::Vector::new();
+        if let Value::Array { array, typ } = &self.inserter.function.dfg[argument] {
+            array_typ = typ.clone();
+            for (i, value) in array.clone().iter().enumerate() {
+                if i % 3 == 2 {
+                    array_with_predicate.push_back(self.var_or_one(
+                        *value,
+                        predicate,
+                        call_stack.clone(),
+                    ));
+                } else {
+                    array_with_predicate.push_back(*value);
+                }
+            }
+        } else {
+            unreachable!(
+                "Expected an array, got {}",
+                &self.inserter.function.dfg.type_of_value(argument)
+            );
+        };
+
+        (array_with_predicate, array_typ)
     }
 
     // Computes: if condition { var } else { 1 }
@@ -803,14 +869,16 @@ impl<'f> Context<'f> {
         for (address, store) in store_values {
             let address = *address;
             let value = store.old_value;
-            self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
+            let instruction = Instruction::Store { address, value };
+            // Considering the location of undoing a store to be the same as the original store.
+            self.insert_instruction_with_typevars(instruction, None, store.call_stack.clone());
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use acvm::acir::AcirField;
 
@@ -948,7 +1016,7 @@ mod test {
         let b2 = builder.insert_block();
 
         let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::Reference(Rc::new(Type::field())));
+        let v1 = builder.add_parameter(Type::Reference(Arc::new(Type::field())));
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
@@ -1010,7 +1078,7 @@ mod test {
         let b3 = builder.insert_block();
 
         let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::Reference(Rc::new(Type::field())));
+        let v1 = builder.add_parameter(Type::Reference(Arc::new(Type::field())));
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
@@ -1381,7 +1449,7 @@ mod test {
         // Tests that it does not simplify a true constraint an always-false constraint
         // acir(inline) fn main f1 {
         //     b0(v0: [u8; 2]):
-        //       v4 = call keccak256(v0, u8 2)
+        //       v4 = call sha256(v0, u8 2)
         //       v5 = array_get v4, index u8 0
         //       v6 = cast v5 as u32
         //       v8 = truncate v6 to 1 bits, max_bit_size: 32
@@ -1409,7 +1477,7 @@ mod test {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        let element_type = Rc::new(vec![Type::unsigned(8)]);
+        let element_type = Arc::new(vec![Type::unsigned(8)]);
         let array_type = Type::Array(element_type.clone(), 2);
         let array = builder.add_parameter(array_type);
 
@@ -1417,7 +1485,7 @@ mod test {
         let two = builder.numeric_constant(2_u128, Type::unsigned(8));
 
         let keccak =
-            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccak256));
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::SHA256));
         let v4 =
             builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])[0];
         let v5 = builder.insert_array_get(v4, zero, Type::unsigned(8));

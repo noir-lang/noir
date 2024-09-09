@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
@@ -6,7 +8,10 @@ use thiserror::Error;
 use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
+use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::Type;
+use crate::macros_api::Ident;
+use crate::macros_api::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -32,7 +37,7 @@ pub enum Source {
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
-    #[error("The literal `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
+    #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
     OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
@@ -40,6 +45,8 @@ pub enum TypeCheckError {
     TypeMismatch { expected_typ: String, expr_typ: String, expr_span: Span },
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
+    #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
+    TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -78,6 +85,8 @@ pub enum TypeCheckError {
     IntegerAndFieldBinaryOperation { span: Span },
     #[error("Cannot do modulo on Fields, try casting to an integer first")]
     FieldModulo { span: Span },
+    #[error("Cannot do not (`!`) on Fields, try casting to an integer first")]
+    FieldNot { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
     #[error("The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first")]
@@ -95,8 +104,12 @@ pub enum TypeCheckError {
         second_type: String,
         second_index: usize,
     },
-    #[error("Cannot infer type of expression, type annotations needed before this point")]
-    TypeAnnotationsNeeded { span: Span },
+    #[error("Object type is unknown in method call")]
+    TypeAnnotationsNeededForMethodCall { span: Span },
+    #[error("Object type is unknown in field access")]
+    TypeAnnotationsNeededForFieldAccess { span: Span },
+    #[error("Multiple trait impls may apply to this object type")]
+    MultipleMatchingImpls { object_type: Type, candidates: Vec<String>, span: Span },
     #[error("use of deprecated function {name}")]
     CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
@@ -112,7 +125,7 @@ pub enum TypeCheckError {
         parameter_index: usize,
     },
     #[error("No matching impl found")]
-    NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
+    NoMatchingImplFound(NoMatchingImplFoundError),
     #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
     UnneededTraitConstraint { trait_name: String, typ: Type, span: Span },
     #[error(
@@ -129,6 +142,10 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
+    Unsafe { span: Span },
+    #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
+    UnsafeFn { span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -143,8 +160,26 @@ pub enum TypeCheckError {
     },
     #[error("Strings do not support indexed assignment")]
     StringIndexAssign { span: Span },
-    #[error("Macro calls may only return Expr values")]
+    #[error("Macro calls may only return `Quoted` values")]
     MacroReturningNonExpr { typ: Type, span: Span },
+    #[error("turbofish (`::<_>`) usage at this position isn't supported yet")]
+    UnsupportedTurbofishUsage { span: Span },
+    #[error("`{name}` has already been specified")]
+    DuplicateNamedTypeArg { name: Ident, prev_span: Span },
+    #[error("`{item}` has no associated type named `{name}`")]
+    NoSuchNamedTypeArg { name: Ident, item: String },
+    #[error("`{item}` is missing the associated type `{name}`")]
+    MissingNamedTypeArg { name: Rc<String>, item: String, span: Span },
+    #[error("Internal compiler error: type unspecified for value")]
+    UnspecifiedType { span: Span },
+    #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
+    CyclicType { typ: Type, span: Span },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoMatchingImplFoundError {
+    constraints: Vec<(Type, String)>,
+    pub span: Span,
 }
 
 impl TypeCheckError {
@@ -174,6 +209,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                 Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
+                    String::new(),
+                    *expr_span,
+                )
+            }
+            TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_span } => {
+                Diagnostic::simple_error(
+                    format!("Expected kind {expected_kind}, found kind {expr_kind}"),
                     String::new(),
                     *expr_span,
                 )
@@ -238,6 +280,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
             | TypeCheckError::OverflowingAssignment { span, .. }
             | TypeCheckError::FieldModulo { span }
+            | TypeCheckError::FieldNot { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
@@ -251,11 +294,33 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 format!("return type is {typ}"),
                 *span,
             ),
-            TypeCheckError::TypeAnnotationsNeeded { span } => Diagnostic::simple_error(
-                "Expression type is ambiguous".to_string(),
-                "Type must be known at this point".to_string(),
-                *span,
-            ),
+            TypeCheckError::TypeAnnotationsNeededForMethodCall { span } => {
+                let mut error = Diagnostic::simple_error(
+                    "Object type is unknown in method call".to_string(),
+                    "Type must be known by this point to know which method to call".to_string(),
+                    *span,
+                );
+                error.add_note("Try adding a type annotation for the object type before this method call".to_string());
+                error
+            },
+            TypeCheckError::TypeAnnotationsNeededForFieldAccess { span } => {
+                let mut error = Diagnostic::simple_error(
+                    "Object type is unknown in field access".to_string(),
+                    "Type must be known by this point".to_string(),
+                    *span,
+                );
+                error.add_note("Try adding a type annotation for the object type before this expression".to_string());
+                error
+            },
+            TypeCheckError::MultipleMatchingImpls { object_type, candidates, span } => {
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = Diagnostic::simple_error(message, secondary, *span);
+                for (i, candidate) in candidates.iter().enumerate() {
+                    error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
+                }
+                error
+            },
             TypeCheckError::ResolverError(error) => error.into(),
             TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
                 let message = match source {
@@ -271,7 +336,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty.clone() {
                             FunctionReturnType::Default(span) => span,
-                            FunctionReturnType::Ty(ty) => ty.span.unwrap(),
+                            FunctionReturnType::Ty(ty) => ty.span,
                         };
 
                         let mut diagnostic = Diagnostic::simple_error(format!("expected type {expected}, found type {actual}"), format!("expected {expected} because of return type"), ret_ty_span);
@@ -292,26 +357,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 
-                Diagnostic::simple_warning(primary_message, secondary_message, *span)
+                let mut diagnostic = Diagnostic::simple_warning(primary_message, secondary_message, *span);
+                diagnostic.deprecated = true;
+                diagnostic
             }
             TypeCheckError::UnusedResultError { expr_type, expr_span } => {
                 let msg = format!("Unused expression result of type {expr_type}");
                 Diagnostic::simple_warning(msg, String::new(), *expr_span)
             }
-            TypeCheckError::NoMatchingImplFound { constraints, span } => {
-                assert!(!constraints.is_empty());
-                let msg = format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
-                let mut diagnostic = Diagnostic::from_message(&msg);
-
-                diagnostic.add_secondary(format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1), *span);
-
-                // These must be notes since secondaries are unordered
-                for (typ, trait_name) in &constraints[1..] {
-                    diagnostic.add_note(format!("Required by `{typ}: {trait_name}`"));
-                }
-
-                diagnostic
-            }
+            TypeCheckError::NoMatchingImplFound(error) => error.into(),
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, span } => {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
                 Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), *span)
@@ -338,10 +392,83 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(msg, "".into(), *span)
             },
             TypeCheckError::MacroReturningNonExpr { typ, span } => Diagnostic::simple_error(
-                format!("Expected macro call to return an `Expr` but found a(n) {typ}"),
-                "Macro calls must return quoted expressions, otherwise there is no code to insert".into(),
+                format!("Expected macro call to return a `Quoted` but found a(n) `{typ}`"),
+                "Macro calls must return quoted values, otherwise there is no code to insert".into(),
                 *span,
-                ),
+            ),
+            TypeCheckError::UnsupportedTurbofishUsage { span } => {
+                let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
+            },
+            TypeCheckError::DuplicateNamedTypeArg { name, prev_span } => {
+                let msg = format!("`{name}` has already been specified");
+                let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span());
+                error.add_secondary(format!("`{name}` previously specified here"), *prev_span);
+                error
+            },
+            TypeCheckError::NoSuchNamedTypeArg { name, item } => {
+                let msg = format!("`{item}` has no associated type named `{name}`");
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span())
+            },
+            TypeCheckError::MissingNamedTypeArg { name, item, span } => {
+                let msg = format!("`{item}` is missing the associated type `{name}`");
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
+            },
+            TypeCheckError::Unsafe { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::UnsafeFn { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::UnspecifiedType { span } => {
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::CyclicType { typ: _, span } => {
+                Diagnostic::simple_error(error.to_string(), "Cyclic types have unlimited size and are prohibited in Noir".into(), *span)
+            }
         }
+    }
+}
+
+impl<'a> From<&'a NoMatchingImplFoundError> for Diagnostic {
+    fn from(error: &'a NoMatchingImplFoundError) -> Self {
+        let constraints = &error.constraints;
+        let span = error.span;
+
+        assert!(!constraints.is_empty());
+        let msg =
+            format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
+        let mut diagnostic = Diagnostic::from_message(&msg);
+
+        let secondary = format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1);
+        diagnostic.add_secondary(secondary, span);
+
+        // These must be notes since secondaries are unordered
+        for (typ, trait_name) in &constraints[1..] {
+            diagnostic.add_note(format!("Required by `{typ}: {trait_name}`"));
+        }
+
+        diagnostic
+    }
+}
+
+impl NoMatchingImplFoundError {
+    pub fn new(
+        interner: &NodeInterner,
+        failing_constraints: Vec<TraitConstraint>,
+        span: Span,
+    ) -> Option<Self> {
+        // Don't show any errors where try_get_trait returns None.
+        // This can happen if a trait is used that was never declared.
+        let constraints = failing_constraints
+            .into_iter()
+            .map(|constraint| {
+                let r#trait = interner.try_get_trait(constraint.trait_id)?;
+                let name = format!("{}{}", r#trait.name, constraint.trait_generics);
+                Some((constraint.typ, name))
+            })
+            .collect::<Option<Vec<_>>>()?;
+
+        Some(Self { constraints, span })
     }
 }

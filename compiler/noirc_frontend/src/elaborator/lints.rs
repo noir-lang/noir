@@ -1,21 +1,19 @@
 use crate::{
-    ast::FunctionKind,
+    ast::{FunctionKind, Ident},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
-    hir_def::expr::HirIdent,
+    hir_def::{expr::HirIdent, function::FuncMeta},
     macros_api::{
-        HirExpression, HirLiteral, NodeInterner, NoirFunction, UnaryOp, UnresolvedTypeData,
-        Visibility,
+        HirExpression, HirLiteral, NodeInterner, NoirFunction, Signedness, UnaryOp, Visibility,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId},
+    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers},
     Type,
 };
-use acvm::AcirField;
 
-use noirc_errors::Span;
+use noirc_errors::{Span, Spanned};
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -40,16 +38,17 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
 /// Inline attributes are only relevant for constrained functions
 /// as all unconstrained functions are not inlined and so
 /// associated attributes are disallowed.
-pub(super) fn inlining_attributes(func: &NoirFunction) -> Option<ResolverError> {
-    if func.def.is_unconstrained {
-        let attributes = func.attributes().clone();
-
-        if attributes.is_no_predicates() {
-            Some(ResolverError::NoPredicatesAttributeOnUnconstrained {
-                ident: func.name_ident().clone(),
-            })
-        } else if attributes.is_foldable() {
-            Some(ResolverError::FoldAttributeOnUnconstrained { ident: func.name_ident().clone() })
+pub(super) fn inlining_attributes(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    if modifiers.is_unconstrained {
+        if modifiers.attributes.is_no_predicates() {
+            let ident = func_meta_name_ident(func, modifiers);
+            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident })
+        } else if modifiers.attributes.is_foldable() {
+            let ident = func_meta_name_ident(func, modifiers);
+            Some(ResolverError::FoldAttributeOnUnconstrained { ident })
         } else {
             None
         }
@@ -60,24 +59,30 @@ pub(super) fn inlining_attributes(func: &NoirFunction) -> Option<ResolverError> 
 
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
-    func: &NoirFunction,
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
-        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() })
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
     } else {
         None
     }
 }
 
 /// Oracle definitions (functions with the `#[oracle]` attribute) must be marked as unconstrained.
-pub(super) fn oracle_not_marked_unconstrained(func: &NoirFunction) -> Option<ResolverError> {
+pub(super) fn oracle_not_marked_unconstrained(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
     let is_oracle_function =
-        func.attributes().function.as_ref().map_or(false, |func| func.is_oracle());
-    if is_oracle_function && !func.def.is_unconstrained {
-        Some(ResolverError::OracleMarkedAsConstrained { ident: func.name_ident().clone() })
+        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    if is_oracle_function && !modifiers.is_unconstrained {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleMarkedAsConstrained { ident })
     } else {
         None
     }
@@ -107,12 +112,13 @@ pub(super) fn oracle_called_from_constrained_function(
 }
 
 /// `pub` is required on return types for entry point functions
-pub(super) fn missing_pub(func: &NoirFunction, is_entry_point: bool) -> Option<ResolverError> {
-    if is_entry_point
-        && func.return_type().typ != UnresolvedTypeData::Unit
-        && func.def.return_visibility == Visibility::Private
+pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Option<ResolverError> {
+    if func.is_entry_point
+        && func.return_type() != &Type::Unit
+        && func.return_visibility == Visibility::Private
     {
-        Some(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::NecessaryPub { ident })
     } else {
         None
     }
@@ -120,11 +126,12 @@ pub(super) fn missing_pub(func: &NoirFunction, is_entry_point: bool) -> Option<R
 
 /// `#[recursive]` attribute is only allowed for entry point functions
 pub(super) fn recursive_non_entrypoint_function(
-    func: &NoirFunction,
-    is_entry_point: bool,
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if !is_entry_point && func.kind == FunctionKind::Recursive {
-        Some(ResolverError::MisplacedRecursiveAttribute { ident: func.name_ident().clone() })
+    if !func.is_entry_point && func.kind == FunctionKind::Recursive {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::MisplacedRecursiveAttribute { ident })
     } else {
         None
     }
@@ -137,7 +144,7 @@ pub(super) fn unconstrained_function_args(
     function_args
         .iter()
         .filter_map(|(typ, _, span)| {
-            if type_contains_mutable_reference(typ) {
+            if !typ.is_valid_for_unconstrained_boundary() {
                 Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
             } else {
                 None
@@ -153,29 +160,24 @@ pub(super) fn unconstrained_function_return(
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
-    } else if type_contains_mutable_reference(return_type) {
+    } else if !return_type.is_valid_for_unconstrained_boundary() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
     } else {
         None
     }
 }
 
-fn type_contains_mutable_reference(typ: &Type) -> bool {
-    matches!(&typ.follow_bindings(), Type::MutableReference(_))
-}
-
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.
 ///
 /// Application of `pub` to other functions is not meaningful and is a mistake.
 pub(super) fn unnecessary_pub_return(
-    func: &NoirFunction,
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point && func.def.return_visibility == Visibility::Public {
-        Some(ResolverError::UnnecessaryPub {
-            ident: func.name_ident().clone(),
-            position: PubPosition::ReturnType,
-        })
+    if !is_entry_point && func.return_visibility == Visibility::Public {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::UnnecessaryPub { ident, position: PubPosition::ReturnType })
     } else {
         None
     }
@@ -200,8 +202,8 @@ pub(super) fn unnecessary_pub_argument(
 }
 
 /// Check if an assignment is overflowing with respect to `annotated_type`
-/// in a declaration statement where `annotated_type` is an unsigned integer
-pub(crate) fn overflowing_uint(
+/// in a declaration statement where `annotated_type` is a signed or unsigned integer
+pub(crate) fn overflowing_int(
     interner: &NodeInterner,
     rhs_expr: &ExprId,
     annotated_type: &Type,
@@ -211,36 +213,53 @@ pub(crate) fn overflowing_uint(
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, false)) => {
-            let v = value.to_u128();
-            if let Type::Integer(_, bit_count) = annotated_type {
+        HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
+            Type::Integer(Signedness::Unsigned, bit_count) => {
                 let bit_count: u32 = (*bit_count).into();
-                let max = 1 << bit_count;
-                if v >= max {
+                let max = 2u128.pow(bit_count) - 1;
+                if value > max.into() || negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: value,
+                        expr: if negative { -value } else { value },
                         ty: annotated_type.clone(),
-                        range: format!("0..={}", max - 1),
+                        range: format!("0..={}", max),
                         span,
                     });
-                };
-            };
-        }
+                }
+            }
+            Type::Integer(Signedness::Signed, bit_count) => {
+                let bit_count: u32 = (*bit_count).into();
+                let min = 2u128.pow(bit_count - 1);
+                let max = 2u128.pow(bit_count - 1) - 1;
+                if (negative && value > min.into()) || (!negative && value > max.into()) {
+                    errors.push(TypeCheckError::OverflowingAssignment {
+                        expr: if negative { -value } else { value },
+                        ty: annotated_type.clone(),
+                        range: format!("-{}..={}", min, max),
+                        span,
+                    });
+                }
+            }
+            _ => (),
+        },
         HirExpression::Prefix(expr) => {
-            overflowing_uint(interner, &expr.rhs, annotated_type);
-            if expr.operator == UnaryOp::Minus {
+            overflowing_int(interner, &expr.rhs, annotated_type);
+            if expr.operator == UnaryOp::Minus && annotated_type.is_unsigned() {
                 errors.push(TypeCheckError::InvalidUnaryOp {
-                    kind: "annotated_type".to_string(),
+                    kind: annotated_type.to_string(),
                     span,
                 });
             }
         }
         HirExpression::Infix(expr) => {
-            errors.extend(overflowing_uint(interner, &expr.lhs, annotated_type));
-            errors.extend(overflowing_uint(interner, &expr.rhs, annotated_type));
+            errors.extend(overflowing_int(interner, &expr.lhs, annotated_type));
+            errors.extend(overflowing_int(interner, &expr.rhs, annotated_type));
         }
         _ => {}
     }
 
     errors
+}
+
+fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
+    Ident(Spanned::from(func.name.location.span, modifiers.name.clone()))
 }

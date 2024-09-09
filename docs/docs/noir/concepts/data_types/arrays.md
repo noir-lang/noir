@@ -199,7 +199,7 @@ fn main() {
 
 ### reduce
 
-Same as fold, but uses the first element as starting element.
+Same as fold, but uses the first element as the starting element.
 
 ```rust
 fn reduce(self, f: fn(T, T) -> T) -> T
@@ -250,4 +250,24 @@ fn main() {
     assert(any);
 }
 
+```
+
+### as_str_unchecked
+
+Converts a byte array of type `[u8; N]` to a string. Note that this performs no UTF-8 validation -
+the given array is interpreted as-is as a string.
+
+```rust
+impl<let N: u32> [u8; N] {
+    pub fn as_str_unchecked(self) -> str<N>
+}
+```
+
+example:
+
+```rust
+fn main() {
+    let hi = [104, 105].as_str_unchecked();
+    assert_eq(hi, "hi");
+}
 ```

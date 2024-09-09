@@ -1,47 +1,225 @@
-use crate::{hir::def_collector::dc_crate::CompilationError, Type};
-use acvm::{acir::AcirField, FieldElement};
-use noirc_errors::{CustomDiagnostic, Location};
+use std::fmt::Display;
+use std::rc::Rc;
 
-use super::value::Value;
+use crate::{
+    ast::TraitBound,
+    hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
+    parser::ParserError,
+    token::Token,
+    Type,
+};
+use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
+use fm::FileId;
+use iter_extended::vecmap;
+use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterpreterError {
-    ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
-    TypeMismatch { expected: Type, value: Value, location: Location },
-    NonComptimeVarReferenced { name: String, location: Location },
-    IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
-    ErrorNodeEncountered { location: Location },
-    NonFunctionCalled { value: Value, location: Location },
-    NonBoolUsedInIf { value: Value, location: Location },
-    NonBoolUsedInConstrain { value: Value, location: Location },
-    FailingConstraint { message: Option<Value>, location: Location },
-    NoMethodFound { name: String, typ: Type, location: Location },
-    NonIntegerUsedInLoop { value: Value, location: Location },
-    NonPointerDereferenced { value: Value, location: Location },
-    NonTupleOrStructInMemberAccess { value: Value, location: Location },
-    NonArrayIndexed { value: Value, location: Location },
-    NonIntegerUsedAsIndex { value: Value, location: Location },
-    NonIntegerIntegerLiteral { typ: Type, location: Location },
-    NonIntegerArrayLength { typ: Type, location: Location },
-    NonNumericCasted { value: Value, location: Location },
-    IndexOutOfBounds { index: usize, length: usize, location: Location },
-    ExpectedStructToHaveField { value: Value, field_name: String, location: Location },
-    TypeUnsupported { typ: Type, location: Location },
-    InvalidValueForUnary { value: Value, operator: &'static str, location: Location },
-    InvalidValuesForBinary { lhs: Value, rhs: Value, operator: &'static str, location: Location },
-    CastToNonNumericType { typ: Type, location: Location },
-    QuoteInRuntimeCode { location: Location },
-    NonStructInConstructor { typ: Type, location: Location },
-    CannotInlineMacro { value: Value, location: Location },
-    UnquoteFoundDuringEvaluation { location: Location },
-
-    Unimplemented { item: String, location: Location },
-
-    // Perhaps this should be unreachable! due to type checking also preventing this error?
-    // Currently it and the Continue variant are the only interpreter errors without a Location field
-    BreakNotInLoop { location: Location },
-    ContinueNotInLoop { location: Location },
+    ArgumentCountMismatch {
+        expected: usize,
+        actual: usize,
+        location: Location,
+    },
+    TypeMismatch {
+        expected: Type,
+        actual: Type,
+        location: Location,
+    },
+    NonComptimeVarReferenced {
+        name: String,
+        location: Location,
+    },
+    VariableNotInScope {
+        location: Location,
+    },
+    IntegerOutOfRangeForType {
+        value: FieldElement,
+        typ: Type,
+        location: Location,
+    },
+    ErrorNodeEncountered {
+        location: Location,
+    },
+    NonFunctionCalled {
+        typ: Type,
+        location: Location,
+    },
+    NonBoolUsedInIf {
+        typ: Type,
+        location: Location,
+    },
+    NonBoolUsedInConstrain {
+        typ: Type,
+        location: Location,
+    },
+    FailingConstraint {
+        message: Option<String>,
+        location: Location,
+        call_stack: im::Vector<Location>,
+    },
+    NoMethodFound {
+        name: String,
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerUsedInLoop {
+        typ: Type,
+        location: Location,
+    },
+    NonPointerDereferenced {
+        typ: Type,
+        location: Location,
+    },
+    NonTupleOrStructInMemberAccess {
+        typ: Type,
+        location: Location,
+    },
+    NonArrayIndexed {
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerUsedAsIndex {
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerIntegerLiteral {
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerArrayLength {
+        typ: Type,
+        location: Location,
+    },
+    NonNumericCasted {
+        typ: Type,
+        location: Location,
+    },
+    IndexOutOfBounds {
+        index: usize,
+        length: usize,
+        location: Location,
+    },
+    ExpectedStructToHaveField {
+        typ: Type,
+        field_name: String,
+        location: Location,
+    },
+    TypeUnsupported {
+        typ: Type,
+        location: Location,
+    },
+    InvalidValueForUnary {
+        typ: Type,
+        operator: &'static str,
+        location: Location,
+    },
+    InvalidValuesForBinary {
+        lhs: Type,
+        rhs: Type,
+        operator: &'static str,
+        location: Location,
+    },
+    CastToNonNumericType {
+        typ: Type,
+        location: Location,
+    },
+    QuoteInRuntimeCode {
+        location: Location,
+    },
+    NonStructInConstructor {
+        typ: Type,
+        location: Location,
+    },
+    CannotInlineMacro {
+        value: String,
+        typ: Type,
+        location: Location,
+    },
+    UnquoteFoundDuringEvaluation {
+        location: Location,
+    },
+    DebugEvaluateComptime {
+        diagnostic: CustomDiagnostic,
+        location: Location,
+    },
+    FailedToParseMacro {
+        error: ParserError,
+        tokens: Rc<Vec<Token>>,
+        rule: &'static str,
+        file: FileId,
+    },
+    UnsupportedTopLevelItemUnquote {
+        item: String,
+        location: Location,
+    },
+    ComptimeDependencyCycle {
+        function: String,
+        location: Location,
+    },
+    NoImpl {
+        location: Location,
+    },
+    NoMatchingImplFound {
+        error: NoMatchingImplFoundError,
+        file: FileId,
+    },
+    ImplMethodTypeMismatch {
+        expected: Type,
+        actual: Type,
+        location: Location,
+    },
+    BreakNotInLoop {
+        location: Location,
+    },
+    ContinueNotInLoop {
+        location: Location,
+    },
+    BlackBoxError(BlackBoxResolutionError, Location),
+    FailedToResolveTraitBound {
+        trait_bound: TraitBound,
+        location: Location,
+    },
+    TraitDefinitionMustBeAPath {
+        location: Location,
+    },
+    FailedToResolveTraitDefinition {
+        location: Location,
+    },
+    FunctionAlreadyResolved {
+        location: Location,
+    },
+    MultipleMatchingImpls {
+        object_type: Type,
+        candidates: Vec<String>,
+        location: Location,
+    },
+    Unimplemented {
+        item: String,
+        location: Location,
+    },
+    TypeAnnotationsNeededForMethodCall {
+        location: Location,
+    },
+    ExpectedIdentForStructField {
+        value: String,
+        index: usize,
+        location: Location,
+    },
+    InvalidAttribute {
+        attribute: String,
+        location: Location,
+    },
+    GenericNameShouldBeAnIdent {
+        name: Rc<String>,
+        location: Location,
+    },
+    DuplicateGeneric {
+        name: Rc<String>,
+        struct_name: String,
+        duplicate_location: Location,
+        existing_location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -69,6 +247,7 @@ impl InterpreterError {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
+            | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
             | InterpreterError::ErrorNodeEncountered { location, .. }
             | InterpreterError::NonFunctionCalled { location, .. }
@@ -94,13 +273,50 @@ impl InterpreterError {
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
+            | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
+            | InterpreterError::ComptimeDependencyCycle { location, .. }
             | InterpreterError::Unimplemented { location, .. }
+            | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::ImplMethodTypeMismatch { location, .. }
+            | InterpreterError::DebugEvaluateComptime { location, .. }
+            | InterpreterError::BlackBoxError(_, location)
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::ContinueNotInLoop { location, .. }
+            | InterpreterError::TraitDefinitionMustBeAPath { location }
+            | InterpreterError::FailedToResolveTraitDefinition { location }
+            | InterpreterError::FailedToResolveTraitBound { location, .. }
+            | InterpreterError::FunctionAlreadyResolved { location, .. }
+            | InterpreterError::MultipleMatchingImpls { location, .. }
+            | InterpreterError::ExpectedIdentForStructField { location, .. }
+            | InterpreterError::InvalidAttribute { location, .. }
+            | InterpreterError::GenericNameShouldBeAnIdent { location, .. }
+            | InterpreterError::DuplicateGeneric { duplicate_location: location, .. }
+            | InterpreterError::TypeAnnotationsNeededForMethodCall { location } => *location,
+
+            InterpreterError::FailedToParseMacro { error, file, .. } => {
+                Location::new(error.span(), *file)
+            }
+            InterpreterError::NoMatchingImplFound { error, file } => {
+                Location::new(error.span, *file)
+            }
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
         }
+    }
+
+    pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
+        let mut formatted_result = format!("{}", expr);
+        // if multi-line, display on a separate line from the message
+        if formatted_result.contains('\n') {
+            formatted_result.insert(0, '\n');
+        }
+        let diagnostic = CustomDiagnostic::simple_info(
+            "`comptime` expression ran:".to_string(),
+            format!("After evaluation: {}", formatted_result),
+            location.span,
+        );
+        InterpreterError::DebugEvaluateComptime { diagnostic, location }
     }
 }
 
@@ -119,14 +335,18 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = format!("Too {few_many} arguments");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::TypeMismatch { expected, value, location } => {
-                let typ = value.get_type();
-                let msg = format!("Expected `{expected}` but a value of type `{typ}` was given");
+            InterpreterError::TypeMismatch { expected, actual, location } => {
+                let msg = format!("Expected `{expected}` but a value of type `{actual}` was given");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
                 let secondary = "Non-comptime variables can't be used in comptime code".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::VariableNotInScope { location } => {
+                let msg = "Variable not in scope".to_string();
+                let secondary = "Could not find variable".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
@@ -142,57 +362,63 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is a bug, please report this if found!".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonFunctionCalled { value, location } => {
+            InterpreterError::NonFunctionCalled { typ, location } => {
                 let msg = "Only functions may be called".to_string();
-                let secondary = format!("Expression has type {}", value.get_type());
+                let secondary = format!("Expression has type {typ}");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonBoolUsedInIf { value, location } => {
-                let msg = format!("Expected a `bool` but found `{}`", value.get_type());
+            InterpreterError::NonBoolUsedInIf { typ, location } => {
+                let msg = format!("Expected a `bool` but found `{typ}`");
                 let secondary = "If conditions must be a boolean value".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonBoolUsedInConstrain { value, location } => {
-                let msg = format!("Expected a `bool` but found `{}`", value.get_type());
+            InterpreterError::NonBoolUsedInConstrain { typ, location } => {
+                let msg = format!("Expected a `bool` but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::FailingConstraint { message, location } => {
+            InterpreterError::FailingConstraint { message, location, call_stack } => {
                 let (primary, secondary) = match message {
-                    Some(msg) => (format!("{msg:?}"), "Assertion failed".into()),
+                    Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                CustomDiagnostic::simple_error(primary, secondary, location.span)
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary, secondary, location.span);
+
+                // Only take at most 3 frames starting from the top of the stack to avoid producing too much output
+                for frame in call_stack.iter().rev().take(3) {
+                    diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
+                }
+
+                diagnostic
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::NonIntegerUsedInLoop { value, location } => {
-                let typ = value.get_type();
+            InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
-                let secondary = if matches!(typ.as_ref(), &Type::FieldElement) {
+                let secondary = if matches!(typ, Type::FieldElement) {
                     "`field` is not an integer type, try `u32` instead".to_string()
                 } else {
                     String::new()
                 };
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonPointerDereferenced { value, location } => {
-                let typ = value.get_type();
+            InterpreterError::NonPointerDereferenced { typ, location } => {
                 let msg = format!("Only references may be dereferenced, but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::NonTupleOrStructInMemberAccess { value, location } => {
-                let msg = format!("The type `{}` has no fields to access", value.get_type());
+            InterpreterError::NonTupleOrStructInMemberAccess { typ, location } => {
+                let msg = format!("The type `{typ}` has no fields to access");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::NonArrayIndexed { value, location } => {
-                let msg = format!("Expected an array or slice but found a(n) {}", value.get_type());
+            InterpreterError::NonArrayIndexed { typ, location } => {
+                let msg = format!("Expected an array or slice but found a(n) {typ}");
                 let secondary = "Only arrays or slices may be indexed".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonIntegerUsedAsIndex { value, location } => {
-                let msg = format!("Expected an integer but found a(n) {}", value.get_type());
+            InterpreterError::NonIntegerUsedAsIndex { typ, location } => {
+                let msg = format!("Expected an integer but found a(n) {typ}");
                 let secondary =
                     "Only integers may be indexed. Note that this excludes `field`s".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
@@ -207,17 +433,16 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "Array lengths must be integers".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonNumericCasted { value, location } => {
+            InterpreterError::NonNumericCasted { typ, location } => {
                 let msg = "Only numeric types may be casted".into();
-                let secondary = format!("`{}` is non-numeric", value.get_type());
+                let secondary = format!("`{typ}` is non-numeric");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::IndexOutOfBounds { index, length, location } => {
                 let msg = format!("{index} is out of bounds for the array of length {length}");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::ExpectedStructToHaveField { value, field_name, location } => {
-                let typ = value.get_type();
+            InterpreterError::ExpectedStructToHaveField { typ, field_name, location } => {
                 let msg = format!("The type `{typ}` has no field named `{field_name}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
@@ -226,13 +451,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     format!("The type `{typ}` is currently unsupported in comptime expressions");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::InvalidValueForUnary { value, operator, location } => {
-                let msg = format!("`{}` cannot be used with unary {operator}", value.get_type());
+            InterpreterError::InvalidValueForUnary { typ, operator, location } => {
+                let msg = format!("`{typ}` cannot be used with unary {operator}");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
-                let lhs = lhs.get_type();
-                let rhs = rhs.get_type();
                 let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`",);
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
@@ -248,14 +471,54 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("`{typ}` is not a struct type");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::CannotInlineMacro { value, location } => {
-                let msg = "Cannot inline value into runtime code if it contains references".into();
-                let secondary = format!("Cannot inline value {value:?}");
+            InterpreterError::CannotInlineMacro { value, typ, location } => {
+                let msg = format!("Cannot inline values of type `{typ}` into this position");
+                let secondary = format!("Cannot inline value `{value}`");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::UnquoteFoundDuringEvaluation { location } => {
                 let msg = "Unquote found during comptime evaluation".into();
                 let secondary = "This is a bug".into();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
+            InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
+                let message = format!("Failed to parse macro's token stream into {rule}");
+                let tokens = vecmap(tokens.iter(), ToString::to_string).join(" ");
+
+                // 10 is an aribtrary number of tokens here chosen to fit roughly onto one line
+                let token_stream = if tokens.len() > 10 {
+                    format!("The resulting token stream was: {tokens}")
+                } else {
+                    format!(
+                        "The resulting token stream was: (stream starts on next line)\n  {tokens}"
+                    )
+                };
+
+                let push_the_problem_on_the_library_author = "To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message".into();
+
+                let mut diagnostic = CustomDiagnostic::from(error);
+                // Swap the parser's primary note to become the secondary note so that it is
+                // more clear this error originates from failing to parse a macro.
+                let secondary = std::mem::take(&mut diagnostic.message);
+                diagnostic.add_secondary(secondary, error.span());
+                diagnostic.message = message;
+                diagnostic.add_note(token_stream);
+                diagnostic.add_note(push_the_problem_on_the_library_author);
+                diagnostic
+            }
+            InterpreterError::UnsupportedTopLevelItemUnquote { item, location } => {
+                let msg = "Unsupported statement type to unquote".into();
+                let secondary =
+                    "Only functions, structs, globals, and impls can be unquoted here".into();
+                let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
+                error.add_note(format!("Unquoted item was:\n{item}"));
+                error
+            }
+            InterpreterError::ComptimeDependencyCycle { function, location } => {
+                let msg = format!("Comptime dependency cycle while resolving `{function}`");
+                let secondary =
+                    "This function uses comptime code internally which calls into itself".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {
@@ -270,8 +533,99 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "There is no loop to continue!".into();
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
+            InterpreterError::NoImpl { location } => {
+                let msg = "No impl found due to prior type error".into();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
+                let msg = format!(
+                    "Impl method type {actual} does not unify with trait method type {expected}"
+                );
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::BlackBoxError(error, location) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), location.span)
+            }
+            InterpreterError::FailedToResolveTraitBound { trait_bound, location } => {
+                let msg = format!("Failed to resolve trait bound `{trait_bound}`");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),
             InterpreterError::Continue => unreachable!("Uncaught InterpreterError::Continue"),
+            InterpreterError::TraitDefinitionMustBeAPath { location } => {
+                let msg = "Trait definition arguments must be a variable or path".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::FailedToResolveTraitDefinition { location } => {
+                let msg = "Failed to resolve to a trait definition".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::FunctionAlreadyResolved { location } => {
+                let msg = "Function already resolved".to_string();
+                let secondary =
+                    "The function was previously called at compile-time or is in another crate"
+                        .to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::MultipleMatchingImpls { object_type, candidates, location } => {
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = CustomDiagnostic::simple_error(message, secondary, location.span);
+                for (i, candidate) in candidates.iter().enumerate() {
+                    error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
+                }
+                error
+            }
+            InterpreterError::TypeAnnotationsNeededForMethodCall { location } => {
+                let mut error = CustomDiagnostic::simple_error(
+                    "Object type is unknown in method call".to_string(),
+                    "Type must be known by this point to know which method to call".to_string(),
+                    location.span,
+                );
+                let message =
+                    "Try adding a type annotation for the object type before this method call";
+                error.add_note(message.to_string());
+                error
+            }
+            InterpreterError::ExpectedIdentForStructField { value, index, location } => {
+                let msg = format!(
+                    "Quoted value in index {index} of this slice is not a valid field name"
+                );
+                let secondary = format!("`{value}` is not a valid field name for `set_fields`");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::InvalidAttribute { attribute, location } => {
+                let msg = format!("`{attribute}` is not a valid attribute");
+                let secondary = "Note that this method expects attribute contents, without the leading `#[` or trailing `]`".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
+                let msg =
+                    "Generic name needs to be a valid identifer (one word beginning with a letter)"
+                        .to_string();
+                let secondary = format!("`{name}` is not a valid identifier");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::DuplicateGeneric {
+                name,
+                struct_name,
+                duplicate_location,
+                existing_location,
+            } => {
+                let msg = format!("`{struct_name}` already has a generic named `{name}`");
+                let secondary = format!("`{name}` added here a second time");
+                let mut error =
+                    CustomDiagnostic::simple_error(msg, secondary, duplicate_location.span);
+
+                let existing_msg = format!("`{name}` was previously defined here");
+                error.add_secondary_with_file(
+                    existing_msg,
+                    existing_location.span,
+                    existing_location.file,
+                );
+                error
+            }
         }
     }
 }

@@ -3,7 +3,9 @@ use fm::FileId;
 use noirc_errors::Location;
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
+use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
+use crate::token::Tokens;
 use crate::Shared;
 
 use super::stmt::HirPattern;
@@ -33,17 +35,11 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    Quote(HirQuoted),
-    Unquote(crate::ast::BlockExpression),
+    Quote(Tokens),
+    Unquote(Tokens),
     Comptime(HirBlockExpression),
+    Unsafe(HirBlockExpression),
     Error,
-}
-
-impl HirExpression {
-    /// Returns an empty block expression
-    pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression { statements: vec![] })
-    }
 }
 
 /// Corresponds to a variable in the source code
@@ -123,6 +119,10 @@ pub enum HirArrayLiteral {
 pub struct HirPrefixExpression {
     pub operator: UnaryOp,
     pub rhs: ExprId,
+
+    /// The trait method id for the operator trait method that corresponds to this operator,
+    /// if such a trait exists (for example, there's no trait for the dereference operator).
+    pub trait_method_id: Option<TraitMethodId>,
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +173,7 @@ pub struct HirCallExpression {
     pub func: ExprId,
     pub arguments: Vec<ExprId>,
     pub location: Location,
+    pub is_macro_call: bool,
 }
 
 /// These nodes are temporary, they're
@@ -199,7 +200,7 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitMethodId(TraitMethodId, /*trait generics:*/ Vec<Type>),
+    TraitMethodId(TraitMethodId, TraitGenerics),
 }
 
 impl HirMethodCallExpression {
@@ -208,8 +209,9 @@ impl HirMethodCallExpression {
     /// Returns ((func_var_id, func_var), call_expr)
     pub fn into_function_call(
         mut self,
-        method: &HirMethodReference,
+        method: HirMethodReference,
         object_type: Type,
+        is_macro_call: bool,
         location: Location,
         interner: &mut NodeInterner,
     ) -> ((ExprId, HirIdent), HirCallExpression) {
@@ -218,22 +220,23 @@ impl HirMethodCallExpression {
 
         let (id, impl_kind) = match method {
             HirMethodReference::FuncId(func_id) => {
-                (interner.function_definition_id(*func_id), ImplKind::NotATraitMethod)
+                (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitMethodId(method_id, generics) => {
-                let id = interner.trait_method_id(*method_id);
+            HirMethodReference::TraitMethodId(method_id, trait_generics) => {
+                let id = interner.trait_method_id(method_id);
                 let constraint = TraitConstraint {
                     typ: object_type,
                     trait_id: method_id.trait_id,
-                    trait_generics: generics.clone(),
+                    trait_generics,
+                    span: location.span,
                 };
-                (id, ImplKind::TraitMethod(*method_id, constraint, false))
+                (id, ImplKind::TraitMethod(method_id, constraint, false))
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
         let func = interner.push_expr(HirExpression::Ident(func_var.clone(), self.generics));
         interner.push_expr_location(func, location.span, location.file);
-        let expr = HirCallExpression { func, arguments, location };
+        let expr = HirCallExpression { func, arguments, location, is_macro_call };
         ((func, func_var), expr)
     }
 }
@@ -290,14 +293,4 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirQuoted {
-    pub quoted_block: crate::ast::BlockExpression,
-
-    /// Each expression here corresponds to a `ExpressionKind::UnquoteMarker(index)` in `quoted_block`.
-    /// The values of these expressions after evaluation will be inlined into the position
-    /// indicated by their corresponding UnquoteMarker with that index.
-    pub unquoted_exprs: Vec<ExprId>,
 }

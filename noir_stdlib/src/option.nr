@@ -10,7 +10,7 @@ struct Option<T> {
 impl<T> Option<T> {
     /// Constructs a None value
     pub fn none() -> Self {
-        Self { _is_some: false, _value: crate::unsafe::zeroed() }
+        Self { _is_some: false, _value: crate::mem::zeroed() }
     }
 
     /// Constructs a Some wrapper around the given value
@@ -57,7 +57,7 @@ impl<T> Option<T> {
     }
 
     /// Asserts `self.is_some()` with a provided custom message and returns the contained `Some` value
-    fn expect<N, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
+    fn expect<let N: u32, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
         assert(self.is_some(), message);
         self._value
     }
@@ -116,7 +116,7 @@ impl<T> Option<T> {
     }
 
     /// If self is Some, return self. Otherwise, return `default()`.
-    pub fn or_else<U, Env>(self, default: fn[Env]() -> Self) -> Self {
+    pub fn or_else<Env>(self, default: fn[Env]() -> Self) -> Self {
         if self._is_some { self } else { default() }
     }
 

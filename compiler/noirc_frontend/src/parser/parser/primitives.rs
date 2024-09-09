@@ -1,13 +1,15 @@
 use chumsky::prelude::*;
 
-use crate::ast::{ExpressionKind, Ident, UnaryOp};
+use crate::ast::{ExpressionKind, GenericTypeArgs, Ident, PathSegment, UnaryOp};
 use crate::macros_api::UnresolvedType;
+use crate::parser::ParserErrorReason;
 use crate::{
     parser::{labels::ParsingRuleLabel, ExprParser, NoirParser, ParserError},
     token::{Keyword, Token, TokenKind},
 };
 
-use super::path;
+use super::path::{path, path_no_turbofish};
+use super::types::required_generic_type_args;
 
 /// This parser always parses no input and fails
 pub(super) fn nothing<T>() -> impl NoirParser<T> {
@@ -30,6 +32,24 @@ pub(super) fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
             ))
         }
     })
+}
+
+pub(super) fn path_segment<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<PathSegment> + 'a {
+    ident().then(turbofish(type_parser)).validate(|(ident, generics), span, emit| {
+        if generics.as_ref().map_or(false, |generics| !generics.named_args.is_empty()) {
+            let reason = ParserErrorReason::AssociatedTypesNotAllowedInPaths;
+            emit(ParserError::with_reason(reason, span));
+        }
+
+        let generics = generics.map(|generics| generics.ordered_args);
+        PathSegment { ident, generics, span }
+    })
+}
+
+pub(super) fn path_segment_no_turbofish() -> impl NoirParser<PathSegment> {
+    ident().map(PathSegment::from)
 }
 
 pub(super) fn ident() -> impl NoirParser<Ident> {
@@ -80,18 +100,30 @@ where
 
 pub(super) fn turbofish<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<Option<Vec<UnresolvedType>>> + 'a {
-    just(Token::DoubleColon).ignore_then(super::generic_type_args(type_parser)).or_not()
+) -> impl NoirParser<Option<GenericTypeArgs>> + 'a {
+    just(Token::DoubleColon).ignore_then(required_generic_type_args(type_parser)).or_not()
 }
 
 pub(super) fn variable() -> impl NoirParser<ExpressionKind> {
-    path()
-        .then(turbofish(super::parse_type()))
-        .map(|(path, generics)| ExpressionKind::Variable(path, generics))
+    path(super::parse_type()).map(ExpressionKind::Variable)
 }
 
 pub(super) fn variable_no_turbofish() -> impl NoirParser<ExpressionKind> {
-    path().map(|path| ExpressionKind::Variable(path, None))
+    path_no_turbofish().map(ExpressionKind::Variable)
+}
+
+pub(super) fn macro_quote_marker() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::UnquoteMarker).map(|token| match token {
+        Token::UnquoteMarker(expr_id) => ExpressionKind::Resolved(expr_id),
+        other => unreachable!("Non-unquote-marker parsed as an unquote marker: {other:?}"),
+    })
+}
+
+pub(super) fn interned_expr() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::InternedExpr).map(|token| match token {
+        Token::InternedExpr(id) => ExpressionKind::Interned(id),
+        _ => unreachable!("token_kind(InternedExpr) guarantees we parse an interned expr"),
+    })
 }
 
 #[cfg(test)]

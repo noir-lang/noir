@@ -45,6 +45,14 @@ fn main(x: Field, y: pub Field) {
     assert(append[0] == 1);
     assert(append[4] == 5);
 
+    let mapped = &[1, 2].map(|x| x + 1);
+    assert_eq(mapped, &[2, 3]);
+
+    assert_eq(&[1, 2, 3].fold(0, |acc, x| acc + x), 6);
+    assert_eq(&[1, 2, 3].reduce(|acc, x| acc + x), 6);
+    assert(&[2, 4, 6].all(|x| x > 0));
+    assert(&[2, 4, 6].any(|x| x > 5));
+
     regression_2083();
     // The parameters to this function must come from witness values (inputs to main)
     regression_merge_slices(x, y);
@@ -307,7 +315,7 @@ fn regression_2370() {
 }
 
 fn regression_4418(x: Field) {
-    let mut crash = x.to_be_bytes(32);
+    let mut crash: [u8; 32] = x.to_be_bytes();
 
     if x != 0 {
         crash[0] = 10;

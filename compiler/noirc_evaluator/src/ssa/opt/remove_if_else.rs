@@ -68,12 +68,14 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
+                    let call_stack = function.dfg.get_call_stack(instruction);
                     let mut value_merger = ValueMerger::new(
                         &mut function.dfg,
                         block,
                         &mut self.slice_sizes,
                         &mut self.array_set_conditionals,
                         Some(current_conditional),
+                        call_stack,
                     );
 
                     let value = value_merger.merge_values(
@@ -126,7 +128,7 @@ impl Context {
                     self.slice_sizes.insert(result, old_capacity);
                     function.dfg[block].instructions_mut().push(instruction);
                 }
-                Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffectsIf { condition } => {
                     current_conditional = *condition;
                     function.dfg[block].instructions_mut().push(instruction);
                 }
@@ -201,18 +203,6 @@ fn slice_capacity_change(
             SizeChange::Dec { old, new }
         }
 
-        Intrinsic::ToBits(_) => {
-            assert_eq!(results.len(), 2);
-            // Some tests fail this check, returning an array instead somehow:
-            // assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], FieldElement::max_num_bits() as usize)
-        }
-        // ToRadix seems to assume it is to bytes
-        Intrinsic::ToRadix(_) => {
-            assert_eq!(results.len(), 2);
-            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], FieldElement::max_num_bytes() as usize)
-        }
         Intrinsic::AsSlice => {
             assert_eq!(arguments.len(), 1);
             assert_eq!(results.len(), 2);
@@ -226,14 +216,18 @@ fn slice_capacity_change(
 
         // These cases don't affect slice capacities
         Intrinsic::AssertConstant
+        | Intrinsic::StaticAssert
         | Intrinsic::ApplyRangeConstraint
         | Intrinsic::ArrayLen
+        | Intrinsic::ArrayAsStrUnchecked
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
         | Intrinsic::FromField
         | Intrinsic::AsField
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
-        | Intrinsic::DerivePedersenGenerators => SizeChange::None,
+        | Intrinsic::DerivePedersenGenerators
+        | Intrinsic::ToBits(_)
+        | Intrinsic::ToRadix(_) => SizeChange::None,
     }
 }

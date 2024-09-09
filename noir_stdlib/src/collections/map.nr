@@ -1,5 +1,4 @@
 use crate::cmp::Eq;
-use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
@@ -15,7 +14,7 @@ global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
 // Size of the underlying table must be known at compile time.
 // It is advised to select capacity N as a power of two, or a prime number 
 // because utilized probing scheme is best tailored for it.
-struct HashMap<K, V, N, B> {
+struct HashMap<K, V, let N: u32, B> {
     _table: [Slot<K, V>; N],
 
     // Amount of valid elements in the map.
@@ -77,10 +76,10 @@ impl<K, V> Slot<K, V> {
 // While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
 // that if we have went that far without finding desired, 
 // it is very unlikely to be after - performance will be heavily degraded.
-impl<K, V, N, B, H> HashMap<K, V, N, B> {
+impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     // Creates a new instance of HashMap with specified BuildHasher.
     // docs:start:with_hasher
-    pub fn with_hasher(_build_hasher: B) -> Self
+    pub fn with_hasher<H>(_build_hasher: B) -> Self
     where
         B: BuildHasher<H> {
         // docs:end:with_hasher
@@ -99,7 +98,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
     // Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key(
+    pub fn contains_key<H>(
         self,
         key: K
     ) -> bool
@@ -168,7 +167,9 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
         for slot in self._table {
             if slot.is_valid() {
-                let (_, value) = slot.key_value_unchecked();
+                let (_, value) = unsafe {
+                    slot.key_value_unchecked()
+                };
                 values.push(value);
             }
         }
@@ -181,7 +182,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
     // For each key-value entry applies mutator function.
     // docs:start:iter_mut
-    pub fn iter_mut(
+    pub fn iter_mut<H>(
         &mut self,
         f: fn(K, V) -> (K, V)
     )
@@ -206,7 +207,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
     // For each key applies mutator function.
     // docs:start:iter_keys_mut
-    pub fn iter_keys_mut(
+    pub fn iter_keys_mut<H>(
         &mut self,
         f: fn(K) -> K
     ) 
@@ -276,7 +277,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
     // Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    pub fn get(
+    pub fn get<H>(
         self,
         key: K
     ) -> Option<V>
@@ -311,7 +312,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
     // Insert key-value entry. In case key was already present, value is overridden. 
     // docs:start:insert
-    pub fn insert(
+    pub fn insert<H>(
         &mut self,
         key: K,
         value: V
@@ -354,7 +355,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
     // Removes a key-value entry. If key is not present, HashMap remains unchanged.
     // docs:start:remove
-    pub fn remove(
+    pub fn remove<H>(
         &mut self,
         key: K
     )
@@ -386,7 +387,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     }
 
     // Apply HashMap's hasher onto key to obtain pre-hash for probing.
-    fn hash(
+    fn hash<H>(
         self,
         key: K
     ) -> u32
@@ -424,7 +425,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 // equal sets of key-value entries, 
 // thus one is a subset of the other and vice versa.
 // docs:start:eq
-impl<K, V, N, B, H> Eq for HashMap<K, V, N, B>
+impl<K, V, let N: u32, B, H> Eq for HashMap<K, V, N, B>
 where
     K: Eq + Hash,
     V: Eq,
@@ -460,7 +461,7 @@ where
 }
 
 // docs:start:default
-impl<K, V, N, B, H> Default for HashMap<K, V, N, B>
+impl<K, V, let N: u32, B, H> Default for HashMap<K, V, N, B>
 where
     B: BuildHasher<H> + Default,
     H: Hasher + Default

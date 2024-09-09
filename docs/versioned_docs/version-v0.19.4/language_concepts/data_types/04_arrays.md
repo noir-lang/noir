@@ -56,7 +56,7 @@ You can instantiate a new array of a fixed size with the same value repeated for
 let array: [Field; 32] = [0; 32];
 ```
 
-Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [slice](./slices.mdx), you can just call `as_slice` on your array:
+Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [slice](./05_slices.mdx), you can just call `as_slice` on your array:
 
 ```rust
 let array: [Field; 32] = [0; 32];

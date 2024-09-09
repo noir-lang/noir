@@ -16,16 +16,32 @@ pub enum ParserErrorReason {
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
+    #[error("expected an identifier after .")]
+    ExpectedIdentifierAfterDot,
+    #[error("expected an identifier after ::")]
+    ExpectedIdentifierAfterColons,
+    #[error("expected {{ or -> after function parameters")]
+    ExpectedLeftBraceOrArrowAfterFunctionParameters,
+    #[error("expected {{ after if condition")]
+    ExpectedLeftBraceAfterIfCondition,
+    #[error("expected <, where or {{ after trait name")]
+    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
+    #[error("expected <, where or {{ after impl type")]
+    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
+    #[error("expected <, where or {{ after trait impl for type")]
+    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
-    #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
-    InvalidArrayLengthExpression(Expression),
+    #[error("Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context.")]
+    InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
+    #[error("Patterns aren't allowed in a trait impl's associated constants")]
+    PatternInAssociatedConstant,
     #[error("Modifiers are ignored on a trait impl method")]
     TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]
@@ -44,6 +60,14 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
+    #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
+    ForbiddenNumericGenericType,
+    #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
+    InvalidCallDataIdentifier,
+    #[error("Associated types are not allowed in paths")]
+    AssociatedTypesNotAllowedInPaths,
+    #[error("Associated types are not allowed on a method call")]
+    AssociatedTypesNotAllowedInMethodCalls,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -133,7 +157,7 @@ impl std::fmt::Display for ParserError {
         } else {
             let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
-            write!(f, "Unexpected {}, expected one of {}{}", self.found, expected, reason_str)
+            write!(f, "Unexpected {:?}, expected one of {}{}", self.found, expected, reason_str)
         }
     }
 }
@@ -141,42 +165,51 @@ impl std::fmt::Display for ParserError {
 impl<'a> From<&'a ParserError> for Diagnostic {
     fn from(error: &'a ParserError) -> Diagnostic {
         match &error.reason {
-            Some(reason) => {
-                match reason {
-                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
+            Some(reason) => match reason {
+                ParserErrorReason::ConstrainDeprecated => {
+                    let mut diagnostic = Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
                         "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
-                    ),
-                    ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
+                    );
+                    diagnostic.deprecated = true;
+                    diagnostic
+                }
+                ParserErrorReason::ComptimeDeprecated => {
+                    let mut diagnostic = Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
                         error.span,
-                    ),
-                    ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
-                        format!("Use of invalid bit size {}", bit_size),
-                        format!("Allowed bit sizes for integers are {}", IntegerBitSize::allowed_sizes().iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")),
-                        error.span,
-                    ),
-                    ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(
-                        reason.to_string(),
-                        "".into(),
-                        error.span,
-                    ),
-                    ParserErrorReason::TraitImplFunctionModifiers => Diagnostic::simple_warning(
-                        reason.to_string(),
-                        "".into(),
-                        error.span,
-                    ),
-                    ParserErrorReason::ExpectedPatternButFoundType(ty) => {
-                        Diagnostic::simple_error("Expected a ; separating these two statements".into(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
-                    }
-                    ParserErrorReason::Lexer(error) => error.into(),
-                    other => {
-                        Diagnostic::simple_error(format!("{other}"), String::new(), error.span)
-                    }
+                    ) ;
+                    diagnostic.deprecated = true;
+                    diagnostic
                 }
-            }
+                ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
+                    format!("Use of invalid bit size {}", bit_size),
+                    format!(
+                        "Allowed bit sizes for integers are {}",
+                        IntegerBitSize::allowed_sizes()
+                            .iter()
+                            .map(|n| n.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    error.span,
+                ),
+                ParserErrorReason::ExperimentalFeature(_) => {
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                }
+                ParserErrorReason::TraitImplFunctionModifiers => {
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                }
+                ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
+                    "Expected a ; separating these two statements".into(),
+                    format!("{ty} is a type and cannot be used as a variable name"),
+                    error.span,
+                ),
+                ParserErrorReason::Lexer(error) => error.into(),
+                other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
+            },
             None => {
                 let primary = error.to_string();
                 Diagnostic::simple_error(primary, String::new(), error.span)

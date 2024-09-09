@@ -1,3 +1,5 @@
+use noirc_errors::Location;
+use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use acvm::{
@@ -47,11 +49,13 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    ArrayAsStrUnchecked,
     AsSlice,
     AssertConstant,
+    StaticAssert,
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
@@ -74,8 +78,10 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
+            Intrinsic::StaticAssert => write!(f, "static_assert"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
@@ -104,14 +110,16 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint | Intrinsic::AsWitness => {
-                true
-            }
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::AsWitness => true,
 
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
@@ -140,8 +148,10 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
@@ -165,13 +175,13 @@ impl Intrinsic {
 }
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Endian {
     Big,
     Little,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
 pub(crate) enum Instruction {
@@ -208,13 +218,23 @@ pub(crate) enum Instruction {
     Store { address: ValueId, value: ValueId },
 
     /// Provides a context for all instructions that follow up until the next
-    /// `EnableSideEffects` is encountered, for stating a condition that determines whether
+    /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
     /// such instructions are allowed to have side-effects.
+    ///
+    /// For example,
+    /// ```text
+    /// EnableSideEffectsIf condition0;
+    /// code0;
+    /// EnableSideEffectsIf condition1;
+    /// code1;
+    /// ```
+    /// - `code0` will have side effects iff `condition0` evaluates to `true`
+    /// - `code1` will have side effects iff `condition1` evaluates to `true`
     ///
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with an condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffects { condition: ValueId },
+    EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
@@ -239,6 +259,17 @@ pub(crate) enum Instruction {
     DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
+    ///
+    /// ```text
+    /// if then_condition {
+    ///     then_value
+    /// } else {   // else_condition = !then_condition
+    ///     else_value
+    /// }
+    /// ```
+    ///
+    /// Where we save the result of !then_condition so that we have the same
+    /// ValueId for it each time.
     IfElse {
         then_condition: ValueId,
         then_value: ValueId,
@@ -269,7 +300,7 @@ impl Instruction {
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
-            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
@@ -284,24 +315,32 @@ impl Instruction {
     }
 
     /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
-    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
+    /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
+    /// rely on predicates can be deduplicated as well.
+    pub(crate) fn can_be_deduplicated(
+        &self,
+        dfg: &DataFlowGraph,
+        deduplicate_with_predicate: bool,
+    ) -> bool {
         use Instruction::*;
 
         match self {
             // These either have side-effects or interact with memory
-            Constrain(..)
-            | EnableSideEffects { .. }
+            EnableSideEffectsIf { .. }
             | Allocate
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. }
-            | RangeCheck { .. } => false,
+            | DecrementRc { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
+
+            // We can deduplicate these instructions if we know the predicate is also the same.
+            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
@@ -313,7 +352,9 @@ impl Instruction {
             | Truncate { .. }
             | IfElse { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
+            | ArraySet { .. } => {
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+            }
         }
     }
 
@@ -342,7 +383,7 @@ impl Instruction {
 
             Constrain(..)
             | Store { .. }
-            | EnableSideEffects { .. }
+            | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
@@ -368,16 +409,20 @@ impl Instruction {
     }
 
     /// If true the instruction will depends on enable_side_effects context during acir-gen
-    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary)
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
             {
                 true
             }
-            Instruction::EnableSideEffects { .. }
-            | Instruction::ArrayGet { .. }
-            | Instruction::ArraySet { .. } => true,
+
+            Instruction::ArrayGet { array, index } => {
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(*index, *array)
+            }
+
+            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(_) => true,
@@ -423,12 +468,10 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error {
-                    ConstrainError::UserDefined(selector, payload_values) => {
-                        ConstrainError::UserDefined(
-                            *selector,
-                            payload_values.iter().map(|&value| f(value)).collect(),
-                        )
-                    }
+                    ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
+                        *selector,
+                        payload_values.iter().map(|&value| f(value)).collect(),
+                    ),
                     _ => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
@@ -442,8 +485,8 @@ impl Instruction {
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
-            Instruction::EnableSideEffects { condition } => {
-                Instruction::EnableSideEffects { condition: f(*condition) }
+            Instruction::EnableSideEffectsIf { condition } => {
+                Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
@@ -496,7 +539,7 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
-                if let Some(ConstrainError::UserDefined(_, values)) = assert_error.as_ref() {
+                if let Some(ConstrainError::Dynamic(_, values)) = assert_error.as_ref() {
                     values.iter().for_each(|&val| {
                         f(val);
                     });
@@ -517,7 +560,7 @@ impl Instruction {
                 f(*index);
                 f(*value);
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
             Instruction::IncrementRc { value }
@@ -580,16 +623,11 @@ impl Instruction {
                 }
             }
             Instruction::ArrayGet { array, index } => {
-                let array = dfg.get_array_constant(*array);
-                let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, _)), Some(index)) = (array, index) {
-                    let index =
-                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
-                    if index < array.len() {
-                        return SimplifiedTo(array[index]);
-                    }
+                if let Some(index) = dfg.get_numeric_constant(*index) {
+                    try_optimize_array_get_from_previous_set(dfg, *array, index)
+                } else {
+                    None
                 }
-                None
             }
             Instruction::ArraySet { array, index, value, .. } => {
                 let array = dfg.get_array_constant(*array);
@@ -659,11 +697,11 @@ impl Instruction {
             Instruction::Call { func, arguments } => {
                 simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
-                    if matches!(last, Instruction::EnableSideEffects { .. }) {
-                        *last = Instruction::EnableSideEffects { condition: *condition };
+                    if matches!(last, Instruction::EnableSideEffectsIf { .. }) {
+                        *last = Instruction::EnableSideEffectsIf { condition: *condition };
                         return Remove;
                     }
                 }
@@ -693,11 +731,15 @@ impl Instruction {
                     }
                 }
 
+                let then_value = dfg.resolve(*then_value);
+                let else_value = dfg.resolve(*else_value);
+                if then_value == else_value {
+                    return SimplifiedTo(then_value);
+                }
+
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
-                    let then_value = *then_value;
                     let else_condition = *else_condition;
-                    let else_value = *else_value;
 
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
@@ -716,6 +758,65 @@ impl Instruction {
     }
 }
 
+/// Given a chain of operations like:
+/// v1 = array_set [10, 11, 12], index 1, value: 5
+/// v2 = array_set v1, index 2, value: 6
+/// v3 = array_set v2, index 2, value: 7
+/// v4 = array_get v3, index 1
+///
+/// We want to optimize `v4` to `10`. To do this we need to follow the array value
+/// through several array sets. For each array set:
+/// - If the index is non-constant we fail the optimization since any index may be changed
+/// - If the index is constant and is our target index, we conservatively fail the optimization
+///   in case the array_set is disabled from a previous `enable_side_effects_if` and the array get
+///   was not.
+/// - Otherwise, we check the array value of the array set.
+///   - If the array value is constant, we use that array.
+///   - If the array value is from a previous array-set, we recur.
+fn try_optimize_array_get_from_previous_set(
+    dfg: &DataFlowGraph,
+    mut array_id: Id<Value>,
+    target_index: FieldElement,
+) -> SimplifyResult {
+    let mut elements = None;
+
+    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    let max_tries = 5;
+    for _ in 0..max_tries {
+        match &dfg[array_id] {
+            Value::Instruction { instruction, .. } => {
+                match &dfg[*instruction] {
+                    Instruction::ArraySet { array, index, value, .. } => {
+                        if let Some(constant) = dfg.get_numeric_constant(*index) {
+                            if constant == target_index {
+                                return SimplifyResult::SimplifiedTo(*value);
+                            }
+
+                            array_id = *array; // recur
+                        } else {
+                            return SimplifyResult::None;
+                        }
+                    }
+                    _ => return SimplifyResult::None,
+                }
+            }
+            Value::Array { array, typ: _ } => {
+                elements = Some(array.clone());
+                break;
+            }
+            _ => return SimplifyResult::None,
+        }
+    }
+
+    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
+        let index = index as usize;
+        if index < array.len() {
+            return SimplifyResult::SimplifiedTo(array[index]);
+        }
+    }
+    SimplifyResult::None
+}
+
 pub(crate) type ErrorType = HirType;
 
 pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
@@ -731,17 +832,17 @@ pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum ConstrainError {
-    // These are errors which have been hardcoded during SSA gen
-    Intrinsic(String),
-    // These are errors issued by the user
-    UserDefined(ErrorSelector, Vec<ValueId>),
+    // Static string errors are not handled inside the program as data for efficiency reasons.
+    StaticString(String),
+    // These errors are handled by the program as data.
+    Dynamic(ErrorSelector, Vec<ValueId>),
 }
 
 impl From<String> for ConstrainError {
     fn from(value: String) -> Self {
-        ConstrainError::Intrinsic(value)
+        ConstrainError::StaticString(value)
     }
 }
 
@@ -773,7 +874,7 @@ pub(crate) enum InstructionResultType {
 /// Since our IR needs to be in SSA form, it makes sense
 /// to split up instructions like this, as we are sure that these instructions
 /// will not be in the list of instructions for a basic block.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum TerminatorInstruction {
     /// Control flow
     ///
@@ -781,7 +882,12 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
-    JmpIf { condition: ValueId, then_destination: BasicBlockId, else_destination: BasicBlockId },
+    JmpIf {
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+        call_stack: CallStack,
+    },
 
     /// Unconditional Jump
     ///
@@ -808,10 +914,11 @@ impl TerminatorInstruction {
     ) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, then_destination, else_destination } => JmpIf {
+            JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
+                call_stack: call_stack.clone(),
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
@@ -877,6 +984,14 @@ impl TerminatorInstruction {
                 *destination = f(*destination);
             }
             Return { .. } => (),
+        }
+    }
+
+    pub(crate) fn call_stack(&self) -> im::Vector<Location> {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
         }
     }
 }

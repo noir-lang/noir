@@ -1,4 +1,5 @@
-use std::rc::Rc;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -13,7 +14,7 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 ///
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -29,33 +30,55 @@ impl NumericType {
         }
     }
 
-    /// Returns true if the given Field value is within the numeric limits
-    /// for the current NumericType.
-    pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
+    /// Returns None if the given Field value is within the numeric limits
+    /// for the current NumericType. Otherwise returns a string describing
+    /// the limits, as a range.
+    pub(crate) fn value_is_outside_limits(
+        self,
+        field: FieldElement,
+        negative: bool,
+    ) -> Option<String> {
         match self {
-            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+            NumericType::Unsigned { bit_size } => {
                 let max = 2u128.pow(bit_size) - 1;
-                field <= max.into()
+                if negative {
+                    return Some(format!("0..={}", max));
+                }
+                if field <= max.into() {
+                    None
+                } else {
+                    Some(format!("0..={}", max))
+                }
             }
-            NumericType::NativeField => true,
+            NumericType::Signed { bit_size } => {
+                let min = 2u128.pow(bit_size - 1);
+                let max = 2u128.pow(bit_size - 1) - 1;
+                let target_max = if negative { min } else { max };
+                if field <= target_max.into() {
+                    None
+                } else {
+                    Some(format!("-{}..={}", min, max))
+                }
+            }
+            NumericType::NativeField => None,
         }
     }
 }
 
 /// All types representable in the IR.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub(crate) enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
     /// A reference to some value, such as an array
-    Reference(Rc<Type>),
+    Reference(Arc<Type>),
 
     /// An immutable array value with the given element type and length
-    Array(Rc<CompositeType>, usize),
+    Array(Arc<CompositeType>, usize),
 
     /// An immutable slice value with a given element type
-    Slice(Rc<CompositeType>),
+    Slice(Arc<CompositeType>),
 
     /// A function that may be called directly
     Function,
@@ -85,6 +108,11 @@ impl Type {
     /// Creates the char type, represented as u8.
     pub(crate) fn char() -> Type {
         Type::unsigned(8)
+    }
+
+    /// Creates the str<N> type, of the given length N
+    pub(crate) fn str(length: usize) -> Type {
+        Type::Array(Arc::new(vec![Type::char()]), length)
     }
 
     /// Creates the native field type.
@@ -162,7 +190,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn element_types(self) -> Rc<Vec<Type>> {
+    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
         match self {
             Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
             other => panic!("element_types: Expected array or slice, found {other}"),
@@ -208,5 +236,29 @@ impl std::fmt::Display for NumericType {
             NumericType::Unsigned { bit_size } => write!(f, "u{bit_size}"),
             NumericType::NativeField => write!(f, "Field"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_u8_value_is_outside_limits() {
+        let u8 = NumericType::Unsigned { bit_size: 8 };
+        assert!(u8.value_is_outside_limits(FieldElement::from(1_i128), true).is_some());
+        assert!(u8.value_is_outside_limits(FieldElement::from(0_i128), false).is_none());
+        assert!(u8.value_is_outside_limits(FieldElement::from(255_i128), false).is_none());
+        assert!(u8.value_is_outside_limits(FieldElement::from(256_i128), false).is_some());
+    }
+
+    #[test]
+    fn test_i8_value_is_outside_limits() {
+        let i8 = NumericType::Signed { bit_size: 8 };
+        assert!(i8.value_is_outside_limits(FieldElement::from(129_i128), true).is_some());
+        assert!(i8.value_is_outside_limits(FieldElement::from(128_i128), true).is_none());
+        assert!(i8.value_is_outside_limits(FieldElement::from(0_i128), false).is_none());
+        assert!(i8.value_is_outside_limits(FieldElement::from(127_i128), false).is_none());
+        assert!(i8.value_is_outside_limits(FieldElement::from(128_i128), false).is_some());
     }
 }

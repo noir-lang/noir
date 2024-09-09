@@ -10,6 +10,9 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 # Rename binary from `acvm_cli` to `acvm`
@@ -20,7 +23,7 @@ path = "src/main.rs"
 [dependencies]
 thiserror.workspace = true
 toml.workspace = true
-color-eyre = "0.6.2"
+color-eyre.workspace = true
 clap.workspace = true
 acvm.workspace = true
 nargo.workspace = true

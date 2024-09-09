@@ -6,7 +6,10 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::ast::{NoirFunction, Visibility};
+use noirc_frontend::{
+    ast::{NoirFunction, Visibility},
+    macros_api::UnresolvedTypeData,
+};
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
@@ -44,7 +47,7 @@ impl super::FmtVisitor<'_> {
 
         if !func.def.generics.is_empty() {
             let full_span = name_span.end()..params_open;
-            let start = name_span.end();
+            let start = self.span_before(full_span.clone(), Token::Less).start();
             let end = self.span_after(full_span, Token::Greater).start();
 
             let generics = func.def.generics;
@@ -108,20 +111,25 @@ impl super::FmtVisitor<'_> {
 
     fn format_return_type(
         &self,
-        return_type_span: Option<Span>,
+        span: Span,
         func: &NoirFunction,
         func_span: Span,
         params_end: u32,
     ) -> String {
         let mut result = String::new();
 
-        if let Some(span) = return_type_span {
+        if func.return_type().typ == UnresolvedTypeData::Unit {
+            result.push_str(self.slice(params_end..func_span.start()));
+        } else {
             result.push_str(" -> ");
 
             let visibility = match func.def.return_visibility {
                 Visibility::Public => "pub",
-                Visibility::DataBus => "return_data",
+                Visibility::ReturnData => "return_data",
                 Visibility::Private => "",
+                Visibility::CallData(_) => {
+                    unreachable!("call_data cannot be used for return value")
+                }
             };
             result.push_str(&append_space_if_nonempty(visibility.into()));
 
@@ -132,8 +140,6 @@ impl super::FmtVisitor<'_> {
             if !slice.trim().is_empty() {
                 result.push_str(slice);
             }
-        } else {
-            result.push_str(self.slice(params_end..func_span.start()));
         }
 
         result
@@ -157,6 +163,11 @@ impl super::FmtVisitor<'_> {
                         self.push_str(self.slice(span));
                         self.last_position = span.end();
                         continue;
+                    }
+
+                    for attribute in module.outer_attributes {
+                        self.push_str(&format!("#[{}]\n", attribute.as_ref()));
+                        self.push_str(&self.indent.to_string());
                     }
 
                     let name = module.name;
@@ -188,8 +199,8 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
-                    let slice =
-                        self.slice(self.last_position..impl_.object_type.span.unwrap().end());
+                    let before_brace = self.span_before(span, Token::LeftBrace).start();
+                    let slice = self.slice(self.last_position..before_brace).trim();
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
@@ -210,9 +221,9 @@ impl super::FmtVisitor<'_> {
                         self.last_position = span.end();
                     }
                 }
-                ItemKind::Import(use_tree) => {
-                    let use_tree =
-                        UseTree::from_ast(use_tree).rewrite_top_level(self, self.shape());
+                ItemKind::Import(use_tree, visibility) => {
+                    let use_tree = UseTree::from_ast(use_tree);
+                    let use_tree = use_tree.rewrite_top_level(self, self.shape(), visibility);
                     self.push_rewrite(use_tree, span);
                     self.last_position = span.end();
                 }
@@ -221,7 +232,8 @@ impl super::FmtVisitor<'_> {
                 | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)
                 | ItemKind::Global(_)
-                | ItemKind::ModuleDecl(_) => {
+                | ItemKind::ModuleDecl(_)
+                | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);
                     self.last_position = span.end();
                 }

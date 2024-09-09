@@ -7,17 +7,21 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
+use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::TraitId;
+
+use super::GenericTypeArgs;
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
 #[derive(Clone, Debug)]
 pub struct NoirTrait {
     pub name: Ident,
-    pub generics: Vec<Ident>,
+    pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<TraitItem>,
+    pub attributes: Vec<SecondaryAttribute>,
 }
 
 /// Any declaration inside the body of a trait that a user is required to
@@ -26,7 +30,7 @@ pub struct NoirTrait {
 pub enum TraitItem {
     Function {
         name: Ident,
-        generics: Vec<Ident>,
+        generics: UnresolvedGenerics,
         parameters: Vec<(Ident, UnresolvedType)>,
         return_type: FunctionReturnType,
         where_clause: Vec<UnresolvedTraitConstraint>,
@@ -49,6 +53,7 @@ pub struct TypeImpl {
     pub object_type: UnresolvedType,
     pub type_span: Span,
     pub generics: UnresolvedGenerics,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(NoirFunction, Span)>,
 }
 
@@ -59,7 +64,8 @@ pub struct NoirTraitImpl {
     pub impl_generics: UnresolvedGenerics,
 
     pub trait_name: Path,
-    pub trait_generics: Vec<UnresolvedType>,
+
+    pub trait_generics: GenericTypeArgs,
 
     pub object_type: UnresolvedType,
 
@@ -81,11 +87,11 @@ pub struct UnresolvedTraitConstraint {
 }
 
 /// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TraitBound {
     pub trait_path: Path,
     pub trait_id: Option<TraitId>, // initially None, gets assigned during DC
-    pub trait_generics: Vec<UnresolvedType>,
+    pub trait_generics: GenericTypeArgs,
 }
 
 #[derive(Clone, Debug)]
@@ -176,21 +182,13 @@ impl Display for UnresolvedTraitConstraint {
 
 impl Display for TraitBound {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
-        if !generics.is_empty() {
-            write!(f, "{}<{}>", self.trait_path, generics.join(", "))
-        } else {
-            write!(f, "{}", self.trait_path)
-        }
+        write!(f, "{}{}", self.trait_path, self.trait_generics)
     }
 }
 
 impl Display for NoirTraitImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
-        let generics = generics.join(", ");
-
-        writeln!(f, "impl {}<{}> for {} {{", self.trait_name, generics, self.object_type)?;
+        writeln!(f, "impl {}{} for {} {{", self.trait_name, self.trait_generics, self.object_type)?;
 
         for item in self.items.iter() {
             let item = item.to_string();

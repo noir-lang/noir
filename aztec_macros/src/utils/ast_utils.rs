@@ -1,8 +1,8 @@
 use noirc_errors::{Span, Spanned};
 use noirc_frontend::ast::{
     BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
-    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MemberAccessExpression,
-    MethodCallExpression, NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind,
+    Ident, IndexExpression, InfixExpression, Lambda, MemberAccessExpression, MethodCallExpression,
+    NoirTraitImpl, Path, PathSegment, Pattern, PrefixExpression, Statement, StatementKind,
     TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::token::SecondaryAttribute;
@@ -18,6 +18,10 @@ pub fn ident_path(name: &str) -> Path {
     Path::from_ident(ident(name))
 }
 
+pub fn path_segment(name: &str) -> PathSegment {
+    PathSegment::from(ident(name))
+}
+
 pub fn path(ident: Ident) -> Path {
     Path::from_ident(ident)
 }
@@ -27,15 +31,15 @@ pub fn expression(kind: ExpressionKind) -> Expression {
 }
 
 pub fn variable(name: &str) -> Expression {
-    expression(ExpressionKind::Variable(ident_path(name), None))
+    expression(ExpressionKind::Variable(ident_path(name)))
 }
 
 pub fn variable_ident(identifier: Ident) -> Expression {
-    expression(ExpressionKind::Variable(path(identifier), None))
+    expression(ExpressionKind::Variable(path(identifier)))
 }
 
 pub fn variable_path(path: Path) -> Expression {
-    expression(ExpressionKind::Variable(path, None))
+    expression(ExpressionKind::Variable(path))
 }
 
 pub fn method_call(
@@ -69,13 +73,11 @@ pub fn mutable(name: &str) -> Pattern {
 }
 
 pub fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
-    make_statement(StatementKind::Let(LetStatement {
-        pattern: mutable(name),
-        r#type: make_type(UnresolvedTypeData::Unspecified),
-        expression: assigned_to,
-        comptime: false,
-        attributes: vec![],
-    }))
+    make_statement(StatementKind::new_let(
+        mutable(name),
+        make_type(UnresolvedTypeData::Unspecified),
+        assigned_to,
+    ))
 }
 
 pub fn mutable_reference(variable_name: &str) -> Expression {
@@ -94,27 +96,18 @@ pub fn assignment_with_type(
     typ: UnresolvedTypeData,
     assigned_to: Expression,
 ) -> Statement {
-    make_statement(StatementKind::Let(LetStatement {
-        pattern: pattern(name),
-        r#type: make_type(typ),
-        expression: assigned_to,
-        comptime: false,
-        attributes: vec![],
-    }))
+    make_statement(StatementKind::new_let(pattern(name), make_type(typ), assigned_to))
 }
 
 pub fn return_type(path: Path) -> FunctionReturnType {
-    let ty = make_type(UnresolvedTypeData::Named(path, vec![], true));
+    let ty = make_type(UnresolvedTypeData::Named(path, Default::default(), true));
     FunctionReturnType::Ty(ty)
 }
 
 pub fn lambda(parameters: Vec<(Pattern, UnresolvedType)>, body: Expression) -> Expression {
     expression(ExpressionKind::Lambda(Box::new(Lambda {
         parameters,
-        return_type: UnresolvedType {
-            typ: UnresolvedTypeData::Unspecified,
-            span: Some(Span::default()),
-        },
+        return_type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() },
         body,
     })))
 }
@@ -149,7 +142,7 @@ macro_rules! chained_path {
         {
             let mut base_path = ident_path($base);
             $(
-                base_path.segments.push(ident($tail));
+                base_path.segments.push(path_segment($tail));
             )*
             base_path
         }
@@ -163,7 +156,7 @@ macro_rules! chained_dep {
             let mut base_path = ident_path($base);
             base_path.kind = PathKind::Plain;
             $(
-                base_path.segments.push(ident($tail));
+                base_path.segments.push(path_segment($tail));
             )*
             base_path
         }
@@ -175,7 +168,7 @@ pub fn cast(lhs: Expression, ty: UnresolvedTypeData) -> Expression {
 }
 
 pub fn make_type(typ: UnresolvedTypeData) -> UnresolvedType {
-    UnresolvedType { typ, span: Some(Span::default()) }
+    UnresolvedType { typ, span: Span::default() }
 }
 
 pub fn index_array(array: Ident, index: &str) -> Expression {
@@ -194,8 +187,8 @@ pub fn check_trait_method_implemented(trait_impl: &NoirTraitImpl, method_name: &
 
 /// Checks if an attribute is a custom attribute with a specific name
 pub fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool {
-    if let SecondaryAttribute::Custom(custom_attr) = attr {
-        custom_attr.as_str() == attribute_name
+    if let SecondaryAttribute::Custom(custom_attribute) = attr {
+        custom_attribute.contents.as_str() == attribute_name
     } else {
         false
     }

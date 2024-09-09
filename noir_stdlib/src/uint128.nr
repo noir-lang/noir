@@ -1,6 +1,5 @@
 use crate::ops::{Add, Sub, Mul, Div, Rem, Not, BitOr, BitAnd, BitXor, Shl, Shr};
 use crate::cmp::{Eq, Ord, Ordering};
-use crate::println;
 
 global pow64 : Field = 18446744073709551616; //2^64;
 global pow63 : Field = 9223372036854775808; // 2^63;
@@ -45,8 +44,8 @@ impl U128 {
     }
 
     pub fn to_be_bytes(self: Self) -> [u8; 16] {
-        let lo = self.lo.to_be_bytes(8);
-        let hi = self.hi.to_be_bytes(8);
+        let lo: [u8; 8] = self.lo.to_be_bytes();
+        let hi: [u8; 8] = self.hi.to_be_bytes();
         let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = hi[i];
@@ -56,8 +55,8 @@ impl U128 {
     }
 
     pub fn to_le_bytes(self: Self) -> [u8; 16] {
-        let lo = self.lo.to_le_bytes(8);
-        let hi = self.hi.to_le_bytes(8);
+        let lo: [u8; 8] = self.lo.to_le_bytes();
+        let hi: [u8; 8] = self.hi.to_le_bytes();
         let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = lo[i];
@@ -66,7 +65,7 @@ impl U128 {
         bytes
     }
 
-    pub fn from_hex<N>(hex: str<N>) -> U128 {
+    pub fn from_hex<let N: u32>(hex: str<N>) -> U128 {
         let N = N as u32;
         let bytes = hex.as_bytes();
         // string must starts with "0x"
@@ -100,14 +99,16 @@ impl U128 {
     }
 
     fn decode_ascii(ascii: u8) -> Field {
-        if ascii < 58 {
+        (if ascii < 58 {
             ascii - 48
         } else {
-            let ascii = ascii + 32 * (U128::uconstrained_check_is_upper_ascii(ascii) as u8);
+            let ascii = ascii + 32 * (unsafe {
+                        U128::uconstrained_check_is_upper_ascii(ascii) as u8
+                    });
             assert(ascii >= 97); // enforce >= 'a'
             assert(ascii <= 102); // enforce <= 'f'
             ascii - 87
-        } as Field
+        }) as Field
     }
 
     // TODO: Replace with a faster version. 
@@ -212,21 +213,26 @@ impl Mul for U128 {
 
 impl Div for U128 {
     fn div(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        q
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            q
+        }
     }
 }
 
 impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        r
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            
+            r
+        }
     }
 }
 
@@ -288,12 +294,13 @@ impl BitXor for U128 {
 impl Shl for U128 { 
     fn shl(self, other: u8) -> U128 { 
         assert(other < 128, "attempt to shift left with overflow");
-        let exp_bits = (other as Field).to_be_bits(7);
+        let exp_bits: [u1; 7] = (other as Field).to_be_bits();
 
         let mut r: Field = 2;
         let mut y: Field = 1;
         for i in 1..8 {
-            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            let bit = exp_bits[7-i] as Field;
+            y = bit * (r * y) + (1 - bit) * y;
             r *= r;
         }
         self.wrapping_mul(U128::from_integer(y))
@@ -303,12 +310,13 @@ impl Shl for U128 {
 impl Shr for U128 { 
     fn shr(self, other: u8) -> U128 { 
         assert(other < 128, "attempt to shift right with overflow");
-        let exp_bits = (other as Field).to_be_bits(7);
+        let exp_bits: [u1; 7] = (other as Field).to_be_bits();
 
         let mut r: Field = 2;
         let mut y: Field = 1;
         for i in 1..8 {
-            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            let bit = exp_bits[7-i] as Field;
+            y = bit * (r * y) + (1 - bit) * y;
             r *= r;
         }
         self / U128::from_integer(y)
@@ -428,7 +436,7 @@ mod tests {
         // but in the past it was possible to create a value > (1<<128)
         let a = U128::from_hex("0x~fffffffffffffffffffffffffffffff");
         let b:Field= a.to_integer();
-        let c= b.to_le_bytes(17);
+        let c: [u8; 17]= b.to_le_bytes();
         assert(c[16] != 0);
     }
 
@@ -439,31 +447,40 @@ mod tests {
         let b= U128::from_u64s_le(0x0, 0xfffffffffffffffe);
         let c= U128::one();
         let d= U128::from_u64s_le(0x0, 0x1);
-        let (q,r) = a.unconstrained_div(b);
-        assert_eq(q, c);
-        assert_eq(r, d);
+        unsafe {
+            let (q,r) = a.unconstrained_div(b);
+            assert_eq(q, c);
+            assert_eq(r, d);
+        }
 
         let a = U128::from_u64s_le(2, 0);
         let b = U128::one();
         // Check the case where a is a multiple of b
-        let (c,d ) = a.unconstrained_div(b);
-        assert_eq((c, d), (a, U128::zero()));
+        unsafe {
+            let (c, d) = a.unconstrained_div(b);
+            assert_eq((c, d), (a, U128::zero()));
+        }
 
         // Check where b is a multiple of a
-        let (c,d) = b.unconstrained_div(a);
-        assert_eq((c, d), (U128::zero(), b));
+        unsafe {
+            let (c,d) = b.unconstrained_div(a);
+            assert_eq((c, d), (U128::zero(), b));
+        }
 
         // Dividing by zero returns 0,0
         let a = U128::from_u64s_le(0x1, 0x0);
         let b = U128::zero();
-        let (c,d)= a.unconstrained_div(b);
-        assert_eq((c, d), (U128::zero(), U128::zero()));
-
+        unsafe {
+            let (c, d)= a.unconstrained_div(b);
+            assert_eq((c, d), (U128::zero(), U128::zero()));
+        }
         // Dividing 1<<127 by 1<<127 (special case)
         let a = U128::from_u64s_le(0x0, pow63 as u64);
         let b = U128::from_u64s_le(0x0, pow63 as u64);
-        let (c,d )= a.unconstrained_div(b);
-        assert_eq((c, d), (U128::one(), U128::zero()));
+        unsafe {
+            let (c, d) = a.unconstrained_div(b);
+            assert_eq((c, d), (U128::one(), U128::zero()));
+        }
     }
 
     #[test]

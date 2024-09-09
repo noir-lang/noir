@@ -1,0 +1,6 @@
+[package]
+name = "recursive_method"
+type = "contract"
+authors = [""]
+
+[dependencies]

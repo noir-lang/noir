@@ -173,6 +173,15 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
+    /// Stores the value of `constant` in the `result` register
+    pub(crate) fn indirect_const_instruction<F: DebugToString>(
+        &self,
+        result_pointer: MemoryAddress,
+        constant: F,
+    ) {
+        debug_println!(self.enable_debug_trace, "  ICONST {} = {}", result_pointer, constant);
+    }
+
     /// Processes a not instruction. Append with "_" as this is a high-level instruction.
     pub(crate) fn not_instruction(
         &self,
@@ -347,6 +356,24 @@ impl DebugShow {
                     result
                 );
             }
+            BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  PEDERSEN {} {} -> {}",
+                    inputs,
+                    domain_separator,
+                    output
+                );
+            }
+            BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  PEDERSEN_HASH {} {} -> {}",
+                    inputs,
+                    domain_separator,
+                    output
+                );
+            }
             BlackBoxOp::SchnorrVerify {
                 public_key_x,
                 public_key_y,
@@ -435,7 +462,7 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::ToRadix { input, radix, output } => {
+            BlackBoxOp::ToRadix { input, radix, output, output_bits: _ } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  TO_RADIX {} {} -> {}",
@@ -444,8 +471,6 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::PedersenCommitment { .. } => todo!("Deprecated Blackbox"),
-            BlackBoxOp::PedersenHash { .. } => todo!("Deprecated Blackbox"),
         }
     }
 

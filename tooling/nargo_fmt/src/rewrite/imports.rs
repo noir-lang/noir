@@ -1,4 +1,4 @@
-use noirc_frontend::ast;
+use noirc_frontend::ast::{self, ItemVisibility};
 
 use crate::{
     items::Item,
@@ -14,6 +14,7 @@ pub(crate) enum UseSegment {
     List(Vec<UseTree>),
     Dep,
     Crate,
+    Super,
 }
 
 impl UseSegment {
@@ -50,6 +51,7 @@ impl UseSegment {
             }
             UseSegment::Dep => "dep".into(),
             UseSegment::Crate => "crate".into(),
+            UseSegment::Super => "super".into(),
         }
     }
 }
@@ -66,6 +68,7 @@ impl UseTree {
         match use_tree.prefix.kind {
             ast::PathKind::Crate => result.path.push(UseSegment::Crate),
             ast::PathKind::Dep => result.path.push(UseSegment::Dep),
+            ast::PathKind::Super => result.path.push(UseSegment::Super),
             ast::PathKind::Plain => {}
         };
 
@@ -93,8 +96,18 @@ impl UseTree {
         result
     }
 
-    pub(crate) fn rewrite_top_level(&self, visitor: &FmtVisitor, shape: Shape) -> String {
-        format!("use {};", self.rewrite(visitor, shape))
+    pub(crate) fn rewrite_top_level(
+        &self,
+        visitor: &FmtVisitor,
+        shape: Shape,
+        visibility: ItemVisibility,
+    ) -> String {
+        let rewrite = self.rewrite(visitor, shape);
+        if visibility == ItemVisibility::Private {
+            format!("use {};", rewrite)
+        } else {
+            format!("{} use {};", visibility, rewrite)
+        }
     }
 
     fn rewrite(&self, visitor: &FmtVisitor, shape: Shape) -> String {

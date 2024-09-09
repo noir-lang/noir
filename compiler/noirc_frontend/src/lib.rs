@@ -15,10 +15,12 @@ pub mod debug;
 pub mod elaborator;
 pub mod graph;
 pub mod lexer;
+pub mod locations;
 pub mod monomorphization;
 pub mod node_interner;
 pub mod parser;
 pub mod resolve_locations;
+pub mod usage_tracker;
 
 pub mod hir;
 pub mod hir_def;

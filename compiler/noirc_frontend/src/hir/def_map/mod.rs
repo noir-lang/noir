@@ -48,10 +48,12 @@ impl ModuleId {
 }
 
 impl ModuleId {
-    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> &ModuleData {
+    pub fn module(self, def_maps: &DefMaps) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
     }
 }
+
+pub type DefMaps = BTreeMap<CrateId, CrateDefMap>;
 
 /// Map of all modules and scopes defined within a crate.
 ///
@@ -73,7 +75,8 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        use_legacy: bool,
+        debug_comptime_in_file: Option<&str>,
+        error_on_unused_imports: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
@@ -107,7 +110,13 @@ impl CrateDefMap {
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(None, location, false));
+        let root = modules.insert(ModuleData::new(
+            None,
+            location,
+            Vec::new(),
+            ast.inner_attributes.clone(),
+            false,
+        ));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -117,18 +126,20 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(
+        errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             context,
             ast,
             root_file_id,
-            use_legacy,
+            debug_comptime_in_file,
+            error_on_unused_imports,
             macro_processors,
         ));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
         );
+
         errors
     }
 

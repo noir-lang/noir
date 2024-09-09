@@ -49,6 +49,27 @@ crate
 
 ```
 
+The module filename may also be the name of the module as a directory with the contents in a 
+file named `mod.nr` within that directory. The above example can alternatively be expressed like this:
+
+Filename : `src/main.nr`
+
+```rust
+mod foo;
+
+fn main() {
+    foo::hello_world();
+}
+```
+
+Filename : `src/foo/mod.nr`
+
+```rust
+fn from_foo() {}
+```
+
+Note that it's an error to have both files `src/foo.nr` and `src/foo/mod.nr` in the filesystem.
+
 ### Importing a module throughout the tree
 
 All modules are accessible from the `crate::` namespace.
@@ -103,3 +124,88 @@ crate
       └── bar
            └── from_bar
 ```
+
+Similar to importing a module in the crate root, modules can be placed in a `mod.nr` file, like this:
+
+Filename : `src/main.nr`
+
+```rust
+mod foo;
+
+fn main() {
+    foo::from_foo();
+}
+```
+
+Filename : `src/foo/mod.nr`
+
+```rust
+mod bar;
+fn from_foo() {}
+```
+
+Filename : `src/foo/bar/mod.nr`
+
+```rust
+fn from_bar() {}
+```
+
+### Referencing a parent module 
+
+Given a submodule, you can refer to its parent module using the `super` keyword.
+
+Filename : `src/main.nr`
+
+```rust
+mod foo;
+
+fn main() {
+    foo::from_foo();
+}
+```
+
+Filename : `src/foo.nr`
+
+```rust
+mod bar;
+
+fn from_foo() {}
+```
+
+Filename : `src/foo/bar.nr`
+
+```rust
+// Same as bar::from_foo
+use super::from_foo; 
+
+fn from_bar() {
+    from_foo();        // invokes super::from_foo(), which is bar::from_foo()
+    super::from_foo(); // also invokes bar::from_foo()
+}
+```
+
+### `use` visibility
+
+`use` declarations are private to the containing module, by default. However, like functions, 
+they can be marked as `pub` or `pub(crate)`. Such a use declaration serves to _re-export_ a name. 
+A public `use` declaration can therefore redirect some public name to a different target definition: 
+even a definition with a private canonical path, inside a different module.
+
+An example of re-exporting:
+
+```rust
+mod some_module {
+    pub use foo::{bar, baz};
+    mod foo {
+        pub fn bar() {}
+        pub fn baz() {}
+    }
+}
+
+fn main() {
+    some_module::bar();
+    some_module::baz();
+}
+```
+
+In this example, the module `some_module` re-exports two public names defined in `foo`.
