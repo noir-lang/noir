@@ -6,6 +6,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
+    ast::Documented,
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -24,7 +25,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement},
+    parser::{self, TopLevelStatement, TopLevelStatementKind},
     Type, TypeBindings, UnificationError,
 };
 
@@ -381,8 +382,8 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        match item {
-            TopLevelStatement::Function(function) => {
+        match item.kind {
+            TopLevelStatementKind::Function(function) => {
                 let module_id = self.module_id();
 
                 if let Some(id) = dc_mod::collect_function(
@@ -391,6 +392,7 @@ impl<'context> Elaborator<'context> {
                     &function,
                     module_id,
                     self.file,
+                    item.doc_comments,
                     &mut self.errors,
                 ) {
                     let functions = vec![(self.local_module, id, function)];
@@ -402,7 +404,7 @@ impl<'context> Elaborator<'context> {
                     });
                 }
             }
-            TopLevelStatement::TraitImpl(mut trait_impl) => {
+            TopLevelStatementKind::TraitImpl(mut trait_impl) => {
                 let (methods, associated_types, associated_constants) =
                     dc_mod::collect_trait_impl_items(
                         self.interner,
@@ -432,11 +434,11 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatement::Global(global) => {
+            TopLevelStatementKind::Global(global) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    global,
+                    Documented::new(global, item.doc_comments),
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -447,11 +449,11 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error);
                 }
             }
-            TopLevelStatement::Struct(struct_def) => {
+            TopLevelStatementKind::Struct(struct_def) => {
                 if let Some((type_id, the_struct)) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    struct_def,
+                    Documented::new(struct_def, item.doc_comments),
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -460,21 +462,21 @@ impl<'context> Elaborator<'context> {
                     generated_items.types.insert(type_id, the_struct);
                 }
             }
-            TopLevelStatement::Impl(r#impl) => {
+            TopLevelStatementKind::Impl(r#impl) => {
                 let module = self.module_id();
                 dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
             }
 
             // Assume that an error has already been issued
-            TopLevelStatement::Error => (),
+            TopLevelStatementKind::Error => (),
 
-            TopLevelStatement::Module(_)
-            | TopLevelStatement::Import(..)
-            | TopLevelStatement::Trait(_)
-            | TopLevelStatement::TypeAlias(_)
-            | TopLevelStatement::SubModule(_)
-            | TopLevelStatement::InnerAttribute(_) => {
-                let item = item.to_string();
+            TopLevelStatementKind::Module(_)
+            | TopLevelStatementKind::Import(..)
+            | TopLevelStatementKind::Trait(_)
+            | TopLevelStatementKind::TypeAlias(_)
+            | TopLevelStatementKind::SubModule(_)
+            | TopLevelStatementKind::InnerAttribute(_) => {
+                let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());
             }

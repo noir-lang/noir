@@ -171,7 +171,9 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         };
 
         let mut children = Vec::new();
-        for (field_name, typ) in &noir_struct.fields {
+        for field in &noir_struct.fields {
+            let field_name = &field.item.name;
+            let typ = &field.item.typ;
             let span = Span::from(field_name.span().start()..typ.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {
@@ -223,7 +225,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for item in &noir_trait.items {
-            item.accept(self);
+            item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -350,7 +352,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for trait_impl_item in &noir_trait_impl.items {
-            trait_impl_item.accept(self);
+            trait_impl_item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -401,7 +403,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.accept(*noir_function_span, self);
+            noir_function.item.accept(*noir_function_span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);

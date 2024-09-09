@@ -269,6 +269,9 @@ pub struct NodeInterner {
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     pub(crate) usage_tracker: UsageTracker,
+
+    /// Captures the documentation comments for each module, struct, trait, function, etc.
+    pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -656,6 +659,7 @@ impl Default for NodeInterner {
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
             usage_tracker: UsageTracker::new(),
+            doc_comments: HashMap::default(),
         }
     }
 }
@@ -2195,6 +2199,16 @@ impl NodeInterner {
         }
 
         bindings
+    }
+
+    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<String>) {
+        if !doc_comments.is_empty() {
+            self.doc_comments.insert(id, doc_comments);
+        }
+    }
+
+    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
+        self.doc_comments.get(&id)
     }
 }
 

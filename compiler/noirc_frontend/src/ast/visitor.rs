@@ -553,7 +553,7 @@ impl NoirTraitImpl {
         self.object_type.accept(visitor);
 
         for item in &self.items {
-            item.accept(visitor);
+            item.item.accept(visitor);
         }
     }
 }
@@ -602,7 +602,7 @@ impl TypeImpl {
         self.object_type.accept(visitor);
 
         for (method, span) in &self.methods {
-            method.accept(*span, visitor);
+            method.item.accept(*span, visitor);
         }
     }
 }
@@ -616,7 +616,7 @@ impl NoirTrait {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         for item in &self.items {
-            item.accept(visitor);
+            item.item.accept(visitor);
         }
     }
 }
@@ -701,8 +701,8 @@ impl NoirStruct {
             attribute.accept(AttributeTarget::Struct, visitor);
         }
 
-        for (_name, unresolved_type) in &self.fields {
-            unresolved_type.accept(visitor);
+        for field in &self.fields {
+            field.item.typ.accept(visitor);
         }
     }
 }
