@@ -1,4 +1,5 @@
 mod expr;
+mod format_string;
 mod function_def;
 mod module;
 mod op;
@@ -7,6 +8,7 @@ mod trait_constraint;
 mod trait_def;
 mod trait_impl;
 mod typ;
+mod typed_expr;
 mod quoted;
 mod unresolved_type;
 

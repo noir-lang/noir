@@ -4,7 +4,10 @@ use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::{
     lexer::errors::LexerErrorKind,
-    node_interner::{ExprId, QuotedTypeId},
+    node_interner::{
+        ExprId, InternedExpressionKind, InternedStatementKind, InternedUnresolvedTypeData,
+        QuotedTypeId,
+    },
 };
 
 /// Represents a token in noir's grammar - a word, number,
@@ -24,10 +27,15 @@ pub enum BorrowedToken<'input> {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    InnerAttribute(SecondaryAttribute),
     LineComment(&'input str, Option<DocStyle>),
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
     QuotedType(QuotedTypeId),
+    InternedExpression(InternedExpressionKind),
+    InternedStatement(InternedStatementKind),
+    InternedLValue(InternedExpressionKind),
+    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// <
     Less,
     /// <=
@@ -125,6 +133,7 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    InnerAttribute(SecondaryAttribute),
     LineComment(String, Option<DocStyle>),
     BlockComment(String, Option<DocStyle>),
     // A `quote { ... }` along with the tokens in its token stream.
@@ -134,6 +143,14 @@ pub enum Token {
     /// to avoid having to tokenize it, re-parse it, and re-resolve it which
     /// may change the underlying type.
     QuotedType(QuotedTypeId),
+    /// A reference to an interned `ExpressionKind`.
+    InternedExpr(InternedExpressionKind),
+    /// A reference to an interned `StatementKind`.
+    InternedStatement(InternedStatementKind),
+    /// A reference to an interned `LValue`.
+    InternedLValue(InternedExpressionKind),
+    /// A reference to an interned `UnresolvedTypeData`.
+    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// <
     Less,
     /// <=
@@ -229,10 +246,15 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::RawStr(ref b, hashes) => BorrowedToken::RawStr(b, *hashes),
         Token::Keyword(k) => BorrowedToken::Keyword(*k),
         Token::Attribute(ref a) => BorrowedToken::Attribute(a.clone()),
+        Token::InnerAttribute(ref a) => BorrowedToken::InnerAttribute(a.clone()),
         Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
         Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
+        Token::InternedExpr(id) => BorrowedToken::InternedExpression(*id),
+        Token::InternedStatement(id) => BorrowedToken::InternedStatement(*id),
+        Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
+        Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -344,6 +366,7 @@ impl fmt::Display for Token {
             }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::InnerAttribute(ref a) => write!(f, "#![{a}]"),
             Token::LineComment(ref s, _style) => write!(f, "//{s}"),
             Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
             Token::Quote(ref stream) => {
@@ -353,8 +376,12 @@ impl fmt::Display for Token {
                 }
                 write!(f, "}}")
             }
-            // Quoted types only have an ID so there is nothing to display
+            // Quoted types and exprs only have an ID so there is nothing to display
             Token::QuotedType(_) => write!(f, "(type)"),
+            Token::InternedExpr(_) | Token::InternedStatement(_) | Token::InternedLValue(_) => {
+                write!(f, "(expr)")
+            }
+            Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -405,8 +432,13 @@ pub enum TokenKind {
     Literal,
     Keyword,
     Attribute,
+    InnerAttribute,
     Quote,
     QuotedType,
+    InternedExpr,
+    InternedStatement,
+    InternedLValue,
+    InternedUnresolvedTypeData,
     UnquoteMarker,
 }
 
@@ -418,8 +450,13 @@ impl fmt::Display for TokenKind {
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
             TokenKind::Attribute => write!(f, "attribute"),
+            TokenKind::InnerAttribute => write!(f, "inner attribute"),
             TokenKind::Quote => write!(f, "quote"),
             TokenKind::QuotedType => write!(f, "quoted type"),
+            TokenKind::InternedExpr => write!(f, "interned expr"),
+            TokenKind::InternedStatement => write!(f, "interned statement"),
+            TokenKind::InternedLValue => write!(f, "interned lvalue"),
+            TokenKind::InternedUnresolvedTypeData => write!(f, "interned unresolved type"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
@@ -436,9 +473,14 @@ impl Token {
             | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
+            Token::InnerAttribute(_) => TokenKind::InnerAttribute,
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,
             Token::QuotedType(_) => TokenKind::QuotedType,
+            Token::InternedExpr(_) => TokenKind::InternedExpr,
+            Token::InternedStatement(_) => TokenKind::InternedStatement,
+            Token::InternedLValue(_) => TokenKind::InternedLValue,
+            Token::InternedUnresolvedTypeData(_) => TokenKind::InternedUnresolvedTypeData,
             tok => TokenKind::Token(tok.clone()),
         }
     }
@@ -662,7 +704,11 @@ impl fmt::Display for Attribute {
 impl Attribute {
     /// If the string is a fixed attribute return that, else
     /// return the custom attribute
-    pub(crate) fn lookup_attribute(word: &str, span: Span) -> Result<Token, LexerErrorKind> {
+    pub(crate) fn lookup_attribute(
+        word: &str,
+        span: Span,
+        contents_span: Span,
+    ) -> Result<Attribute, LexerErrorKind> {
         let word_segments: Vec<&str> = word
             .split(|c| c == '(' || c == ')')
             .filter(|string_segment| !string_segment.is_empty())
@@ -735,11 +781,15 @@ impl Attribute {
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
+                Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                    contents: word.to_owned(),
+                    span,
+                    contents_span,
+                }))
             }
         };
 
-        Ok(Token::Attribute(attribute))
+        Ok(attribute)
     }
 }
 
@@ -828,11 +878,30 @@ pub enum SecondaryAttribute {
     ContractLibraryMethod,
     Export,
     Field(String),
-    Custom(String),
+    Custom(CustomAtrribute),
     Abi(String),
 
     /// A variable-argument comptime function.
     Varargs,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub struct CustomAtrribute {
+    pub contents: String,
+    // The span of the entire attribute, including leading `#[` and trailing `]`
+    pub span: Span,
+    // The span for the attribute contents (what's inside `#[...]`)
+    pub contents_span: Span,
+}
+
+impl SecondaryAttribute {
+    pub(crate) fn as_custom(&self) -> Option<&CustomAtrribute> {
+        if let Self::Custom(attribute) = self {
+            Some(attribute)
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -842,7 +911,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Deprecated(Some(ref note)) => {
                 write!(f, r#"#[deprecated("{note}")]"#)
             }
-            SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
+            SecondaryAttribute::Custom(ref attribute) => write!(f, "#[{}]", attribute.contents),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
@@ -871,9 +940,8 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string)
-            | SecondaryAttribute::Field(string)
-            | SecondaryAttribute::Abi(string) => string,
+            SecondaryAttribute::Custom(attribute) => &attribute.contents,
+            SecondaryAttribute::Field(string) | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
             SecondaryAttribute::Varargs => "",
@@ -927,6 +995,7 @@ pub enum Keyword {
     TraitDefinition,
     TraitImpl,
     Type,
+    TypedExpr,
     TypeType,
     Unchecked,
     Unconstrained,
@@ -982,6 +1051,7 @@ impl fmt::Display for Keyword {
             Keyword::TraitDefinition => write!(f, "TraitDefinition"),
             Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
+            Keyword::TypedExpr => write!(f, "TypedExpr"),
             Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
@@ -1040,6 +1110,7 @@ impl Keyword {
             "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
+            "TypedExpr" => Keyword::TypedExpr,
             "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,

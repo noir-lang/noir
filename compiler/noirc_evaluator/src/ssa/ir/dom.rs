@@ -214,7 +214,7 @@ impl DominatorTree {
     /// Compute the common dominator of two basic blocks.
     ///
     /// Both basic blocks are assumed to be reachable.
-    fn common_dominator(
+    pub(crate) fn common_dominator(
         &self,
         mut block_a_id: BasicBlockId,
         mut block_b_id: BasicBlockId,

@@ -80,23 +80,28 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    let test_reports: Vec<Vec<(String, TestStatus)>> = workspace
-        .into_iter()
-        .par_bridge()
-        .map(|package| {
-            run_tests::<Bn254BlackBoxSolver>(
-                &workspace_file_manager,
-                &parsed_files,
-                package,
-                pattern,
-                args.show_output,
-                args.oracle_resolver.as_deref(),
-                Some(workspace.root_dir.clone()),
-                Some(package.name.to_string()),
-                &args.compile_options,
-            )
-        })
-        .collect::<Result<_, _>>()?;
+    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // Default is 2MB.
+    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    let test_reports: Vec<Vec<(String, TestStatus)>> = pool.install(|| {
+        workspace
+            .into_iter()
+            .par_bridge()
+            .map(|package| {
+                run_tests::<Bn254BlackBoxSolver>(
+                    &workspace_file_manager,
+                    &parsed_files,
+                    package,
+                    pattern,
+                    args.show_output,
+                    args.oracle_resolver.as_deref(),
+                    Some(workspace.root_dir.clone()),
+                    Some(package.name.to_string()),
+                    &args.compile_options,
+                )
+            })
+            .collect::<Result<_, _>>()
+    })?;
     let test_report: Vec<(String, TestStatus)> = test_reports.into_iter().flatten().collect();
 
     if test_report.is_empty() {
@@ -206,10 +211,10 @@ fn get_tests_in_package(
     parsed_files: &ParsedFiles,
     package: &Package,
     fn_name: FunctionNameMatch,
-    compile_options: &CompileOptions,
+    options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    check_crate_and_report_errors(&mut context, crate_id, options)?;
 
     Ok(context
         .get_all_test_functions_in_crate_matching(&crate_id, fn_name)

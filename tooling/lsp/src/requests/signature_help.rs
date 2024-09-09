@@ -7,10 +7,14 @@ use lsp_types::{
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::{CallExpression, Expression, FunctionReturnType, MethodCallExpression},
+    ast::{
+        CallExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
+        FunctionReturnType, MethodCallExpression, Statement, Visitor,
+    },
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::NodeInterner,
     node_interner::ReferenceId,
+    parser::Item,
     ParsedModule, Type,
 };
 
@@ -19,7 +23,6 @@ use crate::{utils, LspState};
 use super::process_request;
 
 mod tests;
-mod traversal;
 
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
@@ -61,47 +64,9 @@ impl<'a> SignatureFinder<'a> {
     }
 
     fn find(&mut self, parsed_module: &ParsedModule) -> Option<SignatureHelp> {
-        self.find_in_parsed_module(parsed_module);
+        parsed_module.accept(self);
 
         self.signature_help.clone()
-    }
-
-    fn find_in_call_expression(&mut self, call_expression: &CallExpression, span: Span) {
-        self.find_in_expression(&call_expression.func);
-        self.find_in_expressions(&call_expression.arguments);
-
-        let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
-        let span = call_expression.func.span;
-        let name_span = Span::from(span.end() - 1..span.end());
-        let has_self = false;
-
-        self.try_compute_signature_help(
-            &call_expression.arguments,
-            arguments_span,
-            name_span,
-            has_self,
-        );
-    }
-
-    fn find_in_method_call_expression(
-        &mut self,
-        method_call_expression: &MethodCallExpression,
-        span: Span,
-    ) {
-        self.find_in_expression(&method_call_expression.object);
-        self.find_in_expressions(&method_call_expression.arguments);
-
-        let arguments_span =
-            Span::from(method_call_expression.method_name.span().end() + 1..span.end() - 1);
-        let name_span = method_call_expression.method_name.span();
-        let has_self = true;
-
-        self.try_compute_signature_help(
-            &method_call_expression.arguments,
-            arguments_span,
-            name_span,
-            has_self,
-        );
     }
 
     fn try_compute_signature_help(
@@ -119,18 +84,7 @@ impl<'a> SignatureFinder<'a> {
             return;
         }
 
-        let mut active_parameter = None;
-        for (index, arg) in arguments.iter().enumerate() {
-            if self.includes_span(arg.span) || arg.span.start() as usize >= self.byte_index {
-                active_parameter = Some(index as u32);
-                break;
-            }
-        }
-
-        if active_parameter.is_none() {
-            active_parameter = Some(arguments.len() as u32);
-        }
-
+        let active_parameter = self.compute_active_parameter(arguments);
         let location = Location::new(name_span, self.file);
 
         // Check if the call references a named function
@@ -267,6 +221,60 @@ impl<'a> SignatureFinder<'a> {
         }
     }
 
+    fn assert_signature_information(&self, active_parameter: Option<u32>) -> SignatureInformation {
+        self.hardcoded_signature_information(
+            active_parameter,
+            "assert",
+            &["predicate: bool", "[failure_message: str<N>]"],
+        )
+    }
+
+    fn assert_eq_signature_information(
+        &self,
+        active_parameter: Option<u32>,
+    ) -> SignatureInformation {
+        self.hardcoded_signature_information(
+            active_parameter,
+            "assert_eq",
+            &["lhs: T", "rhs: T", "[failure_message: str<N>]"],
+        )
+    }
+
+    fn hardcoded_signature_information(
+        &self,
+        active_parameter: Option<u32>,
+        name: &str,
+        arguments: &[&str],
+    ) -> SignatureInformation {
+        let mut label = String::new();
+        let mut parameters = Vec::new();
+
+        label.push_str(name);
+        label.push('(');
+        for (index, typ) in arguments.iter().enumerate() {
+            if index > 0 {
+                label.push_str(", ");
+            }
+
+            let parameter_start = label.chars().count();
+            label.push_str(typ);
+            let parameter_end = label.chars().count();
+
+            parameters.push(ParameterInformation {
+                label: ParameterLabel::LabelOffsets([parameter_start as u32, parameter_end as u32]),
+                documentation: None,
+            });
+        }
+        label.push(')');
+
+        SignatureInformation {
+            label,
+            documentation: None,
+            parameters: Some(parameters),
+            active_parameter,
+        }
+    }
+
     fn hir_pattern_to_argument(&self, pattern: &HirPattern, text: &mut String) {
         match pattern {
             HirPattern::Identifier(hir_ident) => {
@@ -286,7 +294,124 @@ impl<'a> SignatureFinder<'a> {
         self.signature_help = Some(signature_help);
     }
 
+    fn compute_active_parameter(&self, arguments: &[Expression]) -> Option<u32> {
+        let mut active_parameter = None;
+        for (index, arg) in arguments.iter().enumerate() {
+            if self.includes_span(arg.span) || arg.span.start() as usize >= self.byte_index {
+                active_parameter = Some(index as u32);
+                break;
+            }
+        }
+
+        if active_parameter.is_none() {
+            active_parameter = Some(arguments.len() as u32);
+        }
+
+        active_parameter
+    }
+
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
+    }
+}
+
+impl<'a> Visitor for SignatureFinder<'a> {
+    fn visit_item(&mut self, item: &Item) -> bool {
+        self.includes_span(item.span)
+    }
+
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        self.includes_span(statement.span)
+    }
+
+    fn visit_expression(&mut self, expression: &Expression) -> bool {
+        self.includes_span(expression.span)
+    }
+
+    fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
+        call_expression.accept_children(self);
+
+        let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
+        let span = call_expression.func.span;
+        let name_span = Span::from(span.end() - 1..span.end());
+        let has_self = false;
+
+        self.try_compute_signature_help(
+            &call_expression.arguments,
+            arguments_span,
+            name_span,
+            has_self,
+        );
+
+        false
+    }
+
+    fn visit_method_call_expression(
+        &mut self,
+        method_call_expression: &MethodCallExpression,
+        span: Span,
+    ) -> bool {
+        method_call_expression.accept_children(self);
+
+        let arguments_span =
+            Span::from(method_call_expression.method_name.span().end() + 1..span.end() - 1);
+        let name_span = method_call_expression.method_name.span();
+        let has_self = true;
+
+        self.try_compute_signature_help(
+            &method_call_expression.arguments,
+            arguments_span,
+            name_span,
+            has_self,
+        );
+
+        false
+    }
+
+    fn visit_constrain_statement(&mut self, constrain_statement: &ConstrainStatement) -> bool {
+        constrain_statement.accept_children(self);
+
+        if self.signature_help.is_some() {
+            return false;
+        }
+
+        let arguments_span = if let Some(expr) = &constrain_statement.1 {
+            Span::from(constrain_statement.0.span.start()..expr.span.end())
+        } else {
+            constrain_statement.0.span
+        };
+
+        if !self.includes_span(arguments_span) {
+            return false;
+        }
+
+        match constrain_statement.2 {
+            ConstrainKind::Assert => {
+                let mut arguments = vec![constrain_statement.0.clone()];
+                if let Some(expr) = &constrain_statement.1 {
+                    arguments.push(expr.clone());
+                }
+
+                let active_parameter = self.compute_active_parameter(&arguments);
+                let signature_information = self.assert_signature_information(active_parameter);
+                self.set_signature_help(signature_information);
+            }
+            ConstrainKind::AssertEq => {
+                if let ExpressionKind::Infix(infix) = &constrain_statement.0.kind {
+                    let mut arguments = vec![infix.lhs.clone(), infix.rhs.clone()];
+                    if let Some(expr) = &constrain_statement.1 {
+                        arguments.push(expr.clone());
+                    }
+
+                    let active_parameter = self.compute_active_parameter(&arguments);
+                    let signature_information =
+                        self.assert_eq_signature_information(active_parameter);
+                    self.set_signature_help(signature_information);
+                }
+            }
+            ConstrainKind::Constrain => (),
+        }
+
+        false
     }
 }

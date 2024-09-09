@@ -12,6 +12,8 @@ pub struct CustomDiagnostic {
     pub secondaries: Vec<CustomLabel>,
     notes: Vec<String>,
     pub kind: DiagnosticKind,
+    pub deprecated: bool,
+    pub unnecessary: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -35,6 +37,8 @@ impl CustomDiagnostic {
             secondaries: Vec::new(),
             notes: Vec::new(),
             kind: DiagnosticKind::Error,
+            deprecated: false,
+            unnecessary: false,
         }
     }
 
@@ -46,9 +50,11 @@ impl CustomDiagnostic {
     ) -> CustomDiagnostic {
         CustomDiagnostic {
             message: primary_message,
-            secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_span, None)],
             notes: Vec::new(),
             kind,
+            deprecated: false,
+            unnecessary: false,
         }
     }
 
@@ -98,9 +104,11 @@ impl CustomDiagnostic {
     ) -> CustomDiagnostic {
         CustomDiagnostic {
             message: primary_message,
-            secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_span, None)],
             notes: Vec::new(),
             kind: DiagnosticKind::Bug,
+            deprecated: false,
+            unnecessary: false,
         }
     }
 
@@ -113,7 +121,11 @@ impl CustomDiagnostic {
     }
 
     pub fn add_secondary(&mut self, message: String, span: Span) {
-        self.secondaries.push(CustomLabel::new(message, span));
+        self.secondaries.push(CustomLabel::new(message, span, None));
+    }
+
+    pub fn add_secondary_with_file(&mut self, message: String, span: Span, file: fm::FileId) {
+        self.secondaries.push(CustomLabel::new(message, span, Some(file)));
     }
 
     pub fn is_error(&self) -> bool {
@@ -153,11 +165,12 @@ impl std::fmt::Display for CustomDiagnostic {
 pub struct CustomLabel {
     pub message: String,
     pub span: Span,
+    pub file: Option<fm::FileId>,
 }
 
 impl CustomLabel {
-    fn new(message: String, span: Span) -> CustomLabel {
-        CustomLabel { message, span }
+    fn new(message: String, span: Span, file: Option<fm::FileId>) -> CustomLabel {
+        CustomLabel { message, span, file }
     }
 }
 
@@ -234,7 +247,8 @@ fn convert_diagnostic(
             .map(|sl| {
                 let start_span = sl.span.start() as usize;
                 let end_span = sl.span.end() as usize;
-                Label::secondary(file_id, start_span..end_span).with_message(&sl.message)
+                let file = sl.file.unwrap_or(file_id);
+                Label::secondary(file, start_span..end_span).with_message(&sl.message)
             })
             .collect()
     } else {

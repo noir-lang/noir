@@ -183,7 +183,7 @@ comptime fn my_function_annotation(f: FunctionDefinition) {
 
 Anything returned from one of these functions will be inserted at top-level along with the original item.
 Note that expressions are not valid at top-level so you'll get an error trying to return `3` or similar just as if you tried to write a program containing `3; struct Foo {}`.
-You can insert other top-level items such as traits, structs, or functions this way though.
+You can insert other top-level items such as trait impls, structs, or functions this way though.
 For example, this is the mechanism used to insert additional trait implementations into the program when deriving a trait impl from a struct:
 
 #include_code derive-field-count-example noir_stdlib/src/meta/mod.nr rust
@@ -232,6 +232,7 @@ The following is an incomplete list of some `comptime` types along with some use
     - `fn fields(self) -> [(Quoted, Type)]`
       - Return the name and type of each field
 - `TraitConstraint`: A trait constraint such as `From<Field>`
+- `TypedExpr`: A type-checked expression.
 - `UnresolvedType`: A syntactic notation that refers to a Noir type that hasn't been resolved yet
 
 There are many more functions available by exploring the `std::meta` module and its submodules.

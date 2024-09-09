@@ -56,6 +56,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
+        call_stack: im::Vector<Location>,
     },
     NoMethodFound {
         name: String,
@@ -193,13 +194,31 @@ pub enum InterpreterError {
         candidates: Vec<String>,
         location: Location,
     },
-
     Unimplemented {
         item: String,
         location: Location,
     },
     TypeAnnotationsNeededForMethodCall {
         location: Location,
+    },
+    ExpectedIdentForStructField {
+        value: String,
+        index: usize,
+        location: Location,
+    },
+    InvalidAttribute {
+        attribute: String,
+        location: Location,
+    },
+    GenericNameShouldBeAnIdent {
+        name: Rc<String>,
+        location: Location,
+    },
+    DuplicateGeneric {
+        name: Rc<String>,
+        struct_name: String,
+        duplicate_location: Location,
+        existing_location: Location,
     },
 
     // These cases are not errors, they are just used to prevent us from running more code
@@ -268,6 +287,10 @@ impl InterpreterError {
             | InterpreterError::FailedToResolveTraitBound { location, .. }
             | InterpreterError::FunctionAlreadyResolved { location, .. }
             | InterpreterError::MultipleMatchingImpls { location, .. }
+            | InterpreterError::ExpectedIdentForStructField { location, .. }
+            | InterpreterError::InvalidAttribute { location, .. }
+            | InterpreterError::GenericNameShouldBeAnIdent { location, .. }
+            | InterpreterError::DuplicateGeneric { duplicate_location: location, .. }
             | InterpreterError::TypeAnnotationsNeededForMethodCall { location } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
@@ -353,12 +376,20 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::FailingConstraint { message, location } => {
+            InterpreterError::FailingConstraint { message, location, call_stack } => {
                 let (primary, secondary) = match message {
                     Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                CustomDiagnostic::simple_error(primary, secondary, location.span)
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary, secondary, location.span);
+
+                // Only take at most 3 frames starting from the top of the stack to avoid producing too much output
+                for frame in call_stack.iter().rev().take(3) {
+                    diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
+                }
+
+                diagnostic
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");
@@ -479,7 +510,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::UnsupportedTopLevelItemUnquote { item, location } => {
                 let msg = "Unsupported statement type to unquote".into();
                 let secondary =
-                    "Only functions, globals, and trait impls can be unquoted here".into();
+                    "Only functions, structs, globals, and impls can be unquoted here".into();
                 let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
@@ -555,6 +586,44 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let message =
                     "Try adding a type annotation for the object type before this method call";
                 error.add_note(message.to_string());
+                error
+            }
+            InterpreterError::ExpectedIdentForStructField { value, index, location } => {
+                let msg = format!(
+                    "Quoted value in index {index} of this slice is not a valid field name"
+                );
+                let secondary = format!("`{value}` is not a valid field name for `set_fields`");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::InvalidAttribute { attribute, location } => {
+                let msg = format!("`{attribute}` is not a valid attribute");
+                let secondary = "Note that this method expects attribute contents, without the leading `#[` or trailing `]`".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
+                let msg =
+                    "Generic name needs to be a valid identifer (one word beginning with a letter)"
+                        .to_string();
+                let secondary = format!("`{name}` is not a valid identifier");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::DuplicateGeneric {
+                name,
+                struct_name,
+                duplicate_location,
+                existing_location,
+            } => {
+                let msg = format!("`{struct_name}` already has a generic named `{name}`");
+                let secondary = format!("`{name}` added here a second time");
+                let mut error =
+                    CustomDiagnostic::simple_error(msg, secondary, duplicate_location.span);
+
+                let existing_msg = format!("`{name}` was previously defined here");
+                error.add_secondary_with_file(
+                    existing_msg,
+                    existing_location.span,
+                    existing_location.file,
+                );
                 error
             }
         }

@@ -5,6 +5,30 @@ title: Type
 `std::meta::typ` contains methods on the built-in `Type` type used for representing
 a type in the source program.
 
+## Functions
+
+#include_code fresh_type_variable noir_stdlib/src/meta/typ.nr rust
+
+Creates and returns an unbound type variable. This is a special kind of type internal
+to type checking which will type check with any other type. When it is type checked
+against another type it will also be set to that type. For example, if `a` is a type
+variable and we have the type equality `(a, i32) = (u8, i32)`, the compiler will set
+`a` equal to `u8`.
+
+Unbound type variables will often be rendered as `_` while printing them. Bound type
+variables will appear as the type they are bound to.
+
+This can be used in conjunction with functions which internally perform type checks
+such as `Type::implements` or `Type::get_trait_impl` to potentially grab some of the types used.
+
+Note that calling `Type::implements` or `Type::get_trait_impl` on a type variable will always
+fail.
+
+Example:
+
+#include_code serialize-setup test_programs/compile_success_empty/comptime_type/src/main.nr rust
+#include_code fresh-type-variable-example test_programs/compile_success_empty/comptime_type/src/main.nr rust
+
 ## Methods
 
 ### as_array
@@ -44,6 +68,12 @@ if the type is signed, as well as the number of bits of this integer type.
 #include_code as_slice noir_stdlib/src/meta/typ.nr rust
 
 If this is a slice type, return the element type of the slice.
+
+### as_str
+
+#include_code as_str noir_stdlib/src/meta/typ.nr rust
+
+If this is a `str<N>` type, returns the length `N` as a type.
 
 ### as_struct
 

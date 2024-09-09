@@ -1,3 +1,6 @@
+#![inner]
+#![inner2]
+
 mod a {
     mod b {
         struct Data {
@@ -13,11 +16,20 @@ mod a {
         Data2 { a }
     }
 
+    #[custom]
+    #[another_custom]
     mod tests {
         #[test]
         fn test() {
             data(1);
             data2(1);
         }
+    }
+
+    #[attr]
+    mod baz;
+
+    mod empty {
+        #![inner]
     }
 }

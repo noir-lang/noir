@@ -1,9 +1,12 @@
 use lsp_types::CompletionItemKind;
-use noirc_frontend::token::Keyword;
+use noirc_frontend::{ast::AttributeTarget, token::Keyword};
 use strum::IntoEnumIterator;
 
 use super::{
-    completion_items::{simple_completion_item, snippet_completion_item},
+    completion_items::{
+        completion_item_with_trigger_parameter_hints_command, simple_completion_item,
+        snippet_completion_item,
+    },
     kinds::FunctionCompletionKind,
     name_matches, NodeFinder,
 };
@@ -31,12 +34,16 @@ impl<'a> NodeFinder<'a> {
                         }
                     }
 
-                    self.completion_items.push(snippet_completion_item(
-                        label,
-                        CompletionItemKind::FUNCTION,
-                        insert_text,
-                        description,
-                    ));
+                    self.completion_items.push(
+                        completion_item_with_trigger_parameter_hints_command(
+                            snippet_completion_item(
+                                label,
+                                CompletionItemKind::FUNCTION,
+                                insert_text,
+                                description,
+                            ),
+                        ),
+                    );
                 }
             }
         }
@@ -77,6 +84,40 @@ impl<'a> NodeFinder<'a> {
             }
         }
     }
+
+    pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
+        match target {
+            AttributeTarget::Module => (),
+            AttributeTarget::Struct => {
+                self.suggest_one_argument_attributes(prefix, &["abi"]);
+            }
+            AttributeTarget::Function => {
+                let no_arguments_attributes = &[
+                    "contract_library_method",
+                    "deprecated",
+                    "export",
+                    "fold",
+                    "no_predicates",
+                    "recursive",
+                    "test",
+                    "varargs",
+                ];
+                self.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
+
+                let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
+                self.suggest_one_argument_attributes(prefix, one_argument_attributes);
+
+                if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "test(should_fail_with=\"...\")",
+                        CompletionItemKind::METHOD,
+                        "test(should_fail_with=\"${1:message}\")",
+                        None,
+                    ));
+                }
+            }
+        }
+    }
 }
 
 pub(super) fn builtin_integer_types() -> [&'static str; 8] {
@@ -90,10 +131,13 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
+        Keyword::Module => Some("Module"),
+        Keyword::Quoted => Some("Quoted"),
         Keyword::StructDefinition => Some("StructDefinition"),
         Keyword::TraitConstraint => Some("TraitConstraint"),
         Keyword::TraitDefinition => Some("TraitDefinition"),
         Keyword::TraitImpl => Some("TraitImpl"),
+        Keyword::TypedExpr => Some("TypedExpr"),
         Keyword::TypeType => Some("Type"),
         Keyword::UnresolvedType => Some("UnresolvedType"),
 
@@ -119,10 +163,8 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::In
         | Keyword::Let
         | Keyword::Mod
-        | Keyword::Module
         | Keyword::Mut
         | Keyword::Pub
-        | Keyword::Quoted
         | Keyword::Return
         | Keyword::ReturnData
         | Keyword::String
@@ -200,6 +242,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::TraitDefinition
         | Keyword::TraitImpl
         | Keyword::Type
+        | Keyword::TypedExpr
         | Keyword::TypeType
         | Keyword::Unchecked
         | Keyword::Unconstrained

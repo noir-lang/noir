@@ -1,8 +1,6 @@
 //! This module defines an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
 //! If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
 //! So the compiler informs the developer of this as a bug
-use im::HashMap;
-
 use crate::errors::{InternalBug, SsaReport};
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
@@ -10,25 +8,29 @@ use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
+use im::HashMap;
+use rayon::prelude::*;
 use std::collections::{BTreeMap, HashSet};
 
 impl Ssa {
     /// Go through each top-level non-brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
-        let mut warnings: Vec<SsaReport> = Vec::new();
-        for function in self.functions.values() {
-            match function.runtime() {
-                RuntimeType::Acir { .. } => {
-                    warnings.extend(check_for_underconstrained_values_within_function(
-                        function,
+        let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
+        functions_id
+            .iter()
+            .par_bridge()
+            .flat_map(|fid| {
+                let function_to_process = &self.functions[&FunctionId::new(*fid)];
+                match function_to_process.runtime() {
+                    RuntimeType::Acir { .. } => check_for_underconstrained_values_within_function(
+                        function_to_process,
                         &self.functions,
-                    ));
+                    ),
+                    RuntimeType::Brillig => Vec::new(),
                 }
-                RuntimeType::Brillig => (),
-            }
-        }
-        warnings
+            })
+            .collect()
     }
 }
 
@@ -88,9 +90,8 @@ impl Context {
             self.visited_blocks.insert(block);
             self.connect_value_ids_in_block(function, block, all_functions);
         }
-
         // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect
-        self.merge_sets();
+        self.value_sets = Self::merge_sets_par(&self.value_sets);
     }
 
     /// Find sets that contain input or output value of the function
@@ -243,7 +244,7 @@ impl Context {
                             }
                         },
                         Value::ForeignFunction(..) => {
-                            panic!("Should not be able to reach foreign function from non-brillig functions");
+                            panic!("Should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
                         }
                         Value::Array { .. }
                         | Value::Instruction { .. }
@@ -267,14 +268,13 @@ impl Context {
     /// Merge all small sets into larger ones based on whether the sets intersect or not
     ///
     /// If two small sets have a common ValueId, we merge them into one
-    fn merge_sets(&mut self) {
+    fn merge_sets(current: &[HashSet<ValueId>]) -> Vec<HashSet<ValueId>> {
         let mut new_set_id: usize = 0;
         let mut updated_sets: HashMap<usize, HashSet<ValueId>> = HashMap::new();
         let mut value_dictionary: HashMap<ValueId, usize> = HashMap::new();
         let mut parsed_value_set: HashSet<ValueId> = HashSet::new();
 
-        // Go through each set
-        for set in self.value_sets.iter() {
+        for set in current.iter() {
             // Check if the set has any of the ValueIds we've encountered at previous iterations
             let intersection: HashSet<ValueId> =
                 set.intersection(&parsed_value_set).copied().collect();
@@ -327,7 +327,26 @@ impl Context {
             }
             updated_sets.insert(largest_set_index, largest_set);
         }
-        self.value_sets = updated_sets.values().cloned().collect();
+        updated_sets.values().cloned().collect()
+    }
+
+    /// Parallel version of merge_sets
+    /// The sets are merged by chunks, and then the chunks are merged together
+    fn merge_sets_par(sets: &[HashSet<ValueId>]) -> Vec<HashSet<ValueId>> {
+        let mut sets = sets.to_owned();
+        let mut len = sets.len();
+        let mut prev_len = len + 1;
+
+        while len > 1000 && len < prev_len {
+            sets = sets.par_chunks(1000).flat_map(Self::merge_sets).collect();
+
+            prev_len = len;
+            len = sets.len();
+        }
+        // TODO: if prev_len >= len, this means we cannot effectively merge the sets anymore
+        // We should instead partition the sets into disjoint chunks and work on those chunks,
+        // but for now we fallback to the non-parallel implementation
+        Self::merge_sets(&sets)
     }
 }
 #[cfg(test)]

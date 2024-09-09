@@ -1,3 +1,5 @@
+use crate::runtime::is_unconstrained;
+
 // Implementation of SHA-256 mapping a byte array of variable length to
 // 32 bytes.
 
@@ -17,62 +19,6 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
     sha256_var(msg, N as u64)
 }
 
-// Variable size SHA-256 hash
-pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
-    let mut msg_block: [u8; 64] = [0; 64];
-    let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
-    let mut i: u64 = 0; // Message byte pointer
-    for k in 0..N {
-        if k as u64 < message_size {
-            // Populate msg_block
-            msg_block[i] = msg[k];
-            i = i + 1;
-            if i == 64 {
-                // Enough to hash block
-                h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
-
-                i = 0;
-            }
-        }
-    }
-    // Pad the rest such that we have a [u32; 2] block at the end representing the length
-    // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
-    msg_block[i] = 1 << 7;
-    i = i + 1;
-    // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
-    // the 1 and 0s fill up the current block, which we then compress accordingly.
-    if i >= 57 {
-        // Not enough bits (64) to store length. Fill up with zeros.
-        if i < 64 {
-            for _i in 57..64 {
-                if i <= 63 {
-                    msg_block[i] = 0;
-                    i += 1;
-                }
-            }
-        }
-        h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
-
-        i = 0;
-    }
-
-    let len = 8 * message_size;
-    let len_bytes = (len as Field).to_le_bytes(8);
-    for _i in 0..64 {
-        // In any case, fill blocks up with zeros until the last 64 (i.e. until i = 56).
-        if i < 56 {
-            msg_block[i] = 0;
-            i = i + 1;
-        } else if i < 64 {
-            for j in 0..8 {
-                msg_block[63 - j] = len_bytes[j];
-            }
-            i += 8;
-        }
-    }
-    hash_final_block(msg_block, h)
-}
-
 // Convert 64-byte array to array of 16 u32s
 fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     let mut msg32: [u32; 16] = [0; 16];
@@ -88,15 +34,219 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     msg32
 }
 
+unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u64, msg_start: u32) -> ([u8; 64], u64) {
+    let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
+    let mut msg_byte_ptr: u64 = 0; // Message byte pointer
+    let mut msg_end = msg_start + BLOCK_SIZE;
+    if msg_end > N {
+        msg_end = N;
+    }
+    for k in msg_start..msg_end {
+        if k as u64 < message_size {
+            msg_block[msg_byte_ptr] = msg[k];
+            msg_byte_ptr = msg_byte_ptr + 1;
+        }
+    }
+    (msg_block, msg_byte_ptr)
+}
+
+// Verify the block we are compressing was appropriately constructed
+fn verify_msg_block<let N: u32>(
+    msg: [u8; N],
+    message_size: u64,
+    msg_block: [u8; 64],
+    msg_start: u32
+) -> u64 {
+    let mut msg_byte_ptr: u64 = 0; // Message byte pointer
+    let mut msg_end = msg_start + BLOCK_SIZE;
+    let mut extra_bytes = 0;
+    if msg_end > N {
+        msg_end = N;
+        extra_bytes = msg_end - N;
+    }
+
+    for k in msg_start..msg_end {
+        if k as u64 < message_size {
+            assert_eq(msg_block[msg_byte_ptr], msg[k]);
+            msg_byte_ptr = msg_byte_ptr + 1;
+        }
+    }
+
+    msg_byte_ptr
+}
+
+global BLOCK_SIZE = 64;
+global ZERO = 0;
+
+// Variable size SHA-256 hash
+pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
+    let num_blocks = N / BLOCK_SIZE;
+    let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
+    let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
+    let mut msg_byte_ptr = 0; // Pointer into msg_block
+
+    for i in 0..num_blocks {
+        let msg_start = BLOCK_SIZE * i;
+        let (new_msg_block, new_msg_byte_ptr) = unsafe {
+            build_msg_block_iter(msg, message_size, msg_start)
+        };
+        if msg_start as u64 < message_size {
+            msg_block = new_msg_block;
+        }
+
+        if !is_unconstrained() {
+            // Verify the block we are compressing was appropriately constructed
+            let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
+            if msg_start as u64 < message_size {
+                msg_byte_ptr = new_msg_byte_ptr;
+            }
+        } else if msg_start as u64 < message_size {
+            msg_byte_ptr = new_msg_byte_ptr;
+        }
+
+        // If the block is filled, compress it. 
+        // An un-filled block is handled after this loop.
+        if msg_byte_ptr == 64 {
+            h = sha256_compression(msg_u8_to_u32(msg_block), h);
+        }
+    }
+
+    let modulo = N % BLOCK_SIZE;
+    // Handle setup of the final msg block.
+    // This case is only hit if the msg is less than the block size, 
+    // or our message cannot be evenly split into blocks. 
+    if modulo != 0 {
+        let msg_start = BLOCK_SIZE * num_blocks;
+        let (new_msg_block, new_msg_byte_ptr) = unsafe {
+            build_msg_block_iter(msg, message_size, msg_start)
+        };
+
+        if msg_start as u64 < message_size {
+            msg_block = new_msg_block;
+        }
+
+        if !is_unconstrained() {
+            let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
+            if msg_start as u64 < message_size {
+                msg_byte_ptr = new_msg_byte_ptr;
+            }
+        } else if msg_start as u64 < message_size {
+            msg_byte_ptr = new_msg_byte_ptr;
+        }
+    }
+
+    if msg_byte_ptr == BLOCK_SIZE as u64 {
+        msg_byte_ptr = 0;
+    }
+
+    // This variable is used to get around the compiler under-constrained check giving a warning.
+    // We want to check against a constant zero, but if it does not come from the circuit inputs
+    // or return values the compiler check will issue a warning.
+    let zero = msg_block[0] - msg_block[0];
+
+    // Pad the rest such that we have a [u32; 2] block at the end representing the length
+    // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).    
+    msg_block[msg_byte_ptr] = 1 << 7;
+    let last_block = msg_block;
+    msg_byte_ptr = msg_byte_ptr + 1;
+
+    unsafe {
+        let (new_msg_block, new_msg_byte_ptr) = pad_msg_block(msg_block, msg_byte_ptr);
+        msg_block = new_msg_block;
+        if crate::runtime::is_unconstrained() {
+            msg_byte_ptr = new_msg_byte_ptr;
+        }
+    }
+
+    if !crate::runtime::is_unconstrained() {
+        for i in 0..64 {
+            assert_eq(msg_block[i], last_block[i]);
+        }
+
+        // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
+        // the 1 and 0s fill up the current block, which we then compress accordingly.
+        // Not enough bits (64) to store length. Fill up with zeros.
+        for _i in 57..64 {
+            if msg_byte_ptr <= 63 & msg_byte_ptr >= 57 {
+                assert_eq(msg_block[msg_byte_ptr], zero);
+                msg_byte_ptr += 1;
+            }
+        }
+    }
+
+    if msg_byte_ptr >= 57 {
+        h = sha256_compression(msg_u8_to_u32(msg_block), h);
+
+        msg_byte_ptr = 0;
+    }
+
+    msg_block = unsafe {
+        attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size)
+    };
+
+    if !crate::runtime::is_unconstrained() {
+        for i in 0..56 {
+            if i < msg_byte_ptr {
+                assert_eq(msg_block[i], last_block[i]);
+            } else {
+                assert_eq(msg_block[i], zero);
+            }
+        }
+
+        let len = 8 * message_size;
+        let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
+        for i in 56..64 {
+            assert_eq(msg_block[i], len_bytes[i - 56]);
+        }
+    }
+
+    hash_final_block(msg_block, h)
+}
+
+unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64) -> ([u8; 64], u64) {
+    // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
+    // the 1 and 0s fill up the current block, which we then compress accordingly.
+    if msg_byte_ptr >= 57 {
+        // Not enough bits (64) to store length. Fill up with zeros.
+        if msg_byte_ptr < 64 {
+            for _ in 57..64 {
+                if msg_byte_ptr <= 63 {
+                    msg_block[msg_byte_ptr] = 0;
+                    msg_byte_ptr += 1;
+                }
+            }
+        }
+    }
+    (msg_block, msg_byte_ptr)
+}
+
+unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64, message_size: u64) -> [u8; 64] {
+    let len = 8 * message_size;
+    let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
+    for _i in 0..64 {
+        // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
+        if msg_byte_ptr < 56 {
+            msg_block[msg_byte_ptr] = 0;
+            msg_byte_ptr = msg_byte_ptr + 1;
+        } else if msg_byte_ptr < 64 {
+            for j in 0..8 {
+                msg_block[msg_byte_ptr + j] = len_bytes[j];
+            }
+            msg_byte_ptr += 8;
+        }
+    }
+    msg_block
+}
+
 fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
     let mut out_h: [u8; 32] = [0; 32]; // Digest as sequence of bytes
 
     // Hash final padded block
-    state = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), state);
+    state = sha256_compression(msg_u8_to_u32(msg_block), state);
 
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes = (state[7 - j] as Field).to_le_bytes(4);
+        let h_bytes: [u8; 4] = (state[7 - j] as Field).to_le_bytes();
         for k in 0..4 {
             out_h[31 - 4*j - k] = h_bytes[k];
         }
@@ -104,3 +254,4 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 
     out_h
 }
+

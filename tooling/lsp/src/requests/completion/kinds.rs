@@ -1,16 +1,4 @@
-use noirc_frontend::Type;
-
-/// When finding items in a module, whether to show only direct children or all visible items.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum ModuleCompletionKind {
-    // Only show a module's direct children. This is used when completing a use statement
-    // or a path after the first segment.
-    DirectChildren,
-    // Show all of a module's visible items. This is used when completing a path outside
-    // of a use statement (in regular code) when the path is just a single segment:
-    // we want to find items exposed in the current module.
-    AllVisibleItems,
-}
+use noirc_frontend::{ast::AttributeTarget, Type};
 
 /// When suggest a function as a result of completion, whether to autocomplete its name or its name and parameters.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -39,4 +27,6 @@ pub(super) enum RequestedItems {
     AnyItems,
     // Only suggest types.
     OnlyTypes,
+    // Only attribute functions
+    OnlyAttributeFunctions(AttributeTarget),
 }

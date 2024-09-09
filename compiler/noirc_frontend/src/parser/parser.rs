@@ -26,7 +26,10 @@
 use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
+use attributes::{attributes, inner_attribute, validate_secondary_attributes};
 pub use types::parse_type;
+use visibility::item_visibility;
+pub use visibility::visibility;
 
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
@@ -64,6 +67,7 @@ mod primitives;
 mod structs;
 pub(super) mod traits;
 mod types;
+mod visibility;
 
 // synthesized by LALRPOP
 lalrpop_mod!(pub noir_parser);
@@ -73,7 +77,9 @@ mod test_helpers;
 
 use literals::literal;
 use path::{maybe_empty_path, path};
-use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
+use primitives::{
+    dereference, ident, interned_expr, negation, not, nothing, right_shift_operator, token_kind,
+};
 use traits::where_clause;
 
 /// Entry function for the parser - also handles lexing internally.
@@ -87,13 +93,13 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
-    let parsed_module = module.unwrap_or(ParsedModule { items: vec![] });
+    let parsed_module = module.unwrap_or_default();
 
     if cfg!(feature = "experimental_parser") {
         for parsed_item in &parsed_module.items {
             if lalrpop_parser_supports_kind(&parsed_item.kind) {
                 match &parsed_item.kind {
-                    ItemKind::Import(parsed_use_tree) => {
+                    ItemKind::Import(parsed_use_tree, _visibility) => {
                         prototype_parse_use_tree(Some(parsed_use_tree), source_program);
                     }
                     // other kinds prevented by lalrpop_parser_supports_kind
@@ -137,7 +143,7 @@ fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str
         );
 
         match calculated.unwrap() {
-            TopLevelStatement::Import(parsed_use_tree) => {
+            TopLevelStatement::Import(parsed_use_tree, _visibility) => {
                 assert_eq!(expected_use_tree, &parsed_use_tree);
             }
             unexpected_calculated => {
@@ -159,7 +165,7 @@ fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str
 }
 
 fn lalrpop_parser_supports_kind(kind: &ItemKind) -> bool {
-    matches!(kind, ItemKind::Import(_))
+    matches!(kind, ItemKind::Import(..))
 }
 
 /// program: module EOF
@@ -169,7 +175,7 @@ fn program() -> impl NoirParser<ParsedModule> {
 
 /// module: top_level_statement module
 ///       | %empty
-fn module() -> impl NoirParser<ParsedModule> {
+pub fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
         empty()
             .to(ParsedModule::default())
@@ -196,7 +202,7 @@ pub fn top_level_items() -> impl NoirParser<Vec<TopLevelStatement>> {
 ///                    | module_declaration
 ///                    | use_statement
 ///                    | global_declaration
-fn top_level_statement<'a>(
+pub fn top_level_statement<'a>(
     module_parser: impl NoirParser<ParsedModule> + 'a,
 ) -> impl NoirParser<TopLevelStatement> + 'a {
     choice((
@@ -211,6 +217,7 @@ fn top_level_statement<'a>(
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
         global_declaration().then_ignore(force(just(Token::Semicolon))),
+        inner_attribute().map(TopLevelStatement::InnerAttribute),
     ))
     .recover_via(top_level_statement_recovery())
 }
@@ -283,25 +290,39 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
 
 /// submodule: 'mod' ident '{' module '}'
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod)
-        .ignore_then(ident())
+    attributes()
+        .then_ignore(keyword(Keyword::Mod))
+        .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .map(|(name, contents)| {
-            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: false })
+        .validate(|((attributes, name), contents), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::SubModule(ParsedSubModule {
+                name,
+                contents,
+                outer_attributes: attributes,
+                is_contract: false,
+            })
         })
 }
 
 /// contract: 'contract' ident '{' module '}'
 fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Contract)
-        .ignore_then(ident())
+    attributes()
+        .then_ignore(keyword(Keyword::Contract))
+        .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .map(|(name, contents)| {
-            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: true })
+        .validate(|((attributes, name), contents), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::SubModule(ParsedSubModule {
+                name,
+                contents,
+                outer_attributes: attributes,
+                is_contract: true,
+            })
         })
 }
 
@@ -430,13 +451,19 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod)
-        .ignore_then(ident())
-        .map(|ident| TopLevelStatement::Module(ModuleDeclaration { ident }))
+    attributes().then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
+        |(attributes, ident), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::Module(ModuleDeclaration { ident, outer_attributes: attributes })
+        },
+    )
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
+    item_visibility()
+        .then_ignore(keyword(Keyword::Use))
+        .then(use_tree())
+        .map(|(visibility, use_tree)| TopLevelStatement::Import(use_tree, visibility))
 }
 
 fn rename() -> impl NoirParser<Option<Ident>> {
@@ -487,6 +514,7 @@ where
             continue_statement(),
             return_statement(expr_parser.clone()),
             comptime_statement(expr_parser.clone(), expr_no_constructors, statement),
+            interned_statement(),
             expr_parser.map(StatementKind::Expression),
         ))
     })
@@ -526,6 +554,15 @@ where
     keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
 }
 
+pub(super) fn interned_statement() -> impl NoirParser<StatementKind> {
+    token_kind(TokenKind::InternedStatement).map(|token| match token {
+        Token::InternedStatement(id) => StatementKind::Interned(id),
+        _ => {
+            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
+        }
+    })
+}
+
 /// Comptime in an expression position only accepts entire blocks
 fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
@@ -562,7 +599,8 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let_statement(expr_parser).map(StatementKind::new_let)
+    let_statement(expr_parser)
+        .map(|((pattern, typ), expr)| StatementKind::new_let(pattern, typ, expr))
 }
 
 pub fn pattern() -> impl NoirParser<Pattern> {
@@ -642,7 +680,7 @@ enum LValueRhs {
     Index(Expression, Span),
 }
 
-fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
+pub fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -655,7 +693,15 @@ where
 
         let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
-        let term = choice((parenthesized, dereferences, l_ident));
+        let interned =
+            token_kind(TokenKind::InternedLValue).map_with_span(|token, span| match token {
+                Token::InternedLValue(id) => LValue::Interned(id, span),
+                _ => unreachable!(
+                    "token_kind(InternedLValue) guarantees we parse an interned lvalue"
+                ),
+            });
+
+        let term = choice((parenthesized, dereferences, l_ident, interned));
 
         let l_member_rhs =
             just(Token::Dot).ignore_then(field_name()).map_with_span(LValueRhs::MemberAccess);
@@ -690,15 +736,6 @@ fn call_data() -> impl NoirParser<Visibility> {
             }
         }
     })
-}
-
-fn optional_visibility() -> impl NoirParser<Visibility> {
-    keyword(Keyword::Pub)
-        .map(|_| Visibility::Public)
-        .or(call_data())
-        .or(keyword(Keyword::ReturnData).map(|_| Visibility::ReturnData))
-        .or_not()
-        .map(|opt| opt.unwrap_or(Visibility::Private))
 }
 
 pub fn expression() -> impl ExprParser {
@@ -1154,6 +1191,7 @@ where
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         macro_quote_marker(),
+        interned_expr(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
@@ -1495,7 +1533,20 @@ mod test {
     #[test]
     fn parse_module_declaration() {
         parse_with(module_declaration(), "mod foo").unwrap();
+        parse_with(module_declaration(), "#[attr] mod foo").unwrap();
         parse_with(module_declaration(), "mod 1").unwrap_err();
+    }
+
+    #[test]
+    fn parse_submodule_declaration() {
+        parse_with(submodule(module()), "mod foo {}").unwrap();
+        parse_with(submodule(module()), "#[attr] mod foo {}").unwrap();
+    }
+
+    #[test]
+    fn parse_contract() {
+        parse_with(contract(module()), "contract foo {}").unwrap();
+        parse_with(contract(module()), "#[attr] contract foo {}").unwrap();
     }
 
     #[test]
@@ -1534,7 +1585,7 @@ mod test {
                     parse_recover(&use_statement(), &use_statement_str);
                 use_statement_str.push(';');
                 match result_opt.unwrap() {
-                    TopLevelStatement::Import(expected_use_statement) => {
+                    TopLevelStatement::Import(expected_use_statement, _visibility) => {
                         Some(expected_use_statement)
                     }
                     _ => unreachable!(),

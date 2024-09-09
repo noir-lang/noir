@@ -9,8 +9,11 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, LValue,
-        Signedness, Statement, StatementKind, UnresolvedTypeData,
+        ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression,
+        ConstrainStatement, ConstructorExpression, ForLoopStatement, ForRange, Ident, IfExpression,
+        IndexExpression, InfixExpression, IntegerBitSize, LValue, Lambda, LetStatement,
+        MemberAccessExpression, MethodCallExpression, PrefixExpression, Signedness, Statement,
+        StatementKind, UnresolvedTypeData,
     },
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::{
@@ -21,7 +24,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId, TraitId, TraitImplId},
+    node_interner::{ExprId, FuncId, StmtId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -66,6 +69,7 @@ pub enum Value {
     Type(Type),
     Zeroed(Type),
     Expr(ExprValue),
+    TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
 }
 
@@ -74,6 +78,12 @@ pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
     LValue(LValue),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Display)]
+pub enum TypedExpr {
+    ExprId(ExprId),
+    StmtId(StmtId),
 }
 
 impl Value {
@@ -134,6 +144,7 @@ impl Value {
             Value::Type(_) => Type::Quoted(QuotedType::Type),
             Value::Zeroed(typ) => return Cow::Borrowed(typ),
             Value::Expr(_) => Type::Quoted(QuotedType::Expr),
+            Value::TypedExpr(_) => Type::Quoted(QuotedType::TypedExpr),
             Value::UnresolvedType(_) => Type::Quoted(QuotedType::UnresolvedType),
         })
     }
@@ -261,7 +272,8 @@ impl Value {
                     statements: vec![Statement { kind: statement, span: location.span }],
                 })
             }
-            Value::Expr(ExprValue::LValue(_))
+            Value::Expr(ExprValue::LValue(lvalue)) => lvalue.as_expression().kind,
+            Value::TypedExpr(..)
             | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -386,7 +398,9 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => HirExpression::Unquote(add_token_spans(tokens, location.span)),
-            Value::Expr(..)
+            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
+            Value::TypedExpr(TypedExpr::StmtId(..))
+            | Value::Expr(..)
             | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -415,8 +429,57 @@ impl Value {
         location: Location,
     ) -> IResult<Vec<Token>> {
         let token = match self {
+            Value::Unit => {
+                return Ok(vec![Token::LeftParen, Token::RightParen]);
+            }
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
+            Value::Expr(ExprValue::Expression(expr)) => {
+                Token::InternedExpr(interner.push_expression_kind(expr))
+            }
+            Value::Expr(ExprValue::Statement(statement)) => {
+                Token::InternedStatement(interner.push_statement_kind(statement))
+            }
+            Value::Expr(ExprValue::LValue(lvalue)) => {
+                Token::InternedLValue(interner.push_lvalue(lvalue))
+            }
+            Value::UnresolvedType(typ) => {
+                Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
+            }
+            Value::U1(bool) => Token::Bool(bool),
+            Value::U8(value) => Token::Int((value as u128).into()),
+            Value::U16(value) => Token::Int((value as u128).into()),
+            Value::U32(value) => Token::Int((value as u128).into()),
+            Value::U64(value) => Token::Int((value as u128).into()),
+            Value::I8(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I16(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I32(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::I64(value) => {
+                if value < 0 {
+                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                } else {
+                    Token::Int((value as u128).into())
+                }
+            }
+            Value::Field(value) => Token::Int(value),
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
         Ok(vec![token])
@@ -541,12 +604,8 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Quoted(tokens) => {
                 write!(f, "quote {{")?;
                 for token in tokens.iter() {
-                    match token {
-                        Token::QuotedType(id) => {
-                            write!(f, " {}", self.interner.get_quoted_type(*id))?;
-                        }
-                        other => write!(f, " {other}")?,
-                    }
+                    write!(f, " ")?;
+                    token.display(self.interner).fmt(f)?;
                 }
                 write!(f, " }}")
             }
@@ -594,13 +653,87 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::FunctionDefinition(function_id) => {
                 write!(f, "{}", self.interner.function_name(function_id))
             }
-            Value::ModuleDefinition(_) => write!(f, "(module)"),
+            Value::ModuleDefinition(module_id) => {
+                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
+                    write!(f, "{}", &attributes.name)
+                } else {
+                    write!(f, "(crate root)")
+                }
+            }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{}", typ),
-            Value::Expr(ExprValue::Expression(expr)) => write!(f, "{}", expr),
-            Value::Expr(ExprValue::Statement(statement)) => write!(f, "{}", statement),
-            Value::Expr(ExprValue::LValue(lvalue)) => write!(f, "{}", lvalue),
-            Value::UnresolvedType(typ) => write!(f, "{}", typ),
+            Value::Type(typ) => write!(f, "{:?}", typ),
+            Value::Expr(ExprValue::Expression(expr)) => {
+                write!(f, "{}", remove_interned_in_expression_kind(self.interner, expr.clone()))
+            }
+            Value::Expr(ExprValue::Statement(statement)) => {
+                write!(f, "{}", remove_interned_in_statement_kind(self.interner, statement.clone()))
+            }
+            Value::Expr(ExprValue::LValue(lvalue)) => {
+                write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
+            }
+            Value::TypedExpr(TypedExpr::ExprId(id)) => {
+                let hir_expr = self.interner.expression(id);
+                let expr = hir_expr.to_display_ast(self.interner, Span::default());
+                write!(f, "{}", expr.kind)
+            }
+            Value::TypedExpr(TypedExpr::StmtId(id)) => {
+                let hir_statement = self.interner.statement(id);
+                let stmt = hir_statement.to_display_ast(self.interner, Span::default());
+                write!(f, "{}", stmt.kind)
+            }
+            Value::UnresolvedType(typ) => {
+                if let UnresolvedTypeData::Interned(id) = typ {
+                    let typ = self.interner.get_unresolved_type_data(*id);
+                    write!(f, "{}", typ)
+                } else {
+                    write!(f, "{}", typ)
+                }
+            }
+        }
+    }
+}
+
+impl Token {
+    pub fn display<'token, 'interner>(
+        &'token self,
+        interner: &'interner NodeInterner,
+    ) -> TokenPrinter<'token, 'interner> {
+        TokenPrinter { token: self, interner }
+    }
+}
+
+pub struct TokenPrinter<'token, 'interner> {
+    token: &'token Token,
+    interner: &'interner NodeInterner,
+}
+
+impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.token {
+            Token::QuotedType(id) => {
+                write!(f, "{}", self.interner.get_quoted_type(*id))
+            }
+            Token::InternedExpr(id) => {
+                let value = Value::expression(ExpressionKind::Interned(*id));
+                value.display(self.interner).fmt(f)
+            }
+            Token::InternedStatement(id) => {
+                let value = Value::statement(StatementKind::Interned(*id));
+                value.display(self.interner).fmt(f)
+            }
+            Token::InternedLValue(id) => {
+                let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                value.display(self.interner).fmt(f)
+            }
+            Token::InternedUnresolvedTypeData(id) => {
+                let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
+                value.display(self.interner).fmt(f)
+            }
+            Token::UnquoteMarker(id) => {
+                let value = Value::TypedExpr(TypedExpr::ExprId(*id));
+                value.display(self.interner).fmt(f)
+            }
+            other => write!(f, "{other}"),
         }
     }
 }
@@ -608,4 +741,228 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
 fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
     let trait_ = interner.get_trait(trait_constraint.trait_id);
     format!("{}: {}{}", trait_constraint.typ, trait_.name, trait_constraint.trait_generics)
+}
+
+// Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
+fn remove_interned_in_expression(interner: &NodeInterner, expr: Expression) -> Expression {
+    Expression { kind: remove_interned_in_expression_kind(interner, expr.kind), span: expr.span }
+}
+
+// Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
+fn remove_interned_in_expression_kind(
+    interner: &NodeInterner,
+    expr: ExpressionKind,
+) -> ExpressionKind {
+    match expr {
+        ExpressionKind::Literal(literal) => {
+            ExpressionKind::Literal(remove_interned_in_literal(interner, literal))
+        }
+        ExpressionKind::Block(block) => {
+            let statements =
+                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
+            ExpressionKind::Block(BlockExpression { statements })
+        }
+        ExpressionKind::Prefix(prefix) => ExpressionKind::Prefix(Box::new(PrefixExpression {
+            rhs: remove_interned_in_expression(interner, prefix.rhs),
+            ..*prefix
+        })),
+        ExpressionKind::Index(index) => ExpressionKind::Index(Box::new(IndexExpression {
+            collection: remove_interned_in_expression(interner, index.collection),
+            index: remove_interned_in_expression(interner, index.index),
+        })),
+        ExpressionKind::Call(call) => ExpressionKind::Call(Box::new(CallExpression {
+            func: Box::new(remove_interned_in_expression(interner, *call.func)),
+            arguments: vecmap(call.arguments, |arg| remove_interned_in_expression(interner, arg)),
+            ..*call
+        })),
+        ExpressionKind::MethodCall(call) => {
+            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                object: remove_interned_in_expression(interner, call.object),
+                arguments: vecmap(call.arguments, |arg| {
+                    remove_interned_in_expression(interner, arg)
+                }),
+                ..*call
+            }))
+        }
+        ExpressionKind::Constructor(constructor) => {
+            ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                fields: vecmap(constructor.fields, |(name, expr)| {
+                    (name, remove_interned_in_expression(interner, expr))
+                }),
+                ..*constructor
+            }))
+        }
+        ExpressionKind::MemberAccess(member_access) => {
+            ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                lhs: remove_interned_in_expression(interner, member_access.lhs),
+                ..*member_access
+            }))
+        }
+        ExpressionKind::Cast(cast) => ExpressionKind::Cast(Box::new(CastExpression {
+            lhs: remove_interned_in_expression(interner, cast.lhs),
+            ..*cast
+        })),
+        ExpressionKind::Infix(infix) => ExpressionKind::Infix(Box::new(InfixExpression {
+            lhs: remove_interned_in_expression(interner, infix.lhs),
+            rhs: remove_interned_in_expression(interner, infix.rhs),
+            ..*infix
+        })),
+        ExpressionKind::If(if_expr) => ExpressionKind::If(Box::new(IfExpression {
+            condition: remove_interned_in_expression(interner, if_expr.condition),
+            consequence: remove_interned_in_expression(interner, if_expr.consequence),
+            alternative: if_expr
+                .alternative
+                .map(|alternative| remove_interned_in_expression(interner, alternative)),
+        })),
+        ExpressionKind::Variable(_) => expr,
+        ExpressionKind::Tuple(expressions) => ExpressionKind::Tuple(vecmap(expressions, |expr| {
+            remove_interned_in_expression(interner, expr)
+        })),
+        ExpressionKind::Lambda(lambda) => ExpressionKind::Lambda(Box::new(Lambda {
+            body: remove_interned_in_expression(interner, lambda.body),
+            ..*lambda
+        })),
+        ExpressionKind::Parenthesized(expr) => {
+            ExpressionKind::Parenthesized(Box::new(remove_interned_in_expression(interner, *expr)))
+        }
+        ExpressionKind::Quote(_) => expr,
+        ExpressionKind::Unquote(expr) => {
+            ExpressionKind::Unquote(Box::new(remove_interned_in_expression(interner, *expr)))
+        }
+        ExpressionKind::Comptime(block, span) => {
+            let statements =
+                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
+            ExpressionKind::Comptime(BlockExpression { statements }, span)
+        }
+        ExpressionKind::Unsafe(block, span) => {
+            let statements =
+                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
+            ExpressionKind::Unsafe(BlockExpression { statements }, span)
+        }
+        ExpressionKind::AsTraitPath(_) => expr,
+        ExpressionKind::Resolved(id) => {
+            let expr = interner.expression(&id);
+            expr.to_display_ast(interner, Span::default()).kind
+        }
+        ExpressionKind::Interned(id) => {
+            let expr = interner.get_expression_kind(id).clone();
+            remove_interned_in_expression_kind(interner, expr)
+        }
+        ExpressionKind::Error => expr,
+    }
+}
+
+fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Literal {
+    match literal {
+        Literal::Array(array_literal) => {
+            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
+        }
+        Literal::Slice(array_literal) => {
+            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
+        }
+        Literal::Bool(_)
+        | Literal::Integer(_, _)
+        | Literal::Str(_)
+        | Literal::RawStr(_, _)
+        | Literal::FmtStr(_)
+        | Literal::Unit => literal,
+    }
+}
+
+fn remove_interned_in_array_literal(
+    interner: &NodeInterner,
+    literal: ArrayLiteral,
+) -> ArrayLiteral {
+    match literal {
+        ArrayLiteral::Standard(expressions) => {
+            ArrayLiteral::Standard(vecmap(expressions, |expr| {
+                remove_interned_in_expression(interner, expr)
+            }))
+        }
+        ArrayLiteral::Repeated { repeated_element, length } => ArrayLiteral::Repeated {
+            repeated_element: Box::new(remove_interned_in_expression(interner, *repeated_element)),
+            length: Box::new(remove_interned_in_expression(interner, *length)),
+        },
+    }
+}
+
+// Returns a new Statement where all Interned statements have been turned into non-interned StatementKind.
+fn remove_interned_in_statement(interner: &NodeInterner, statement: Statement) -> Statement {
+    Statement {
+        kind: remove_interned_in_statement_kind(interner, statement.kind),
+        span: statement.span,
+    }
+}
+
+// Returns a new StatementKind where all Interned statements have been turned into non-interned StatementKind.
+fn remove_interned_in_statement_kind(
+    interner: &NodeInterner,
+    statement: StatementKind,
+) -> StatementKind {
+    match statement {
+        StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
+            expression: remove_interned_in_expression(interner, let_statement.expression),
+            ..let_statement
+        }),
+        StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainStatement(
+            remove_interned_in_expression(interner, constrain.0),
+            constrain.1.map(|expr| remove_interned_in_expression(interner, expr)),
+            constrain.2,
+        )),
+        StatementKind::Expression(expr) => {
+            StatementKind::Expression(remove_interned_in_expression(interner, expr))
+        }
+        StatementKind::Assign(assign) => StatementKind::Assign(AssignStatement {
+            lvalue: assign.lvalue,
+            expression: remove_interned_in_expression(interner, assign.expression),
+        }),
+        StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
+            range: match for_loop.range {
+                ForRange::Range(from, to) => ForRange::Range(
+                    remove_interned_in_expression(interner, from),
+                    remove_interned_in_expression(interner, to),
+                ),
+                ForRange::Array(expr) => {
+                    ForRange::Array(remove_interned_in_expression(interner, expr))
+                }
+            },
+            block: remove_interned_in_expression(interner, for_loop.block),
+            ..for_loop
+        }),
+        StatementKind::Comptime(statement) => {
+            StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))
+        }
+        StatementKind::Semi(expr) => {
+            StatementKind::Semi(remove_interned_in_expression(interner, expr))
+        }
+        StatementKind::Interned(id) => {
+            let statement = interner.get_statement_kind(id).clone();
+            remove_interned_in_statement_kind(interner, statement)
+        }
+        StatementKind::Break | StatementKind::Continue | StatementKind::Error => statement,
+    }
+}
+
+// Returns a new LValue where all Interned LValues have been turned into LValue.
+fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
+    match lvalue {
+        LValue::Ident(_) => lvalue,
+        LValue::MemberAccess { object, field_name, span } => LValue::MemberAccess {
+            object: Box::new(remove_interned_in_lvalue(interner, *object)),
+            field_name,
+            span,
+        },
+        LValue::Index { array, index, span } => LValue::Index {
+            array: Box::new(remove_interned_in_lvalue(interner, *array)),
+            index: remove_interned_in_expression(interner, index),
+            span,
+        },
+        LValue::Dereference(lvalue, span) => {
+            LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, *lvalue)), span)
+        }
+        LValue::Interned(id, span) => {
+            let lvalue = interner.get_lvalue(id, span);
+            remove_interned_in_lvalue(interner, lvalue)
+        }
+    }
 }

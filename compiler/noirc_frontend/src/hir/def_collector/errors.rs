@@ -1,4 +1,4 @@
-use crate::ast::{Ident, Path, UnresolvedTypeData};
+use crate::ast::{Ident, ItemVisibility, Path, UnresolvedTypeData};
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::generics::TraitGenerics;
 
@@ -35,6 +35,8 @@ pub enum DefCollectorErrorKind {
     OverlappingModuleDecls { mod_name: Ident, expected_path: String, alternative_path: String },
     #[error("path resolution error")]
     PathResolutionError(PathResolutionError),
+    #[error("cannot re-export {item_name} because it has less visibility than this use statement")]
+    CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
     #[error("Cannot implement trait on a mutable reference type")]
@@ -173,6 +175,12 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 )
             }
             DefCollectorErrorKind::PathResolutionError(error) => error.into(),
+            DefCollectorErrorKind::CannotReexportItemWithLessVisibility{item_name, desired_visibility} => {
+                Diagnostic::simple_warning(
+                    format!("cannot re-export {item_name} because it has less visibility than this use statement"), 
+                    format!("consider marking {item_name} as {desired_visibility}"), 
+                    item_name.span())
+            }
             DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
                 "Non-struct type used in impl".into(),
                 "Only struct types may have implementation methods".into(),

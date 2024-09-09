@@ -120,10 +120,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
 
-    /// Temporary flag to enable the experimental arithmetic generics feature
-    #[arg(long, hide = true)]
-    pub arithmetic_generics: bool,
-
     /// Flag to turn off the compiler check for under constrained values.
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
     /// This check should always be run on production code.
@@ -284,11 +280,12 @@ pub fn check_crate(
         if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
 
     let mut errors = vec![];
+    let error_on_unused_imports = true;
     let diagnostics = CrateDefMap::collect_defs(
         crate_id,
         context,
         options.debug_comptime_in_file.as_deref(),
-        options.arithmetic_generics,
+        error_on_unused_imports,
         macros,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
@@ -450,9 +447,13 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(
-                |attr| if let SecondaryAttribute::Custom(tag) = attr { Some(tag) } else { None },
-            )
+            .filter_map(|attr| {
+                if let SecondaryAttribute::Custom(attribute) = attr {
+                    Some(&attribute.contents)
+                } else {
+                    None
+                }
+            })
             .cloned()
             .collect();
 
@@ -464,6 +465,7 @@ fn compile_contract_inner(
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
             names: function.names,
+            brillig_names: function.brillig_names,
         });
     }
 
