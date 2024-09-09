@@ -1952,4 +1952,20 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_suggests_function_attribute_no_arguments() {
+        let src = r#"
+            #[some>|<]
+            fn foo() {}
+
+            fn some_attr(f: FunctionDefinition) {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item("some_attr", "some_attr", "fn(FunctionDefinition)")],
+        )
+        .await;
+    }
 }
