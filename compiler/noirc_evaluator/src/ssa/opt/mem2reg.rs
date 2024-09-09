@@ -117,6 +117,10 @@ struct PerFunctionContext<'f> {
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+
+    /// Track whether the last instruction is an inc_rc/dec_rc instruction.
+    /// If it is we should not remove any known store values.
+    inside_rc_reload: bool,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -131,6 +135,7 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),
             last_loads: HashMap::default(),
+            inside_rc_reload: false,
         }
     }
 
@@ -176,7 +181,12 @@ impl<'f> PerFunctionContext<'f> {
                     self.last_loads.get(store_address).is_none()
                 };
 
-                if remove_load && !is_reference_param {
+                let is_reference_alias = block
+                    .expressions
+                    .get(store_address)
+                    .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
+
+                if remove_load && !is_reference_param && !is_reference_alias {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
@@ -281,6 +291,21 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
+                    let expression =
+                        references.expressions.entry(result).or_insert(Expression::Other(result));
+                    // Make sure this load result is marked an alias to itself
+                    if let Some(aliases) = references.aliases.get_mut(expression) {
+                        // If we have an alias set, add to the set
+                        aliases.insert(result);
+                    } else {
+                        // Otherwise, create a new alias set containing just the load result
+                        references
+                            .aliases
+                            .insert(Expression::Other(result), AliasSet::known(result));
+                    }
+                    // Mark that we know a load result is equivalent to the address of a load.
+                    references.set_known_value(result, address);
+
                     self.last_loads.insert(address, (instruction, block_id));
                 }
             }
@@ -294,6 +319,14 @@ impl<'f> PerFunctionContext<'f> {
                 // function calls in-between, we can remove the previous store.
                 if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
+                }
+
+                let known_value = references.get_known_value(value);
+                if let Some(known_value) = known_value {
+                    let known_value_is_address = known_value == address;
+                    if known_value_is_address && !self.inside_rc_reload {
+                        self.instructions_to_remove.insert(instruction);
+                    }
                 }
 
                 references.set_known_value(address, value);
@@ -349,6 +382,18 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Call { arguments, .. } => self.mark_all_unknown(arguments, references),
             _ => (),
+        }
+
+        self.track_rc_reload_state(instruction);
+    }
+
+    fn track_rc_reload_state(&mut self, instruction: InstructionId) {
+        match &self.inserter.function.dfg[instruction] {
+            // We just had an increment or decrement to an array's reference counter
+            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
+                self.inside_rc_reload = true;
+            }
+            _ => self.inside_rc_reload = false,
         }
     }
 
@@ -748,5 +793,99 @@ mod tests {
 
         // We expect the last eq to be optimized out
         assert_eq!(b1_instructions.len(), 0);
+    }
+
+    #[test]
+    fn keep_store_to_alias_in_loop_block() {
+        // This test makes sure the instruction `store Field 2 at v5` in b2 remains after mem2reg.
+        // Although the only instruction on v5 is a lone store without any loads,
+        // v5 is an alias of the reference v0 which is stored in v2.
+        // This test makes sure that we are not inadvertently removing stores to aliases across blocks.
+        //
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v0 = allocate
+        //       store Field 0 at v0
+        //       v2 = allocate
+        //       store v0 at v2
+        //       jmp b1(Field 0)
+        //     b1(v3: Field):
+        //       v4 = eq v3, Field 0
+        //       jmpif v4 then: b2, else: b3
+        //     b2():
+        //       v5 = load v2
+        //       store Field 2 at v5
+        //       v8 = add v3, Field 1
+        //       jmp b1(v8)
+        //     b3():
+        //       v9 = load v0
+        //       v10 = eq v9, Field 2
+        //       constrain v9 == Field 2
+        //       v11 = load v2
+        //       v12 = load v10
+        //       v13 = eq v12, Field 2
+        //       constrain v11 == Field 2
+        //       return
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.insert_allocate(Type::field());
+        let zero = builder.numeric_constant(0u128, Type::field());
+        builder.insert_store(v0, zero);
+
+        let v2 = builder.insert_allocate(Type::field());
+        // Construct alias
+        builder.insert_store(v2, v0);
+        let v2_type = builder.current_function.dfg.type_of_value(v2);
+        assert!(builder.current_function.dfg.value_is_reference(v2));
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![zero]);
+
+        // Loop header
+        builder.switch_to_block(b1);
+        let v3 = builder.add_block_parameter(b1, Type::field());
+        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
+
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        builder.terminate_with_jmpif(is_zero, b2, b3);
+
+        // Loop body
+        builder.switch_to_block(b2);
+        let v5 = builder.insert_load(v2, v2_type.clone());
+        let two = builder.numeric_constant(2u128, Type::field());
+        builder.insert_store(v5, two);
+        let one = builder.numeric_constant(1u128, Type::field());
+        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
+
+        builder.switch_to_block(b3);
+        let v9 = builder.insert_load(v0, Type::field());
+        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
+
+        builder.insert_constrain(v9, two, None);
+        let v11 = builder.insert_load(v2, v2_type);
+        let v12 = builder.insert_load(v11, Type::field());
+        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
+
+        builder.insert_constrain(v11, two, None);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+
+        // We expect the same result as above.
+        let ssa = ssa.mem2reg();
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 4);
+
+        // The store from the original SSA should remain
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
+        assert_eq!(count_stores(b2, &main.dfg), 1);
+
+        assert_eq!(count_loads(b2, &main.dfg), 1);
+        assert_eq!(count_loads(b3, &main.dfg), 3);
     }
 }

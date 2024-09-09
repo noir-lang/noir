@@ -20,8 +20,8 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
-    #[error("Unused import")]
-    UnusedImport { ident: Ident },
+    #[error("Unused {item_type}")]
+    UnusedItem { ident: Ident, item_type: &'static str },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -122,6 +122,8 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { span: Span },
     #[error("Overflow in `{lhs} {op} {rhs}`")]
     OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
+    #[error("`quote` cannot be used in runtime code")]
+    QuoteInRuntimeCode { span: Span },
 }
 
 impl ResolverError {
@@ -156,12 +158,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.unnecessary = true;
                 diagnostic
             }
-            ResolverError::UnusedImport { ident } => {
+            ResolverError::UnusedItem { ident, item_type } => {
                 let name = &ident.0.contents;
 
                 let mut diagnostic = Diagnostic::simple_warning(
-                    format!("unused import {name}"),
-                    "unused import ".to_string(),
+                    format!("unused {item_type} {name}"),
+                    format!("unused {item_type}"),
                     ident.span(),
                 );
                 diagnostic.unnecessary = true;
@@ -493,6 +495,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
+            ResolverError::QuoteInRuntimeCode { span } => {
+                Diagnostic::simple_error(
+                    "`quote` cannot be used in runtime code".to_string(),
+                    "Wrap this in a `comptime` block or function to use it".to_string(),
+                    *span,
+                )
+            },
         }
     }
 }

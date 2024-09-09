@@ -1,7 +1,7 @@
 use acvm::acir::AcirField;
 
 use noirc_errors::Location;
-use noirc_frontend::ast::{Ident, NoirFunction, UnresolvedTypeData};
+use noirc_frontend::ast::{Documented, Ident, NoirFunction, UnresolvedTypeData};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FieldElement, FileId, HirContext, HirExpression, HirLiteral, HirStatement},
@@ -267,15 +267,16 @@ pub fn generate_contract_interface(
         .methods
         .iter()
         .enumerate()
-        .map(|(i, (method, orig_span))| {
+        .map(|(i, (documented_method, orig_span))| {
+            let method = &documented_method.item;
             if method.name() == "at" || method.name() == "interface" || method.name() == "storage" {
-                (method.clone(), *orig_span)
+                (documented_method.clone(), *orig_span)
             } else {
                 let (_, new_location) = stubs[i];
                 let mut modified_method = method.clone();
                 modified_method.def.name =
                     Ident::new(modified_method.name().to_string(), new_location.span);
-                (modified_method, *orig_span)
+                (Documented::not_documented(modified_method), *orig_span)
             }
         })
         .collect();

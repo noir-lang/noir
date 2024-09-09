@@ -3,7 +3,7 @@ use std::meta::type_of;
 struct Foo { x: Field, field: Field }
 
 #[function_attr]
-fn foo(w: i32, y: Field, Foo { x, field: some_field }: Foo, mut a: bool, (b, c): (i32, i32)) -> i32 {
+pub fn foo(w: i32, y: Field, Foo { x, field: some_field }: Foo, mut a: bool, (b, c): (i32, i32)) -> i32 {
     let _ = (w, y, x, some_field, a, b, c);
     1
 }
@@ -56,4 +56,33 @@ comptime fn mutate_add_one(f: FunctionDefinition) {
 
 fn main() {
     assert_eq(add_one(41), 42);
+}
+
+contract some_contract {
+    // No pub on the return type is an error
+    #[super::set_pub_return]
+    pub fn bar() -> Field {
+        1
+    }
+}
+
+fn set_pub_return(f: FunctionDefinition) {
+    f.set_return_public(true);
+}
+
+mod foo {
+    #[attr]
+    pub fn some() {}
+
+    comptime fn attr(f: FunctionDefinition) {
+        assert_eq(f.module().name(), quote { foo });
+
+        assert(!f.is_unconstrained());
+
+        f.set_unconstrained(true);
+        assert(f.is_unconstrained());
+
+        f.set_unconstrained(false);
+        assert(!f.is_unconstrained());
+    }
 }

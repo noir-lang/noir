@@ -1,6 +1,6 @@
 #[test]
-fn test_vec_new_foo() {
-    foo();
+fn test_vec_new_good() {
+    good();
 }
 
 #[test(should_fail)]
@@ -9,19 +9,19 @@ fn test_vec_new_bad() {
 }
 
 // docs:start:new_example
-fn foo() -> BoundedVec<Field, 10> {
+fn good() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is specified with a type annotation
     let v1: BoundedVec<Field, 3> = BoundedVec::new();
     let v2 = BoundedVec::new();
 
-    // Ok! MaxLen is known from the type of foo's return value
+    // Ok! MaxLen is known from the type of `good`'s return value
     v2
 }
 
 fn bad() {
+    // Error: Type annotation needed
+    // The compiller can't infer `MaxLen` from this code.
     let mut v3 = BoundedVec::new();
-
-    // Not Ok! We don't know if v3's MaxLen is at least 1, and the compiler often infers 0 by default.
     v3.push(5);
 }
 // docs:end:new_example

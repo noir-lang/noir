@@ -120,10 +120,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
 
-    /// Temporary flag to enable the experimental arithmetic generics feature
-    #[arg(long, hide = true)]
-    pub arithmetic_generics: bool,
-
     /// Flag to turn off the compiler check for under constrained values.
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
     /// This check should always be run on production code.
@@ -216,23 +212,25 @@ fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
 ///
-/// Note: This methods adds the stdlib as a dependency to the crate.
-/// This assumes that the stdlib has already been added to the file manager.
+/// Note: If the stdlib dependency has not been added yet, it's added. Otherwise
+/// this method assumes the root crate is the stdlib (useful for running tests
+/// in the stdlib, getting LSP stuff for the stdlib, etc.).
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-    let std_file_id = context
-        .file_manager
-        .name_to_id(path_to_std_lib_file)
-        .expect("stdlib file id is expected to be present");
-    let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
+    let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
+    let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
 
     let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+    if let Some(std_crate_id) = std_crate_id {
+        let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
-    add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
+        add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
 
-    root_crate_id
+        root_crate_id
+    } else {
+        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+    }
 }
 
 pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
@@ -289,7 +287,6 @@ pub fn check_crate(
         crate_id,
         context,
         options.debug_comptime_in_file.as_deref(),
-        options.arithmetic_generics,
         error_on_unused_imports,
         macros,
     );

@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -10,6 +11,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
+use crate::hir::def_map::ModuleId;
 use crate::hir_def::expr::ImplKind;
 use crate::hir_def::function::FunctionBody;
 use crate::macros_api::UnaryOp;
@@ -170,7 +172,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborate_item(None, |elaborator| {
+                    self.elaborate_in_function(None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -183,13 +185,25 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn elaborate_item<T>(
+    fn elaborate_in_function<T>(
         &mut self,
         function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime(function, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, f);
+        self.rebind_generics_from_previous_function();
+        result
+    }
+
+    fn elaborate_in_module<T>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        f: impl FnOnce(&mut Elaborator) -> T,
+    ) -> T {
+        self.unbind_generics_from_previous_function();
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, file, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -586,7 +600,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     consuming = false;
 
                     if let Some(value) = values.pop_front() {
-                        result.push_str(&value.display(self.elaborator.interner).to_string());
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        if let Value::Quoted(tokens) = value {
+                            for (index, token) in tokens.iter().enumerate() {
+                                if index > 0 {
+                                    result.push(' ');
+                                }
+                                result
+                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                            }
+                        } else {
+                            result.push_str(&value.display(self.elaborator.interner).to_string());
+                        }
                     }
                 }
                 other if !consuming => {
@@ -1232,7 +1258,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
-                    let expr = self.elaborate_item(self.current_function, |elaborator| {
+                    let expr = self.elaborate_in_function(self.current_function, |elaborator| {
                         elaborator.elaborate_expression(expr).0
                     });
                     result = self.evaluate(expr)?;

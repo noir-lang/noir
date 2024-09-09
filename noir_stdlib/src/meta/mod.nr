@@ -1,4 +1,5 @@
 mod expr;
+mod format_string;
 mod function_def;
 mod module;
 mod op;
@@ -121,6 +122,7 @@ mod tests {
         quote { 1 }
     }
 
+    #[test]
     fn returning_versus_macro_insertion() {
         comptime
         {

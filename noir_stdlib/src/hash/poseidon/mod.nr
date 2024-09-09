@@ -1,5 +1,4 @@
 mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
-use crate::field::modulus_num_bits;
 use crate::hash::Hasher;
 use crate::default::Default;
 
@@ -164,13 +163,6 @@ fn sigma<let O: u32>(x: [Field; O]) -> [Field; O] {
         y[i] *= tttt;
     }
     y
-}
-
-// Check security of sponge instantiation
-fn check_security(rate: Field, width: Field, security: Field) -> bool {
-    let n = modulus_num_bits();
-
-    ((n - 1) as Field * (width - rate) / 2) as u8 > security as u8
 }
 
 struct PoseidonHasher{

@@ -441,14 +441,9 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
-        // We have to push a new FunctionContext so that we can resolve any constraints
-        // in this comptime block early before the function as a whole finishes elaborating.
-        // Otherwise the interpreter below may find expressions for which the underlying trait
-        // call is not yet solved for.
-        self.function_context.push(Default::default());
         let span = statement.span;
-        let (hir_statement, _typ) = self.elaborate_statement(statement);
-        self.check_and_pop_function_context();
+        let (hir_statement, _typ) =
+            self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);

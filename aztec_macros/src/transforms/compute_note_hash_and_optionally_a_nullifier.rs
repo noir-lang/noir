@@ -166,7 +166,7 @@ fn generate_compute_note_hash_and_optionally_a_nullifier(
     assert_eq!(errors.len(), 0, "Failed to parse Noir macro code. This is either a bug in the compiler or the Noir macro code");
 
     let mut function_ast = function_ast.into_sorted();
-    function_ast.functions.remove(0)
+    function_ast.functions.remove(0).item
 }
 
 fn generate_compute_note_hash_and_optionally_a_nullifier_source(
