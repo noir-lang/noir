@@ -76,7 +76,6 @@ impl<T, let N: u32> [T; N] where T: Eq {
 
     /// Sorts the array using a custom predicate function `ordering`.
     ///
-    /// # Safety
     /// The `ordering` function must be designed to return `true` for equal valued inputs
     /// If this is not done, `sort_via` will fail to sort inputs with duplicated elements.
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
