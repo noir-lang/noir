@@ -48,7 +48,7 @@ impl MonomorphizationError {
             MonomorphizationError::ComptimeFnInRuntimeCode { name, location } => {
                 let message = format!("Comptime function {name} used in runtime code");
                 let secondary =
-                    format!("Comptime functions must be in a comptime block to be called");
+                    "Comptime functions must be in a comptime block to be called".into();
                 return CustomDiagnostic::simple_error(message, secondary, location.span);
             }
         };
