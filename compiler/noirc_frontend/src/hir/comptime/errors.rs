@@ -394,8 +394,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let mut diagnostic =
                     CustomDiagnostic::simple_error(primary, secondary, location.span);
 
-                // Only take at most 3 frames starting from the top of the stack to avoid producing too much output
-                for frame in call_stack.iter().rev().take(3) {
+                for frame in call_stack.iter().rev() {
                     diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
                 }
 

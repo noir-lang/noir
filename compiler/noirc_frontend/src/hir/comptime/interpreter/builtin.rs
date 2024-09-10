@@ -10,7 +10,7 @@ use builtin_helpers::{
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
     get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, quote_ident, quote_path, replace_func_meta_parameters,
+    mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
 use chumsky::{chain::Chain, prelude::choice, Parser};
@@ -26,13 +26,13 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
         UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::def_collector::dc_crate::CollectedItems,
     hir::{
         comptime::{
             errors::IResult,
             value::{ExprValue, TypedExpr},
             InterpreterError, Value,
         },
+        def_collector::dc_crate::CollectedItems,
         def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
@@ -1421,7 +1421,7 @@ fn expr_as_constructor(
 
     let option_value =
         if let ExprValue::Expression(ExpressionKind::Constructor(constructor)) = expr_value {
-            let typ = quote_path(&constructor.type_name, interner);
+            let typ = Value::UnresolvedType(constructor.typ.typ);
             let fields = constructor.fields.into_iter();
             let fields = fields.map(|(name, value)| {
                 Value::Tuple(vec![quote_ident(&name), Value::expression(value.kind)])

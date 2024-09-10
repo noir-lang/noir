@@ -55,7 +55,7 @@ pub enum ResolverError {
     #[error("Test functions are not allowed to have any parameters")]
     TestFunctionHasParameters { span: Span },
     #[error("Only struct types can be used in constructor expressions")]
-    NonStructUsedInConstructor { typ: Type, span: Span },
+    NonStructUsedInConstructor { typ: String, span: Span },
     #[error("Only struct types can have generics")]
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]

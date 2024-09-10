@@ -331,8 +331,7 @@ mod tests {
         comptime
         {
             let expr = quote { Foo { a: 1, b: 2 } }.as_expr().unwrap();
-            let (typ, fields) = expr.as_constructor().unwrap();
-            assert_eq(typ, quote { Foo });
+            let (_typ, fields) = expr.as_constructor().unwrap();
             assert_eq(fields.len(), 2);
             assert_eq(fields[0].0, quote { a });
             assert_eq(fields[0].1.as_integer().unwrap(), (1, false));

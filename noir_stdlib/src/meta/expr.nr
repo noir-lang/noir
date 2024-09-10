@@ -69,7 +69,7 @@ impl Expr {
     /// return the type and the fields.
     #[builtin(expr_as_constructor)]
     // docs:start:as_constructor
-    comptime fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])> {}
+    comptime fn as_constructor(self) -> Option<(UnresolvedType, [(Quoted, Expr)])> {}
     // docs:end:as_constructor
 
     /// If this expression is a function call `foo(arg1, ..., argN)`, return
@@ -343,7 +343,7 @@ comptime fn modify_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -
 
 comptime fn modify_constructor<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_constructor().map(
-        |expr: (Quoted, [(Quoted, Expr)])| {
+        |expr: (UnresolvedType, [(Quoted, Expr)])| {
         let (typ, fields) = expr;
         let fields = fields.map(|field: (Quoted, Expr)| {
             let (name, value) = field;
@@ -529,7 +529,7 @@ comptime fn new_comptime(exprs: [Expr]) -> Expr {
     quote { comptime { $exprs }}.as_expr().unwrap()
 }
 
-comptime fn new_constructor(typ: Quoted, fields: [(Quoted, Expr)]) -> Expr {
+comptime fn new_constructor(typ: UnresolvedType, fields: [(Quoted, Expr)]) -> Expr {
     let fields = fields.map(
         |field: (Quoted, Expr)| {
         let (name, value) = field;

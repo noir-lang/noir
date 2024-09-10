@@ -920,7 +920,7 @@ impl ConstructorExpression {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.type_name.accept(visitor);
+        self.typ.accept(visitor);
 
         for (_field_name, expression) in &self.fields {
             expression.accept(visitor);

@@ -489,7 +489,7 @@ fn empty_method_call_expression(method_call_expression: &mut MethodCallExpressio
 }
 
 fn empty_constructor_expression(constructor_expression: &mut ConstructorExpression) {
-    empty_path(&mut constructor_expression.type_name);
+    empty_unresolved_type(&mut constructor_expression.typ);
     for (name, expression) in constructor_expression.fields.iter_mut() {
         empty_ident(name);
         empty_expression(expression);
