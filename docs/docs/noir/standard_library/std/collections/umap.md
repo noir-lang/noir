@@ -1,3 +1,7 @@
+---
+title: umap
+---
+
 # Module `std::collections::umap`
 
 ### Methods

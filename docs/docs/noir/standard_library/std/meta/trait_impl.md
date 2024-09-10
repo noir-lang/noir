@@ -1,3 +1,7 @@
+---
+title: trait_impl
+---
+
 # Module `std::meta::trait_impl`
 
 ## `TraitImpl` methods

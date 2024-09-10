@@ -1,3 +1,7 @@
+---
+title: module
+---
+
 # Module `std::meta::module`
 
 ## `Module` methods

@@ -1,3 +1,7 @@
+---
+title: unresolved_type
+---
+
 # Module `std::meta::unresolved_type`
 
 ## `UnresolvedType` methods

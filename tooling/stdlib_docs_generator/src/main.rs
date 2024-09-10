@@ -52,9 +52,12 @@ fn generate_module(module_name: String, path: &PathBuf, parsed_module: ParsedMod
     let sorted_module = parsed_module.into_sorted();
 
     let mut generator = DocGenerator::new();
+
     if module_name == "std" {
+        generator.meta("std");
         generator.title(format!("Crate `{}`", &module_name));
     } else {
+        generator.meta(module_name.split("::").last().unwrap());
         generator.title(format!("Module `{}`", &module_name));
     }
     generator.doc_comments(&sorted_module.inner_doc_comments);
@@ -200,6 +203,13 @@ impl DocGenerator {
 
     fn decrease_nesting(&mut self) {
         self.nesting -= 1;
+    }
+
+    fn meta(&mut self, title: impl Into<String>) {
+        self.string.push_str("---\n");
+        self.string.push_str("title: ");
+        self.string.push_str(&title.into());
+        self.string.push_str("\n---\n\n");
     }
 
     fn title(&mut self, title: impl Into<String>) {

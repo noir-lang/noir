@@ -1,3 +1,7 @@
+---
+title: quoted
+---
+
 # Module `std::meta::quoted`
 
 ## `Quoted` methods

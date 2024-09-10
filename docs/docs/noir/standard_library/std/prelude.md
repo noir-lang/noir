@@ -1,3 +1,7 @@
+---
+title: prelude
+---
+
 # Module `std::prelude`
 
 ## Public exports

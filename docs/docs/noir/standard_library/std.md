@@ -1,3 +1,7 @@
+---
+title: std
+---
+
 # Crate `std`
 
 ## println

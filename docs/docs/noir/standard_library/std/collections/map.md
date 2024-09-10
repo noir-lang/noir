@@ -1,3 +1,7 @@
+---
+title: map
+---
+
 # Module `std::collections::map`
 
 ## Struct `HashMap<K, V, let N: u32, B>`

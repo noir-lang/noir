@@ -1,3 +1,7 @@
+---
+title: consts
+---
+
 # Module `std::hash::poseidon::bn254::consts`
 
 ## x5_2_config

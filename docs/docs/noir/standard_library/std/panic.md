@@ -1,3 +1,7 @@
+---
+title: panic
+---
+
 # Module `std::panic`
 
 ## panic

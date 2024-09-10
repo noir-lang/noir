@@ -1,3 +1,7 @@
+---
+title: cmp
+---
+
 # Module `std::cmp`
 
 ### Methods

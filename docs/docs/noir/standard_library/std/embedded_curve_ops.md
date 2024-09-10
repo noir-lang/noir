@@ -1,3 +1,7 @@
+---
+title: embedded_curve_ops
+---
+
 # Module `std::embedded_curve_ops`
 
 ## Struct `EmbeddedCurvePoint`

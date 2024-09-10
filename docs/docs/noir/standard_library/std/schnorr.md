@@ -1,3 +1,7 @@
+---
+title: schnorr
+---
+
 # Module `std::schnorr`
 
 ## verify_signature

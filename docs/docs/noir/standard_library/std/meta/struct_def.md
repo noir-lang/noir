@@ -1,3 +1,7 @@
+---
+title: struct_def
+---
+
 # Module `std::meta::struct_def`
 
 ## `StructDefinition` methods

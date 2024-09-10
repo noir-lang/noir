@@ -1,3 +1,7 @@
+---
+title: poseidon
+---
+
 # Module `std::hash::poseidon`
 
 ### Methods

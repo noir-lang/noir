@@ -1,3 +1,7 @@
+---
+title: meta
+---
+
 # Module `std::meta`
 
 ## unquote

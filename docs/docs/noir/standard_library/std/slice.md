@@ -1,3 +1,7 @@
+---
+title: slice
+---
+
 # Module `std::slice`
 
 ## `[T]` methods

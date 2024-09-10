@@ -1,3 +1,7 @@
+---
+title: string
+---
+
 # Module `std::string`
 
 ## `str<N>` methods

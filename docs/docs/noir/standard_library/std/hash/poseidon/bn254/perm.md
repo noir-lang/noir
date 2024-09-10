@@ -1,3 +1,7 @@
+---
+title: perm
+---
+
 # Module `std::hash::poseidon::bn254::perm`
 
 ## x5_2

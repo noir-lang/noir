@@ -1,3 +1,7 @@
+---
+title: trait_def
+---
+
 # Module `std::meta::trait_def`
 
 ## `TraitDefinition` methods

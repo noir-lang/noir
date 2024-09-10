@@ -1,3 +1,7 @@
+---
+title: mem
+---
+
 # Module `std::mem`
 
 ## zeroed

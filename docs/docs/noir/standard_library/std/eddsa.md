@@ -1,3 +1,7 @@
+---
+title: eddsa
+---
+
 # Module `std::eddsa`
 
 ## eddsa_poseidon_verify

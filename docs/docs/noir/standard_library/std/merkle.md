@@ -1,3 +1,7 @@
+---
+title: merkle
+---
+
 # Module `std::merkle`
 
 ## compute_merkle_root

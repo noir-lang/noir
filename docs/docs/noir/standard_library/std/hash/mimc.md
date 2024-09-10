@@ -1,3 +1,7 @@
+---
+title: mimc
+---
+
 # Module `std::hash::mimc`
 
 ### Methods

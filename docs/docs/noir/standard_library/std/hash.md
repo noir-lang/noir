@@ -1,3 +1,7 @@
+---
+title: hash
+---
+
 # Module `std::hash`
 
 ## Public exports

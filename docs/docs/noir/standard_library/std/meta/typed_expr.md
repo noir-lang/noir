@@ -1,3 +1,7 @@
+---
+title: typed_expr
+---
+
 # Module `std::meta::typed_expr`
 
 ## `TypedExpr` methods

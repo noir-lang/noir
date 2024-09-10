@@ -1,3 +1,7 @@
+---
+title: bounded_vec
+---
+
 # Module `std::collections::bounded_vec`
 
 ## Struct `BoundedVec<T, let MaxLen: u32>`

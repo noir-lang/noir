@@ -1,3 +1,7 @@
+---
+title: te
+---
+
 # Module `std::ec::consts::te`
 
 ### Methods

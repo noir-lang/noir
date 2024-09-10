@@ -1,3 +1,7 @@
+---
+title: ops
+---
+
 # Module `std::ops`
 
 ## Public exports

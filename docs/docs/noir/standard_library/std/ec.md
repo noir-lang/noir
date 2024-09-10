@@ -1,3 +1,7 @@
+---
+title: ec
+---
+
 # Module `std::ec`
 
 ## safe_inverse

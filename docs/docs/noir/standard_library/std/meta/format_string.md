@@ -1,3 +1,7 @@
+---
+title: format_string
+---
+
 # Module `std::meta::format_string`
 
 ## `fmt<N, T` methods

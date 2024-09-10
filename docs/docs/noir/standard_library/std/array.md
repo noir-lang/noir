@@ -1,3 +1,7 @@
+---
+title: array
+---
+
 # Module `std::array`
 
 ## `[T; N]` methods

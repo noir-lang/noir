@@ -1,3 +1,7 @@
+---
+title: option
+---
+
 # Module `std::option`
 
 ### Methods

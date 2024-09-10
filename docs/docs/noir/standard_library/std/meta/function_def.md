@@ -1,3 +1,7 @@
+---
+title: function_def
+---
+
 # Module `std::meta::function_def`
 
 ## `FunctionDefinition` methods

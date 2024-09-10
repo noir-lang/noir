@@ -1,3 +1,7 @@
+---
+title: typ
+---
+
 # Module `std::meta::typ`
 
 ## `Type` methods
