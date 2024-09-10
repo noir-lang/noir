@@ -18,7 +18,7 @@ fn main() {
         assert(typ.as_mutable_reference().unwrap().is_field());
 
         // Check UnresolvedType::as_slice
-        let typ = quote { x as &[Field] }.as_expr().unwrap().as_cast().unwrap().1;
+        let typ = quote { let x: &[Field] = 1; }.as_expr().unwrap().as_let().unwrap().1.unwrap();
         assert(typ.as_slice().unwrap().is_field());
     }
 }
