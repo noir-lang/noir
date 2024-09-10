@@ -3456,7 +3456,6 @@ fn constrained_reference_to_unconstrained() {
 fn comptime_type_in_runtime_code() {
     let source = "pub fn foo(_f: FunctionDefinition) {}";
     let errors = get_program_errors(source);
-    eprintln!("{errors:?}");
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
