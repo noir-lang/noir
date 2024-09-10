@@ -1,0 +1,10 @@
+# Module `std::meta::format_string`
+
+## `fmt<N, T` methods
+
+### quoted_contents
+
+```noir
+fn quoted_contents(self) -> Quoted
+```
+
