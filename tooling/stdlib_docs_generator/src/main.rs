@@ -147,7 +147,7 @@ impl DocGenerator {
             return;
         }
 
-        self.title(format!("Struct `{}`", noir_struct_name(&noir_struct)));
+        self.title(format!("Struct `{}`", noir_struct_name(noir_struct)));
         self.doc_comments(doc_comments);
     }
 
@@ -164,11 +164,11 @@ impl DocGenerator {
     }
 
     fn type_impl(&mut self, type_impl: &TypeImpl) {
-        self.title(format!("`{}` methods", type_impl.object_type.to_string()));
+        self.title(format!("`{}` methods", type_impl.object_type));
 
         self.increase_nesting();
         for (documented_noir_method, _span) in &type_impl.methods {
-            self.noir_function(&documented_noir_method);
+            self.noir_function(documented_noir_method);
         }
         self.decrease_nesting();
     }
@@ -218,7 +218,7 @@ impl DocGenerator {
         }
 
         for doc_comment in doc_comments {
-            self.string.push_str(&doc_comment.trim());
+            self.string.push_str(doc_comment.trim());
             self.string.push('\n');
         }
         self.string.push('\n');
@@ -262,7 +262,7 @@ fn function_signature(func: &FunctionDefinition) -> String {
     }
 
     if !func.where_clause.is_empty() {
-        string.push_str("\n");
+        string.push('\n');
         string.push_str("    where ");
         for (index, where_clause) in func.where_clause.iter().enumerate() {
             if index > 0 {
