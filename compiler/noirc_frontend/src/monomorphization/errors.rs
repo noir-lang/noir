@@ -9,6 +9,7 @@ pub enum MonomorphizationError {
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
+    ComptimeTypeInRuntimeCode { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -17,6 +18,7 @@ impl MonomorphizationError {
             MonomorphizationError::UnknownArrayLength { location, .. }
             | MonomorphizationError::InternalError { location, .. }
             | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
+            | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.get_location(),
         }
@@ -49,6 +51,11 @@ impl MonomorphizationError {
                 let message = format!("Comptime function {name} used in runtime code");
                 let secondary =
                     "Comptime functions must be in a comptime block to be called".into();
+                return CustomDiagnostic::simple_error(message, secondary, location.span);
+            }
+            MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
+                let message = format!("Comptime-only type `{typ}` used in runtime code");
+                let secondary = "Comptime type used here".into();
                 return CustomDiagnostic::simple_error(message, secondary, location.span);
             }
         };
