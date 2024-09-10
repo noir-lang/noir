@@ -8,5 +8,9 @@ fn main() {
         // Check UnresolvedType::is_field
         let typ = quote { x as Field }.as_expr().unwrap().as_cast().unwrap().1;
         assert(typ.is_field());
+
+        // Check UnresolvedType::is_unit
+        let typ = quote { x as () }.as_expr().unwrap().as_cast().unwrap().1;
+        assert(typ.is_unit());
     }
 }

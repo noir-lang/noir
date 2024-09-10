@@ -17,3 +17,9 @@ Returns `true` if this type is `bool`.
 #include_code is_field noir_stdlib/src/meta/unresolved_type.nr rust
 
 Returns true if this type refers to the Field type.
+
+### is_unit
+
+#include_code is_unit noir_stdlib/src/meta/unresolved_type.nr rust
+
+Returns true if this type is the unit `()` type.

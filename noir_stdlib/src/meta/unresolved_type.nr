@@ -8,4 +8,9 @@ impl UnresolvedType {
     // docs:start:is_field
     comptime fn is_field(self) -> bool {}
     // docs:end:is_field
+
+    #[builtin(unresolved_type_is_unit)]
+    // docs:start:is_unit
+    comptime fn is_unit(self) -> bool {}
+    // docs:end:is_unit
 }
