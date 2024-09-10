@@ -15,14 +15,11 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        // Find out which struct this is
-        let span = if let UnresolvedTypeData::Named(path, _, _) = &constructor.typ.typ {
-            path.last_ident().span()
-        } else {
-            constructor.typ.span
+        let UnresolvedTypeData::Named(path, _, _) = &constructor.typ.typ else {
+            return;
         };
 
-        let location = Location::new(span, self.file);
+        let location = Location::new(path.span, self.file);
         let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
             return;
         };
