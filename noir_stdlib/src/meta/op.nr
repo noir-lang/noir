@@ -28,7 +28,7 @@ impl UnaryOp {
     }
 
     // docs:start:unary_quoted
-    pub fn quoted(self) -> Quoted {
+    pub comptime fn quoted(self) -> Quoted {
         // docs:end:unary_quoted
         if self.is_minus() {
             quote { - }
@@ -39,7 +39,8 @@ impl UnaryOp {
         } else if self.is_dereference() {
             quote { * }
         } else {
-            crate::mem::zeroed()
+            let op = self;
+            crate::panic::panic(f"Unexpected unary operator in UnaryOp::quoted: {op}")
         }
     }
 }
@@ -146,7 +147,7 @@ impl BinaryOp {
     }
 
     // docs:start:binary_quoted
-    pub fn quoted(self) -> Quoted {
+    pub comptime fn quoted(self) -> Quoted {
         // docs:end:binary_quoted
         if self.is_add() {
             quote { + }
@@ -181,7 +182,8 @@ impl BinaryOp {
         } else if self.is_modulo() {
             quote { % }
         } else {
-            crate::mem::zeroed()
+            let op = self;
+            crate::panic::panic(f"Unexpected binary operator in BinaryOp::quoted: {op}")
         }
     }
 }

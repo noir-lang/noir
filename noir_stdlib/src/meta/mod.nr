@@ -122,6 +122,7 @@ mod tests {
         quote { 1 }
     }
 
+    #[test]
     fn returning_versus_macro_insertion() {
         comptime
         {

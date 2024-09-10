@@ -6,8 +6,8 @@ mod completion_tests {
             completion::{
                 completion_items::{
                     completion_item_with_sort_text,
-                    completion_item_with_trigger_parameter_hints_command, crate_completion_item,
-                    module_completion_item, simple_completion_item, snippet_completion_item,
+                    completion_item_with_trigger_parameter_hints_command, module_completion_item,
+                    simple_completion_item, snippet_completion_item,
                 },
                 sort_text::{auto_import_sort_text, self_mismatch_sort_text},
             },
@@ -208,7 +208,7 @@ mod completion_tests {
         let src = r#"
             use s>|<
         "#;
-        assert_completion(src, vec![crate_completion_item("std")]).await;
+        assert_completion(src, vec![module_completion_item("std")]).await;
 
         // "std" doesn't show up anymore because of the "crate::" prefix
         let src = r#"
@@ -284,7 +284,7 @@ mod completion_tests {
             src,
             vec![
                 module_completion_item("something"),
-                crate_completion_item("std"),
+                module_completion_item("std"),
                 simple_completion_item("super::", CompletionItemKind::KEYWORD, None),
             ],
         )
@@ -1948,6 +1948,42 @@ mod completion_tests {
                 "some_attr(…)",
                 "some_attr(${1:x})",
                 "fn(FunctionDefinition, Field)",
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_function_attribute_no_arguments() {
+        let src = r#"
+            #[some>|<]
+            fn foo() {}
+
+            fn some_attr(f: FunctionDefinition) {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item("some_attr", "some_attr", "fn(FunctionDefinition)")],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_trait_attribute() {
+        let src = r#"
+            #[some>|<]
+            trait SomeTrait {}
+
+            fn some_attr(t: TraitDefinition, x: Field) {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item(
+                "some_attr(…)",
+                "some_attr(${1:x})",
+                "fn(TraitDefinition, Field)",
             )],
         )
         .await;

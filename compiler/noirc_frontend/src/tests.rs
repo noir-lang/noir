@@ -857,7 +857,7 @@ fn get_program_captures(src: &str) -> Vec<Vec<String>> {
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
-        let func_id = interner.find_function(func.name()).unwrap();
+        let func_id = interner.find_function(func.item.name()).unwrap();
         let hir_func = interner.function(&func_id);
         // Iterate over function statements and apply filtering function
         find_lambda_captures(hir_func.block(&interner).statements(), &interner, &mut all_captures);
@@ -3373,7 +3373,7 @@ fn unquoted_integer_as_integer_token() {
     #[attr]
     pub fn foobar() {}
 
-    fn attr(_f: FunctionDefinition) -> Quoted {
+    comptime fn attr(_f: FunctionDefinition) -> Quoted {
         let serialized_len = 1;
         // We are testing that when we unquote $serialized_len, it's unquoted
         // as the token `1` and not as something else that later won't be parsed correctly

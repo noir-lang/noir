@@ -1584,7 +1584,7 @@ proptest! {
     #[test]
     fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(32), keccak256_op);
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(8), keccak256_op);
         prop_assert!(result, "{}", message);
     }
 

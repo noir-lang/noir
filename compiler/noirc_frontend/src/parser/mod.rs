@@ -12,9 +12,9 @@ mod labels;
 mod parser;
 
 use crate::ast::{
-    Expression, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind,
-    TypeImpl, UseTree,
+    Documented, Expression, Ident, ImportStatement, ItemVisibility, LetStatement,
+    ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias,
+    Recoverable, StatementKind, TypeImpl, UseTree,
 };
 use crate::token::{Keyword, SecondaryAttribute, Token};
 
@@ -31,7 +31,13 @@ pub use parser::{
 };
 
 #[derive(Debug, Clone)]
-pub enum TopLevelStatement {
+pub struct TopLevelStatement {
+    pub kind: TopLevelStatementKind,
+    pub doc_comments: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum TopLevelStatementKind {
     Function(NoirFunction),
     Module(ModuleDeclaration),
     Import(UseTree, ItemVisibility),
@@ -46,21 +52,21 @@ pub enum TopLevelStatement {
     Error,
 }
 
-impl TopLevelStatement {
+impl TopLevelStatementKind {
     pub fn into_item_kind(self) -> Option<ItemKind> {
         match self {
-            TopLevelStatement::Function(f) => Some(ItemKind::Function(f)),
-            TopLevelStatement::Module(m) => Some(ItemKind::ModuleDecl(m)),
-            TopLevelStatement::Import(i, visibility) => Some(ItemKind::Import(i, visibility)),
-            TopLevelStatement::Struct(s) => Some(ItemKind::Struct(s)),
-            TopLevelStatement::Trait(t) => Some(ItemKind::Trait(t)),
-            TopLevelStatement::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
-            TopLevelStatement::Impl(i) => Some(ItemKind::Impl(i)),
-            TopLevelStatement::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
-            TopLevelStatement::SubModule(s) => Some(ItemKind::Submodules(s)),
-            TopLevelStatement::Global(c) => Some(ItemKind::Global(c)),
-            TopLevelStatement::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
-            TopLevelStatement::Error => None,
+            TopLevelStatementKind::Function(f) => Some(ItemKind::Function(f)),
+            TopLevelStatementKind::Module(m) => Some(ItemKind::ModuleDecl(m)),
+            TopLevelStatementKind::Import(i, visibility) => Some(ItemKind::Import(i, visibility)),
+            TopLevelStatementKind::Struct(s) => Some(ItemKind::Struct(s)),
+            TopLevelStatementKind::Trait(t) => Some(ItemKind::Trait(t)),
+            TopLevelStatementKind::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
+            TopLevelStatementKind::Impl(i) => Some(ItemKind::Impl(i)),
+            TopLevelStatementKind::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
+            TopLevelStatementKind::SubModule(s) => Some(ItemKind::Submodules(s)),
+            TopLevelStatementKind::Global(c) => Some(ItemKind::Global(c)),
+            TopLevelStatementKind::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
+            TopLevelStatementKind::Error => None,
         }
     }
 }
@@ -222,11 +228,11 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
 }
 
-fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
+fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatementKind> {
     none_of([Token::RightBrace, Token::EOF])
         .repeated()
         .ignore_then(one_of([Token::Semicolon]))
-        .map(|_| TopLevelStatement::Error)
+        .map(|_| TopLevelStatementKind::Error)
 }
 
 /// Force the given parser to succeed, logging any errors it had
@@ -237,21 +243,22 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
 #[derive(Clone, Default)]
 pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
-    pub functions: Vec<NoirFunction>,
-    pub types: Vec<NoirStruct>,
-    pub traits: Vec<NoirTrait>,
+    pub functions: Vec<Documented<NoirFunction>>,
+    pub types: Vec<Documented<NoirStruct>>,
+    pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
-    pub type_aliases: Vec<NoirTypeAlias>,
-    pub globals: Vec<LetStatement>,
+    pub type_aliases: Vec<Documented<NoirTypeAlias>>,
+    pub globals: Vec<Documented<LetStatement>>,
 
     /// Module declarations like `mod foo;`
-    pub module_decls: Vec<ModuleDeclaration>,
+    pub module_decls: Vec<Documented<ModuleDeclaration>>,
 
     /// Full submodules as in `mod foo { ... definitions ... }`
-    pub submodules: Vec<SortedSubModule>,
+    pub submodules: Vec<Documented<SortedSubModule>>,
 
     pub inner_attributes: Vec<SecondaryAttribute>,
+    pub inner_doc_comments: Vec<String>,
 }
 
 impl std::fmt::Display for SortedModule {
@@ -296,6 +303,7 @@ impl std::fmt::Display for SortedModule {
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
+    pub inner_doc_comments: Vec<String>,
 }
 
 impl ParsedModule {
@@ -305,18 +313,26 @@ impl ParsedModule {
         for item in self.items {
             match item.kind {
                 ItemKind::Import(import, visibility) => module.push_import(import, visibility),
-                ItemKind::Function(func) => module.push_function(func),
-                ItemKind::Struct(typ) => module.push_type(typ),
-                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
+                ItemKind::Function(func) => module.push_function(func, item.doc_comments),
+                ItemKind::Struct(typ) => module.push_type(typ, item.doc_comments),
+                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
-                ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
-                ItemKind::Global(global) => module.push_global(global),
-                ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
-                ItemKind::Submodules(submodule) => module.push_submodule(submodule.into_sorted()),
+                ItemKind::TypeAlias(type_alias) => {
+                    module.push_type_alias(type_alias, item.doc_comments);
+                }
+                ItemKind::Global(global) => module.push_global(global, item.doc_comments),
+                ItemKind::ModuleDecl(mod_name) => {
+                    module.push_module_decl(mod_name, item.doc_comments);
+                }
+                ItemKind::Submodules(submodule) => {
+                    module.push_submodule(submodule.into_sorted(), item.doc_comments);
+                }
                 ItemKind::InnerAttribute(attribute) => module.inner_attributes.push(attribute),
             }
         }
+
+        module.inner_doc_comments = self.inner_doc_comments;
 
         module
     }
@@ -326,6 +342,7 @@ impl ParsedModule {
 pub struct Item {
     pub kind: ItemKind,
     pub span: Span,
+    pub doc_comments: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -385,16 +402,16 @@ pub struct SortedSubModule {
 }
 
 impl SortedModule {
-    fn push_function(&mut self, func: NoirFunction) {
-        self.functions.push(func);
+    fn push_function(&mut self, func: NoirFunction, doc_comments: Vec<String>) {
+        self.functions.push(Documented::new(func, doc_comments));
     }
 
-    fn push_type(&mut self, typ: NoirStruct) {
-        self.types.push(typ);
+    fn push_type(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
+        self.types.push(Documented::new(typ, doc_comments));
     }
 
-    fn push_trait(&mut self, noir_trait: NoirTrait) {
-        self.traits.push(noir_trait);
+    fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<String>) {
+        self.traits.push(Documented::new(noir_trait, doc_comments));
     }
 
     fn push_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
@@ -405,24 +422,24 @@ impl SortedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias) {
-        self.type_aliases.push(type_alias);
+    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, doc_comments: Vec<String>) {
+        self.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 
     fn push_import(&mut self, import_stmt: UseTree, visibility: ItemVisibility) {
         self.imports.extend(import_stmt.desugar(None, visibility));
     }
 
-    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration) {
-        self.module_decls.push(mod_decl);
+    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration, doc_comments: Vec<String>) {
+        self.module_decls.push(Documented::new(mod_decl, doc_comments));
     }
 
-    fn push_submodule(&mut self, submodule: SortedSubModule) {
-        self.submodules.push(submodule);
+    fn push_submodule(&mut self, submodule: SortedSubModule, doc_comments: Vec<String>) {
+        self.submodules.push(Documented::new(submodule, doc_comments));
     }
 
-    fn push_global(&mut self, global: LetStatement) {
-        self.globals.push(global);
+    fn push_global(&mut self, global: LetStatement, doc_comments: Vec<String>) {
+        self.globals.push(Documented::new(global, doc_comments));
     }
 }
 
@@ -503,27 +520,27 @@ impl Precedence {
     }
 }
 
-impl std::fmt::Display for TopLevelStatement {
+impl std::fmt::Display for TopLevelStatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopLevelStatement::Function(fun) => fun.fmt(f),
-            TopLevelStatement::Module(m) => m.fmt(f),
-            TopLevelStatement::Import(tree, visibility) => {
+            TopLevelStatementKind::Function(fun) => fun.fmt(f),
+            TopLevelStatementKind::Module(m) => m.fmt(f),
+            TopLevelStatementKind::Import(tree, visibility) => {
                 if visibility == &ItemVisibility::Private {
                     write!(f, "use {tree}")
                 } else {
                     write!(f, "{visibility} use {tree}")
                 }
             }
-            TopLevelStatement::Trait(t) => t.fmt(f),
-            TopLevelStatement::TraitImpl(i) => i.fmt(f),
-            TopLevelStatement::Struct(s) => s.fmt(f),
-            TopLevelStatement::Impl(i) => i.fmt(f),
-            TopLevelStatement::TypeAlias(t) => t.fmt(f),
-            TopLevelStatement::SubModule(s) => s.fmt(f),
-            TopLevelStatement::Global(c) => c.fmt(f),
-            TopLevelStatement::InnerAttribute(a) => write!(f, "#![{}]", a),
-            TopLevelStatement::Error => write!(f, "error"),
+            TopLevelStatementKind::Trait(t) => t.fmt(f),
+            TopLevelStatementKind::TraitImpl(i) => i.fmt(f),
+            TopLevelStatementKind::Struct(s) => s.fmt(f),
+            TopLevelStatementKind::Impl(i) => i.fmt(f),
+            TopLevelStatementKind::TypeAlias(t) => t.fmt(f),
+            TopLevelStatementKind::SubModule(s) => s.fmt(f),
+            TopLevelStatementKind::Global(c) => c.fmt(f),
+            TopLevelStatementKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+            TopLevelStatementKind::Error => write!(f, "error"),
         }
     }
 }
