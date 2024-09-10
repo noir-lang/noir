@@ -185,6 +185,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
+            "type_is_unit" => type_is_unit(arguments, location),
             "type_of" => type_of(arguments, location),
             "typed_expr_as_function_definition" => {
                 typed_expr_as_function_definition(interner, arguments, return_type, location)
@@ -967,6 +968,14 @@ fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     let typ = get_type(value)?;
 
     Ok(Value::Bool(matches!(typ, Type::FieldElement)))
+}
+
+// fn is_unit(self) -> bool
+fn type_is_unit(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value)?;
+
+    Ok(Value::Bool(matches!(typ, Type::Unit)))
 }
 
 // fn type_of<T>(x: T) -> Type

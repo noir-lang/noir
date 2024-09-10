@@ -146,6 +146,12 @@ fn foo<T>() where T: Default {
 
 `true` if this type is `Field`.
 
+### is_unit
+
+#include_code is_unit noir_stdlib/src/meta/typ.nr rust
+
+`true` if this type is the unit `()` type.
+
 ## Trait Implementations
 
 ```rust
