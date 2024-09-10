@@ -67,6 +67,10 @@ fn generate_module(module_name: String, path: &PathBuf, parsed_module: ParsedMod
     generator.type_impls(&sorted_module.impls);
     generator.noir_functions(&sorted_module.functions);
 
+    if !generator.wrote_item {
+        return;
+    }
+
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).unwrap();
     }
@@ -76,12 +80,13 @@ fn generate_module(module_name: String, path: &PathBuf, parsed_module: ParsedMod
 
 struct DocGenerator {
     pub string: String,
+    pub wrote_item: bool,
     nesting: usize,
 }
 
 impl DocGenerator {
     fn new() -> Self {
-        Self { string: String::new(), nesting: 1 }
+        Self { string: String::new(), nesting: 1, wrote_item: false }
     }
 
     fn public_exports(&mut self, imports: &[ImportStatement]) {
@@ -90,6 +95,8 @@ impl DocGenerator {
         if public_imports.is_empty() {
             return;
         }
+
+        self.wrote_item = true;
 
         self.increase_nesting();
         self.title("Public exports");
@@ -113,6 +120,8 @@ impl DocGenerator {
             if documented_noir_struct.doc_comments.is_empty() {
                 continue;
             }
+
+            self.wrote_item = true;
 
             self.noir_struct(documented_noir_struct);
 
@@ -157,10 +166,14 @@ impl DocGenerator {
     fn type_impls(&mut self, type_impls: &[TypeImpl]) {
         // Output impls for primitive types
         self.increase_nesting();
+
         for implementation in type_impls {
             if let UnresolvedTypeData::Named(..) = implementation.object_type.typ {
                 continue;
             };
+
+            self.wrote_item = true;
+
             self.type_impl(implementation);
         }
         self.decrease_nesting();
@@ -178,10 +191,13 @@ impl DocGenerator {
 
     fn noir_functions(&mut self, documented_noir_functions: &[Documented<NoirFunction>]) {
         self.increase_nesting();
+
         for documented_noir_function in documented_noir_functions {
             if documented_noir_function.item.def.visibility != ItemVisibility::Public {
                 continue;
             }
+
+            self.wrote_item = true;
 
             self.noir_function(documented_noir_function);
         }
