@@ -6,6 +6,12 @@ title: UnresolvedType
 
 ## Methods
 
+### is_bool
+
+#include_code is_bool noir_stdlib/src/meta/unresolved_type.nr rust
+
+Returns `true` if this type is `bool`.
+
 ### is_field
 
 #include_code is_field noir_stdlib/src/meta/unresolved_type.nr rust

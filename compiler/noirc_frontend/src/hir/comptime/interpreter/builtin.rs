@@ -193,6 +193,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "typed_expr_get_type" => {
                 typed_expr_get_type(interner, arguments, return_type, location)
             }
+            "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
@@ -1120,6 +1121,17 @@ fn typed_expr_get_type(
         None
     };
     option(return_type, option_value)
+}
+
+// fn is_bool(self) -> bool
+fn unresolved_type_is_bool(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(interner, self_argument)?;
+    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Bool)))
 }
 
 // fn is_field(self) -> bool
