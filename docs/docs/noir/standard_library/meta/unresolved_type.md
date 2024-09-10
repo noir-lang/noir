@@ -12,6 +12,12 @@ title: UnresolvedType
 
 If this is a mutable reference type `&mut T`, retursn the mutable type `T`.
 
+### as_slice
+
+#include_code as_slice noir_stdlib/src/meta/unresolved_type.nr rust
+
+If this is a slice `&[T]`, retursn the element type `T`.
+
 ### is_bool
 
 #include_code is_bool noir_stdlib/src/meta/unresolved_type.nr rust

@@ -6,6 +6,11 @@ impl UnresolvedType {
     comptime fn as_mutable_reference(self) -> Option<UnresolvedType> {}
     // docs:end:as_mutable_reference
 
+    #[builtin(unresolved_type_as_slice)]
+    // docs:start:as_slice
+    comptime fn as_slice(self) -> Option<UnresolvedType> {}
+    // docs:end:as_slice
+
     #[builtin(unresolved_type_is_bool)]
     // docs:start:is_bool
     comptime fn is_bool(self) -> bool {}

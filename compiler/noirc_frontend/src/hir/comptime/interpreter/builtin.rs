@@ -199,6 +199,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_as_mutable_reference" => {
                 unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
             }
+            "unresolved_type_as_slice" => {
+                unresolved_type_as_slice(interner, arguments, return_type, location)
+            }
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
@@ -1154,6 +1157,22 @@ fn unresolved_type_as_mutable_reference(
 ) -> IResult<Value> {
     unresolved_type_as(interner, arguments, return_type, location, |typ| {
         if let UnresolvedTypeData::MutableReference(typ) = typ {
+            Some(Value::UnresolvedType(typ.typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_slice(self) -> Option<UnresolvedType>
+fn unresolved_type_as_slice(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    unresolved_type_as(interner, arguments, return_type, location, |typ| {
+        if let UnresolvedTypeData::Slice(typ) = typ {
             Some(Value::UnresolvedType(typ.typ))
         } else {
             None
