@@ -174,6 +174,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_array" => type_as_array(arguments, return_type, location),
             "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
+            "type_as_mutable_reference" => {
+                type_as_mutable_reference(arguments, return_type, location)
+            }
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_struct" => type_as_struct(arguments, return_type, location),
@@ -808,6 +811,21 @@ fn type_as_integer(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
             Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_mutable_reference(self) -> Option<Type>
+fn type_as_mutable_reference(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::MutableReference(typ) = typ {
+            Some(Value::Type(*typ))
         } else {
             None
         }

@@ -63,6 +63,12 @@ return the numeric constant.
 If this is an integer type, return a boolean which is `true`
 if the type is signed, as well as the number of bits of this integer type.
 
+### as_mutable_reference
+
+#include_code as_mutable_reference noir_stdlib/src/meta/typ.nr rust
+
+If this is a mutable reference type `&mut T`, retursn the mutable type `T`.
+
 ### as_slice
 
 #include_code as_slice noir_stdlib/src/meta/typ.nr rust

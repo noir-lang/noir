@@ -22,6 +22,11 @@ impl Type {
     comptime fn as_integer(self) -> Option<(bool, u8)> {}
     // docs:end:as_integer
 
+    #[builtin(type_as_mutable_reference)]
+    // docs:start:as_mutable_reference
+    comptime fn as_mutable_reference(self) -> Option<Type> {}
+    // docs:end:as_mutable_reference
+
     #[builtin(type_as_slice)]
     // docs:start:as_slice
     comptime fn as_slice(self) -> Option<Type> {}

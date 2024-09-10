@@ -154,6 +154,10 @@ fn main() {
         // Check Type::is_unit
         let unit = quote { () }.as_type();
         assert(unit.is_unit());
+
+        // Check Type::as_mutable_reference
+        let typ = quote { &mut Field }.as_type();
+        assert_eq(typ.as_mutable_reference().unwrap(), quote { Field }.as_type());
     }
 }
 
