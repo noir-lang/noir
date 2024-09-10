@@ -16,4 +16,4 @@ If this expression refers to a function definitions, returns it. Otherwise retur
 
 #include_code get_type noir_stdlib/src/meta/typed_expr.nr rust
 
-Returns the type of the expression, if the expression could be resolved without errors.
+Returns the type of the expression, or `Option::none()` if there were errors when the expression was previously resolved.
