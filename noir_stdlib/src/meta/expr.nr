@@ -69,7 +69,7 @@ impl Expr {
     /// return the type and the fields.
     #[builtin(expr_as_constructor)]
     // docs:start:as_constructor
-    fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])> {}
+    comptime fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])> {}
     // docs:end:as_constructor
 
     /// If this expression is a function call `foo(arg1, ..., argN)`, return
