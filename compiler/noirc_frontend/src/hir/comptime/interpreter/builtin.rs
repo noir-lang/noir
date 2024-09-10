@@ -196,6 +196,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "typed_expr_get_type" => {
                 typed_expr_get_type(interner, arguments, return_type, location)
             }
+            "unresolved_type_as_mutable_reference" => {
+                unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
+            }
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
@@ -1142,6 +1145,22 @@ fn typed_expr_get_type(
     option(return_type, option_value)
 }
 
+// fn as_mutable_reference(self) -> Option<UnresolvedType>
+fn unresolved_type_as_mutable_reference(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    unresolved_type_as(interner, arguments, return_type, location, |typ| {
+        if let UnresolvedTypeData::MutableReference(typ) = typ {
+            Some(Value::UnresolvedType(typ.typ))
+        } else {
+            None
+        }
+    })
+}
+
 // fn is_bool(self) -> bool
 fn unresolved_type_is_bool(
     interner: &NodeInterner,
@@ -1173,6 +1192,25 @@ fn unresolved_type_is_unit(
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
     Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Unit)))
+}
+
+// Helper function for implementing the `unresolved_type_as_...` functions.
+fn unresolved_type_as<F>(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(UnresolvedTypeData) -> Option<Value>,
+{
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(interner, value)?;
+
+    let option_value = f(typ);
+
+    option(return_type, option_value)
 }
 
 // fn zeroed<T>() -> T

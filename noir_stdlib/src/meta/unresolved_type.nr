@@ -1,4 +1,11 @@
+use crate::option::Option;
+
 impl UnresolvedType {
+    #[builtin(unresolved_type_as_mutable_reference)]
+    // docs:start:as_mutable_reference
+    comptime fn as_mutable_reference(self) -> Option<UnresolvedType> {}
+    // docs:end:as_mutable_reference
+
     #[builtin(unresolved_type_is_bool)]
     // docs:start:is_bool
     comptime fn is_bool(self) -> bool {}

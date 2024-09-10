@@ -12,5 +12,9 @@ fn main() {
         // Check UnresolvedType::is_unit
         let typ = quote { x as () }.as_expr().unwrap().as_cast().unwrap().1;
         assert(typ.is_unit());
+
+        // Check UnresolvedType::as_mutable_reference
+        let typ = quote { x as &mut Field }.as_expr().unwrap().as_cast().unwrap().1;
+        assert(typ.as_mutable_reference().unwrap().is_field());
     }
 }

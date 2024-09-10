@@ -6,6 +6,12 @@ title: UnresolvedType
 
 ## Methods
 
+### as_mutable_reference
+
+#include_code as_mutable_reference noir_stdlib/src/meta/unresolved_type.nr rust
+
+If this is a mutable reference type `&mut T`, retursn the mutable type `T`.
+
 ### is_bool
 
 #include_code is_bool noir_stdlib/src/meta/unresolved_type.nr rust
