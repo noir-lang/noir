@@ -173,9 +173,9 @@ impl DocGenerator {
         self.decrease_nesting();
     }
 
-    fn noir_functions(&mut self, documnted_noir_functions: &[Documented<NoirFunction>]) {
+    fn noir_functions(&mut self, documented_noir_functions: &[Documented<NoirFunction>]) {
         self.increase_nesting();
-        for documented_noir_function in documnted_noir_functions {
+        for documented_noir_function in documented_noir_functions {
             if documented_noir_function.item.def.visibility != ItemVisibility::Public {
                 continue;
             }
