@@ -348,7 +348,7 @@ impl UnresolvedType {
     pub fn from_path(mut path: Path) -> Self {
         let span = path.span;
         let last_segment = path.segments.last_mut().unwrap();
-        let generics = std::mem::take(&mut last_segment.generics);
+        let generics = last_segment.generics.take();
         let generic_type_args = if let Some(generics) = generics {
             GenericTypeArgs { ordered_args: generics, named_args: Vec::new() }
         } else {
