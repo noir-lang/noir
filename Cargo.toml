@@ -15,6 +15,7 @@ members = [
     # Crates related to tooling built on top of the Noir compiler
     "tooling/lsp",
     "tooling/debugger",
+    "tooling/stdlib_docs_generator",
     "tooling/fuzzer",
     "tooling/nargo",
     "tooling/nargo_fmt",
