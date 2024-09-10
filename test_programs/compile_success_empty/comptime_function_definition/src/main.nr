@@ -66,7 +66,7 @@ contract some_contract {
     }
 }
 
-fn set_pub_return(f: FunctionDefinition) {
+comptime fn set_pub_return(f: FunctionDefinition) {
     f.set_return_public(true);
 }
 
