@@ -6,13 +6,13 @@ title: eddsa
 
 ## eddsa_poseidon_verify
 
-```noir
+```rust
 fn eddsa_poseidon_verify(pub_key_x: Field, pub_key_y: Field, signature_s: Field, signature_r8_x: Field, signature_r8_y: Field, message: Field) -> bool
 ```
 
 ## eddsa_verify
 
-```noir
+```rust
 fn eddsa_verify<H>(pub_key_x: Field, pub_key_y: Field, signature_s: Field, signature_r8_x: Field, signature_r8_y: Field, message: Field) -> bool
     where H: Hasher,
           H: Default
@@ -20,7 +20,7 @@ fn eddsa_verify<H>(pub_key_x: Field, pub_key_y: Field, signature_s: Field, signa
 
 ## eddsa_to_pub
 
-```noir
+```rust
 fn eddsa_to_pub(secret: Field) -> (Field, Field)
 ```
 

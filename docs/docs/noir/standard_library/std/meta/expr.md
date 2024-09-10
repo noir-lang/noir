@@ -8,169 +8,169 @@ title: expr
 
 ### as_array
 
-```noir
+```rust
 fn as_array(self) -> Option<[Expr]>
 ```
 
 ### as_assert
 
-```noir
+```rust
 fn as_assert(self) -> Option<(Expr, Option<Expr>)>
 ```
 
 ### as_assert_eq
 
-```noir
+```rust
 fn as_assert_eq(self) -> Option<(Expr, Expr, Option<Expr>)>
 ```
 
 ### as_assign
 
-```noir
+```rust
 fn as_assign(self) -> Option<(Expr, Expr)>
 ```
 
 ### as_integer
 
-```noir
+```rust
 fn as_integer(self) -> Option<(Field, bool)>
 ```
 
 ### as_binary_op
 
-```noir
+```rust
 fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)>
 ```
 
 ### as_block
 
-```noir
+```rust
 fn as_block(self) -> Option<[Expr]>
 ```
 
 ### as_bool
 
-```noir
+```rust
 fn as_bool(self) -> Option<bool>
 ```
 
 ### as_cast
 
-```noir
+```rust
 fn as_cast(self) -> Option<(Expr, UnresolvedType)>
 ```
 
 ### as_comptime
 
-```noir
+```rust
 fn as_comptime(self) -> Option<[Expr]>
 ```
 
 ### as_function_call
 
-```noir
+```rust
 fn as_function_call(self) -> Option<(Expr, [Expr])>
 ```
 
 ### as_if
 
-```noir
+```rust
 fn as_if(self) -> Option<(Expr, Expr, Option<Expr>)>
 ```
 
 ### as_index
 
-```noir
+```rust
 fn as_index(self) -> Option<(Expr, Expr)>
 ```
 
 ### as_let
 
-```noir
+```rust
 fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)>
 ```
 
 ### as_member_access
 
-```noir
+```rust
 fn as_member_access(self) -> Option<(Expr, Quoted)>
 ```
 
 ### as_method_call
 
-```noir
+```rust
 fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])>
 ```
 
 ### as_repeated_element_array
 
-```noir
+```rust
 fn as_repeated_element_array(self) -> Option<(Expr, Expr)>
 ```
 
 ### as_repeated_element_slice
 
-```noir
+```rust
 fn as_repeated_element_slice(self) -> Option<(Expr, Expr)>
 ```
 
 ### as_slice
 
-```noir
+```rust
 fn as_slice(self) -> Option<[Expr]>
 ```
 
 ### as_tuple
 
-```noir
+```rust
 fn as_tuple(self) -> Option<[Expr]>
 ```
 
 ### as_unary_op
 
-```noir
+```rust
 fn as_unary_op(self) -> Option<(UnaryOp, Expr)>
 ```
 
 ### as_unsafe
 
-```noir
+```rust
 fn as_unsafe(self) -> Option<[Expr]>
 ```
 
 ### has_semicolon
 
-```noir
+```rust
 fn has_semicolon(self) -> bool
 ```
 
 ### is_break
 
-```noir
+```rust
 fn is_break(self) -> bool
 ```
 
 ### is_continue
 
-```noir
+```rust
 fn is_continue(self) -> bool
 ```
 
 ### modify
 
-```noir
+```rust
 fn modify<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr
 ```
 
 ### quoted
 
-```noir
+```rust
 fn quoted(self) -> Quoted
 ```
 
 ### resolve
 
-```noir
+```rust
 fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr
 ```
 

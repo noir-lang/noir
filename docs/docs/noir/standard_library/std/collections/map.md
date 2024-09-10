@@ -15,7 +15,7 @@ every hash value will be performed modulo `MaxLen`.
 
 Example:
 
-```noir
+```rust
 // Create a mapping from Fields to u32s with a maximum length of 12
 // using a poseidon2 hasher
 use std::hash::poseidon2::Poseidon2Hasher;
@@ -31,7 +31,7 @@ let two = map.get(1).unwrap();
 
 #### with_hasher
 
-```noir
+```rust
 fn with_hasher<H>(_build_hasher: B) -> Self
     where B: BuildHasher<H>
 ```
@@ -41,7 +41,7 @@ hashmaps are created with the same hasher instance.
 
 Example:
 
-```noir
+```rust
 let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
 let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::with_hasher(my_hasher);
 assert(hashmap.is_empty());
@@ -49,7 +49,7 @@ assert(hashmap.is_empty());
 
 #### clear
 
-```noir
+```rust
 fn clear(self)
 ```
 
@@ -57,7 +57,7 @@ Clears the hashmap, removing all key-value pairs from it.
 
 Example:
 
-```noir
+```rust
 assert(!map.is_empty());
 map.clear();
 assert(map.is_empty());
@@ -65,7 +65,7 @@ assert(map.is_empty());
 
 #### contains_key
 
-```noir
+```rust
 fn contains_key<H>(self, key: K) -> bool
     where K: Hash,
           K: Eq,
@@ -78,7 +78,7 @@ the value associated with the key.
 
 Example:
 
-```noir
+```rust
 if map.contains_key(7) {
 let value = map.get(7);
 assert(value.is_some());
@@ -89,7 +89,7 @@ println("No value for key 7!");
 
 #### is_empty
 
-```noir
+```rust
 fn is_empty(self) -> bool
 ```
 
@@ -97,7 +97,7 @@ Returns `true` if the length of the hash map is empty.
 
 Example:
 
-```noir
+```rust
 assert(map.is_empty());
 
 map.insert(1, 2);
@@ -109,7 +109,7 @@ assert(map.is_empty());
 
 #### entries
 
-```noir
+```rust
 fn entries(self) -> BoundedVec<(K, V), N>
 ```
 
@@ -119,7 +119,7 @@ The length of the returned vector is always equal to the length of the hashmap.
 
 Example:
 
-```noir
+```rust
 let entries = map.entries();
 
 // The length of a hashmap may not be compile-time known, so we
@@ -134,7 +134,7 @@ println(f"{key} -> {value}");
 
 #### keys
 
-```noir
+```rust
 fn keys(self) -> BoundedVec<K, N>
 ```
 
@@ -144,7 +144,7 @@ The length of the returned vector is always equal to the length of the hashmap.
 
 Example:
 
-```noir
+```rust
 let keys = map.keys();
 
 for i in 0..keys.max_len() {
@@ -158,7 +158,7 @@ println(f"{key} -> {value}");
 
 #### values
 
-```noir
+```rust
 fn values(self) -> BoundedVec<V, N>
 ```
 
@@ -168,7 +168,7 @@ The length of the returned vector is always equal to the length of the hashmap.
 
 Example:
 
-```noir
+```rust
 let values = map.values();
 
 for i in 0..values.max_len() {
@@ -181,7 +181,7 @@ println(f"Found value {value}");
 
 #### iter_mut
 
-```noir
+```rust
 fn iter_mut<H>(self, f: fn(K, V) -> (K, V))
     where K: Eq,
           K: Hash,
@@ -201,14 +201,14 @@ equal, which of the two values that will be present for the key in the resulting
 
 Example:
 
-```noir
+```rust
 // Add 1 to each key in the map, and double the value associated with that key.
 map.iter_mut(|k, v| (k + 1, v * 2));
 ```
 
 #### iter_keys_mut
 
-```noir
+```rust
 fn iter_keys_mut<H>(self, f: fn(K) -> K)
     where K: Eq,
           K: Hash,
@@ -228,14 +228,14 @@ equal, which of the two values that will be present for the key in the resulting
 
 Example:
 
-```noir
+```rust
 // Double each key, leaving the value associated with that key untouched
 map.iter_keys_mut(|k| k * 2);
 ```
 
 #### iter_values_mut
 
-```noir
+```rust
 fn iter_values_mut(self, f: fn(V) -> V)
 ```
 
@@ -245,14 +245,14 @@ because the keys are untouched and the underlying hashmap thus does not need to 
 
 Example:
 
-```noir
+```rust
 // Halve each value
 map.iter_values_mut(|v| v / 2);
 ```
 
 #### retain
 
-```noir
+```rust
 fn retain(self, f: fn(K, V) -> bool)
 ```
 
@@ -261,13 +261,13 @@ Any key-value pairs for which the function returns false will be removed from th
 
 Example:
 
-```noir
+```rust
 map.retain(|k, v| (k != 0) & (v != 0));
 ```
 
 #### len
 
-```noir
+```rust
 fn len(self) -> u32
 ```
 
@@ -275,7 +275,7 @@ Returns the current length of this hash map.
 
 Example:
 
-```noir
+```rust
 // This is equivalent to checking map.is_empty()
 assert(map.len() == 0);
 
@@ -294,7 +294,7 @@ assert(map.len() == 2);
 
 #### capacity
 
-```noir
+```rust
 fn capacity(_self) -> u32
 ```
 
@@ -309,7 +309,7 @@ element count will be lower than the full capacity.
 
 Example:
 
-```noir
+```rust
 let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 assert(empty_map.len() == 0);
 assert(empty_map.capacity() == 42);
@@ -317,7 +317,7 @@ assert(empty_map.capacity() == 42);
 
 #### get
 
-```noir
+```rust
 fn get<H>(self, key: K) -> Option<V>
     where K: Eq,
           K: Hash,
@@ -329,7 +329,7 @@ Retrieves a value from the hashmap, returning `Option::none()` if it was not fou
 
 Example:
 
-```noir
+```rust
 fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
 let x = map.get(12);
 
@@ -341,7 +341,7 @@ assert(x.unwrap() == 42);
 
 #### insert
 
-```noir
+```rust
 fn insert<H>(self, key: K, value: V)
     where K: Eq,
           K: Hash,
@@ -354,7 +354,7 @@ previous value will be overridden with the newly provided one.
 
 Example:
 
-```noir
+```rust
 let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 map.insert(12, 42);
 assert(map.len() == 1);
@@ -362,7 +362,7 @@ assert(map.len() == 1);
 
 #### remove
 
-```noir
+```rust
 fn remove<H>(self, key: K)
     where K: Eq,
           K: Hash,
@@ -375,7 +375,7 @@ in the map, this does nothing.
 
 Example:
 
-```noir
+```rust
 let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 map.insert(12, 42);
 assert(!map.is_empty());

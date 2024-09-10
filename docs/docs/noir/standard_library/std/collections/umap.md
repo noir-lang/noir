@@ -8,27 +8,27 @@ title: umap
 
 #### with_hasher
 
-```noir
+```rust
 fn with_hasher<H>(_build_hasher: B) -> Self
     where B: BuildHasher<H>
 ```
 
 #### with_hasher_and_capacity
 
-```noir
+```rust
 fn with_hasher_and_capacity<H>(_build_hasher: B, capacity: u32) -> Self
     where B: BuildHasher<H>
 ```
 
 #### clear
 
-```noir
+```rust
 fn clear(self)
 ```
 
 #### contains_key
 
-```noir
+```rust
 fn contains_key<H>(self, key: K) -> bool
     where K: Hash,
           K: Eq,
@@ -38,31 +38,31 @@ fn contains_key<H>(self, key: K) -> bool
 
 #### is_empty
 
-```noir
+```rust
 fn is_empty(self) -> bool
 ```
 
 #### entries
 
-```noir
+```rust
 fn entries(self) -> [(K, V)]
 ```
 
 #### keys
 
-```noir
+```rust
 fn keys(self) -> [K]
 ```
 
 #### values
 
-```noir
+```rust
 fn values(self) -> [V]
 ```
 
 #### iter_mut
 
-```noir
+```rust
 fn iter_mut<H>(self, f: fn(K, V) -> (K, V))
     where K: Eq,
           K: Hash,
@@ -72,7 +72,7 @@ fn iter_mut<H>(self, f: fn(K, V) -> (K, V))
 
 #### iter_keys_mut
 
-```noir
+```rust
 fn iter_keys_mut<H>(self, f: fn(K) -> K)
     where K: Eq,
           K: Hash,
@@ -82,31 +82,31 @@ fn iter_keys_mut<H>(self, f: fn(K) -> K)
 
 #### iter_values_mut
 
-```noir
+```rust
 fn iter_values_mut(self, f: fn(V) -> V)
 ```
 
 #### retain
 
-```noir
+```rust
 fn retain(self, f: fn(K, V) -> bool)
 ```
 
 #### len
 
-```noir
+```rust
 fn len(self) -> u32
 ```
 
 #### capacity
 
-```noir
+```rust
 fn capacity(self) -> u32
 ```
 
 #### get
 
-```noir
+```rust
 fn get<H>(self, key: K) -> Option<V>
     where K: Eq,
           K: Hash,
@@ -116,7 +116,7 @@ fn get<H>(self, key: K) -> Option<V>
 
 #### insert
 
-```noir
+```rust
 fn insert<H>(self, key: K, value: V)
     where K: Eq,
           K: Hash,

@@ -228,14 +228,23 @@ impl DocGenerator {
         }
 
         for doc_comment in doc_comments {
-            self.string.push_str(doc_comment.trim());
+            let line = doc_comment.trim();
+
+            // The doc viewer doesn't know about Noir, but it knows about Rust
+            // so let's use that to get syntax highlighting.
+            if line == "```noir" {
+                self.string.push_str("```rust");
+            } else {
+                self.string.push_str(line);
+            }
+
             self.string.push('\n');
         }
         self.string.push('\n');
     }
 
     fn code(&mut self, code: impl Into<String>) {
-        self.string.push_str("```noir\n");
+        self.string.push_str("```rust\n");
         self.string.push_str(&code.into());
         self.string.push_str("\n```\n\n");
     }

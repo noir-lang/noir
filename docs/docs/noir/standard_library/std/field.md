@@ -8,7 +8,7 @@ title: field
 
 ### assert_max_bit_size
 
-```noir
+```rust
 fn assert_max_bit_size(self, bit_size: u32)
 ```
 
@@ -19,13 +19,13 @@ Causes a constraint failure for `Field` values exceeding `2^{bit_size}`.
 
 ### __assert_max_bit_size
 
-```noir
+```rust
 fn __assert_max_bit_size(self, bit_size: u32)
 ```
 
 ### to_le_bits
 
-```noir
+```rust
 fn to_le_bits<let N: u32>(self) -> [u1; N]
 ```
 
@@ -43,7 +43,7 @@ wrap around due to overflow when verifying the decomposition.
 
 ### to_be_bits
 
-```noir
+```rust
 fn to_be_bits<let N: u32>(self) -> [u1; N]
 ```
 
@@ -61,7 +61,7 @@ wrap around due to overflow when verifying the decomposition.
 
 ### to_le_bytes
 
-```noir
+```rust
 fn to_le_bytes<let N: u32>(self) -> [u8; N]
 ```
 
@@ -79,7 +79,7 @@ wrap around due to overflow when verifying the decomposition.
 
 ### to_be_bytes
 
-```noir
+```rust
 fn to_be_bytes<let N: u32>(self) -> [u8; N]
 ```
 
@@ -97,79 +97,79 @@ wrap around due to overflow when verifying the decomposition.
 
 ### to_le_radix
 
-```noir
+```rust
 fn to_le_radix<let N: u32>(self, radix: u32) -> [u8; N]
 ```
 
 ### to_be_radix
 
-```noir
+```rust
 fn to_be_radix<let N: u32>(self, radix: u32) -> [u8; N]
 ```
 
 ### __to_le_radix
 
-```noir
+```rust
 fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N]
 ```
 
 ### __to_be_radix
 
-```noir
+```rust
 fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N]
 ```
 
 ### pow_32
 
-```noir
+```rust
 fn pow_32(self, exponent: Field) -> Field
 ```
 
 ### sgn0
 
-```noir
+```rust
 fn sgn0(self) -> u1
 ```
 
 ### lt
 
-```noir
+```rust
 fn lt(self, another: Field) -> bool
 ```
 
 ## modulus_num_bits
 
-```noir
+```rust
 fn modulus_num_bits() -> u64
 ```
 
 ## modulus_be_bits
 
-```noir
+```rust
 fn modulus_be_bits() -> [u1]
 ```
 
 ## modulus_le_bits
 
-```noir
+```rust
 fn modulus_le_bits() -> [u1]
 ```
 
 ## modulus_be_bytes
 
-```noir
+```rust
 fn modulus_be_bytes() -> [u8]
 ```
 
 ## modulus_le_bytes
 
-```noir
+```rust
 fn modulus_le_bytes() -> [u8]
 ```
 
 ## bytes32_to_field
 
-```noir
+```rust
 fn bytes32_to_field(bytes32: [u8; 32]) -> Field
 ```
 

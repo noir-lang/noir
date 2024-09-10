@@ -8,13 +8,13 @@ title: trait_impl
 
 ### trait_generic_args
 
-```noir
+```rust
 fn trait_generic_args(self) -> [Type]
 ```
 
 ### methods
 
-```noir
+```rust
 fn methods(self) -> [FunctionDefinition]
 ```
 

@@ -8,31 +8,31 @@ title: op
 
 #### is_minus
 
-```noir
+```rust
 fn is_minus(self) -> bool
 ```
 
 #### is_not
 
-```noir
+```rust
 fn is_not(self) -> bool
 ```
 
 #### is_mutable_reference
 
-```noir
+```rust
 fn is_mutable_reference(self) -> bool
 ```
 
 #### is_dereference
 
-```noir
+```rust
 fn is_dereference(self) -> bool
 ```
 
 #### quoted
 
-```noir
+```rust
 fn quoted(self) -> Quoted
 ```
 
@@ -40,103 +40,103 @@ fn quoted(self) -> Quoted
 
 #### is_add
 
-```noir
+```rust
 fn is_add(self) -> bool
 ```
 
 #### is_subtract
 
-```noir
+```rust
 fn is_subtract(self) -> bool
 ```
 
 #### is_multiply
 
-```noir
+```rust
 fn is_multiply(self) -> bool
 ```
 
 #### is_divide
 
-```noir
+```rust
 fn is_divide(self) -> bool
 ```
 
 #### is_equal
 
-```noir
+```rust
 fn is_equal(self) -> bool
 ```
 
 #### is_not_equal
 
-```noir
+```rust
 fn is_not_equal(self) -> bool
 ```
 
 #### is_less_than
 
-```noir
+```rust
 fn is_less_than(self) -> bool
 ```
 
 #### is_less_than_or_equal
 
-```noir
+```rust
 fn is_less_than_or_equal(self) -> bool
 ```
 
 #### is_greater_than
 
-```noir
+```rust
 fn is_greater_than(self) -> bool
 ```
 
 #### is_greater_than_or_equal
 
-```noir
+```rust
 fn is_greater_than_or_equal(self) -> bool
 ```
 
 #### is_and
 
-```noir
+```rust
 fn is_and(self) -> bool
 ```
 
 #### is_or
 
-```noir
+```rust
 fn is_or(self) -> bool
 ```
 
 #### is_xor
 
-```noir
+```rust
 fn is_xor(self) -> bool
 ```
 
 #### is_shift_right
 
-```noir
+```rust
 fn is_shift_right(self) -> bool
 ```
 
 #### is_shift_left
 
-```noir
+```rust
 fn is_shift_left(self) -> bool
 ```
 
 #### is_modulo
 
-```noir
+```rust
 fn is_modulo(self) -> bool
 ```
 
 #### quoted
 
-```noir
+```rust
 fn quoted(self) -> Quoted
 ```
 

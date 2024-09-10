@@ -8,31 +8,31 @@ title: module
 
 ### add_item
 
-```noir
+```rust
 fn add_item(self, item: Quoted)
 ```
 
 ### has_named_attribute
 
-```noir
+```rust
 fn has_named_attribute(self, name: Quoted) -> bool
 ```
 
 ### is_contract
 
-```noir
+```rust
 fn is_contract(self) -> bool
 ```
 
 ### functions
 
-```noir
+```rust
 fn functions(self) -> [FunctionDefinition]
 ```
 
 ### name
 
-```noir
+```rust
 fn name(self) -> Quoted
 ```
 

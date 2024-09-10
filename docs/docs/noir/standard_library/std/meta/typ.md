@@ -8,73 +8,73 @@ title: typ
 
 ### as_array
 
-```noir
+```rust
 fn as_array(self) -> Option<(Type, Type)>
 ```
 
 ### as_constant
 
-```noir
+```rust
 fn as_constant(self) -> Option<u32>
 ```
 
 ### as_integer
 
-```noir
+```rust
 fn as_integer(self) -> Option<(bool, u8)>
 ```
 
 ### as_slice
 
-```noir
+```rust
 fn as_slice(self) -> Option<Type>
 ```
 
 ### as_str
 
-```noir
+```rust
 fn as_str(self) -> Option<Type>
 ```
 
 ### as_struct
 
-```noir
+```rust
 fn as_struct(self) -> Option<(StructDefinition, [Type])>
 ```
 
 ### as_tuple
 
-```noir
+```rust
 fn as_tuple(self) -> Option<[Type]>
 ```
 
 ### get_trait_impl
 
-```noir
+```rust
 fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl>
 ```
 
 ### implements
 
-```noir
+```rust
 fn implements(self, constraint: TraitConstraint) -> bool
 ```
 
 ### is_bool
 
-```noir
+```rust
 fn is_bool(self) -> bool
 ```
 
 ### is_field
 
-```noir
+```rust
 fn is_field(self) -> bool
 ```
 
 ## fresh_type_variable
 
-```noir
+```rust
 fn fresh_type_variable() -> Type
 ```
 

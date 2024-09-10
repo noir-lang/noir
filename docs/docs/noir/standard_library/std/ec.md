@@ -6,25 +6,25 @@ title: ec
 
 ## safe_inverse
 
-```noir
+```rust
 fn safe_inverse(x: Field) -> Field
 ```
 
 ## is_square
 
-```noir
+```rust
 fn is_square(x: Field) -> bool
 ```
 
 ## pow
 
-```noir
+```rust
 fn pow(x: Field, y: Field) -> Field
 ```
 
 ## sqrt
 
-```noir
+```rust
 fn sqrt(x: Field) -> Field
 ```
 

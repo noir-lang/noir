@@ -8,49 +8,49 @@ title: uint128
 
 #### from_u64s_le
 
-```noir
+```rust
 fn from_u64s_le(lo: u64, hi: u64) -> U128
 ```
 
 #### from_u64s_be
 
-```noir
+```rust
 fn from_u64s_be(hi: u64, lo: u64) -> U128
 ```
 
 #### zero
 
-```noir
+```rust
 fn zero() -> U128
 ```
 
 #### one
 
-```noir
+```rust
 fn one() -> U128
 ```
 
 #### from_le_bytes
 
-```noir
+```rust
 fn from_le_bytes(bytes: [u8; 16]) -> U128
 ```
 
 #### to_be_bytes
 
-```noir
+```rust
 fn to_be_bytes(self) -> [u8; 16]
 ```
 
 #### to_le_bytes
 
-```noir
+```rust
 fn to_le_bytes(self) -> [u8; 16]
 ```
 
 #### from_hex
 
-```noir
+```rust
 fn from_hex<let N: u32>(hex: str<N>) -> U128
 ```
 

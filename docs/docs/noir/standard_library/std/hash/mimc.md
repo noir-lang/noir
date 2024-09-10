@@ -8,7 +8,7 @@ title: mimc
 
 ## mimc_bn254
 
-```noir
+```rust
 fn mimc_bn254<let N: u32>(array: [Field; N]) -> Field
 ```
 

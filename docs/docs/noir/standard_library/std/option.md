@@ -8,7 +8,7 @@ title: option
 
 #### none
 
-```noir
+```rust
 fn none() -> Self
 ```
 
@@ -16,7 +16,7 @@ Constructs a None value
 
 #### some
 
-```noir
+```rust
 fn some(_value: T) -> Self
 ```
 
@@ -24,7 +24,7 @@ Constructs a Some wrapper around the given value
 
 #### is_none
 
-```noir
+```rust
 fn is_none(self) -> bool
 ```
 
@@ -32,7 +32,7 @@ True if this Option is None
 
 #### is_some
 
-```noir
+```rust
 fn is_some(self) -> bool
 ```
 
@@ -40,7 +40,7 @@ True if this Option is Some
 
 #### unwrap
 
-```noir
+```rust
 fn unwrap(self) -> T
 ```
 
@@ -48,7 +48,7 @@ Asserts `self.is_some()` and returns the wrapped value.
 
 #### unwrap_unchecked
 
-```noir
+```rust
 fn unwrap_unchecked(self) -> T
 ```
 
@@ -58,7 +58,7 @@ only that it will be of type `T`.
 
 #### unwrap_or
 
-```noir
+```rust
 fn unwrap_or(self, default: T) -> T
 ```
 
@@ -66,7 +66,7 @@ Returns the wrapped value if `self.is_some()`. Otherwise, returns the given defa
 
 #### unwrap_or_else
 
-```noir
+```rust
 fn unwrap_or_else<Env>(self, default: fn[Env]() -> T) -> T
 ```
 

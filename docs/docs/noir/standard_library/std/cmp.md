@@ -8,32 +8,32 @@ title: cmp
 
 #### less
 
-```noir
+```rust
 fn less() -> Ordering
 ```
 
 #### equal
 
-```noir
+```rust
 fn equal() -> Ordering
 ```
 
 #### greater
 
-```noir
+```rust
 fn greater() -> Ordering
 ```
 
 ## max
 
-```noir
+```rust
 fn max<T>(v1: T, v2: T) -> T
     where T: Ord
 ```
 
 ## min
 
-```noir
+```rust
 fn min<T>(v1: T, v2: T) -> T
     where T: Ord
 ```

@@ -8,19 +8,19 @@ title: struct_def
 
 ### add_attribute
 
-```noir
+```rust
 fn add_attribute<let N: u32>(self, attribute: str<N>)
 ```
 
 ### add_generic
 
-```noir
+```rust
 fn add_generic<let N: u32>(self, generic_name: str<N>) -> Type
 ```
 
 ### as_type
 
-```noir
+```rust
 fn as_type(self) -> Type
 ```
 
@@ -29,13 +29,13 @@ For example, `as_type(quote { type Foo<A, B> { ... } })` would return `Foo<A, B>
 
 ### has_named_attribute
 
-```noir
+```rust
 fn has_named_attribute(self, name: Quoted) -> bool
 ```
 
 ### generics
 
-```noir
+```rust
 fn generics(self) -> [Type]
 ```
 
@@ -43,7 +43,7 @@ Return each generic on this struct.
 
 ### fields
 
-```noir
+```rust
 fn fields(self) -> [(Quoted, Type)]
 ```
 
@@ -52,19 +52,19 @@ with any generic arguments unchanged.
 
 ### module
 
-```noir
+```rust
 fn module(self) -> Module
 ```
 
 ### name
 
-```noir
+```rust
 fn name(self) -> Quoted
 ```
 
 ### set_fields
 
-```noir
+```rust
 fn set_fields(self, new_fields: [(Quoted, Type)])
 ```
 

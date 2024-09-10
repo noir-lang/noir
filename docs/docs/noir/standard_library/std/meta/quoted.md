@@ -8,31 +8,31 @@ title: quoted
 
 ### as_expr
 
-```noir
+```rust
 fn as_expr(self) -> Option<Expr>
 ```
 
 ### as_module
 
-```noir
+```rust
 fn as_module(self) -> Option<Module>
 ```
 
 ### as_trait_constraint
 
-```noir
+```rust
 fn as_trait_constraint(self) -> TraitConstraint
 ```
 
 ### as_type
 
-```noir
+```rust
 fn as_type(self) -> Type
 ```
 
 ### tokens
 
-```noir
+```rust
 fn tokens(self) -> [Quoted]
 ```
 

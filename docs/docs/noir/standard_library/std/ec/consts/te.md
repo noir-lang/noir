@@ -8,7 +8,7 @@ title: te
 
 ## baby_jubjub
 
-```noir
+```rust
 fn baby_jubjub() -> BabyJubjub
 ```
 

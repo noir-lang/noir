@@ -8,79 +8,79 @@ title: function_def
 
 ### add_attribute
 
-```noir
+```rust
 fn add_attribute<let N: u32>(self, attribute: str<N>)
 ```
 
 ### body
 
-```noir
+```rust
 fn body(self) -> Expr
 ```
 
 ### has_named_attribute
 
-```noir
+```rust
 fn has_named_attribute(self, name: Quoted) -> bool
 ```
 
 ### is_unconstrained
 
-```noir
+```rust
 fn is_unconstrained(self) -> bool
 ```
 
 ### module
 
-```noir
+```rust
 fn module(self) -> Module
 ```
 
 ### name
 
-```noir
+```rust
 fn name(self) -> Quoted
 ```
 
 ### parameters
 
-```noir
+```rust
 fn parameters(self) -> [(Quoted, Type)]
 ```
 
 ### return_type
 
-```noir
+```rust
 fn return_type(self) -> Type
 ```
 
 ### set_body
 
-```noir
+```rust
 fn set_body(self, body: Expr)
 ```
 
 ### set_parameters
 
-```noir
+```rust
 fn set_parameters(self, parameters: [(Quoted, Type)])
 ```
 
 ### set_return_type
 
-```noir
+```rust
 fn set_return_type(self, return_type: Type)
 ```
 
 ### set_return_public
 
-```noir
+```rust
 fn set_return_public(self, public: bool)
 ```
 
 ### set_unconstrained
 
-```noir
+```rust
 fn set_unconstrained(self, value: bool)
 ```
 

@@ -8,7 +8,7 @@ title: string
 
 ### as_bytes
 
-```noir
+```rust
 fn as_bytes(self) -> [u8; N]
 ```
 
@@ -16,7 +16,7 @@ Converts the given string into a byte array
 
 ### as_bytes_vec
 
-```noir
+```rust
 fn as_bytes_vec(self) -> Vec<u8>
 ```
 

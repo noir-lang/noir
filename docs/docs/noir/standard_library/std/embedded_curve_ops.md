@@ -14,13 +14,13 @@ x and y denotes the Weierstrass coordinates of the point, if is_infinite is fals
 
 ##### multi_scalar_mul
 
-```noir
+```rust
 fn multi_scalar_mul<let N: u32>(points: [EmbeddedCurvePoint; N], scalars: [EmbeddedCurveScalar; N]) -> EmbeddedCurvePoint
 ```
 
 ##### fixed_base_scalar_mul
 
-```noir
+```rust
 fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 ```
 

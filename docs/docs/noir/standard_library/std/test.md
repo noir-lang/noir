@@ -8,37 +8,37 @@ title: test
 
 #### mock
 
-```noir
+```rust
 fn mock<let N: u32>(name: str<N>) -> Self
 ```
 
 #### with_params
 
-```noir
+```rust
 fn with_params<P>(self, params: P) -> Self
 ```
 
 #### get_last_params
 
-```noir
+```rust
 fn get_last_params<P>(self) -> P
 ```
 
 #### returns
 
-```noir
+```rust
 fn returns<R>(self, returns: R) -> Self
 ```
 
 #### times
 
-```noir
+```rust
 fn times(self, times: u64) -> Self
 ```
 
 #### clear
 
-```noir
+```rust
 fn clear(self)
 ```
 

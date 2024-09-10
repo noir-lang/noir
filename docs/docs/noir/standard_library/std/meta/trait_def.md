@@ -8,7 +8,7 @@ title: trait_def
 
 ### as_trait_constraint
 
-```noir
+```rust
 fn as_trait_constraint(_self) -> TraitConstraint
 ```
 

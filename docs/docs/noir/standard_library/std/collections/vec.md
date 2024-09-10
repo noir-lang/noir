@@ -8,19 +8,19 @@ title: vec
 
 #### new
 
-```noir
+```rust
 fn new() -> Self
 ```
 
 #### from_slice
 
-```noir
+```rust
 fn from_slice(slice: [T]) -> Self
 ```
 
 #### get
 
-```noir
+```rust
 fn get(self, index: u32) -> T
 ```
 
@@ -30,7 +30,7 @@ points beyond the end of the vector.
 
 #### set
 
-```noir
+```rust
 fn set(self, index: u32, value: T)
 ```
 
@@ -39,7 +39,7 @@ Panics if the given index points beyond the end of the vector (`self.len()`).
 
 #### push
 
-```noir
+```rust
 fn push(self, elem: T)
 ```
 
@@ -49,7 +49,7 @@ original unmodified vector.
 
 #### pop
 
-```noir
+```rust
 fn pop(self) -> T
 ```
 
@@ -60,7 +60,7 @@ Panics if the given vector's length is zero.
 
 #### insert
 
-```noir
+```rust
 fn insert(self, index: u32, elem: T)
 ```
 
@@ -69,7 +69,7 @@ after it to the right
 
 #### remove
 
-```noir
+```rust
 fn remove(self, index: u32) -> T
 ```
 
@@ -78,7 +78,7 @@ after it to the left, returning the removed element
 
 #### len
 
-```noir
+```rust
 fn len(self) -> u32
 ```
 

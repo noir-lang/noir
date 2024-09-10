@@ -6,7 +6,7 @@ title: panic
 
 ## panic
 
-```noir
+```rust
 fn panic<T, U, let N: u32>(message: fmt<N, T) -> U
 ```
 

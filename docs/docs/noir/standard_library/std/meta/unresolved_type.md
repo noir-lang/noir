@@ -8,7 +8,7 @@ title: unresolved_type
 
 ### is_field
 
-```noir
+```rust
 fn is_field(self) -> bool
 ```
 

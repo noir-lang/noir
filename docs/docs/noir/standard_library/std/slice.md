@@ -8,7 +8,7 @@ title: slice
 
 ### len
 
-```noir
+```rust
 fn len(self) -> u32
 ```
 
@@ -16,7 +16,7 @@ Returns the length of the slice.
 
 ### push_back
 
-```noir
+```rust
 fn push_back(self, elem: T) -> Self
 ```
 
@@ -26,7 +26,7 @@ original unmodified slice.
 
 ### push_front
 
-```noir
+```rust
 fn push_front(self, elem: T) -> Self
 ```
 
@@ -36,7 +36,7 @@ original unmodified slice.
 
 ### pop_back
 
-```noir
+```rust
 fn pop_back(self) -> (Self, T)
 ```
 
@@ -45,7 +45,7 @@ popped slice and the element in a tuple
 
 ### pop_front
 
-```noir
+```rust
 fn pop_front(self) -> (T, Self)
 ```
 
@@ -54,7 +54,7 @@ element and the popped slice in a tuple
 
 ### insert
 
-```noir
+```rust
 fn insert(self, index: u32, elem: T) -> Self
 ```
 
@@ -63,7 +63,7 @@ after it to the right
 
 ### remove
 
-```noir
+```rust
 fn remove(self, index: u32) -> (Self, T)
 ```
 
@@ -73,7 +73,7 @@ the removed element
 
 ### append
 
-```noir
+```rust
 fn append(mut self, other: Self) -> Self
 ```
 
@@ -82,50 +82,50 @@ This returns a new slice and leaves both input slices unchanged.
 
 ### as_array
 
-```noir
+```rust
 fn as_array<let N: u32>(self) -> [T; N]
 ```
 
 ### map
 
-```noir
+```rust
 fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U]
 ```
 
 ### fold
 
-```noir
+```rust
 fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U
 ```
 
 ### reduce
 
-```noir
+```rust
 fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T
 ```
 
 ### filter
 
-```noir
+```rust
 fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self
 ```
 
 ### join
 
-```noir
+```rust
 fn join(self, separator: T) -> T
     where T: Append
 ```
 
 ### all
 
-```noir
+```rust
 fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 
 ### any
 
-```noir
+```rust
 fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 

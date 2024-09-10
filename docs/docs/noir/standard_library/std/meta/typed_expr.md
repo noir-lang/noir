@@ -8,7 +8,7 @@ title: typed_expr
 
 ### as_function_definition
 
-```noir
+```rust
 fn as_function_definition(self) -> Option<FunctionDefinition>
 ```
 

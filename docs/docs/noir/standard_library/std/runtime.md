@@ -6,7 +6,7 @@ title: runtime
 
 ## is_unconstrained
 
-```noir
+```rust
 fn is_unconstrained() -> bool
 ```
 

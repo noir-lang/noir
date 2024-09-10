@@ -6,7 +6,7 @@ title: mem
 
 ## zeroed
 
-```noir
+```rust
 fn zeroed<T>() -> T
 ```
 

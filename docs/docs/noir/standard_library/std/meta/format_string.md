@@ -8,7 +8,7 @@ title: format_string
 
 ### quoted_contents
 
-```noir
+```rust
 fn quoted_contents(self) -> Quoted
 ```
 

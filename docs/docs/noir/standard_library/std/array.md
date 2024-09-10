@@ -8,7 +8,7 @@ title: array
 
 ### len
 
-```noir
+```rust
 fn len(self) -> u32
 ```
 
@@ -16,20 +16,20 @@ Returns the length of the slice.
 
 ### sort
 
-```noir
+```rust
 fn sort(self) -> Self
     where T: Ord
 ```
 
 ### sort_via
 
-```noir
+```rust
 fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self
 ```
 
 ### get_sorting_index
 
-```noir
+```rust
 fn get_sorting_index<Env>(self, ordering: fn[Env](T, T) -> bool) -> [u32; N]
 ```
 
@@ -37,37 +37,37 @@ Returns the index of the elements in the array that would sort it, using the pro
 
 ### as_slice
 
-```noir
+```rust
 fn as_slice(self) -> [T]
 ```
 
 ### map
 
-```noir
+```rust
 fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U; N]
 ```
 
 ### fold
 
-```noir
+```rust
 fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U
 ```
 
 ### reduce
 
-```noir
+```rust
 fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T
 ```
 
 ### all
 
-```noir
+```rust
 fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 
 ### any
 
-```noir
+```rust
 fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 
@@ -75,7 +75,7 @@ fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 
 ### as_str_unchecked
 
-```noir
+```rust
 fn as_str_unchecked(self) -> str<N>
 ```
 

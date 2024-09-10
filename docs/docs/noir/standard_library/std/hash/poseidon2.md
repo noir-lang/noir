@@ -8,7 +8,7 @@ title: poseidon2
 
 #### hash
 
-```noir
+```rust
 fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field
 ```
 

@@ -6,7 +6,7 @@ title: compat
 
 ## is_bn254
 
-```noir
+```rust
 fn is_bn254() -> bool
 ```
 

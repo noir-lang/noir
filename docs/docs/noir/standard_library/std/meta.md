@@ -6,7 +6,7 @@ title: meta
 
 ## unquote
 
-```noir
+```rust
 fn unquote(code: Quoted) -> Quoted
 ```
 
@@ -16,7 +16,7 @@ itself does not need to do anything besides return its argument.
 
 ## type_of
 
-```noir
+```rust
 fn type_of<T>(x: T) -> Type
 ```
 
@@ -24,19 +24,19 @@ Returns the type of any value
 
 ## derive
 
-```noir
+```rust
 fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
 ```
 
 ## derive_via
 
-```noir
+```rust
 fn derive_via(t: TraitDefinition, f: DeriveFunction)
 ```
 
 ## make_trait_impl
 
-```noir
+```rust
 fn make_trait_impl<Env1, Env2>(s: StructDefinition, trait_name: Quoted, function_signature: Quoted, for_each_field: fn[Env1](Quoted) -> Quoted, join_fields_with: Quoted, body: fn[Env2](Quoted) -> Quoted) -> Quoted
 ```
 
