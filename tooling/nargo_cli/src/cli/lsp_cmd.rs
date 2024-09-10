@@ -35,8 +35,6 @@ pub(crate) fn run(_args: LspCommand, _config: NargoConfig) -> Result<(), CliErro
                 .service(router)
         });
 
-        eprintln!("LSP starting...");
-
         // Prefer truly asynchronous piped stdin/stdout without blocking tasks.
         #[cfg(unix)]
         let (stdin, stdout) = (

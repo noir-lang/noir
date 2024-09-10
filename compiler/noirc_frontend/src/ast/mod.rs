@@ -4,6 +4,7 @@
 //!
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
 //! where it is converted into the Hir (defined in the hir_def module).
+mod docs;
 mod expression;
 mod function;
 mod statement;
@@ -12,11 +13,13 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
 
 pub use expression::*;
 pub use function::*;
 
+pub use docs::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;

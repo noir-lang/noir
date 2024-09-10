@@ -1,4 +1,4 @@
-use noirc_frontend::ast::{ItemVisibility, NoirFunction, NoirTraitImpl, TraitImplItem};
+use noirc_frontend::ast::{Documented, ItemVisibility, NoirFunction, NoirTraitImpl, TraitImplItem};
 use noirc_frontend::macros_api::{NodeInterner, StructId};
 use noirc_frontend::token::SecondaryAttribute;
 use noirc_frontend::{
@@ -34,10 +34,11 @@ pub fn generate_event_impls(
     //     print!("\ngenerate_event_interface_impl COUNT: {}\n", event_struct.name.0.contents);
     // }
 
-    for submodule in module.submodules.iter_mut() {
-        let annotated_event_structs = submodule.contents.types.iter_mut().filter(|typ| {
-            typ.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)"))
-        });
+    for submodule in module.submodules.iter_mut().map(|m| &mut m.item) {
+        let annotated_event_structs =
+            submodule.contents.types.iter_mut().map(|typ| &mut typ.item).filter(|typ| {
+                typ.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)"))
+            });
 
         for event_struct in annotated_event_structs {
             // event_struct.attributes.push(SecondaryAttribute::Abi("events".to_string()));
@@ -52,7 +53,9 @@ pub fn generate_event_impls(
 
             let mut event_fields = vec![];
 
-            for (field_ident, field_type) in event_struct.fields.iter() {
+            for field in event_struct.fields.iter() {
+                let field_ident = &field.item.name;
+                let field_type = &field.item.typ;
                 event_fields.push((
                     field_ident.0.contents.to_string(),
                     field_type.typ.to_string().replace("plain::", ""),
@@ -64,18 +67,30 @@ pub fn generate_event_impls(
                 event_byte_len,
                 empty_spans,
             )?;
-            event_interface_trait_impl.items.push(TraitImplItem::Function(
-                generate_fn_get_event_type_id(event_type.as_str(), event_len, empty_spans)?,
+            event_interface_trait_impl.items.push(Documented::not_documented(
+                TraitImplItem::Function(generate_fn_get_event_type_id(
+                    event_type.as_str(),
+                    event_len,
+                    empty_spans,
+                )?),
             ));
-            event_interface_trait_impl.items.push(TraitImplItem::Function(
-                generate_fn_private_to_be_bytes(event_type.as_str(), event_byte_len, empty_spans)?,
+            event_interface_trait_impl.items.push(Documented::not_documented(
+                TraitImplItem::Function(generate_fn_private_to_be_bytes(
+                    event_type.as_str(),
+                    event_byte_len,
+                    empty_spans,
+                )?),
             ));
-            event_interface_trait_impl.items.push(TraitImplItem::Function(
-                generate_fn_to_be_bytes(event_type.as_str(), event_byte_len, empty_spans)?,
+            event_interface_trait_impl.items.push(Documented::not_documented(
+                TraitImplItem::Function(generate_fn_to_be_bytes(
+                    event_type.as_str(),
+                    event_byte_len,
+                    empty_spans,
+                )?),
             ));
-            event_interface_trait_impl
-                .items
-                .push(TraitImplItem::Function(generate_fn_emit(event_type.as_str(), empty_spans)?));
+            event_interface_trait_impl.items.push(Documented::not_documented(
+                TraitImplItem::Function(generate_fn_emit(event_type.as_str(), empty_spans)?),
+            ));
             submodule.contents.trait_impls.push(event_interface_trait_impl);
 
             let serialize_trait_impl = generate_trait_impl_serialize(
@@ -230,7 +245,7 @@ fn generate_fn_get_event_type_id(
     let function_source = format!(
         "
         fn get_event_type_id() -> dep::aztec::protocol_types::abis::event_selector::EventSelector {{
-           dep::aztec::protocol_types::abis::event_selector::EventSelector::from_signature(\"{event_type}({from_signature_input})\")
+           comptime {{ dep::aztec::protocol_types::abis::event_selector::EventSelector::from_signature(\"{event_type}({from_signature_input})\") }}
     }}
     ",
     )
@@ -245,7 +260,7 @@ fn generate_fn_get_event_type_id(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -260,8 +275,8 @@ fn generate_fn_private_to_be_bytes(
          fn private_to_be_bytes(self: {event_type}, randomness: Field) -> [u8; {byte_length}] {{
              let mut buffer: [u8; {byte_length}] = [0; {byte_length}];
 
-             let randomness_bytes = randomness.to_be_bytes(32);
-             let event_type_id_bytes = {event_type}::get_event_type_id().to_field().to_be_bytes(32);
+             let randomness_bytes: [u8; 32] = randomness.to_be_bytes();
+             let event_type_id_bytes: [u8; 32] = {event_type}::get_event_type_id().to_field().to_be_bytes();
 
              for i in 0..32 {{
                  buffer[i] = randomness_bytes[i];
@@ -271,7 +286,7 @@ fn generate_fn_private_to_be_bytes(
              let serialized_event = self.serialize();
 
              for i in 0..serialized_event.len() {{
-                 let bytes = serialized_event[i].to_be_bytes(32);
+                 let bytes: [u8; 32] = serialized_event[i].to_be_bytes();
                  for j in 0..32 {{
                      buffer[64 + i * 32 + j] = bytes[j];
                 }}
@@ -292,7 +307,7 @@ fn generate_fn_private_to_be_bytes(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -308,7 +323,7 @@ fn generate_fn_to_be_bytes(
          fn to_be_bytes(self: {event_type}) -> [u8; {byte_length_without_randomness}] {{
              let mut buffer: [u8; {byte_length_without_randomness}] = [0; {byte_length_without_randomness}];
 
-             let event_type_id_bytes = {event_type}::get_event_type_id().to_field().to_be_bytes(32);
+             let event_type_id_bytes: [u8; 32] = {event_type}::get_event_type_id().to_field().to_be_bytes();
 
              for i in 0..32 {{
                  buffer[i] = event_type_id_bytes[i];
@@ -317,7 +332,7 @@ fn generate_fn_to_be_bytes(
              let serialized_event = self.serialize();
 
              for i in 0..serialized_event.len() {{
-                 let bytes = serialized_event[i].to_be_bytes(32);
+                 let bytes: [u8; 32] = serialized_event[i].to_be_bytes();
                  for j in 0..32 {{
                      buffer[32 + i * 32 + j] = bytes[j];
                 }}
@@ -337,7 +352,7 @@ fn generate_fn_to_be_bytes(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -361,7 +376,7 @@ fn generate_fn_emit(event_type: &str, empty_spans: bool) -> Result<NoirFunction,
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }

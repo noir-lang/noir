@@ -29,6 +29,7 @@ use std::sync::Arc;
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
 use super::brillig_fn::FunctionContext;
+use super::constant_allocation::InstructionLocation;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligBlock<'block> {
@@ -117,6 +118,13 @@ impl<'block> BrilligBlock<'block> {
         terminator_instruction: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) {
+        self.initialize_constants(
+            &self
+                .function_context
+                .constant_allocation
+                .allocated_at_location(self.block_id, InstructionLocation::Terminator),
+            dfg,
+        );
         match terminator_instruction {
             TerminatorInstruction::JmpIf {
                 condition,
@@ -244,6 +252,13 @@ impl<'block> BrilligBlock<'block> {
         let instruction = &dfg[instruction_id];
         self.brillig_context.set_call_stack(dfg.get_call_stack(instruction_id));
 
+        self.initialize_constants(
+            &self.function_context.constant_allocation.allocated_at_location(
+                self.block_id,
+                InstructionLocation::Instruction(instruction_id),
+            ),
+            dfg,
+        );
         match instruction {
             Instruction::Binary(binary) => {
                 let result_var = self.variables.define_single_addr_variable(
@@ -255,16 +270,40 @@ impl<'block> BrilligBlock<'block> {
                 self.convert_ssa_binary(binary, dfg, result_var);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                let condition = SingleAddrVariable {
-                    address: self.brillig_context.allocate_register(),
-                    bit_size: 1,
+                let (condition, deallocate) = match (
+                    dfg.get_numeric_constant_with_type(*lhs),
+                    dfg.get_numeric_constant_with_type(*rhs),
+                ) {
+                    // If the constraint is of the form `x == u1 1` then we can simply constrain `x` directly
+                    (
+                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
+                        None,
+                    ) if constant == FieldElement::one() => {
+                        (self.convert_ssa_single_addr_value(*rhs, dfg), false)
+                    }
+                    (
+                        None,
+                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
+                    ) if constant == FieldElement::one() => {
+                        (self.convert_ssa_single_addr_value(*lhs, dfg), false)
+                    }
+
+                    // Otherwise we need to perform the equality explicitly.
+                    _ => {
+                        let condition = SingleAddrVariable {
+                            address: self.brillig_context.allocate_register(),
+                            bit_size: 1,
+                        };
+                        self.convert_ssa_binary(
+                            &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
+                            dfg,
+                            condition,
+                        );
+
+                        (condition, true)
+                    }
                 };
 
-                self.convert_ssa_binary(
-                    &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
-                    dfg,
-                    condition,
-                );
                 match assert_message {
                     Some(ConstrainError::Dynamic(selector, values)) => {
                         let payload_values =
@@ -287,7 +326,9 @@ impl<'block> BrilligBlock<'block> {
                         self.brillig_context.codegen_constrain(condition, None);
                     }
                 }
-                self.brillig_context.deallocate_single_addr(condition);
+                if deallocate {
+                    self.brillig_context.deallocate_single_addr(condition);
+                }
             }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
@@ -607,7 +648,11 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
-                self.validate_array_index(array_variable, index_variable);
+
+                if !dfg.is_safe_index(*index, *array) {
+                    self.validate_array_index(array_variable, index_variable);
+                }
+
                 self.retrieve_variable_from_array(
                     array_pointer,
                     index_variable,
@@ -626,7 +671,11 @@ impl<'block> BrilligBlock<'block> {
                     result_ids[0],
                     dfg,
                 );
-                self.validate_array_index(source_variable, index_register);
+
+                if !dfg.is_safe_index(*index, *array) {
+                    self.validate_array_index(source_variable, index_register);
+                }
+
                 self.convert_ssa_array_set(
                     source_variable,
                     destination_variable,
@@ -734,9 +783,6 @@ impl<'block> BrilligBlock<'block> {
             .brillig_context
             .codegen_pre_call_save_registers_prep_args(&argument_registers, &variables_to_save);
 
-        // We don't save and restore constants, so we dump them before a external call since the callee might use the registers where they are allocated.
-        self.variables.dump_constants();
-
         // Call instruction, which will interpret above registers 0..num args
         self.brillig_context.add_external_call_instruction(func_id);
 
@@ -767,6 +813,12 @@ impl<'block> BrilligBlock<'block> {
         // puts the returns into the returned_registers and restores saved_registers
         self.brillig_context
             .codegen_post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
+
+        // Reset the register state to the one needed to hold the current available variables
+        let variables = self.variables.get_available_variables(self.function_context);
+        let registers =
+            variables.into_iter().flat_map(|variable| variable.extract_registers()).collect();
+        self.brillig_context.set_allocated_registers(registers);
     }
 
     fn validate_array_index(
@@ -1472,6 +1524,12 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
+    fn initialize_constants(&mut self, constants: &[ValueId], dfg: &DataFlowGraph) {
+        for &constant_id in constants {
+            self.convert_ssa_value(constant_id, dfg);
+        }
+    }
+
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
@@ -1487,11 +1545,15 @@ impl<'block> BrilligBlock<'block> {
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
-                if let Some(variable) = self.variables.get_constant(value_id, dfg) {
-                    variable
+                if self.variables.is_allocated(&value_id) {
+                    self.variables.get_allocation(self.function_context, value_id, dfg)
                 } else {
-                    let new_variable =
-                        self.variables.allocate_constant(self.brillig_context, value_id, dfg);
+                    let new_variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        value_id,
+                        dfg,
+                    );
 
                     self.brillig_context
                         .const_instruction(new_variable.extract_single_addr(), *constant);
@@ -1499,11 +1561,15 @@ impl<'block> BrilligBlock<'block> {
                 }
             }
             Value::Array { array, typ } => {
-                if let Some(variable) = self.variables.get_constant(value_id, dfg) {
-                    variable
+                if self.variables.is_allocated(&value_id) {
+                    self.variables.get_allocation(self.function_context, value_id, dfg)
                 } else {
-                    let new_variable =
-                        self.variables.allocate_constant(self.brillig_context, value_id, dfg);
+                    let new_variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        value_id,
+                        dfg,
+                    );
 
                     // Initialize the variable
                     let pointer = match new_variable {
@@ -1543,8 +1609,12 @@ impl<'block> BrilligBlock<'block> {
                 // around values representing function pointers, even though
                 // there is no interaction with the function possible given that
                 // value.
-                let new_variable =
-                    self.variables.allocate_constant(self.brillig_context, value_id, dfg);
+                let new_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    value_id,
+                    dfg,
+                );
 
                 self.brillig_context.const_instruction(
                     new_variable.extract_single_addr(),
@@ -1692,18 +1762,10 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.mov_instruction(write_pointer_register, pointer);
 
         for (element_idx, element_id) in data.iter().enumerate() {
-            if let Some((constant, typ)) = dfg.get_numeric_constant_with_type(*element_id) {
-                self.brillig_context.indirect_const_instruction(
-                    write_pointer_register,
-                    typ.bit_size(),
-                    constant,
-                );
-            } else {
-                let element_variable = self.convert_ssa_value(*element_id, dfg);
-                // Store the item in memory
-                self.brillig_context
-                    .codegen_store_variable_in_pointer(write_pointer_register, element_variable);
-            }
+            let element_variable = self.convert_ssa_value(*element_id, dfg);
+            // Store the item in memory
+            self.brillig_context
+                .codegen_store_variable_in_pointer(write_pointer_register, element_variable);
 
             if element_idx != data.len() - 1 {
                 // Increment the write_pointer_register
@@ -1751,7 +1813,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.allocate_nested_array(typ, Some(array));
+                self.allocate_foreign_call_result_array(typ, array);
 
                 variable
             }
@@ -1778,40 +1840,39 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    fn allocate_nested_array(
-        &mut self,
-        typ: &Type,
-        array: Option<BrilligArray>,
-    ) -> BrilligVariable {
-        match typ {
-            Type::Array(types, size) => {
-                let array = array.unwrap_or(BrilligArray {
-                    pointer: self.brillig_context.allocate_register(),
-                    size: *size,
-                    rc: self.brillig_context.allocate_register(),
-                });
-                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
-                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+    fn allocate_foreign_call_result_array(&mut self, typ: &Type, array: BrilligArray) {
+        let Type::Array(types, size) = typ else {
+            unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
+        };
 
-                let mut index = 0_usize;
-                for _ in 0..*size {
-                    for element_type in types.iter() {
-                        match element_type {
-                            Type::Array(_, _) => {
-                                let inner_array = self.allocate_nested_array(element_type, None);
-                                let idx =
-                                    self.brillig_context.make_usize_constant_instruction(index.into());
-                                self.brillig_context.codegen_store_variable_in_array(array.pointer, idx, inner_array);
-                            }
-                            Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
-                            _ => (),
-                        }
-                        index += 1;
+        self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
+        self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+
+        let mut index = 0_usize;
+        for _ in 0..*size {
+            for element_type in types.iter() {
+                match element_type {
+                    Type::Array(_, nested_size) => {
+                        let inner_array = BrilligArray {
+                            pointer: self.brillig_context.allocate_register(),
+                            rc: self.brillig_context.allocate_register(),
+                            size: *nested_size,
+                        };
+                        self.allocate_foreign_call_result_array(element_type, inner_array);
+
+                        let idx =
+                            self.brillig_context.make_usize_constant_instruction(index.into());
+                        self.brillig_context.codegen_store_variable_in_array(array.pointer, idx, BrilligVariable::BrilligArray(inner_array));
+
+                        self.brillig_context.deallocate_single_addr(idx);
+                        self.brillig_context.deallocate_register(inner_array.pointer);
+                        self.brillig_context.deallocate_register(inner_array.rc);
                     }
+                    Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                    _ => (),
                 }
-                BrilligVariable::BrilligArray(array)
+                index += 1;
             }
-            _ => unreachable!("ICE: allocate_nested_array() expects an array, got {typ:?}"),
         }
     }
 

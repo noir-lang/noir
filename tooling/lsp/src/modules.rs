@@ -47,10 +47,11 @@ pub(crate) fn module_full_path(
     current_module_id: ModuleId,
     current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Option<String> {
     let full_path;
     if let ModuleDefId::ModuleId(module_id) = module_def_id {
-        if !is_visible(visibility, current_module_id, module_id) {
+        if !is_visible(module_id, current_module_id, visibility, def_maps) {
             return None;
         }
 
@@ -61,7 +62,7 @@ pub(crate) fn module_full_path(
             return None;
         };
 
-        if !is_visible(visibility, current_module_id, parent_module) {
+        if !is_visible(parent_module, current_module_id, visibility, def_maps) {
             return None;
         }
 
@@ -121,7 +122,7 @@ pub(crate) fn module_id_path(
     if !is_relative {
         // We don't record module attributes for the root module,
         // so we handle that case separately
-        if let CrateId::Root(_) = target_module_id.krate {
+        if target_module_id.krate.is_root() {
             segments.push("crate");
         }
     }

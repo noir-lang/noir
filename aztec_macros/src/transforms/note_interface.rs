@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 use noirc_frontend::ast::{
-    ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, TraitImplItem, TypeImpl,
-    UnresolvedTypeData, UnresolvedTypeExpression,
+    Documented, ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, StructField,
+    TraitImplItem, TypeImpl, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use noirc_frontend::{
     graph::CrateId,
@@ -35,10 +35,10 @@ pub fn generate_note_interface_impl(
     empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     // Find structs annotated with #[aztec(note)]
-    let annotated_note_structs = module
-        .types
-        .iter_mut()
-        .filter(|typ| typ.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(note)")));
+    let annotated_note_structs =
+        module.types.iter_mut().map(|t| &mut t.item).filter(|typ| {
+            typ.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(note)"))
+        });
 
     let mut structs_to_inject = vec![];
 
@@ -110,26 +110,28 @@ pub fn generate_note_interface_impl(
             );
 
         // Automatically inject the header field if it's not present
-        let (header_field_name, _) = if let Some(existing_header) =
-            note_struct.fields.iter().find(|(_, field_type)| match &field_type.typ {
+        let header_field_name = if let Some(existing_header) =
+            note_struct.fields.iter().find(|field| match &field.item.typ.typ {
                 UnresolvedTypeData::Named(path, _, _) => path.last_name() == "NoteHeader",
                 _ => false,
             }) {
-            existing_header.clone()
+            existing_header.clone().item.name
         } else {
-            let generated_header = (
-                ident("header"),
-                make_type(UnresolvedTypeData::Named(
+            let generated_header = StructField {
+                name: ident("header"),
+                typ: make_type(UnresolvedTypeData::Named(
                     chained_dep!("aztec", "note", "note_header", "NoteHeader"),
                     Default::default(),
                     false,
                 )),
-            );
-            note_struct.fields.push(generated_header.clone());
-            generated_header
+            };
+            note_struct.fields.push(Documented::not_documented(generated_header.clone()));
+            generated_header.name
         };
 
-        for (field_ident, field_type) in note_struct.fields.iter() {
+        for field in note_struct.fields.iter() {
+            let field_ident = &field.item.name;
+            let field_type = &field.item.typ;
             note_fields.push((
                 field_ident.0.contents.to_string(),
                 field_type.typ.to_string().replace("plain::", ""),
@@ -138,7 +140,10 @@ pub fn generate_note_interface_impl(
 
         if !check_trait_method_implemented(trait_impl, "serialize_content")
             && !check_trait_method_implemented(trait_impl, "deserialize_content")
-            && !note_impl.methods.iter().any(|(func, _)| func.def.name.0.contents == "properties")
+            && !note_impl
+                .methods
+                .iter()
+                .any(|(func, _)| func.item.def.name.0.contents == "properties")
         {
             let note_serialize_content_fn = generate_note_serialize_content(
                 &note_type,
@@ -148,7 +153,9 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(note_serialize_content_fn));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem::Function(
+                note_serialize_content_fn,
+            )));
 
             let note_deserialize_content_fn = generate_note_deserialize_content(
                 &note_type,
@@ -158,7 +165,9 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(note_deserialize_content_fn));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem::Function(
+                note_deserialize_content_fn,
+            )));
 
             let note_properties_struct = generate_note_properties_struct(
                 &note_type,
@@ -167,7 +176,7 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            structs_to_inject.push(note_properties_struct);
+            structs_to_inject.push(Documented::not_documented(note_properties_struct));
             let note_properties_fn = generate_note_properties_fn(
                 &note_type,
                 &note_fields,
@@ -175,7 +184,9 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            note_impl.methods.push((note_properties_fn, note_impl.type_span));
+            note_impl
+                .methods
+                .push((Documented::not_documented(note_properties_fn), note_impl.type_span));
         }
 
         if !check_trait_method_implemented(trait_impl, "get_header") {
@@ -185,7 +196,9 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(get_header_fn));
+            trait_impl
+                .items
+                .push(Documented::not_documented(TraitImplItem::Function(get_header_fn)));
         }
         if !check_trait_method_implemented(trait_impl, "set_header") {
             let set_header_fn = generate_note_set_header(
@@ -194,14 +207,18 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(set_header_fn));
+            trait_impl
+                .items
+                .push(Documented::not_documented(TraitImplItem::Function(set_header_fn)));
         }
 
         if !check_trait_method_implemented(trait_impl, "get_note_type_id") {
             let note_type_id = compute_note_type_id(&note_type);
             let get_note_type_id_fn =
                 generate_get_note_type_id(note_type_id, note_interface_impl_span, empty_spans)?;
-            trait_impl.items.push(TraitImplItem::Function(get_note_type_id_fn));
+            trait_impl
+                .items
+                .push(Documented::not_documented(TraitImplItem::Function(get_note_type_id_fn)));
         }
 
         if !check_trait_method_implemented(trait_impl, "compute_note_hiding_point") {
@@ -210,7 +227,9 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(compute_note_hiding_point_fn));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem::Function(
+                compute_note_hiding_point_fn,
+            )));
         }
 
         if !check_trait_method_implemented(trait_impl, "to_be_bytes") {
@@ -221,7 +240,9 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(to_be_bytes_fn));
+            trait_impl
+                .items
+                .push(Documented::not_documented(TraitImplItem::Function(to_be_bytes_fn)));
         }
     }
 
@@ -244,8 +265,8 @@ fn generate_note_to_be_bytes(
 
             let mut buffer: [u8; {0}] = [0; {0}];
 
-            let storage_slot_bytes = storage_slot.to_be_bytes(32);
-            let note_type_id_bytes = {1}::get_note_type_id().to_be_bytes(32);
+            let storage_slot_bytes: [u8; 32] = storage_slot.to_be_bytes();
+            let note_type_id_bytes: [u8; 32] = {1}::get_note_type_id().to_be_bytes();
 
             for i in 0..32 {{
                 buffer[i] = storage_slot_bytes[i];
@@ -253,7 +274,7 @@ fn generate_note_to_be_bytes(
             }}
 
             for i in 0..serialized_note.len() {{
-                let bytes = serialized_note[i].to_be_bytes(32);
+                let bytes: [u8; 32] = serialized_note[i].to_be_bytes();
                 for j in 0..32 {{
                     buffer[64 + i * 32 + j] = bytes[j];
                 }}
@@ -275,7 +296,7 @@ fn generate_note_to_be_bytes(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -307,7 +328,7 @@ fn generate_note_get_header(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -338,7 +359,7 @@ fn generate_note_set_header(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -372,7 +393,7 @@ fn generate_get_note_type_id(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -407,7 +428,7 @@ fn generate_note_properties_struct(
     }
 
     let mut struct_ast = struct_ast.into_sorted();
-    Ok(struct_ast.types.remove(0))
+    Ok(struct_ast.types.remove(0).item)
 }
 
 // Generate the deserialize_content method as
@@ -445,7 +466,7 @@ fn generate_note_deserialize_content(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -483,7 +504,7 @@ fn generate_note_serialize_content(
     }
 
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -508,7 +529,7 @@ fn generate_note_properties_fn(
         });
     }
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -547,7 +568,7 @@ fn generate_compute_note_hiding_point(
         });
     }
     let mut function_ast = function_ast.into_sorted();
-    let mut noir_fn = function_ast.functions.remove(0);
+    let mut noir_fn = function_ast.functions.remove(0).item;
     noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
@@ -579,7 +600,7 @@ fn generate_note_exports_global(
     }
 
     let mut global_ast = global_ast.into_sorted();
-    Ok(global_ast.globals.pop().unwrap())
+    Ok(global_ast.globals.pop().unwrap().item)
 }
 
 // Source code generator functions. These utility methods produce Noir code as strings, that are then parsed and added to the AST.
