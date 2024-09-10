@@ -108,6 +108,12 @@ impl DocGenerator {
         self.increase_nesting();
 
         for documented_noir_struct in &sorted_module.types {
+            // Don't generate doc comments for undocumented structs
+            // (we don't have visibility modifiers yet)
+            if documented_noir_struct.doc_comments.is_empty() {
+                continue;
+            }
+
             self.noir_struct(documented_noir_struct);
 
             // Find all implementations by name
@@ -143,12 +149,6 @@ impl DocGenerator {
     fn noir_struct(&mut self, documented_noir_struct: &Documented<NoirStruct>) {
         let noir_struct = &documented_noir_struct.item;
         let doc_comments = &documented_noir_struct.doc_comments;
-
-        // Don't generate doc comments for undocumented structs
-        // (we don't have visibility modifiers yet)
-        if doc_comments.is_empty() {
-            return;
-        }
 
         self.title(format!("Struct `{}`", noir_struct_name(noir_struct)));
         self.doc_comments(doc_comments);

@@ -4,10 +4,6 @@ title: poseidon
 
 # Module `std::hash::poseidon`
 
-### Methods
-
-### Methods
-
 ## config
 
 ```rust

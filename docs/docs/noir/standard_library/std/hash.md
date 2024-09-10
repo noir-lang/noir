@@ -10,8 +10,6 @@ title: hash
  - `use sha256::sha256`
  - `use sha256::sha256_compression`
  - `use sha256::sha256_var`
-### Methods
-
 ## blake2s
 
 ```rust

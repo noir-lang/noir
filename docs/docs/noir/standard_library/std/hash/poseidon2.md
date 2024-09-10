@@ -4,11 +4,3 @@ title: poseidon2
 
 # Module `std::hash::poseidon2`
 
-### Methods
-
-#### hash
-
-```rust
-fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field
-```
-

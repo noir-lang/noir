@@ -4,8 +4,6 @@ title: mimc
 
 # Module `std::hash::mimc`
 
-### Methods
-
 ## mimc_bn254
 
 ```rust

@@ -4,26 +4,6 @@ title: cmp
 
 # Module `std::cmp`
 
-### Methods
-
-#### less
-
-```rust
-fn less() -> Ordering
-```
-
-#### equal
-
-```rust
-fn equal() -> Ordering
-```
-
-#### greater
-
-```rust
-fn greater() -> Ordering
-```
-
 ## max
 
 ```rust
