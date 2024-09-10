@@ -213,11 +213,14 @@ impl<'a> NodeFinder<'a> {
         let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
         let name = &name;
         let description = func_meta_type_to_string(func_meta, func_self_type.is_some());
+        let mut has_arguments = false;
 
         let completion_item = match function_completion_kind {
-            FunctionCompletionKind::Name => {
-                simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
-            }
+            FunctionCompletionKind::Name => simple_completion_item(
+                name,
+                CompletionItemKind::FUNCTION,
+                Some(description.clone()),
+            ),
             FunctionCompletionKind::NameAndParameters => {
                 let kind = CompletionItemKind::FUNCTION;
                 let skip_first_argument = attribute_first_type.is_some();
@@ -227,19 +230,24 @@ impl<'a> NodeFinder<'a> {
                     function_kind,
                     skip_first_argument,
                 );
-                let (label, insert_text) = if insert_text.ends_with("()") {
-                    if skip_first_argument {
-                        (name.to_string(), insert_text.strip_suffix("()").unwrap().to_string())
-                    } else {
-                        (format!("{}()", name), insert_text)
-                    }
-                } else {
-                    (format!("{}(…)", name), insert_text)
-                };
 
-                snippet_completion_item(label, kind, insert_text, Some(description))
+                if insert_text.ends_with("()") {
+                    let label =
+                        if skip_first_argument { name.to_string() } else { format!("{}()", name) };
+                    simple_completion_item(label, kind, Some(description.clone()))
+                } else {
+                    has_arguments = true;
+                    snippet_completion_item(
+                        format!("{}(…)", name),
+                        kind,
+                        insert_text,
+                        Some(description.clone()),
+                    )
+                }
             }
         };
+
+        let completion_item = completion_item_with_detail(completion_item, description);
 
         let completion_item = if is_operator {
             completion_item_with_sort_text(completion_item, operator_sort_text())
@@ -254,11 +262,16 @@ impl<'a> NodeFinder<'a> {
         let completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => completion_item,
             FunctionCompletionKind::NameAndParameters => {
-                completion_item_with_trigger_parameter_hints_command(completion_item)
+                if has_arguments {
+                    completion_item_with_trigger_parameter_hints_command(completion_item)
+                } else {
+                    completion_item
+                }
             }
         };
         let completion_item =
             self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item);
+
         Some(completion_item)
     }
 
@@ -493,4 +506,11 @@ pub(super) fn completion_item_with_trigger_parameter_hints_command(
         }),
         ..completion_item
     }
+}
+
+pub(super) fn completion_item_with_detail(
+    completion_item: CompletionItem,
+    detail: String,
+) -> CompletionItem {
+    CompletionItem { detail: Some(detail), ..completion_item }
 }
