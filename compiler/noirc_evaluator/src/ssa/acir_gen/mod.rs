@@ -1943,7 +1943,6 @@ impl<'a> Context<'a> {
                 let max_integer_bit_size = FieldElement::max_num_bits() / 2;
                 if *bit_size > max_integer_bit_size {
                     return Err(RuntimeError::UnsupportedIntegerSize {
-                        opt_value: None,
                         num_bits: *bit_size,
                         max_num_bits: max_integer_bit_size,
                         call_stack: self.acir_context.get_call_stack(),

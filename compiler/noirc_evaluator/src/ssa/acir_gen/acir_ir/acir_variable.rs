@@ -1512,11 +1512,13 @@ impl<F: AcirField> AcirContext<F> {
                     Some(constant) if allow_constant_inputs => {
                         single_val_witnesses.push(
                             FunctionInput::constant(*constant, num_bits).map_err(
-                                |invalid_input_bit_size| RuntimeError::UnsupportedIntegerSize {
-                                    opt_value: Some(invalid_input_bit_size.value),
-                                    num_bits: invalid_input_bit_size.value_num_bits,
-                                    max_num_bits: invalid_input_bit_size.max_bits,
-                                    call_stack: self.get_call_stack(),
+                                |invalid_input_bit_size| {
+                                    RuntimeError::InvalidBlackBoxInputBitSize {
+                                        value: invalid_input_bit_size.value,
+                                        num_bits: invalid_input_bit_size.value_num_bits,
+                                        max_num_bits: invalid_input_bit_size.max_bits,
+                                        call_stack: self.get_call_stack(),
+                                    }
                                 },
                             )?,
                         );
