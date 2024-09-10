@@ -128,7 +128,9 @@ fn main() {
 
 ### sort_via
 
-Sorts the array with a custom comparison function. The ordering function must return true if the first argument should be sorted to be before the second argument, otherwise it should return false.
+Sorts the array with a custom comparison function. The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.
+
+Using this method with an operator like `<` that does not return `true` for equal values will result in an assertion failure for arrays with equal elements.
 
 ```rust
 fn sort_via(self, ordering: fn(T, T) -> bool) -> [T; N]
