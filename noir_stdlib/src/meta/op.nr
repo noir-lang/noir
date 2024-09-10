@@ -28,7 +28,7 @@ impl UnaryOp {
     }
 
     // docs:start:unary_quoted
-    pub fn quoted(self) -> Quoted {
+    pub comptime fn quoted(self) -> Quoted {
         // docs:end:unary_quoted
         if self.is_minus() {
             quote { - }
@@ -147,7 +147,7 @@ impl BinaryOp {
     }
 
     // docs:start:binary_quoted
-    pub fn quoted(self) -> Quoted {
+    pub comptime fn quoted(self) -> Quoted {
         // docs:end:binary_quoted
         if self.is_add() {
             quote { + }

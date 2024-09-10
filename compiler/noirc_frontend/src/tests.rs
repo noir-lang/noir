@@ -3373,7 +3373,7 @@ fn unquoted_integer_as_integer_token() {
     #[attr]
     pub fn foobar() {}
 
-    fn attr(_f: FunctionDefinition) -> Quoted {
+    comptime fn attr(_f: FunctionDefinition) -> Quoted {
         let serialized_len = 1;
         // We are testing that when we unquote $serialized_len, it's unquoted
         // as the token `1` and not as something else that later won't be parsed correctly
@@ -3450,4 +3450,15 @@ fn constrained_reference_to_unconstrained() {
     else {
         panic!("Expected an error about passing a constrained reference to unconstrained");
     };
+}
+
+#[test]
+fn comptime_type_in_runtime_code() {
+    let source = "pub fn foo(_f: FunctionDefinition) {}";
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
+    ));
 }
