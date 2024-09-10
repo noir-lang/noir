@@ -17,7 +17,7 @@ fn main() {
     call!(glue(quote { hello }, quote { world }));
 }
 
-fn glue(x: Quoted, y: Quoted) -> Quoted {
+comptime fn glue(x: Quoted, y: Quoted) -> Quoted {
     f"{x}_{y}".quoted_contents()
 }
 
