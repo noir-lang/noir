@@ -9,14 +9,14 @@ program can be compiled and proved with the new PLONKY2 backend.
 
 In order to check this for yourself follow these steps. If you have NixOS, setup is slightly easier:
 
-1. Checkout this repo and the `plonky2` branch
+1. Checkout this repo and the `blocksense` branch
 2. Issue `direnv allow` to get the context set up
 3. Run `cargo test zk_dungeon`
 
 If you have another Linux, you need to make sure you have the right version of
 Rust:
 
-1. Checkout this repo and the `plonky2` branch
+1. Checkout this repo and the `blocksense` branch
 2. Make sure you have `rustup` installed
 3. Select the `nightly` version of Rust as the default one
   - `rustup default nightly`
