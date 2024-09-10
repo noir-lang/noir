@@ -1,5 +1,5 @@
 use super::{
-    attributes::{attributes, validate_attributes},
+    attributes::{all_attributes, split_attributes_in_two, validate_attributes},
     block, fresh_statement, ident, keyword, maybe_comp_time, nothing, parameter_name_recovery,
     parameter_recovery, parenthesized, parse_type, pattern,
     primitives::token_kind,
@@ -43,7 +43,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
             }
         });
 
-    attributes()
+    all_attributes()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
@@ -53,10 +53,12 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         .then(where_clause())
         .then(body_or_error)
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
-            let ((((attributes, modifiers), name), generics), parameters) = args;
+            let ((((all_attributes, modifiers), name), generics), parameters) = args;
+
+            let (fv_attributes, attributes) = split_attributes_in_two(all_attributes);
 
             // Validate collected attributes, filtering them into function and secondary variants
-            let attributes = validate_attributes(attributes, span, emit);
+            let attributes = validate_attributes(attributes, fv_attributes, span, emit);
             FunctionDefinition {
                 span: body_span,
                 name,
@@ -280,4 +282,50 @@ mod test {
         assert_eq!(noir_function.parameters().len(), 1);
         assert!(noir_function.def.body.statements.is_empty());
     }
+
+    #[test]
+    fn parse_function_with_fv_attribute() {
+        let src = r#"#[requires(x > 2)]
+                    fn foo(x: i32) {}"#;
+
+        let res = parse_with(function_definition(false), src);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn parse_function_with_fv_attributes() {
+        let src = r#"#[requires(x > 2)]
+                    #[ensures(result < 8)]
+                    fn foo(x: i32) {}"#;
+        let res = parse_with(function_definition(false), src);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn parse_function_with_many_attributes() {
+        let src = r#"#[requires(x > 2)]
+                    #[deprecated]
+                    #[ensures(result < 8)]
+                    #[requires(x < 5)]
+                    fn foo(x: i32) {}"#;
+        let res = parse_with(function_definition(false), src);
+        assert!(res.is_ok());
+    }
+    
+    #[test]
+    fn fail_parse_function_with_fv_attribute() {
+        parse_all_failing(
+            function_definition(false),
+            vec![
+                "#[requires(x > 2) fn foo(x: i32) {}",
+                "#[ensures(result > 5] fn foo(x: i32) {}",
+                "#[ensures result > 5)] fn foo(x: i32) {}",
+                "#[ensures result > 5] fn foo(x: i32) {}",
+                "#[requires] fn foo(x: i32) {}",
+                "#[ensures] fn foo(x: i32) {}",
+                "#[ensures()] fn foo(x: i32) {}",
+                "#[ensures(result > 4)x] fn foo(x: i32) {}",
+            ],
+        );
+    }    
 }

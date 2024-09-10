@@ -3,6 +3,7 @@ use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::{
+    ast::Expression,
     lexer::errors::LexerErrorKind,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
@@ -650,7 +651,8 @@ impl fmt::Display for TestScope {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+// #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
 // Calls to functions which have the foreign attribute are executed in the host language
@@ -659,11 +661,13 @@ pub struct Attributes {
     pub function: Option<FunctionAttribute>,
     // Each function can have many Secondary Attributes
     pub secondary: Vec<SecondaryAttribute>,
+    // Each function can have many Formal Verification Attributes
+    pub fv_attributes: Vec<FormalVerificationAttribute>,
 }
 
 impl Attributes {
     pub fn empty() -> Self {
-        Self { function: None, secondary: Vec::new() }
+        Self { function: None, secondary: Vec::new(), fv_attributes: Vec::new() }
     }
 
     /// Returns true if one of the secondary attributes is `contract_library_method`
@@ -991,6 +995,17 @@ impl CustomAtrribute {
             None
         }
     }
+}
+
+/// Formal verification attributes are used for nargo formal-verify.
+/// A function can have many formal verification attributes.
+/// They are not able to change the `FunctionKind` and thus do not have direct impact on the IR output.
+/// This enum will not be used as a Token, it will be used as a field in the structure Attributes which is a part of
+/// the structure FunctionDefinition   
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum FormalVerificationAttribute {
+    Ensures(Expression),
+    Requires(Expression),
 }
 
 impl AsRef<str> for FunctionAttribute {
