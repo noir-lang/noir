@@ -49,6 +49,7 @@ impl<'a> NodeFinder<'a> {
                 match target {
                     AttributeTarget::Module => Some(Type::Quoted(QuotedType::Module)),
                     AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
+                    AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
                 }
             } else {
@@ -226,10 +227,14 @@ impl<'a> NodeFinder<'a> {
                     function_kind,
                     skip_first_argument,
                 );
-                let label = if insert_text.ends_with("()") {
-                    format!("{}()", name)
+                let (label, insert_text) = if insert_text.ends_with("()") {
+                    if skip_first_argument {
+                        (name.to_string(), insert_text.strip_suffix("()").unwrap().to_string())
+                    } else {
+                        (format!("{}()", name), insert_text)
+                    }
                 } else {
-                    format!("{}(…)", name)
+                    (format!("{}(…)", name), insert_text)
                 };
 
                 snippet_completion_item(label, kind, insert_text, Some(description))

@@ -1952,4 +1952,40 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_suggests_function_attribute_no_arguments() {
+        let src = r#"
+            #[some>|<]
+            fn foo() {}
+
+            fn some_attr(f: FunctionDefinition) {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item("some_attr", "some_attr", "fn(FunctionDefinition)")],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_trait_attribute() {
+        let src = r#"
+            #[some>|<]
+            trait SomeTrait {}
+
+            fn some_attr(t: TraitDefinition, x: Field) {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item(
+                "some_attr(…)",
+                "some_attr(${1:x})",
+                "fn(TraitDefinition, Field)",
+            )],
+        )
+        .await;
+    }
 }

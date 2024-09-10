@@ -14,7 +14,7 @@ struct Foo {
 
 }
 
-fn add_attribute(s: StructDefinition) {
+comptime fn add_attribute(s: StructDefinition) {
     assert(!s.has_named_attribute(quote { foo }));
     s.add_attribute("foo");
     assert(s.has_named_attribute(quote { foo }));
