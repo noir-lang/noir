@@ -1,6 +1,7 @@
 use crate::ast::{Expression, IntegerBitSize};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
+use crate::token::TokenKind;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
@@ -211,8 +212,17 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
             },
             None => {
-                let primary = error.to_string();
-                Diagnostic::simple_error(primary, String::new(), error.span)
+                if matches!(
+                    error.found.kind(),
+                    TokenKind::InnerDocComment | TokenKind::OuterDocComment
+                ) {
+                    let primary = "This doc comment doesn't document anything".to_string();
+                    let secondary = "Consider changing it to a regular `//` comment".to_string();
+                    Diagnostic::simple_error(primary, secondary, error.span)
+                } else {
+                    let primary = error.to_string();
+                    Diagnostic::simple_error(primary, String::new(), error.span)
+                }
             }
         }
     }
