@@ -217,6 +217,7 @@ impl P2Type {
                         P2Type::Integer(bit_size, false)
                     }
                 }
+                NumericType::Signed { bit_size } => P2Type::Integer(bit_size, true),
                 _ => {
                     let feature_name = format!("the {numeric_type} type");
                     return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
