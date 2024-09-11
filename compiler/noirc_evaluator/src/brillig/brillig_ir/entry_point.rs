@@ -18,12 +18,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
         target_function: FunctionId,
-        disable_procedures: bool,
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(false);
-        if disable_procedures {
-            context.disable_procedures();
-        }
+
         context.codegen_entry_point(&arguments, &return_parameters);
 
         context.add_external_call_instruction(target_function);
