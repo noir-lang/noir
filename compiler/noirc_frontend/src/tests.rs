@@ -1338,7 +1338,7 @@ fn break_and_continue_outside_loop() {
 #[test]
 fn for_loop_over_array() {
     let src = r#"
-        fn hello<N>(_array: [u1; N]) {
+        fn hello<let N: u32>(_array: [u1; N]) {
             for _ in 0..N {}
         }
 
@@ -1348,15 +1348,7 @@ fn for_loop_over_array() {
         }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
-    ));
-    assert!(matches!(
-        errors[1].0,
-        CompilationError::ResolverError(ResolverError::VariableNotDeclared { .. })
-    ));
+    assert_eq!(errors.len(), 0);
 }
 
 // Regression for #4545
@@ -1965,15 +1957,17 @@ fn numeric_generics_type_kind_mismatch() {
 }
 
 #[test]
-fn numeric_generics_value_kind_mismatch() {
+fn numeric_generics_value_kind_mismatch_u32_u64() {
     let src = r#"
     struct BoundedVec<T, let MaxLen: u32> {
         storage: [T; MaxLen],
+        // can't be compared to MaxLen: u32
+        // can't be used to index self.storage
         len: u64,
     }
 
     impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
-        pub fn extend_from_bounded_vec<Len>(&mut self, _vec: BoundedVec<T, Len>) { 
+        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) { 
             // We do this to avoid an unused variable warning on `self`
             let _ = self.len;
             for _ in 0..Len { }
@@ -1987,22 +1981,50 @@ fn numeric_generics_value_kind_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 3);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IntegerBitWidth {
+            bit_width_x: IntegerBitSize::SixtyFour,
+            bit_width_y: IntegerBitSize::ThirtyTwo,
+            ..
+        }),
+    ));
+}
+
+#[test]
+fn numeric_generics_value_kind_mismatch_field_u32() {
+    let src = r#"
+    struct BoundedVec<T, let MaxLen: Field> {
+        storage: [T; MaxLen],
+        // can't be compared to MaxLen: u32
+        // can't be used to index self.storage
+        len: u32,
+    }
+
+    impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
+        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) { 
+            // We do this to avoid an unused variable warning on `self`
+            let _ = self.len;
+            for _ in 0..Len { }
+        }
+
+        pub fn push(&mut self, elem: T) {
+            assert(self.len < MaxLen, "push out of bounds");
+            self.storage[self.len] = elem;
+            self.len += 1;
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     assert!(matches!(
         errors[1].0,
-        CompilationError::ResolverError(ResolverError::VariableNotDeclared { .. }),
-    ));
-    assert!(matches!(
-        errors[2].0,
-        CompilationError::TypeError(TypeCheckError::IntegerBitWidth {
-            bit_width_x: IntegerBitSize::SixtyFour,
-            bit_width_y: IntegerBitSize::ThirtyTwo,
-            ..
-        }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
 
