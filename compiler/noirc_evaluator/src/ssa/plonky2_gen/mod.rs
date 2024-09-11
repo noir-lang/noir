@@ -88,7 +88,9 @@ impl P2Value {
 
     fn make_integer(p2type: P2Type, target: Target) -> Result<P2Value, Plonky2GenError> {
         match p2type {
-            P2Type::Integer(_) => Ok(P2Value { target: P2Target::IntTarget(target), typ: p2type }),
+            P2Type::Integer(_, _) => {
+                Ok(P2Value { target: P2Target::IntTarget(target), typ: p2type })
+            }
             P2Type::Field => Ok(P2Value::make_field(target)),
             _ => {
                 let message = format!("make_integer called for type {:?}", p2type);
@@ -127,7 +129,7 @@ impl P2Value {
                 target: P2Target::IntTarget(asm_writer.add_virtual_target()),
                 typ: p2type,
             },
-            P2Type::Integer(_) => P2Value {
+            P2Type::Integer(_, _) => P2Value {
                 target: P2Target::IntTarget(asm_writer.add_virtual_target()),
                 typ: p2type,
             },
@@ -162,7 +164,7 @@ impl P2Value {
                 let target = asm_writer.constant(noir_to_plonky2_field(constant));
                 Ok(P2Value { target: P2Target::IntTarget(target), typ: p2type })
             }
-            P2Type::Integer(_) => {
+            P2Type::Integer(_, _) => {
                 let target = asm_writer.constant(noir_to_plonky2_field(constant));
                 Ok(P2Value { target: P2Target::IntTarget(target), typ: p2type })
             }
@@ -180,7 +182,7 @@ impl P2Value {
 
     fn clone(&self) -> Result<P2Value, Plonky2GenError> {
         Ok(match self.typ.clone() {
-            P2Type::Integer(_) => {
+            P2Type::Integer(_, _) => {
                 P2Value::make_integer(self.typ.clone(), self.get_integer_target()?.clone())?
             }
             P2Type::Boolean => P2Value::make_boolean(self.get_boolean_target()?.clone()),
@@ -197,7 +199,7 @@ const FIELD_BIT_SIZE: u32 = 254;
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum P2Type {
     Boolean,
-    Integer(u32),
+    Integer(/* bit size */ u32, /* signed */ bool),
     Array(Box<P2Type>, usize),
     Struct(Vec<P2Type>),
     Field,
@@ -212,7 +214,7 @@ impl P2Type {
                     if bit_size == 1 {
                         P2Type::Boolean
                     } else {
-                        P2Type::Integer(bit_size)
+                        P2Type::Integer(bit_size, false)
                     }
                 }
                 _ => {
@@ -422,7 +424,7 @@ impl Builder {
         let typ = self.get_type(lhs)?;
         match typ {
             P2Type::Boolean => self.convert_boolean_op(lhs, rhs, p2builder_op),
-            P2Type::Integer(_) => self.convert_bitwise_logical_op(lhs, rhs, p2builder_op),
+            P2Type::Integer(_, _) => self.convert_bitwise_logical_op(lhs, rhs, p2builder_op),
             P2Type::Field => self.convert_bitwise_logical_op(lhs, rhs, p2builder_op),
             _ => {
                 let feature_name = format!("{:?} instruction on {:?}", opname, typ);
@@ -442,7 +444,7 @@ impl Builder {
         let typ = self.get_type(lhs)?;
         match typ {
             P2Type::Boolean => self.convert_boolean_op(lhs, rhs, boolean_op),
-            P2Type::Integer(_) => self.convert_integer_op(lhs, rhs, normal_op),
+            P2Type::Integer(_, _) => self.convert_integer_op(lhs, rhs, normal_op),
             P2Type::Field => self.convert_integer_op(lhs, rhs, normal_op),
             _ => {
                 let feature_name = format!("{:?} instruction on {:?}", opname, typ);
@@ -476,7 +478,7 @@ impl Builder {
         let (type_b, target_b) = self.get_integer(rhs)?;
         assert!(type_a == type_b);
         let bit_size = usize::try_from(match type_a {
-            P2Type::Integer(bit_size) => bit_size,
+            P2Type::Integer(bit_size, _) => bit_size,
             P2Type::Field => FIELD_BIT_SIZE,
             _ => {
                 let message =
@@ -543,7 +545,7 @@ impl Builder {
             ));
             j += 8;
         }
-        let p2value = P2Value::make_array(P2Type::Integer(8), result);
+        let p2value = P2Value::make_array(P2Type::Integer(8, false), result);
         self.set(destination, p2value);
         Ok(())
     }
@@ -556,7 +558,7 @@ impl Builder {
     fn get_integer_bitsize(typ: &P2Type) -> Option<usize> {
         Some(
             usize::try_from(match typ {
-                P2Type::Integer(bit_size) => *bit_size,
+                P2Type::Integer(bit_size, _) => *bit_size,
                 P2Type::Field => FIELD_BIT_SIZE,
                 _ => {
                     return None;
@@ -959,7 +961,7 @@ impl Builder {
                 let new_target = self.asm_writer.add_virtual_target();
                 self.asm_writer.connect(target, new_target);
 
-                let p2value = P2Value::make_integer(P2Type::Integer(bit_size), new_target)?;
+                let p2value = P2Value::make_integer(P2Type::Integer(bit_size, false), new_target)?;
 
                 let destinations: Vec<_> =
                     self.dfg.instruction_results(instruction_id).iter().cloned().collect();
