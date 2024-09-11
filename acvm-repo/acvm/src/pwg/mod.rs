@@ -670,7 +670,7 @@ pub fn input_to_value<F: AcirField>(
                 Ok(initial_value)
             } else {
                 let value_num_bits = initial_value.num_bits();
-                let value = format!("{}", initial_value);
+                let value = initial_value.to_string();
                 Err(OpcodeResolutionError::InvalidInputBitSize {
                     opcode_location: ErrorLocation::Unresolved,
                     invalid_input_bit_size: InvalidInputBitSize {
