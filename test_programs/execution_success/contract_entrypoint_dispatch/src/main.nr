@@ -1,8 +1,12 @@
+mod from_call_data;
+mod function_selector;
+mod point;
+
 #[aztec_contract]
 mod some_contract {
-    use super::Point;
-    use super::FunctionSelector;
-    use super::FromCallData;
+    use crate::point::Point;
+    use crate::function_selector::FunctionSelector;
+    use crate::from_call_data::FromCallData;
 
     #[aztec(public)]
     pub fn one(x: Field) {
@@ -17,7 +21,7 @@ mod some_contract {
     pub fn other(_x: Field) {}
 
     // TODO: let the `aztec_contract` annotation above generate this method
-    pub fn public_entrypoint(selector: Field, calldata: [Field; 2]) {
+    pub fn public_entrypoint(selector: Field, calldata: [Field; 3]) {
         let index = 0;
 
         if selector == FunctionSelector::from_signature("one(Field)") {
@@ -33,44 +37,7 @@ mod some_contract {
     }
 }
 
-struct Point {
-    x: Field,
-    y: Field,
-}
-
-struct FunctionSelector {
-}
-
-impl FunctionSelector {
-    pub fn from_signature<let N: u32>(s: str<N>) -> Field {
-        0
-    }
-}
-
-/// A trait for types that can be decoded from a calldata field array
-trait FromCallData<let N: u32> {
-    /// Decodes Self by reading it from calldata at the given index, also returning the next index to read from
-    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field);
-}
-
-// TODO: allow deriving FromCallData for any struct
-
-impl <let N: u32> FromCallData<N> for Field {
-    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
-        let value = calldata[index];
-        (value, index + 1)
-    }
-}
-
-impl <let N: u32> FromCallData<N> for Point {
-    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
-        let (x, index) = FromCallData::from_calldata(calldata, index);
-        let (y, index) = FromCallData::from_calldata(calldata, index);
-        (Self { x, y }, index)
-    }
-}
-
 fn main() {
-    let calldata = [1, 2];
-    some_contract::public_entrypoint(0, calldata);
+    let calldata = [1, 2, 3];
+    some_contract::public_entrypoint(1, calldata);
 }
