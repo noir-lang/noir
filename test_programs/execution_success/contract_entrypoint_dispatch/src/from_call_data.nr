@@ -37,8 +37,6 @@ comptime fn derive_from_call_data(s: StructDefinition) -> Quoted {
     }
 }
 
-// TODO: allow deriving FromCallData for any struct
-
 impl <let N: u32> FromCallData<N> for Field {
     fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
         let value = calldata[index];
