@@ -18,12 +18,14 @@ mod some_contract {
 
     // TODO: let the `aztec_contract` annotation above generate this method
     pub fn public_entrypoint(selector: Field, calldata: [Field; 2]) {
+        let index = 0;
+
         if selector == FunctionSelector::from_signature("one(Field)") {
-            let (x, _) = FromCallData::from_calldata(calldata);
+            let (x, _index) = FromCallData::from_calldata(calldata, index);
             one(x);
         } else if selector == FunctionSelector::from_signature("two(Field, Point)") {
-            let (x, calldata) = FromCallData::from_calldata(calldata);
-            let (point, _) = FromCallData::from_calldata(calldata);
+            let (x, index) = FromCallData::from_calldata(calldata, index);
+            let (point, _index) = FromCallData::from_calldata(calldata, index);
             two(x, point)
         } else {
             panic(f"Unknown selector");
@@ -46,26 +48,25 @@ impl FunctionSelector {
 }
 
 /// A trait for types that can be decoded from a calldata field array
-trait FromCallData<let N: u32, let M: u32> {
-    /// Decodes Self by consuming it from the head of calldata, returning the remaining calldata
-    fn from_calldata(calldata: [Field; N]) -> (Self, [Field; M]);
+trait FromCallData<let N: u32> {
+    /// Decodes Self by reading it from calldata at the given index, also returning the next index to read from
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field);
 }
 
 // TODO: allow deriving FromCallData for any struct
 
-impl <let N: u32> FromCallData<N, N - 1> for Field {
-    fn from_calldata(calldata: [Field; N]) -> (Self, [Field; (N - 1)]) {
-        let slice = calldata.as_slice();
-        let (value, slice) = slice.pop_front();
-        (value, slice.as_array())
+impl <let N: u32> FromCallData<N> for Field {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index];
+        (value, index + 1)
     }
 }
 
-impl <let N: u32> FromCallData<N, N - 2> for Point {
-    fn from_calldata(calldata: [Field; N]) -> (Self, [Field; (N - 2)]) {
-        let (x, calldata) = FromCallData::from_calldata(calldata);
-        let (y, calldata) = FromCallData::from_calldata(calldata);
-        (Self { x, y }, calldata)
+impl <let N: u32> FromCallData<N> for Point {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let (x, index) = FromCallData::from_calldata(calldata, index);
+        let (y, index) = FromCallData::from_calldata(calldata, index);
+        (Self { x, y }, index)
     }
 }
 
