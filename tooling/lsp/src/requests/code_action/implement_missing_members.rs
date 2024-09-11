@@ -5,7 +5,10 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{NoirTraitImpl, TraitImplItem, UnresolvedTypeData},
     graph::CrateId,
-    hir::def_map::{CrateDefMap, ModuleId},
+    hir::{
+        def_map::{CrateDefMap, ModuleId},
+        type_check::generics::TraitGenerics,
+    },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
@@ -304,6 +307,43 @@ impl<'a> MethodStubGenerator<'a> {
                 self.string.push_str(&type_alias.name.0.contents);
                 self.append_generics(generics);
             }
+            Type::TraitAsType(trait_id, _, trait_generics) => {
+                let trait_ = self.interner.get_trait(*trait_id);
+
+                let current_module_data =
+                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+
+                // Check if the trait type is already imported/visible in this module
+                let per_ns = current_module_data.find_name(&trait_.name);
+                if let Some((module_def_id, _, _)) = per_ns.types {
+                    if module_def_id == ModuleDefId::TraitId(*trait_id) {
+                        self.string.push_str(&trait_.name.0.contents);
+                        self.append_trait_generics(trait_generics);
+                        return;
+                    }
+                }
+
+                let parent_module_id =
+                    self.interner.reference_module(ReferenceId::Trait(*trait_id)).unwrap();
+
+                let current_module_parent_id = current_module_data
+                    .parent
+                    .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
+
+                let relative_path = relative_module_id_path(
+                    *parent_module_id,
+                    &self.module_id,
+                    current_module_parent_id,
+                    self.interner,
+                );
+
+                if !relative_path.is_empty() {
+                    self.string.push_str(&relative_path);
+                    self.string.push_str("::");
+                }
+                self.string.push_str(&trait_.name.0.contents);
+                self.append_trait_generics(trait_generics);
+            }
             Type::TypeVariable(typevar, _) => {
                 if typevar.id() == self.trait_.self_type_typevar.id() {
                     self.string.push_str("Self");
@@ -330,7 +370,6 @@ impl<'a> MethodStubGenerator<'a> {
 
                 self.string.push_str("error");
             }
-            Type::TraitAsType(_, _, _) => todo!("4"),
             Type::NamedGeneric(typevar, _name, _kind) => {
                 self.append_type(&Type::TypeVariable(typevar.clone(), TypeVariableKind::Normal))
             }
@@ -366,7 +405,9 @@ impl<'a> MethodStubGenerator<'a> {
                 self.string.push_str("&mut ");
                 self.append_type(typ);
             }
-            Type::Forall(_, _) => todo!("8"),
+            Type::Forall(_, _) => {
+                panic!("Shouldn't get a Type::Forall");
+            }
             Type::InfixExpr(left, op, right) => {
                 self.append_type(left);
                 self.string.push(' ');
@@ -396,6 +437,33 @@ impl<'a> MethodStubGenerator<'a> {
                 self.string.push_str(", ");
             }
             self.append_type(typ);
+        }
+        self.string.push('>');
+    }
+
+    fn append_trait_generics(&mut self, generics: &TraitGenerics) {
+        if generics.named.is_empty() && generics.ordered.is_empty() {
+            return;
+        }
+
+        let mut index = 0;
+
+        self.string.push('<');
+        for generic in &generics.ordered {
+            if index > 0 {
+                self.string.push_str(", ");
+            }
+            self.append_type(generic);
+            index += 1;
+        }
+        for named_type in &generics.named {
+            if index > 0 {
+                self.string.push_str(", ");
+            }
+            self.string.push_str(&named_type.name.0.contents);
+            self.string.push_str(" = ");
+            self.append_type(&named_type.typ);
+            index += 1;
         }
         self.string.push('>');
     }
