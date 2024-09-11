@@ -367,7 +367,13 @@ impl<'a> MethodStubGenerator<'a> {
                 self.append_type(typ);
             }
             Type::Forall(_, _) => todo!("8"),
-            Type::InfixExpr(_, _, _) => todo!("10"),
+            Type::InfixExpr(left, op, right) => {
+                self.append_type(left);
+                self.string.push(' ');
+                self.string.push_str(&op.to_string());
+                self.string.push(' ');
+                self.append_type(right);
+            }
             Type::Constant(_)
             | Type::Integer(_, _)
             | Type::Bool
