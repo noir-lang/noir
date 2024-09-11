@@ -9,7 +9,7 @@ use noirc_frontend::{
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
-    Type,
+    Type, TypeVariableKind,
 };
 
 use crate::{byte_span_to_range, modules::relative_module_id_path};
@@ -187,8 +187,16 @@ impl<'a> MethodStubGenerator<'a> {
                 self.string.push(')');
                 true
             }
-            HirPattern::Struct(_, _, _) => {
-                // TODO
+            HirPattern::Struct(typ, patterns, _) => {
+                self.append_type(typ);
+                self.string.push_str(" { ");
+                for (index, (name, _pattern)) in patterns.iter().enumerate() {
+                    if index > 0 {
+                        self.string.push_str(", ");
+                    }
+                    self.string.push_str(&name.0.contents);
+                }
+                self.string.push_str(" }");
                 true
             }
         }
@@ -260,9 +268,7 @@ impl<'a> MethodStubGenerator<'a> {
                 self.append_generics(generics);
             }
             Type::Alias(_, _) => todo!("2"),
-            Type::TypeVariable(_, _) => todo!("3"),
-            Type::TraitAsType(_, _, _) => todo!("4"),
-            Type::NamedGeneric(typevar, _name, _kind) => {
+            Type::TypeVariable(typevar, _) => {
                 if typevar.id() == self.trait_.self_type_typevar.id() {
                     self.string.push_str("Self");
                     return;
@@ -288,8 +294,42 @@ impl<'a> MethodStubGenerator<'a> {
 
                 self.string.push_str("error");
             }
-            Type::Function(_, _, _, _) => todo!("6"),
-            Type::MutableReference(_) => todo!("7"),
+            Type::TraitAsType(_, _, _) => todo!("4"),
+            Type::NamedGeneric(typevar, _name, _kind) => {
+                self.append_type(&Type::TypeVariable(typevar.clone(), TypeVariableKind::Normal))
+            }
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    self.string.push_str("unconstrained ");
+                }
+                self.string.push_str("fn");
+
+                if let Type::Unit = **env {
+                } else {
+                    self.string.push('[');
+                    self.append_type(env);
+                    self.string.push(']');
+                }
+
+                self.string.push('(');
+                for (index, arg) in args.iter().enumerate() {
+                    if index > 0 {
+                        self.string.push_str(", ");
+                    }
+                    self.append_type(arg);
+                }
+                self.string.push(')');
+
+                if let Type::Unit = **ret {
+                } else {
+                    self.string.push_str(" -> ");
+                    self.append_type(ret);
+                }
+            }
+            Type::MutableReference(typ) => {
+                self.string.push_str("&mut ");
+                self.append_type(typ);
+            }
             Type::Forall(_, _) => todo!("8"),
             Type::InfixExpr(_, _, _) => todo!("10"),
             Type::Constant(_)
