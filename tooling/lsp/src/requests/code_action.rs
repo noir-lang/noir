@@ -25,8 +25,8 @@ use crate::{utils, LspState};
 
 use super::{process_request, to_lsp_location};
 
-mod add_missing_impl_members;
 mod fill_struct_fields;
+mod implement_missing_members;
 mod import_or_qualify;
 #[cfg(test)]
 mod tests;
@@ -222,7 +222,7 @@ impl<'a> Visitor for CodeActionFinder<'a> {
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
-        self.add_missing_impl_members(noir_trait_impl, span);
+        self.implement_missing_members(noir_trait_impl, span);
 
         true
     }

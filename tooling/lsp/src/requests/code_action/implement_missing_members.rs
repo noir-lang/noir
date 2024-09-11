@@ -17,7 +17,11 @@ use crate::{byte_span_to_range, modules::relative_module_id_path};
 use super::CodeActionFinder;
 
 impl<'a> CodeActionFinder<'a> {
-    pub(super) fn add_missing_impl_members(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) {
+    pub(super) fn implement_missing_members(
+        &mut self,
+        noir_trait_impl: &NoirTraitImpl,
+        span: Span,
+    ) {
         if !self.includes_span(span) {
             return;
         }
