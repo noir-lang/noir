@@ -3,13 +3,12 @@ use field_size::size_in_fields;
 mod field_size;
 mod from_call_data;
 mod function_selector;
+mod function_signature;
 mod point;
 
 #[aztec_contract]
 mod some_contract {
     use crate::point::Point;
-    use crate::function_selector::FunctionSelector;
-    use crate::from_call_data::FromCallData;
 
     #[aztec_public]
     pub fn one(x: Field) {
@@ -26,6 +25,7 @@ mod some_contract {
 
 comptime fn aztec_contract(m: Module) -> Quoted {
     let functions = m.functions();
+    let functions = functions.filter(|function: FunctionDefinition| function.has_named_attribute(quote { "aztec_public" }));
 
     // Compute max field size
     let mut max_field_size = 0;
@@ -39,22 +39,43 @@ comptime fn aztec_contract(m: Module) -> Quoted {
         }
     }
 
-    quote {
-        pub fn public_entrypoint(selector: Field, calldata: [Field; $max_field_size]) {
-            let index = 0;
+    let ifs = functions.map(
+        |function: FunctionDefinition| {
+        let name = function.name();
+        let signature = crate::function_signature::function_signature(function);
 
-            if selector == FunctionSelector::from_signature("one(Field)") {
-                let (x, _index) = FromCallData::from_calldata(calldata, index);
-                one(x);
-            } else if selector == FunctionSelector::from_signature("two(Field, Point)") {
-                let (x, index) = FromCallData::from_calldata(calldata, index);
-                let (point, _index) = FromCallData::from_calldata(calldata, index);
-                two(x, point)
-            } else {
-                panic(f"Unknown selector");
+        let decodes = function.parameters().map(|param: (Quoted, Type)| {
+            let param_name = param.0;
+            quote { let ($param_name, _index) = crate::from_call_data::FromCallData::from_calldata(calldata, _index); }
+        });
+        let decode = decodes.join(quote { });
+
+        let args = function.parameters().map(|param: (Quoted, Type)| param.0);
+        let args = args.join(quote { , });
+        let call = quote { $name($args) };
+
+        let if_ = quote { 
+            if selector == crate::function_selector::FunctionSelector::from_signature($signature) {
+                $decode
+                $call
             }
-        }
+        };
+        if_
     }
+    );
+    let unknown_selector = f"Unknown selector";
+    let ifs = ifs.push_back(quote { { assert(false, $unknown_selector); std::mem::zeroed() } });
+    let dispatch = ifs.join(quote { else });
+
+    let body = quote {
+        pub fn public_entrypoint(selector: Field, calldata: [Field; $max_field_size]) {
+            let _index = 0;
+
+            $dispatch
+        }
+    };
+
+    body
 }
 
 fn main() {
