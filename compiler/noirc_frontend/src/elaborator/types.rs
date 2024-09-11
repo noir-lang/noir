@@ -118,7 +118,15 @@ impl<'context> Elaborator<'context> {
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Quoted(quoted) => Type::Quoted(quoted),
+            Quoted(quoted) => {
+                let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
+                if in_function && !self.in_comptime_context() {
+                    let span = typ.span;
+                    let typ = quoted.to_string();
+                    self.push_err(ResolverError::ComptimeTypeInRuntimeCode { span, typ });
+                }
+                Type::Quoted(quoted)
+            }
             Unit => Type::Unit,
             Unspecified => {
                 let span = typ.span;

@@ -3451,3 +3451,14 @@ fn constrained_reference_to_unconstrained() {
         panic!("Expected an error about passing a constrained reference to unconstrained");
     };
 }
+
+#[test]
+fn comptime_type_in_runtime_code() {
+    let source = "pub fn foo(_f: FunctionDefinition) {}";
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
+    ));
+}
