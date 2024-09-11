@@ -64,7 +64,7 @@ fn empty_noir_trait(noir_trait: &mut NoirTrait) {
     empty_unresolved_generics(&mut noir_trait.generics);
     empty_unresolved_trait_constraints(&mut noir_trait.where_clause);
     for item in noir_trait.items.iter_mut() {
-        empty_trait_item(item);
+        empty_trait_item(&mut item.item);
     }
 }
 
@@ -74,7 +74,7 @@ fn empty_noir_trait_impl(noir_trait_impl: &mut NoirTraitImpl) {
     empty_unresolved_type(&mut noir_trait_impl.object_type);
     empty_unresolved_trait_constraints(&mut noir_trait_impl.where_clause);
     for item in noir_trait_impl.items.iter_mut() {
-        empty_trait_impl_item(item);
+        empty_trait_impl_item(&mut item.item);
     }
 }
 
@@ -84,7 +84,7 @@ fn empty_type_impl(type_impl: &mut TypeImpl) {
     empty_unresolved_generics(&mut type_impl.generics);
     empty_unresolved_trait_constraints(&mut type_impl.where_clause);
     for (noir_function, _) in type_impl.methods.iter_mut() {
-        empty_noir_function(noir_function);
+        empty_noir_function(&mut noir_function.item);
     }
 }
 
@@ -187,9 +187,9 @@ fn empty_use_tree(use_tree: &mut UseTree) {
 fn empty_noir_struct(noir_struct: &mut NoirStruct) {
     noir_struct.span = Default::default();
     empty_ident(&mut noir_struct.name);
-    for (name, typ) in noir_struct.fields.iter_mut() {
-        empty_ident(name);
-        empty_unresolved_type(typ);
+    for field in noir_struct.fields.iter_mut() {
+        empty_ident(&mut field.item.name);
+        empty_unresolved_type(&mut field.item.typ);
     }
     empty_unresolved_generics(&mut noir_struct.generics);
 }
@@ -401,6 +401,7 @@ fn empty_pattern(pattern: &mut Pattern) {
                 empty_pattern(pattern);
             }
         }
+        Pattern::Interned(_, _) => (),
     }
 }
 

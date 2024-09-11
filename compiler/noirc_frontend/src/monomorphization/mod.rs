@@ -133,7 +133,7 @@ pub fn monomorphize_debug(
         let impl_bindings = perform_impl_bindings(interner, trait_method, next_fn_id, location)
             .map_err(MonomorphizationError::InterpreterError)?;
 
-        monomorphizer.function(next_fn_id, new_id)?;
+        monomorphizer.function(next_fn_id, new_id, location)?;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(bindings);
     }
@@ -278,7 +278,10 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<FunctionSignature, MonomorphizationError> {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
-        self.function(main_id, new_main_id)?;
+
+        let location = self.interner.function_meta(&main_id).location;
+        self.function(main_id, new_main_id, location)?;
+
         self.return_location =
             self.interner.function(&main_id).block(self.interner).statements().last().and_then(
                 |x| match self.interner.statement(x) {
@@ -294,6 +297,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         f: node_interner::FuncId,
         id: FuncId,
+        location: Location,
     ) -> Result<(), MonomorphizationError> {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
@@ -312,6 +316,10 @@ impl<'interner> Monomorphizer<'interner> {
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
+
+        if modifiers.is_comptime {
+            return Err(MonomorphizationError::ComptimeFnInRuntimeCode { name, location });
+        }
 
         let body_expr_id = self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);

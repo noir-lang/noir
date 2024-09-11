@@ -143,6 +143,17 @@ impl<'context> Elaborator<'context> {
                 mutable,
                 new_definitions,
             ),
+            Pattern::Interned(id, _) => {
+                let pattern = self.interner.get_pattern(id).clone();
+                self.elaborate_pattern_mut(
+                    pattern,
+                    expected_type,
+                    definition,
+                    mutable,
+                    new_definitions,
+                    global_id,
+                )
+            }
         }
     }
 

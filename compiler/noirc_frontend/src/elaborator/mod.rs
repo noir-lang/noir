@@ -158,6 +158,10 @@ pub struct Elaborator<'context> {
     /// Initially empty, it is set whenever a new top-level item is resolved.
     local_module: LocalModuleId,
 
+    /// True if we're elaborating a comptime item such as a comptime function,
+    /// block, global, or attribute.
+    in_comptime_context: bool,
+
     crate_id: CrateId,
 
     /// The scope of --debug-comptime, or None if unset
@@ -167,9 +171,6 @@ pub struct Elaborator<'context> {
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
-
-    /// Temporary flag to enable the experimental arithmetic generics feature
-    enable_arithmetic_generics: bool,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
 }
@@ -194,7 +195,6 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
         interpreter_call_stack: im::Vector<Location>,
     ) -> Self {
         Self {
@@ -217,9 +217,9 @@ impl<'context> Elaborator<'context> {
             current_trait_impl: None,
             debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
-            enable_arithmetic_generics,
             current_trait: None,
             interpreter_call_stack,
+            in_comptime_context: false,
         }
     }
 
@@ -227,14 +227,12 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
             crate_id,
             debug_comptime_in_file,
-            enable_arithmetic_generics,
             im::Vector::new(),
         )
     }
@@ -244,16 +242,8 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(
-            context,
-            crate_id,
-            items,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        )
-        .errors
+        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
     }
 
     pub fn elaborate_and_return_self(
@@ -261,20 +251,14 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
-        enable_arithmetic_generics: bool,
     ) -> Self {
-        let mut this = Self::from_context(
-            context,
-            crate_id,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        );
+        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
     }
 
-    fn elaborate_items(&mut self, mut items: CollectedItems) {
+    pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         //
@@ -1269,7 +1253,9 @@ impl<'context> Elaborator<'context> {
             let struct_def = this.interner.get_struct(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let fields = vecmap(&unresolved.fields, |(ident, typ)| {
+            let fields = vecmap(&unresolved.fields, |field| {
+                let ident = &field.item.name;
+                let typ = &field.item.typ;
                 (ident.clone(), this.resolve_type(typ.clone()))
             });
 
@@ -1308,7 +1294,12 @@ impl<'context> Elaborator<'context> {
 
         let comptime = let_stmt.comptime;
 
-        let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
+        let (let_statement, _typ) = if comptime {
+            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
+        } else {
+            self.elaborate_let(let_stmt, Some(global_id))
+        };
+
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
@@ -1343,9 +1334,7 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
-            self.debug_comptime(location, |interner| {
-                interner.get_global(global_id).let_statement.to_display_ast(interner).kind
-            });
+            self.debug_comptime(location, |interner| value.display(interner).to_string());
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
@@ -1439,21 +1428,6 @@ impl<'context> Elaborator<'context> {
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None);
             });
-        }
-    }
-
-    /// True if we're currently within a `comptime` block, function, or global
-    fn in_comptime_context(&self) -> bool {
-        // The first context is the global context, followed by the function-specific context.
-        // Any context after that is a `comptime {}` block's.
-        if self.function_context.len() > 2 {
-            return true;
-        }
-
-        match self.current_item {
-            Some(DependencyId::Function(id)) => self.interner.function_modifiers(&id).is_comptime,
-            Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
-            _ => false,
         }
     }
 

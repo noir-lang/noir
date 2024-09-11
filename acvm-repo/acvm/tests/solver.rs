@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use acir::brillig::{BitSize, IntegerBitSize};
 use acir::{
     acir_field::GenericFieldElement,
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
@@ -122,10 +123,20 @@ fn inversion_brillig_oracle_equivalence() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress(0),
-                size: 2,
-                offset: 0,
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -258,10 +269,20 @@ fn double_inversion_brillig_oracle() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(3u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress(0),
-                size: 3,
-                offset: 0,
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -366,12 +387,21 @@ fn oracle_dependent_execution() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(3u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress(0),
-                size: 3,
-                offset: 0,
-            },
-            // Oracles are named 'foreign calls' in brillig
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
+            }, // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
@@ -498,10 +528,20 @@ fn brillig_oracle_predicate() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress(0),
-                size: 2,
-                offset: 0,
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -607,8 +647,11 @@ fn unsatisfied_opcode_resolved_brillig() {
     let w_y = Witness(5);
     let w_result = Witness(6);
 
-    let calldata_copy_opcode =
-        BrilligOpcode::CalldataCopy { destination_address: MemoryAddress(0), size: 2, offset: 0 };
+    let calldata_copy_opcode = BrilligOpcode::CalldataCopy {
+        destination_address: MemoryAddress(0),
+        size_address: MemoryAddress(0),
+        offset_address: MemoryAddress(1),
+    };
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
@@ -627,7 +670,23 @@ fn unsatisfied_opcode_resolved_brillig() {
     let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_bytecode = BrilligBytecode {
-        bytecode: vec![calldata_copy_opcode, equal_opcode, jmp_if_opcode, trap_opcode, stop_opcode],
+        bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            calldata_copy_opcode,
+            equal_opcode,
+            jmp_if_opcode,
+            trap_opcode,
+            stop_opcode,
+        ],
     };
 
     let opcode_a = Expression {
@@ -679,7 +738,7 @@ fn unsatisfied_opcode_resolved_brillig() {
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
             function_id: BrilligFunctionId(0),
             payload: None,
-            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
+            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 5 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
     );
@@ -1584,7 +1643,7 @@ proptest! {
     #[test]
     fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(32), keccak256_op);
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(8), keccak256_op);
         prop_assert!(result, "{}", message);
     }
 

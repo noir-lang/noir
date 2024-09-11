@@ -210,8 +210,8 @@ pub enum BrilligOpcode<F> {
     /// Copies calldata after the offset to the specified address and length
     CalldataCopy {
         destination_address: MemoryAddress,
-        size: usize,
-        offset: usize,
+        size_address: MemoryAddress,
+        offset_address: MemoryAddress,
     },
     /// We don't support dynamic jumps or calls
     /// See https://github.com/ethereum/aleth/issues/3404 for reasoning

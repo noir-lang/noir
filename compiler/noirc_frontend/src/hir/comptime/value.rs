@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Display, rc::Rc};
+use std::{borrow::Cow, fmt::Display, rc::Rc, vec};
 
 use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
@@ -9,11 +9,11 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression,
-        ConstrainStatement, ConstructorExpression, ForLoopStatement, ForRange, Ident, IfExpression,
-        IndexExpression, InfixExpression, IntegerBitSize, LValue, Lambda, LetStatement,
-        MemberAccessExpression, MethodCallExpression, PrefixExpression, Signedness, Statement,
-        StatementKind, UnresolvedTypeData,
+        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
+        CastExpression, ConstrainStatement, ConstructorExpression, ForLoopStatement, ForRange,
+        GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression, IntegerBitSize,
+        LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression, Pattern,
+        PrefixExpression, Signedness, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::{
@@ -78,6 +78,7 @@ pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
     LValue(LValue),
+    Pattern(Pattern),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -97,6 +98,10 @@ impl Value {
 
     pub(crate) fn lvalue(lvaue: LValue) -> Self {
         Value::Expr(ExprValue::LValue(lvaue))
+    }
+
+    pub(crate) fn pattern(pattern: Pattern) -> Self {
+        Value::Expr(ExprValue::Pattern(pattern))
     }
 
     pub(crate) fn get_type(&self) -> Cow<Type> {
@@ -273,7 +278,8 @@ impl Value {
                 })
             }
             Value::Expr(ExprValue::LValue(lvalue)) => lvalue.as_expression().kind,
-            Value::TypedExpr(..)
+            Value::Expr(ExprValue::Pattern(_))
+            | Value::TypedExpr(..)
             | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -442,6 +448,9 @@ impl Value {
             }
             Value::Expr(ExprValue::LValue(lvalue)) => {
                 Token::InternedLValue(interner.push_lvalue(lvalue))
+            }
+            Value::Expr(ExprValue::Pattern(pattern)) => {
+                Token::InternedPattern(interner.push_pattern(pattern))
             }
             Value::UnresolvedType(typ) => {
                 Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
@@ -653,9 +662,15 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::FunctionDefinition(function_id) => {
                 write!(f, "{}", self.interner.function_name(function_id))
             }
-            Value::ModuleDefinition(_) => write!(f, "(module)"),
+            Value::ModuleDefinition(module_id) => {
+                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
+                    write!(f, "{}", &attributes.name)
+                } else {
+                    write!(f, "(crate root)")
+                }
+            }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{}", typ),
+            Value::Type(typ) => write!(f, "{:?}", typ),
             Value::Expr(ExprValue::Expression(expr)) => {
                 write!(f, "{}", remove_interned_in_expression_kind(self.interner, expr.clone()))
             }
@@ -664,6 +679,9 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Expr(ExprValue::LValue(lvalue)) => {
                 write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
+            }
+            Value::Expr(ExprValue::Pattern(pattern)) => {
+                write!(f, "{}", remove_interned_in_pattern(self.interner, pattern.clone()))
             }
             Value::TypedExpr(TypedExpr::ExprId(id)) => {
                 let hir_expr = self.interner.expression(id);
@@ -676,12 +694,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 write!(f, "{}", stmt.kind)
             }
             Value::UnresolvedType(typ) => {
-                if let UnresolvedTypeData::Interned(id) = typ {
-                    let typ = self.interner.get_unresolved_type_data(*id);
-                    write!(f, "{}", typ)
-                } else {
-                    write!(f, "{}", typ)
-                }
+                write!(f, "{}", remove_interned_in_unresolved_type_data(self.interner, typ.clone()))
             }
         }
     }
@@ -721,6 +734,10 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
             }
             Token::InternedUnresolvedTypeData(id) => {
                 let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
+                value.display(self.interner).fmt(f)
+            }
+            Token::InternedPattern(id) => {
+                let value = Value::pattern(Pattern::Interned(*id, Span::default()));
                 value.display(self.interner).fmt(f)
             }
             Token::UnquoteMarker(id) => {
@@ -895,7 +912,9 @@ fn remove_interned_in_statement_kind(
 ) -> StatementKind {
     match statement {
         StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
+            pattern: remove_interned_in_pattern(interner, let_statement.pattern),
             expression: remove_interned_in_expression(interner, let_statement.expression),
+            r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
             ..let_statement
         }),
         StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainStatement(
@@ -958,5 +977,122 @@ fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue 
             let lvalue = interner.get_lvalue(id, span);
             remove_interned_in_lvalue(interner, lvalue)
         }
+    }
+}
+
+fn remove_interned_in_unresolved_type(
+    interner: &NodeInterner,
+    typ: UnresolvedType,
+) -> UnresolvedType {
+    UnresolvedType {
+        typ: remove_interned_in_unresolved_type_data(interner, typ.typ),
+        span: typ.span,
+    }
+}
+
+fn remove_interned_in_unresolved_type_data(
+    interner: &NodeInterner,
+    typ: UnresolvedTypeData,
+) -> UnresolvedTypeData {
+    match typ {
+        UnresolvedTypeData::Array(expr, typ) => UnresolvedTypeData::Array(
+            expr,
+            Box::new(remove_interned_in_unresolved_type(interner, *typ)),
+        ),
+        UnresolvedTypeData::Slice(typ) => {
+            UnresolvedTypeData::Slice(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
+        }
+        UnresolvedTypeData::FormatString(expr, typ) => UnresolvedTypeData::FormatString(
+            expr,
+            Box::new(remove_interned_in_unresolved_type(interner, *typ)),
+        ),
+        UnresolvedTypeData::Parenthesized(typ) => UnresolvedTypeData::Parenthesized(Box::new(
+            remove_interned_in_unresolved_type(interner, *typ),
+        )),
+        UnresolvedTypeData::Named(path, generic_type_args, is_synthesized) => {
+            UnresolvedTypeData::Named(
+                path,
+                remove_interned_in_generic_type_args(interner, generic_type_args),
+                is_synthesized,
+            )
+        }
+        UnresolvedTypeData::TraitAsType(path, generic_type_args) => {
+            UnresolvedTypeData::TraitAsType(
+                path,
+                remove_interned_in_generic_type_args(interner, generic_type_args),
+            )
+        }
+        UnresolvedTypeData::MutableReference(typ) => UnresolvedTypeData::MutableReference(
+            Box::new(remove_interned_in_unresolved_type(interner, *typ)),
+        ),
+        UnresolvedTypeData::Tuple(types) => UnresolvedTypeData::Tuple(vecmap(types, |typ| {
+            remove_interned_in_unresolved_type(interner, typ)
+        })),
+        UnresolvedTypeData::Function(arg_types, ret_type, env_type, unconstrained) => {
+            UnresolvedTypeData::Function(
+                vecmap(arg_types, |typ| remove_interned_in_unresolved_type(interner, typ)),
+                Box::new(remove_interned_in_unresolved_type(interner, *ret_type)),
+                Box::new(remove_interned_in_unresolved_type(interner, *env_type)),
+                unconstrained,
+            )
+        }
+        UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+            UnresolvedTypeData::AsTraitPath(Box::new(AsTraitPath {
+                typ: remove_interned_in_unresolved_type(interner, as_trait_path.typ),
+                trait_generics: remove_interned_in_generic_type_args(
+                    interner,
+                    as_trait_path.trait_generics,
+                ),
+                ..*as_trait_path
+            }))
+        }
+        UnresolvedTypeData::Interned(id) => interner.get_unresolved_type_data(id).clone(),
+        UnresolvedTypeData::FieldElement
+        | UnresolvedTypeData::Integer(_, _)
+        | UnresolvedTypeData::Bool
+        | UnresolvedTypeData::Unit
+        | UnresolvedTypeData::String(_)
+        | UnresolvedTypeData::Resolved(_)
+        | UnresolvedTypeData::Quoted(_)
+        | UnresolvedTypeData::Expression(_)
+        | UnresolvedTypeData::Unspecified
+        | UnresolvedTypeData::Error => typ,
+    }
+}
+
+fn remove_interned_in_generic_type_args(
+    interner: &NodeInterner,
+    args: GenericTypeArgs,
+) -> GenericTypeArgs {
+    GenericTypeArgs {
+        ordered_args: vecmap(args.ordered_args, |typ| {
+            remove_interned_in_unresolved_type(interner, typ)
+        }),
+        named_args: vecmap(args.named_args, |(name, typ)| {
+            (name, remove_interned_in_unresolved_type(interner, typ))
+        }),
+    }
+}
+
+// Returns a new Pattern where all Interned Patterns have been turned into Pattern.
+fn remove_interned_in_pattern(interner: &NodeInterner, pattern: Pattern) -> Pattern {
+    match pattern {
+        Pattern::Identifier(_) => pattern,
+        Pattern::Mutable(pattern, span, is_synthesized) => Pattern::Mutable(
+            Box::new(remove_interned_in_pattern(interner, *pattern)),
+            span,
+            is_synthesized,
+        ),
+        Pattern::Tuple(patterns, span) => Pattern::Tuple(
+            vecmap(patterns, |pattern| remove_interned_in_pattern(interner, pattern)),
+            span,
+        ),
+        Pattern::Struct(path, patterns, span) => {
+            let patterns = vecmap(patterns, |(name, pattern)| {
+                (name, remove_interned_in_pattern(interner, pattern))
+            });
+            Pattern::Struct(path, patterns, span)
+        }
+        Pattern::Interned(id, _) => interner.get_pattern(id).clone(),
     }
 }

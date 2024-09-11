@@ -450,7 +450,6 @@ impl<'context> Elaborator<'context> {
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
-                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
@@ -463,15 +462,7 @@ impl<'context> Elaborator<'context> {
                             Type::Error
                         }
                     }
-                    (lhs, rhs) => {
-                        if !self.enable_arithmetic_generics {
-                            let span =
-                                if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                            self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                        }
-
-                        Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize()
-                    }
+                    (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => self.resolve_as_trait_path(*path),

@@ -5,8 +5,8 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Signedness, StatementKind,
-        UnresolvedTypeData,
+        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Pattern, Signedness,
+        StatementKind, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -190,6 +190,9 @@ pub(crate) fn get_expr(
             }
             ExprValue::LValue(LValue::Interned(id, _)) => {
                 Ok(ExprValue::LValue(interner.get_lvalue(id, location.span).clone()))
+            }
+            ExprValue::Pattern(Pattern::Interned(id, _)) => {
+                Ok(ExprValue::Pattern(interner.get_pattern(id).clone()))
             }
             _ => Ok(expr),
         },

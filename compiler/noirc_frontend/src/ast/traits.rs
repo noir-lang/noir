@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::TraitId;
 
-use super::GenericTypeArgs;
+use super::{Documented, GenericTypeArgs};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -20,7 +20,7 @@ pub struct NoirTrait {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
-    pub items: Vec<TraitItem>,
+    pub items: Vec<Documented<TraitItem>>,
     pub attributes: Vec<SecondaryAttribute>,
 }
 
@@ -54,7 +54,7 @@ pub struct TypeImpl {
     pub type_span: Span,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
-    pub methods: Vec<(NoirFunction, Span)>,
+    pub methods: Vec<(Documented<NoirFunction>, Span)>,
 }
 
 /// Ast node for an implementation of a trait for a particular type
@@ -71,7 +71,7 @@ pub struct NoirTraitImpl {
 
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
-    pub items: Vec<TraitImplItem>,
+    pub items: Vec<Documented<TraitImplItem>>,
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`

@@ -21,25 +21,41 @@ mod separate_module;
 
 comptime mut global counter = 0;
 
-fn increment_counter() {
+comptime fn increment_counter() {
     counter += 1;
 }
 
-fn outer_attribute_func(m: Module) -> Quoted {
+comptime fn outer_attribute_func(m: Module) -> Quoted {
     assert_eq(m.name(), quote { yet_another_module });
     increment_counter();
     quote { pub fn generated_outer_function() {} }
 }
 
-fn inner_attribute_func(m: Module) -> Quoted {
+comptime fn inner_attribute_func(m: Module) -> Quoted {
     assert_eq(m.name(), quote { yet_another_module });
     increment_counter();
     quote { pub fn generated_inner_function() {} }
 }
 
-fn outer_attribute_separate_module(m: Module) {
+comptime fn outer_attribute_separate_module(m: Module) {
     assert_eq(m.name(), quote { separate_module });
     increment_counter();
+}
+
+struct Foo {}
+
+#[add_function]
+mod add_to_me {
+    fn add_to_me_function() {}
+}
+
+comptime fn add_function(m: Module) {
+    m.add_item(
+        quote { pub fn added_function() -> super::Foo {
+            add_to_me_function();
+            super::Foo {}
+    } }
+    );
 }
 
 fn main() {
@@ -73,6 +89,8 @@ fn main() {
 
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();
+
+    let _ = add_to_me::added_function();
 }
 
 // docs:start:as_module_example

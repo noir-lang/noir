@@ -69,3 +69,20 @@ contract some_contract {
 fn set_pub_return(f: FunctionDefinition) {
     f.set_return_public(true);
 }
+
+mod foo {
+    #[attr]
+    pub fn some() {}
+
+    comptime fn attr(f: FunctionDefinition) {
+        assert_eq(f.module().name(), quote { foo });
+
+        assert(!f.is_unconstrained());
+
+        f.set_unconstrained(true);
+        assert(f.is_unconstrained());
+
+        f.set_unconstrained(false);
+        assert(!f.is_unconstrained());
+    }
+}

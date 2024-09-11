@@ -236,8 +236,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 }
                 self.set_program_counter(*destination)
             }
-            Opcode::CalldataCopy { destination_address, size, offset } => {
-                let values: Vec<_> = self.calldata[*offset..(*offset + size)]
+            Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
+                let size = self.memory.read(*size_address).to_usize();
+                let offset = self.memory.read(*offset_address).to_usize();
+                let values: Vec<_> = self.calldata[offset..(offset + size)]
                     .iter()
                     .map(|value| MemoryValue::new_field(*value))
                     .collect();
@@ -754,24 +756,17 @@ mod tests {
 
     #[test]
     fn add_single_step_smoke() {
-        let calldata = vec![FieldElement::from(27u128)];
+        let calldata = vec![];
 
-        // Add opcode to add the value in address `0` and `1`
-        // and place the output in address `2`
-        let calldata_copy = Opcode::CalldataCopy {
-            destination_address: MemoryAddress::from(0),
-            size: 1,
-            offset: 0,
-        };
+        let opcodes = [Opcode::Const {
+            destination: MemoryAddress(0),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(27u128),
+        }];
 
         // Start VM
-        let opcodes = [calldata_copy];
         let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
 
-        // Process a single VM opcode
-        //
-        // After processing a single opcode, we should have
-        // the vm status as finished since there is only one opcode
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
@@ -786,7 +781,6 @@ mod tests {
     #[test]
     fn jmpif_opcode() {
         let mut calldata: Vec<FieldElement> = vec![];
-        let mut opcodes = vec![];
 
         let lhs = {
             calldata.push(2u128.into());
@@ -800,21 +794,35 @@ mod tests {
 
         let destination = MemoryAddress::from(calldata.len());
 
-        opcodes.push(Opcode::CalldataCopy {
-            destination_address: MemoryAddress::from(0),
-            size: 2,
-            offset: 0,
-        });
-
-        opcodes.push(Opcode::BinaryFieldOp { destination, op: BinaryFieldOp::Equals, lhs, rhs });
-        opcodes.push(Opcode::Jump { location: 3 });
-        opcodes.push(Opcode::JumpIf { condition: destination, location: 4 });
+        let opcodes = vec![
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
+            },
+            Opcode::BinaryFieldOp { destination, op: BinaryFieldOp::Equals, lhs, rhs },
+            Opcode::Jump { location: 5 },
+            Opcode::JumpIf { condition: destination, location: 6 },
+        ];
 
         let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
 
@@ -832,48 +840,49 @@ mod tests {
     fn jmpifnot_opcode() {
         let calldata: Vec<FieldElement> = vec![1u128.into(), 2u128.into()];
 
-        let calldata_copy = Opcode::CalldataCopy {
-            destination_address: MemoryAddress::from(0),
-            size: 2,
-            offset: 0,
-        };
-
-        let jump_opcode = Opcode::Jump { location: 3 };
-
-        let trap_opcode = Opcode::Trap { revert_data: HeapArray::default() };
-
-        let not_equal_cmp_opcode = Opcode::BinaryFieldOp {
-            op: BinaryFieldOp::Equals,
-            lhs: MemoryAddress::from(0),
-            rhs: MemoryAddress::from(1),
-            destination: MemoryAddress::from(2),
-        };
-
-        let jump_if_not_opcode =
-            Opcode::JumpIfNot { condition: MemoryAddress::from(2), location: 2 };
-
-        let add_opcode = Opcode::BinaryFieldOp {
-            op: BinaryFieldOp::Add,
-            lhs: MemoryAddress::from(0),
-            rhs: MemoryAddress::from(1),
-            destination: MemoryAddress::from(2),
-        };
-
-        let opcodes = [
-            calldata_copy,
-            jump_opcode,
-            trap_opcode,
-            not_equal_cmp_opcode,
-            jump_if_not_opcode,
-            add_opcode,
+        let opcodes = vec![
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
+            },
+            Opcode::Jump { location: 5 },
+            Opcode::Trap { revert_data: HeapArray::default() },
+            Opcode::BinaryFieldOp {
+                op: BinaryFieldOp::Equals,
+                lhs: MemoryAddress::from(0),
+                rhs: MemoryAddress::from(1),
+                destination: MemoryAddress::from(2),
+            },
+            Opcode::JumpIfNot { condition: MemoryAddress::from(2), location: 4 },
+            Opcode::BinaryFieldOp {
+                op: BinaryFieldOp::Add,
+                lhs: MemoryAddress::from(0),
+                rhs: MemoryAddress::from(1),
+                destination: MemoryAddress::from(2),
+            },
         ];
+
         let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
 
@@ -888,7 +897,7 @@ mod tests {
             status,
             VMStatus::Failure {
                 reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
-                call_stack: vec![2]
+                call_stack: vec![4]
             }
         );
 
@@ -903,10 +912,20 @@ mod tests {
         let calldata: Vec<FieldElement> = vec![((2_u128.pow(32)) - 1).into()];
 
         let opcodes = &[
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             Opcode::CalldataCopy {
-                destination_address: MemoryAddress::from(0),
-                size: 1,
-                offset: 0,
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
             },
             Opcode::Cast {
                 destination: MemoryAddress::from(1),
@@ -919,10 +938,12 @@ mod tests {
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
 
@@ -936,22 +957,34 @@ mod tests {
     fn mov_opcode() {
         let calldata: Vec<FieldElement> = vec![(1u128).into(), (2u128).into(), (3u128).into()];
 
-        let calldata_copy = Opcode::CalldataCopy {
-            destination_address: MemoryAddress::from(0),
-            size: 3,
-            offset: 0,
-        };
-
-        let mov_opcode =
-            Opcode::Mov { destination: MemoryAddress::from(2), source: MemoryAddress::from(0) };
-
-        let opcodes = &[calldata_copy, mov_opcode];
+        let opcodes = &[
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(3u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
+            },
+            Opcode::Mov { destination: MemoryAddress::from(2), source: MemoryAddress::from(0) },
+        ];
         let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
         let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
         let VM { memory, .. } = vm;
@@ -968,28 +1001,32 @@ mod tests {
         let calldata: Vec<FieldElement> =
             vec![(0u128).into(), (1u128).into(), (2u128).into(), (3u128).into()];
 
-        let calldata_copy = Opcode::CalldataCopy {
-            destination_address: MemoryAddress::from(0),
-            size: 4,
-            offset: 0,
-        };
-
-        let cast_zero = Opcode::Cast {
-            destination: MemoryAddress::from(0),
-            source: MemoryAddress::from(0),
-            bit_size: BitSize::Integer(IntegerBitSize::U1),
-        };
-
-        let cast_one = Opcode::Cast {
-            destination: MemoryAddress::from(1),
-            source: MemoryAddress::from(1),
-            bit_size: BitSize::Integer(IntegerBitSize::U1),
-        };
-
         let opcodes = &[
-            calldata_copy,
-            cast_zero,
-            cast_one,
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(4u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
+            },
+            Opcode::Cast {
+                destination: MemoryAddress::from(0),
+                source: MemoryAddress::from(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U1),
+            },
+            Opcode::Cast {
+                destination: MemoryAddress::from(1),
+                source: MemoryAddress::from(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U1),
+            },
             Opcode::ConditionalMov {
                 destination: MemoryAddress(4), // Sets 3_u128 to memory address 4
                 source_a: MemoryAddress(2),
@@ -1007,16 +1044,16 @@ mod tests {
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
-
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
@@ -1036,11 +1073,23 @@ mod tests {
             vec![(2u128).into(), (2u128).into(), (0u128).into(), (5u128).into(), (6u128).into()];
         let calldata_size = calldata.len();
 
-        let calldata_copy = Opcode::CalldataCopy {
-            destination_address: MemoryAddress::from(0),
-            size: 5,
-            offset: 0,
-        };
+        let calldata_copy_opcodes = vec![
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(5u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
+            },
+        ];
 
         let cast_opcodes: Vec<_> = (0..calldata_size)
             .map(|index| Opcode::Cast {
@@ -1082,13 +1131,18 @@ mod tests {
             destination: MemoryAddress::from(2),
         };
 
-        let opcodes: Vec<_> = std::iter::once(calldata_copy)
+        let opcodes: Vec<_> = calldata_copy_opcodes
+            .into_iter()
             .chain(cast_opcodes)
             .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
             .collect();
         let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
 
         // Calldata copy
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
 
@@ -1242,7 +1296,7 @@ mod tests {
             let r_tmp = MemoryAddress::from(3);
             let r_pointer = MemoryAddress::from(4);
 
-            let start: [Opcode<FieldElement>; 5] = [
+            let start = [
                 // sum = 0
                 Opcode::Const { destination: r_sum, value: 0u128.into(), bit_size: BitSize::Field },
                 // i = 0
@@ -1263,10 +1317,20 @@ mod tests {
                     value: 5u128.into(),
                     bit_size: BitSize::Integer(bit_size),
                 },
+                Opcode::Const {
+                    destination: MemoryAddress(100),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(memory.len() as u32),
+                },
+                Opcode::Const {
+                    destination: MemoryAddress(101),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(0u64),
+                },
                 Opcode::CalldataCopy {
                     destination_address: MemoryAddress(5),
-                    size: memory.len(),
-                    offset: 0,
+                    size_address: MemoryAddress(100),
+                    offset_address: MemoryAddress(101),
                 },
             ];
             let loop_body = [
@@ -1359,8 +1423,8 @@ mod tests {
                 Opcode::Const { destination: r_pointer, value: 4u128.into(), bit_size },
                 // call recursive_fn
                 Opcode::Call {
-                        location: 5, // Call after 'start'
-                    },
+                            location: 5, // Call after 'start'
+                        },
                 // end program by jumping to end
                 Opcode::Jump { location: 100 },
             ];
@@ -1510,10 +1574,20 @@ mod tests {
             vec![(1u128).into(), (3u128).into(), (2u128).into(), (4u128).into()];
 
         let invert_program = vec![
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(initial_matrix.len() as u32),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             Opcode::CalldataCopy {
-                destination_address: MemoryAddress::from(2),
-                size: initial_matrix.len(),
-                offset: 0,
+                destination_address: MemoryAddress(2),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
             },
             // input = 0
             Opcode::Const {
@@ -1600,10 +1674,20 @@ mod tests {
 
         // First call:
         let string_double_program = vec![
+            Opcode::Const {
+                destination: MemoryAddress(100),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(input_string.len() as u32),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(101),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             Opcode::CalldataCopy {
                 destination_address: MemoryAddress(4),
-                size: input_string.len(),
-                offset: 0,
+                size_address: MemoryAddress(100),
+                offset_address: MemoryAddress(101),
             },
             // input_pointer = 4
             Opcode::Const {
@@ -1698,10 +1782,20 @@ mod tests {
             vec![(1u128).into(), (3u128).into(), (2u128).into(), (4u128).into()];
 
         let invert_program = vec![
+            Opcode::Const {
+                destination: MemoryAddress(100),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(initial_matrix.len() as u32),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(101),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             Opcode::CalldataCopy {
-                destination_address: MemoryAddress::from(2),
-                size: initial_matrix.len(),
-                offset: 0,
+                destination_address: MemoryAddress(2),
+                size_address: MemoryAddress(100),
+                offset_address: MemoryAddress(101),
             },
             // input = 0
             Opcode::Const {
@@ -1797,10 +1891,20 @@ mod tests {
             vec![(34u128).into(), (37u128).into(), (78u128).into(), (85u128).into()];
 
         let matrix_mul_program = vec![
+            Opcode::Const {
+                destination: MemoryAddress(100),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(matrix_a.len() + matrix_b.len()),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(101),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             Opcode::CalldataCopy {
-                destination_address: MemoryAddress::from(3),
-                size: matrix_a.len() + matrix_b.len(),
-                offset: 0,
+                destination_address: MemoryAddress(3),
+                size_address: MemoryAddress(100),
+                offset_address: MemoryAddress(101),
             },
             // input = 3
             Opcode::Const {
@@ -1944,11 +2048,24 @@ mod tests {
         let r_input = MemoryAddress::from(r_ptr);
         let r_output = MemoryAddress::from(r_ptr + 1);
 
-        let program: Vec<_> = std::iter::once(Opcode::CalldataCopy {
-            destination_address: MemoryAddress::from(0),
-            size: memory.len(),
-            offset: 0,
-        })
+        let program: Vec<_> = vec![
+            Opcode::Const {
+                destination: MemoryAddress(100),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(memory.len()),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(101),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(100),
+                offset_address: MemoryAddress(101),
+            },
+        ]
+        .into_iter()
         .chain(memory.iter().enumerate().map(|(index, mem_value)| Opcode::Cast {
             destination: MemoryAddress(index),
             source: MemoryAddress(index),

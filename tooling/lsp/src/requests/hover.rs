@@ -5,7 +5,6 @@ use fm::FileMap;
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::Visibility,
-    graph::CrateId,
     hir::def_map::ModuleId,
     hir_def::{stmt::HirPattern, traits::Trait},
     macros_api::{NodeInterner, StructId},
@@ -60,30 +59,37 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
     let crate_root = args.def_maps[&id.krate].root();
 
-    if id.local_id == crate_root {
-        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate);
-        return dep.map(|dep| format!("    crate {}", dep.name));
-    }
-
-    // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
-    // This is a workaround to avoid panicking in that case (which brings the LSP server down).
-    // Cases where this happens are related to generated code, so once that stops happening
-    // this won't be an issue anymore.
-    let module_attributes = args.interner.try_module_attributes(&id)?;
-
     let mut string = String::new();
-    if let Some(parent_local_id) = module_attributes.parent {
-        if format_parent_module_from_module_id(
-            &ModuleId { krate: id.krate, local_id: parent_local_id },
-            args,
-            &mut string,
-        ) {
-            string.push('\n');
+
+    if id.local_id == crate_root {
+        let Some(dep) = args.dependencies.iter().find(|dep| dep.crate_id == id.krate) else {
+            return None;
+        };
+        string.push_str("    crate ");
+        string.push_str(&dep.name.to_string());
+    } else {
+        // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
+        // This is a workaround to avoid panicking in that case (which brings the LSP server down).
+        // Cases where this happens are related to generated code, so once that stops happening
+        // this won't be an issue anymore.
+        let module_attributes = args.interner.try_module_attributes(&id)?;
+
+        if let Some(parent_local_id) = module_attributes.parent {
+            if format_parent_module_from_module_id(
+                &ModuleId { krate: id.krate, local_id: parent_local_id },
+                args,
+                &mut string,
+            ) {
+                string.push('\n');
+            }
         }
+        string.push_str("    ");
+        string.push_str("mod ");
+        string.push_str(&module_attributes.name);
     }
-    string.push_str("    ");
-    string.push_str("mod ");
-    string.push_str(&module_attributes.name);
+
+    append_doc_comments(args.interner, ReferenceId::Module(id), &mut string);
+
     Some(string)
 }
 
@@ -108,6 +114,9 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str(",\n");
     }
     string.push_str("    }");
+
+    append_doc_comments(args.interner, ReferenceId::Struct(id), &mut string);
+
     string
 }
 
@@ -131,6 +140,9 @@ fn format_struct_member(
     string.push_str(": ");
     string.push_str(&format!("{}", field_type));
     string.push_str(&go_to_type_links(field_type, args.interner, args.files));
+
+    append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
+
     string
 }
 
@@ -145,6 +157,9 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("trait ");
     string.push_str(&a_trait.name.0.contents);
     format_generics(&a_trait.generics, &mut string);
+
+    append_doc_comments(args.interner, ReferenceId::Trait(id), &mut string);
+
     string
 }
 
@@ -163,6 +178,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
+    append_doc_comments(args.interner, ReferenceId::Global(id), &mut string);
+
     string
 }
 
@@ -220,6 +238,8 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
+    append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+
     string
 }
 
@@ -235,6 +255,9 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&type_alias.name.0.contents);
     string.push_str(" = ");
     string.push_str(&format!("{}", &type_alias.typ));
+
+    append_doc_comments(args.interner, ReferenceId::Alias(id), &mut string);
+
     string
 }
 
@@ -270,6 +293,7 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
+/// Some doc comments
 fn format_generics(generics: &Generics, string: &mut String) {
     if generics.is_empty() {
         return;
@@ -351,9 +375,9 @@ fn format_parent_module_from_module_id(
         }
     }
 
-    // We don't record module attriubtes for the root module,
+    // We don't record module attributes for the root module,
     // so we handle that case separately
-    if let CrateId::Root(_) = module.krate {
+    if module.krate.is_root() {
         segments.push(&args.crate_name);
     };
 
@@ -511,6 +535,16 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
         location.range.end.line + 1,
         location.range.end.character + 1
     )
+}
+
+fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) {
+    if let Some(doc_comments) = interner.doc_comments(id) {
+        string.push_str("\n\n---\n\n");
+        for comment in doc_comments {
+            string.push_str(comment);
+            string.push('\n');
+        }
+    }
 }
 
 #[cfg(test)]

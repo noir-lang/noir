@@ -1,8 +1,8 @@
 use acvm::acir::AcirField;
 use noirc_errors::Span;
 use noirc_frontend::ast::{
-    BlockExpression, Expression, ExpressionKind, FunctionDefinition, GenericTypeArgs, Ident,
-    Literal, NoirFunction, NoirStruct, Pattern, StatementKind, TypeImpl, UnresolvedType,
+    BlockExpression, Documented, Expression, ExpressionKind, FunctionDefinition, GenericTypeArgs,
+    Ident, Literal, NoirFunction, NoirStruct, Pattern, StatementKind, TypeImpl, UnresolvedType,
     UnresolvedTypeData,
 };
 use noirc_frontend::{
@@ -38,6 +38,7 @@ pub fn check_for_storage_definition(
     let result: Vec<&NoirStruct> = module
         .types
         .iter()
+        .map(|t| &t.item)
         .filter(|r#struct| {
             r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
         })
@@ -88,6 +89,7 @@ pub fn inject_context_in_storage(module: &mut SortedModule) -> Result<(), AztecM
     let storage_struct = module
         .types
         .iter_mut()
+        .map(|t| &mut t.item)
         .find(|r#struct| {
             r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
         })
@@ -96,7 +98,7 @@ pub fn inject_context_in_storage(module: &mut SortedModule) -> Result<(), AztecM
     storage_struct
         .fields
         .iter_mut()
-        .map(|(_, field)| inject_context_in_storage_field(field))
+        .map(|field| inject_context_in_storage_field(&mut field.item.typ))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(())
 }
@@ -200,6 +202,7 @@ pub fn generate_storage_implementation(
     let definition = module
         .types
         .iter()
+        .map(|t| &t.item)
         .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
         .unwrap();
 
@@ -212,8 +215,10 @@ pub fn generate_storage_implementation(
         .fields
         .iter()
         .flat_map(|field| {
-            generate_storage_field_constructor(field, slot_zero.clone())
-                .map(|expression| (field.0.clone(), expression))
+            let ident = &field.item.name;
+            let typ = &field.item.typ;
+            generate_storage_field_constructor(&(ident.clone(), typ.clone()), slot_zero.clone())
+                .map(|expression| (field.item.name.clone(), expression))
         })
         .collect();
 
@@ -249,7 +254,7 @@ pub fn generate_storage_implementation(
         type_span: Span::default(),
         generics: vec![generic_context_ident.into()],
 
-        methods: vec![(init, Span::default())],
+        methods: vec![(Documented::not_documented(init), Span::default())],
 
         where_clause: vec![],
     };
@@ -509,13 +514,15 @@ pub fn generate_storage_layout(
     let definition = module
         .types
         .iter()
+        .map(|t| &t.item)
         .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
         .unwrap();
 
     let mut storable_fields = vec![];
     let mut storable_fields_impl = vec![];
 
-    definition.fields.iter().for_each(|(field_ident, _)| {
+    definition.fields.iter().for_each(|field| {
+        let field_ident = &field.item.name;
         storable_fields.push(format!("{}: dep::aztec::prelude::Storable", field_ident));
         storable_fields_impl
             .push(format!("{}: dep::aztec::prelude::Storable {{ slot: 0 }}", field_ident,));

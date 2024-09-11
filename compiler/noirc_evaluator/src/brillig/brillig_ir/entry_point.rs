@@ -46,6 +46,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         arguments: &[BrilligParameter],
         return_parameters: &[BrilligParameter],
     ) {
+        // We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
+        let mut argument_variables = self.allocate_function_arguments(arguments);
+
         let calldata_size = Self::flattened_tuple_size(arguments);
         let return_data_size = Self::flattened_tuple_size(return_parameters);
 
@@ -64,75 +67,45 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // Copy calldata
         self.copy_and_cast_calldata(arguments);
 
-        // Allocate the variables for every argument:
         let mut current_calldata_pointer = Self::calldata_start_offset();
 
-        let mut argument_variables: Vec<_> = arguments
-            .iter()
-            .map(|argument| match argument {
-                BrilligParameter::SingleAddr(bit_size) => {
-                    let single_address = self.allocate_register();
-                    let var = BrilligVariable::SingleAddr(SingleAddrVariable {
-                        address: single_address,
-                        bit_size: *bit_size,
-                    });
-                    self.mov_instruction(single_address, MemoryAddress(current_calldata_pointer));
-                    current_calldata_pointer += 1;
-                    var
-                }
-                BrilligParameter::Array(_, _) => {
-                    let pointer_to_the_array_in_calldata =
-                        self.make_usize_constant_instruction(current_calldata_pointer.into());
-                    let rc_register = self.make_usize_constant_instruction(1_usize.into());
-                    let flattened_size = Self::flattened_size(argument);
-                    let var = BrilligVariable::BrilligArray(BrilligArray {
-                        pointer: pointer_to_the_array_in_calldata.address,
-                        size: flattened_size,
-                        rc: rc_register.address,
-                    });
-
-                    current_calldata_pointer += flattened_size;
-                    var
-                }
-                BrilligParameter::Slice(_, _) => {
-                    let pointer_to_the_array_in_calldata =
-                        self.make_usize_constant_instruction(current_calldata_pointer.into());
-
-                    let flattened_size = Self::flattened_size(argument);
-                    let size_register = self.make_usize_constant_instruction(flattened_size.into());
-                    let rc_register = self.make_usize_constant_instruction(1_usize.into());
-
-                    let var = BrilligVariable::BrilligVector(BrilligVector {
-                        pointer: pointer_to_the_array_in_calldata.address,
-                        size: size_register.address,
-                        rc: rc_register.address,
-                    });
-
-                    current_calldata_pointer += flattened_size;
-                    var
-                }
-            })
-            .collect();
-
-        // Deflatten arrays
+        // Initialize the variables with the calldata
         for (argument_variable, argument) in argument_variables.iter_mut().zip(arguments) {
             match (argument_variable, argument) {
+                (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
+                    self.mov_instruction(
+                        single_address.address,
+                        MemoryAddress(current_calldata_pointer),
+                    );
+                    current_calldata_pointer += 1;
+                }
                 (
                     BrilligVariable::BrilligArray(array),
                     BrilligParameter::Array(item_type, item_count),
                 ) => {
+                    let flattened_size = array.size;
+                    self.usize_const_instruction(array.pointer, current_calldata_pointer.into());
+                    self.usize_const_instruction(array.rc, 1_usize.into());
+
+                    // Deflatten the array
                     let deflattened_address =
                         self.deflatten_array(item_type, array.size, array.pointer);
                     self.mov_instruction(array.pointer, deflattened_address);
                     array.size = item_type.len() * item_count;
                     self.deallocate_register(deflattened_address);
+
+                    current_calldata_pointer += flattened_size;
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
                     BrilligParameter::Slice(item_type, item_count),
                 ) => {
                     let flattened_size = Self::flattened_size(argument);
+                    self.usize_const_instruction(vector.pointer, current_calldata_pointer.into());
+                    self.usize_const_instruction(vector.rc, 1_usize.into());
+                    self.usize_const_instruction(vector.size, flattened_size.into());
 
+                    // Deflatten the vector
                     let deflattened_address =
                         self.deflatten_array(item_type, flattened_size, vector.pointer);
                     self.mov_instruction(vector.pointer, deflattened_address);
@@ -140,12 +113,43 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         vector.size,
                         (item_type.len() * item_count).into(),
                     );
-
                     self.deallocate_register(deflattened_address);
+
+                    current_calldata_pointer += flattened_size;
                 }
-                _ => {}
+                _ => unreachable!("ICE: cannot match variables against arguments"),
             }
         }
+    }
+
+    fn allocate_function_arguments(
+        &mut self,
+        arguments: &[BrilligParameter],
+    ) -> Vec<BrilligVariable> {
+        arguments
+            .iter()
+            .map(|argument| match argument {
+                BrilligParameter::SingleAddr(bit_size) => {
+                    BrilligVariable::SingleAddr(SingleAddrVariable {
+                        address: self.allocate_register(),
+                        bit_size: *bit_size,
+                    })
+                }
+                BrilligParameter::Array(_, _) => {
+                    let flattened_size = Self::flattened_size(argument);
+                    BrilligVariable::BrilligArray(BrilligArray {
+                        pointer: self.allocate_register(),
+                        size: flattened_size,
+                        rc: self.allocate_register(),
+                    })
+                }
+                BrilligParameter::Slice(_, _) => BrilligVariable::BrilligVector(BrilligVector {
+                    pointer: self.allocate_register(),
+                    size: self.allocate_register(),
+                    rc: self.allocate_register(),
+                }),
+            })
+            .collect()
     }
 
     fn copy_and_cast_calldata(&mut self, arguments: &[BrilligParameter]) {
