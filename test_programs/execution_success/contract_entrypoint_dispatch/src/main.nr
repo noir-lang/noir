@@ -1,3 +1,6 @@
+use field_size::size_in_fields;
+
+mod field_size;
 mod from_call_data;
 mod function_selector;
 mod point;
@@ -8,31 +11,48 @@ mod some_contract {
     use crate::function_selector::FunctionSelector;
     use crate::from_call_data::FromCallData;
 
-    #[aztec(public)]
+    #[aztec_public]
     pub fn one(x: Field) {
         println(f"Called one with x: {x}");
     }
 
-    #[aztec(public)]
+    #[aztec_public]
     pub fn two(x: Field, point: Point) {
         println(f"Called two with x: {x}, point: {point}");
     }
 
     pub fn other(_x: Field) {}
+}
 
-    // TODO: let the `aztec_contract` annotation above generate this method
-    pub fn public_entrypoint(selector: Field, calldata: [Field; 3]) {
-        let index = 0;
+comptime fn aztec_contract(m: Module) -> Quoted {
+    let functions = m.functions();
 
-        if selector == FunctionSelector::from_signature("one(Field)") {
-            let (x, _index) = FromCallData::from_calldata(calldata, index);
-            one(x);
-        } else if selector == FunctionSelector::from_signature("two(Field, Point)") {
-            let (x, index) = FromCallData::from_calldata(calldata, index);
-            let (point, _index) = FromCallData::from_calldata(calldata, index);
-            two(x, point)
-        } else {
-            panic(f"Unknown selector");
+    // Compute max field size
+    let mut max_field_size = 0;
+    for function in functions {
+        let mut field_size = 0;
+        for param in function.parameters() {
+            field_size += size_in_fields(param.1);
+        }
+        if field_size > max_field_size {
+            max_field_size = field_size;
+        }
+    }
+
+    quote {
+        pub fn public_entrypoint(selector: Field, calldata: [Field; $max_field_size]) {
+            let index = 0;
+
+            if selector == FunctionSelector::from_signature("one(Field)") {
+                let (x, _index) = FromCallData::from_calldata(calldata, index);
+                one(x);
+            } else if selector == FunctionSelector::from_signature("two(Field, Point)") {
+                let (x, index) = FromCallData::from_calldata(calldata, index);
+                let (point, _index) = FromCallData::from_calldata(calldata, index);
+                two(x, point)
+            } else {
+                panic(f"Unknown selector");
+            }
         }
     }
 }
