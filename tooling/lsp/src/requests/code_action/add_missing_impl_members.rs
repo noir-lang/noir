@@ -6,7 +6,7 @@ use noirc_frontend::{
     ast::{NoirTraitImpl, TraitImplItem},
     graph::CrateId,
     hir::def_map::{CrateDefMap, ModuleId},
-    hir_def::{function::FuncMeta, stmt::HirPattern},
+    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     macros_api::NodeInterner,
     node_interner::ReferenceId,
     Type,
@@ -58,8 +58,13 @@ impl<'a> CodeActionFinder<'a> {
             .iter()
             .map(|(name, func_id)| {
                 let func_meta = self.interner.function_meta(&func_id);
-                let mut generator =
-                    MethodStubGenerator::new(self.interner, self.def_maps, self.module_id);
+                let mut generator = MethodStubGenerator::new(
+                    trait_,
+                    &noir_trait_impl,
+                    self.interner,
+                    self.def_maps,
+                    self.module_id,
+                );
                 generator.generate(name, func_meta)
             })
             .collect();
@@ -74,6 +79,8 @@ impl<'a> CodeActionFinder<'a> {
 }
 
 struct MethodStubGenerator<'a> {
+    trait_: &'a Trait,
+    noir_trait_impl: &'a NoirTraitImpl,
     interner: &'a NodeInterner,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
@@ -82,11 +89,13 @@ struct MethodStubGenerator<'a> {
 
 impl<'a> MethodStubGenerator<'a> {
     fn new(
+        trait_: &'a Trait,
+        noir_trait_impl: &'a NoirTraitImpl,
         interner: &'a NodeInterner,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         module_id: ModuleId,
     ) -> Self {
-        Self { interner, def_maps, module_id, string: String::new() }
+        Self { trait_, noir_trait_impl, interner, def_maps, module_id, string: String::new() }
     }
 
     fn generate(&mut self, name: &str, func_meta: &FuncMeta) -> String {
@@ -110,7 +119,7 @@ impl<'a> MethodStubGenerator<'a> {
         let return_type = func_meta.return_type();
         if return_type != &Type::Unit {
             self.string.push_str(" -> ");
-            self.string.push_str(&return_type.to_string());
+            self.append_type(&return_type);
         }
 
         self.string.push_str(" {\n");
@@ -118,7 +127,7 @@ impl<'a> MethodStubGenerator<'a> {
         self.string.push_str(indent);
         self.string.push_str("panic(f\"Implement ");
         self.string.push_str(name);
-        self.string.push_str("\");\n");
+        self.string.push_str("\")\n");
         self.string.push_str(indent);
         self.string.push_str("}\n");
         std::mem::take(&mut self.string)
@@ -209,13 +218,30 @@ impl<'a> MethodStubGenerator<'a> {
             Type::Alias(_, _) => todo!("2"),
             Type::TypeVariable(_, _) => todo!("3"),
             Type::TraitAsType(_, _, _) => todo!("4"),
-            Type::NamedGeneric(_, _, _) => todo!("5"),
+            Type::NamedGeneric(typevar, _name, _kind) => {
+                if typevar.id() == self.trait_.self_type_typevar.id() {
+                    self.string.push_str("Self");
+                    return;
+                }
+
+                let generics = &self.trait_.generics;
+                if let Some(index) =
+                    generics.iter().position(|generic| generic.type_var.id() == typevar.id())
+                {
+                    if let Some(typ) = self.noir_trait_impl.trait_generics.ordered_args.get(index) {
+                        self.string.push_str(&typ.to_string());
+                        return;
+                    }
+                }
+
+                self.string.push_str("error");
+            }
             Type::Function(_, _, _, _) => todo!("6"),
             Type::MutableReference(_) => todo!("7"),
             Type::Forall(_, _) => todo!("8"),
-            Type::Constant(_) => todo!("9"),
             Type::InfixExpr(_, _, _) => todo!("10"),
-            Type::Integer(_, _)
+            Type::Constant(_)
+            | Type::Integer(_, _)
             | Type::Bool
             | Type::String(_)
             | Type::FmtString(_, _)
@@ -255,7 +281,7 @@ struct Foo {}
 
 impl Trait for Foo {
     fn foo(x: i32) -> i32 {
-        panic(f"Implement foo");
+        panic(f"Implement foo")
     }
 }"#;
 
@@ -287,11 +313,11 @@ struct Foo {}
 
 impl Trait for Foo {
     fn bar(self) -> Self {
-        panic(f"Implement bar");
+        panic(f"Implement bar")
     }
 
     fn foo(x: i32) -> i32 {
-        panic(f"Implement foo");
+        panic(f"Implement foo")
     }
 }"#;
 
@@ -333,7 +359,37 @@ use moo::Trait;
 
 impl Trait for Foo {
     fn foo(x: moo::Moo) {
-        panic(f"Implement foo");
+        panic(f"Implement foo")
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_add_missing_impl_members_generics() {
+        let title = "Implement missing members";
+
+        let src = r#"
+trait Trait<T> {
+    fn foo(x: T) -> [T; 3];
+}
+
+struct Foo {}
+
+impl <U> Tra>|<it<[U]> for Foo {
+}"#;
+
+        let expected = r#"
+trait Trait<T> {
+    fn foo(x: T) -> [T; 3];
+}
+
+struct Foo {}
+
+impl <U> Trait<[U]> for Foo {
+    fn foo(x: [U]) -> [[U]; 3] {
+        panic(f"Implement foo")
     }
 }"#;
 
