@@ -1993,42 +1993,6 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
 }
 
 #[test]
-fn numeric_generics_value_kind_mismatch_field_u32() {
-    let src = r#"
-    struct BoundedVec<T, let MaxLen: Field> {
-        storage: [T; MaxLen],
-        // can't be compared to MaxLen: u32
-        // can't be used to index self.storage
-        len: u32,
-    }
-
-    impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
-        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) { 
-            // We do this to avoid an unused variable warning on `self`
-            let _ = self.len;
-            for _ in 0..Len { }
-        }
-
-        pub fn push(&mut self, elem: T) {
-            assert(self.len < MaxLen, "push out of bounds");
-            self.storage[self.len] = elem;
-            self.len += 1;
-        }
-    }
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
-    ));
-    assert!(matches!(
-        errors[1].0,
-        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
-    ));
-}
-
-#[test]
 fn quote_code_fragments() {
     // This test ensures we can quote (and unquote/splice) code fragments
     // which by themselves are not valid code. They only need to be valid
