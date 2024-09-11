@@ -137,18 +137,6 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     }
 }
 
-impl<F: PrimeField> From<BigUint> for FieldElement<F> {
-    fn from(a: BigUint) -> FieldElement<F> {
-        FieldElement(F::from(a))
-    }
-}
-
-impl<F: PrimeField> From<FieldElement<F>> for BigUint {
-    fn from(a: FieldElement<F>) -> BigUint {
-        F::into(a.0)
-    }
-}
-
 impl<F: PrimeField> From<u128> for FieldElement<F> {
     fn from(a: u128) -> FieldElement<F> {
         FieldElement(F::from(a))
