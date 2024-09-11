@@ -102,6 +102,20 @@ array and the index.
 If this expression is an integer literal, return the integer as a field
 as well as whether the integer is negative (true) or not (false).
 
+### as_for
+
+#include_code as_for noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a for statement over a single expression, return the identifier,
+the expression and the for loop body.
+
+### as_for_range
+
+#include_code as_for noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a for statement over a range, return the identifier,
+the range start, the range end and the for loop body.
+
 ### as_let
 
 #include_code as_let noir_stdlib/src/meta/expr.nr rust

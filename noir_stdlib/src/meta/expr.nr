@@ -72,6 +72,20 @@ impl Expr {
     comptime fn as_constructor(self) -> Option<(UnresolvedType, [(Quoted, Expr)])> {}
     // docs:end:as_constructor
 
+    /// If this expression is a for statement over a single expression, return the identifier,
+    /// the expression and the for loop body.
+    #[builtin(expr_as_for)]
+    // docs:start:as_for
+    comptime fn as_for(self) -> Option<(Quoted, Expr, Expr)> {}
+    // docs:end:as_for
+
+    /// If this expression is a for statement over a range, return the identifier,
+    /// the range start, the range end and the for loop body.
+    #[builtin(expr_as_for_range)]
+    // docs:start:as_for_range
+    comptime fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)> {}
+    // docs:end:as_for_range
+
     /// If this expression is a function call `foo(arg1, ..., argN)`, return
     /// the function and a slice of each argument.
     #[builtin(expr_as_function_call)]
@@ -218,6 +232,8 @@ impl Expr {
         let result = result.or_else(|| modify_constructor(self, f));
         let result = result.or_else(|| modify_if(self, f));
         let result = result.or_else(|| modify_index(self, f));
+        let result = result.or_else(|| modify_for(self, f));
+        let result = result.or_else(|| modify_for_range(self, f));
         let result = result.or_else(|| modify_let(self, f));
         let result = result.or_else(|| modify_function_call(self, f));
         let result = result.or_else(|| modify_member_access(self, f));
@@ -388,6 +404,29 @@ comptime fn modify_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> O
     )
 }
 
+comptime fn modify_for<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_for().map(
+        |expr: (Quoted, Expr, Expr)| {
+        let (identifier, array, body) = expr;
+        let array = array.modify(f);
+        let body = body.modify(f);
+        new_for(identifier, array, body)
+    }
+    )
+}
+
+comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_for_range().map(
+        |expr: (Quoted, Expr, Expr, Expr)| {
+        let (identifier, from, to, body) = expr;
+        let from = from.modify(f);
+        let to = to.modify(f);
+        let body = body.modify(f);
+        new_for_range(identifier, from, to, body)
+    }
+    )
+}
+
 comptime fn modify_let<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_let().map(
         |expr: (Expr, Option<UnresolvedType>, Expr)| {
@@ -546,6 +585,14 @@ comptime fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>
     } else {
         quote { if $condition { $consequence } }.as_expr().unwrap()
     }
+}
+
+comptime fn new_for(identifier: Quoted, array: Expr, body: Expr) -> Expr {
+    quote { for $identifier in $array { $body } }.as_expr().unwrap()
+}
+
+comptime fn new_for_range(identifier: Quoted, from: Expr, to: Expr, body: Expr) -> Expr {
+    quote { for $identifier in $from .. $to { $body } }.as_expr().unwrap()
 }
 
 comptime fn new_index(object: Expr, index: Expr) -> Expr {
