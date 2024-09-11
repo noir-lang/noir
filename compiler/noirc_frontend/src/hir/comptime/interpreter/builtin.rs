@@ -189,6 +189,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "typed_expr_as_function_definition" => {
                 typed_expr_as_function_definition(interner, arguments, return_type, location)
             }
+            "typed_expr_get_type" => {
+                typed_expr_get_type(interner, arguments, return_type, location)
+            }
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
@@ -1070,6 +1073,7 @@ fn trait_impl_trait_generic_args(
     Ok(Value::Slice(trait_generics, slice_type))
 }
 
+// fn as_function_definition(self) -> Option<FunctionDefinition>
 fn typed_expr_as_function_definition(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1081,6 +1085,28 @@ fn typed_expr_as_function_definition(
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
         let func_id = interner.lookup_function_from_expr(&expr_id);
         func_id.map(Value::FunctionDefinition)
+    } else {
+        None
+    };
+    option(return_type, option_value)
+}
+
+// fn get_type(self) -> Option<Type>
+fn typed_expr_get_type(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typed_expr = get_typed_expr(self_argument)?;
+    let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
+        let typ = interner.id_type(expr_id);
+        if typ == Type::Error {
+            None
+        } else {
+            Some(Value::Type(typ))
+        }
     } else {
         None
     };

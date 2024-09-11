@@ -434,7 +434,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
-                entry.insert(argument);
+                match entry.get() {
+                    Value::Pointer(reference, true) => {
+                        *reference.borrow_mut() = argument;
+                    }
+                    _ => {
+                        entry.insert(argument);
+                    }
+                }
                 return Ok(());
             }
         }
@@ -527,12 +534,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 // Avoid resetting the value if it is already known
-                if let Ok(value) = self.lookup(&ident) {
-                    Ok(value)
+                if let Some(value) = &self.elaborator.interner.get_global(*global_id).value {
+                    Ok(value.clone())
                 } else {
-                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
+                    let global_id = *global_id;
+                    let crate_of_global = self.elaborator.interner.get_global(global_id).crate_id;
                     let let_ =
-                        self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
+                        self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
                             || {
                                 let location = self.elaborator.interner.expr_location(&id);
                                 InterpreterError::VariableNotInScope { location }
@@ -542,7 +550,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
-                    self.lookup(&ident)
+
+                    let value = self.lookup(&ident)?;
+                    self.elaborator.interner.get_global_mut(global_id).value = Some(value.clone());
+                    Ok(value)
                 }
             }
             DefinitionKind::GenericType(type_variable) => {

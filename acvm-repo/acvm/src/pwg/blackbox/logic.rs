@@ -51,8 +51,11 @@ fn solve_logic_opcode<F: AcirField>(
     result: Witness,
     logic_op: impl Fn(F, F) -> F,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let w_l_value = input_to_value(initial_witness, *a)?;
-    let w_r_value = input_to_value(initial_witness, *b)?;
+    // TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these once we figure out how to combine these with existing
+    // noirc_frontend/noirc_evaluator overflow error messages
+    let skip_bitsize_checks = true;
+    let w_l_value = input_to_value(initial_witness, *a, skip_bitsize_checks)?;
+    let w_r_value = input_to_value(initial_witness, *b, skip_bitsize_checks)?;
     let assignment = logic_op(w_l_value, w_r_value);
 
     insert_value(&result, assignment, initial_witness)

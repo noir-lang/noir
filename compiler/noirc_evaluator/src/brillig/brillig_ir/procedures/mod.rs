@@ -1,10 +1,12 @@
 mod array_copy;
 mod array_reverse;
 mod mem_copy;
+mod vector_copy;
 
 use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
 use mem_copy::compile_mem_copy_procedure;
+use vector_copy::compile_vector_copy_procedure;
 
 use crate::brillig::brillig_ir::AcirField;
 
@@ -21,6 +23,7 @@ use super::{
 pub(crate) enum ProcedureId {
     ArrayCopy,
     ArrayReverse,
+    VectorCopy,
     MemCopy,
 }
 
@@ -34,6 +37,7 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::MemCopy => compile_mem_copy_procedure(&mut brillig_context),
         ProcedureId::ArrayCopy => compile_array_copy_procedure(&mut brillig_context),
         ProcedureId::ArrayReverse => compile_array_reverse_procedure(&mut brillig_context),
+        ProcedureId::VectorCopy => compile_vector_copy_procedure(&mut brillig_context),
     };
 
     brillig_context.stop_instruction();
