@@ -1371,7 +1371,7 @@ prop_compose! {
             if distinct_inputs_len != 0 {
                 let previous_input = &mut distinct_inputs[patch_location % distinct_inputs_len].0;
                 let patched_input: BigUint = (*previous_input + FieldElement::from(positive_patch_value)).into_repr().into();
-                *previous_input = FieldElement::from_be_bytes_reduce(&patched_input.to_bytes_be());
+                *previous_input = FieldElement::from_be_bytes_reduce(&(patched_input % BigUint::from(modulus)).to_bytes_be());
             } else {
                 distinct_inputs.push((FieldElement::zero(), true));
             }
