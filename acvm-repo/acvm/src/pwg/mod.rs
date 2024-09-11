@@ -76,7 +76,7 @@ impl<F> std::fmt::Display for ACVMStatus<F> {
     }
 }
 
-pub enum StepResult<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
+pub enum StepResult<'a, F, B: BlackBoxFunctionSolver<F>> {
     Status(ACVMStatus<F>),
     IntoBrillig(BrilligSolver<'a, F, B>),
 }
