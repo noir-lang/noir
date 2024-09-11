@@ -267,7 +267,43 @@ impl<'a> MethodStubGenerator<'a> {
                 self.string.push_str(&struct_type.name.0.contents);
                 self.append_generics(generics);
             }
-            Type::Alias(_, _) => todo!("2"),
+            Type::Alias(type_alias, generics) => {
+                let type_alias = type_alias.borrow();
+
+                let current_module_data =
+                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+
+                // Check if the alias type is already imported/visible in this module
+                let per_ns = current_module_data.find_name(&type_alias.name);
+                if let Some((module_def_id, _, _)) = per_ns.types {
+                    if module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
+                        self.string.push_str(&type_alias.name.0.contents);
+                        self.append_generics(generics);
+                        return;
+                    }
+                }
+
+                let parent_module_id =
+                    self.interner.reference_module(ReferenceId::Alias(type_alias.id)).unwrap();
+
+                let current_module_parent_id = current_module_data
+                    .parent
+                    .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
+
+                let relative_path = relative_module_id_path(
+                    *parent_module_id,
+                    &self.module_id,
+                    current_module_parent_id,
+                    self.interner,
+                );
+
+                if !relative_path.is_empty() {
+                    self.string.push_str(&relative_path);
+                    self.string.push_str("::");
+                }
+                self.string.push_str(&type_alias.name.0.contents);
+                self.append_generics(generics);
+            }
             Type::TypeVariable(typevar, _) => {
                 if typevar.id() == self.trait_.self_type_typevar.id() {
                     self.string.push_str("Self");
