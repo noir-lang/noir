@@ -395,7 +395,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     CustomDiagnostic::simple_error(primary, secondary, location.span);
 
                 // Only take at most 5 frames starting from the top of the stack to avoid producing too much output
-                for frame in call_stack.iter().rev().takes(5) {
+                for frame in call_stack.iter().rev().take(5) {
                     diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
                 }
 
