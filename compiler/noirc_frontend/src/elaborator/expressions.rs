@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{
         ArrayLiteral, ConstructorExpression, IfExpression, InfixExpression, Lambda,
-        UnresolvedTypeExpression,
+        PrimitiveMethodReference, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -16,7 +16,7 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
+            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirMethodReference, HirPrefixExpression,
         },
@@ -71,6 +71,9 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
+            }
+            ExpressionKind::PrimitiveMethodReference(expr) => {
+                return self.elaborate_primitive_method_reference(*expr)
             }
             ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
         };
@@ -739,6 +742,39 @@ impl<'context> Elaborator<'context> {
         let captures = lambda_context.captures;
         let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
         (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
+    }
+
+    fn elaborate_primitive_method_reference(
+        &mut self,
+        expr: PrimitiveMethodReference,
+    ) -> (ExprId, Type) {
+        let span = Span::from(expr.typ.span.start()..expr.name.span().end());
+
+        let typ = self.resolve_type(expr.typ);
+
+        let Some(func_id) = self.interner.lookup_primitive_method(&typ, &expr.name.0.contents)
+        else {
+            // TODO: report an error
+            let error = self.interner.push_expr(HirExpression::Error);
+            self.interner.push_expr_location(error, span, self.file);
+            return (error, Type::Error);
+        };
+
+        // TODO: generics
+        let generics = None;
+
+        let definition_id = self.interner.function_definition_id(func_id);
+        // TODO: this location is wrong. Where do we get it from?
+        let location = Location::new(span, self.file);
+        let hir_ident = HirIdent::non_trait_method(definition_id, location);
+
+        let id = self.interner.push_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()));
+
+        self.interner.push_expr_location(id, span, self.file);
+        let typ = self.type_check_variable(hir_ident, id, generics);
+        self.interner.push_expr_type(id, typ.clone());
+
+        (id, typ)
     }
 
     fn elaborate_quote(&mut self, mut tokens: Tokens, span: Span) -> (HirExpression, Type) {

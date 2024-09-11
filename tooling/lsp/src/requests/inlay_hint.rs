@@ -530,6 +530,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         ExpressionKind::Cast(cast) => get_expression_name(&cast.lhs),
         ExpressionKind::Parenthesized(expr) => get_expression_name(expr),
         ExpressionKind::AsTraitPath(path) => Some(path.impl_item.to_string()),
+        ExpressionKind::PrimitiveMethodReference(primitive) => Some(primitive.name.to_string()),
         ExpressionKind::Constructor(..)
         | ExpressionKind::Infix(..)
         | ExpressionKind::Index(..)

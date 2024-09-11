@@ -13,7 +13,8 @@ use crate::{
         CastExpression, ConstrainStatement, ConstructorExpression, ForLoopStatement, ForRange,
         GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression, IntegerBitSize,
         LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression, Pattern,
-        PrefixExpression, Signedness, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        PrefixExpression, PrimitiveMethodReference, Signedness, Statement, StatementKind,
+        UnresolvedType, UnresolvedTypeData,
     },
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::{
@@ -856,6 +857,12 @@ fn remove_interned_in_expression_kind(
             ExpressionKind::Unsafe(BlockExpression { statements }, span)
         }
         ExpressionKind::AsTraitPath(_) => expr,
+        ExpressionKind::PrimitiveMethodReference(primitive) => {
+            ExpressionKind::PrimitiveMethodReference(Box::new(PrimitiveMethodReference {
+                typ: remove_interned_in_unresolved_type(interner, primitive.typ),
+                name: primitive.name,
+            }))
+        }
         ExpressionKind::Resolved(id) => {
             let expr = interner.expression(&id);
             expr.to_display_ast(interner, Span::default()).kind

@@ -163,8 +163,9 @@ pub(crate) fn rewrite(
             visitor.format_if(*if_expr)
         }
         ExpressionKind::Variable(path) => rewrite_path(visitor, shape, path),
-        ExpressionKind::Lambda(_) => visitor.slice(span).to_string(),
-        ExpressionKind::Quote(_) => visitor.slice(span).to_string(),
+        ExpressionKind::Lambda(_)
+        | ExpressionKind::Quote(_)
+        | ExpressionKind::PrimitiveMethodReference(_) => visitor.slice(span).to_string(),
         ExpressionKind::Comptime(block, block_span) => {
             format!("comptime {}", rewrite_block(visitor, block, block_span))
         }

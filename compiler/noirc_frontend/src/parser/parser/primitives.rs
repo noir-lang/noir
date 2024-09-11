@@ -1,6 +1,8 @@
 use chumsky::prelude::*;
 
-use crate::ast::{ExpressionKind, GenericTypeArgs, Ident, PathSegment, UnaryOp};
+use crate::ast::{
+    ExpressionKind, GenericTypeArgs, Ident, PathSegment, PrimitiveMethodReference, UnaryOp,
+};
 use crate::macros_api::UnresolvedType;
 use crate::parser::ParserErrorReason;
 use crate::{
@@ -9,7 +11,9 @@ use crate::{
 };
 
 use super::path::{path, path_no_turbofish};
-use super::types::required_generic_type_args;
+use super::types::{
+    bool_type, comptime_type, field_type, int_type, required_generic_type_args, string_type,
+};
 
 /// This parser always parses no input and fails
 pub(super) fn nothing<T>() -> impl NoirParser<T> {
@@ -110,6 +114,13 @@ pub(super) fn variable() -> impl NoirParser<ExpressionKind> {
 
 pub(super) fn variable_no_turbofish() -> impl NoirParser<ExpressionKind> {
     path_no_turbofish().map(ExpressionKind::Variable)
+}
+
+pub(super) fn primitive_method_reference<'a>() -> impl NoirParser<ExpressionKind> + 'a {
+    let typ = choice((field_type(), int_type(), bool_type(), string_type(), comptime_type()));
+    typ.then_ignore(just(Token::DoubleColon)).then(ident()).map(|(typ, name)| {
+        ExpressionKind::PrimitiveMethodReference(Box::new(PrimitiveMethodReference { typ, name }))
+    })
 }
 
 pub(super) fn macro_quote_marker() -> impl NoirParser<ExpressionKind> {

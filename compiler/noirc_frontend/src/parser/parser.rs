@@ -76,7 +76,8 @@ mod test_helpers;
 use literals::literal;
 use path::{maybe_empty_path, path};
 use primitives::{
-    dereference, ident, interned_expr, negation, not, nothing, right_shift_operator, token_kind,
+    dereference, ident, interned_expr, negation, not, nothing, primitive_method_reference,
+    right_shift_operator, token_kind,
 };
 use traits::where_clause;
 
@@ -1155,6 +1156,7 @@ where
         variable(),
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        primitive_method_reference(),
         macro_quote_marker(),
         interned_expr(),
     ))

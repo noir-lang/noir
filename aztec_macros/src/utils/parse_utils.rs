@@ -280,6 +280,10 @@ fn empty_expression(expression: &mut Expression) {
             empty_path(&mut path.trait_path);
             empty_ident(&mut path.impl_item);
         }
+        ExpressionKind::PrimitiveMethodReference(primitive) => {
+            empty_unresolved_type(&mut primitive.typ);
+            empty_ident(&mut primitive.name);
+        }
         ExpressionKind::Quote(..)
         | ExpressionKind::Resolved(_)
         | ExpressionKind::Interned(_)
