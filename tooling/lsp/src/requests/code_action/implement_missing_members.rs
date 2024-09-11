@@ -43,6 +43,13 @@ impl<'a> CodeActionFinder<'a> {
             }
         }
 
+        // Also remove default methods
+        for trait_function in &trait_.methods {
+            if trait_function.default_impl.is_some() {
+                method_ids.remove(&trait_function.name.0.contents);
+            }
+        }
+
         if method_ids.is_empty() {
             return;
         }
@@ -62,6 +69,7 @@ impl<'a> CodeActionFinder<'a> {
             .iter()
             .map(|(name, func_id)| {
                 let func_meta = self.interner.function_meta(&func_id);
+
                 let mut generator = MethodStubGenerator::new(
                     trait_,
                     &noir_trait_impl,
@@ -280,6 +288,7 @@ mod tests {
         let src = r#"
 trait Trait {
     fn foo(x: i32) -> i32;
+    fn bar() {}
 }
 
 struct Foo {}
@@ -290,6 +299,7 @@ impl Tra>|<it for Foo {
         let expected = r#"
 trait Trait {
     fn foo(x: i32) -> i32;
+    fn bar() {}
 }
 
 struct Foo {}
