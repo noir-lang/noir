@@ -5,7 +5,7 @@ mod completion_tests {
         requests::{
             completion::{
                 completion_items::{
-                    completion_item_with_sort_text,
+                    completion_item_with_detail, completion_item_with_sort_text,
                     completion_item_with_trigger_parameter_hints_command, module_completion_item,
                     simple_completion_item, snippet_completion_item,
                 },
@@ -107,12 +107,22 @@ mod completion_tests {
         insert_text: impl Into<String>,
         description: impl Into<String>,
     ) -> CompletionItem {
-        completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
-            label,
-            CompletionItemKind::FUNCTION,
-            insert_text,
-            Some(description.into()),
-        ))
+        let insert_text: String = insert_text.into();
+        let description: String = description.into();
+
+        let has_arguments = insert_text.ends_with(')') && !insert_text.ends_with("()");
+        let completion_item = if has_arguments {
+            completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
+                label,
+                CompletionItemKind::FUNCTION,
+                insert_text,
+                Some(description.clone()),
+            ))
+        } else {
+            simple_completion_item(label, CompletionItemKind::FUNCTION, Some(description.clone()))
+        };
+
+        completion_item_with_detail(completion_item, description)
     }
 
     fn field_completion_item(field: &str, typ: impl Into<String>) -> CompletionItem {
@@ -191,15 +201,8 @@ mod completion_tests {
             use foo::>|<
         "#;
 
-        assert_completion(
-            src,
-            vec![simple_completion_item(
-                "bar",
-                CompletionItemKind::FUNCTION,
-                Some("fn(i32) -> u64".to_string()),
-            )],
-        )
-        .await;
+        assert_completion(src, vec![function_completion_item("bar", "bar()", "fn(i32) -> u64")])
+            .await;
     }
 
     #[test]
@@ -1672,11 +1675,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "hello_world",
-                CompletionItemKind::FUNCTION,
-                Some("fn()".to_string()),
-            )],
+            vec![function_completion_item("hello_world", "hello_world()", "fn()")],
         )
         .await;
     }
@@ -1694,11 +1693,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "bar",
-                CompletionItemKind::FUNCTION,
-                Some("fn()".to_string()),
-            )],
+            vec![function_completion_item("bar", "bar()", "fn()")],
         )
         .await;
     }
@@ -1716,11 +1711,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "bar",
-                CompletionItemKind::FUNCTION,
-                Some("fn()".to_string()),
-            )],
+            vec![function_completion_item("bar", "bar()", "fn()")],
         )
         .await;
     }
@@ -1738,11 +1729,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "bar",
-                CompletionItemKind::FUNCTION,
-                Some("fn()".to_string()),
-            )],
+            vec![function_completion_item("bar", "bar()", "fn()")],
         )
         .await;
     }
@@ -1762,11 +1749,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "bar",
-                CompletionItemKind::FUNCTION,
-                Some("fn(self)".to_string()),
-            )],
+            vec![function_completion_item("bar", "bar()", "fn(self)")],
         )
         .await;
     }
@@ -1786,11 +1769,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "bar",
-                CompletionItemKind::FUNCTION,
-                Some("fn(self)".to_string()),
-            )],
+            vec![function_completion_item("bar", "bar()", "fn(self)")],
         )
         .await;
     }
