@@ -761,6 +761,9 @@ impl<'block> BrilligBlock<'block> {
             Instruction::IfElse { .. } => {
                 unreachable!("IfElse instructions should not be possible in brillig")
             }
+            Instruction::MakeArray { elements: _, typ: _ } => {
+                todo!("Brillig-gen for MakeArray")
+            }
         };
 
         let dead_variables = self

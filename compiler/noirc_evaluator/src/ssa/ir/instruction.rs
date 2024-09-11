@@ -276,6 +276,12 @@ pub(crate) enum Instruction {
         else_condition: ValueId,
         else_value: ValueId,
     },
+
+    /// Creates a new array or slice.
+    ///
+    /// `typ` should be an array or slice type with an element type
+    /// matching each of the `elements` values' types.
+    MakeArray { elements: im::Vector<ValueId>, typ: Type },
 }
 
 impl Instruction {
@@ -288,7 +294,9 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
+            Instruction::Cast(_, typ) | Instruction::MakeArray { typ, .. } => {
+                InstructionResultType::Known(typ.clone())
+            }
             Instruction::Not(value)
             | Instruction::Truncate { value, .. }
             | Instruction::ArraySet { array: value, .. }
@@ -342,6 +350,9 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
+            // This should never be side-effectful
+            MakeArray { .. } => true,
+
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
             // with one that was disabled. See
@@ -379,7 +390,8 @@ impl Instruction {
             | Load { .. }
             | ArrayGet { .. }
             | IfElse { .. }
-            | ArraySet { .. } => true,
+            | ArraySet { .. }
+            | MakeArray { .. } => true,
 
             Constrain(..)
             | Store { .. }
@@ -442,7 +454,8 @@ impl Instruction {
             | Instruction::Store { .. }
             | Instruction::IfElse { .. }
             | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. } => false,
+            | Instruction::DecrementRc { .. }
+            | Instruction::MakeArray { .. } => false,
         }
     }
 
@@ -470,7 +483,7 @@ impl Instruction {
                 let assert_message = assert_message.as_ref().map(|error| match error {
                     ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
                         *selector,
-                        payload_values.iter().map(|&value| f(value)).collect(),
+                        vecmap(payload_values.iter().copied(), f),
                     ),
                     _ => error.clone(),
                 });
@@ -514,6 +527,10 @@ impl Instruction {
                     else_value: f(*else_value),
                 }
             }
+            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
+                elements: elements.iter().copied().map(f).collect(),
+                typ: typ.clone(),
+            },
         }
     }
 
@@ -574,6 +591,11 @@ impl Instruction {
                 f(*else_condition);
                 f(*else_value);
             }
+            Instruction::MakeArray { elements, typ: _ } => {
+                for element in elements {
+                    f(*element);
+                }
+            }
         }
     }
 
@@ -629,16 +651,24 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::ArraySet { array, index, value, .. } => {
-                let array = dfg.get_array_constant(*array);
+            Instruction::ArraySet { array: array_id, index, value, .. } => {
+                let array = dfg.get_array_constant(*array_id);
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
-                        let new_array = dfg.make_array(array.update(index, *value), element_type);
-                        return SimplifiedTo(new_array);
+                        let elements = array.update(index, *value);
+                        let typ = dfg.type_of_value(*array_id);
+                        let instruction = Instruction::MakeArray { elements, typ };
+                        let new_array = dfg.insert_instruction_and_results(
+                            instruction,
+                            block,
+                            Option::None,
+                            call_stack.clone(),
+                        );
+                        return SimplifiedTo(new_array.first());
                     }
                 }
                 None
@@ -754,6 +784,7 @@ impl Instruction {
                     None
                 }
             }
+            Instruction::MakeArray { .. } => None,
         }
     }
 }
@@ -797,12 +828,12 @@ fn try_optimize_array_get_from_previous_set(
                             return SimplifyResult::None;
                         }
                     }
+                    Instruction::MakeArray { elements: array, typ } => {
+                        elements = Some(array.clone());
+                        break;
+                    }
                     _ => return SimplifyResult::None,
                 }
-            }
-            Value::Array { array, typ: _ } => {
-                elements = Some(array.clone());
-                break;
             }
             _ => return SimplifyResult::None,
         }

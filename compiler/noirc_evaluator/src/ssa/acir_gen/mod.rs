@@ -739,6 +739,9 @@ impl<'a> Context<'a> {
             Instruction::IfElse { .. } => {
                 unreachable!("IfElse instruction remaining in acir-gen")
             }
+            Instruction::MakeArray { .. } => {
+                todo!("MakeArray in acir-gen")
+            }
         }
 
         self.acir_context.set_call_stack(CallStack::new());

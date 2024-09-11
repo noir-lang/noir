@@ -13,6 +13,7 @@ use super::{
     dfg::DataFlowGraph,
     function::Function,
     instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
+    types::Type,
     value::{Value, ValueId},
 };
 
@@ -207,6 +208,21 @@ fn display_instruction_inner(
                 f,
                 "if {then_condition} then {then_value} else if {else_condition} then {else_value}"
             )
+        }
+        Instruction::MakeArray { elements, typ } => {
+            match typ {
+                Type::Array(..) => write!(f, "make_array [")?,
+                _ => write!(f, "make_slice [")?,
+            }
+
+            for (i, element) in elements.iter().enumerate() {
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", show(*element))?;
+            }
+
+            writeln!(f, "]")
         }
     }
 }

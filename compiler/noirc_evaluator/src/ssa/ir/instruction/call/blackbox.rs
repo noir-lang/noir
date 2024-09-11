@@ -4,7 +4,11 @@ use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, Fie
 use iter_extended::vecmap;
 
 use crate::ssa::ir::{
-    dfg::DataFlowGraph, instruction::SimplifyResult, types::Type, value::ValueId,
+    basic_block::BasicBlockId,
+    dfg::{CallStack, DataFlowGraph},
+    instruction::{Instruction, SimplifyResult},
+    types::Type,
+    value::ValueId,
 };
 
 use super::{array_is_constant, make_constant_array, to_u8_vec};
@@ -13,6 +17,8 @@ pub(super) fn simplify_ec_add(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     arguments: &[ValueId],
+    block: BasicBlockId,
+    call_stack: &CallStack,
 ) -> SimplifyResult {
     match (
         dfg.get_numeric_constant(arguments[0]),
@@ -46,10 +52,13 @@ pub(super) fn simplify_ec_add(
             let result_is_infinity = dfg.make_constant(result_is_infinity, Type::bool());
 
             let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
-            let result_array =
-                dfg.make_array(im::vector![result_x, result_y, result_is_infinity], typ);
 
-            SimplifyResult::SimplifiedTo(result_array)
+            let elements = im::vector![result_x, result_y, result_is_infinity];
+            let instruction = Instruction::MakeArray { elements, typ };
+            let result_array =
+                dfg.insert_instruction_and_results(instruction, block, None, call_stack.clone());
+
+            SimplifyResult::SimplifiedTo(result_array.first())
         }
         _ => SimplifyResult::None,
     }
