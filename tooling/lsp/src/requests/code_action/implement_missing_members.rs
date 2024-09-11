@@ -1,9 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::{NoirTraitImpl, TraitImplItem},
+    ast::{NoirTraitImpl, TraitImplItem, UnresolvedTypeData},
     graph::CrateId,
     hir::def_map::{CrateDefMap, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
@@ -36,10 +36,25 @@ impl<'a> CodeActionFinder<'a> {
         // Get all methods
         let mut method_ids = trait_.method_ids.clone();
 
+        // Also get all associated types
+        let mut associated_types = HashMap::new();
+        for associated_type in &trait_.associated_types {
+            associated_types.insert(associated_type.name.as_ref(), associated_type);
+        }
+
         // Remove the ones that already are implemented
         for item in &noir_trait_impl.items {
-            if let TraitImplItem::Function(noir_function) = &item.item {
-                method_ids.remove(noir_function.name());
+            match &item.item {
+                TraitImplItem::Function(noir_function) => {
+                    method_ids.remove(noir_function.name());
+                }
+                TraitImplItem::Constant(..) => (),
+                TraitImplItem::Type { name, alias } => {
+                    if let UnresolvedTypeData::Unspecified = alias.typ {
+                        continue;
+                    }
+                    associated_types.remove(&name.0.contents);
+                }
             }
         }
 
@@ -50,7 +65,7 @@ impl<'a> CodeActionFinder<'a> {
             }
         }
 
-        if method_ids.is_empty() {
+        if method_ids.is_empty() && associated_types.is_empty() {
             return;
         }
 
@@ -65,23 +80,27 @@ impl<'a> CodeActionFinder<'a> {
         let mut method_ids: Vec<_> = method_ids.iter().collect();
         method_ids.sort_by_key(|(name, _)| *name);
 
-        let method_stubs: Vec<_> = method_ids
-            .iter()
-            .map(|(name, func_id)| {
-                let func_meta = self.interner.function_meta(&func_id);
+        let mut stubs = Vec::new();
 
-                let mut generator = MethodStubGenerator::new(
-                    trait_,
-                    &noir_trait_impl,
-                    self.interner,
-                    self.def_maps,
-                    self.module_id,
-                );
-                generator.generate(name, func_meta)
-            })
-            .collect();
+        for (name, _) in associated_types {
+            stubs.push(format!("    type {};\n", name));
+        }
 
-        let new_text = method_stubs.join("\n");
+        for (name, func_id) in method_ids {
+            let func_meta = self.interner.function_meta(&func_id);
+
+            let mut generator = MethodStubGenerator::new(
+                trait_,
+                &noir_trait_impl,
+                self.interner,
+                self.def_maps,
+                self.module_id,
+            );
+            let stub = generator.generate(name, func_meta);
+            stubs.push(stub);
+        }
+
+        let new_text = stubs.join("\n");
 
         let title = "Implement missing members".to_string();
         let text_edit = TextEdit { range, new_text };
@@ -253,6 +272,14 @@ impl<'a> MethodStubGenerator<'a> {
                 {
                     if let Some(typ) = self.noir_trait_impl.trait_generics.ordered_args.get(index) {
                         self.string.push_str(&typ.to_string());
+                        return;
+                    }
+                }
+
+                for associated_type in &self.trait_.associated_types {
+                    if typevar.id() == associated_type.type_var.id() {
+                        self.string.push_str("Self::");
+                        self.string.push_str(&associated_type.name);
                         return;
                     }
                 }
@@ -458,6 +485,42 @@ struct Foo {}
 
 impl <U> Trait<[U]> for Foo {
     fn foo(x: [U]) -> [[U]; 3] {
+        panic(f"Implement foo")
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_add_missing_impl_members_associated_types() {
+        let title = "Implement missing members";
+
+        let src = r#"
+trait Trait {
+    type Elem;
+
+    fn foo(x: Self::Elem) -> Self::Elem;
+}
+
+struct Foo {}
+
+impl Trait>|< for Foo {
+}"#;
+
+        let expected = r#"
+trait Trait {
+    type Elem;
+
+    fn foo(x: Self::Elem) -> Self::Elem;
+}
+
+struct Foo {}
+
+impl Trait for Foo {
+    type Elem;
+
+    fn foo(x: Self::Elem) -> Self::Elem {
         panic(f"Implement foo")
     }
 }"#;
