@@ -39,7 +39,7 @@ pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
 pub use brillig::ForeignCallWaitInfo;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ACVMStatus<F: AcirField> {
+pub enum ACVMStatus<F> {
     /// All opcodes have been solved.
     Solved,
 
@@ -64,7 +64,7 @@ pub enum ACVMStatus<F: AcirField> {
     RequiresAcirCall(AcirCallWaitInfo<F>),
 }
 
-impl<F: AcirField> std::fmt::Display for ACVMStatus<F> {
+impl<F> std::fmt::Display for ACVMStatus<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ACVMStatus::Solved => write!(f, "Solved"),
@@ -120,7 +120,7 @@ impl std::fmt::Display for ErrorLocation {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
-pub enum OpcodeResolutionError<F: AcirField> {
+pub enum OpcodeResolutionError<F> {
     #[error("Cannot solve opcode: {0}")]
     OpcodeNotSolvable(#[from] OpcodeNotSolvable<F>),
     #[error("Cannot satisfy constraint")]
@@ -149,7 +149,7 @@ pub enum OpcodeResolutionError<F: AcirField> {
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
 }
 
-impl<F: AcirField> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
+impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
     fn from(value: BlackBoxResolutionError) -> Self {
         match value {
             BlackBoxResolutionError::Failed(func, reason) => {
@@ -159,7 +159,7 @@ impl<F: AcirField> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
     }
 }
 
-impl<F: AcirField> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
+impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
     fn from(invalid_input_bit_size: InvalidInputBitSize) -> Self {
         Self::InvalidInputBitSize {
             opcode_location: ErrorLocation::Unresolved,
@@ -646,7 +646,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 // Returns the concrete value for a particular witness
 // If the witness has no assignment, then
 // an error is returned
-pub fn witness_to_value<F: AcirField>(
+pub fn witness_to_value<F>(
     initial_witness: &WitnessMap<F>,
     witness: Witness,
 ) -> Result<&F, OpcodeResolutionError<F>> {
