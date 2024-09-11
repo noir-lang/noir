@@ -219,7 +219,7 @@ impl<'a> MethodStubGenerator<'a> {
                 }
                 self.string.push(')');
             }
-            Type::Struct(struct_type, _generics) => {
+            Type::Struct(struct_type, generics) => {
                 let struct_type = struct_type.borrow();
 
                 let current_module_data =
@@ -229,7 +229,8 @@ impl<'a> MethodStubGenerator<'a> {
                 let per_ns = current_module_data.find_name(&struct_type.name);
                 if let Some((module_def_id, _, _)) = per_ns.types {
                     if module_def_id == ModuleDefId::TypeId(struct_type.id) {
-                        self.string.push_str(&typ.to_string());
+                        self.string.push_str(&struct_type.name.0.contents);
+                        self.append_generics(generics);
                         return;
                     }
                 }
@@ -255,7 +256,8 @@ impl<'a> MethodStubGenerator<'a> {
                     self.string.push_str(&relative_path);
                     self.string.push_str("::");
                 }
-                self.string.push_str(&typ.to_string());
+                self.string.push_str(&struct_type.name.0.contents);
+                self.append_generics(generics);
             }
             Type::Alias(_, _) => todo!("2"),
             Type::TypeVariable(_, _) => todo!("3"),
@@ -299,6 +301,21 @@ impl<'a> MethodStubGenerator<'a> {
             | Type::Quoted(_)
             | Type::Error => self.string.push_str(&typ.to_string()),
         }
+    }
+
+    fn append_generics(&mut self, generics: &[Type]) {
+        if generics.is_empty() {
+            return;
+        }
+
+        self.string.push('<');
+        for (index, typ) in generics.iter().enumerate() {
+            if index > 0 {
+                self.string.push_str(", ");
+            }
+            self.append_type(typ);
+        }
+        self.string.push('>');
     }
 }
 
@@ -500,7 +517,7 @@ impl <U> Trait<[U]> for Foo {
 trait Trait {
     type Elem;
 
-    fn foo(x: Self::Elem) -> Self::Elem;
+    fn foo(x: Self::Elem) -> [Self::Elem];
 }
 
 struct Foo {}
@@ -512,7 +529,7 @@ impl Trait>|< for Foo {
 trait Trait {
     type Elem;
 
-    fn foo(x: Self::Elem) -> Self::Elem;
+    fn foo(x: Self::Elem) -> [Self::Elem];
 }
 
 struct Foo {}
@@ -520,7 +537,7 @@ struct Foo {}
 impl Trait for Foo {
     type Elem;
 
-    fn foo(x: Self::Elem) -> Self::Elem {
+    fn foo(x: Self::Elem) -> [Self::Elem] {
         panic(f"Implement foo")
     }
 }"#;
