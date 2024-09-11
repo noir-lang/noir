@@ -143,7 +143,7 @@ pub(crate) fn module_full_path(
     module: &ModuleId,
     interner: &NodeInterner,
     crate_id: CrateId,
-    crate_name: &String,
+    crate_name: &str,
     dependencies: &Vec<Dependency>,
 ) -> String {
     let mut segments: Vec<String> = Vec::new();
@@ -173,7 +173,7 @@ pub(crate) fn module_full_path(
     // so we handle that case separately
     if module.krate.is_root() {
         if module.krate == crate_id {
-            segments.push(crate_name.clone());
+            segments.push(crate_name.to_string());
         } else {
             for dep in dependencies {
                 if dep.crate_id == crate_id {

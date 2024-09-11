@@ -90,11 +90,11 @@ impl<'a> CodeActionFinder<'a> {
         }
 
         for (name, func_id) in method_ids {
-            let func_meta = self.interner.function_meta(&func_id);
+            let func_meta = self.interner.function_meta(func_id);
 
             let mut generator = MethodStubGenerator::new(
                 trait_,
-                &noir_trait_impl,
+                noir_trait_impl,
                 self.interner,
                 self.def_maps,
                 self.module_id,
@@ -145,7 +145,7 @@ impl<'a> MethodStubGenerator<'a> {
             }
             if self.append_pattern(pattern) {
                 self.string.push_str(": ");
-                self.append_type(&typ);
+                self.append_type(typ);
             }
         }
         self.string.push(')');
@@ -153,7 +153,7 @@ impl<'a> MethodStubGenerator<'a> {
         let return_type = func_meta.return_type();
         if return_type != &Type::Unit {
             self.string.push_str(" -> ");
-            self.append_type(&return_type);
+            self.append_type(return_type);
         }
 
         self.string.push_str(" {\n");
@@ -371,7 +371,7 @@ impl<'a> MethodStubGenerator<'a> {
                 self.string.push_str("error");
             }
             Type::NamedGeneric(typevar, _name, _kind) => {
-                self.append_type(&Type::TypeVariable(typevar.clone(), TypeVariableKind::Normal))
+                self.append_type(&Type::TypeVariable(typevar.clone(), TypeVariableKind::Normal));
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
