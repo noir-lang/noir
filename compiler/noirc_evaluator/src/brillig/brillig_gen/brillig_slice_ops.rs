@@ -13,38 +13,50 @@ impl<'block> BrilligBlock<'block> {
         variables_to_insert: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector incrementing the size by variables_to_insert.len()
+        let source_size = self.brillig_context.codegen_make_vector_length(source_vector);
+
+        let target_size = SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
         self.brillig_context.codegen_usize_op(
-            source_vector.size,
-            target_vector.size,
+            source_size.address,
+            target_size.address,
             BrilligBinaryOp::Add,
             variables_to_insert.len(),
         );
-        self.brillig_context.codegen_allocate_array(target_vector.pointer, target_vector.size);
-        // We initialize the RC of the target vector to 1
-        self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
+
+        self.brillig_context.codegen_initialize_vector(target_vector, target_size);
 
         // Now we copy the source vector into the target vector
+        let source_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(source_vector);
+        let target_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(target_vector);
+
         self.brillig_context.codegen_mem_copy(
-            source_vector.pointer,
-            target_vector.pointer,
-            SingleAddrVariable::new_usize(source_vector.size),
+            source_vector_items_pointer,
+            target_vector_items_pointer,
+            source_size,
         );
 
         for (index, variable) in variables_to_insert.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant_instruction(index.into());
             self.brillig_context.memory_op_instruction(
                 target_index.address,
-                source_vector.size,
+                source_size.address,
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.brillig_context.codegen_store_variable_in_array(
-                target_vector.pointer,
+            self.brillig_context.codegen_store_with_offset(
+                target_vector_items_pointer,
                 target_index,
-                *variable,
+                variable.extract_register(),
             );
             self.brillig_context.deallocate_single_addr(target_index);
         }
+
+        self.brillig_context.deallocate_single_addr(source_size);
+        self.brillig_context.deallocate_single_addr(target_size);
+        self.brillig_context.deallocate_register(source_vector_items_pointer);
+        self.brillig_context.deallocate_register(target_vector_items_pointer);
     }
 
     pub(crate) fn slice_push_front_operation(
@@ -54,20 +66,27 @@ impl<'block> BrilligBlock<'block> {
         variables_to_insert: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector incrementing the size by variables_to_insert.len()
+        let source_size = self.brillig_context.codegen_make_vector_length(source_vector);
+
+        let target_size = SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
         self.brillig_context.codegen_usize_op(
-            source_vector.size,
-            target_vector.size,
+            source_size.address,
+            target_size.address,
             BrilligBinaryOp::Add,
             variables_to_insert.len(),
         );
-        self.brillig_context.codegen_allocate_array(target_vector.pointer, target_vector.size);
-        // We initialize the RC of the target vector to 1
-        self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
+
+        self.brillig_context.codegen_initialize_vector(target_vector, target_size);
 
         // Now we offset the target pointer by variables_to_insert.len()
+        let source_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(source_vector);
+        let target_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(target_vector);
+
         let destination_copy_pointer = self.brillig_context.allocate_register();
         self.brillig_context.codegen_usize_op(
-            target_vector.pointer,
+            target_vector_items_pointer,
             destination_copy_pointer,
             BrilligBinaryOp::Add,
             variables_to_insert.len(),
@@ -75,23 +94,27 @@ impl<'block> BrilligBlock<'block> {
 
         // Now we copy the source vector into the target vector starting at index variables_to_insert.len()
         self.brillig_context.codegen_mem_copy(
-            source_vector.pointer,
+            source_vector_items_pointer,
             destination_copy_pointer,
-            SingleAddrVariable::new_usize(source_vector.size),
+            source_size,
         );
 
         // Then we write the items to insert at the start
         for (index, variable) in variables_to_insert.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant_instruction(index.into());
-            self.brillig_context.codegen_store_variable_in_array(
-                target_vector.pointer,
+            self.brillig_context.codegen_store_with_offset(
+                target_vector_items_pointer,
                 target_index,
-                *variable,
+                variable.extract_register(),
             );
             self.brillig_context.deallocate_single_addr(target_index);
         }
 
         self.brillig_context.deallocate_register(destination_copy_pointer);
+        self.brillig_context.deallocate_single_addr(source_size);
+        self.brillig_context.deallocate_single_addr(target_size);
+        self.brillig_context.deallocate_register(source_vector_items_pointer);
+        self.brillig_context.deallocate_register(target_vector_items_pointer);
     }
 
     pub(crate) fn slice_pop_front_operation(
@@ -101,20 +124,27 @@ impl<'block> BrilligBlock<'block> {
         removed_items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
+        let source_size = self.brillig_context.codegen_make_vector_length(source_vector);
+
+        let target_size = SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
         self.brillig_context.codegen_usize_op(
-            source_vector.size,
-            target_vector.size,
+            source_size.address,
+            target_size.address,
             BrilligBinaryOp::Sub,
             removed_items.len(),
         );
-        self.brillig_context.codegen_allocate_array(target_vector.pointer, target_vector.size);
-        // We initialize the RC of the target vector to 1
-        self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
+
+        self.brillig_context.codegen_initialize_vector(target_vector, target_size);
 
         // Now we offset the source pointer by removed_items.len()
+        let source_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(source_vector);
+        let target_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(target_vector);
+
         let source_copy_pointer = self.brillig_context.allocate_register();
         self.brillig_context.codegen_usize_op(
-            source_vector.pointer,
+            source_vector_items_pointer,
             source_copy_pointer,
             BrilligBinaryOp::Add,
             removed_items.len(),
@@ -123,17 +153,25 @@ impl<'block> BrilligBlock<'block> {
         // Now we copy the source vector starting at index removed_items.len() into the target vector
         self.brillig_context.codegen_mem_copy(
             source_copy_pointer,
-            target_vector.pointer,
-            SingleAddrVariable::new_usize(target_vector.size),
+            target_vector_items_pointer,
+            target_size,
         );
 
         for (index, variable) in removed_items.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant_instruction(index.into());
-            self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_load_with_offset(
+                source_vector_items_pointer,
+                target_index,
+                variable.extract_register(),
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
 
         self.brillig_context.deallocate_register(source_copy_pointer);
+        self.brillig_context.deallocate_single_addr(source_size);
+        self.brillig_context.deallocate_single_addr(target_size);
+        self.brillig_context.deallocate_register(source_vector_items_pointer);
+        self.brillig_context.deallocate_register(target_vector_items_pointer);
     }
 
     pub(crate) fn slice_pop_back_operation(
@@ -143,34 +181,49 @@ impl<'block> BrilligBlock<'block> {
         removed_items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
+        let source_size = self.brillig_context.codegen_make_vector_length(source_vector);
+
+        let target_size = SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
         self.brillig_context.codegen_usize_op(
-            source_vector.size,
-            target_vector.size,
+            source_size.address,
+            target_size.address,
             BrilligBinaryOp::Sub,
             removed_items.len(),
         );
-        self.brillig_context.codegen_allocate_array(target_vector.pointer, target_vector.size);
-        // We initialize the RC of the target vector to 1
-        self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
+
+        self.brillig_context.codegen_initialize_vector(target_vector, target_size);
 
         // Now we copy all elements except the last items into the target vector
+        let source_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(source_vector);
+        let target_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(target_vector);
+
         self.brillig_context.codegen_mem_copy(
-            source_vector.pointer,
-            target_vector.pointer,
-            SingleAddrVariable::new_usize(target_vector.size),
+            source_vector_items_pointer,
+            target_vector_items_pointer,
+            target_size,
         );
 
         for (index, variable) in removed_items.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant_instruction(index.into());
             self.brillig_context.memory_op_instruction(
                 target_index.address,
-                target_vector.size,
+                target_size.address,
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_load_with_offset(
+                source_vector_items_pointer,
+                target_index,
+                variable.extract_register(),
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
+        self.brillig_context.deallocate_single_addr(source_size);
+        self.brillig_context.deallocate_single_addr(target_size);
+        self.brillig_context.deallocate_register(source_vector_items_pointer);
+        self.brillig_context.deallocate_register(target_vector_items_pointer);
     }
 
     pub(crate) fn slice_insert_operation(
@@ -181,23 +234,34 @@ impl<'block> BrilligBlock<'block> {
         items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector incrementing the size by items.len()
+        let source_size = self.brillig_context.codegen_make_vector_length(source_vector);
+
+        let target_size = SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
         self.brillig_context.codegen_usize_op(
-            source_vector.size,
-            target_vector.size,
+            source_size.address,
+            target_size.address,
             BrilligBinaryOp::Add,
             items.len(),
         );
-        self.brillig_context.codegen_allocate_array(target_vector.pointer, target_vector.size);
-        // We initialize the RC of the target vector to 1
-        self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
+
+        self.brillig_context.codegen_initialize_vector(target_vector, target_size);
 
         // Copy the elements to the left of the index
-        self.brillig_context.codegen_mem_copy(source_vector.pointer, target_vector.pointer, index);
+        let source_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(source_vector);
+        let target_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(target_vector);
+
+        self.brillig_context.codegen_mem_copy(
+            source_vector_items_pointer,
+            target_vector_items_pointer,
+            index,
+        );
 
         // Compute the source pointer just at the index
         let source_pointer_at_index = self.brillig_context.allocate_register();
         self.brillig_context.memory_op_instruction(
-            source_vector.pointer,
+            source_vector_items_pointer,
             index.address,
             source_pointer_at_index,
             BrilligBinaryOp::Add,
@@ -206,7 +270,7 @@ impl<'block> BrilligBlock<'block> {
         // Compute the target pointer after the inserted elements
         let target_pointer_after_index = self.brillig_context.allocate_register();
         self.brillig_context.memory_op_instruction(
-            target_vector.pointer,
+            target_vector_items_pointer,
             index.address,
             target_pointer_after_index,
             BrilligBinaryOp::Add,
@@ -220,7 +284,7 @@ impl<'block> BrilligBlock<'block> {
         // Compute the number of elements to the right of the index
         let item_count = self.brillig_context.allocate_register();
         self.brillig_context.memory_op_instruction(
-            source_vector.size,
+            source_size.address,
             index.address,
             item_count,
             BrilligBinaryOp::Sub,
@@ -243,10 +307,10 @@ impl<'block> BrilligBlock<'block> {
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.brillig_context.codegen_store_variable_in_array(
-                target_vector.pointer,
+            self.brillig_context.codegen_store_with_offset(
+                target_vector_items_pointer,
                 target_index,
-                *variable,
+                variable.extract_register(),
             );
             self.brillig_context.deallocate_single_addr(target_index);
         }
@@ -254,6 +318,10 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.deallocate_register(source_pointer_at_index);
         self.brillig_context.deallocate_register(target_pointer_after_index);
         self.brillig_context.deallocate_register(item_count);
+        self.brillig_context.deallocate_single_addr(source_size);
+        self.brillig_context.deallocate_single_addr(target_size);
+        self.brillig_context.deallocate_register(source_vector_items_pointer);
+        self.brillig_context.deallocate_register(target_vector_items_pointer);
     }
 
     pub(crate) fn slice_remove_operation(
@@ -264,23 +332,34 @@ impl<'block> BrilligBlock<'block> {
         removed_items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
+        let source_size = self.brillig_context.codegen_make_vector_length(source_vector);
+
+        let target_size = SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
         self.brillig_context.codegen_usize_op(
-            source_vector.size,
-            target_vector.size,
+            source_size.address,
+            target_size.address,
             BrilligBinaryOp::Sub,
             removed_items.len(),
         );
-        self.brillig_context.codegen_allocate_array(target_vector.pointer, target_vector.size);
-        // We initialize the RC of the target vector to 1
-        self.brillig_context.usize_const_instruction(target_vector.rc, 1_usize.into());
+
+        self.brillig_context.codegen_initialize_vector(target_vector, target_size);
 
         // Copy the elements to the left of the index
-        self.brillig_context.codegen_mem_copy(source_vector.pointer, target_vector.pointer, index);
+        let source_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(source_vector);
+        let target_vector_items_pointer =
+            self.brillig_context.codegen_make_vector_items_pointer(target_vector);
+
+        self.brillig_context.codegen_mem_copy(
+            source_vector_items_pointer,
+            target_vector_items_pointer,
+            index,
+        );
 
         // Compute the source pointer after the removed items
         let source_pointer_after_index = self.brillig_context.allocate_register();
         self.brillig_context.memory_op_instruction(
-            source_vector.pointer,
+            source_vector_items_pointer,
             index.address,
             source_pointer_after_index,
             BrilligBinaryOp::Add,
@@ -294,7 +373,7 @@ impl<'block> BrilligBlock<'block> {
         // Compute the target pointer at the index
         let target_pointer_at_index = self.brillig_context.allocate_register();
         self.brillig_context.memory_op_instruction(
-            target_vector.pointer,
+            target_vector_items_pointer,
             index.address,
             target_pointer_at_index,
             BrilligBinaryOp::Add,
@@ -303,7 +382,7 @@ impl<'block> BrilligBlock<'block> {
         // Compute the number of elements to the right of the index
         let item_count = self.brillig_context.allocate_register();
         self.brillig_context.memory_op_instruction(
-            source_vector.size,
+            source_size.address,
             index.address,
             item_count,
             BrilligBinaryOp::Sub,
@@ -331,26 +410,21 @@ impl<'block> BrilligBlock<'block> {
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_load_with_offset(
+                source_vector_items_pointer,
+                target_index,
+                variable.extract_register(),
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
 
         self.brillig_context.deallocate_register(source_pointer_after_index);
         self.brillig_context.deallocate_register(target_pointer_at_index);
         self.brillig_context.deallocate_register(item_count);
-    }
-
-    pub(crate) fn convert_array_or_vector_to_vector(
-        &mut self,
-        source_variable: BrilligVariable,
-    ) -> BrilligVector {
-        match source_variable {
-            BrilligVariable::BrilligVector(source_vector) => source_vector,
-            BrilligVariable::BrilligArray(source_array) => {
-                self.brillig_context.array_to_vector_instruction(&source_array)
-            }
-            _ => unreachable!("ICE: unsupported slice push back source {:?}", source_variable),
-        }
+        self.brillig_context.deallocate_single_addr(source_size);
+        self.brillig_context.deallocate_single_addr(target_size);
+        self.brillig_context.deallocate_register(source_vector_items_pointer);
+        self.brillig_context.deallocate_register(target_vector_items_pointer);
     }
 }
 
@@ -365,7 +439,7 @@ mod tests {
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::{BrilligParameter, Label};
     use crate::brillig::brillig_ir::brillig_variable::{
-        BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
+        BrilligVariable, BrilligVector, SingleAddrVariable,
     };
     use crate::brillig::brillig_ir::registers::Stack;
     use crate::brillig::brillig_ir::tests::{
@@ -410,42 +484,33 @@ mod tests {
             push_back: bool,
             array: Vec<FieldElement>,
             item_to_push: FieldElement,
-            expected_return: Vec<FieldElement>,
+            mut expected_return: Vec<FieldElement>,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(
+                BrilligParameter::Slice(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
+            let result_length = array.len() + 1;
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                array.len() + 1,
+                result_length + 1, // Leading length since the we return a vector
             )];
+            expected_return.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_variable = BrilligArray {
-                pointer: context.allocate_register(),
-                size: array.len(),
-                rc: context.allocate_register(),
-            };
+            let source_vector = BrilligVector { pointer: context.allocate_register() };
             let item_to_insert = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             };
 
-            // Cast the source array to a vector
-            let source_vector = context.array_to_vector_instruction(&array_variable);
-
             // Allocate the results
-            let target_vector = BrilligVector {
-                pointer: context.allocate_register(),
-                size: context.allocate_register(),
-                rc: context.allocate_register(),
-            };
+            let target_vector = BrilligVector { pointer: context.allocate_register() };
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
@@ -463,7 +528,7 @@ mod tests {
                 );
             }
 
-            context.codegen_return(&[target_vector.pointer, target_vector.rc]);
+            context.codegen_return(&[target_vector.pointer]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let (vm, return_data_offset, return_data_size) =
@@ -527,39 +592,31 @@ mod tests {
         fn test_case_pop(
             pop_back: bool,
             array: Vec<FieldElement>,
-            expected_return_array: Vec<FieldElement>,
+            mut expected_return_array: Vec<FieldElement>,
             expected_return_item: FieldElement,
         ) {
-            let arguments = vec![BrilligParameter::Array(
+            let arguments = vec![BrilligParameter::Slice(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                 array.len(),
             )];
+            let result_length = array.len() - 1;
+
             let returns = vec![
                 BrilligParameter::Array(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    array.len() - 1,
+                    result_length + 1,
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
+            expected_return_array.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_variable = BrilligArray {
-                pointer: context.allocate_register(),
-                size: array.len(),
-                rc: context.allocate_register(),
-            };
-
-            // Cast the source array to a vector
-            let source_vector = context.array_to_vector_instruction(&array_variable);
+            let source_vector = BrilligVector { pointer: context.allocate_register() };
 
             // Allocate the results
-            let target_vector = BrilligVector {
-                pointer: context.allocate_register(),
-                size: context.allocate_register(),
-                rc: context.allocate_register(),
-            };
+            let target_vector = BrilligVector { pointer: context.allocate_register() };
             let removed_item = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -581,11 +638,7 @@ mod tests {
                 );
             }
 
-            context.codegen_return(&[
-                target_vector.pointer,
-                target_vector.rc,
-                removed_item.address,
-            ]);
+            context.codegen_return(&[target_vector.pointer, removed_item.address]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let expected_return: Vec<_> =
@@ -632,29 +685,27 @@ mod tests {
             array: Vec<FieldElement>,
             item: FieldElement,
             index: FieldElement,
-            expected_return: Vec<FieldElement>,
+            mut expected_return: Vec<FieldElement>,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(
+                BrilligParameter::Slice(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
+            let result_length = array.len() + 1;
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                array.len() + 1,
+                result_length + 1,
             )];
+            expected_return.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_variable = BrilligArray {
-                pointer: context.allocate_register(),
-                size: array.len(),
-                rc: context.allocate_register(),
-            };
+            let source_vector = BrilligVector { pointer: context.allocate_register() };
             let item_to_insert = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -664,15 +715,8 @@ mod tests {
                 BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             );
 
-            // Cast the source array to a vector
-            let source_vector = context.array_to_vector_instruction(&array_variable);
-
             // Allocate the results
-            let target_vector = BrilligVector {
-                pointer: context.allocate_register(),
-                size: context.allocate_register(),
-                rc: context.allocate_register(),
-            };
+            let target_vector = BrilligVector { pointer: context.allocate_register() };
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
@@ -683,7 +727,7 @@ mod tests {
                 &[BrilligVariable::SingleAddr(item_to_insert)],
             );
 
-            context.codegen_return(&[target_vector.pointer, target_vector.rc]);
+            context.codegen_return(&[target_vector.pointer]);
             let calldata = array.into_iter().chain(vec![item]).chain(vec![index]).collect();
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
@@ -773,46 +817,38 @@ mod tests {
         fn test_case_remove(
             array: Vec<FieldElement>,
             index: FieldElement,
-            expected_array: Vec<FieldElement>,
+            mut expected_array: Vec<FieldElement>,
             expected_removed_item: FieldElement,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(
+                BrilligParameter::Slice(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
+            let result_length = array.len() - 1;
+
             let returns = vec![
                 BrilligParameter::Array(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    array.len() - 1,
+                    result_length + 1,
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
+            expected_array.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let array_variable = BrilligArray {
-                pointer: context.allocate_register(),
-                size: array.len(),
-                rc: context.allocate_register(),
-            };
+            let source_vector = BrilligVector { pointer: context.allocate_register() };
             let index_to_insert = SingleAddrVariable::new(
                 context.allocate_register(),
                 BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             );
 
-            // Cast the source array to a vector
-            let source_vector = context.array_to_vector_instruction(&array_variable);
-
             // Allocate the results
-            let target_vector = BrilligVector {
-                pointer: context.allocate_register(),
-                size: context.allocate_register(),
-                rc: context.allocate_register(),
-            };
+            let target_vector = BrilligVector { pointer: context.allocate_register() };
             let removed_item = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -827,11 +863,7 @@ mod tests {
                 &[BrilligVariable::SingleAddr(removed_item)],
             );
 
-            context.codegen_return(&[
-                target_vector.pointer,
-                target_vector.size,
-                removed_item.address,
-            ]);
+            context.codegen_return(&[target_vector.pointer, removed_item.address]);
 
             let calldata: Vec<_> = array.into_iter().chain(vec![index]).collect();
 

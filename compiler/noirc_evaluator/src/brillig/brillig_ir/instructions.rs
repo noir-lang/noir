@@ -13,7 +13,7 @@ use crate::ssa::ir::function::FunctionId;
 
 use super::{
     artifact::{Label, UnresolvedJumpLocation},
-    brillig_variable::{BrilligArray, BrilligVector, SingleAddrVariable},
+    brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     procedures::ProcedureId,
     registers::RegisterAllocator,
@@ -307,12 +307,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         self.debug_show.store_instruction(destination_pointer, source);
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
-    }
-
-    /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
-    pub(crate) fn array_to_vector_instruction(&mut self, array: &BrilligArray) -> BrilligVector {
-        let size_register = self.make_usize_constant_instruction(array.size.into());
-        BrilligVector { size: size_register.address, pointer: array.pointer, rc: array.rc }
     }
 
     /// Emits a load instruction

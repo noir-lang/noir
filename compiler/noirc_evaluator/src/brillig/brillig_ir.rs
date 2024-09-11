@@ -237,8 +237,12 @@ pub(crate) mod tests {
         returns: Vec<BrilligParameter>,
     ) -> GeneratedBrillig<FieldElement> {
         let artifact = context.artifact();
-        let mut entry_point_artifact =
-            BrilligContext::new_entry_point_artifact(arguments, returns, FunctionId::test_new(0));
+        let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
+            arguments,
+            returns,
+            FunctionId::test_new(0),
+            true,
+        );
         entry_point_artifact.link_with(&artifact);
         entry_point_artifact.finish()
     }
