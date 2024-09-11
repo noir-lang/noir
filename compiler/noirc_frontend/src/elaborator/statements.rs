@@ -251,11 +251,9 @@ impl<'context> Elaborator<'context> {
                         mutable = definition.mutable;
 
                         if definition.comptime && !self.in_comptime_context() {
-                            let span = ident.location.span;
-                            let name = definition.name.clone();
                             self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-                                name,
-                                span,
+                                name: definition.name.clone(),
+                                span: ident.location.span,
                             });
                         }
                     }
