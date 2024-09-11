@@ -16,6 +16,7 @@ mod some_contract {
 
     pub fn other(_x: Field) {}
 
+    // TODO: let the `aztec_contract` annotation above generate this method
     pub fn public_entrypoint(selector: Field, calldata: [Field; 2]) {
         if selector == FunctionSelector::from_signature("one(Field)") {
             let (x, _) = FromCallData::from_calldata(calldata);
@@ -49,6 +50,8 @@ trait FromCallData<let N: u32, let M: u32> {
     /// Decodes Self by consuming it from the head of calldata, returning the remaining calldata
     fn from_calldata(calldata: [Field; N]) -> (Self, [Field; M]);
 }
+
+// TODO: allow deriving FromCallData for any struct
 
 impl <let N: u32> FromCallData<N, N - 1> for Field {
     fn from_calldata(calldata: [Field; N]) -> (Self, [Field; (N - 1)]) {
