@@ -1,4 +1,4 @@
-use acvm::acir::brillig::MemoryAddress;
+use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
 
 use crate::brillig::brillig_ir::entry_point::MAX_STACK_SIZE;
 
@@ -221,5 +221,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Deallocates the address where the single address variable is stored
     pub(crate) fn deallocate_single_addr(&mut self, var: SingleAddrVariable) {
         self.deallocate_register(var.address);
+    }
+
+    pub(crate) fn deallocate_heap_array(&mut self, arr: HeapArray) {
+        self.deallocate_register(arr.pointer);
+    }
+
+    pub(crate) fn deallocate_heap_vector(&mut self, vec: HeapVector) {
+        self.deallocate_register(vec.pointer);
+        self.deallocate_register(vec.size);
     }
 }

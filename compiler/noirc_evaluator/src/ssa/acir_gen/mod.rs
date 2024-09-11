@@ -960,6 +960,7 @@ impl<'a> Context<'a> {
             arguments,
             BrilligFunctionContext::return_values(func),
             func.id(),
+            false,
         );
         entry_point.name = func.name().to_string();
 
