@@ -1,14 +1,18 @@
+use std::collections::BTreeMap;
+
 use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{NoirTraitImpl, TraitImplItem},
+    graph::CrateId,
+    hir::def_map::{CrateDefMap, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::NodeInterner,
     node_interner::ReferenceId,
     Type,
 };
 
-use crate::byte_span_to_range;
+use crate::{byte_span_to_range, modules::relative_module_id_path};
 
 use super::CodeActionFinder;
 
@@ -54,7 +58,9 @@ impl<'a> CodeActionFinder<'a> {
             .iter()
             .map(|(name, func_id)| {
                 let func_meta = self.interner.function_meta(&func_id);
-                method_stub(&name, func_meta, self.interner)
+                let mut generator =
+                    MethodStubGenerator::new(self.interner, self.def_maps, self.module_id);
+                generator.generate(name, func_meta)
             })
             .collect();
 
@@ -67,68 +73,155 @@ impl<'a> CodeActionFinder<'a> {
     }
 }
 
-fn method_stub(name: &str, func_meta: &FuncMeta, interner: &NodeInterner) -> String {
-    let mut string = String::new();
-    let indent = "    ";
-
-    string.push_str(indent);
-    string.push_str("fn ");
-    string.push_str(name);
-    string.push('(');
-    for (index, (pattern, typ, _visibility)) in func_meta.parameters.iter().enumerate() {
-        if index > 0 {
-            string.push_str(", ");
-        }
-        if append_pattern(pattern, &mut string, interner) {
-            string.push_str(": ");
-            string.push_str(&typ.to_string());
-        }
-    }
-    string.push(')');
-
-    let return_type = func_meta.return_type();
-    if return_type != &Type::Unit {
-        string.push_str(" -> ");
-        string.push_str(&return_type.to_string());
-    }
-
-    string.push_str(" {\n");
-    string.push_str(indent);
-    string.push_str(indent);
-    string.push_str("panic(f\"Implement ");
-    string.push_str(name);
-    string.push_str("\");\n");
-    string.push_str(indent);
-    string.push_str("}\n");
-    string
+struct MethodStubGenerator<'a> {
+    interner: &'a NodeInterner,
+    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    module_id: ModuleId,
+    string: String,
 }
 
-/// Appends a pattern and returns true if this was not the self type
-fn append_pattern(pattern: &HirPattern, string: &mut String, interner: &NodeInterner) -> bool {
-    match pattern {
-        HirPattern::Identifier(hir_ident) => {
-            let definition = interner.definition(hir_ident.id);
-            string.push_str(&definition.name);
-            &definition.name != "self"
-        }
-        HirPattern::Mutable(pattern, _) => {
-            string.push_str("mut ");
-            append_pattern(pattern, string, interner)
-        }
-        HirPattern::Tuple(patterns, _) => {
-            string.push('(');
-            for (index, pattern) in patterns.iter().enumerate() {
-                if index > 0 {
-                    string.push_str(", ");
-                }
-                append_pattern(pattern, string, interner);
+impl<'a> MethodStubGenerator<'a> {
+    fn new(
+        interner: &'a NodeInterner,
+        def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+        module_id: ModuleId,
+    ) -> Self {
+        Self { interner, def_maps, module_id, string: String::new() }
+    }
+
+    fn generate(&mut self, name: &str, func_meta: &FuncMeta) -> String {
+        let indent = "    ";
+
+        self.string.push_str(indent);
+        self.string.push_str("fn ");
+        self.string.push_str(name);
+        self.string.push('(');
+        for (index, (pattern, typ, _visibility)) in func_meta.parameters.iter().enumerate() {
+            if index > 0 {
+                self.string.push_str(", ");
             }
-            string.push(')');
-            true
+            if self.append_pattern(pattern) {
+                self.string.push_str(": ");
+                self.append_type(&typ);
+            }
         }
-        HirPattern::Struct(_, _, _) => {
-            // TODO
-            true
+        self.string.push(')');
+
+        let return_type = func_meta.return_type();
+        if return_type != &Type::Unit {
+            self.string.push_str(" -> ");
+            self.string.push_str(&return_type.to_string());
+        }
+
+        self.string.push_str(" {\n");
+        self.string.push_str(indent);
+        self.string.push_str(indent);
+        self.string.push_str("panic(f\"Implement ");
+        self.string.push_str(name);
+        self.string.push_str("\");\n");
+        self.string.push_str(indent);
+        self.string.push_str("}\n");
+        std::mem::take(&mut self.string)
+    }
+
+    /// Appends a pattern and returns true if this was not the self type
+    fn append_pattern(&mut self, pattern: &HirPattern) -> bool {
+        match pattern {
+            HirPattern::Identifier(hir_ident) => {
+                let definition = self.interner.definition(hir_ident.id);
+                self.string.push_str(&definition.name);
+                &definition.name != "self"
+            }
+            HirPattern::Mutable(pattern, _) => {
+                self.string.push_str("mut ");
+                self.append_pattern(pattern)
+            }
+            HirPattern::Tuple(patterns, _) => {
+                self.string.push('(');
+                for (index, pattern) in patterns.iter().enumerate() {
+                    if index > 0 {
+                        self.string.push_str(", ");
+                    }
+                    self.append_pattern(pattern);
+                }
+                self.string.push(')');
+                true
+            }
+            HirPattern::Struct(_, _, _) => {
+                // TODO
+                true
+            }
+        }
+    }
+
+    fn append_type(&mut self, typ: &Type) {
+        match typ {
+            Type::FieldElement => self.string.push_str("Field"),
+            Type::Array(n, e) => {
+                self.string.push('[');
+                self.append_type(e);
+                self.string.push_str("; ");
+                self.append_type(n);
+                self.string.push(']');
+            }
+            Type::Slice(typ) => {
+                self.string.push('[');
+                self.append_type(typ);
+                self.string.push(']');
+            }
+            Type::Tuple(types) => {
+                self.string.push('(');
+                for (index, typ) in types.iter().enumerate() {
+                    if index > 0 {
+                        self.string.push_str(", ");
+                    }
+                    self.append_type(typ);
+                }
+                self.string.push(')');
+            }
+            Type::Struct(struct_type, _generics) => {
+                let struct_type = struct_type.borrow();
+                let module_id = struct_type.id.module_id();
+                let module_data = &self.def_maps[&module_id.krate].modules()[module_id.local_id.0];
+                let parent_module_local_id = module_data.parent.unwrap();
+                let parent_module_id =
+                    ModuleId { krate: module_id.krate, local_id: parent_module_local_id };
+
+                let current_module_data =
+                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+                let current_module_parent_id = current_module_data
+                    .parent
+                    .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
+
+                let relative_path = relative_module_id_path(
+                    parent_module_id,
+                    &self.module_id,
+                    current_module_parent_id,
+                    self.interner,
+                );
+
+                if !relative_path.is_empty() {
+                    self.string.push_str(&relative_path);
+                    self.string.push_str("::");
+                }
+                self.string.push_str(&typ.to_string());
+            }
+            Type::Alias(_, _) => todo!("2"),
+            Type::TypeVariable(_, _) => todo!("3"),
+            Type::TraitAsType(_, _, _) => todo!("4"),
+            Type::NamedGeneric(_, _, _) => todo!("5"),
+            Type::Function(_, _, _, _) => todo!("6"),
+            Type::MutableReference(_) => todo!("7"),
+            Type::Forall(_, _) => todo!("8"),
+            Type::Constant(_) => todo!("9"),
+            Type::InfixExpr(_, _, _) => todo!("10"),
+            Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(_)
+            | Type::Error => self.string.push_str(&typ.to_string()),
         }
     }
 }
@@ -198,6 +291,48 @@ impl Trait for Foo {
     }
 
     fn foo(x: i32) -> i32 {
+        panic(f"Implement foo");
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_add_missing_impl_members_qualify_type() {
+        let title = "Implement missing members";
+
+        let src = r#"
+mod moo {
+    struct Moo {}
+
+    trait Trait {
+        fn foo(x: Moo);
+    }
+}
+
+struct Foo {}
+
+use moo::Trait;
+
+impl Tra>|<it for Foo {
+}"#;
+
+        let expected = r#"
+mod moo {
+    struct Moo {}
+
+    trait Trait {
+        fn foo(x: Moo);
+    }
+}
+
+struct Foo {}
+
+use moo::Trait;
+
+impl Trait for Foo {
+    fn foo(x: moo::Moo) {
         panic(f"Implement foo");
     }
 }"#;
