@@ -28,7 +28,7 @@ fn zero() -> Field {
     0
 }
 
-fn inject_context(f: FunctionDefinition) {
+comptime fn inject_context(f: FunctionDefinition) {
     // Add a `_context: Context` parameter to the function
     let parameters = f.parameters();
     let parameters = parameters.push_front((quote { _context }, quote { Context }.as_type()));
@@ -39,7 +39,7 @@ fn inject_context(f: FunctionDefinition) {
     f.set_body(body);
 }
 
-fn mapping_function(expr: Expr, f: FunctionDefinition) -> Option<Expr> {
+comptime fn mapping_function(expr: Expr, f: FunctionDefinition) -> Option<Expr> {
     expr.as_function_call().and_then(
         |func_call: (Expr, [Expr])| {
         let (name, arguments) = func_call;

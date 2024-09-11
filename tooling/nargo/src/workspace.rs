@@ -9,6 +9,9 @@ use std::{
     slice,
 };
 
+use fm::FileManager;
+use noirc_driver::file_manager_with_stdlib;
+
 use crate::{
     constants::{CONTRACT_DIR, EXPORT_DIR, PROOFS_DIR, TARGET_DIR},
     package::Package,
@@ -45,6 +48,21 @@ impl Workspace {
 
     pub fn export_directory_path(&self) -> PathBuf {
         self.root_dir.join(EXPORT_DIR)
+    }
+
+    /// Returns a new `FileManager` for the root directory of this workspace.
+    /// If the root directory is not the standard library, the standard library
+    /// is added to the returned `FileManager`.
+    pub fn new_file_manager(&self) -> FileManager {
+        if self.is_stdlib() {
+            FileManager::new(&self.root_dir)
+        } else {
+            file_manager_with_stdlib(&self.root_dir)
+        }
+    }
+
+    fn is_stdlib(&self) -> bool {
+        self.members.len() == 1 && self.members[0].name.to_string() == "std"
     }
 }
 

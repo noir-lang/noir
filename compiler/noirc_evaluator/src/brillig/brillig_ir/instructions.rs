@@ -394,43 +394,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             constant,
             bit_size
         );
-        if bit_size > 128 && constant.num_bits() > 128 {
-            let high = F::from_be_bytes_reduce(
-                constant.to_be_bytes().get(0..16).expect("FieldElement::to_be_bytes() too short!"),
-            );
-            let low = F::from(constant.to_u128());
-            let high_register = SingleAddrVariable::new(self.allocate_register(), 254);
-            let low_register = SingleAddrVariable::new(self.allocate_register(), 254);
-            let intermediate_register = SingleAddrVariable::new(self.allocate_register(), 254);
-
-            self.constant(high_register.address, high_register.bit_size, high, false);
-            self.constant(low_register.address, low_register.bit_size, low, false);
-            // I want to multiply high by 2^128, but I can't get that big constant in.
-            // So I'll multiply by 2^64 twice.
-            self.constant(
-                intermediate_register.address,
-                intermediate_register.bit_size,
-                F::from(1_u128 << 64),
-                false,
-            );
-            self.binary(high_register, intermediate_register, high_register, BrilligBinaryOp::Mul);
-            self.binary(high_register, intermediate_register, high_register, BrilligBinaryOp::Mul);
-            // Now we can add.
-            self.binary(high_register, low_register, intermediate_register, BrilligBinaryOp::Add);
-            if indirect {
-                self.cast(
-                    SingleAddrVariable::new(intermediate_register.address, bit_size),
-                    intermediate_register,
-                );
-                self.store_instruction(result, intermediate_register.address);
-            } else {
-                self.cast(SingleAddrVariable::new(result, bit_size), intermediate_register);
-            }
-
-            self.deallocate_single_addr(high_register);
-            self.deallocate_single_addr(low_register);
-            self.deallocate_single_addr(intermediate_register);
-        } else if indirect {
+        if indirect {
             self.push_opcode(BrilligOpcode::IndirectConst {
                 destination_pointer: result,
                 value: constant,

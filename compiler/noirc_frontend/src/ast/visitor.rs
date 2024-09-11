@@ -12,8 +12,8 @@ use crate::{
         UseTreeKind,
     },
     node_interner::{
-        ExprId, InternedExpressionKind, InternedStatementKind, InternedUnresolvedTypeData,
-        QuotedTypeId,
+        ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
+        InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{CustomAtrribute, SecondaryAttribute, Tokens},
@@ -30,6 +30,7 @@ use super::{
 pub enum AttributeTarget {
     Module,
     Struct,
+    Trait,
     Function,
 }
 
@@ -440,6 +441,8 @@ pub trait Visitor {
         true
     }
 
+    fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {}
+
     fn visit_secondary_attribute(
         &mut self,
         _: &SecondaryAttribute,
@@ -615,6 +618,10 @@ impl NoirTrait {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Trait, visitor);
+        }
+
         for item in &self.items {
             item.item.accept(visitor);
         }
@@ -1320,6 +1327,9 @@ impl Pattern {
                         pattern.accept(visitor);
                     }
                 }
+            }
+            Pattern::Interned(id, span) => {
+                visitor.visit_interned_pattern(id, *span);
             }
         }
     }
