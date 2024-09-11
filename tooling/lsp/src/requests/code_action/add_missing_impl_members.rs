@@ -7,7 +7,7 @@ use noirc_frontend::{
     graph::CrateId,
     hir::def_map::{CrateDefMap, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
-    macros_api::NodeInterner,
+    macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
     Type,
 };
@@ -190,14 +190,25 @@ impl<'a> MethodStubGenerator<'a> {
             }
             Type::Struct(struct_type, _generics) => {
                 let struct_type = struct_type.borrow();
+
+                let current_module_data =
+                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+
+                // Check if the struct type is already imported/visible in this module
+                let per_ns = current_module_data.find_name(&struct_type.name);
+                if let Some((module_def_id, _, _)) = per_ns.types {
+                    if module_def_id == ModuleDefId::TypeId(struct_type.id) {
+                        self.string.push_str(&typ.to_string());
+                        return;
+                    }
+                }
+
                 let module_id = struct_type.id.module_id();
                 let module_data = &self.def_maps[&module_id.krate].modules()[module_id.local_id.0];
                 let parent_module_local_id = module_data.parent.unwrap();
                 let parent_module_id =
                     ModuleId { krate: module_id.krate, local_id: parent_module_local_id };
 
-                let current_module_data =
-                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
                 let current_module_parent_id = current_module_data
                     .parent
                     .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
@@ -359,6 +370,50 @@ use moo::Trait;
 
 impl Trait for Foo {
     fn foo(x: moo::Moo) {
+        panic(f"Implement foo")
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_add_missing_impl_members_no_need_to_qualify_type() {
+        let title = "Implement missing members";
+
+        let src = r#"
+mod moo {
+    struct Moo {}
+
+    trait Trait {
+        fn foo(x: Moo);
+    }
+}
+
+struct Foo {}
+
+use moo::Trait;
+use moo::Moo;
+
+impl Tra>|<it for Foo {
+}"#;
+
+        let expected = r#"
+mod moo {
+    struct Moo {}
+
+    trait Trait {
+        fn foo(x: Moo);
+    }
+}
+
+struct Foo {}
+
+use moo::Trait;
+use moo::Moo;
+
+impl Trait for Foo {
+    fn foo(x: Moo) {
         panic(f"Implement foo")
     }
 }"#;
