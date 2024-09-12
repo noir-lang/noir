@@ -1,7 +1,7 @@
 use lsp_types::{Position, Range, TextEdit};
 use noirc_frontend::macros_api::ModuleDefId;
 
-use crate::modules::{get_parent_module_id, relative_module_id_path, relative_module_full_path};
+use crate::modules::{get_parent_module_id, relative_module_full_path, relative_module_id_path};
 
 use super::{
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
