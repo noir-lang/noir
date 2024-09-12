@@ -1,5 +1,5 @@
 use acvm::acir::{
-    brillig::{BinaryFieldOp, BitSize, MemoryAddress, Opcode as BrilligOpcode},
+    brillig::{BinaryFieldOp, BitSize, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode},
     AcirField,
 };
 
@@ -19,11 +19,25 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
     let zero_const = MemoryAddress::from(2);
     let input_is_zero = MemoryAddress::from(3);
     // Location of the stop opcode
-    let stop_location = 6;
+    let stop_location = 8;
 
     GeneratedBrillig {
         byte_code: vec![
-            BrilligOpcode::CalldataCopy { destination_address: input, size: 1, offset: 0 },
+            BrilligOpcode::Const {
+                destination: MemoryAddress(20),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(1_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::from(21),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(0_usize),
+            },
+            BrilligOpcode::CalldataCopy {
+                destination_address: input,
+                size_address: MemoryAddress::from(20),
+                offset_address: MemoryAddress::from(21),
+            },
             // Put value zero in register (2)
             BrilligOpcode::Const {
                 destination: zero_const,
@@ -74,10 +88,20 @@ pub(crate) fn directive_quotient<F: AcirField>() -> GeneratedBrillig<F> {
 
     GeneratedBrillig {
         byte_code: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::from(10),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(2_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::from(11),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(0_usize),
+            },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress::from(0),
-                size: 2,
-                offset: 0,
+                size_address: MemoryAddress::from(10),
+                offset_address: MemoryAddress::from(11),
             },
             // No cast, since calldata is typed as field by default
             //q = a/b is set into register (2)

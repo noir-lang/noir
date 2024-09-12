@@ -152,10 +152,6 @@ struct PerFunctionContext<'f> {
     /// This is needed to determine whether we can remove a store.
     calls_reference_input: HashSet<ValueId>,
 
-    /// Track whether the last instruction is an inc_rc/dec_rc instruction.
-    /// If it is we should not remove any known store values.
-    inside_rc_reload: bool,
-
     // The map of block ids represents the blocks where a store was used
     // And the usage per block
     store_count: HashMap<ValueId, (u32, HashMap<BasicBlockId, u32>)>,
@@ -214,7 +210,6 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashMap::default(),
             load_results: HashMap::default(),
             calls_reference_input: HashSet::default(),
-            inside_rc_reload: false,
             store_count: HashMap::default(),
             load_instruction_locations: HashMap::default(),
         }
@@ -476,7 +471,7 @@ impl<'f> PerFunctionContext<'f> {
                 let known_value = references.get_known_value(value);
                 if let Some(known_value) = known_value {
                     let known_value_is_address = known_value == address;
-                    if known_value_is_address && !self.inside_rc_reload {
+                    if known_value_is_address {
                         self.instructions_to_remove.insert(instruction);
                         if let Some(context) = self.load_results.get_mut(&address) {
                             context.uses -= 1;
@@ -583,28 +578,6 @@ impl<'f> PerFunctionContext<'f> {
                 self.mark_all_unknown(arguments, references);
             }
             _ => (),
-        }
-
-        // let mut collect_values = Vec::new();
-        // // Track whether any load results were used in the instruction
-        // self.inserter.function.dfg[instruction].for_each_value(|value| {
-        //     collect_values.push(value);
-        // });
-
-        // for value in collect_values {
-        //     self.count_increase_instruction(value, instruction, block_id);
-        // }
-
-        self.track_rc_reload_state(instruction);
-    }
-
-    fn track_rc_reload_state(&mut self, instruction: InstructionId) {
-        match &self.inserter.function.dfg[instruction] {
-            // We just had an increment or decrement to an array's reference counter
-            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
-                self.inside_rc_reload = true;
-            }
-            _ => self.inside_rc_reload = false,
         }
     }
 

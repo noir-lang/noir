@@ -165,14 +165,11 @@ impl Add for U128 {
     fn add(self: Self, b: U128) -> U128 {
         let low = self.lo + b.lo;
         let lo = low as u64 as Field;
-        let carry = (low - lo) / pow64;  
+        let carry = (low - lo) / pow64;
         let high = self.hi + b.hi + carry;
         let hi = high as u64 as Field;
         assert(hi == high, "attempt to add with overflow");
-        U128 {
-            lo,
-            hi,
-        }
+        U128 { lo, hi }
     }
 }
 
@@ -184,30 +181,24 @@ impl Sub for U128 {
         let high = self.hi - b.hi - borrow;
         let hi = high as u64 as Field;
         assert(hi == high, "attempt to subtract with underflow");
-        U128 {
-            lo,
-            hi,
-        }
+        U128 { lo, hi }
     }
 }
 
 impl Mul for U128 {
     fn mul(self: Self, b: U128) -> U128 {
-        assert(self.hi*b.hi == 0, "attempt to multiply with overflow");
-        let low = self.lo*b.lo;
+        assert(self.hi * b.hi == 0, "attempt to multiply with overflow");
+        let low = self.lo * b.lo;
         let lo = low as u64 as Field;
         let carry = (low - lo) / pow64;
         let high = if crate::field::modulus_num_bits() as u32 > 196 {
-            (self.lo+self.hi)*(b.lo+b.hi) - low + carry
+            (self.lo + self.hi) * (b.lo + b.hi) - low + carry
         } else {
-            self.lo*b.hi + self.hi*b.lo + carry
+            self.lo * b.hi + self.hi * b.lo + carry
         };
         let hi = high as u64 as Field;
         assert(hi == high, "attempt to multiply with overflow");
-        U128 {
-            lo,
-            hi,
-        }
+        U128 { lo, hi }
     }
 }
 
@@ -230,7 +221,7 @@ impl Rem for U128 {
             let a = b * q + r;
             assert_eq(self, a);
             assert(r < b);
-            
+
             r
         }
     }
@@ -246,7 +237,7 @@ impl Ord for U128 {
     fn cmp(self, other: Self) -> Ordering {
         let hi_ordering = (self.hi as u64).cmp((other.hi as u64));
         let lo_ordering = (self.lo as u64).cmp((other.lo as u64));
-        
+
         if hi_ordering == Ordering::equal() {
             lo_ordering
         } else {
@@ -255,16 +246,13 @@ impl Ord for U128 {
     }
 }
 
-impl Not for U128 { 
+impl Not for U128 {
     fn not(self) -> U128 {
-        U128 {
-            lo: (!(self.lo as u64)) as Field,
-            hi: (!(self.hi as u64)) as Field
-        }
+        U128 { lo: (!(self.lo as u64)) as Field, hi: (!(self.hi as u64)) as Field }
     }
 }
 
-impl BitOr for U128 { 
+impl BitOr for U128 {
     fn bitor(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) | (other.lo as u64)) as Field,
@@ -274,7 +262,7 @@ impl BitOr for U128 {
 }
 
 impl BitAnd for U128 {
-    fn bitand(self, other: U128) -> U128 { 
+    fn bitand(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) & (other.lo as u64)) as Field,
             hi: ((self.hi as u64) & (other.hi as u64)) as Field
@@ -283,7 +271,7 @@ impl BitAnd for U128 {
 }
 
 impl BitXor for U128 {
-    fn bitxor(self, other: U128) -> U128 { 
+    fn bitxor(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) ^ (other.lo as u64)) as Field,
             hi: ((self.hi as u64) ^ (other.hi as u64)) as Field
@@ -291,36 +279,36 @@ impl BitXor for U128 {
     }
 }
 
-impl Shl for U128 { 
-    fn shl(self, other: u8) -> U128 { 
+impl Shl for U128 {
+    fn shl(self, other: u8) -> U128 {
         assert(other < 128, "attempt to shift left with overflow");
         let exp_bits: [u1; 7] = (other as Field).to_be_bits();
 
         let mut r: Field = 2;
         let mut y: Field = 1;
         for i in 1..8 {
-            let bit = exp_bits[7-i] as Field;
+            let bit = exp_bits[7 - i] as Field;
             y = bit * (r * y) + (1 - bit) * y;
             r *= r;
         }
         self.wrapping_mul(U128::from_integer(y))
-    } 
+    }
 }
 
-impl Shr for U128 { 
-    fn shr(self, other: u8) -> U128 { 
+impl Shr for U128 {
+    fn shr(self, other: u8) -> U128 {
         assert(other < 128, "attempt to shift right with overflow");
         let exp_bits: [u1; 7] = (other as Field).to_be_bits();
 
         let mut r: Field = 2;
         let mut y: Field = 1;
         for i in 1..8 {
-            let bit = exp_bits[7-i] as Field;
+            let bit = exp_bits[7 - i] as Field;
             y = bit * (r * y) + (1 - bit) * y;
             r *= r;
         }
         self / U128::from_integer(y)
-    } 
+    }
 }
 
 mod tests {

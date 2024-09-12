@@ -70,7 +70,7 @@ mod affine {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-             let Self {x: x1, y: y1} = self;
+            let Self {x: x1, y: y1} = self;
             let Self {x: x2, y: y2} = p;
 
             (x1 == x2) & (y1 == y2)
@@ -261,7 +261,7 @@ mod curvegroup {
             let Self {x: x1, y: y1, t: _t1, z: z1} = self;
             let Self {x: x2, y: y2, t: _t2, z:z2} = p;
 
-            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
+            (x1 * z2 == x2 * z1) & (y1 * z2 == y2 * z1)
         }
     }
 

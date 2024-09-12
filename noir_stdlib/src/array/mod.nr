@@ -1,62 +1,14 @@
-use crate::cmp::Ord;
+use crate::cmp::{Eq, Ord};
 use crate::convert::From;
+use crate::runtime::is_unconstrained;
+
+mod check_shuffle;
+mod quicksort;
 
 impl<T, let N: u32> [T; N] {
     /// Returns the length of the slice.
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
-
-    pub fn sort(self) -> Self where T: Ord {
-        self.sort_via(|a: T, b: T| a <= b)
-    }
-
-    pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        let sorted_index = unsafe {
-            // Safety: These indices are asserted to be the sorted element indices via `find_index`
-            let sorted_index: [u32; N] = self.get_sorting_index(ordering);
-
-            for i in 0..N {
-                let pos = find_index(sorted_index, i);
-                assert(sorted_index[pos] == i);
-            }
-
-            sorted_index
-        };
-
-        // Sort the array using the indexes
-        let mut result = self;
-        for i in 0..N {
-            result[i] = self[sorted_index[i]];
-        }
-        // Ensure the array is sorted
-        for i in 0..N - 1 {
-            assert(ordering(result[i], result[i + 1]));
-        }
-
-        result
-    }
-
-    /// Returns the index of the elements in the array that would sort it, using the provided custom sorting function.
-    unconstrained fn get_sorting_index<Env>(self, ordering: fn[Env](T, T) -> bool) -> [u32; N] {
-        let mut result = [0; N];
-        let mut a = self;
-        for i in 0..N {
-            result[i] = i;
-        }
-        for i in 1..N {
-            for j in 0..i {
-                if ordering(a[i], a[j]) {
-                    let old_a_j = a[j];
-                    a[j] = a[i];
-                    a[i] = old_a_j;
-                    let old_j = result[j];
-                    result[j] = result[i];
-                    result[i] = old_j;
-                }
-            }
-        }
-        result
-    }
 
     #[builtin(as_slice)]
     pub fn as_slice(self) -> [T] {}
@@ -114,23 +66,43 @@ impl<T, let N: u32> [T; N] {
     }
 }
 
+impl<T, let N: u32> [T; N] where T: Ord + Eq {
+    pub fn sort(self) -> Self {
+        self.sort_via(|a: T, b: T| a <= b)
+    }
+}
+
+impl<T, let N: u32> [T; N] where T: Eq {
+
+    /// Sorts the array using a custom predicate function `ordering`.
+    ///
+    /// The `ordering` function must be designed to return `true` for equal valued inputs
+    /// If this is not done, `sort_via` will fail to sort inputs with duplicated elements.
+    pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
+        unsafe {
+            // Safety: `sorted` array is checked to be:
+            //   a. a permutation of `input`'s elements
+            //   b. satisfying the predicate `ordering`
+            let sorted = quicksort::quicksort(self, ordering);
+
+            if !is_unconstrained() {
+                for i in 0..N - 1 {
+                    assert(
+                        ordering(sorted[i], sorted[i + 1]), "Array has not been sorted correctly according to `ordering`."
+                    );
+                }
+                check_shuffle::check_shuffle(self, sorted);
+            }
+            sorted
+        }
+    }
+}
+
 impl<let N: u32> [u8; N] {
     /// Convert a sequence of bytes as-is into a string.
     /// This function performs no UTF-8 validation or similar.
     #[builtin(array_as_str_unchecked)]
     pub fn as_str_unchecked(self) -> str<N> {}
-}
-
-// helper function used to look up the position of a value in an array of Field
-// Note that function returns 0 if the value is not found
-unconstrained fn find_index<let N: u32>(a: [u32; N], find: u32) -> u32 {
-    let mut result = 0;
-    for i in 0..a.len() {
-        if a[i] == find {
-            result = i;
-        }
-    }
-    result
 }
 
 impl<let N: u32> From<str<N>> for [u8; N] {

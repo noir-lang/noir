@@ -91,9 +91,7 @@ impl BlockVariables {
             .ssa_value_allocations
             .get(value_id)
             .expect("ICE: Variable allocation not found");
-        variable.extract_registers().iter().for_each(|register| {
-            brillig_context.deallocate_register(*register);
-        });
+        brillig_context.deallocate_register(variable.extract_register());
     }
 
     /// Checks if a variable is allocated.
@@ -142,27 +140,12 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
                 bit_size: get_bit_size_from_ssa_type(&typ),
             })
         }
-        Type::Array(item_typ, elem_count) => {
-            let pointer_register = brillig_context.allocate_register();
-            let rc_register = brillig_context.allocate_register();
-            let size = compute_array_length(&item_typ, elem_count);
-
-            BrilligVariable::BrilligArray(BrilligArray {
-                pointer: pointer_register,
-                size,
-                rc: rc_register,
-            })
-        }
-        Type::Slice(_) => {
-            let pointer_register = brillig_context.allocate_register();
-            let size_register = brillig_context.allocate_register();
-            let rc_register = brillig_context.allocate_register();
-
-            BrilligVariable::BrilligVector(BrilligVector {
-                pointer: pointer_register,
-                size: size_register,
-                rc: rc_register,
-            })
-        }
+        Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
+            pointer: brillig_context.allocate_register(),
+            size: compute_array_length(&item_typ, elem_count),
+        }),
+        Type::Slice(_) => BrilligVariable::BrilligVector(BrilligVector {
+            pointer: brillig_context.allocate_register(),
+        }),
     }
 }
