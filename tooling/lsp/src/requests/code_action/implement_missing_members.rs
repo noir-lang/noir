@@ -149,6 +149,7 @@ struct MethodStubGenerator<'a> {
 }
 
 impl<'a> MethodStubGenerator<'a> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         name: &'a str,
         func_meta: &'a FuncMeta,
