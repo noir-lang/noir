@@ -169,6 +169,9 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
+        // TODO cleanup
+        dbg!("resolve_type_inner", &resolved_type, &kind);
+
         // When Type::kind() is None, it matches every Kind
         if resolved_type
             .kind()
@@ -426,6 +429,15 @@ impl<'context> Elaborator<'context> {
                 let reference_location = Location::new(path.span(), self.file);
                 self.interner.add_global_reference(id, reference_location);
 
+                // TODO cleanup
+                dbg!(
+                    "lookup_generic_or_global_type",
+                    &path,
+                    self.eval_global_as_array_length(id, path),
+                    self.interner.get_global_let_statement(id),
+                    self.interner.get_global_let_statement(id).map(|let_statement| let_statement.r#type),
+                );
+                panic!("TODO: Type::Constant needs to include the kind data from the global let statement (see above)");
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
