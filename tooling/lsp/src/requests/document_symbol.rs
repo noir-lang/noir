@@ -668,7 +668,7 @@ mod document_symbol_tests {
                             tags: None,
                             deprecated: None,
                             range: Range {
-                                start: Position { line: 19, character: 7 },
+                                start: Position { line: 19, character: 4 },
                                 end: Position { line: 20, character: 5 },
                             },
                             selection_range: Range {
