@@ -132,11 +132,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_name" => module_name(interner, arguments, location),
             "module_structs" => module_structs(self, arguments, location),
-            "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
-            "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
-            "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
-            "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
-            "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "modulus_be_bits" => modulus_be_bits(arguments, location),
+            "modulus_be_bytes" => modulus_be_bytes(arguments, location),
+            "modulus_le_bits" => modulus_le_bits(arguments, location),
+            "modulus_le_bytes" => modulus_le_bytes(arguments, location),
+            "modulus_num_bits" => modulus_num_bits(arguments, location),
             "quoted_as_expr" => quoted_as_expr(arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
@@ -170,7 +170,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "trait_def_as_trait_constraint" => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
-            "trait_def_eq" => trait_def_eq(interner, arguments, location),
+            "trait_def_eq" => trait_def_eq(arguments, location),
             "trait_def_hash" => trait_def_hash(arguments, location),
             "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
             "trait_impl_trait_generic_args" => {
@@ -1006,11 +1006,7 @@ fn trait_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IRes
 }
 
 // fn trait_def_eq(def_a: TraitDefinition, def_b: TraitDefinition) -> bool
-fn trait_def_eq(
-    _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     eq_item(arguments, location, get_trait_def)
 }
 
@@ -2352,11 +2348,7 @@ fn module_name(
     Ok(Value::Quoted(tokens))
 }
 
-fn modulus_be_bits(
-    _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
@@ -2367,11 +2359,7 @@ fn modulus_be_bits(
     Ok(Value::Slice(bits_vector, typ))
 }
 
-fn modulus_be_bytes(
-    _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
@@ -2382,35 +2370,23 @@ fn modulus_be_bytes(
     Ok(Value::Slice(bytes_vector, typ))
 }
 
-fn modulus_le_bits(
-    interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let Value::Slice(bits, typ) = modulus_be_bits(interner, arguments, location)? else {
+fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let Value::Slice(bits, typ) = modulus_be_bits(arguments, location)? else {
         unreachable!("modulus_be_bits must return slice")
     };
     let reversed_bits = bits.into_iter().rev().collect();
     Ok(Value::Slice(reversed_bits, typ))
 }
 
-fn modulus_le_bytes(
-    interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let Value::Slice(bytes, typ) = modulus_be_bytes(interner, arguments, location)? else {
+fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let Value::Slice(bytes, typ) = modulus_be_bytes(arguments, location)? else {
         unreachable!("modulus_be_bytes must return slice")
     };
     let reversed_bytes = bytes.into_iter().rev().collect();
     Ok(Value::Slice(reversed_bytes, typ))
 }
 
-fn modulus_num_bits(
-    _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::U64(bits))
