@@ -769,9 +769,11 @@ impl Type {
 
     pub fn type_variable(id: TypeVariableId) -> Type {
         let var = TypeVariable::unbound(id);
-        Type::TypeVariable(var, TypeVariableKind::Normal)
+        let type_var_kind = TypeVariableKind::Normal;
+        Type::TypeVariable(var, type_var_kind)
     }
 
+    // TODO: constant_variable along with TypeVariableKind::Constant are unused
     /// Returns a TypeVariable(_, TypeVariableKind::Constant(length)) to bind to
     /// a constant integer for e.g. an array length.
     pub fn constant_variable(length: u32, interner: &mut NodeInterner) -> Type {
@@ -1111,13 +1113,35 @@ impl Type {
         }
     }
 
-    pub(crate) fn kind(&self) -> Kind {
+    pub(crate) fn kind(&self) -> Option<Kind> {
         match self {
-            Type::NamedGeneric(_, _, kind) => kind.clone(),
-            Type::Constant(..) => Kind::Numeric(Box::new(Type::Integer(
-                Signedness::Unsigned,
-                IntegerBitSize::ThirtyTwo,
-            ))),
+            Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
+            Type::Constant(..)
+            | Type::TypeVariable(..) => None,
+
+            // TODO: ensure kinds for InfixExpr are checked, e.g.
+            //
+            // Type::InfixExpr(lhs, _, rhs) =>
+            // {
+            //     let lhs_kind_opt = lhs.kind();
+            //     let rhs_kind_opt = rhs.kind();
+            //     if let Some(lhs_kind) = lhs_kind_opt {
+            //         if let Some(rhs_kind) = rhs_kind_opt {
+            //             if lhs_kind == rhs_kind {
+            //                 Some(lhs_kind)
+            //             } else {
+            //                 fail with TypeKindMismatch or
+            //                 Kind::Numeric(Box::new(Type::Error))
+            //             }
+            //         } else {
+            //             Some(lhs_kind)
+            //         }
+            //     } else {
+            //         rhs_kind
+            //     }
+            // }
+            Type::InfixExpr(..) => None,
+
             Type::FieldElement
             | Type::Array(..)
             | Type::Slice(..)
@@ -1129,14 +1153,12 @@ impl Type {
             | Type::Tuple(..)
             | Type::Struct(..)
             | Type::Alias(..)
-            | Type::TypeVariable(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
             | Type::MutableReference(..)
             | Type::Forall(..)
             | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => Kind::Normal,
+            | Type::Error => Some(Kind::Normal),
         }
     }
 

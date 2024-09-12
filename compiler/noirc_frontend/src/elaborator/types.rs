@@ -169,10 +169,14 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        if resolved_type.kind() != *kind {
+        // When Type::kind() is None, it matches every Kind
+        if resolved_type.kind().map(|resolved_type_kind| resolved_type_kind != *kind).unwrap_or(false) {
+
+            // TODO cleanup
+            dbg!("resolve_type_inner", &resolved_type, format!("{:?}", &resolved_type), &resolved_type.kind(), &kind, matches!(&resolved_type, Type::Constant(..)));
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.to_string(),
-                expr_kind: resolved_type.kind().to_string(),
+                expr_kind: resolved_type.kind().as_ref().map(Kind::to_string).unwrap_or("unknown".to_string()),
                 expr_span: span,
             });
             self.errors.push((expected_typ_err, self.file));
@@ -429,6 +433,9 @@ impl<'context> Elaborator<'context> {
 
                 if let Type::NamedGeneric(ref _type_var, ref _name, ref kind) = resolved_length {
                     if !kind.is_numeric() {
+
+                        // TODO: cleanup
+                        dbg!("convert_expression_type", &kind);
                         self.push_err(TypeCheckError::TypeKindMismatch {
                             expected_kind: Kind::Numeric(Box::new(Type::Integer(
                                 Signedness::Unsigned,
