@@ -38,12 +38,12 @@ comptime fn function_attr(f: FunctionDefinition) {
     // Check FunctionDefinition::name
     assert_eq(f.name(), quote { foo });
 
-    assert(f.has_named_attribute(quote { function_attr }));
+    assert(f.has_named_attribute("function_attr"));
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
-    assert(f.has_named_attribute(quote { test }));
-    assert(f.has_named_attribute(quote { deprecated }));
+    assert(f.has_named_attribute("test"));
+    assert(f.has_named_attribute("deprecated"));
 }
 
 #[mutate_add_one]

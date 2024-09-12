@@ -428,7 +428,7 @@ fn struct_def_generics(
     Ok(Value::Slice(generics.collect(), typ))
 }
 
-// fn has_named_attribute(self, name: Quoted) -> bool
+// fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 fn struct_def_has_named_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -437,20 +437,9 @@ fn struct_def_has_named_attribute(
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let struct_id = get_struct(self_argument)?;
 
-    let name = get_quoted(name)?;
-    let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
+    let name = get_str(interner, name)?;
 
-    let attributes = interner.struct_attributes(&struct_id);
-
-    for attribute in attributes {
-        if let Some(attribute_name) = attribute.name() {
-            if &name == &attribute_name {
-                return Ok(Value::Bool(true));
-            }
-        }
-    }
-
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(has_named_attribute(&name, interner.struct_attributes(&struct_id))))
 }
 
 /// fn fields(self) -> [(Quoted, Type)]
@@ -1992,7 +1981,7 @@ fn function_def_body(
     }
 }
 
-// fn has_named_attribute(self, name: Quoted) -> bool
+// fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 fn function_def_has_named_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -2001,24 +1990,16 @@ fn function_def_has_named_attribute(
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
 
-    let name = get_quoted(name)?;
-    let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
+    let name = &*get_str(interner, name)?;
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = &modifiers.attributes.function {
-        if &name == attribute.name() {
+        if name == attribute.name() {
             return Ok(Value::Bool(true));
         }
     }
-    for attribute in &modifiers.attributes.secondary {
-        if let Some(attribute_name) = attribute.name() {
-            if &name == &attribute_name {
-                return Ok(Value::Bool(true));
-            }
-        }
-    }
 
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary)))
 }
 
 // fn is_unconstrained(self) -> bool
@@ -2335,7 +2316,7 @@ fn module_structs(
     Ok(Value::Slice(struct_ids, slice_type))
 }
 
-// fn has_named_attribute(self, name: Quoted) -> bool
+// fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 fn module_has_named_attribute(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
@@ -2345,12 +2326,9 @@ fn module_has_named_attribute(
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
 
-    let name = get_quoted(name)?;
-    let name = name.iter().map(|token| token.to_string()).collect::<Vec<_>>().join("");
+    let name = get_str(interpreter.elaborator.interner, name)?;
 
-    let attributes = module_data.outer_attributes.iter().chain(&module_data.inner_attributes);
-
-    Ok(Value::Bool(has_named_attribute(&name, attributes, location)))
+    Ok(Value::Bool(has_named_attribute(&name, &module_data.attributes)))
 }
 
 // fn is_contract(self) -> bool
