@@ -101,3 +101,14 @@ This means any functions called at compile-time are invalid targets for this met
 Mutates the function to be unconstrained (if `true` is given) or not (if `false` is given).
 This is only valid on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
+
+## Trait Implementations
+
+```rust
+impl Eq for FunctionDefinition
+impl Hash for FunctionDefinition
+```
+
+Note that each function is assigned a unique ID internally and this is what is used for
+equality and hashing. So even functions with identical signatures and bodies may not
+be equal in this sense if they were originally different items in the source program.

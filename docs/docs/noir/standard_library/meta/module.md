@@ -45,3 +45,14 @@ Returns the name of the module.
 #include_code structs noir_stdlib/src/meta/module.nr rust
 
 Returns each struct defined in the module.
+
+## Trait Implementations
+
+```rust
+impl Eq for Module
+impl Hash for Module
+```
+
+Note that each module is assigned a unique ID internally and this is what is used for
+equality and hashing. So even modules with identical names and contents may not
+be equal in this sense if they were originally different items in the source program.
