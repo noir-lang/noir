@@ -13,8 +13,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         //
         // Note that here it is important that the stack pointer register is at register 0,
         // as after the first register save we add to the pointer.
-        let mut used_registers: Vec<_> =
-            vars.iter().flat_map(|var| var.extract_registers()).collect();
+        let mut used_registers: Vec<_> = vars.iter().map(|var| var.extract_register()).collect();
 
         // Also dump the previous stack pointer
         used_registers.push(ReservedRegisters::previous_stack_pointer());

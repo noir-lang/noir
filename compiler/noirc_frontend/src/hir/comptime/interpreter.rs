@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -10,6 +11,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
+use crate::hir::def_map::ModuleId;
 use crate::hir_def::expr::ImplKind;
 use crate::hir_def::function::FunctionBody;
 use crate::macros_api::UnaryOp;
@@ -170,7 +172,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborate_item(None, |elaborator| {
+                    self.elaborate_in_function(None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -183,13 +185,25 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn elaborate_item<T>(
+    fn elaborate_in_function<T>(
         &mut self,
         function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime(function, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, f);
+        self.rebind_generics_from_previous_function();
+        result
+    }
+
+    fn elaborate_in_module<T>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        f: impl FnOnce(&mut Elaborator) -> T,
+    ) -> T {
+        self.unbind_generics_from_previous_function();
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, file, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -420,7 +434,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
-                entry.insert(argument);
+                match entry.get() {
+                    Value::Pointer(reference, true) => {
+                        *reference.borrow_mut() = argument;
+                    }
+                    _ => {
+                        entry.insert(argument);
+                    }
+                }
                 return Ok(());
             }
         }
@@ -513,12 +534,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 // Avoid resetting the value if it is already known
-                if let Ok(value) = self.lookup(&ident) {
-                    Ok(value)
+                if let Some(value) = &self.elaborator.interner.get_global(*global_id).value {
+                    Ok(value.clone())
                 } else {
-                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
+                    let global_id = *global_id;
+                    let crate_of_global = self.elaborator.interner.get_global(global_id).crate_id;
                     let let_ =
-                        self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
+                        self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
                             || {
                                 let location = self.elaborator.interner.expr_location(&id);
                                 InterpreterError::VariableNotInScope { location }
@@ -528,7 +550,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
-                    self.lookup(&ident)
+
+                    let value = self.lookup(&ident)?;
+                    self.elaborator.interner.get_global_mut(global_id).value = Some(value.clone());
+                    Ok(value)
                 }
             }
             DefinitionKind::GenericType(type_variable) => {
@@ -586,7 +611,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     consuming = false;
 
                     if let Some(value) = values.pop_front() {
-                        result.push_str(&value.display(self.elaborator.interner).to_string());
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        if let Value::Quoted(tokens) = value {
+                            for (index, token) in tokens.iter().enumerate() {
+                                if index > 0 {
+                                    result.push(' ');
+                                }
+                                result
+                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                            }
+                        } else {
+                            result.push_str(&value.display(self.elaborator.interner).to_string());
+                        }
                     }
                 }
                 other if !consuming => {
@@ -1232,7 +1269,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
-                    let expr = self.elaborate_item(self.current_function, |elaborator| {
+                    let expr = self.elaborate_in_function(self.current_function, |elaborator| {
                         elaborator.elaborate_expression(expr).0
                     });
                     result = self.evaluate(expr)?;
@@ -1653,10 +1690,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         assert_eq!(arguments.len(), 2);
 
         let print_newline = arguments[0].0 == Value::Bool(true);
-        if print_newline {
-            println!("{}", arguments[1].0.display(self.elaborator.interner));
+        let contents = arguments[1].0.display(self.elaborator.interner);
+        if self.elaborator.interner.is_in_lsp_mode() {
+            // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
+            // the connection. If we use `eprintln!` not only it doesn't crash, but the output
+            // appears in the "Noir Language Server" output window in case you want to see it.
+            if print_newline {
+                eprintln!("{}", contents);
+            } else {
+                eprint!("{}", contents);
+            }
+        } else if print_newline {
+            println!("{}", contents);
         } else {
-            print!("{}", arguments[1].0.display(self.elaborator.interner));
+            print!("{}", contents);
         }
 
         Ok(Value::Unit)

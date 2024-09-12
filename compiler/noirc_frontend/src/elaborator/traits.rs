@@ -13,7 +13,7 @@ use crate::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
         NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
     },
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, ReferenceId, TraitId},
     token::Attributes,
     Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
 };
@@ -74,7 +74,7 @@ impl<'context> Elaborator<'context> {
                 return_type,
                 where_clause,
                 body: _,
-            } = item
+            } = &item.item
             {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
@@ -106,6 +106,11 @@ impl<'context> Elaborator<'context> {
                         where_clause,
                         func_id,
                     );
+
+                    if !item.doc_comments.is_empty() {
+                        let id = ReferenceId::Function(func_id);
+                        this.interner.set_doc_comments(id, item.doc_comments.clone());
+                    }
 
                     let func_meta = this.interner.function_meta(&func_id);
 

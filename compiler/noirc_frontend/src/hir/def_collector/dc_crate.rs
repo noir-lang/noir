@@ -7,6 +7,8 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
+use crate::token::SecondaryAttribute;
+use crate::usage_tracker::UnusedItem;
 use crate::{Generics, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
@@ -111,6 +113,21 @@ pub struct UnresolvedGlobal {
     pub stmt_def: LetStatement,
 }
 
+pub struct ModuleAttribute {
+    // The file in which the module is defined
+    pub file_id: FileId,
+    // The module this attribute is attached to
+    pub module_id: LocalModuleId,
+    // The file where the attribute exists (it could be the same as `file_id`
+    // or a different one if it's an inner attribute in a different file)
+    pub attribute_file_id: FileId,
+    // The module where the attribute is defined (similar to `attribute_file_id`,
+    // it could be different than `module_id` for inner attributes)
+    pub attribute_module_id: LocalModuleId,
+    pub attribute: SecondaryAttribute,
+    pub is_inner: bool,
+}
+
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
@@ -127,6 +144,7 @@ pub struct CollectedItems {
     pub globals: Vec<UnresolvedGlobal>,
     pub(crate) impls: ImplMap,
     pub(crate) trait_impls: Vec<UnresolvedTraitImpl>,
+    pub(crate) module_attributes: Vec<ModuleAttribute>,
 }
 
 impl CollectedItems {
@@ -238,6 +256,7 @@ impl DefCollector {
                 impls: HashMap::default(),
                 globals: vec![],
                 trait_impls: vec![],
+                module_attributes: vec![],
             },
         }
     }
@@ -252,8 +271,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
-        enable_arithmetic_generics: bool,
-        error_on_usage_tracker: bool,
+        error_on_unused_items: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -272,7 +290,6 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 debug_comptime_in_file,
-                enable_arithmetic_generics,
                 error_on_usage_tracker,
                 macro_processors,
             ));
@@ -295,6 +312,11 @@ impl DefCollector {
         // It is now possible to collect all of the definitions of this crate.
         let crate_root = def_map.root;
         let mut def_collector = DefCollector::new(def_map);
+
+        let module_id = ModuleId { krate: crate_id, local_id: crate_root };
+        context
+            .def_interner
+            .set_doc_comments(ReferenceId::Module(module_id), ast.inner_doc_comments.clone());
 
         // Collecting module declarations with ModCollector
         // and lowering the functions
@@ -388,20 +410,14 @@ impl DefCollector {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), visibility, module_def_id, is_prelude);
 
-                        // Empty spans could come from implicitly injected imports, and we don't want to track those
-                        if visibility != ItemVisibility::Public
-                            && name.span().start() < name.span().end()
-                        {
-                            let module_id = ModuleId {
-                                krate: crate_id,
-                                local_id: resolved_import.module_scope,
-                            };
-
-                            context
-                                .def_interner
-                                .usage_tracker
-                                .add_unused_import(module_id, name.clone());
-                        }
+                        let module_id =
+                            ModuleId { krate: crate_id, local_id: resolved_import.module_scope };
+                        context.def_interner.usage_tracker.add_unused_item(
+                            module_id,
+                            name.clone(),
+                            UnusedItem::Import,
+                            visibility,
+                        );
 
                         if visibility != ItemVisibility::Private {
                             let local_id = resolved_import.module_scope;
@@ -458,13 +474,8 @@ impl DefCollector {
             })
         });
 
-        let mut more_errors = Elaborator::elaborate(
-            context,
-            crate_id,
-            def_collector.items,
-            debug_comptime_in_file,
-            enable_arithmetic_generics,
-        );
+        let mut more_errors =
+            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
 
         errors.append(&mut more_errors);
 
@@ -476,26 +487,29 @@ impl DefCollector {
             );
         }
 
-        if error_on_usage_tracker {
-            Self::check_usage_tracker(context, crate_id, &mut errors);
+        if error_on_unused_items {
+            Self::check_unused_items(context, crate_id, &mut errors);
         }
 
         errors
     }
 
-    fn check_usage_tracker(
+    fn check_unused_items(
         context: &Context,
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        let unused_imports = context.def_interner.usage_tracker.unused_imports().iter();
+        let unused_imports = context.def_interner.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
             let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
-            usage_tracker.iter().map(|ident| {
+            usage_tracker.iter().map(|(ident, unused_item)| {
                 let ident = ident.clone();
-                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                let error = CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident,
+                    item_type: unused_item.item_type(),
+                });
                 (error, module.location.file)
             })
         }));

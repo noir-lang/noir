@@ -259,7 +259,6 @@ impl StructType {
     /// created. Therefore, this method is used to set the fields once they
     /// become known.
     pub fn set_fields(&mut self, fields: Vec<(Ident, Type)>) {
-        assert!(self.fields.is_empty());
         self.fields = fields;
     }
 
@@ -471,6 +470,16 @@ impl<T> Shared<T> {
 
     pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
         self.0.borrow_mut()
+    }
+
+    pub fn unwrap_or_clone(self) -> T
+    where
+        T: Clone,
+    {
+        match Rc::try_unwrap(self.0) {
+            Ok(elem) => elem.into_inner(),
+            Err(rc) => rc.as_ref().clone().into_inner(),
+        }
     }
 }
 
@@ -1100,12 +1109,18 @@ impl Type {
             | Type::Unit
             | Type::Constant(_)
             | Type::Slice(_)
-            | Type::TypeVariable(_, _)
-            | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::InfixExpr(..)
             | Type::Error => true,
+
+            Type::TypeVariable(type_var, _) | Type::NamedGeneric(type_var, _, _) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    typ.is_valid_for_unconstrained_boundary()
+                } else {
+                    true
+                }
+            }
 
             // Quoted objects only exist at compile-time where the only execution
             // environment is the interpreter. In this environment, they are valid.
@@ -1467,21 +1482,13 @@ impl Type {
     /// equal to the other type in the process. When comparing types, unification
     /// (including try_unify) are almost always preferred over Type::eq as unification
     /// will correctly handle generic types.
-    pub fn unify(
-        &self,
-        expected: &Type,
-        errors: &mut Vec<TypeCheckError>,
-        make_error: impl FnOnce() -> TypeCheckError,
-    ) {
+    pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::new();
 
-        match self.try_unify(expected, &mut bindings) {
-            Ok(()) => {
-                // Commit any type bindings on success
-                Self::apply_type_bindings(bindings);
-            }
-            Err(UnificationError) => errors.push(make_error()),
-        }
+        self.try_unify(expected, &mut bindings).map(|()| {
+            // Commit any type bindings on success
+            Self::apply_type_bindings(bindings);
+        })
     }
 
     /// `try_unify` is a bit of a misnomer since although errors are not committed,
@@ -1623,8 +1630,18 @@ impl Type {
 
             (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
                 if op_a == op_b {
-                    lhs_a.try_unify(lhs_b, bindings)?;
-                    rhs_a.try_unify(rhs_b, bindings)
+                    // We need to preserve the original bindings since if syntactic equality
+                    // fails we fall back to other equality strategies.
+                    let mut new_bindings = bindings.clone();
+                    let lhs_result = lhs_a.try_unify(lhs_b, &mut new_bindings);
+                    let rhs_result = rhs_a.try_unify(rhs_b, &mut new_bindings);
+
+                    if lhs_result.is_ok() && rhs_result.is_ok() {
+                        *bindings = new_bindings;
+                        Ok(())
+                    } else {
+                        lhs.try_unify_by_moving_constant_terms(&rhs, bindings)
+                    }
                 } else {
                     Err(UnificationError)
                 }

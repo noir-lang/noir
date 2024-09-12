@@ -976,10 +976,20 @@ mod tests {
 
         let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
+                BrilligOpcode::Const {
+                    destination: MemoryAddress(0),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(1u64),
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress(1),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(0u64),
+                },
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress(0),
-                    size: 1,
-                    offset: 0,
+                    size_address: MemoryAddress(0),
+                    offset_address: MemoryAddress(1),
                 },
                 BrilligOpcode::Const {
                     destination: MemoryAddress::from(1),
@@ -1036,7 +1046,7 @@ mod tests {
             })
         );
 
-        // Execute the first Brillig opcode (calldata copy)
+        // Const
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
         assert_eq!(
@@ -1048,7 +1058,7 @@ mod tests {
             })
         );
 
-        // execute the second Brillig opcode (const)
+        // Const
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
         assert_eq!(
@@ -1060,19 +1070,7 @@ mod tests {
             })
         );
 
-        // try to execute the third Brillig opcode (and resolve the foreign call)
-        let result = context.step_into_opcode();
-        assert!(matches!(result, DebugCommandResult::Ok));
-        assert_eq!(
-            context.get_current_debug_location(),
-            Some(DebugLocation {
-                circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
-            })
-        );
-
-        // retry the third Brillig opcode (foreign call should be finished)
+        // Calldatacopy
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
         assert_eq!(
@@ -1080,6 +1078,42 @@ mod tests {
             Some(DebugLocation {
                 circuit_id: 0,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 },
+                brillig_function_id: Some(BrilligFunctionId(0)),
+            })
+        );
+
+        // Const
+        let result = context.step_into_opcode();
+        assert!(matches!(result, DebugCommandResult::Ok));
+        assert_eq!(
+            context.get_current_debug_location(),
+            Some(DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 4 },
+                brillig_function_id: Some(BrilligFunctionId(0)),
+            })
+        );
+
+        // try to execute the Brillig opcode (and resolve the foreign call)
+        let result = context.step_into_opcode();
+        assert!(matches!(result, DebugCommandResult::Ok));
+        assert_eq!(
+            context.get_current_debug_location(),
+            Some(DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 4 },
+                brillig_function_id: Some(BrilligFunctionId(0)),
+            })
+        );
+
+        // retry the Brillig opcode (foreign call should be finished)
+        let result = context.step_into_opcode();
+        assert!(matches!(result, DebugCommandResult::Ok));
+        assert_eq!(
+            context.get_current_debug_location(),
+            Some(DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 5 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1101,10 +1135,20 @@ mod tests {
         // This Brillig block is equivalent to: z = x + y
         let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
+                BrilligOpcode::Const {
+                    destination: MemoryAddress(0),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(2u64),
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress(1),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(0u64),
+                },
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress(0),
-                    size: 2,
-                    offset: 0,
+                    size_address: MemoryAddress(0),
+                    offset_address: MemoryAddress(1),
                 },
                 BrilligOpcode::BinaryFieldOp {
                     destination: MemoryAddress::from(0),

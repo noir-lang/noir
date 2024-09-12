@@ -143,6 +143,17 @@ impl<'context> Elaborator<'context> {
                 mutable,
                 new_definitions,
             ),
+            Pattern::Interned(id, _) => {
+                let pattern = self.interner.get_pattern(id).clone();
+                self.elaborate_pattern_mut(
+                    pattern,
+                    expected_type,
+                    definition,
+                    mutable,
+                    new_definitions,
+                    global_id,
+                )
+            }
         }
     }
 
@@ -501,15 +512,6 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_location(id, span, self.file);
         let typ = self.type_check_variable(expr, id, generics);
         self.interner.push_expr_type(id, typ.clone());
-
-        // Comptime variables must be replaced with their values
-        if let Some(definition) = self.interner.try_definition(definition_id) {
-            if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter = self.setup_interpreter();
-                let value = interpreter.evaluate(id);
-                return self.inline_comptime_value(value, span);
-            }
-        }
 
         (id, typ)
     }

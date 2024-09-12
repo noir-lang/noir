@@ -3,7 +3,7 @@ use std::{fs::DirEntry, path::Path};
 use clap::Args;
 use nargo::{insert_all_files_for_workspace_into_file_manager, ops::report_errors};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{hir::def_map::parse_file, parser::ParserError};
 
@@ -29,7 +29,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let config = nargo_fmt::Config::read(&config.program_dir)

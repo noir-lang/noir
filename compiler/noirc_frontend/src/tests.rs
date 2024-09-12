@@ -28,7 +28,8 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
 use crate::monomorphization::monomorphize;
-use crate::parser::ParserErrorReason;
+use crate::parser::{ItemKind, ParserErrorReason};
+use crate::token::SecondaryAttribute;
 use crate::ParsedModule;
 use crate::{
     hir::def_map::{CrateDefMap, LocalModuleId},
@@ -64,10 +65,28 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     remove_experimental_warnings(&mut errors);
 
     if !has_parser_error(&errors) {
+        let inner_attributes: Vec<SecondaryAttribute> = program
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let ItemKind::InnerAttribute(attribute) = &item.kind {
+                    Some(attribute.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(None, location, false));
+        let root = modules.insert(ModuleData::new(
+            None,
+            location,
+            Vec::new(),
+            inner_attributes.clone(),
+            false,
+        ));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -77,7 +96,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
         };
 
         let debug_comptime_in_file = None;
-        let enable_arithmetic_generics = false;
         let error_on_unused_imports = true;
         let macro_processors = &[];
 
@@ -88,7 +106,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             program.clone().into_sorted(),
             root_file_id,
             debug_comptime_in_file,
-            enable_arithmetic_generics,
             error_on_unused_imports,
             macro_processors,
         ));
@@ -840,7 +857,7 @@ fn get_program_captures(src: &str) -> Vec<Vec<String>> {
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
-        let func_id = interner.find_function(func.name()).unwrap();
+        let func_id = interner.find_function(func.item.name()).unwrap();
         let hir_func = interner.function(&func_id);
         // Iterate over function statements and apply filtering function
         find_lambda_captures(hir_func.block(&interner).statements(), &interner, &mut all_captures);
@@ -1362,7 +1379,7 @@ fn ban_mutable_globals() {
 fn deny_inline_attribute_on_unconstrained() {
     let src = r#"
         #[no_predicates]
-        unconstrained fn foo(x: Field, y: Field) {
+        unconstrained pub fn foo(x: Field, y: Field) {
             assert(x != y);
         }
     "#;
@@ -1378,7 +1395,7 @@ fn deny_inline_attribute_on_unconstrained() {
 fn deny_fold_attribute_on_unconstrained() {
     let src = r#"
         #[fold]
-        unconstrained fn foo(x: Field, y: Field) {
+        unconstrained pub fn foo(x: Field, y: Field) {
             assert(x != y);
         }
     "#;
@@ -1535,7 +1552,7 @@ fn struct_numeric_generic_in_function() {
         inner: u64
     }
 
-    fn bar<let N: Foo>() { }
+    pub fn bar<let N: Foo>() { }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
@@ -1567,7 +1584,7 @@ fn struct_numeric_generic_in_struct() {
 #[test]
 fn bool_numeric_generic() {
     let src = r#"
-    fn read<let N: bool>() -> Field {
+    pub fn read<let N: bool>() -> Field {
         if N {
             0
         } else {
@@ -1586,7 +1603,7 @@ fn bool_numeric_generic() {
 #[test]
 fn numeric_generic_binary_operation_type_mismatch() {
     let src = r#"
-    fn foo<let N: Field>() -> bool {
+    pub fn foo<let N: Field>() -> bool {
         let mut check: bool = true;
         check = N;
         check
@@ -1603,7 +1620,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
 #[test]
 fn bool_generic_as_loop_bound() {
     let src = r#"
-    fn read<let N: bool>() {
+    pub fn read<let N: bool>() {
         let mut fields = [0; N];
         for i in 0..N {
             fields[i] = i + 1;
@@ -1633,7 +1650,7 @@ fn bool_generic_as_loop_bound() {
 #[test]
 fn numeric_generic_in_function_signature() {
     let src = r#"
-    fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
+    pub fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
     assert_no_errors(src);
 }
@@ -1675,7 +1692,7 @@ fn normal_generic_as_array_length() {
 #[test]
 fn numeric_generic_as_param_type() {
     let src = r#"
-    fn foo<let I: Field>(x: I) -> I {
+    pub fn foo<let I: Field>(x: I) -> I {
         let _q: I = 5;
         x
     }
@@ -1814,7 +1831,7 @@ fn numeric_generic_used_in_where_clause() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
 
-    fn read<T, let N: u32>() -> T where T: Deserialize<N> {
+    pub fn read<T, let N: u32>() -> T where T: Deserialize<N> {
         let mut fields: [Field; N] = [0; N];
         for i in 0..N {
             fields[i] = i as Field + 1;
@@ -1828,12 +1845,12 @@ fn numeric_generic_used_in_where_clause() {
 #[test]
 fn numeric_generic_used_in_turbofish() {
     let src = r#"
-    fn double<let N: u32>() -> u32 {
+    pub fn double<let N: u32>() -> u32 {
         // Used as an expression
         N * 2
     }
 
-    fn double_numeric_generics_test() {
+    pub fn double_numeric_generics_test() {
         // Example usage of a numeric generic arguments.
         assert(double::<9>() == 18);
         assert(double::<7 + 8>() == 30);
@@ -1869,7 +1886,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
 
-    fn read<T, N>() -> T where T: Deserialize<N> {
+    pub fn read<T, N>() -> T where T: Deserialize<N> {
         T::deserialize([0, 1])
     }
     "#;
@@ -1885,7 +1902,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
 
-    fn read<T, N>() -> T where T: Deserialize<N> {
+    pub fn read<T, N>() -> T where T: Deserialize<N> {
         let mut fields: [Field; N] = [0; N];
         for i in 0..N {
             fields[i] = i as Field + 1;
@@ -2431,7 +2448,7 @@ fn use_super() {
     mod foo {
         use super::some_func;
 
-        fn bar() {
+        pub fn bar() {
             some_func();
         }
     }
@@ -2445,7 +2462,7 @@ fn use_super_in_path() {
     fn some_func() {}
 
     mod foo {
-        fn func() {
+        pub fn func() {
             super::some_func();
         }
     }
@@ -2736,7 +2753,7 @@ fn trait_constraint_on_tuple_type() {
             fn foo(self, x: A) -> bool;
         }
 
-        fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
             x.foo(y)
         }
 
@@ -3072,7 +3089,7 @@ fn trait_impl_for_a_type_that_implements_another_trait() {
         }
     }
 
-    fn use_it<T>(t: T) -> i32 where T: Two {
+    pub fn use_it<T>(t: T) -> i32 where T: Two {
         Two::two(t)
     }
 
@@ -3112,7 +3129,7 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
         }
     }
 
-    fn use_it(t: u32) -> i32 {
+    pub fn use_it(t: u32) -> i32 {
         Two::two(t)
     }
 
@@ -3224,12 +3241,14 @@ fn errors_on_unused_private_import() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
     else {
-        panic!("Expected an unused import error");
+        panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "bar");
+    assert_eq!(*item_type, "import");
 }
 
 #[test]
@@ -3258,12 +3277,14 @@ fn errors_on_unused_pub_crate_import() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
     else {
-        panic!("Expected an unused import error");
+        panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "bar");
+    assert_eq!(*item_type, "import");
 }
 
 #[test]
@@ -3276,7 +3297,7 @@ fn warns_on_use_of_private_exported_item() {
 
         use bar::baz;
 
-        fn qux() {
+        pub fn qux() {
             baz();
         }
     }
@@ -3339,5 +3360,105 @@ fn warns_on_re_export_of_item_with_less_visibility() {
         CompilationError::DefinitionError(
             DefCollectorErrorKind::CannotReexportItemWithLessVisibility { .. }
         )
+    ));
+}
+
+#[test]
+fn unquoted_integer_as_integer_token() {
+    let src = r#"
+    trait Serialize<let N: u32> {
+        fn serialize() {}
+    }
+
+    #[attr]
+    pub fn foobar() {}
+
+    comptime fn attr(_f: FunctionDefinition) -> Quoted {
+        let serialized_len = 1;
+        // We are testing that when we unquote $serialized_len, it's unquoted
+        // as the token `1` and not as something else that later won't be parsed correctly
+        // in the context of a generic argument.
+        quote {
+            impl Serialize<$serialized_len> for Field {
+                fn serialize() { }
+            }
+        }
+    }
+
+    fn main() {}
+    "#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_unused_function() {
+    let src = r#"
+    contract some_contract {
+        // This function is unused, but it's a contract entrypoint
+        // so it should not produce a warning
+        fn foo() -> pub Field {
+            1
+        }
+    }
+
+
+    fn foo() {
+        bar();
+    }
+
+    fn bar() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "foo");
+    assert_eq!(*item_type, "function");
+}
+
+#[test]
+fn constrained_reference_to_unconstrained() {
+    let src = r#"
+    fn main(mut x: u32, y: pub u32) {
+        let x_ref = &mut x;
+        if x == 5  {
+            unsafe {
+                mut_ref_input(x_ref, y);        
+            }
+        }
+
+        assert(x == 10);
+    }
+
+    unconstrained fn mut_ref_input(x: &mut u32, y: u32) {
+        *x = y;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::ConstrainedReferenceToUnconstrained { .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected an error about passing a constrained reference to unconstrained");
+    };
+}
+
+#[test]
+fn comptime_type_in_runtime_code() {
+    let source = "pub fn foo(_f: FunctionDefinition) {}";
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
     ));
 }

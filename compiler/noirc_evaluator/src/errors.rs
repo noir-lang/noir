@@ -34,6 +34,13 @@ pub enum RuntimeError {
     UnInitialized { name: String, call_stack: CallStack },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
+    #[error("Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs")]
+    InvalidBlackBoxInputBitSize {
+        value: String,
+        num_bits: u32,
+        max_num_bits: u32,
+        call_stack: CallStack,
+    },
     #[error("Could not determine loop bound at compile-time")]
     UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
@@ -44,7 +51,7 @@ pub enum RuntimeError {
     StaticAssertDynamicPredicate { call_stack: CallStack },
     #[error("Argument is false")]
     StaticAssertFailed { call_stack: CallStack },
-    #[error("Nested slices are not supported")]
+    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlice { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
@@ -88,6 +95,7 @@ impl From<SsaReport> for FileDiagnostic {
                     InternalBug::IndependentSubgraph { call_stack } => {
                         ("There is no path from the output of this brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(),call_stack)
                     }
+                    InternalBug::AssertFailed { call_stack } => ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
                 };
                 let call_stack = vecmap(call_stack, |location| location);
                 let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
@@ -111,6 +119,8 @@ pub enum InternalWarning {
 pub enum InternalBug {
     #[error("Input to brillig function is in a separate subgraph to output")]
     IndependentSubgraph { call_stack: CallStack },
+    #[error("Assertion is always false")]
+    AssertFailed { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -153,6 +163,7 @@ impl RuntimeError {
             | RuntimeError::StaticAssertFailed { call_stack }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
+            | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }

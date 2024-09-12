@@ -16,6 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::ExpressionKind;
 use crate::ast::Ident;
 use crate::ast::LValue;
+use crate::ast::Pattern;
 use crate::ast::StatementKind;
 use crate::ast::UnresolvedTypeData;
 use crate::graph::CrateId;
@@ -222,6 +223,9 @@ pub struct NodeInterner {
     // Interned `UnresolvedTypeData`s during comptime code.
     interned_unresolved_type_datas: noirc_arena::Arena<UnresolvedTypeData>,
 
+    // Interned `Pattern`s during comptime code.
+    interned_patterns: noirc_arena::Arena<Pattern>,
+
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
@@ -269,6 +273,9 @@ pub struct NodeInterner {
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     pub(crate) usage_tracker: UsageTracker,
+
+    /// Captures the documentation comments for each module, struct, trait, function, etc.
+    pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -607,6 +614,9 @@ pub struct InternedStatementKind(noirc_arena::Index);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedUnresolvedTypeData(noirc_arena::Index);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedPattern(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -647,6 +657,7 @@ impl Default for NodeInterner {
             interned_expression_kinds: Default::default(),
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_datas: Default::default(),
+            interned_patterns: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -655,7 +666,8 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            usage_tracker: UsageTracker::default(),
+            usage_tracker: UsageTracker::new(),
+            doc_comments: HashMap::default(),
         }
     }
 }
@@ -2097,6 +2109,14 @@ impl NodeInterner {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
     }
 
+    pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {
+        InternedPattern(self.interned_patterns.insert(pattern))
+    }
+
+    pub fn get_pattern(&self, id: InternedPattern) -> &Pattern {
+        &self.interned_patterns[id.0]
+    }
+
     pub fn push_unresolved_type_data(
         &mut self,
         typ: UnresolvedTypeData,
@@ -2195,6 +2215,16 @@ impl NodeInterner {
         }
 
         bindings
+    }
+
+    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<String>) {
+        if !doc_comments.is_empty() {
+            self.doc_comments.insert(id, doc_comments);
+        }
+    }
+
+    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
+        self.doc_comments.get(&id)
     }
 }
 

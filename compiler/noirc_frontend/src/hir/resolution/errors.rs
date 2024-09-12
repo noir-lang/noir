@@ -20,8 +20,8 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
-    #[error("Unused import")]
-    UnusedImport { ident: Ident },
+    #[error("Unused {item_type}")]
+    UnusedItem { ident: Ident, item_type: &'static str },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -72,7 +72,7 @@ pub enum ResolverError {
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("Nested slices are not supported")]
+    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
@@ -124,6 +124,12 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { span: Span },
     #[error("Overflow in `{lhs} {op} {rhs}`")]
     OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
+    #[error("`quote` cannot be used in runtime code")]
+    QuoteInRuntimeCode { span: Span },
+    #[error("Comptime-only type `{typ}` cannot be used in runtime code")]
+    ComptimeTypeInRuntimeCode { typ: String, span: Span },
+    #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
+    MutatingComptimeInNonComptimeContext { name: String, span: Span },
 }
 
 impl ResolverError {
@@ -158,12 +164,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.unnecessary = true;
                 diagnostic
             }
-            ResolverError::UnusedImport { ident } => {
+            ResolverError::UnusedItem { ident, item_type } => {
                 let name = &ident.0.contents;
 
                 let mut diagnostic = Diagnostic::simple_warning(
-                    format!("unused import {name}"),
-                    "unused import ".to_string(),
+                    format!("unused {item_type} {name}"),
+                    format!("unused {item_type}"),
                     ident.span(),
                 );
                 diagnostic.unnecessary = true;
@@ -323,8 +329,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
-                "Nested slices are not supported".into(),
-                "Try to use a constant sized array instead".into(),
+                "Nested slices, i.e. slices within an array or slice, are not supported".into(),
+                "Try to use a constant sized array or BoundedVec instead".into(),
                 *span,
             ),
             ResolverError::MisplacedRecursiveAttribute { ident } => {
@@ -504,6 +510,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
+            ResolverError::QuoteInRuntimeCode { span } => {
+                Diagnostic::simple_error(
+                    "`quote` cannot be used in runtime code".to_string(),
+                    "Wrap this in a `comptime` block or function to use it".to_string(),
+                    *span,
+                )
+            },
+            ResolverError::ComptimeTypeInRuntimeCode { typ, span } => {
+                Diagnostic::simple_error(
+                    format!("Comptime-only type `{typ}` cannot be used in runtime code"),
+                    "Comptime-only type used here".to_string(),
+                    *span,
+                )
+            },
+            ResolverError::MutatingComptimeInNonComptimeContext { name, span } => {
+                Diagnostic::simple_error(
+                    format!("Comptime variable `{name}` cannot be mutated in a non-comptime context"),
+                    format!("`{name}` mutated here"),
+                    *span,
+                )
+            },
         }
     }
 }

@@ -6,15 +6,17 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
+    ast::Documented,
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedStruct,
-                UnresolvedTrait, UnresolvedTraitImpl,
+                CollectedItems, CompilationError, ModuleAttribute, UnresolvedFunctions,
+                UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl,
             },
             dc_mod,
         },
+        def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
     },
     hir_def::expr::HirIdent,
@@ -23,20 +25,69 @@ use crate::{
         Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement},
-    Type, TypeBindings,
+    parser::{self, TopLevelStatement, TopLevelStatementKind},
+    Type, TypeBindings, UnificationError,
 };
 
 use super::{Elaborator, FunctionContext, ResolverMeta};
+
+#[derive(Debug, Copy, Clone)]
+struct AttributeContext {
+    // The file where generated items should be added
+    file: FileId,
+    // The module where generated items should be added
+    module: LocalModuleId,
+    // The file where the attribute is located
+    attribute_file: FileId,
+    // The module where the attribute is located
+    attribute_module: LocalModuleId,
+}
+
+impl AttributeContext {
+    fn new(file: FileId, module: LocalModuleId) -> Self {
+        Self { file, module, attribute_file: file, attribute_module: module }
+    }
+}
 
 impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope.
     /// When this happens we require additional information to know
     /// what variables should be in scope.
-    pub fn elaborate_item_from_comptime<'a, T>(
+    pub fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            if let Some(function) = current_function {
+                let meta = elaborator.interner.function_meta(&function);
+                elaborator.current_item = Some(DependencyId::Function(function));
+                elaborator.crate_id = meta.source_crate;
+                elaborator.local_module = meta.source_module;
+                elaborator.file = meta.source_file;
+                elaborator.introduce_generics_into_scope(meta.all_generics.clone());
+            }
+        })
+    }
+
+    pub fn elaborate_item_from_comptime_in_module<'a, T>(
+        &'a mut self,
+        module: ModuleId,
+        file: FileId,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+    ) -> T {
+        self.elaborate_item_from_comptime(f, |elaborator| {
+            elaborator.current_item = None;
+            elaborator.crate_id = module.krate;
+            elaborator.local_module = module.local_id;
+            elaborator.file = file;
+        })
+    }
+
+    fn elaborate_item_from_comptime<'a, T>(
+        &'a mut self,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
+        setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
         // Create a fresh elaborator to ensure no state is changed from
         // this elaborator
@@ -45,21 +96,13 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.crate_id,
             self.debug_comptime_in_file,
-            self.enable_arithmetic_generics,
             self.interpreter_call_stack.clone(),
         );
 
         elaborator.function_context.push(FunctionContext::default());
         elaborator.scopes.start_function();
 
-        if let Some(function) = current_function {
-            let meta = elaborator.interner.function_meta(&function);
-            elaborator.current_item = Some(DependencyId::Function(function));
-            elaborator.crate_id = meta.source_crate;
-            elaborator.local_module = meta.source_module;
-            elaborator.file = meta.source_file;
-            elaborator.introduce_generics_into_scope(meta.all_generics.clone());
-        }
+        setup(&mut elaborator);
 
         elaborator.populate_scope_from_comptime_scopes();
 
@@ -88,33 +131,63 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn run_comptime_attributes_on_item(
+    fn run_comptime_attributes_on_item(
         &mut self,
         attributes: &[SecondaryAttribute],
         item: Value,
         span: Span,
+        attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
-            if let SecondaryAttribute::Custom(name) = attribute {
-                if let Err(error) =
-                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
-                {
-                    self.errors.push(error);
-                }
-            }
+            self.run_comptime_attribute_on_item(
+                attribute,
+                &item,
+                span,
+                attribute_context,
+                generated_items,
+            );
         }
     }
 
     fn run_comptime_attribute_on_item(
         &mut self,
+        attribute: &SecondaryAttribute,
+        item: &Value,
+        span: Span,
+        attribute_context: AttributeContext,
+        generated_items: &mut CollectedItems,
+    ) {
+        if let SecondaryAttribute::Custom(attribute) = attribute {
+            self.elaborate_in_comptime_context(|this| {
+                if let Err(error) = this.run_comptime_attribute_name_on_item(
+                    &attribute.contents,
+                    item.clone(),
+                    span,
+                    attribute.contents_span,
+                    attribute_context,
+                    generated_items,
+                ) {
+                    this.errors.push(error);
+                }
+            });
+        }
+    }
+
+    fn run_comptime_attribute_name_on_item(
+        &mut self,
         attribute: &str,
         item: Value,
         span: Span,
+        attribute_span: Span,
+        attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
-        let location = Location::new(span, self.file);
-        let Some((function, arguments)) = Self::parse_attribute(attribute, self.file)? else {
+        self.file = attribute_context.attribute_file;
+        self.local_module = attribute_context.attribute_module;
+
+        let location = Location::new(attribute_span, self.file);
+        let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
             // Do not issue an error if the attribute is unknown
             return Ok(());
         };
@@ -140,19 +213,29 @@ impl<'context> Elaborator<'context> {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
 
+        self.file = attribute_context.file;
+        self.local_module = attribute_context.module;
+
         let mut interpreter = self.setup_interpreter();
-        let mut arguments =
-            Self::handle_attribute_arguments(&mut interpreter, function, arguments, location)
-                .map_err(|error| {
-                    let file = error.get_location().file;
-                    (error.into(), file)
-                })?;
+        let mut arguments = Self::handle_attribute_arguments(
+            &mut interpreter,
+            &item,
+            function,
+            arguments,
+            location,
+        )
+        .map_err(|error| {
+            let file = error.get_location().file;
+            (error.into(), file)
+        })?;
 
         arguments.insert(0, (item, location));
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
+
+        self.debug_comptime(location, |interner| value.display(interner).to_string());
 
         if value != Value::Unit {
             let items = value
@@ -170,32 +253,61 @@ impl<'context> Elaborator<'context> {
     #[allow(clippy::type_complexity)]
     pub(crate) fn parse_attribute(
         annotation: &str,
-        file: FileId,
+        location: Location,
     ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
         let (tokens, mut lexing_errors) = Lexer::lex(annotation);
         if !lexing_errors.is_empty() {
-            return Err((lexing_errors.swap_remove(0).into(), file));
+            return Err((lexing_errors.swap_remove(0).into(), location.file));
         }
 
         let expression = parser::expression()
             .parse(tokens)
-            .map_err(|mut errors| (errors.swap_remove(0).into(), file))?;
+            .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
 
-        Ok(match expression.kind {
-            ExpressionKind::Call(call) => Some((*call.func, call.arguments)),
-            ExpressionKind::Variable(_) => Some((expression, Vec::new())),
-            _ => None,
-        })
+        let (mut func, mut arguments) = match expression.kind {
+            ExpressionKind::Call(call) => (*call.func, call.arguments),
+            ExpressionKind::Variable(_) => (expression, Vec::new()),
+            _ => return Ok(None),
+        };
+
+        func.span = func.span.shift_by(location.span.start());
+
+        for argument in &mut arguments {
+            argument.span = argument.span.shift_by(location.span.start());
+        }
+
+        Ok(Some((func, arguments)))
     }
 
     fn handle_attribute_arguments(
         interpreter: &mut Interpreter,
+        item: &Value,
         function: FuncId,
         arguments: Vec<Expression>,
         location: Location,
     ) -> Result<Vec<(Value, Location)>, InterpreterError> {
         let meta = interpreter.elaborator.interner.function_meta(&function);
+
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
+
+        if parameters.is_empty() {
+            return Err(InterpreterError::ArgumentCountMismatch {
+                expected: 0,
+                actual: arguments.len() + 1,
+                location,
+            });
+        }
+
+        let expected_type = item.get_type();
+        let expected_type = expected_type.as_ref();
+
+        if &parameters[0] != expected_type {
+            return Err(InterpreterError::TypeMismatch {
+                expected: parameters[0].clone(),
+                actual: expected_type.clone(),
+                location,
+            });
+        }
 
         // Remove the initial parameter for the comptime item since that is not included
         // in `arguments` at this point.
@@ -213,6 +325,7 @@ impl<'context> Elaborator<'context> {
         let mut varargs = im::Vector::new();
 
         for (i, arg) in arguments.into_iter().enumerate() {
+            let arg_location = Location::new(arg.span, location.file);
             let param_type = parameters.get(i).or(varargs_elem_type).unwrap_or(&Type::Error);
 
             let mut push_arg = |arg| {
@@ -233,9 +346,17 @@ impl<'context> Elaborator<'context> {
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
             } else {
-                let expr_id = interpreter.elaborator.elaborate_expression(arg).0;
+                let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
                 push_arg(interpreter.evaluate(expr_id)?);
-            }
+
+                if let Err(UnificationError) = expr_type.unify(param_type) {
+                    return Err(InterpreterError::TypeMismatch {
+                        expected: param_type.clone(),
+                        actual: expr_type,
+                        location: arg_location,
+                    });
+                }
+            };
         }
 
         if is_varargs {
@@ -257,34 +378,35 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_item(
+    pub(crate) fn add_item(
         &mut self,
         item: TopLevelStatement,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        match item {
-            TopLevelStatement::Function(function) => {
-                let id = self.interner.push_empty_fn();
-                let module = self.module_id();
-                self.interner.push_function(id, &function.def, module, location);
+        match item.kind {
+            TopLevelStatementKind::Function(function) => {
+                let module_id = self.module_id();
 
-                if self.interner.is_in_lsp_mode()
-                    && !function.def.is_test()
-                    && !function.def.is_private()
-                {
-                    self.interner.register_function(id, &function.def);
+                if let Some(id) = dc_mod::collect_function(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    &function,
+                    module_id,
+                    self.file,
+                    item.doc_comments,
+                    &mut self.errors,
+                ) {
+                    let functions = vec![(self.local_module, id, function)];
+                    generated_items.functions.push(UnresolvedFunctions {
+                        file_id: self.file,
+                        functions,
+                        trait_id: None,
+                        self_type: None,
+                    });
                 }
-
-                let functions = vec![(self.local_module, id, function)];
-                generated_items.functions.push(UnresolvedFunctions {
-                    file_id: self.file,
-                    functions,
-                    trait_id: None,
-                    self_type: None,
-                });
             }
-            TopLevelStatement::TraitImpl(mut trait_impl) => {
+            TopLevelStatementKind::TraitImpl(mut trait_impl) => {
                 let (methods, associated_types, associated_constants) =
                     dc_mod::collect_trait_impl_items(
                         self.interner,
@@ -314,11 +436,11 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatement::Global(global) => {
+            TopLevelStatementKind::Global(global) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    global,
+                    Documented::new(global, item.doc_comments),
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -329,17 +451,34 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error);
                 }
             }
-            // Assume that an error has already been issued
-            TopLevelStatement::Error => (),
+            TopLevelStatementKind::Struct(struct_def) => {
+                if let Some((type_id, the_struct)) = dc_mod::collect_struct(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    Documented::new(struct_def, item.doc_comments),
+                    self.file,
+                    self.local_module,
+                    self.crate_id,
+                    &mut self.errors,
+                ) {
+                    generated_items.types.insert(type_id, the_struct);
+                }
+            }
+            TopLevelStatementKind::Impl(r#impl) => {
+                let module = self.module_id();
+                dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
+            }
 
-            TopLevelStatement::Module(_)
-            | TopLevelStatement::Import(..)
-            | TopLevelStatement::Struct(_)
-            | TopLevelStatement::Trait(_)
-            | TopLevelStatement::Impl(_)
-            | TopLevelStatement::TypeAlias(_)
-            | TopLevelStatement::SubModule(_) => {
-                let item = item.to_string();
+            // Assume that an error has already been issued
+            TopLevelStatementKind::Error => (),
+
+            TopLevelStatementKind::Module(_)
+            | TopLevelStatementKind::Import(..)
+            | TopLevelStatementKind::Trait(_)
+            | TopLevelStatementKind::TypeAlias(_)
+            | TopLevelStatementKind::SubModule(_)
+            | TopLevelStatementKind::InnerAttribute(_) => {
+                let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());
             }
@@ -377,6 +516,7 @@ impl<'context> Elaborator<'context> {
         traits: &BTreeMap<TraitId, UnresolvedTrait>,
         types: &BTreeMap<StructId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
+        module_attributes: &[ModuleAttribute],
     ) -> CollectedItems {
         let mut generated_items = CollectedItems::default();
 
@@ -384,22 +524,58 @@ impl<'context> Elaborator<'context> {
             let attributes = &trait_.trait_def.attributes;
             let item = Value::TraitDefinition(*trait_id);
             let span = trait_.trait_def.span;
-            self.local_module = trait_.module_id;
-            self.file = trait_.file_id;
-            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
+            let context = AttributeContext::new(trait_.file_id, trait_.module_id);
+            self.run_comptime_attributes_on_item(
+                attributes,
+                item,
+                span,
+                context,
+                &mut generated_items,
+            );
         }
 
         for (struct_id, struct_def) in types {
             let attributes = &struct_def.struct_def.attributes;
             let item = Value::StructDefinition(*struct_id);
             let span = struct_def.struct_def.span;
-            self.local_module = struct_def.module_id;
-            self.file = struct_def.file_id;
-            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
+            let context = AttributeContext::new(struct_def.file_id, struct_def.module_id);
+            self.run_comptime_attributes_on_item(
+                attributes,
+                item,
+                span,
+                context,
+                &mut generated_items,
+            );
         }
 
         self.run_attributes_on_functions(functions, &mut generated_items);
+
+        self.run_attributes_on_modules(module_attributes, &mut generated_items);
+
         generated_items
+    }
+
+    fn run_attributes_on_modules(
+        &mut self,
+        module_attributes: &[ModuleAttribute],
+        generated_items: &mut CollectedItems,
+    ) {
+        for module_attribute in module_attributes {
+            let local_id = module_attribute.module_id;
+            let module_id = ModuleId { krate: self.crate_id, local_id };
+            let item = Value::ModuleDefinition(module_id);
+            let attribute = &module_attribute.attribute;
+            let span = Span::default();
+
+            let context = AttributeContext {
+                file: module_attribute.file_id,
+                module: module_attribute.module_id,
+                attribute_file: module_attribute.attribute_file_id,
+                attribute_module: module_attribute.attribute_module_id,
+            };
+
+            self.run_comptime_attribute_on_item(attribute, &item, span, context, generated_items);
+        }
     }
 
     fn run_attributes_on_functions(
@@ -408,16 +584,51 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) {
         for function_set in function_sets {
-            self.file = function_set.file_id;
             self.self_type = function_set.self_type.clone();
 
             for (local_module, function_id, function) in &function_set.functions {
-                self.local_module = *local_module;
+                let context = AttributeContext::new(function_set.file_id, *local_module);
                 let attributes = function.secondary_attributes();
                 let item = Value::FunctionDefinition(*function_id);
                 let span = function.span();
-                self.run_comptime_attributes_on_item(attributes, item, span, generated_items);
+                self.run_comptime_attributes_on_item(
+                    attributes,
+                    item,
+                    span,
+                    context,
+                    generated_items,
+                );
             }
         }
+    }
+
+    /// Perform the given function in a comptime context.
+    /// This will set the `in_comptime_context` flag on `self` as well as
+    /// push a new function context to resolve any trait constraints early.
+    pub(super) fn elaborate_in_comptime_context<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        let old_comptime_value = std::mem::replace(&mut self.in_comptime_context, true);
+        // We have to push a new FunctionContext so that we can resolve any constraints
+        // in this comptime block early before the function as a whole finishes elaborating.
+        // Otherwise the interpreter below may find expressions for which the underlying trait
+        // call is not yet solved for.
+        self.function_context.push(Default::default());
+
+        let result = f(self);
+
+        self.check_and_pop_function_context();
+        self.in_comptime_context = old_comptime_value;
+        result
+    }
+
+    /// True if we're currently within a `comptime` block, function, or global
+    pub(super) fn in_comptime_context(&self) -> bool {
+        self.in_comptime_context
+            || match self.current_item {
+                Some(DependencyId::Function(id)) => {
+                    self.interner.function_modifiers(&id).is_comptime
+                }
+                Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
+                _ => false,
+            }
     }
 }

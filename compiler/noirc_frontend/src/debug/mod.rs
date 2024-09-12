@@ -675,6 +675,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
                 stack.extend(pids.iter().map(|(_, pattern)| (pattern, is_mut)));
                 vars.extend(pids.iter().map(|(id, _)| (id.clone(), false)));
             }
+            ast::Pattern::Interned(_, _) => (),
         }
     }
     vars
@@ -701,6 +702,7 @@ fn pattern_to_string(pattern: &ast::Pattern) -> String {
                     .join(", "),
             )
         }
+        ast::Pattern::Interned(_, _) => "?Interned".to_string(),
     }
 }
 

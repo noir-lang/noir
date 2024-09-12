@@ -15,7 +15,7 @@ use lsp_types::{
     WorkDoneProgressOptions,
 };
 use nargo_fmt::Config;
-use noirc_driver::file_manager_with_stdlib;
+
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
@@ -432,7 +432,7 @@ where
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(
         state,
         &workspace,

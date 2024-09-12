@@ -72,6 +72,13 @@ impl Function {
         Self { name: another.name.clone(), id, entry_block, dfg, runtime: another.runtime }
     }
 
+    /// Takes the signature (function name & runtime) from a function but does not copy the body.
+    pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
+        let mut new_function = Function::new(another.name.clone(), id);
+        new_function.runtime = another.runtime;
+        new_function
+    }
+
     /// The name of the function.
     /// Used exclusively for debugging purposes.
     pub(crate) fn name(&self) -> &str {

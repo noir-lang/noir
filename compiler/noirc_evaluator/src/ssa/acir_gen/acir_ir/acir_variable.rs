@@ -2,7 +2,7 @@ use super::big_int::BigIntContext;
 use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalError, RuntimeError, SsaReport};
+use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
@@ -126,6 +126,8 @@ pub(crate) struct AcirContext<F: AcirField> {
     big_int_ctx: BigIntContext,
 
     expression_width: ExpressionWidth,
+
+    pub(crate) warnings: Vec<SsaReport>,
 }
 
 impl<F: AcirField> AcirContext<F> {
@@ -517,6 +519,12 @@ impl<F: AcirField> AcirContext<F> {
             // Constraint is always true - assertion is unnecessary.
             self.mark_variables_equivalent(lhs, rhs)?;
             return Ok(());
+        }
+        if diff_expr.is_const() {
+            // Constraint is always false
+            self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed {
+                call_stack: self.get_call_stack(),
+            }));
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
@@ -1412,7 +1420,7 @@ impl<F: AcirField> AcirContext<F> {
             }
             BlackBoxFunc::AES128Encrypt => {
                 let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
-                let input_size = match inputs.first().expect(invalid_input) {
+                let input_size: usize = match inputs.first().expect(invalid_input) {
                     AcirValue::Array(values) => Ok::<usize, RuntimeError>(values.len()),
                     AcirValue::DynamicArray(dyn_array) => Ok::<usize, RuntimeError>(dyn_array.len),
                     _ => {
@@ -1502,7 +1510,18 @@ impl<F: AcirField> AcirContext<F> {
                 let num_bits = typ.bit_size::<F>();
                 match self.vars[&input].as_constant() {
                     Some(constant) if allow_constant_inputs => {
-                        single_val_witnesses.push(FunctionInput::constant(*constant, num_bits));
+                        single_val_witnesses.push(
+                            FunctionInput::constant(*constant, num_bits).map_err(
+                                |invalid_input_bit_size| {
+                                    RuntimeError::InvalidBlackBoxInputBitSize {
+                                        value: invalid_input_bit_size.value,
+                                        num_bits: invalid_input_bit_size.value_num_bits,
+                                        max_num_bits: invalid_input_bit_size.max_bits,
+                                        call_stack: self.get_call_stack(),
+                                    }
+                                },
+                            )?,
+                        );
                     }
                     _ => {
                         let witness_var = self.get_or_create_witness_var(input)?;

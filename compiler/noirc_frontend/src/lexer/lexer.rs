@@ -2,9 +2,7 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{
-        token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
-    },
+    token::{IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
@@ -25,21 +23,6 @@ pub struct Lexer<'a> {
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
-
-pub(crate) fn from_spanned_token_result(
-    token_result: &SpannedTokenResult,
-) -> Result<(usize, BorrowedToken<'_>, usize), LexerErrorKind> {
-    token_result
-        .as_ref()
-        .map(|spanned_token| {
-            (
-                spanned_token.to_span().start() as usize,
-                token_to_borrowed_token(spanned_token.into()),
-                spanned_token.to_span().end() as usize,
-            )
-        })
-        .map_err(Clone::clone)
-}
 
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
@@ -286,6 +269,13 @@ impl<'a> Lexer<'a> {
     fn eat_attribute(&mut self) -> SpannedTokenResult {
         let start = self.position;
 
+        let is_inner = if self.peek_char_is('!') {
+            self.next_char();
+            true
+        } else {
+            false
+        };
+
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
@@ -295,7 +285,11 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
+        let contents_start = self.position + 1;
+
         let word = self.eat_while(None, |ch| ch != ']');
+
+        let contents_end = self.position;
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -308,9 +302,23 @@ impl<'a> Lexer<'a> {
 
         let end = self.position;
 
-        let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
+        let span = Span::inclusive(start, end);
+        let contents_span = Span::inclusive(contents_start, contents_end);
 
-        Ok(attribute.into_span(start, end))
+        let attribute = Attribute::lookup_attribute(&word, span, contents_span)?;
+        if is_inner {
+            match attribute {
+                Attribute::Function(attribute) => Err(LexerErrorKind::InvalidInnerAttribute {
+                    span: Span::from(start..end),
+                    found: attribute.to_string(),
+                }),
+                Attribute::Secondary(attribute) => {
+                    Ok(Token::InnerAttribute(attribute).into_span(start, end))
+                }
+            }
+        } else {
+            Ok(Token::Attribute(attribute).into_span(start, end))
+        }
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
@@ -598,7 +606,7 @@ impl<'a> Lexer<'a> {
         };
         let comment = self.eat_while(None, |ch| ch != '\n');
 
-        if self.skip_comments {
+        if doc_style.is_none() && self.skip_comments {
             return self.next_token();
         }
 
@@ -643,7 +651,7 @@ impl<'a> Lexer<'a> {
         }
 
         if depth == 0 {
-            if self.skip_comments {
+            if doc_style.is_none() && self.skip_comments {
                 return self.next_token();
             }
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))
@@ -682,7 +690,7 @@ mod tests {
     use iter_extended::vecmap;
 
     use super::*;
-    use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+    use crate::token::{CustomAtrribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_double_char() {
@@ -810,9 +818,11 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(
-                "custom(hello)".to_string()
-            )))
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                contents: "custom(hello)".to_string(),
+                span: Span::from(0..16),
+                contents_span: Span::from(2..15)
+            })))
         );
     }
 
@@ -896,6 +906,22 @@ mod tests {
         };
 
         assert_eq!(sub_string, "test(invalid_scope)");
+    }
+
+    #[test]
+    fn test_inner_attribute() {
+        let input = r#"#![something]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::InnerAttribute(SecondaryAttribute::Custom(CustomAtrribute {
+                contents: "something".to_string(),
+                span: Span::from(0..13),
+                contents_span: Span::from(3..12),
+            }))
+        );
     }
 
     #[test]
