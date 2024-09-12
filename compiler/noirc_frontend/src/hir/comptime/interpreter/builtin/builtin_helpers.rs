@@ -1,4 +1,5 @@
-use std::rc::Rc;
+use std::hash::Hash;
+use std::{hash::Hasher, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
@@ -458,4 +459,29 @@ pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute])
     }
 
     false
+}
+
+pub(super) fn hash_item<T: Hash>(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    get_item: impl FnOnce((Value, Location)) -> IResult<T>,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let item = get_item(argument)?;
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    item.hash(&mut hasher);
+    let hash = hasher.finish();
+    Ok(Value::Field((hash as u128).into()))
+}
+
+pub(super) fn eq_item<T: Eq>(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    mut get_item: impl FnMut((Value, Location)) -> IResult<T>,
+) -> IResult<Value> {
+    let (self_arg, other_arg) = check_two_arguments(arguments, location)?;
+    let self_arg = get_item(self_arg)?;
+    let other_arg = get_item(other_arg)?;
+    Ok(Value::Bool(self_arg == other_arg))
 }
