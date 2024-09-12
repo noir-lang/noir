@@ -10,7 +10,7 @@ title: fmtstr
 
 #include_code quoted noir_stdlib/src/meta/format_string.nr rust
 
-Returns the string literal as a `Quoted` value (this includes the leading and trailing double quoted).
+Returns the string literal as a `Quoted` value (this includes the leading and trailing double quotes).
 
 ### quoted_contents
 
