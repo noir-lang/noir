@@ -3,6 +3,8 @@ mod foo {
     #![some_attribute]
     pub fn x() {}
     pub fn y() {}
+
+    struct Struct1 {}
 }
 
 contract bar {}
@@ -73,6 +75,10 @@ fn main() {
         // Check Module::functions
         assert_eq(foo.functions().len(), 2);
         assert_eq(bar.functions().len(), 0);
+
+        // Check Module::structs
+        assert_eq(foo.structs().len(), 1);
+        assert_eq(bar.structs().len(), 0);
 
         // Check Module::name
         assert_eq(foo.name(), quote { foo });

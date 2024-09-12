@@ -130,6 +130,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_name" => module_name(interner, arguments, location),
+            "module_structs" => module_structs(self, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
@@ -2292,6 +2293,30 @@ fn module_functions(
 
     let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
     Ok(Value::Slice(func_ids, slice_type))
+}
+
+// fn structs(self) -> [StructDefinition]
+fn module_structs(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
+    let struct_ids = module_data
+        .type_definitions()
+        .filter_map(|module_def_id| {
+            if let ModuleDefId::TypeId(id) = module_def_id {
+                Some(Value::StructDefinition(id))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::StructDefinition)));
+    Ok(Value::Slice(struct_ids, slice_type))
 }
 
 // fn has_named_attribute(self, name: Quoted) -> bool
