@@ -10,6 +10,8 @@ use crate::{
     },
 };
 
+use super::Lexer;
+
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
 /// smallest unit of grammar. A parser may (will) decide to parse
@@ -868,6 +870,18 @@ impl FunctionAttribute {
     pub fn is_no_predicates(&self) -> bool {
         matches!(self, FunctionAttribute::NoPredicates)
     }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            FunctionAttribute::Foreign(_) => "foreign",
+            FunctionAttribute::Builtin(_) => "builtin",
+            FunctionAttribute::Oracle(_) => "oracle",
+            FunctionAttribute::Test(_) => "test",
+            FunctionAttribute::Recursive => "recursive",
+            FunctionAttribute::Fold => "fold",
+            FunctionAttribute::NoPredicates => "no_predicates",
+        }
+    }
 }
 
 impl fmt::Display for FunctionAttribute {
@@ -911,6 +925,20 @@ impl SecondaryAttribute {
             None
         }
     }
+
+    pub(crate) fn name(&self) -> Option<String> {
+        match self {
+            SecondaryAttribute::Deprecated(_) => Some("deprecated".to_string()),
+            SecondaryAttribute::ContractLibraryMethod => {
+                Some("contract_library_method".to_string())
+            }
+            SecondaryAttribute::Export => Some("export".to_string()),
+            SecondaryAttribute::Field(_) => Some("field".to_string()),
+            SecondaryAttribute::Custom(custom) => custom.name(),
+            SecondaryAttribute::Abi(_) => Some("abi".to_string()),
+            SecondaryAttribute::Varargs => Some("varargs".to_string()),
+        }
+    }
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -937,6 +965,18 @@ pub struct CustomAtrribute {
     pub span: Span,
     // The span for the attribute contents (what's inside `#[...]`)
     pub contents_span: Span,
+}
+
+impl CustomAtrribute {
+    fn name(&self) -> Option<String> {
+        let mut lexer = Lexer::new(&self.contents);
+        let token = lexer.next()?.ok()?;
+        if let Token::Ident(ident) = token.into_token() {
+            Some(ident)
+        } else {
+            None
+        }
+    }
 }
 
 impl AsRef<str> for FunctionAttribute {
