@@ -6,6 +6,12 @@ title: fmtstr
 
 ## Methods
 
+### quoted
+
+#include_code quoted noir_stdlib/src/meta/format_string.nr rust
+
+Returns the string literal as a `Quoted` value (this includes the leading and trailing double quoted).
+
 ### quoted_contents
 
 #include_code quoted_contents noir_stdlib/src/meta/format_string.nr rust

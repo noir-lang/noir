@@ -15,6 +15,14 @@ fn main() {
 
     // Mainly test fmtstr::quoted_contents
     call!(glue(quote { hello }, quote { world }));
+
+    comptime
+    {
+        let x = "world";
+        let s = f"Hello {x}".quoted();
+        let code = quote { check_hello_world($s) };
+        std::meta::unquote!(code);
+    }
 }
 
 comptime fn glue(x: Quoted, y: Quoted) -> Quoted {
@@ -25,5 +33,8 @@ fn hello_world() {}
 
 comptime fn call(x: Quoted) -> Quoted {
     quote { $x() }
+}
+fn check_hello_world<let N: u32>(s: str<N>) {
+    assert_eq(s.as_bytes().len(), "Hello world".as_bytes().len());
 }
 
