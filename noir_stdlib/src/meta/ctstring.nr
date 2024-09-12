@@ -84,12 +84,14 @@ comptime fn ctstring_hash(_string: CtString) -> Field {}
 
 mod test {
     #[test]
-    comptime fn as_quoted_str_example() {
-        // docs:start:as_quoted_str_example
-        let my_ctstring = "foo bar".as_ctstring();
-        let my_str = my_ctstring.as_quoted_str!();
+    fn as_quoted_str_example() {
+        comptime {
+            // docs:start:as_quoted_str_example
+            let my_ctstring = "foo bar".as_ctstring();
+            let my_str = my_ctstring.as_quoted_str!();
 
-        assert_eq(crate::meta::type_of(my_str), quote { str<7> }.as_type());
-        // docs:end:as_quoted_str_example
+            assert_eq(crate::meta::type_of(my_str), quote { str<7> }.as_type());
+            // docs:end:as_quoted_str_example
+        }
     }
 }
