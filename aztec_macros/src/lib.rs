@@ -81,7 +81,7 @@ fn transform(
         }
     }
 
-    generate_event_impls(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
+    //generate_event_impls(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
     generate_note_interface_impl(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
 
     Ok(ast)
@@ -112,110 +112,110 @@ fn transform_module(
         generate_storage_layout(module, storage_struct_name.clone(), module_name, empty_spans)?;
     }
 
-    let has_initializer = module.functions.iter().any(|func| {
-        func.item
-            .def
-            .attributes
-            .secondary
-            .iter()
-            .any(|attr| is_custom_attribute(attr, "aztec(initializer)"))
-    });
+    // let has_initializer = module.functions.iter().any(|func| {
+    //     func.item
+    //         .def
+    //         .attributes
+    //         .secondary
+    //         .iter()
+    //         .any(|attr| is_custom_attribute(attr, "aztec(initializer)"))
+    // });
 
-    let mut stubs: Vec<_> = vec![];
+    // let mut stubs: Vec<_> = vec![];
 
-    for func in module.functions.iter_mut() {
-        let func = &mut func.item;
-        let mut is_private = false;
-        let mut is_public = false;
-        let mut is_initializer = false;
-        let mut is_internal = false;
-        let mut insert_init_check = has_initializer;
-        let mut is_static = false;
+    // for func in module.functions.iter_mut() {
+    //     let func = &mut func.item;
+    //     let mut is_private = false;
+    //     let mut is_public = false;
+    //     let mut is_initializer = false;
+    //     let mut is_internal = false;
+    //     let mut insert_init_check = has_initializer;
+    //     let mut is_static = false;
 
-        for secondary_attribute in func.def.attributes.secondary.clone() {
-            if is_custom_attribute(&secondary_attribute, "aztec(private)") {
-                is_private = true;
-            } else if is_custom_attribute(&secondary_attribute, "aztec(initializer)") {
-                is_initializer = true;
-                insert_init_check = false;
-            } else if is_custom_attribute(&secondary_attribute, "aztec(noinitcheck)") {
-                insert_init_check = false;
-            } else if is_custom_attribute(&secondary_attribute, "aztec(internal)") {
-                is_internal = true;
-            } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
-                is_public = true;
-            }
-            if is_custom_attribute(&secondary_attribute, "aztec(view)") {
-                is_static = true;
-            }
-        }
+    //     for secondary_attribute in func.def.attributes.secondary.clone() {
+    //         if is_custom_attribute(&secondary_attribute, "aztec(private)") {
+    //             is_private = true;
+    //         } else if is_custom_attribute(&secondary_attribute, "aztec(initializer)") {
+    //             is_initializer = true;
+    //             insert_init_check = false;
+    //         } else if is_custom_attribute(&secondary_attribute, "aztec(noinitcheck)") {
+    //             insert_init_check = false;
+    //         } else if is_custom_attribute(&secondary_attribute, "aztec(internal)") {
+    //             is_internal = true;
+    //         } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
+    //             is_public = true;
+    //         }
+    //         if is_custom_attribute(&secondary_attribute, "aztec(view)") {
+    //             is_static = true;
+    //         }
+    //     }
 
-        // Apply transformations to the function based on collected attributes
-        if is_private || is_public {
-            let fn_type = if is_private { "Private" } else { "Public" };
-            let stub_src = stub_function(fn_type, func, is_static);
-            stubs.push((stub_src, Location { file: *file_id, span: func.name_ident().span() }));
+    //     // Apply transformations to the function based on collected attributes
+    //     if is_private || is_public {
+    //         let fn_type = if is_private { "Private" } else { "Public" };
+    //         let stub_src = stub_function(fn_type, func, is_static);
+    //         stubs.push((stub_src, Location { file: *file_id, span: func.name_ident().span() }));
 
-            export_fn_abi(&mut module.types, func, empty_spans)?;
-            transform_function(
-                fn_type,
-                func,
-                maybe_storage_struct_name.clone(),
-                is_initializer,
-                insert_init_check,
-                is_internal,
-                is_static,
-            )?;
-            has_transformed_module = true;
-        } else if storage_defined && func.def.is_unconstrained {
-            transform_unconstrained(func, maybe_storage_struct_name.clone().unwrap());
-            has_transformed_module = true;
-        }
-    }
+    //         export_fn_abi(&mut module.types, func, empty_spans)?;
+    //         transform_function(
+    //             fn_type,
+    //             func,
+    //             maybe_storage_struct_name.clone(),
+    //             is_initializer,
+    //             insert_init_check,
+    //             is_internal,
+    //             is_static,
+    //         )?;
+    //         has_transformed_module = true;
+    //     } else if storage_defined && func.def.is_unconstrained {
+    //         transform_unconstrained(func, maybe_storage_struct_name.clone().unwrap());
+    //         has_transformed_module = true;
+    //     }
+    // }
 
-    if has_transformed_module {
-        // We only want to run these checks if the macro processor has found the module to be an Aztec contract.
+    // if has_transformed_module {
+    //     // We only want to run these checks if the macro processor has found the module to be an Aztec contract.
 
-        let private_functions: Vec<_> = module
-            .functions
-            .iter()
-            .map(|t| &t.item)
-            .filter(|func| {
-                func.def
-                    .attributes
-                    .secondary
-                    .iter()
-                    .any(|attr| is_custom_attribute(attr, "aztec(private)"))
-            })
-            .collect();
+    // let private_functions: Vec<_> = module
+    //     .functions
+    //     .iter()
+    //     .map(|t| &t.item)
+    //     .filter(|func| {
+    //         func.def
+    //             .attributes
+    //             .secondary
+    //             .iter()
+    //             .any(|attr| is_custom_attribute(attr, "aztec(private)"))
+    //     })
+    //     .collect();
 
-        let public_functions: Vec<_> = module
-            .functions
-            .iter()
-            .map(|func| &func.item)
-            .filter(|func| {
-                func.def
-                    .attributes
-                    .secondary
-                    .iter()
-                    .any(|attr| is_custom_attribute(attr, "aztec(public)"))
-            })
-            .collect();
+    // let public_functions: Vec<_> = module
+    //     .functions
+    //     .iter()
+    //     .map(|func| &func.item)
+    //     .filter(|func| {
+    //         func.def
+    //             .attributes
+    //             .secondary
+    //             .iter()
+    //             .any(|attr| is_custom_attribute(attr, "aztec(public)"))
+    //     })
+    //     .collect();
 
-        let private_function_count = private_functions.len();
+    //     let private_function_count = private_functions.len();
 
-        check_for_public_args(&private_functions)?;
+    //     check_for_public_args(&private_functions)?;
 
-        check_for_public_args(&public_functions)?;
+    //     check_for_public_args(&public_functions)?;
 
-        if private_function_count > MAX_CONTRACT_PRIVATE_FUNCTIONS {
-            return Err(AztecMacroError::ContractHasTooManyPrivateFunctions {
-                span: Span::default(),
-            });
-        }
+    //     if private_function_count > MAX_CONTRACT_PRIVATE_FUNCTIONS {
+    //         return Err(AztecMacroError::ContractHasTooManyPrivateFunctions {
+    //             span: Span::default(),
+    //         });
+    //     }
 
-        generate_contract_interface(module, module_name, &stubs, storage_defined, empty_spans)?;
-    }
+    //     generate_contract_interface(module, module_name, &stubs, storage_defined, empty_spans)?;
+    // }
 
     Ok(has_transformed_module)
 }
@@ -230,11 +230,11 @@ fn transform_hir(
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
     if has_aztec_dependency(crate_id, context) {
-        transform_event_abi(crate_id, context)?;
-        inject_compute_note_hash_and_optionally_a_nullifier(crate_id, context)?;
-        assign_storage_slots(crate_id, context)?;
-        inject_note_exports(crate_id, context)?;
-        update_fn_signatures_in_contract_interface(crate_id, context)
+        //transform_event_abi(crate_id, context)?;
+        //inject_compute_note_hash_and_optionally_a_nullifier(crate_id, context)?;
+        //assign_storage_slots(crate_id, context)?;
+        inject_note_exports(crate_id, context)
+        //update_fn_signatures_in_contract_interface(crate_id, context)
     } else {
         Ok(())
     }
