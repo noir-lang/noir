@@ -471,6 +471,16 @@ impl<T> Shared<T> {
     pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
         self.0.borrow_mut()
     }
+
+    pub fn unwrap_or_clone(self) -> T
+    where
+        T: Clone,
+    {
+        match Rc::try_unwrap(self.0) {
+            Ok(elem) => elem.into_inner(),
+            Err(rc) => rc.as_ref().clone().into_inner(),
+        }
+    }
 }
 
 /// A restricted subset of binary operators useable on

@@ -513,15 +513,6 @@ impl<'context> Elaborator<'context> {
         let typ = self.type_check_variable(expr, id, generics);
         self.interner.push_expr_type(id, typ.clone());
 
-        // Comptime variables must be replaced with their values
-        if let Some(definition) = self.interner.try_definition(definition_id) {
-            if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter = self.setup_interpreter();
-                let value = interpreter.evaluate(id);
-                return self.inline_comptime_value(value, span);
-            }
-        }
-
         (id, typ)
     }
 

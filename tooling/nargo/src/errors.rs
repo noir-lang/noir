@@ -116,6 +116,10 @@ fn extract_locations_from_error<F: AcirField>(
             acir_call_stack,
         )
         | ExecutionError::SolvingError(
+            OpcodeResolutionError::InvalidInputBitSize { opcode_location: error_location, .. },
+            acir_call_stack,
+        )
+        | ExecutionError::SolvingError(
             OpcodeResolutionError::UnsatisfiedConstrain { opcode_location: error_location, .. },
             acir_call_stack,
         ) => match error_location {

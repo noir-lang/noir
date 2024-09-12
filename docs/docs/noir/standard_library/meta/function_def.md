@@ -11,7 +11,7 @@ a function definition in the source program.
 
 #include_code add_attribute noir_stdlib/src/meta/function_def.nr rust
 
-Adds an attribute to the function. This is only valid 
+Adds an attribute to the function. This is only valid
 on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
 
@@ -19,7 +19,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 #include_code body noir_stdlib/src/meta/function_def.nr rust
 
-Returns the body of the function as an expression. This is only valid 
+Returns the body of the function as an expression. This is only valid
 on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
 
@@ -90,8 +90,8 @@ This means any functions called at compile-time are invalid targets for this met
 
 #include_code set_return_public noir_stdlib/src/meta/function_def.nr rust
 
-Mutates the function's return visibility to public (if `true` is given) or private (if `false` is given). 
-This is only valid on functions in the current crate which have not yet been resolved. 
+Mutates the function's return visibility to public (if `true` is given) or private (if `false` is given).
+This is only valid on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
 
 ### set_unconstrained
@@ -99,5 +99,5 @@ This means any functions called at compile-time are invalid targets for this met
 #include_code set_unconstrained noir_stdlib/src/meta/function_def.nr rust
 
 Mutates the function to be unconstrained (if `true` is given) or not (if `false` is given).
-This is only valid on functions in the current crate which have not yet been resolved. 
+This is only valid on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.

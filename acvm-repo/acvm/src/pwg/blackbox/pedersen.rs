@@ -17,7 +17,7 @@ pub(super) fn pedersen<F: AcirField>(
     outputs: (Witness, Witness),
 ) -> Result<(), OpcodeResolutionError<F>> {
     let scalars: Result<Vec<_>, _> =
-        inputs.iter().map(|input| input_to_value(initial_witness, *input)).collect();
+        inputs.iter().map(|input| input_to_value(initial_witness, *input, false)).collect();
     let scalars: Vec<_> = scalars?.into_iter().collect();
 
     let (res_x, res_y) = backend.pedersen_commitment(&scalars, domain_separator)?;
@@ -36,7 +36,7 @@ pub(super) fn pedersen_hash<F: AcirField>(
     output: Witness,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let scalars: Result<Vec<_>, _> =
-        inputs.iter().map(|input| input_to_value(initial_witness, *input)).collect();
+        inputs.iter().map(|input| input_to_value(initial_witness, *input, false)).collect();
     let scalars: Vec<_> = scalars?.into_iter().collect();
 
     let res = backend.pedersen_hash(&scalars, domain_separator)?;

@@ -197,7 +197,7 @@ impl<T, U, let N: u32, let M: u32> Serialize<N + M> for (T, U)
 
 fn main() {
     let data = (1, [2, 3, 4]);
-    assert(data.serialize().len(), 4);
+    assert_eq(data.serialize().len(), 4);
 }
 ```
 

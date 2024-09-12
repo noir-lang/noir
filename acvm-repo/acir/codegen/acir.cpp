@@ -610,8 +610,8 @@ namespace Program {
 
         struct CalldataCopy {
             Program::MemoryAddress destination_address;
-            uint64_t size;
-            uint64_t offset;
+            Program::MemoryAddress size_address;
+            Program::MemoryAddress offset_address;
 
             friend bool operator==(const CalldataCopy&, const CalldataCopy&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -5278,8 +5278,8 @@ namespace Program {
 
     inline bool operator==(const BrilligOpcode::CalldataCopy &lhs, const BrilligOpcode::CalldataCopy &rhs) {
         if (!(lhs.destination_address == rhs.destination_address)) { return false; }
-        if (!(lhs.size == rhs.size)) { return false; }
-        if (!(lhs.offset == rhs.offset)) { return false; }
+        if (!(lhs.size_address == rhs.size_address)) { return false; }
+        if (!(lhs.offset_address == rhs.offset_address)) { return false; }
         return true;
     }
 
@@ -5304,8 +5304,8 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Program::BrilligOpcode::CalldataCopy>::serialize(const Program::BrilligOpcode::CalldataCopy &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.destination_address)>::serialize(obj.destination_address, serializer);
-    serde::Serializable<decltype(obj.size)>::serialize(obj.size, serializer);
-    serde::Serializable<decltype(obj.offset)>::serialize(obj.offset, serializer);
+    serde::Serializable<decltype(obj.size_address)>::serialize(obj.size_address, serializer);
+    serde::Serializable<decltype(obj.offset_address)>::serialize(obj.offset_address, serializer);
 }
 
 template <>
@@ -5313,8 +5313,8 @@ template <typename Deserializer>
 Program::BrilligOpcode::CalldataCopy serde::Deserializable<Program::BrilligOpcode::CalldataCopy>::deserialize(Deserializer &deserializer) {
     Program::BrilligOpcode::CalldataCopy obj;
     obj.destination_address = serde::Deserializable<decltype(obj.destination_address)>::deserialize(deserializer);
-    obj.size = serde::Deserializable<decltype(obj.size)>::deserialize(deserializer);
-    obj.offset = serde::Deserializable<decltype(obj.offset)>::deserialize(deserializer);
+    obj.size_address = serde::Deserializable<decltype(obj.size_address)>::deserialize(deserializer);
+    obj.offset_address = serde::Deserializable<decltype(obj.offset_address)>::deserialize(deserializer);
     return obj;
 }
 

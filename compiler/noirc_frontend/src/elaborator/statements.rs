@@ -249,6 +249,13 @@ impl<'context> Elaborator<'context> {
                 } else {
                     if let Some(definition) = self.interner.try_definition(ident.id) {
                         mutable = definition.mutable;
+
+                        if definition.comptime && !self.in_comptime_context() {
+                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
+                                name: definition.name.clone(),
+                                span: ident.location.span,
+                            });
+                        }
                     }
 
                     let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;

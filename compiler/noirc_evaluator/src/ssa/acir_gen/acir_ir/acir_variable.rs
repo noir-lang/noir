@@ -1420,7 +1420,7 @@ impl<F: AcirField> AcirContext<F> {
             }
             BlackBoxFunc::AES128Encrypt => {
                 let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
-                let input_size = match inputs.first().expect(invalid_input) {
+                let input_size: usize = match inputs.first().expect(invalid_input) {
                     AcirValue::Array(values) => Ok::<usize, RuntimeError>(values.len()),
                     AcirValue::DynamicArray(dyn_array) => Ok::<usize, RuntimeError>(dyn_array.len),
                     _ => {
@@ -1510,7 +1510,18 @@ impl<F: AcirField> AcirContext<F> {
                 let num_bits = typ.bit_size::<F>();
                 match self.vars[&input].as_constant() {
                     Some(constant) if allow_constant_inputs => {
-                        single_val_witnesses.push(FunctionInput::constant(*constant, num_bits));
+                        single_val_witnesses.push(
+                            FunctionInput::constant(*constant, num_bits).map_err(
+                                |invalid_input_bit_size| {
+                                    RuntimeError::InvalidBlackBoxInputBitSize {
+                                        value: invalid_input_bit_size.value,
+                                        num_bits: invalid_input_bit_size.value_num_bits,
+                                        max_num_bits: invalid_input_bit_size.max_bits,
+                                        call_stack: self.get_call_stack(),
+                                    }
+                                },
+                            )?,
+                        );
                     }
                     _ => {
                         let witness_var = self.get_or_create_witness_var(input)?;
