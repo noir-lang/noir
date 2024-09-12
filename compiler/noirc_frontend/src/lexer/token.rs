@@ -903,15 +903,6 @@ pub enum SecondaryAttribute {
     Varargs,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub struct CustomAtrribute {
-    pub contents: String,
-    // The span of the entire attribute, including leading `#[` and trailing `]`
-    pub span: Span,
-    // The span for the attribute contents (what's inside `#[...]`)
-    pub contents_span: Span,
-}
-
 impl SecondaryAttribute {
     pub(crate) fn as_custom(&self) -> Option<&CustomAtrribute> {
         if let Self::Custom(attribute) = self {
@@ -937,6 +928,15 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
         }
     }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub struct CustomAtrribute {
+    pub contents: String,
+    // The span of the entire attribute, including leading `#[` and trailing `]`
+    pub span: Span,
+    // The span for the attribute contents (what's inside `#[...]`)
+    pub contents_span: Span,
 }
 
 impl AsRef<str> for FunctionAttribute {
