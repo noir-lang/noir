@@ -2,7 +2,7 @@ use chumsky::prelude::*;
 
 use super::attributes::{attributes, validate_secondary_attributes};
 use super::doc_comments::outer_doc_comments;
-use super::function::{function_return_type, function_modifiers};
+use super::function::{function_modifiers, function_return_type};
 use super::path::path_no_turbofish;
 use super::{
     block, expression, fresh_statement, function, function_declaration_parameters, let_statement,
@@ -109,13 +109,21 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(trait_function_body_or_semicolon_or_error)
-        .map(|((((((modifiers, name), generics), parameters), return_type), where_clause), body)| {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body,
-            is_unconstrained: modifiers.0,
-            visibility: modifiers.1,
-            is_comptime: modifiers.2,
-            }
-        })
+        .map(
+            |((((((modifiers, name), generics), parameters), return_type), where_clause), body)| {
+                TraitItem::Function {
+                    name,
+                    generics,
+                    parameters,
+                    return_type,
+                    where_clause,
+                    body,
+                    is_unconstrained: modifiers.0,
+                    visibility: modifiers.1,
+                    is_comptime: modifiers.2,
+                }
+            },
+        )
 }
 
 /// trait_type_declaration: 'type' ident generics

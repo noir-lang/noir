@@ -40,7 +40,7 @@ use crate::{
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_str, get_u8, hash_item, get_ctstring};
+use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;

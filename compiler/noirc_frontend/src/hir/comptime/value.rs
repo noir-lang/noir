@@ -204,7 +204,9 @@ impl Value {
             Value::U64(value) => {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
-            Value::String(value) | Value::CtString(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::String(value) | Value::CtString(value) => {
+                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            }
             // Format strings are lowered as normal strings since they are already interpolated.
             Value::FormatString(value, _) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
@@ -351,7 +353,9 @@ impl Value {
             Value::U64(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
-            Value::String(value) | Value::CtString(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            Value::String(value) | Value::CtString(value) => {
+                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
+            }
             // Format strings are lowered as normal strings since they are already interpolated.
             Value::FormatString(value, _) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))

@@ -149,7 +149,17 @@ impl Display for NoirTrait {
 impl Display for TraitItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body, is_unconstrained, visibility, is_comptime } => {
+            TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body,
+                is_unconstrained,
+                visibility,
+                is_comptime,
+            } => {
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);
@@ -159,7 +169,11 @@ impl Display for TraitItem {
                 let where_clause = where_clause.join(", ");
 
                 let unconstrained = if *is_unconstrained { "unconstrained " } else { "" };
-                let visibility = if *visibility == ItemVisibility::Private { "".to_string() } else { visibility.to_string() };
+                let visibility = if *visibility == ItemVisibility::Private {
+                    "".to_string()
+                } else {
+                    visibility.to_string()
+                };
                 let is_comptime = if *is_comptime { "comptime " } else { "" };
 
                 write!(

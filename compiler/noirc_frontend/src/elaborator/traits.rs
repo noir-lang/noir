@@ -137,8 +137,12 @@ impl<'context> Elaborator<'context> {
                     };
 
                     let no_environment = Box::new(Type::Unit);
-                    let function_type =
-                        Type::Function(arguments, Box::new(return_type), no_environment, *is_unconstrained);
+                    let function_type = Type::Function(
+                        arguments,
+                        Box::new(return_type),
+                        no_environment,
+                        *is_unconstrained,
+                    );
 
                     functions.push(TraitFunction {
                         name: name.clone(),
