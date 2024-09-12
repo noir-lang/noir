@@ -21,7 +21,7 @@ impl MyType {
 }
 
 impl<T> MyStruct<T> where T: MyEq {
-    fn my_eq(self, other: Self) -> bool {
+fn my_eq(self, other: Self) -> bool {
         (self.a == other.a) & self.b.my_eq(other.b)
     }
 }

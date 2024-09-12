@@ -16,7 +16,7 @@ struct Foo {
 impl ATrait for Foo {
     fn asd() -> Self {
         // This should pass as Self should be bound to Foo while typechecking this
-        Foo{x: 100}
+        Foo { x: 100 }
     }
 }
 
@@ -27,7 +27,7 @@ impl ATrait for Bar {
     // The trait method is declared as returning `Self`
     // but explicitly specifying the type in the impl should work
     fn asd() -> Bar {
-        Bar{x: 100}
+        Bar { x: 100 }
     }
 
     fn static_method_2() -> Field {

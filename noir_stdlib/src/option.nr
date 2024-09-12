@@ -195,12 +195,10 @@ impl<T> Ord for Option<T> where T: Ord {
             } else {
                 Ordering::greater()
             }
+        } else if other._is_some {
+            Ordering::less()
         } else {
-            if other._is_some {
-                Ordering::less()
-            } else {
-                Ordering::equal()
-            }
+            Ordering::equal()
         }
     }
 }

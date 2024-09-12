@@ -32,7 +32,7 @@ impl Hasher for TestHasher {
     fn finish(self) -> Field {
         self.result
     }
-    
+
     fn write(&mut self, input: Field) {
         self.result += input;
     }
