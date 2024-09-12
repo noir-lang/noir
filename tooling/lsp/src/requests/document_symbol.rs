@@ -378,12 +378,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         name: &Ident,
         typ: &UnresolvedType,
         default_value: &Expression,
+        _span: Span,
     ) -> bool {
         self.collect_in_constant(name, typ, Some(default_value));
         false
     }
 
-    fn visit_trait_impl_item_type(&mut self, name: &Ident, alias: &UnresolvedType) -> bool {
+    fn visit_trait_impl_item_type(
+        &mut self,
+        name: &Ident,
+        alias: &UnresolvedType,
+        _span: Span,
+    ) -> bool {
         self.collect_in_type(name, Some(alias));
         false
     }
