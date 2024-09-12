@@ -72,9 +72,27 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        // let bytes = self.source.as_bytes();
+        let bytes = self.source.as_bytes();
         let right_brace_index = span.end() as usize - 1;
-        let index = right_brace_index;
+
+        // Let's find out the indent
+        let mut cursor = right_brace_index - 1;
+        while cursor > 0 {
+            let c = bytes[cursor] as char;
+            if c == '\n' {
+                break;
+            }
+            if !c.is_whitespace() {
+                break;
+            }
+            cursor -= 1;
+        }
+        let cursor_char = bytes[cursor] as char;
+
+        let indent = if cursor_char == '\n' { right_brace_index - cursor - 1 } else { 0 };
+        let indent_string = " ".repeat(indent + 4);
+
+        let index = cursor + 1;
 
         let Some(range) = byte_span_to_range(self.files, self.file, index..index) else {
             return;
@@ -86,7 +104,7 @@ impl<'a> CodeActionFinder<'a> {
         let mut stubs = Vec::new();
 
         for (name, _) in associated_types {
-            stubs.push(format!("    type {};\n", name));
+            stubs.push(format!("{}type {};\n", indent_string, name));
         }
 
         for (name, func_id) in method_ids {
@@ -100,12 +118,16 @@ impl<'a> CodeActionFinder<'a> {
                 self.interner,
                 self.def_maps,
                 self.module_id,
+                indent + 4,
             );
             let stub = generator.generate();
             stubs.push(stub);
         }
 
-        let new_text = stubs.join("\n");
+        let mut new_text = stubs.join("\n");
+        if cursor_char != '\n' {
+            new_text.insert(0, '\n');
+        }
 
         let title = "Implement missing members".to_string();
         let text_edit = TextEdit { range, new_text };
@@ -122,6 +144,7 @@ struct MethodStubGenerator<'a> {
     interner: &'a NodeInterner,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
+    indent: usize,
     string: String,
 }
 
@@ -134,6 +157,7 @@ impl<'a> MethodStubGenerator<'a> {
         interner: &'a NodeInterner,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         module_id: ModuleId,
+        indent: usize,
     ) -> Self {
         Self {
             name,
@@ -143,14 +167,15 @@ impl<'a> MethodStubGenerator<'a> {
             interner,
             def_maps,
             module_id,
+            indent,
             string: String::new(),
         }
     }
 
     fn generate(&mut self) -> String {
-        let indent = "    ";
+        let indent_string = " ".repeat(self.indent);
 
-        self.string.push_str(indent);
+        self.string.push_str(&indent_string);
         self.string.push_str("fn ");
         self.string.push_str(self.name);
         self.append_resolved_generics(&self.func_meta.direct_generics);
@@ -187,12 +212,13 @@ impl<'a> MethodStubGenerator<'a> {
         }
 
         self.string.push_str(" {\n");
-        self.string.push_str(indent);
-        self.string.push_str(indent);
+
+        let body_indent_string = " ".repeat(self.indent + 4);
+        self.string.push_str(&body_indent_string);
         self.string.push_str("panic(f\"Implement ");
         self.string.push_str(self.name);
         self.string.push_str("\")\n");
-        self.string.push_str(indent);
+        self.string.push_str(&indent_string);
         self.string.push_str("}\n");
         std::mem::take(&mut self.string)
     }
@@ -756,6 +782,81 @@ impl Trait for Foo {
     type Elem;
 
     fn foo(x: Self::Elem) -> [Self::Elem] {
+        panic(f"Implement foo")
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_add_missing_impl_members_nested() {
+        let title = "Implement missing members";
+
+        let src = r#"
+mod moo {
+    trait Trait {
+        fn foo();
+        fn bar();
+    }
+
+    struct Foo {}
+
+    impl Tra>|<it for Foo {
+    }
+}"#;
+
+        let expected = r#"
+mod moo {
+    trait Trait {
+        fn foo();
+        fn bar();
+    }
+
+    struct Foo {}
+
+    impl Trait for Foo {
+        fn bar() {
+            panic(f"Implement bar")
+        }
+
+        fn foo() {
+            panic(f"Implement foo")
+        }
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_add_missing_impl_members_inline() {
+        let title = "Implement missing members";
+
+        let src = r#"
+trait Trait {
+    fn foo();
+    fn bar();
+}
+
+struct Foo {}
+
+impl Tra>|<it for Foo {}"#;
+
+        let expected = r#"
+trait Trait {
+    fn foo();
+    fn bar();
+}
+
+struct Foo {}
+
+impl Trait for Foo {
+    fn bar() {
+        panic(f"Implement bar")
+    }
+
+    fn foo() {
         panic(f"Implement foo")
     }
 }"#;
