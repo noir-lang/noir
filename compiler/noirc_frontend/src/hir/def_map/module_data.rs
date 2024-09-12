@@ -26,8 +26,7 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
-    pub outer_attributes: Vec<String>,
-    pub inner_attributes: Vec<String>,
+    pub attributes: Vec<SecondaryAttribute>,
 }
 
 impl ModuleData {
@@ -38,11 +37,8 @@ impl ModuleData {
         inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
     ) -> ModuleData {
-        let outer_attributes = outer_attributes.iter().filter_map(|attr| attr.as_custom());
-        let outer_attributes = outer_attributes.map(|attr| attr.contents.to_string()).collect();
-
-        let inner_attributes = inner_attributes.iter().filter_map(|attr| attr.as_custom());
-        let inner_attributes = inner_attributes.map(|attr| attr.contents.to_string()).collect();
+        let mut attributes = outer_attributes;
+        attributes.extend(inner_attributes);
 
         ModuleData {
             parent,
@@ -51,8 +47,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
-            outer_attributes,
-            inner_attributes,
+            attributes,
         }
     }
 
