@@ -100,7 +100,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
-            "fmtstr_quoted" => fmtstr_quoted(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
@@ -1896,18 +1895,6 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
         }
     }
     expr_value
-}
-
-// fn quoted(self) -> Quoted
-fn fmtstr_quoted(
-    interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
-    let (string, _) = get_format_string(interner, self_argument)?;
-    let token = Token::Str((*string).clone());
-    Ok(Value::Quoted(Rc::new(vec![token])))
 }
 
 // fn quoted_contents(self) -> Quoted
