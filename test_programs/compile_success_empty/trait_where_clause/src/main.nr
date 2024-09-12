@@ -12,9 +12,21 @@ struct Add20  { x: Field, }
 struct Add30  { x: Field, }
 struct AddXY  { x: Field, y: Field, }
 
-impl Asd for Add10 { fn asd(self) -> Field { self.x + 10 } }
-impl Asd for Add20 { fn asd(self) -> Field { self.x + 20 } }
-impl Asd for Add30 { fn asd(self) -> Field { self.x + 30 } }
+impl Asd for Add10 {
+    fn asd(self) -> Field {
+        self.x + 10
+    }
+}
+impl Asd for Add20 {
+    fn asd(self) -> Field {
+        self.x + 20
+    }
+}
+impl Asd for Add30 {
+    fn asd(self) -> Field {
+        self.x + 30
+    }
+}
 
 impl Asd for AddXY {
     fn asd(self) -> Field {
@@ -29,7 +41,9 @@ impl StaticTrait for Static100 {
 
 struct Static200 {}
 impl StaticTrait for Static200 {
-    fn static_function(slf: Self) -> Field { 200 }
+    fn static_function(slf: Self) -> Field {
+        200
+    }
 }
 
 fn assert_asd_eq_100<T>(t: T) where T: crate::the_trait::Asd {

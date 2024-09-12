@@ -117,10 +117,6 @@ struct PerFunctionContext<'f> {
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
-
-    /// Track whether the last instruction is an inc_rc/dec_rc instruction.
-    /// If it is we should not remove any known store values.
-    inside_rc_reload: bool,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -135,7 +131,6 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),
             last_loads: HashMap::default(),
-            inside_rc_reload: false,
         }
     }
 
@@ -324,7 +319,7 @@ impl<'f> PerFunctionContext<'f> {
                 let known_value = references.get_known_value(value);
                 if let Some(known_value) = known_value {
                     let known_value_is_address = known_value == address;
-                    if known_value_is_address && !self.inside_rc_reload {
+                    if known_value_is_address {
                         self.instructions_to_remove.insert(instruction);
                     }
                 }
@@ -382,18 +377,6 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Call { arguments, .. } => self.mark_all_unknown(arguments, references),
             _ => (),
-        }
-
-        self.track_rc_reload_state(instruction);
-    }
-
-    fn track_rc_reload_state(&mut self, instruction: InstructionId) {
-        match &self.inserter.function.dfg[instruction] {
-            // We just had an increment or decrement to an array's reference counter
-            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
-                self.inside_rc_reload = true;
-            }
-            _ => self.inside_rc_reload = false,
         }
     }
 
