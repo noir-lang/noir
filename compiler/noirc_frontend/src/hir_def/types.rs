@@ -1116,8 +1116,7 @@ impl Type {
     pub(crate) fn kind(&self) -> Option<Kind> {
         match self {
             Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
-            Type::Constant(..)
-            | Type::TypeVariable(..) => None,
+            Type::Constant(..) | Type::TypeVariable(..) => None,
 
             // TODO: ensure kinds for InfixExpr are checked, e.g.
             //
