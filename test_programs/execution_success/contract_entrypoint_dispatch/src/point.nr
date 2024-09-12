@@ -7,4 +7,10 @@ struct Point {
 }
 
 #[derive(FromCallData)]
+struct GenericPoint<T> {
+    x: T,
+    y: T,
+}
+
+#[derive(FromCallData)]
 struct Nothing {}

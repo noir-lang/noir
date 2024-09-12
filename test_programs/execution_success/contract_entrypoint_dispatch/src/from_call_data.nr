@@ -7,6 +7,13 @@ trait FromCallData<let N: u32> {
 
 comptime fn derive_from_call_data(s: StructDefinition) -> Quoted {
     let typ = s.as_type();
+
+    let impl_generics = s.generics().map(|g| quote { $g });
+    let impl_generics = impl_generics.push_front(quote { let N: u32 });
+    let impl_generics = impl_generics.join(quote {,});
+
+    let where_clause = s.generics().map(|name| quote { $name: FromCallData<N> }).join(quote {,});
+
     let names = s.fields().map(|f: (Quoted, Type)| f.0);
     if names.len() == 0 {
         quote {
@@ -27,7 +34,7 @@ comptime fn derive_from_call_data(s: StructDefinition) -> Quoted {
         let self_names = names.join(quote { , });
         let statements = statements.join(quote { });
         quote {
-            impl <let N: u32> FromCallData<N> for $typ {
+            impl <$impl_generics> FromCallData<N> for $typ where $where_clause {
                 fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
                     $statements
                     (Self { $self_names }, index)
