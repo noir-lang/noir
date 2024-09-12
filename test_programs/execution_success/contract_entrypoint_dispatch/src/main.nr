@@ -43,6 +43,8 @@ comptime fn aztec_contract(m: Module) -> Quoted {
         |function: FunctionDefinition| {
         let name = function.name();
         let signature = crate::function_signature::function_signature(function);
+        // Turn the Quoted value into into a str<N>
+        let signature = std::meta::unquote!(quote { $signature });
 
         let decodes = function.parameters().map(|param: (Quoted, Type)| {
             let param_name = param.0;
