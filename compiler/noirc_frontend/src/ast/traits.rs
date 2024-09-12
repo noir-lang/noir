@@ -95,7 +95,13 @@ pub struct TraitBound {
 }
 
 #[derive(Clone, Debug)]
-pub enum TraitImplItem {
+pub struct TraitImplItem {
+    pub kind: TraitImplItemKind,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum TraitImplItemKind {
     Function(NoirFunction),
     Constant(Ident, UnresolvedType, Expression),
     Type { name: Ident, alias: UnresolvedType },
@@ -203,10 +209,16 @@ impl Display for NoirTraitImpl {
 
 impl Display for TraitImplItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl Display for TraitImplItemKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitImplItem::Function(function) => function.fmt(f),
-            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias};"),
-            TraitImplItem::Constant(name, typ, value) => {
+            TraitImplItemKind::Function(function) => function.fmt(f),
+            TraitImplItemKind::Type { name, alias } => write!(f, "type {name} = {alias};"),
+            TraitImplItemKind::Constant(name, typ, value) => {
                 write!(f, "let {name}: {typ} = {value};")
             }
         }

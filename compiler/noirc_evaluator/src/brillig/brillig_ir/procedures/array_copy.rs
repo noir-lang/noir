@@ -4,94 +4,70 @@ use acvm::{acir::brillig::MemoryAddress, AcirField};
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
-    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
+    brillig_variable::{BrilligArray, SingleAddrVariable},
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
-    BrilligBinaryOp, BrilligContext,
+    BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Conditionally copies a source array/vector to a destination array/vector.
-    /// If the reference count of the source array/vector is 1, then we can directly copy the pointer of the source array/vector to the destination array/vector.
+    /// Conditionally copies a source array to a destination array.
+    /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
     pub(crate) fn call_array_copy_procedure(
         &mut self,
-        source_variable: BrilligVariable,
-        destination_variable: BrilligVariable,
+        source_array: BrilligArray,
+        destination_array: BrilligArray,
     ) {
-        // Args
-        let source_pointer = MemoryAddress::from(ScratchSpace::start());
-        let size_register = MemoryAddress::from(ScratchSpace::start() + 1);
-        let is_rc_one_register = MemoryAddress::from(ScratchSpace::start() + 2);
+        let source_array_pointer_arg = MemoryAddress::from(ScratchSpace::start());
+        let source_array_memory_size_arg = MemoryAddress::from(ScratchSpace::start() + 1);
+        let new_array_pointer_return = MemoryAddress::from(ScratchSpace::start() + 2);
 
-        // Returns
-        let destination_pointer = MemoryAddress::from(ScratchSpace::start() + 3);
-
-        match source_variable {
-            BrilligVariable::BrilligArray(BrilligArray { pointer, rc, .. })
-            | BrilligVariable::BrilligVector(BrilligVector { pointer, rc, .. }) => {
-                self.mov_instruction(source_pointer, pointer);
-                self.codegen_usize_op(rc, is_rc_one_register, BrilligBinaryOp::Equals, 1_usize);
-            }
-            _ => unreachable!("ICE: array_copy on non-array"),
-        }
-
-        match source_variable {
-            BrilligVariable::BrilligArray(BrilligArray { size, .. }) => {
-                self.usize_const_instruction(size_register, size.into());
-            }
-            BrilligVariable::BrilligVector(BrilligVector { size, .. }) => {
-                self.mov_instruction(size_register, size);
-            }
-            _ => unreachable!("ICE: array_copy on non-array"),
-        }
+        self.mov_instruction(source_array_pointer_arg, source_array.pointer);
+        self.usize_const_instruction(source_array_memory_size_arg, (source_array.size + 1).into());
 
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
 
-        match destination_variable {
-            BrilligVariable::BrilligArray(BrilligArray { pointer, rc, .. })
-            | BrilligVariable::BrilligVector(BrilligVector { pointer, rc, .. }) => {
-                self.mov_instruction(pointer, destination_pointer);
-                self.usize_const_instruction(rc, 1_usize.into());
-            }
-            _ => unreachable!("ICE: array_copy on non-array"),
-        }
-
-        if let BrilligVariable::BrilligVector(BrilligVector { size, .. }) = destination_variable {
-            self.mov_instruction(size, size_register);
-        }
+        self.mov_instruction(destination_array.pointer, new_array_pointer_return);
     }
 }
 
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    // Args
-    let source_pointer = MemoryAddress::from(ScratchSpace::start());
-    let size_register = MemoryAddress::from(ScratchSpace::start() + 1);
-    let is_rc_one_register = MemoryAddress::from(ScratchSpace::start() + 2);
-
-    // Returns
-    let destination_pointer = MemoryAddress::from(ScratchSpace::start() + 3);
+    let source_array_pointer_arg = MemoryAddress::from(ScratchSpace::start());
+    let source_array_memory_size_arg = MemoryAddress::from(ScratchSpace::start() + 1);
+    let new_array_pointer_return = MemoryAddress::from(ScratchSpace::start() + 2);
 
     brillig_context.set_allocated_registers(vec![
-        source_pointer,
-        destination_pointer,
-        size_register,
-        is_rc_one_register,
+        source_array_pointer_arg,
+        source_array_memory_size_arg,
+        new_array_pointer_return,
     ]);
 
-    brillig_context.codegen_branch(is_rc_one_register, |ctx, cond| {
+    let rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    brillig_context.load_instruction(rc.address, source_array_pointer_arg);
+
+    let is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, 1);
+
+    brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
         if cond {
             // Reference count is 1, we can mutate the array directly
-            ctx.mov_instruction(destination_pointer, source_pointer);
+            ctx.mov_instruction(new_array_pointer_return, source_array_pointer_arg);
         } else {
             // First issue a array copy to the destination
-            ctx.codegen_allocate_array(destination_pointer, size_register);
+            ctx.codegen_allocate_mem(new_array_pointer_return, source_array_memory_size_arg);
 
             ctx.codegen_mem_copy(
-                source_pointer,
-                destination_pointer,
-                SingleAddrVariable::new_usize(size_register),
+                source_array_pointer_arg,
+                new_array_pointer_return,
+                SingleAddrVariable::new_usize(source_array_memory_size_arg),
+            );
+            // Then set the new rc to 1
+            ctx.indirect_const_instruction(
+                new_array_pointer_return,
+                BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                1_usize.into(),
             );
         }
     });

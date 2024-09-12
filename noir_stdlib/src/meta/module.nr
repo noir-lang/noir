@@ -10,17 +10,22 @@ impl Module {
     // docs:end:has_named_attribute
 
     #[builtin(module_is_contract)]
-// docs:start:is_contract
+    // docs:start:is_contract
     comptime fn is_contract(self) -> bool {}
     // docs:end:is_contract
 
     #[builtin(module_functions)]
-// docs:start:functions
+    // docs:start:functions
     comptime fn functions(self) -> [FunctionDefinition] {}
     // docs:end:functions
 
+    #[builtin(module_structs)]
+    // docs:start:structs
+    comptime fn structs(self) -> [StructDefinition] {}
+    // docs:end:structs
+
     #[builtin(module_name)]
-// docs:start:name
+    // docs:start:name
     comptime fn name(self) -> Quoted {}
     // docs:end:name
 }
