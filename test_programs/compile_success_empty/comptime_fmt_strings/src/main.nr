@@ -18,7 +18,7 @@ fn main() {
 
     comptime
     {
-        let x = "world";
+        let x = "world\n\t\"";
         let s = f"Hello {x}".quoted();
         let code = quote { check_hello_world($s) };
         std::meta::unquote!(code);
@@ -35,6 +35,6 @@ comptime fn call(x: Quoted) -> Quoted {
     quote { $x() }
 }
 fn check_hello_world<let N: u32>(s: str<N>) {
-    assert_eq(s.as_bytes().len(), "Hello world".as_bytes().len());
+    assert_eq(s.as_bytes().len(), "Hello world\n\t\"".as_bytes().len());
 }
 
