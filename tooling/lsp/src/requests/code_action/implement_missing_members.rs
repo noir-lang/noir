@@ -12,7 +12,7 @@ use noirc_frontend::{
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
-    Type, TypeVariableKind,
+    Kind, ResolvedGeneric, Type, TypeVariableKind,
 };
 
 use crate::{byte_span_to_range, modules::relative_module_id_path};
@@ -93,13 +93,15 @@ impl<'a> CodeActionFinder<'a> {
             let func_meta = self.interner.function_meta(func_id);
 
             let mut generator = MethodStubGenerator::new(
+                name,
+                func_meta,
                 trait_,
                 noir_trait_impl,
                 self.interner,
                 self.def_maps,
                 self.module_id,
             );
-            let stub = generator.generate(name, func_meta);
+            let stub = generator.generate();
             stubs.push(stub);
         }
 
@@ -113,6 +115,8 @@ impl<'a> CodeActionFinder<'a> {
 }
 
 struct MethodStubGenerator<'a> {
+    name: &'a str,
+    func_meta: &'a FuncMeta,
     trait_: &'a Trait,
     noir_trait_impl: &'a NoirTraitImpl,
     interner: &'a NodeInterner,
@@ -123,23 +127,35 @@ struct MethodStubGenerator<'a> {
 
 impl<'a> MethodStubGenerator<'a> {
     fn new(
+        name: &'a str,
+        func_meta: &'a FuncMeta,
         trait_: &'a Trait,
         noir_trait_impl: &'a NoirTraitImpl,
         interner: &'a NodeInterner,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         module_id: ModuleId,
     ) -> Self {
-        Self { trait_, noir_trait_impl, interner, def_maps, module_id, string: String::new() }
+        Self {
+            name,
+            func_meta,
+            trait_,
+            noir_trait_impl,
+            interner,
+            def_maps,
+            module_id,
+            string: String::new(),
+        }
     }
 
-    fn generate(&mut self, name: &str, func_meta: &FuncMeta) -> String {
+    fn generate(&mut self) -> String {
         let indent = "    ";
 
         self.string.push_str(indent);
         self.string.push_str("fn ");
-        self.string.push_str(name);
+        self.string.push_str(self.name);
+        self.append_resolved_generics(&self.func_meta.direct_generics);
         self.string.push('(');
-        for (index, (pattern, typ, _visibility)) in func_meta.parameters.iter().enumerate() {
+        for (index, (pattern, typ, _visibility)) in self.func_meta.parameters.iter().enumerate() {
             if index > 0 {
                 self.string.push_str(", ");
             }
@@ -150,17 +166,31 @@ impl<'a> MethodStubGenerator<'a> {
         }
         self.string.push(')');
 
-        let return_type = func_meta.return_type();
+        let return_type = self.func_meta.return_type();
         if return_type != &Type::Unit {
             self.string.push_str(" -> ");
             self.append_type(return_type);
+        }
+
+        if !self.func_meta.trait_constraints.is_empty() {
+            self.string.push_str(" where ");
+            for (index, constraint) in self.func_meta.trait_constraints.iter().enumerate() {
+                if index > 0 {
+                    self.string.push_str(", ");
+                }
+                self.append_type(&constraint.typ);
+                self.string.push_str(": ");
+                let trait_ = self.interner.get_trait(constraint.trait_id);
+                self.string.push_str(&trait_.name.0.contents);
+                self.append_trait_generics(&constraint.trait_generics);
+            }
         }
 
         self.string.push_str(" {\n");
         self.string.push_str(indent);
         self.string.push_str(indent);
         self.string.push_str("panic(f\"Implement ");
-        self.string.push_str(name);
+        self.string.push_str(self.name);
         self.string.push_str("\")\n");
         self.string.push_str(indent);
         self.string.push_str("}\n");
@@ -368,6 +398,13 @@ impl<'a> MethodStubGenerator<'a> {
                     }
                 }
 
+                for generic in &self.func_meta.direct_generics {
+                    if typevar.id() == generic.type_var.id() {
+                        self.string.push_str(&generic.name);
+                        return;
+                    }
+                }
+
                 self.string.push_str("error");
             }
             Type::NamedGeneric(typevar, _name, _kind) => {
@@ -466,6 +503,33 @@ impl<'a> MethodStubGenerator<'a> {
             index += 1;
         }
         self.string.push('>');
+    }
+
+    fn append_resolved_generics(&mut self, generics: &[ResolvedGeneric]) {
+        if generics.is_empty() {
+            return;
+        }
+
+        self.string.push('<');
+        for (index, generic) in self.func_meta.direct_generics.iter().enumerate() {
+            if index > 0 {
+                self.string.push_str(", ");
+            }
+            self.append_resolved_generic(generic);
+        }
+        self.string.push('>');
+    }
+
+    fn append_resolved_generic(&mut self, generic: &ResolvedGeneric) {
+        match &generic.kind {
+            Kind::Normal => self.string.push_str(&generic.name),
+            Kind::Numeric(typ) => {
+                self.string.push_str("let ");
+                self.string.push_str(&generic.name);
+                self.string.push_str(": ");
+                self.append_type(typ);
+            }
+        }
     }
 }
 
@@ -634,8 +698,10 @@ impl Trait for Foo {
         let title = "Implement missing members";
 
         let src = r#"
+trait Bar {}
+
 trait Trait<T> {
-    fn foo(x: T) -> [T; 3];
+    fn foo<let N: u32, M>(x: T) -> [T; N] where M: Bar;
 }
 
 struct Foo {}
@@ -644,14 +710,16 @@ impl <U> Tra>|<it<[U]> for Foo {
 }"#;
 
         let expected = r#"
+trait Bar {}
+
 trait Trait<T> {
-    fn foo(x: T) -> [T; 3];
+    fn foo<let N: u32, M>(x: T) -> [T; N] where M: Bar;
 }
 
 struct Foo {}
 
 impl <U> Trait<[U]> for Foo {
-    fn foo(x: [U]) -> [[U]; 3] {
+    fn foo<let N: u32, M>(x: [U]) -> [[U]; N] where M: Bar {
         panic(f"Implement foo")
     }
 }"#;
