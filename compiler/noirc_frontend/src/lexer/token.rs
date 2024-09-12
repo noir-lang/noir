@@ -362,11 +362,11 @@ impl fmt::Display for Token {
             Token::Ident(ref s) => write!(f, "{s}"),
             Token::Int(n) => write!(f, "{}", n.to_u128()),
             Token::Bool(b) => write!(f, "{b}"),
-            Token::Str(ref b) => write!(f, "{b}"),
-            Token::FmtStr(ref b) => write!(f, "f{b}"),
+            Token::Str(ref b) => write!(f, "{b:?}"),
+            Token::FmtStr(ref b) => write!(f, "f{b:?}"),
             Token::RawStr(ref b, hashes) => {
                 let h: String = std::iter::once('#').cycle().take(hashes as usize).collect();
-                write!(f, "r{h}\"{b}\"{h}")
+                write!(f, "r{h}{b:?}{h}")
             }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
