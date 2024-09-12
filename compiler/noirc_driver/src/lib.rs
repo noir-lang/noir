@@ -607,7 +607,7 @@ pub fn compile_no_check(
         plonky2_print_file: options.plonky2_print_file.clone(),
         skip_underconstrained_check: options.skip_underconstrained_check,
     };
-    
+
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         create_program(monomorph.clone(), &ssa_evaluator_options)?;
 

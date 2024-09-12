@@ -15,6 +15,7 @@ mod debug_cmd;
 mod execute_cmd;
 mod export_cmd;
 mod fmt_cmd;
+mod fv_cmd;
 mod info_cmd;
 mod init_cmd;
 mod lsp_cmd;
@@ -23,7 +24,6 @@ mod prove_cmd;
 mod test_cmd;
 mod trace_cmd;
 mod verify_cmd;
-mod fv_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -112,7 +112,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Lsp(args) => lsp_cmd::run(args, config),
         NargoCommand::Dap(args) => dap_cmd::run(args, config),
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
-        NargoCommand::FormalVerify(args) => fv_cmd::run(args, config)
+        NargoCommand::FormalVerify(args) => fv_cmd::run(args, config),
     }?;
 
     Ok(())

@@ -288,8 +288,10 @@ impl<'a> Lexer<'a> {
         let contents_start = self.position + 1;
         let mut attribute_name = self.eat_while(None, |ch| ch != '(' && ch != ']');
         if Self::is_fv_attribute(&attribute_name) {
-            return Ok(Self::into_fv_attribute_token(&attribute_name).unwrap().into_span(start, self.position))
-        } 
+            return Ok(Self::into_fv_attribute_token(&attribute_name)
+                .unwrap()
+                .into_span(start, self.position));
+        }
         attribute_name.push_str(&self.eat_while(None, |ch| ch != ']'));
         let word = attribute_name;
         let contents_end = self.position;
@@ -679,7 +681,7 @@ impl<'a> Lexer<'a> {
         SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
 
-    fn into_fv_attribute_token(attribute_name :&str) -> Option<Token> {
+    fn into_fv_attribute_token(attribute_name: &str) -> Option<Token> {
         match attribute_name {
             "requires" => Some(Token::Requires),
             "ensures" => Some(Token::Ensures),
@@ -1479,7 +1481,7 @@ mod tests {
         let expected = vec![
             Token::Requires,
             Token::LeftParen,
-            Token::Ident("x".to_string()), 
+            Token::Ident("x".to_string()),
             Token::Equal,
             Token::Int(6_i128.into()),
             Token::RightParen,

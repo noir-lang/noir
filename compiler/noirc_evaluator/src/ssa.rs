@@ -74,7 +74,7 @@ pub struct SsaEvaluatorOptions {
     /// If specified, write the abstract assembly-like representation of the plonky2 high-level
     /// operations used to represent the program in the given file.
     pub plonky2_print_file: Option<String>,
-    
+
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 }
