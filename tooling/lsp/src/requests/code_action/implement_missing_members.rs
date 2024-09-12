@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::{NoirTraitImpl, TraitImplItem, UnresolvedTypeData},
+    ast::{NoirTraitImpl, TraitImplItemKind, UnresolvedTypeData},
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, ModuleId},
@@ -47,12 +47,12 @@ impl<'a> CodeActionFinder<'a> {
 
         // Remove the ones that already are implemented
         for item in &noir_trait_impl.items {
-            match &item.item {
-                TraitImplItem::Function(noir_function) => {
+            match &item.item.kind {
+                TraitImplItemKind::Function(noir_function) => {
                     method_ids.remove(noir_function.name());
                 }
-                TraitImplItem::Constant(..) => (),
-                TraitImplItem::Type { name, alias } => {
+                TraitImplItemKind::Constant(..) => (),
+                TraitImplItemKind::Type { name, alias } => {
                     if let UnresolvedTypeData::Unspecified = alias.typ {
                         continue;
                     }
