@@ -12,7 +12,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
     Documented, FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem,
+    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItemKind,
     TraitItem, TypeImpl,
 };
 use crate::hir::resolution::errors::ResolverError;
@@ -1124,18 +1124,18 @@ pub(crate) fn collect_trait_impl_items(
     let module = ModuleId { krate, local_id };
 
     for item in std::mem::take(&mut trait_impl.items) {
-        match item.item {
-            TraitImplItem::Function(impl_method) => {
+        match item.item.kind {
+            TraitImplItemKind::Function(impl_method) => {
                 let func_id = interner.push_empty_fn();
                 let location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
                 unresolved_functions.push_fn(local_id, func_id, impl_method);
             }
-            TraitImplItem::Constant(name, typ, expr) => {
+            TraitImplItemKind::Constant(name, typ, expr) => {
                 associated_constants.push((name, typ, expr));
             }
-            TraitImplItem::Type { name, alias } => {
+            TraitImplItemKind::Type { name, alias } => {
                 associated_types.push((name, alias));
             }
         }

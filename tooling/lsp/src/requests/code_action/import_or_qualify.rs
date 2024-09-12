@@ -7,7 +7,7 @@ use noirc_frontend::{
 
 use crate::{
     byte_span_to_range,
-    modules::{get_parent_module_id, module_full_path, module_id_path},
+    modules::{get_parent_module_id, relative_module_full_path, relative_module_id_path},
 };
 
 use super::CodeActionFinder;
@@ -39,14 +39,14 @@ impl<'a> CodeActionFinder<'a> {
 
             for (module_def_id, visibility, defining_module) in entries {
                 let module_full_path = if let Some(defining_module) = defining_module {
-                    module_id_path(
+                    relative_module_id_path(
                         *defining_module,
                         &self.module_id,
                         current_module_parent_id,
                         self.interner,
                     )
                 } else {
-                    let Some(module_full_path) = module_full_path(
+                    let Some(module_full_path) = relative_module_full_path(
                         *module_def_id,
                         *visibility,
                         self.module_id,

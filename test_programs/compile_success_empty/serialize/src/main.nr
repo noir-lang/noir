@@ -14,10 +14,10 @@ impl<A, B, let AS: u32, let BS: u32> Serialize for (A, B) where A: Serialize<Siz
         let a = self.0.serialize();
         let b = self.1.serialize();
 
-        for i in 0 .. a.len() {
+        for i in 0..a.len() {
             array[i] = a[i];
         }
-        for i in 0 .. b.len() {
+        for i in 0..b.len() {
             array[i + a.len()] = b[i];
         }
         array
@@ -35,7 +35,7 @@ impl<T, let N: u32, let TS: u32> Serialize for [T; N] where T: Serialize<Size = 
         for elem in self {
             let elem_fields = elem.serialize();
 
-            for i in 0 .. elem_fields.len() {
+            for i in 0..elem_fields.len() {
                 array[array_i] = elem_fields[i];
                 array_i += 1;
             }
