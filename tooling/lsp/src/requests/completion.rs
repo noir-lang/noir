@@ -20,7 +20,7 @@ use noirc_frontend::{
         ItemVisibility, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
         NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement,
         TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UseTree, UseTreeKind, Visitor,
+        UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
@@ -179,8 +179,13 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn complete_constructor_field_name(&mut self, constructor_expression: &ConstructorExpression) {
-        let location =
-            Location::new(constructor_expression.type_name.last_ident().span(), self.file);
+        let span = if let UnresolvedTypeData::Named(path, _, _) = &constructor_expression.typ.typ {
+            path.last_ident().span()
+        } else {
+            constructor_expression.typ.span
+        };
+
+        let location = Location::new(span, self.file);
         let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
             return;
         };
@@ -1325,7 +1330,11 @@ impl<'a> Visitor for NodeFinder<'a> {
         constructor_expression: &ConstructorExpression,
         _: Span,
     ) -> bool {
-        self.find_in_path(&constructor_expression.type_name, RequestedItems::OnlyTypes);
+        let UnresolvedTypeData::Named(path, _, _) = &constructor_expression.typ.typ else {
+            return true;
+        };
+
+        self.find_in_path(path, RequestedItems::OnlyTypes);
 
         // Check if we need to autocomplete the field name
         if constructor_expression

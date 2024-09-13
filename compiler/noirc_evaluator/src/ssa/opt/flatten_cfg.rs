@@ -142,7 +142,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::{CallStack, InsertInstructionResult},
-        function::Function,
+        function::{Function, FunctionId},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
@@ -164,8 +164,14 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
+        // Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
+        let mut no_predicates = HashMap::default();
+        for function in self.functions.values() {
+            no_predicates.insert(function.id(), function.is_no_predicates());
+        }
+
         for function in self.functions.values_mut() {
-            flatten_function_cfg(function);
+            flatten_function_cfg(function, &no_predicates);
         }
         self
     }
@@ -244,7 +250,7 @@ struct ConditionalContext {
     call_stack: CallStack,
 }
 
-fn flatten_function_cfg(function: &mut Function) {
+fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
     // This pass may run forever on a brillig function.
     // Analyze will check if the predecessors have been processed and push the block to the back of
     // the queue. This loops forever if there are still any loops present in the program.
@@ -264,18 +270,18 @@ fn flatten_function_cfg(function: &mut Function) {
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
     };
-    context.flatten();
+    context.flatten(no_predicates);
 }
 
 impl<'f> Context<'f> {
-    fn flatten(&mut self) {
+    fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
         // Flatten the CFG by inlining all instructions from the queued blocks
         // until all blocks have been flattened.
         // We follow the terminator of each block to determine which blocks to
         // process next
         let mut queue = vec![self.inserter.function.entry_block()];
         while let Some(block) = queue.pop() {
-            self.inline_block(block);
+            self.inline_block(block, no_predicates);
             let to_process = self.handle_terminator(block, &queue);
             for incoming_block in to_process {
                 if !queue.contains(&incoming_block) {
@@ -307,8 +313,23 @@ impl<'f> Context<'f> {
         })
     }
 
+    /// Use the provided map to say if the instruction is a call to a no_predicates function
+    fn is_no_predicate(
+        &self,
+        no_predicates: &HashMap<FunctionId, bool>,
+        instruction: &InstructionId,
+    ) -> bool {
+        let mut result = false;
+        if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction] {
+            if let Value::Function(fid) = self.inserter.function.dfg[func] {
+                result = *no_predicates.get(&fid).unwrap_or(&false);
+            }
+        }
+        result
+    }
+
     // Inline all instructions from the given block into the entry block, and track slice capacities
-    fn inline_block(&mut self, block: BasicBlockId) {
+    fn inline_block(&mut self, block: BasicBlockId, no_predicates: &HashMap<FunctionId, bool>) {
         if self.inserter.function.entry_block() == block {
             // we do not inline the entry block into itself
             // for the outer block before we start inlining
@@ -322,7 +343,23 @@ impl<'f> Context<'f> {
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
         for instruction in instructions.iter() {
-            self.push_instruction(*instruction);
+            if self.is_no_predicate(no_predicates, instruction) {
+                // disable side effect for no_predicate functions
+                let one = self
+                    .inserter
+                    .function
+                    .dfg
+                    .make_constant(FieldElement::one(), Type::unsigned(1));
+                self.insert_instruction_with_typevars(
+                    Instruction::EnableSideEffectsIf { condition: one },
+                    None,
+                    im::Vector::new(),
+                );
+                self.push_instruction(*instruction);
+                self.insert_current_side_effects_enabled();
+            } else {
+                self.push_instruction(*instruction);
+            }
         }
     }
 

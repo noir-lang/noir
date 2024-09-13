@@ -114,7 +114,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
 /// function_modifiers: 'unconstrained'? (visibility)?
 ///
 /// returns (is_unconstrained, visibility) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
+pub(super) fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
     keyword(Keyword::Unconstrained).or_not().then(item_visibility()).then(maybe_comp_time()).map(
         |((unconstrained, visibility), comptime)| (unconstrained.is_some(), visibility, comptime),
     )

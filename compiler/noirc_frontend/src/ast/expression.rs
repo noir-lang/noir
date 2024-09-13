@@ -200,9 +200,11 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::FmtStr(contents))
     }
 
-    pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
+    pub fn constructor(
+        (typ, fields): (UnresolvedType, Vec<(Ident, Expression)>),
+    ) -> ExpressionKind {
         ExpressionKind::Constructor(Box::new(ConstructorExpression {
-            type_name,
+            typ,
             fields,
             struct_type: None,
         }))
@@ -536,7 +538,7 @@ pub struct MethodCallExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstructorExpression {
-    pub type_name: Path,
+    pub typ: UnresolvedType,
     pub fields: Vec<(Ident, Expression)>,
 
     /// This may be filled out during macro expansion
@@ -717,7 +719,7 @@ impl Display for ConstructorExpression {
         let fields =
             self.fields.iter().map(|(ident, expr)| format!("{ident}: {expr}")).collect::<Vec<_>>();
 
-        write!(f, "({} {{ {} }})", self.type_name, fields.join(", "))
+        write!(f, "({} {{ {} }})", self.typ, fields.join(", "))
     }
 }
 

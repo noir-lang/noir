@@ -28,6 +28,7 @@ use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable}
 use self::types::{generic_type_args, maybe_comp_time};
 use attributes::{attributes, inner_attribute, validate_secondary_attributes};
 use doc_comments::{inner_doc_comments, outer_doc_comments};
+use types::interned_unresolved_type;
 pub use types::parse_type;
 use visibility::item_visibility;
 pub use visibility::visibility;
@@ -1228,7 +1229,11 @@ fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> 
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-    path(super::parse_type()).then(args).map(ExpressionKind::constructor)
+    let path = path(super::parse_type()).map(UnresolvedType::from_path);
+    let interned_unresolved_type = interned_unresolved_type();
+    let typ = choice((path, interned_unresolved_type));
+
+    typ.then(args).map(ExpressionKind::constructor)
 }
 
 fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>

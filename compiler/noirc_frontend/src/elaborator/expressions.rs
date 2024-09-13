@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{
         ArrayLiteral, ConstructorExpression, IfExpression, InfixExpression, Lambda,
-        UnresolvedTypeExpression,
+        UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -436,11 +436,29 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&constructor.type_name, exclude_last_segment);
+        let span = constructor.typ.span;
 
-        let span = constructor.type_name.span();
-        let last_segment = constructor.type_name.last_segment();
+        // A constructor type can either be a Path or an interned UnresolvedType.
+        // We represent both as UnresolvedType (with Path being a Named UnresolvedType)
+        // and error if we don't get a Named path.
+        let mut typ = constructor.typ.typ;
+        if let UnresolvedTypeData::Interned(id) = typ {
+            typ = self.interner.get_unresolved_type_data(id).clone();
+        }
+        let UnresolvedTypeData::Named(mut path, generics, _) = typ else {
+            self.push_err(ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), span });
+            return (HirExpression::Error, Type::Error);
+        };
+
+        let last_segment = path.segments.last_mut().unwrap();
+        if !generics.ordered_args.is_empty() {
+            last_segment.generics = Some(generics.ordered_args);
+        }
+
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&path, exclude_last_segment);
+
+        let last_segment = path.last_segment();
         let is_self_type = last_segment.ident.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
@@ -448,10 +466,13 @@ impl<'context> Elaborator<'context> {
             let generics = typ.borrow().instantiate(self.interner);
             (typ, generics)
         } else {
-            match self.lookup_type_or_error(constructor.type_name) {
+            match self.lookup_type_or_error(path) {
                 Some(Type::Struct(r#type, struct_generics)) => (r#type, struct_generics),
                 Some(typ) => {
-                    self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
+                    self.push_err(ResolverError::NonStructUsedInConstructor {
+                        typ: typ.to_string(),
+                        span,
+                    });
                     return (HirExpression::Error, Type::Error);
                 }
                 None => return (HirExpression::Error, Type::Error),

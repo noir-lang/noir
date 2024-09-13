@@ -655,7 +655,17 @@ impl TraitItem {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+            TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body,
+                is_unconstrained: _,
+                visibility: _,
+                is_comptime: _,
+            } => {
                 if visitor.visit_trait_item_function(
                     name,
                     generics,
@@ -938,7 +948,7 @@ impl ConstructorExpression {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.type_name.accept(visitor);
+        self.typ.accept(visitor);
 
         for (_field_name, expression) in &self.fields {
             expression.accept(visitor);

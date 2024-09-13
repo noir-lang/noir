@@ -52,12 +52,26 @@ a slice containing each statement.
 
 If this expression is a boolean literal, return that literal.
 
+### as_cast
+
+#include_code as_cast noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a cast expression (`expr as type`), returns the casted
+expression and the type to cast to.
+
 ### as_comptime
 
 #include_code as_comptime noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a `comptime { stmt1; stmt2; ...; stmtN }` block,
 return each statement in the block.
+
+### as_constructor
+
+#include_code as_constructor noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a constructor `Type { field1: expr1, ..., fieldN: exprN }`,
+return the type and the fields.
 
 ### as_function_call
 
