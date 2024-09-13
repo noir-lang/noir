@@ -273,14 +273,20 @@ impl<'context> Elaborator<'context> {
 
     fn check_can_mutate(&mut self, expr_id: ExprId, span: Span) {
         let expr = self.interner.expression(&expr_id);
-        if let HirExpression::Ident(hir_ident, _) = expr {
-            let definition = self.interner.definition(hir_ident.id);
-            if !definition.mutable {
-                self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                    name: definition.name.clone(),
-                    span,
-                });
+        match expr {
+            HirExpression::Ident(hir_ident, _) => {
+                let definition = self.interner.definition(hir_ident.id);
+                if !definition.mutable {
+                    self.push_err(TypeCheckError::CannotMutateImmutableVariable {
+                        name: definition.name.clone(),
+                        span,
+                    });
+                }
             }
+            HirExpression::MemberAccess(member_access) => {
+                self.check_can_mutate(member_access.lhs, span);
+            }
+            _ => (),
         }
     }
 
