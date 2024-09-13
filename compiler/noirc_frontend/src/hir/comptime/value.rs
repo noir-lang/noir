@@ -244,7 +244,7 @@ impl Value {
                 // Since we've provided the struct_type, the path should be ignored.
                 let type_name = Path::from_single(String::new(), location.span);
                 ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                    type_name,
+                    typ: UnresolvedType::from_path(type_name),
                     fields,
                     struct_type,
                 }))

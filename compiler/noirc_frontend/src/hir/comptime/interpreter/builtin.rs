@@ -7,7 +7,8 @@ use builtin_helpers::{
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
     get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, replace_func_meta_parameters, replace_func_meta_return_type,
+    mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
+    replace_func_meta_return_type,
 };
 use chumsky::{chain::Chain, prelude::choice, Parser};
 use im::Vector;
@@ -22,13 +23,13 @@ use crate::{
         FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
         UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::def_collector::dc_crate::CollectedItems,
     hir::{
         comptime::{
             errors::IResult,
             value::{ExprValue, TypedExpr},
             InterpreterError, Value,
         },
+        def_collector::dc_crate::CollectedItems,
         def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
@@ -71,6 +72,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_bool" => expr_as_bool(interner, arguments, return_type, location),
             "expr_as_cast" => expr_as_cast(interner, arguments, return_type, location),
             "expr_as_comptime" => expr_as_comptime(interner, arguments, return_type, location),
+            "expr_as_constructor" => {
+                expr_as_constructor(interner, arguments, return_type, location)
+            }
             "expr_as_function_call" => {
                 expr_as_function_call(interner, arguments, return_type, location)
             }
@@ -1412,6 +1416,38 @@ fn expr_as_comptime(
     })
 }
 
+// fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])>
+fn expr_as_constructor(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
+
+    let option_value =
+        if let ExprValue::Expression(ExpressionKind::Constructor(constructor)) = expr_value {
+            let typ = Value::UnresolvedType(constructor.typ.typ);
+            let fields = constructor.fields.into_iter();
+            let fields = fields.map(|(name, value)| {
+                Value::Tuple(vec![quote_ident(&name), Value::expression(value.kind)])
+            });
+            let fields = fields.collect();
+            let fields_type = Type::Slice(Box::new(Type::Tuple(vec![
+                Type::Quoted(QuotedType::Quoted),
+                Type::Quoted(QuotedType::Expr),
+            ])));
+            let fields = Value::Slice(fields, fields_type);
+            Some(Value::Tuple(vec![typ, fields]))
+        } else {
+            None
+        };
+
+    option(return_type, option_value)
+}
+
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
 fn expr_as_function_call(
     interner: &NodeInterner,
@@ -1553,15 +1589,13 @@ fn expr_as_member_access(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
-            let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
-                Value::Quoted(tokens),
+                quote_ident(&member_access.rhs),
             ]))
         }
         ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
-            let tokens = Rc::new(vec![Token::Ident(field_name.0.contents.clone())]);
-            Some(Value::Tuple(vec![Value::lvalue(*object), Value::Quoted(tokens)]))
+            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name)]))
         }
         _ => None,
     })
@@ -1578,9 +1612,7 @@ fn expr_as_method_call(
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
             let object = Value::expression(method_call.object.kind);
 
-            let name_tokens =
-                Rc::new(vec![Token::Ident(method_call.method_name.0.contents.clone())]);
-            let name = Value::Quoted(name_tokens);
+            let name = quote_ident(&method_call.method_name);
 
             let generics = method_call.generics.unwrap_or_default().into_iter();
             let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
