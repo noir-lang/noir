@@ -96,32 +96,6 @@ impl Ssa {
             context.remove_instructions();
             context.update_data_bus();
         }
-        // for (id, function) in self.functions.iter() {
-        //     if function.name() != "create_note" {
-        //         continue;
-        //     }
-        //     let mut block_order = PostOrder::with_function(function).into_vec();
-        //     block_order.reverse();
-        //     let mut allocate_values = HashSet::default();
-        //     for block in block_order {
-        //         // let references = self.find_starting_references(block);
-        //         // self.analyze_block(block, references);
-        //         let instructions = function.dfg[block].instructions();
-        //         for instruction in instructions {
-        //             let results = function.dfg.instruction_results(*instruction);
-        //             match &function.dfg[*instruction] {
-        //                 Instruction::Allocate => {
-        //                     allocate_values.insert(results[0]);
-        //                 }
-        //                 Instruction::Store { address, value } => {
-        //                     allocate_values.remove(address);
-        //                 }
-        //                 _ => {}
-        //             }
-        //         }
-        //     }
-        //     dbg!(allocate_values.clone());
-        // }
 
         self
     }
@@ -154,10 +128,12 @@ struct PerFunctionContext<'f> {
 
     // The map of block ids represents the blocks where a store was used
     // And the usage per block
-    store_count: HashMap<ValueId, (u32, HashMap<BasicBlockId, u32>)>,
+    // TODO: Get rid of this map. This is being used for debugging
+    // as we are not catching certain usages of a store that we should be
+    store_count: HashMap<ValueId, u32>,
 
     // The index of the last load instruction in a given block
-    load_instruction_locations: HashMap<(ValueId, BasicBlockId), HashMap<ValueId, usize>>,
+    return_block_load_locations: HashMap<(ValueId, BasicBlockId), usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -192,7 +168,13 @@ struct PerFuncLoadResultContext {
 
 impl PerFuncLoadResultContext {
     fn new(load_instruction: InstructionId, block_id: BasicBlockId) -> Self {
-        Self { uses: 0, load_instruction, block_id, instructions_using_result: vec![], terminators_using_result: vec![], }
+        Self {
+            uses: 0,
+            load_instruction,
+            block_id,
+            instructions_using_result: vec![],
+            terminators_using_result: vec![],
+        }
     }
 }
 
@@ -211,7 +193,7 @@ impl<'f> PerFunctionContext<'f> {
             load_results: HashMap::default(),
             calls_reference_input: HashSet::default(),
             store_count: HashMap::default(),
-            load_instruction_locations: HashMap::default(),
+            return_block_load_locations: HashMap::default(),
         }
     }
 
@@ -271,7 +253,7 @@ impl<'f> PerFunctionContext<'f> {
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
         if self.post_order.as_slice().len() == 1 {
-            self.remove_stores_that_do_not_alias_parameters(&references, block);
+            self.remove_stores_that_do_not_alias_parameters(&references);
         }
 
         self.blocks.insert(block, references);
@@ -279,7 +261,7 @@ impl<'f> PerFunctionContext<'f> {
 
     /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
-    fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block, block_id: BasicBlockId) {
+    fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
         let parameters = self.inserter.function.parameters().iter();
         let reference_parameters = parameters
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
@@ -297,13 +279,10 @@ impl<'f> PerFunctionContext<'f> {
                         if let Some(context) = self.load_results.get_mut(allocation) {
                             context.uses -= 1;
                         }
-                        if let Some((store_uses, blocks)) = self.store_count.get_mut(allocation) {
+                        if let Some(store_uses) = self.store_count.get_mut(allocation) {
                             if *store_uses != 0 {
                                 *store_uses -= 1;
                             }
-                            // if let Some(block_uses) = blocks.get_mut(&block_id) {
-                            //     *block_uses -= 1;
-                            // }
                         }
                     }
                 }
@@ -317,33 +296,21 @@ impl<'f> PerFunctionContext<'f> {
         instruction: InstructionId,
         block_id: BasicBlockId,
     ) {
-        // if value.to_usize() == 31929 {
-        //     dbg!(self.inserter.function.dfg[instruction].clone());
-        // }
         if let Some(context) = self.load_results.get_mut(&value) {
             context.uses += 1;
             context.instructions_using_result.push((instruction, block_id));
         }
-        if let Some((store_uses, blocks)) = self.store_count.get_mut(&value) {
-            // TODO: add check we are not in an allocation
+        if let Some(store_uses) = self.store_count.get_mut(&value) {
             match self.inserter.function.dfg[instruction] {
                 // We should never expect an allocate but we check it here anyway
-                Instruction::Allocate => {},
-                // We are post-processing reference counts after an instruction so we should not increase
-                // on the store itself
-                // Instruction::Store { .. } => {},
+                Instruction::Allocate => {}
+                // We are pre-processing reference counts before analyzing an instruction so we should increase
+                // on any usage of a store address, including the store itself. If a store is removed, we will decrement its count.
                 _ => {
                     *store_uses += 1;
-                    // blocks.insert(block_id);
-                    if let Some(block_uses) = blocks.get_mut(&block_id) {
-                        *block_uses += 1;
-                    } else {
-                        blocks.insert(block_id, 1);
-                    }
                 }
             }
-            // *store_uses += 1;
-        } 
+        }
         let array_const = self.inserter.function.dfg.get_array_constant(value);
         if let Some((values, _)) = array_const {
             for array_value in values {
@@ -391,13 +358,10 @@ impl<'f> PerFunctionContext<'f> {
                     if let Some(context) = self.load_results.get_mut(&address) {
                         context.uses -= 1;
                     }
-                    if let Some((store_uses, blocks)) = self.store_count.get_mut(&address) {
+                    if let Some(store_uses) = self.store_count.get_mut(&address) {
                         if *store_uses != 0 {
                             *store_uses -= 1;
                         }
-                        // if let Some(block_uses) = blocks.get_mut(&block_id) {
-                        //     *block_uses -= 1;
-                        // }
                     }
                 } else {
                     references.mark_value_used(address, self.inserter.function);
@@ -417,31 +381,23 @@ impl<'f> PerFunctionContext<'f> {
                     // Mark that we know a load result is equivalent to the address of a load.
                     references.set_known_value(result, address);
 
-                    self.load_results.insert(result, PerFuncLoadResultContext::new(instruction, block_id));
+                    self.load_results
+                        .insert(result, PerFuncLoadResultContext::new(instruction, block_id));
 
                     let num_loads =
                         self.last_loads.get(&address).map_or(1, |context| context.num_loads + 1);
                     let last_load = PerFuncLastLoadContext::new(instruction, block_id, num_loads);
                     self.last_loads.insert(address, last_load);
 
+                    // If we are in a return block we want to save the last location of a load
                     let terminator = self.inserter.function.dfg[block_id].unwrap_terminator();
                     let is_return = matches!(terminator, TerminatorInstruction::Return { .. });
                     if is_return {
-                        let instruction_index = self.inserter.function.dfg[block_id].instructions().len();
-                        // dbg!(block_id);
-                        // dbg!(instruction_index);
-                        // if block_id.to_usize() == 159 {
-                            // println!("address {}", address);
-                        // }
-                        if let Some(result_to_index_map) = self.load_instruction_locations.get_mut(&(address, block_id)) {
-                            result_to_index_map.insert(result, instruction_index);
-                        } else {
-                            let mut new_map = HashMap::default();
-                            new_map.insert(result, instruction_index);
-                            self.load_instruction_locations.insert((address, block_id), new_map);
-                        }
+                        let instruction_index =
+                            self.inserter.function.dfg[block_id].instructions().len();
+                        self.return_block_load_locations
+                            .insert((address, block_id), instruction_index);
                     }
-                    
                 }
             }
             Instruction::Store { address, value } => {
@@ -457,14 +413,10 @@ impl<'f> PerFunctionContext<'f> {
                     if let Some(context) = self.load_results.get_mut(&value) {
                         context.uses -= 1;
                     }
-                    if let Some((store_uses, blocks)) = self.store_count.get_mut(&address) {
-                        // *store_uses -= 1;
+                    if let Some(store_uses) = self.store_count.get_mut(&address) {
                         if *store_uses != 0 {
                             *store_uses -= 1;
                         }
-                        // if let Some(block_uses) = blocks.get_mut(&block_id) {
-                        //     *block_uses -= 1;
-                        // }
                     }
                 }
 
@@ -476,43 +428,19 @@ impl<'f> PerFunctionContext<'f> {
                         if let Some(context) = self.load_results.get_mut(&address) {
                             context.uses -= 1;
                         }
-                        if let Some((store_uses, blocks)) = self.store_count.get_mut(&address) {
-                            // *store_uses -= 1;
+                        if let Some(store_uses) = self.store_count.get_mut(&address) {
                             if *store_uses != 0 {
                                 *store_uses -= 1;
                             }
-                            // if let Some(block_uses) = blocks.get_mut(&block_id) {
-                            //     *block_uses -= 1;
-                            // }
                         }
-                    } 
-                    else {
-                        // references.last_stores.insert(address, instruction);
-
-                        // let num_stores = self.store_count.get(&address).copied().unwrap_or(1);
-                        // self.store_count.insert(address, num_stores);
                     }
-                } 
-                else {
-                    // references.last_stores.insert(address, instruction);
-
-                    // let num_stores = self.store_count.get(&address).copied().unwrap_or(1);
-                    // self.store_count.insert(address, num_stores);
                 }
 
-                
                 references.set_known_value(address, value);
-                // let instruction_index = self.inserter.function.dfg[block_id].instructions().len();
-                // dbg!(block_id);
-                // dbg!(instruction_index);
                 references.last_stores.insert(address, instruction);
 
-                let (num_stores, blocks) = self.store_count.get(&address).cloned().unwrap_or((1, HashMap::default()));
-                // let mut blocks = HashSet::default();
-                // if *num_stores == 1 {
-                //     blocks.insert(block_id);
-                // }
-                self.store_count.insert(address, (num_stores, blocks));
+                let num_stores = self.store_count.get(&address).copied().unwrap_or(1);
+                self.store_count.insert(address, num_stores);
             }
             Instruction::Allocate => {
                 // Register the new reference
@@ -569,10 +497,9 @@ impl<'f> PerFunctionContext<'f> {
                             if let Some(aliases) = references.aliases.get(expression) {
                                 aliases.for_each(|alias| {
                                     self.calls_reference_input.insert(alias);
-                                })
+                                });
                             }
                         }
-                        // self.calls_reference_input.insert(*arg);
                     }
                 }
                 self.mark_all_unknown(arguments, references);
@@ -641,24 +568,23 @@ impl<'f> PerFunctionContext<'f> {
         self.inserter.function.dfg.data_bus = databus.map_values(|t| self.inserter.resolve(t));
     }
 
-    fn recursive_count_increase(&mut self, value: ValueId, terminator: &TerminatorInstruction, block_id: BasicBlockId) {
+    fn terminator_count_increase(
+        &mut self,
+        value: ValueId,
+        terminator: &TerminatorInstruction,
+        block_id: BasicBlockId,
+    ) {
         if let Some(context) = self.load_results.get_mut(&value) {
             context.uses += 1;
             context.terminators_using_result.push((terminator.clone(), block_id));
         }
-        if let Some((store_uses, blocks)) = self.store_count.get_mut(&value) {
+        if let Some(store_uses) = self.store_count.get_mut(&value) {
             *store_uses += 1;
-            // blocks.insert(block_id);
-            if let Some(block_uses) = blocks.get_mut(&block_id) {
-                *block_uses += 1;
-            } else {
-                blocks.insert(block_id, 1);
-            }
         }
         let array_const = self.inserter.function.dfg.get_array_constant(value);
         if let Some((values, _)) = array_const {
             for array_value in values {
-                self.recursive_count_increase(array_value, terminator, block_id);
+                self.terminator_count_increase(array_value, terminator, block_id);
             }
         }
     }
@@ -666,9 +592,20 @@ impl<'f> PerFunctionContext<'f> {
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {
         self.inserter.map_terminator_in_place(block);
 
-        let terminator: &TerminatorInstruction = self.inserter.function.dfg[block].unwrap_terminator();
+        let terminator: &TerminatorInstruction =
+            self.inserter.function.dfg[block].unwrap_terminator();
 
-        match terminator {
+        let mut collect_values = Vec::new();
+        terminator.for_each_value(|value| {
+            collect_values.push(value);
+        });
+
+        let terminator = terminator.clone();
+        for value in collect_values.iter() {
+            self.terminator_count_increase(*value, &terminator, block);
+        }
+
+        match &terminator {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
@@ -695,15 +632,14 @@ impl<'f> PerFunctionContext<'f> {
                 self.mark_all_unknown(return_values, references);
             }
         }
+    }
 
-        let mut collect_values = Vec::new();
-        terminator.for_each_value(|value| {
-            collect_values.push(value);
-        }); 
-
-        let terminator = terminator.clone();
-        for value in collect_values.iter() {
-            self.recursive_count_increase(*value, &terminator, block);
+    fn recursively_add_values(&self, value: ValueId, set: &mut HashSet<ValueId>) {
+        set.insert(value);
+        if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
+            for array_element in elements {
+                self.recursively_add_values(array_element, set);
+            }
         }
     }
 
@@ -712,14 +648,22 @@ impl<'f> PerFunctionContext<'f> {
     /// We collect state about any final loads and stores to a given address during the initial mem2reg pass.
     /// We can then utilize this state to clean up any loads and stores that may have been missed.
     fn cleanup_function(&mut self) {
+        let mut all_terminator_values = HashSet::default();
+        for (block_id, _) in self.blocks.iter() {
+            let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
+            terminator.for_each_value(|value| {
+                self.recursively_add_values(value, &mut all_terminator_values);
+            });
+        }
+
         // Removing remaining unused loads during mem2reg can help expose removable stores that the initial
         // mem2reg pass deemed we could not remove due to the existence of those unused loads.
         let removed_loads = self.remove_unused_loads();
-        let remaining_last_stores = self.remove_unloaded_last_stores(&removed_loads);
+        let remaining_last_stores =
+            self.remove_unloaded_last_stores(&removed_loads, &all_terminator_values);
         self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
 
-        // After possibly removing some instructions we need to map all the instructions 
-        // TODO: check whether we removed any instructions, if we have not skip this check
+        // After possibly removing some instructions we need to map all the instructions
         let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
         block_order.reverse();
         for block in block_order {
@@ -737,52 +681,42 @@ impl<'f> PerFunctionContext<'f> {
     /// Remove any loads whose reference counter is zero.
     /// Returns a map of the removed load address to the number of load instructions removed for that address
     fn remove_unused_loads(&mut self) -> HashMap<ValueId, u32> {
-        let mut all_block_params: HashSet<ValueId> = HashSet::default();
-        for (block_id, _) in self.blocks.iter() {
-            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            all_block_params.extend(block_params.iter());
-        }
-
         let mut removed_loads = HashMap::default();
-        for (_, PerFuncLoadResultContext { uses, load_instruction, block_id, .. }) in self.load_results.iter()
+        for (_, PerFuncLoadResultContext { uses, load_instruction, .. }) in self.load_results.iter()
         {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
                 unreachable!("Should only have a load instruction here");
             };
-
-            // let is_reference_result = self.inserter.function.dfg.value_is_reference(*result);
-
             // If the load result's counter is equal to zero we can safely remove that load instruction.
             if *uses == 0 {
-
-                // if all_block_params.contains(&address) {
-                    // continue;
-                // }
-                if let Some((store_uses, blocks)) = self.store_count.get_mut(&address) {
-                    // println!("have store use");
+                if let Some(store_uses) = self.store_count.get_mut(&address) {
                     if *store_uses != 0 {
                         *store_uses -= 1;
                     }
-                    // if let Some(block_uses) = blocks.get_mut(block_id) {
-                    //     *block_uses -= 1;
-                    // }
                 }
-
                 removed_loads.entry(address).and_modify(|counter| *counter += 1).or_insert(1);
-
                 self.instructions_to_remove.insert(*load_instruction);
             }
         }
         removed_loads
     }
 
-    fn recursively_check_address_in_terminator(&self, return_value: ValueId, store_address: ValueId, is_return_value: &mut bool) {
+    fn recursively_check_address_in_terminator(
+        &self,
+        return_value: ValueId,
+        store_address: ValueId,
+        is_return_value: &mut bool,
+    ) {
         *is_return_value = return_value == store_address || *is_return_value;
         let array_const = self.inserter.function.dfg.get_array_constant(return_value);
         if let Some((values, _)) = array_const {
             for array_value in values {
-                self.recursively_check_address_in_terminator(array_value, store_address, is_return_value);
+                self.recursively_check_address_in_terminator(
+                    array_value,
+                    store_address,
+                    is_return_value,
+                );
             }
         }
     }
@@ -794,235 +728,98 @@ impl<'f> PerFunctionContext<'f> {
     fn remove_unloaded_last_stores(
         &mut self,
         removed_loads: &HashMap<ValueId, u32>,
+        all_terminator_values: &HashSet<ValueId>,
     ) -> HashMap<ValueId, (InstructionId, u32)> {
-        let mut all_block_params: HashSet<ValueId> = HashSet::default();
+        let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
         for (block_id, _) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            all_block_params.extend(block_params.iter());
+            per_func_block_params.extend(block_params.iter());
         }
-        // let func_params = self.inserter.function.parameters();
 
         let mut remaining_last_stores: HashMap<ValueId, (InstructionId, u32)> = HashMap::default();
         for (block_id, block) in self.blocks.iter() {
-            self.inserter.map_terminator_in_place(*block_id);
-
-            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             for (store_address, store_instruction) in block.last_stores.iter() {
                 if self.instructions_to_remove.contains(store_instruction) {
                     continue;
                 }
-                let is_reference_param = block_params.contains(store_address);
+
+                let is_used_in_terminator = all_terminator_values.contains(store_address);
 
                 let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-                let Instruction::Store { value, .. } = self.inserter.function.dfg[*store_instruction]
-                else {
-                    unreachable!("Should only have a store instruction");
-                };
                 let is_return = matches!(terminator, TerminatorInstruction::Return { .. });
                 // Determine whether any loads that reference this store address
                 // have been removed while cleaning up unused loads.
-                let remove_load = if is_return {
+                let loads_removed = if is_return {
                     // Determine whether the last store is used in the return value
                     let mut is_return_value = false;
                     terminator.for_each_value(|return_value| {
-                        is_return_value = return_value == *store_address || is_return_value;
+                        self.recursively_check_address_in_terminator(
+                            return_value,
+                            *store_address,
+                            &mut is_return_value,
+                        );
                     });
 
-                    let mut new_is_return_value = false;
-                    terminator.for_each_value(|return_value| {
-                        self.recursively_check_address_in_terminator(return_value, *store_address, &mut new_is_return_value);
-                    });
-                    if new_is_return_value != is_return_value {
-                        println!("{}", store_address);
-                    }
-
-                    // If the last load of a store is not part of the block with a return terminator,
-                    // we can safely remove this store.
-                    let last_load_not_in_return = self
-                        .last_loads
-                        .get(store_address)
-                        .map(|context| context.block_id != *block_id)
-                        .unwrap_or(true);
-                    // println!("remove store {} in return: {}", store_address, !is_return_value && last_load_not_in_return);
-                    // if let Some((store_uses, blocks)) = self.store_count.get(store_address) {
-                    //     dbg!(block_id);
-                    //     if let Some(return_block_uses) = blocks.get(&block_id) {
-                    //         println!("store uses contains return block {} with {} uses in the return block", block_id, return_block_uses);
-                    //         !is_return_value && last_load_not_in_return && *return_block_uses <= 1
-                    //     } else {
-                    //         println!("{} with {} uses, !is_return_value && last_load_not_in_return: {}", store_address, store_uses, !is_return_value && last_load_not_in_return);
-                    //         !is_return_value && last_load_not_in_return && *store_uses <= 1
-                    //     }
-                    //     // println!("{} with {} uses, !is_return_value && last_load_not_in_return: {}", store_address, store_uses, !is_return_value && last_load_not_in_return);
-                    //     // dbg!(blocks.clone());
-                    //     // !is_return_value && last_load_not_in_return && *store_uses <= 1
-                    //     // !is_return_value && last_load_not_in_return && *store_uses == 0 || store_uses - 1 == 0
-                    //     // !is_return_value && last_load_not_in_return && *store_uses > 1
-                    // } else {
-                    //     !is_return_value && last_load_not_in_return
-                    // }
-                    // dbg!(self.load_instruction_locations.clone());
-
-
-                    let mut max_load_index: usize = 0;
-                    if let Some(x) = self.load_instruction_locations.get(&(*store_address, *block_id)) {
-                        // x.value
-                        // if store_address.to_usize() == 8823 {
-                        //     dbg!(x.values());
-                        // }
-                        for index in x.values() {
-                            if *index > max_load_index {
-                                max_load_index = *index;
-                            }
-                        }
-                    }
-                    let store_index = self.inserter.function.dfg[*block_id].instructions().iter().position(|id| *id == *store_instruction).unwrap();
-                    // if store_index > max_load_index {
-                    //     dbg!(store_index);
-                    //     dbg!(max_load_index);
-                        // let (uses, blocks) = self.store_count.get(store_address).unwrap();
-                        // let uses_in_block = blocks.get(block_id).unwrap();
-                        // println!("return_block {} store_address {} store_index {} max_load_index {} uses_in_block {} uses {}", block_id, store_address, store_index, max_load_index, uses_in_block, uses);
-                    // }
-                    // let is_value_param = all_block_params.contains(&value);
-
-                    // if store_index == 1 && max_load_index == 0 && block_id.to_usize() == 159 {
-                    //     dbg!(store_address);
-                    //     dbg!(value);
-                    //     dbg!(is_value_param);
-                    //     dbg!(is_reference_param);
-                    //     dbg!(all_block_params.contains(store_address));
-                    //     dbg!(self.load_instruction_locations.get(&(*store_address, *block_id)).clone());
-                    // }
-                    // let (uses, blocks) = self.store_count.get(store_address).unwrap();
-                    // let uses_in_block = blocks.get(block_id).unwrap();
-                    // !is_return_value && last_load_not_in_return && max_load_index == 0
-                    // TODO: we should not need this uses in block, as we check whether the reference is used in the terminator
-                    // If the max_load_index is zero we may have constant folding out a load??
-                    // !is_return_value && last_load_not_in_return && store_index > max_load_index && max_load_index != 0
-                    !is_return_value && store_index > max_load_index && max_load_index != 0
-
-                    // false
-                } else if let (Some(context), Some(loads_removed_counter), Some((store_uses, _))) =
-                    (self.last_loads.get(store_address), removed_loads.get(store_address), self.store_count.get(store_address))
-                {
+                    // If we are in a return terminator, and the last load of an address
+                    // comes after a store to that address, we can safely remove that store.
+                    let store_after_load = if let Some(max_load_index) =
+                        self.return_block_load_locations.get(&(*store_address, *block_id))
+                    {
+                        let store_index = self.inserter.function.dfg[*block_id]
+                            .instructions()
+                            .iter()
+                            .position(|id| *id == *store_instruction)
+                            .expect("Store instruction should exist in the return block");
+                        // TODO: Want to get rid of this usage of store_uses
+                        store_index > *max_load_index && *store_uses == 1
+                    } else {
+                        // Otherwise there is no load in this block
+                        true
+                    };
+                    !is_return_value && store_after_load
+                } else if let (Some(context), Some(loads_removed_counter), Some(store_uses)) = (
+                    self.last_loads.get(store_address),
+                    removed_loads.get(store_address),
+                    self.store_count.get(store_address),
+                ) {
                     // `last_loads` contains the total number of loads for a given load address
                     // If the number of removed loads for a given address is equal to the total number of loads for that address,
                     // we know we can safely remove any stores to that load address.
-
-                    // if context.num_loads == *loads_removed_counter {
-                    //     dbg!(loads_removed_counter);
-                    //     dbg!(store_uses);
-                    //     // dbg!(self.store_count.get(store_address));
-                    //     dbg!(store_address);
-                    // }
-
-                    (store_uses - 1) == 0 && context.num_loads == *loads_removed_counter
-                    // context.num_loads == *loads_removed_counter && store_uses == loads_removed_counter
-                    // context.num_loads == *loads_removed_counter && (store_uses - 1) == *loads_removed_counter
-                    // if context.num_loads == *loads_removed_counter {
-                    // }
-
-                    // false
+                    // TODO: Want to get rid of this usage of store_uses
+                    context.num_loads == *loads_removed_counter
+                        && !is_used_in_terminator
+                        && *store_uses == 1
                 } else {
-                    let last_load_exists = self.last_loads.get(store_address).is_some();
-                    if let Some((store_uses, _)) = self.store_count.get(store_address) {
-                        // if last_load_exists {
-                            // dbg!(self.store_count.get(store_address));
-                        // }
-                        // if !last_load_exists && *store_uses == 0 {
-                            // println!("!last_load_exists && *store_uses == 0 for {}", store_address);
-                        // }
-                        !last_load_exists && *store_uses <= 1
-                    } else {
-                        // println!("!last_load_exists for {}", store_address);
-                        !last_load_exists
-                    }
-                    // TODO: getting a failure here
-                    // self.store_count.get(store_address)
-                    // if !last_load_exists {
-                        // println!("{} num uses: {}", store_address, self.store_count.get(store_address).unwrap());
-                    // }
-                    // !last_load_exists
-                    // false
-                    // Otherwise just check whether a load exists at all for this store address
-                    // self.last_loads.get(store_address).is_none()
+                    self.last_loads.get(store_address).is_none() && !is_used_in_terminator
                 };
 
-                if remove_load == true && store_address.to_usize() == 24100 {
-                    println!("got here");
-                }
-
-                let is_used_in_reference_param =
+                // Extra checks on where a reference can be used aside a load instruction.
+                // Even if all loads to a reference have been removed
+                let is_used_as_reference_arg =
                     self.calls_reference_input.get(store_address).is_some();
                 let is_reference_alias = block
                     .expressions
                     .get(store_address)
                     .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
+                let is_reference_param = per_func_block_params.contains(store_address);
 
-            
-                // let is_value_reference = self.inserter.function.dfg.value_is_reference(value);
-                let is_value_param = all_block_params.contains(&value);
-                // let is_func_param = func_params.contains(&store_address);
-                if remove_load
+                if loads_removed
                     && !is_reference_param
-                    && !is_used_in_reference_param
-                    && !is_reference_alias 
-                    // && !is_func_param
-                    // && !is_value_reference
-                    // && !is_value_param
-                { 
-                    // println!("{}", store_address);
-                    // if is_value_param {
-                    //     println!("got value alias"); 
-                    // }
-                    // let is_all_blocks_ref_param = all_block_params.contains(store_address);
-                    // if is_all_blocks_ref_param {
-                    //     println!("removing store that is a block param");
-                    // }
-
-                    // if is_value_param {
-                    //     println!("{}", store_address);
-                    // } 
-                    // let is_value_reference = self.inserter.function.dfg.value_is_reference(value);
-                    // dbg!(is_value_reference);
-                    // if is_value_reference {
-                    //     dbg!(store_address);
-                    //     dbg!(is_reference_alias);
-                    // }
-                    // let is_all_blocks_param = all_block_params.contains(store_address);
-                    // if is_all_blocks_param != is_reference_param {
-                    //     dbg!(store_address);
-                    // }
+                    && !is_used_as_reference_arg
+                    && !is_reference_alias
+                {
                     self.instructions_to_remove.insert(*store_instruction);
-                    if let Some((store_uses, blocks)) = self.store_count.get_mut(&store_address) {
+                    if let Some(store_uses) = self.store_count.get_mut(store_address) {
                         if *store_uses != 0 {
                             *store_uses -= 1;
                         }
-                        // if let Some(block_uses) = blocks.get_mut(&block_id) {
-                        //     *block_uses -= 1;
-                        // }
                     }
                     if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
                         *counter -= 1;
                     }
                 } else if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
-                    // if is_reference_alias || is_reference_param || is_used_in_reference_param {
-                        // dbg!(store_address);
-                    // }
                     *counter += 1;
                 } else {
-                    // if is_reference_alias || is_reference_param || is_used_in_reference_param {
-                        // dbg!(store_address);
-                        // dbg!(is_reference_alias);
-                        // dbg!(is_reference_param);
-                        // dbg!(is_reference_alias);
-                    // }
-                    // TODO: temp make this 2, we want to account for remaining last stores better
-                    // We do not count stores to reference params as a remaining store for possible removal
-                    // if !is_reference_param {
-                        // remaining_last_stores.insert(*store_address, (*store_instruction, 1));
-                    // }
                     remaining_last_stores.insert(*store_address, (*store_instruction, 1));
                 }
             }
@@ -1036,12 +833,6 @@ impl<'f> PerFunctionContext<'f> {
         removed_loads: &HashMap<ValueId, u32>,
         remaining_last_stores: &HashMap<ValueId, (InstructionId, u32)>,
     ) {
-        let mut all_block_params: HashSet<ValueId> = HashSet::default();
-        for (block_id, _) in self.blocks.iter() {
-            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            all_block_params.extend(block_params.iter());
-        }
-
         // Filter out any still in use load results and any load results that do not contain addresses from the remaining last stores
         self.load_results.retain(|_, PerFuncLoadResultContext { load_instruction, uses, .. }| {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
@@ -1051,14 +842,12 @@ impl<'f> PerFunctionContext<'f> {
             remaining_last_stores.contains_key(&address) && *uses > 0
         });
 
-        // let mut blocks_to_map_instructions = Vec::new();
-        // let mut blocks_to_map_terminators = HashSet::default();
         for (store_address, (store_instruction, store_counter)) in remaining_last_stores {
             let Instruction::Store { value, .. } = self.inserter.function.dfg[*store_instruction]
             else {
                 unreachable!("Should only have a store instruction");
             };
-            
+
             if let (Some(context), Some(loads_removed_counter)) =
                 (self.last_loads.get(store_address), removed_loads.get(store_address))
             {
@@ -1068,26 +857,10 @@ impl<'f> PerFunctionContext<'f> {
                 );
             }
 
-            // let is_reference_value = self.inserter.function.dfg.value_is_reference(value);
-            // if is_reference_value {
-            //     dbg!(store_counter);
-            //     dbg!(store_address);
-            // }
-
-            // if all_block_params.contains(store_address) {
-                // continue;
-            // }
-
             // We only want to remove last stores referencing a single address.
             if *store_counter != 0 {
                 continue;
             }
-            // let is_used_in_reference_param =
-            // self.calls_reference_input.get(store_address).is_some();
-            // if is_used_in_reference_param {
-                // dbg!(store_address);
-            // }
-
             self.instructions_to_remove.insert(*store_instruction);
 
             // Map any remaining load results to the value from the removed store
@@ -1100,25 +873,10 @@ impl<'f> PerFunctionContext<'f> {
                 if address != *store_address {
                     continue;
                 }
-
-                // if address.to_usize() == 22868 {
-                //     dbg!(context.clone());
-                // }
-
-
+                // Map the load result to its respective store value
+                // We will have to map all instructions following this method
+                // as we do not know what instructions depend upon this result
                 self.inserter.map_value(*result, value);
-
-                // for (instruction, block_id) in &context.instructions_using_result {
-                //     if self.instructions_to_remove.contains(instruction) {
-                //         continue;
-                //     }
-                //     blocks_to_map_instructions.push(*block_id);
-                // }
-
-                // for (_, block_id) in &context.terminators_using_result {
-                //     blocks_to_map_terminators.insert(*block_id);
-                // }
-
                 self.instructions_to_remove.insert(context.load_instruction);
             }
         }
@@ -1811,14 +1569,4 @@ mod tests {
         assert_eq!(count_loads(b1, &main.dfg), 0);
         assert_eq!(count_loads(b2, &main.dfg), 1);
     }
-
-    #[test]
-    fn keep_last_store_with_value_block_param() {
-
-    }
-
-    // TODO: 
-    // 1. Add a test that a removed load result is mapped throughout all the instructions,
-    // e.g. if the result of a new instruction caused by a removed load is used as a store value
-    // 2. Add a test that 
 }
