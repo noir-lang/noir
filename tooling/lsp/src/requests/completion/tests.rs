@@ -1395,6 +1395,7 @@ mod completion_tests {
     #[test]
     async fn test_auto_imports_when_in_nested_module_and_item_is_further_nested() {
         let src = r#"
+            #[something]
             mod foo {
                 mod bar {
                     pub fn hello_world() {}
@@ -1422,8 +1423,8 @@ mod completion_tests {
             item.additional_text_edits,
             Some(vec![TextEdit {
                 range: Range {
-                    start: Position { line: 2, character: 4 },
-                    end: Position { line: 2, character: 4 },
+                    start: Position { line: 3, character: 4 },
+                    end: Position { line: 3, character: 4 },
                 },
                 new_text: "use bar::hello_world;\n\n    ".to_string(),
             }])

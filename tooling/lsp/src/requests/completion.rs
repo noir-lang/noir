@@ -882,7 +882,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
-    fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
+    fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, _span: Span) -> bool {
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;
 
@@ -897,7 +897,9 @@ impl<'a> Visitor for NodeFinder<'a> {
         let old_auto_import_line = self.auto_import_line;
         self.nesting += 1;
 
-        if let Some(lsp_location) = to_lsp_location(self.files, self.file, span) {
+        if let Some(lsp_location) =
+            to_lsp_location(self.files, self.file, parsed_sub_module.name.span())
+        {
             self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
         }
 

@@ -85,10 +85,10 @@ fn main() {
         assert_eq(bar.name(), quote { bar });
 
         // Check Module::has_named_attribute
-        assert(foo.has_named_attribute(quote { some_attribute }));
-        assert(foo.has_named_attribute(quote { outer_attribute }));
-        assert(!bar.has_named_attribute(quote { some_attribute }));
-        assert(another_module.has_named_attribute(quote { some_attribute }));
+        assert(foo.has_named_attribute("some_attribute"));
+        assert(foo.has_named_attribute("outer_attribute"));
+        assert(!bar.has_named_attribute("some_attribute"));
+        assert(another_module.has_named_attribute("some_attribute"));
     }
 
     assert_eq(counter, 4);
