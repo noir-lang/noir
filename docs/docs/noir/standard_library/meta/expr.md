@@ -73,6 +73,20 @@ return each statement in the block.
 If this expression is a constructor `Type { field1: expr1, ..., fieldN: exprN }`,
 return the type and the fields.
 
+### as_for
+
+#include_code as_for noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a for statement over a single expression, return the identifier,
+the expression and the for loop body.
+
+### as_for_range
+
+#include_code as_for noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a for statement over a range, return the identifier,
+the range start, the range end and the for loop body.
+
 ### as_function_call
 
 #include_code as_function_call noir_stdlib/src/meta/expr.nr rust

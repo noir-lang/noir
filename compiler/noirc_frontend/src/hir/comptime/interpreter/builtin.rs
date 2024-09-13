@@ -19,9 +19,9 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, FunctionKind,
-        FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
-        UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
+        FunctionKind, FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement,
+        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::{
         comptime::{
@@ -75,6 +75,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_constructor" => {
                 expr_as_constructor(interner, arguments, return_type, location)
             }
+            "expr_as_for" => expr_as_for(interner, arguments, return_type, location),
+            "expr_as_for_range" => expr_as_for_range(interner, arguments, return_type, location),
             "expr_as_function_call" => {
                 expr_as_function_call(interner, arguments, return_type, location)
             }
@@ -1418,7 +1420,7 @@ fn expr_as_comptime(
 
 // fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])>
 fn expr_as_constructor(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -1446,6 +1448,55 @@ fn expr_as_constructor(
         };
 
     option(return_type, option_value)
+}
+
+// fn as_for(self) -> Option<(Quoted, Expr, Expr)>
+fn expr_as_for(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
+            if let ForRange::Array(array) = for_statement.range {
+                let identifier =
+                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let array = Value::expression(array.kind);
+                let body = Value::expression(for_statement.block.kind);
+                Some(Value::Tuple(vec![identifier, array, body]))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)>
+fn expr_as_for_range(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
+            if let ForRange::Range(from, to) = for_statement.range {
+                let identifier =
+                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let from = Value::expression(from.kind);
+                let to = Value::expression(to.kind);
+                let body = Value::expression(for_statement.block.kind);
+                Some(Value::Tuple(vec![identifier, from, to, body]))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
 }
 
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
