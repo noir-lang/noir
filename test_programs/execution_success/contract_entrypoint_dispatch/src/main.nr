@@ -25,7 +25,7 @@ mod some_contract {
 
 comptime fn aztec_contract(m: Module) -> Quoted {
     let functions = m.functions();
-    let functions = functions.filter(|function: FunctionDefinition| function.has_named_attribute(quote { "aztec_public" }));
+    let functions = functions.filter(|function: FunctionDefinition| function.has_named_attribute("aztec_public"));
 
     // Compute max field size
     let mut max_field_size = 0;
