@@ -3462,3 +3462,22 @@ fn comptime_type_in_runtime_code() {
         CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
     ));
 }
+
+#[test]
+fn arithmetic_generics_canonicalization_deduplication_regression() {
+    let source = r#"
+        struct ArrData<let N: u32> {
+            a: [Field; N],
+            b: [Field; N + N - 1],
+        }
+
+        fn main() {
+            let _f: ArrData<5> = ArrData {
+                a: [0; 5],
+                b: [0; 9],
+            };
+        }
+    "#;
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+}
