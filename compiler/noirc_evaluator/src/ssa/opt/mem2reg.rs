@@ -664,6 +664,7 @@ impl<'f> PerFunctionContext<'f> {
         self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
 
         // After possibly removing some instructions we need to map all the instructions
+        // TODO: Add a check whether any loads were actually removed where we actually need to map values
         let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
         block_order.reverse();
         for block in block_order {
