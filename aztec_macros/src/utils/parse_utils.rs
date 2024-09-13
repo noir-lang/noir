@@ -299,6 +299,7 @@ fn empty_expression(expression: &mut Expression) {
         ExpressionKind::Quote(..)
         | ExpressionKind::Resolved(_)
         | ExpressionKind::Interned(_)
+        | ExpressionKind::InternedStatement(_)
         | ExpressionKind::Error => (),
     }
 }

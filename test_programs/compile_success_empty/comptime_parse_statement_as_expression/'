@@ -1,0 +1,4 @@
+struct ArrData<let N: u32> {
+    a: [Field; N],
+    b: [Field; N + N - 1],
+}

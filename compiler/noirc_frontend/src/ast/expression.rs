@@ -7,7 +7,7 @@ use crate::ast::{
 };
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::macros_api::StructId;
-use crate::node_interner::{ExprId, InternedExpressionKind, QuotedTypeId};
+use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
@@ -47,6 +47,10 @@ pub enum ExpressionKind {
     // This is an interned ExpressionKind during comptime code.
     // The actual ExpressionKind can be retrieved with a NodeInterner.
     Interned(InternedExpressionKind),
+
+    /// Interned statements are allowed to be parsed as expressions in case they resolve
+    /// to an StatementKind::Expression or StatementKind::Semi.
+    InternedStatement(InternedStatementKind),
 
     Error,
 }
@@ -617,6 +621,7 @@ impl Display for ExpressionKind {
                 write!(f, "quote {{ {} }}", tokens.join(" "))
             }
             AsTraitPath(path) => write!(f, "{path}"),
+            InternedStatement(_) => write!(f, "?InternedStatement"),
         }
     }
 }

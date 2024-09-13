@@ -24,7 +24,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId, StmtId, TraitId, TraitImplId},
+    node_interner::{ExprId, FuncId, InternedStatementKind, StmtId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -454,6 +454,9 @@ impl Value {
             Value::Expr(ExprValue::Expression(expr)) => {
                 Token::InternedExpr(interner.push_expression_kind(expr))
             }
+            Value::Expr(ExprValue::Statement(StatementKind::Expression(expr))) => {
+                Token::InternedExpr(interner.push_expression_kind(expr.kind))
+            }
             Value::Expr(ExprValue::Statement(statement)) => {
                 Token::InternedStatement(interner.push_statement_kind(statement))
             }
@@ -872,7 +875,20 @@ fn remove_interned_in_expression_kind(
             remove_interned_in_expression_kind(interner, expr)
         }
         ExpressionKind::Error => expr,
+        ExpressionKind::InternedStatement(id) => remove_interned_in_statement_expr(interner, id),
     }
+}
+
+fn remove_interned_in_statement_expr(
+    interner: &NodeInterner,
+    id: InternedStatementKind,
+) -> ExpressionKind {
+    let expr = match interner.get_statement_kind(id).clone() {
+        StatementKind::Expression(expr) | StatementKind::Semi(expr) => expr.kind,
+        StatementKind::Interned(id) => remove_interned_in_statement_expr(interner, id),
+        _ => ExpressionKind::Error,
+    };
+    remove_interned_in_expression_kind(interner, expr)
 }
 
 fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Literal {
