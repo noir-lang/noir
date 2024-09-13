@@ -120,3 +120,51 @@ impl <let N: u32> FromCallData<N> for i64 {
         (value, index + 1)
     }
 }
+
+mod tests {
+    use super::FromCallData;
+
+    #[derive(FromCallData)]
+    struct Point<T> {
+        x: T,
+        y: T,
+    }
+
+    #[test]
+    fn test_field_from_call_data() {
+        let calldata = [1];
+        let (value, index): (Field, Field) = FromCallData::from_calldata(calldata, 0);
+        assert_eq(value, 1);
+        assert_eq(index, 1);
+    }
+
+    #[test]
+    fn test_bool_from_call_data() {
+        let calldata = [1];
+        let (value, index): (bool, Field) = FromCallData::from_calldata(calldata, 0);
+        assert_eq(value, true);
+        assert_eq(index, 1);
+
+        let calldata = [0];
+        let (value, index): (bool, Field) = FromCallData::from_calldata(calldata, 0);
+        assert_eq(value, false);
+        assert_eq(index, 1);
+    }
+
+    #[test]
+    fn test_u8_from_call_data() {
+        let calldata = [1];
+        let (value, index): (u8, Field) = FromCallData::from_calldata(calldata, 0);
+        assert_eq(value, 1);
+        assert_eq(index, 1);
+    }
+
+    #[test]
+    fn test_struct_from_call_data() {
+        let calldata = [1, 2];
+        let (value, index): (Point<Field>, Field) = FromCallData::from_calldata(calldata, 0);
+        assert_eq(value.x, 1);
+        assert_eq(value.y, 2);
+        assert_eq(index, 2);
+    }
+}
