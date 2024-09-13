@@ -16,7 +16,7 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAtrribute, SecondaryAttribute, Tokens},
+    token::{CustomAttribute, SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
@@ -461,7 +461,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_custom_attribute(&mut self, _: &CustomAtrribute, _target: AttributeTarget) {}
+    fn visit_custom_attribute(&mut self, _: &CustomAttribute, _target: AttributeTarget) {}
 }
 
 impl ParsedModule {
@@ -1377,7 +1377,7 @@ impl SecondaryAttribute {
     }
 }
 
-impl CustomAtrribute {
+impl CustomAttribute {
     pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
         visitor.visit_custom_attribute(self, target);
     }
