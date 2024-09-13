@@ -28,7 +28,7 @@ use noirc_frontend::{
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
     parser::{Item, ItemKind, ParsedSubModule},
-    token::CustomAtrribute,
+    token::CustomAttribute,
     ParsedModule, StructType, Type,
 };
 use sort_text::underscore_sort_text;
@@ -1434,7 +1434,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
-    fn visit_custom_attribute(&mut self, attribute: &CustomAtrribute, target: AttributeTarget) {
+    fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, target: AttributeTarget) {
         if self.byte_index != attribute.contents_span.end() as usize {
             return;
         }
