@@ -18,7 +18,7 @@ impl StructDefinition {
 
     #[builtin(struct_def_has_named_attribute)]
     // docs:start:has_named_attribute
-    comptime fn has_named_attribute(self, name: Quoted) -> bool {}
+    comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
     /// Return each generic on this struct.
@@ -53,3 +53,21 @@ impl StructDefinition {
     comptime fn set_fields(self, new_fields: [(Quoted, Type)]) {}
     // docs:end:set_fields
 }
+
+impl crate::hash::Hash for StructDefinition {
+    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+        state.write(struct_def_hash(self))
+    }
+}
+
+impl crate::cmp::Eq for StructDefinition {
+    comptime fn eq(self, other: Self) -> bool {
+        struct_def_eq(self, other)
+    }
+}
+
+#[builtin(struct_def_eq)]
+comptime fn struct_def_eq(_first: StructDefinition, _second: StructDefinition) -> bool {}
+
+#[builtin(struct_def_hash)]
+comptime fn struct_def_hash(_struct: StructDefinition) -> Field {}

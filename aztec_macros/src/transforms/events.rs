@@ -1,4 +1,7 @@
-use noirc_frontend::ast::{Documented, ItemVisibility, NoirFunction, NoirTraitImpl, TraitImplItem};
+use noirc_errors::Span;
+use noirc_frontend::ast::{
+    Documented, ItemVisibility, NoirFunction, NoirTraitImpl, TraitImplItem, TraitImplItemKind,
+};
 use noirc_frontend::macros_api::{NodeInterner, StructId};
 use noirc_frontend::token::SecondaryAttribute;
 use noirc_frontend::{
@@ -67,30 +70,37 @@ pub fn generate_event_impls(
                 event_byte_len,
                 empty_spans,
             )?;
-            event_interface_trait_impl.items.push(Documented::not_documented(
-                TraitImplItem::Function(generate_fn_get_event_type_id(
+            event_interface_trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(generate_fn_get_event_type_id(
                     event_type.as_str(),
                     event_len,
                     empty_spans,
                 )?),
-            ));
-            event_interface_trait_impl.items.push(Documented::not_documented(
-                TraitImplItem::Function(generate_fn_private_to_be_bytes(
+                span: Span::default(),
+            }));
+            event_interface_trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(generate_fn_private_to_be_bytes(
                     event_type.as_str(),
                     event_byte_len,
                     empty_spans,
                 )?),
-            ));
-            event_interface_trait_impl.items.push(Documented::not_documented(
-                TraitImplItem::Function(generate_fn_to_be_bytes(
+                span: Span::default(),
+            }));
+            event_interface_trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(generate_fn_to_be_bytes(
                     event_type.as_str(),
                     event_byte_len,
                     empty_spans,
                 )?),
-            ));
-            event_interface_trait_impl.items.push(Documented::not_documented(
-                TraitImplItem::Function(generate_fn_emit(event_type.as_str(), empty_spans)?),
-            ));
+                span: Span::default(),
+            }));
+            event_interface_trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(generate_fn_emit(
+                    event_type.as_str(),
+                    empty_spans,
+                )?),
+                span: Span::default(),
+            }));
             submodule.contents.trait_impls.push(event_interface_trait_impl);
 
             let serialize_trait_impl = generate_trait_impl_serialize(
