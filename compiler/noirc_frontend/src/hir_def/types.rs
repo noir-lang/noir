@@ -471,6 +471,16 @@ impl<T> Shared<T> {
     pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
         self.0.borrow_mut()
     }
+
+    pub fn unwrap_or_clone(self) -> T
+    where
+        T: Clone,
+    {
+        match Rc::try_unwrap(self.0) {
+            Ok(elem) => elem.into_inner(),
+            Err(rc) => rc.as_ref().clone().into_inner(),
+        }
+    }
 }
 
 /// A restricted subset of binary operators useable on
@@ -1620,8 +1630,18 @@ impl Type {
 
             (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
                 if op_a == op_b {
-                    lhs_a.try_unify(lhs_b, bindings)?;
-                    rhs_a.try_unify(rhs_b, bindings)
+                    // We need to preserve the original bindings since if syntactic equality
+                    // fails we fall back to other equality strategies.
+                    let mut new_bindings = bindings.clone();
+                    let lhs_result = lhs_a.try_unify(lhs_b, &mut new_bindings);
+                    let rhs_result = rhs_a.try_unify(rhs_b, &mut new_bindings);
+
+                    if lhs_result.is_ok() && rhs_result.is_ok() {
+                        *bindings = new_bindings;
+                        Ok(())
+                    } else {
+                        lhs.try_unify_by_moving_constant_terms(&rhs, bindings)
+                    }
                 } else {
                     Err(UnificationError)
                 }

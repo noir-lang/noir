@@ -405,6 +405,11 @@ impl Value {
             }
             Value::Quoted(tokens) => HirExpression::Unquote(add_token_spans(tokens, location.span)),
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
+            // Only convert pointers with auto_deref = true. These are mutable variables
+            // and we don't need to wrap them in `&mut`.
+            Value::Pointer(element, true) => {
+                return element.unwrap_or_clone().into_hir_expression(interner, location);
+            }
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)

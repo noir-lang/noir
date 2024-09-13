@@ -14,7 +14,7 @@ use noirc_frontend::{
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
-use crate::LspState;
+use crate::{modules::module_full_path, LspState};
 
 use super::{process_request, to_lsp_location, ProcessRequestCallbackArgs};
 
@@ -352,43 +352,14 @@ fn format_parent_module_from_module_id(
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
-    let mut segments: Vec<&str> = Vec::new();
-
-    if let Some(module_attributes) = args.interner.try_module_attributes(module) {
-        segments.push(&module_attributes.name);
-
-        let mut current_attributes = module_attributes;
-        loop {
-            let Some(parent_local_id) = current_attributes.parent else {
-                break;
-            };
-
-            let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
-                krate: module.krate,
-                local_id: parent_local_id,
-            }) else {
-                break;
-            };
-
-            segments.push(&parent_attributes.name);
-            current_attributes = parent_attributes;
-        }
-    }
-
-    // We don't record module attributes for the root module,
-    // so we handle that case separately
-    if module.krate.is_root() {
-        segments.push(&args.crate_name);
-    };
-
-    if segments.is_empty() {
+    let full_path =
+        module_full_path(module, args.interner, args.crate_id, &args.crate_name, args.dependencies);
+    if full_path.is_empty() {
         return false;
     }
 
-    segments.reverse();
-
     string.push_str("    ");
-    string.push_str(&segments.join("::"));
+    string.push_str(&full_path);
     true
 }
 

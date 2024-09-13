@@ -1,7 +1,7 @@
 use lsp_types::{Position, Range, TextEdit};
 use noirc_frontend::macros_api::ModuleDefId;
 
-use crate::modules::{get_parent_module_id, module_full_path, module_id_path};
+use crate::modules::{get_parent_module_id, relative_module_full_path, relative_module_id_path};
 
 use super::{
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
@@ -40,14 +40,14 @@ impl<'a> NodeFinder<'a> {
                 };
 
                 let module_full_path = if let Some(defining_module) = defining_module {
-                    module_id_path(
+                    relative_module_id_path(
                         *defining_module,
                         &self.module_id,
                         current_module_parent_id,
                         self.interner,
                     )
                 } else {
-                    let Some(module_full_path) = module_full_path(
+                    let Some(module_full_path) = relative_module_full_path(
                         *module_def_id,
                         *visibility,
                         self.module_id,
