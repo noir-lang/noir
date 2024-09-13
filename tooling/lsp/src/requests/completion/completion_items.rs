@@ -320,7 +320,7 @@ impl<'a> NodeFinder<'a> {
         text
     }
 
-    fn completion_item_with_doc_comments(
+    pub(super) fn completion_item_with_doc_comments(
         &self,
         id: ReferenceId,
         completion_item: CompletionItem,
@@ -366,6 +366,13 @@ pub(super) fn module_completion_item(name: impl Into<String>) -> CompletionItem 
         simple_completion_item(name, CompletionItemKind::MODULE, None),
         crate_or_module_sort_text(),
     )
+}
+
+pub(super) fn trait_impl_method_completion_item(
+    label: impl Into<String>,
+    insert_text: impl Into<String>,
+) -> CompletionItem {
+    snippet_completion_item(label, CompletionItemKind::METHOD, insert_text, None)
 }
 
 fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String {
