@@ -875,16 +875,13 @@ impl<'f> PerFunctionContext<'f> {
         removed_loads: &HashMap<ValueId, u32>,
         remaining_last_stores: &HashMap<ValueId, (InstructionId, u32)>,
     ) {
-        dbg!(remaining_last_stores.clone());
         // Filter out any still in use load results and any load results that do not contain addresses from the remaining last stores
         self.load_results.retain(|_, PerFuncLoadResultContext { load_instruction, uses, .. }| {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
                 unreachable!("Should only have a load instruction here");
             };
-            // remaining_last_stores.contains_key(&address)
-            // && *uses > 0
-            true
+            remaining_last_stores.contains_key(&address) && *uses > 0
         });
 
         for (store_address, (store_instruction, store_counter)) in remaining_last_stores {
@@ -901,7 +898,7 @@ impl<'f> PerFunctionContext<'f> {
                     "The number of loads removed should not be more than all loads"
                 );
             }
-            println!("{store_address} with {store_counter} uses");
+
             // We only want to remove last stores referencing a single address.
             if *store_counter != 0 {
                 continue;
@@ -918,7 +915,7 @@ impl<'f> PerFunctionContext<'f> {
                 if address != *store_address {
                     continue;
                 }
-                println!("{result} removed as remaining load result");
+
                 // Map the load result to its respective store value
                 // We will have to map all instructions following this method
                 // as we do not know what instructions depend upon this result
