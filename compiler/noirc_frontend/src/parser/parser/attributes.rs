@@ -4,7 +4,9 @@ use noirc_errors::Span;
 use crate::{
     macros_api::SecondaryAttribute,
     parser::{parenthesized, NoirParser, ParserError, ParserErrorReason},
-    token::{Attribute, Attributes, CustomAtrribute, FormalVerificationAttribute, Token, TokenKind},
+    token::{
+        Attribute, Attributes, CustomAtrribute, FormalVerificationAttribute, Token, TokenKind,
+    },
 };
 
 use super::{expression, primitives::token_kind};
@@ -19,9 +21,7 @@ fn attribute() -> impl NoirParser<Attribute> {
 fn fv_attribute() -> impl NoirParser<FormalVerificationAttribute> {
     token_kind(TokenKind::Token(Token::Ensures))
         .or(token_kind(TokenKind::Token(Token::Requires)))
-        .then(
-            parenthesized(expression())
-        )
+        .then(parenthesized(expression()))
         .then_ignore(just(Token::RightBracket))
         .map(|(token, expr)| match token {
             Token::Requires => FormalVerificationAttribute::Requires(expr),
@@ -34,28 +34,27 @@ fn fv_attribute() -> impl NoirParser<FormalVerificationAttribute> {
 
 /// Represents any attribute that is accepted by the language.
 /// This includes normal upstream attributes and formal verification attributes.
-pub(super) enum AnyAttribute { 
+pub(super) enum AnyAttribute {
     FvAttribute(FormalVerificationAttribute),
     NormalAttribute(Attribute),
 }
 
 pub(super) fn all_attributes() -> impl NoirParser<Vec<AnyAttribute>> {
-    fv_attribute().map(|x| AnyAttribute::FvAttribute(x))
-    .or(attribute().map(|x| AnyAttribute::NormalAttribute(x)))
-    .repeated()
+    fv_attribute()
+        .map(|x| AnyAttribute::FvAttribute(x))
+        .or(attribute().map(|x| AnyAttribute::NormalAttribute(x)))
+        .repeated()
 }
 
 pub(super) fn split_attributes_in_two(
-    all_attributes: Vec<AnyAttribute>
+    all_attributes: Vec<AnyAttribute>,
 ) -> (Vec<FormalVerificationAttribute>, Vec<Attribute>) {
     let mut fv_attributes: Vec<FormalVerificationAttribute> = Vec::new();
     let mut attributes: Vec<Attribute> = Vec::new();
 
-    all_attributes.into_iter().for_each(|attr| {
-        match attr {
-            AnyAttribute::FvAttribute(fv_attr) => fv_attributes.push(fv_attr),
-            AnyAttribute::NormalAttribute(normal_attr) => attributes.push(normal_attr),
-        }
+    all_attributes.into_iter().for_each(|attr| match attr {
+        AnyAttribute::FvAttribute(fv_attr) => fv_attributes.push(fv_attr),
+        AnyAttribute::NormalAttribute(normal_attr) => attributes.push(normal_attr),
     });
 
     (fv_attributes, attributes)
@@ -89,25 +88,23 @@ pub(super) fn validate_attributes(
                 }
                 primary = Some(attr);
             }
-            Attribute::Secondary(attr) => {
-                match attr.clone() {
-                    SecondaryAttribute::Custom(custom_attr) => {
-                        if is_valid_custom_attribute(custom_attr) {
-                            secondary.push(attr)   
-                        } else {
-                            emit(ParserError::with_reason(
-                                ParserErrorReason::ReservedAttributeName,
-                                span,
-                            ));
-                        }
-                    },
-                    _ => secondary.push(attr)
+            Attribute::Secondary(attr) => match attr.clone() {
+                SecondaryAttribute::Custom(custom_attr) => {
+                    if is_valid_custom_attribute(custom_attr) {
+                        secondary.push(attr)
+                    } else {
+                        emit(ParserError::with_reason(
+                            ParserErrorReason::ReservedAttributeName,
+                            span,
+                        ));
+                    }
                 }
+                _ => secondary.push(attr),
             },
         }
     }
 
-    Attributes { function: primary, secondary, fv_attributes}
+    Attributes { function: primary, secondary, fv_attributes }
 }
 
 pub(super) fn validate_secondary_attributes(
