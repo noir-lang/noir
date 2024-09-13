@@ -772,8 +772,10 @@ impl<'f> PerFunctionContext<'f> {
                             .position(|id| *id == *store_instruction)
                             .expect("Store instruction should exist in the return block");
                         // TODO: Want to get rid of this usage of store_uses
-                        if let Some(store_uses) = self.store_count.get(store_address) {
-                            store_index > *max_load_index && *store_uses == 1
+                        if let Some(_store_uses) = self.store_count.get(store_address) {
+                            store_index > *max_load_index
+                            // TODO: Without this `store_uses` I am getting failures in aztec-packages contracts
+                            //  && *store_uses == 1
                         } else {
                             store_index > *max_load_index
                         }
@@ -782,7 +784,7 @@ impl<'f> PerFunctionContext<'f> {
                         true
                     };
                     !is_return_value && store_after_load
-                } else if let (Some(context), Some(loads_removed_counter), Some(store_uses)) = (
+                } else if let (Some(context), Some(loads_removed_counter), Some(_store_uses)) = (
                     self.last_loads.get(store_address),
                     removed_loads.get(store_address),
                     self.store_count.get(store_address),
@@ -791,9 +793,9 @@ impl<'f> PerFunctionContext<'f> {
                     // If the number of removed loads for a given address is equal to the total number of loads for that address,
                     // we know we can safely remove any stores to that load address.
                     // TODO: Want to get rid of this usage of store_uses
-                    context.num_loads == *loads_removed_counter
-                        && !is_used_in_terminator
-                        && *store_uses == 1
+                    context.num_loads == *loads_removed_counter && !is_used_in_terminator
+                    // TODO: Without this `store_uses` I am getting failures in aztec-packages contracts
+                    // && *store_uses == 1
                 } else {
                     self.last_loads.get(store_address).is_none() && !is_used_in_terminator
                 };
