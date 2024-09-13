@@ -103,7 +103,6 @@ fn main() {
     println(field);
 
     // Test calling two
-    let calldata = [1, 2, 3];
     let result = some_contract::public_entrypoint(1, calldata);
     let (point, _index): (Point, Field) = FromCallData::from_calldata(result, 0);
     assert_eq(point.x, 3);
