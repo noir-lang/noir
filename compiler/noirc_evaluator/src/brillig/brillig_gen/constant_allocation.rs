@@ -138,5 +138,5 @@ impl ConstantAllocation {
 }
 
 pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
-    matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. } | Value::Array { .. })
+    matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. })
 }

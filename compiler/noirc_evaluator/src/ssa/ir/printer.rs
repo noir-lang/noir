@@ -71,10 +71,6 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, .. } => {
-            let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
-        }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
         }
@@ -236,13 +232,9 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
         .then_some(())
         .and_then(|()| {
-            let Value::Array { array: values, .. } = &dfg[values[0]] else {
-                return None;
-            };
-            let fields: Option<Vec<_>> =
-                values.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-
-            fields
+            let (values, _) = &dfg.get_array_constant(values[0])?;
+            let values = values.iter().map(|value_id| dfg.get_numeric_constant(*value_id));
+            values.collect::<Option<Vec<_>>>()
         })
         .map(|fields| {
             fields

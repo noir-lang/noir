@@ -788,8 +788,8 @@ impl<'f> Context<'f> {
                     }
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
                         let points_array_idx = if matches!(
-                            self.inserter.function.dfg[arguments[0]],
-                            Value::Array { .. }
+                            self.inserter.function.dfg.type_of_value(arguments[0]),
+                            Type::Array { .. }
                         ) {
                             0
                         } else {
@@ -828,7 +828,7 @@ impl<'f> Context<'f> {
     ) -> (im::Vector<ValueId>, Type) {
         let array_typ;
         let mut array_with_predicate = im::Vector::new();
-        if let Value::Array { array, typ } = &self.inserter.function.dfg[argument] {
+        if let Some((array, typ)) = &self.inserter.function.dfg.get_array_constant(argument) {
             array_typ = typ.clone();
             for (i, value) in array.clone().iter().enumerate() {
                 if i % 3 == 2 {
