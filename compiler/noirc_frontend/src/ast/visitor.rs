@@ -841,6 +841,7 @@ impl Expression {
             ExpressionKind::Quote(tokens) => visitor.visit_quote(tokens),
             ExpressionKind::Resolved(expr_id) => visitor.visit_resolved_expression(*expr_id),
             ExpressionKind::Interned(id) => visitor.visit_interned_expression(*id),
+            ExpressionKind::InternedStatement(id) => visitor.visit_interned_statement(*id),
             ExpressionKind::Error => visitor.visit_error_expression(),
         }
     }

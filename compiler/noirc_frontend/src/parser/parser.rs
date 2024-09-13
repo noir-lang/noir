@@ -24,7 +24,10 @@
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
 use self::path::as_trait_path;
-use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
+use self::primitives::{
+    interned_statement, interned_statement_expr, keyword, macro_quote_marker, mutable_reference,
+    variable,
+};
 use self::types::{generic_type_args, maybe_comp_time};
 use attributes::{attributes, inner_attribute, validate_secondary_attributes};
 use doc_comments::{inner_doc_comments, outer_doc_comments};
@@ -510,15 +513,6 @@ where
     .map_with_span(|kind, span| Box::new(Statement { kind, span }));
 
     keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
-}
-
-pub(super) fn interned_statement() -> impl NoirParser<StatementKind> {
-    token_kind(TokenKind::InternedStatement).map(|token| match token {
-        Token::InternedStatement(id) => StatementKind::Interned(id),
-        _ => {
-            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
-        }
-    })
 }
 
 /// Comptime in an expression position only accepts entire blocks
@@ -1158,6 +1152,7 @@ where
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         macro_quote_marker(),
         interned_expr(),
+        interned_statement_expr(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {

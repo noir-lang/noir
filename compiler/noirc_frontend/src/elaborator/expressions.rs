@@ -25,9 +25,9 @@ use crate::{
     macros_api::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirLiteral,
         HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, PrefixExpression,
+        MethodCallExpression, PrefixExpression, StatementKind,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
+    node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::Tokens,
     QuotedType, Shared, StructType, Type,
 };
@@ -67,6 +67,9 @@ impl<'context> Elaborator<'context> {
                 let expr = Expression::new(expr_kind.clone(), expr.span);
                 return self.elaborate_expression(expr);
             }
+            ExpressionKind::InternedStatement(id) => {
+                return self.elaborate_interned_statement_as_expr(id, expr.span);
+            }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
@@ -78,6 +81,29 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_location(id, expr.span, self.file);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
+    }
+
+    fn elaborate_interned_statement_as_expr(
+        &mut self,
+        id: InternedStatementKind,
+        span: Span,
+    ) -> (ExprId, Type) {
+        match self.interner.get_statement_kind(id) {
+            StatementKind::Expression(expr) | StatementKind::Semi(expr) => {
+                self.elaborate_expression(expr.clone())
+            }
+            StatementKind::Interned(id) => self.elaborate_interned_statement_as_expr(*id, span),
+            StatementKind::Error => {
+                let expr = Expression::new(ExpressionKind::Error, span);
+                self.elaborate_expression(expr)
+            }
+            other => {
+                let statement = other.to_string();
+                self.push_err(ResolverError::InvalidInternedStatementInExpr { statement, span });
+                let expr = Expression::new(ExpressionKind::Error, span);
+                self.elaborate_expression(expr)
+            }
+        }
     }
 
     pub(super) fn elaborate_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {

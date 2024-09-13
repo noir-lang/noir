@@ -178,6 +178,11 @@ pub(crate) fn rewrite(
         ExpressionKind::Interned(_) => {
             unreachable!("ExpressionKind::Interned should only emitted by the comptime interpreter")
         }
+        ExpressionKind::InternedStatement(_) => {
+            unreachable!(
+                "ExpressionKind::InternedStatement should only emitted by the comptime interpreter"
+            )
+        }
         ExpressionKind::Unquote(expr) => {
             if matches!(&expr.kind, ExpressionKind::Variable(..)) {
                 format!("${expr}")
