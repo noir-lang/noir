@@ -70,7 +70,7 @@ pub enum ParserErrorReason {
     #[error("Associated types are not allowed on a method call")]
     AssociatedTypesNotAllowedInMethodCalls,
     #[error("Custom attributes are not allowed to be prefixed with a formal verification attribute")]
-    InvalidCustomAttribute,
+    ReservedAttributeName,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

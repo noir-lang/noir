@@ -651,7 +651,6 @@ impl fmt::Display for TestScope {
     }
 }
 
-// #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 #[derive(PartialEq, Eq, Debug, Clone)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
@@ -999,8 +998,8 @@ impl CustomAtrribute {
 
 /// Formal verification attributes are used for nargo formal-verify.
 /// A function can have many formal verification attributes.
-/// They are not able to change the `FunctionKind` and thus do not have direct impact on the IR output.
-/// This enum will not be used as a Token, it will be used as a field in the structure Attributes which is a part of
+/// They do not change the `FunctionKind` and thus do not have direct impact on the IR output.
+/// This enum is not used as a Token, it will be used as a field in the structure Attributes which is a part of
 /// the structure FunctionDefinition   
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum FormalVerificationAttribute {
