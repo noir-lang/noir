@@ -411,7 +411,19 @@ impl<'f> PerFunctionContext<'f> {
                 if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
                     if let Some(context) = self.load_results.get_mut(&value) {
-                        context.uses -= 1;
+                        if context.uses > 0 {
+                            context.uses -= 1;
+                        }
+                    }
+                    if let Some(context) = self.load_results.get_mut(&address) {
+                        if context.uses > 0 {
+                            context.uses -= 1;
+                        }
+                    }
+                    if let Some(store_uses) = self.store_count.get_mut(&value) {
+                        if *store_uses != 0 {
+                            *store_uses -= 1;
+                        }
                     }
                     if let Some(store_uses) = self.store_count.get_mut(&address) {
                         if *store_uses != 0 {
@@ -424,9 +436,22 @@ impl<'f> PerFunctionContext<'f> {
                 if let Some(known_value) = known_value {
                     let known_value_is_address = known_value == address;
                     if known_value_is_address {
+                        // TODO: move all of this into a utility method for when removing an instruction
                         self.instructions_to_remove.insert(instruction);
+                        if let Some(context) = self.load_results.get_mut(&value) {
+                            if context.uses > 0 {
+                                context.uses -= 1;
+                            }
+                        }
                         if let Some(context) = self.load_results.get_mut(&address) {
-                            context.uses -= 1;
+                            if context.uses > 0 {
+                                context.uses -= 1;
+                            }
+                        }
+                        if let Some(store_uses) = self.store_count.get_mut(&value) {
+                            if *store_uses != 0 {
+                                *store_uses -= 1;
+                            }
                         }
                         if let Some(store_uses) = self.store_count.get_mut(&address) {
                             if *store_uses != 0 {
@@ -683,12 +708,13 @@ impl<'f> PerFunctionContext<'f> {
     /// Returns a map of the removed load address to the number of load instructions removed for that address
     fn remove_unused_loads(&mut self) -> HashMap<ValueId, u32> {
         let mut removed_loads = HashMap::default();
-        for (_, PerFuncLoadResultContext { uses, load_instruction, .. }) in self.load_results.iter()
+        for (result, PerFuncLoadResultContext { uses, load_instruction, .. }) in self.load_results.iter()
         {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
                 unreachable!("Should only have a load instruction here");
             };
+            println!("{result} with {uses} uses");
             // If the load result's counter is equal to zero we can safely remove that load instruction.
             if *uses == 0 {
                 if let Some(store_uses) = self.store_count.get_mut(&address) {
@@ -760,31 +786,36 @@ impl<'f> PerFunctionContext<'f> {
                             &mut is_return_value,
                         );
                     });
-
+                    println!("{is_return_value} is used in return {store_address}");
                     // If we are in a return terminator, and the last load of an address
                     // comes after a store to that address, we can safely remove that store.
-                    let store_after_load = if let Some(max_load_index) =
-                        self.return_block_load_locations.get(&(*store_address, *block_id))
-                    {
-                        let store_index = self.inserter.function.dfg[*block_id]
-                            .instructions()
-                            .iter()
-                            .position(|id| *id == *store_instruction)
-                            .expect("Store instruction should exist in the return block");
-                        // TODO: Want to get rid of this usage of store_uses
-                        if let Some(_store_uses) = self.store_count.get(store_address) {
-                            store_index > *max_load_index
-                            // TODO: Without this `store_uses` I am getting failures in aztec-packages contracts
-                            //  && *store_uses == 1
-                        } else {
-                            store_index > *max_load_index
-                        }
-                    } else {
-                        // Otherwise there is no load in this block
-                        true
-                    };
-                    !is_return_value && store_after_load
-                } else if let (Some(context), Some(loads_removed_counter), Some(_store_uses)) = (
+                    // let store_after_load = if let Some(max_load_index) =
+                    //     self.return_block_load_locations.get(&(*store_address, *block_id))
+                    // {
+                    //     let store_index = self.inserter.function.dfg[*block_id]
+                    //         .instructions()
+                    //         .iter()
+                    //         .position(|id| *id == *store_instruction)
+                    //         .expect("Store instruction should exist in the return block");
+                    //     // TODO: Want to get rid of this usage of store_uses
+                    //     if let Some(store_uses) = self.store_count.get(store_address) {
+                    //         store_index > *max_load_index
+                    //         // TODO: Without this `store_uses` I am getting failures in aztec-packages contracts
+                    //          && *store_uses == 1
+                    //     } else {
+                    //         store_index > *max_load_index
+                    //     }
+                    // } else {
+                    //     // Otherwise there is no load in this block
+                    //     true
+                    // };
+                    let last_load_not_in_return = self
+                        .last_loads
+                        .get(store_address)
+                        .map(|context| context.block_id != *block_id)
+                        .unwrap_or(true);
+                    !is_return_value && last_load_not_in_return
+                } else if let (Some(context), Some(loads_removed_counter), Some(store_uses)) = (
                     self.last_loads.get(store_address),
                     removed_loads.get(store_address),
                     self.store_count.get(store_address),
@@ -793,11 +824,13 @@ impl<'f> PerFunctionContext<'f> {
                     // If the number of removed loads for a given address is equal to the total number of loads for that address,
                     // we know we can safely remove any stores to that load address.
                     // TODO: Want to get rid of this usage of store_uses
-                    context.num_loads == *loads_removed_counter && !is_used_in_terminator
+                    context.num_loads == *loads_removed_counter 
+                    // && !is_used_in_terminator
                     // TODO: Without this `store_uses` I am getting failures in aztec-packages contracts
                     // && *store_uses == 1
                 } else {
-                    self.last_loads.get(store_address).is_none() && !is_used_in_terminator
+                    self.last_loads.get(store_address).is_none() 
+                    // && !is_used_in_terminator
                 };
 
                 // Extra checks on where a reference can be used aside a load instruction.
@@ -814,6 +847,7 @@ impl<'f> PerFunctionContext<'f> {
                     && !is_reference_param
                     && !is_used_as_reference_arg
                     && !is_reference_alias
+                    // && !is_used_in_terminator
                 {
                     self.instructions_to_remove.insert(*store_instruction);
                     if let Some(store_uses) = self.store_count.get_mut(store_address) {
@@ -840,13 +874,16 @@ impl<'f> PerFunctionContext<'f> {
         removed_loads: &HashMap<ValueId, u32>,
         remaining_last_stores: &HashMap<ValueId, (InstructionId, u32)>,
     ) {
+        dbg!(remaining_last_stores.clone());
         // Filter out any still in use load results and any load results that do not contain addresses from the remaining last stores
         self.load_results.retain(|_, PerFuncLoadResultContext { load_instruction, uses, .. }| {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
                 unreachable!("Should only have a load instruction here");
             };
-            remaining_last_stores.contains_key(&address) && *uses > 0
+            // remaining_last_stores.contains_key(&address) 
+            // && *uses > 0
+            true
         });
 
         for (store_address, (store_instruction, store_counter)) in remaining_last_stores {
@@ -863,7 +900,7 @@ impl<'f> PerFunctionContext<'f> {
                     "The number of loads removed should not be more than all loads"
                 );
             }
-
+            println!("{store_address} with {store_counter} uses");
             // We only want to remove last stores referencing a single address.
             if *store_counter != 0 {
                 continue;
@@ -880,6 +917,7 @@ impl<'f> PerFunctionContext<'f> {
                 if address != *store_address {
                     continue;
                 }
+                println!("{result} removed as remaining load result");
                 // Map the load result to its respective store value
                 // We will have to map all instructions following this method
                 // as we do not know what instructions depend upon this result
