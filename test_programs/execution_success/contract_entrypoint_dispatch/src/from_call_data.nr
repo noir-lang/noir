@@ -121,6 +121,18 @@ impl <let N: u32> FromCallData<N> for i64 {
     }
 }
 
+impl <let N: u32, T, let M: u32> FromCallData<N> for [T; M] where T: FromCallData<N> {
+    fn from_calldata(calldata: [Field; N], mut index: Field) -> (Self, Field) {
+        let mut values = [std::mem::zeroed(); M];
+        for loop_index in 0..M {
+            let (value, new_index) = FromCallData::from_calldata(calldata, index);
+            values[loop_index] = value;
+            index = new_index;
+        }
+        (values, index)
+    }
+}
+
 mod tests {
     use super::FromCallData;
 
@@ -166,5 +178,13 @@ mod tests {
         assert_eq(value.x, 1);
         assert_eq(value.y, 2);
         assert_eq(index, 2);
+    }
+
+    #[test]
+    fn test_array_from_call_data() {
+        let calldata = [1, 2, 3];
+        let (value, index): ([Field; 3], Field) = FromCallData::from_calldata(calldata, 0);
+        assert_eq(value, [1, 2, 3]);
+        assert_eq(index, 3);
     }
 }
