@@ -42,7 +42,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.33.0"
+version = "0.34.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
