@@ -3,7 +3,7 @@ use crate::append::Append;
 impl CtString {
     // docs:start:new
     comptime fn new() -> Self {
-        // docs::end::new
+        // docs:end:new
         "".as_ctstring()
     }
 
