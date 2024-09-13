@@ -536,7 +536,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::InvalidInternedStatementInExpr { statement, span } => {
                 Diagnostic::simple_error(
                     format!("Failed to parse `{statement}` as an expression"),
-                    format!("The statement was used from a macro here"),
+                    "The statement was used from a macro here".to_string(),
                     *span,
                 )
             },
