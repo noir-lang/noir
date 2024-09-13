@@ -3480,7 +3480,7 @@ fn cannot_mutate_immutable_variable() {
     let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
         &errors[0].0
     else {
-        panic!("Expected an error about passing a constrained reference to unconstrained");
+        panic!("Expected a CannotMutateImmutableVariable error");
     };
 
     assert_eq!(name, "array");
@@ -3509,7 +3509,7 @@ fn cannot_mutate_immutable_variable_on_member_access() {
     let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
         &errors[0].0
     else {
-        panic!("Expected an error about passing a constrained reference to unconstrained");
+        panic!("Expected a CannotMutateImmutableVariable error");
     };
 
     assert_eq!(name, "foo");
