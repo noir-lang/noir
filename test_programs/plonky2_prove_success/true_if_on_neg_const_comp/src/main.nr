@@ -2,8 +2,8 @@ fn main(
     a: Field,
     b: Field
 ) {
-    let mut res: bool = false;
-    if (b - a) != -1 {
+    let mut res: bool = true;
+    if b - a == -1 {
         res = false;
     }
     else {
