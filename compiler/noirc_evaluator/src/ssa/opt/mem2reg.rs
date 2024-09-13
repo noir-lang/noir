@@ -771,7 +771,11 @@ impl<'f> PerFunctionContext<'f> {
                             .position(|id| *id == *store_instruction)
                             .expect("Store instruction should exist in the return block");
                         // TODO: Want to get rid of this usage of store_uses
-                        store_index > *max_load_index && *store_uses == 1
+                        if let Some(store_uses) = self.store_count.get(store_address) {
+                            store_index > *max_load_index && *store_uses == 1
+                        } else {
+                            store_index > *max_load_index
+                        }
                     } else {
                         // Otherwise there is no load in this block
                         true
