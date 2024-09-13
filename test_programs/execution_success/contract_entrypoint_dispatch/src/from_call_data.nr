@@ -50,3 +50,59 @@ impl <let N: u32> FromCallData<N> for Field {
         (value, index + 1)
     }
 }
+
+impl <let N: u32> FromCallData<N> for u8 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as u8;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for u16 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as u16;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for u32 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as u32;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for u64 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as u64;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for i8 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as i8;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for i16 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as i16;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for i32 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as i32;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for i64 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as i64;
+        (value, index + 1)
+    }
+}
