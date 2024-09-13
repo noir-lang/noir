@@ -56,7 +56,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// fn bad() {
     ///     // Error: Type annotation needed
-    ///     // The compiller can't infer `MaxLen` from the following code:
+    ///     // The compiler can't infer `MaxLen` from the following code:
     ///     let mut v3 = BoundedVec::new();
     ///     v3.push(5);
     /// }

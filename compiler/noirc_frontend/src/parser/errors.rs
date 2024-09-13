@@ -31,6 +31,8 @@ pub enum ParserErrorReason {
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
     #[error("expected <, where or {{ after trait impl for type")]
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
+    #[error("expected ( or < after function name")]
+    ExpectedLeftParenOrLeftBracketAfterFunctionName,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]

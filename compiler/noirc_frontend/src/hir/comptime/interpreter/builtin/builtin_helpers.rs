@@ -9,7 +9,6 @@ use crate::{
         BlockExpression, ExpressionKind, IntegerBitSize, LValue, Pattern, Signedness,
         StatementKind, UnresolvedTypeData,
     },
-    elaborator::Elaborator,
     hir::{
         comptime::{
             errors::IResult,
@@ -26,7 +25,7 @@ use crate::{
     macros_api::{NodeInterner, StructId},
     node_interner::{FuncId, TraitId, TraitImplId},
     parser::NoirParser,
-    token::{Token, Tokens},
+    token::{SecondaryAttribute, Token, Tokens},
     QuotedType, Type,
 };
 
@@ -123,6 +122,13 @@ pub(crate) fn get_str(
             let expected = Type::String(Box::new(interner.next_type_variable()));
             type_mismatch(value, expected, location)
         }
+    }
+}
+
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+    match value {
+        Value::CtString(string) => Ok(string),
+        value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
     }
 }
 
@@ -450,23 +456,12 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     Value::Slice(statements, typ)
 }
 
-pub(super) fn has_named_attribute<'a>(
-    name: &'a str,
-    attributes: impl Iterator<Item = &'a String>,
-    location: Location,
-) -> bool {
+pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
     for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location);
-        let Ok(Some((function, _arguments))) = parse_result else {
-            continue;
-        };
-
-        let ExpressionKind::Variable(path) = function.kind else {
-            continue;
-        };
-
-        if path.last_name() == name {
-            return true;
+        if let Some(attribute_name) = attribute.name() {
+            if name == attribute_name {
+                return true;
+            }
         }
     }
 
