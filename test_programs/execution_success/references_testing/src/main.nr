@@ -47,12 +47,15 @@ fn emit_with_keys<Event, let OB: u32>(
     randomness: Field,
     event: Event,
     inner_compute: fn(Event) -> ([u8; OB], Field)
-) where Event: EventInterface { 
+) where Event: EventInterface {
     let (log, log_hash) = inner_compute(event);
     context.emit_raw_log(randomness, log, log_hash);
 }
 
-pub fn encode_event_with_randomness<Event>(context: &mut Context, randomness: Field) -> fn[(&mut Context, Field)](Event) -> () where Event: EventInterface {
+pub fn encode_event_with_randomness<Event>(
+    context: &mut Context,
+    randomness: Field
+) -> fn[(&mut Context, Field)](Event) -> () where Event: EventInterface {
     | e: Event | {
         unsafe {
             func(context.a);
@@ -79,7 +82,6 @@ fn main(input: [Field; 4], randomness: Field, context_input: u32) {
 
     let event0 = ExampleEvent0 { value0: input[0], value1: input[1] };
     event0.emit(encode_event_with_randomness(&mut context, randomness));
-
     // let event1 = ExampleEvent1 { value2: preimages[2] as u8, value3: preimages[3] as u8 };
     // context
 }
