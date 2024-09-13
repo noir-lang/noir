@@ -176,7 +176,10 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{parser::parser::test_helpers::*, token::{FormalVerificationAttribute, SecondaryAttribute}};
+    use crate::{
+        parser::parser::test_helpers::*,
+        token::{FormalVerificationAttribute, SecondaryAttribute},
+    };
 
     #[test]
     fn regression_skip_comment() {
@@ -302,7 +305,7 @@ mod test {
         let src = r#"#[requires(x > 2)]
                     #[ensures(result < 8)]
                     fn foo(x: i32) {}"#;
-        
+
         let function_definition = parse_with(function_definition(false), src).unwrap();
         let parsed_attributes = &function_definition.attributes().fv_attributes;
 
@@ -322,26 +325,30 @@ mod test {
                     #[ensures(result < 8)]
                     #[requires(x < 5)]
                     fn foo(x: i32) {}"#;
+
         let function_definition = parse_with(function_definition(false), src).unwrap();
         let parsed_fv_attributes = &function_definition.attributes().fv_attributes;
         let parsed_attributes = &function_definition.attributes().secondary;
 
+        // Check that the formal verification attributes are parsed correctly.
         assert_eq!(parsed_fv_attributes.len(), 3, "Expected 3 formal verification attributes.");
-        assert_eq!(parsed_attributes.len(), 1, "Expected 1 secondary attributes.");
         let FormalVerificationAttribute::Requires(_) = parsed_fv_attributes[0] else {
             panic!("Expected 'requires', but got {:?}.", parsed_fv_attributes[0]);
         };
-        let SecondaryAttribute::Deprecated(_) = parsed_attributes[0] else {
-            panic!("Expected 'deprecated', but got {:?}.", parsed_attributes[0]);
-        };
         let FormalVerificationAttribute::Ensures(_) = parsed_fv_attributes[1] else {
-            panic!("Expected 'requires', but got {:?}.", parsed_fv_attributes[1]);
+            panic!("Expected 'ensures', but got {:?}.", parsed_fv_attributes[1]);
         };
         let FormalVerificationAttribute::Requires(_) = parsed_fv_attributes[2] else {
             panic!("Expected 'requires', but got {:?}.", parsed_fv_attributes[2]);
         };
+
+        // Check that the other attributes are not botched by this.
+        assert_eq!(parsed_attributes.len(), 1, "Expected 1 secondary attributes.");
+        let SecondaryAttribute::Deprecated(_) = parsed_attributes[0] else {
+            panic!("Expected 'deprecated', but got {:?}.", parsed_attributes[0]);
+        };
     }
-    
+
     #[test]
     fn formal_verification_wrong_attribute_defs() {
         parse_all_failing(
@@ -357,5 +364,5 @@ mod test {
                 "#[ensures(result > 4)x] fn foo(x: i32) {}",
             ],
         );
-    }    
+    }
 }
