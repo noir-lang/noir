@@ -1,7 +1,7 @@
-/// A trait for types that can be decoded from a calldata field array
+/// A trait for types that can be deserialized from a calldata field array
 #[derive_via(derive_from_call_data)]
 trait FromCallData<let N: u32> {
-    /// Decodes Self by reading it from calldata at the given index, also returning the next index to read from
+    /// Deserializes Self by reading it from calldata at the given index, also returning the next index to read from
     fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field);
 }
 
