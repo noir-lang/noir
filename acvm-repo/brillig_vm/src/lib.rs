@@ -213,6 +213,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     self.increment_program_counter()
                 }
             }
+            Opcode::Not { destination, source, bit_size } => {
+                if let Err(error) = self.process_not(*source, *destination, *bit_size) {
+                    self.fail(error)
+                } else {
+                    self.increment_program_counter()
+                }
+            }
             Opcode::Cast { destination: destination_address, source: source_address, bit_size } => {
                 let source_value = self.memory.read(*source_address);
                 let casted_value = self.cast(*bit_size, source_value);
@@ -709,6 +716,36 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
+    fn process_not(
+        &mut self,
+        source: MemoryAddress,
+        destination: MemoryAddress,
+        op_bit_size: IntegerBitSize,
+    ) -> Result<(), String> {
+        let (value, bit_size) = self
+            .memory
+            .read(source)
+            .extract_integer()
+            .ok_or("Not opcode source is not an integer")?;
+
+        if bit_size != op_bit_size {
+            return Err(format!(
+                "Not opcode source bit size {} does not match expected bit size {}",
+                bit_size, op_bit_size
+            ));
+        }
+
+        let negated_value = if let IntegerBitSize::U128 = bit_size {
+            !value
+        } else {
+            let bit_size: u32 = bit_size.into();
+            let mask = (1_u128 << bit_size as u128) - 1;
+            (!value) & mask
+        };
+        self.memory.write(destination, MemoryValue::new_integer(negated_value, bit_size));
+        Ok(())
+    }
+
     /// Casts a value to a different bit size.
     fn cast(&self, target_bit_size: BitSize, source_value: MemoryValue<F>) -> MemoryValue<F> {
         match (source_value, target_bit_size) {
@@ -950,6 +987,62 @@ mod tests {
 
         let casted_value = memory.read(MemoryAddress::from(1));
         assert_eq!(casted_value.to_field(), (2_u128.pow(8) - 1).into());
+    }
+
+    #[test]
+    fn not_opcode() {
+        let calldata: Vec<FieldElement> = vec![(1_usize).into()];
+
+        let opcodes = &[
+            Opcode::Const {
+                destination: MemoryAddress(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size_address: MemoryAddress(0),
+                offset_address: MemoryAddress(1),
+            },
+            Opcode::Cast {
+                destination: MemoryAddress::from(1),
+                source: MemoryAddress::from(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U128),
+            },
+            Opcode::Not {
+                destination: MemoryAddress::from(1),
+                source: MemoryAddress::from(1),
+                bit_size: IntegerBitSize::U128,
+            },
+            Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
+        ];
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
+
+        let VM { memory, .. } = vm;
+
+        let (negated_value, _) = memory
+            .read(MemoryAddress::from(1))
+            .extract_integer()
+            .expect("Expected integer as the output of Not");
+        assert_eq!(negated_value, !1_u128);
     }
 
     #[test]
