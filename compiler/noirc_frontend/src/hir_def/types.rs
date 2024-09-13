@@ -161,6 +161,7 @@ pub enum QuotedType {
     UnresolvedType,
     FunctionDefinition,
     Module,
+    CtString,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -759,6 +760,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::UnresolvedType => write!(f, "UnresolvedType"),
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
+            QuotedType::CtString => write!(f, "CtString"),
         }
     }
 }
