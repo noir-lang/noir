@@ -11,7 +11,7 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{ConstructorExpression, Path, Visitor},
+    ast::{ConstructorExpression, NoirTraitImpl, Path, Visitor},
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     macros_api::NodeInterner,
@@ -26,6 +26,7 @@ use crate::{utils, LspState};
 use super::{process_request, to_lsp_location};
 
 mod fill_struct_fields;
+mod implement_missing_members;
 mod import_or_qualify;
 #[cfg(test)]
 mod tests;
@@ -216,6 +217,12 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         span: Span,
     ) -> bool {
         self.fill_struct_fields(constructor, span);
+
+        true
+    }
+
+    fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
+        self.implement_missing_members(noir_trait_impl, span);
 
         true
     }

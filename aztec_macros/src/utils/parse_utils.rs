@@ -6,9 +6,9 @@ use noirc_frontend::{
         InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
         MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
         NoirTraitImpl, NoirTypeAlias, Path, PathSegment, Pattern, PrefixExpression, Statement,
-        StatementKind, TraitImplItem, TraitItem, TypeImpl, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        UseTree, UseTreeKind,
+        StatementKind, TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, UseTree, UseTreeKind,
     },
     parser::{Item, ItemKind, ParsedSubModule, ParserError},
     ParsedModule,
@@ -108,7 +108,17 @@ fn empty_noir_function(noir_function: &mut NoirFunction) {
 
 fn empty_trait_item(trait_item: &mut TraitItem) {
     match trait_item {
-        TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+        TraitItem::Function {
+            name,
+            generics,
+            parameters,
+            return_type,
+            where_clause,
+            body,
+            is_unconstrained: _,
+            visibility: _,
+            is_comptime: _,
+        } => {
             empty_ident(name);
             empty_unresolved_generics(generics);
             for (name, typ) in parameters.iter_mut() {
@@ -137,14 +147,20 @@ fn empty_trait_item(trait_item: &mut TraitItem) {
 }
 
 fn empty_trait_impl_item(trait_impl_item: &mut TraitImplItem) {
+    trait_impl_item.span = Default::default();
+
+    empty_trait_impl_item_kind(&mut trait_impl_item.kind);
+}
+
+fn empty_trait_impl_item_kind(trait_impl_item: &mut TraitImplItemKind) {
     match trait_impl_item {
-        TraitImplItem::Function(noir_function) => empty_noir_function(noir_function),
-        TraitImplItem::Constant(name, typ, default_value) => {
+        TraitImplItemKind::Function(noir_function) => empty_noir_function(noir_function),
+        TraitImplItemKind::Constant(name, typ, default_value) => {
             empty_ident(name);
             empty_unresolved_type(typ);
             empty_expression(default_value);
         }
-        TraitImplItem::Type { name, alias } => {
+        TraitImplItemKind::Type { name, alias } => {
             empty_ident(name);
             empty_unresolved_type(alias);
         }

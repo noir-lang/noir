@@ -71,7 +71,10 @@ pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
     assert_eq!(text_edits.len(), 1);
 
     let result = apply_text_edit(&src.replace(">|<", ""), &text_edits[0]);
-    assert_eq!(result, expected);
+    if result != expected {
+        println!("Expected:\n```\n{}\n```\n\nGot:\n```\n{}\n```", expected, result);
+        assert_eq!(result, expected);
+    }
 }
 
 fn apply_text_edit(src: &str, text_edit: &TextEdit) -> String {

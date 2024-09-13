@@ -142,15 +142,13 @@ impl Hasher for MimcHasher {
         r
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: Field) {
         self._state = self._state.push_back(input);
     }
 }
 
-impl Default for MimcHasher{
-    fn default() -> Self{
-        MimcHasher {
-            _state: &[],
-        }
+impl Default for MimcHasher {
+    fn default() -> Self {
+        MimcHasher { _state: &[] }
     }
 }
