@@ -125,6 +125,13 @@ pub(crate) fn get_str(
     }
 }
 
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+    match value {
+        Value::CtString(string) => Ok(string),
+        value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
+    }
+}
+
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
     (value, location): (Value, Location),

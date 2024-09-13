@@ -1,0 +1,7 @@
+[package]
+name = "ctstring"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

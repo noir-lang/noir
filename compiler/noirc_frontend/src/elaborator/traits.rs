@@ -74,6 +74,9 @@ impl<'context> Elaborator<'context> {
                 return_type,
                 where_clause,
                 body: _,
+                is_unconstrained,
+                visibility: _,
+                is_comptime: _,
             } = &item.item
             {
                 self.recover_generics(|this| {
@@ -134,9 +137,12 @@ impl<'context> Elaborator<'context> {
                     };
 
                     let no_environment = Box::new(Type::Unit);
-                    // TODO: unconstrained
-                    let function_type =
-                        Type::Function(arguments, Box::new(return_type), no_environment, false);
+                    let function_type = Type::Function(
+                        arguments,
+                        Box::new(return_type),
+                        no_environment,
+                        *is_unconstrained,
+                    );
 
                     functions.push(TraitFunction {
                         name: name.clone(),
