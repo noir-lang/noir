@@ -34,6 +34,13 @@ pub enum RuntimeError {
     UnInitialized { name: String, call_stack: CallStack },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
+    #[error("Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs")]
+    InvalidBlackBoxInputBitSize {
+        value: String,
+        num_bits: u32,
+        max_num_bits: u32,
+        call_stack: CallStack,
+    },
     #[error("Could not determine loop bound at compile-time")]
     UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
@@ -156,6 +163,7 @@ impl RuntimeError {
             | RuntimeError::StaticAssertFailed { call_stack }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
+            | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }

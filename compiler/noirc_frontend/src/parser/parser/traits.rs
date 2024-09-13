@@ -10,9 +10,10 @@ use super::{
 
 use crate::ast::{
     Documented, Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem,
-    TraitItem, UnresolvedTraitConstraint, UnresolvedType,
+    TraitImplItemKind, TraitItem, UnresolvedTraitConstraint, UnresolvedType,
 };
 use crate::macros_api::Pattern;
+use crate::parser::spanned;
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
@@ -173,7 +174,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>
         }
         // Trait impl functions are always public
         f.def_mut().visibility = ItemVisibility::Public;
-        TraitImplItem::Function(f)
+        TraitImplItemKind::Function(f)
     });
 
     let alias = keyword(Keyword::Type)
@@ -181,11 +182,11 @@ fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>
         .then_ignore(just(Token::Assign))
         .then(parse_type())
         .then_ignore(just(Token::Semicolon))
-        .map(|(name, alias)| TraitImplItem::Type { name, alias });
+        .map(|(name, alias)| TraitImplItemKind::Type { name, alias });
 
     let let_statement = let_statement(expression()).then_ignore(just(Token::Semicolon)).try_map(
         |((pattern, typ), expr), span| match pattern {
-            Pattern::Identifier(ident) => Ok(TraitImplItem::Constant(ident, typ, expr)),
+            Pattern::Identifier(ident) => Ok(TraitImplItemKind::Constant(ident, typ, expr)),
             _ => Err(ParserError::with_reason(
                 ParserErrorReason::PatternInTraitFunctionParameter,
                 span,
@@ -195,7 +196,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>
 
     let item = choice((function, alias, let_statement));
     outer_doc_comments()
-        .then(item)
+        .then(spanned(item).map(|(kind, span)| TraitImplItem { kind, span }))
         .map(|(doc_comments, item)| Documented::new(item, doc_comments))
         .repeated()
 }

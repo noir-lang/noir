@@ -123,6 +123,7 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
         BrilligOpcode::BinaryIntOp { op, bit_size, .. } => {
             format!("{bit_size}::{}", format_binary_int(op))
         }
+        BrilligOpcode::Not { .. } => "not".to_string(),
         BrilligOpcode::BlackBox(func) => format!("blackbox::{}", format_blackbox_op(func)),
         BrilligOpcode::Call { .. } => "call".to_string(),
         BrilligOpcode::CalldataCopy { .. } => "calldata_copy".to_string(),

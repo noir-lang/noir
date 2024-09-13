@@ -191,8 +191,16 @@ fn check_expected_failure_message(
         None => return TestStatus::Pass,
     };
 
-    let expected_failure_message_matches =
-        matches!(&failed_assertion, Some(message) if message.contains(expected_failure_message));
+    // Match the failure message that the user will see, i.e. the failed_assertion
+    // if present or else the error_diagnostic's message, against the
+    // expected_failure_message
+    let expected_failure_message_matches = failed_assertion
+        .as_ref()
+        .or_else(|| {
+            error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.diagnostic.message)
+        })
+        .map(|message| message.contains(expected_failure_message))
+        .unwrap_or(false);
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }

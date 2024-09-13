@@ -69,5 +69,14 @@ impl Eq for Type {
     }
 }
 
+impl crate::hash::Hash for Type {
+    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+        state.write(type_hash(self))
+    }
+}
+
 #[builtin(type_eq)]
 comptime fn type_eq(_first: Type, _second: Type) -> bool {}
+
+#[builtin(type_hash)]
+comptime fn type_hash(_typ: Type) -> Field {}

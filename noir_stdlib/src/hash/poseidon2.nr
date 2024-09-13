@@ -88,7 +88,7 @@ struct Poseidon2Hasher{
 
 impl Hasher for Poseidon2Hasher {
     fn finish(self) -> Field {
-        let iv : Field = (self._state.len() as Field)*18446744073709551616;    // iv = (self._state.len() << 64)
+        let iv : Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
         for i in 0..self._state.len() {
             sponge.absorb(self._state[i]);
@@ -96,15 +96,13 @@ impl Hasher for Poseidon2Hasher {
         sponge.squeeze()
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: Field) {
         self._state = self._state.push_back(input);
     }
 }
 
 impl Default for Poseidon2Hasher {
     fn default() -> Self {
-        Poseidon2Hasher {
-            _state: &[],
-        }
+        Poseidon2Hasher { _state: &[] }
     }
 }
