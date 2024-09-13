@@ -1,6 +1,4 @@
-use field_size::size_in_fields;
-
-mod field_size;
+mod size_in_fields;
 mod from_call_data;
 mod function_selector;
 mod function_signature;
@@ -32,7 +30,7 @@ comptime fn aztec_contract(m: Module) -> Quoted {
     for function in functions {
         let mut field_size = 0;
         for param in function.parameters() {
-            field_size += size_in_fields(param.1);
+            field_size += size_in_fields::size_in_fields(param.1);
         }
         if field_size > max_field_size {
             max_field_size = field_size;
