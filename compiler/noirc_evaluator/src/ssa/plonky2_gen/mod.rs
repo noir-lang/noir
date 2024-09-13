@@ -223,14 +223,10 @@ impl P2Type {
                 }
             },
             Type::Array(composite_type, array_size) => {
-                if array_size == 1 {
-                    P2Type::from_noir_types((*composite_type).clone())?
-                } else {
-                    P2Type::Array(
-                        Box::new(P2Type::from_noir_types((*composite_type).clone())?),
-                        array_size,
-                    )
-                }
+                P2Type::Array(
+                    Box::new(P2Type::from_noir_types((*composite_type).clone())?),
+                    array_size,
+                )
             }
             _ => {
                 let feature_name = format!("the {typ} type");
