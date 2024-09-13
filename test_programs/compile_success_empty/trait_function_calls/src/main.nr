@@ -30,7 +30,7 @@ trait Trait1a {
     }
 }
 struct Struct1a { vl: Field }
-impl Trait1a for Struct1a { }
+impl Trait1a for Struct1a {}
 // 1b) trait default method -> trait overriden method
 trait Trait1b {
     fn trait_method1(self) -> Field {
@@ -162,7 +162,7 @@ trait Trait2a {
     }
 }
 struct Struct2a { vl: Field }
-impl Trait2a for Struct2a { }
+impl Trait2a for Struct2a {}
 // 2b) trait default method -> trait overriden function
 trait Trait2b {
     fn trait_method1(self) -> Field {
@@ -294,7 +294,7 @@ trait Trait3a {
     }
 }
 struct Struct3a { vl: Field }
-impl Trait3a for Struct3a { }
+impl Trait3a for Struct3a {}
 // 3b) trait default function -> trait overriden method
 trait Trait3b {
     fn trait_function1(a: Field, b: Self) -> Field {
@@ -426,7 +426,7 @@ trait Trait4a {
     }
 }
 struct Struct4a { vl: Field }
-impl Trait4a for Struct4a { }
+impl Trait4a for Struct4a {}
 // 4b) trait default function -> trait overriden function
 trait Trait4b {
     fn trait_function1() -> Field {

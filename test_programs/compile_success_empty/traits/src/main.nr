@@ -8,8 +8,8 @@ struct Foo {
 }
 
 impl MyDefault for Foo {
-    fn my_default(x: Field,y: Field) -> Self {
-        Self { bar: x, array: [x,y] }
+    fn my_default(x: Field, y: Field) -> Self {
+        Self { bar: x, array: [x, y] }
     }
 }
 

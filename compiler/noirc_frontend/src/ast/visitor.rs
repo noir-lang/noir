@@ -22,8 +22,8 @@ use crate::{
 
 use super::{
     FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern, Signedness,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression,
+    TraitImplItemKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -69,6 +69,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_trait_impl_item_kind(&mut self, _: &TraitImplItemKind, _span: Span) -> bool {
+        true
+    }
+
     fn visit_trait_impl_item_function(&mut self, _: &NoirFunction, _span: Span) -> bool {
         true
     }
@@ -78,11 +82,17 @@ pub trait Visitor {
         _name: &Ident,
         _typ: &UnresolvedType,
         _expression: &Expression,
+        _span: Span,
     ) -> bool {
         true
     }
 
-    fn visit_trait_impl_item_type(&mut self, _name: &Ident, _alias: &UnresolvedType) -> bool {
+    fn visit_trait_impl_item_type(
+        &mut self,
+        _name: &Ident,
+        _alias: &UnresolvedType,
+        _span: Span,
+    ) -> bool {
         true
     }
 
@@ -569,24 +579,32 @@ impl TraitImplItem {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        match self {
-            TraitImplItem::Function(noir_function) => {
-                let span = Span::from(
-                    noir_function.name_ident().span().start()..noir_function.span().end(),
-                );
+        self.kind.accept(self.span, visitor);
+    }
+}
 
+impl TraitImplItemKind {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_trait_impl_item_kind(self, span) {
+            self.accept_children(span, visitor);
+        }
+    }
+
+    pub fn accept_children(&self, span: Span, visitor: &mut impl Visitor) {
+        match self {
+            TraitImplItemKind::Function(noir_function) => {
                 if visitor.visit_trait_impl_item_function(noir_function, span) {
                     noir_function.accept(span, visitor);
                 }
             }
-            TraitImplItem::Constant(name, unresolved_type, expression) => {
-                if visitor.visit_trait_impl_item_constant(name, unresolved_type, expression) {
+            TraitImplItemKind::Constant(name, unresolved_type, expression) => {
+                if visitor.visit_trait_impl_item_constant(name, unresolved_type, expression, span) {
                     unresolved_type.accept(visitor);
                     expression.accept(visitor);
                 }
             }
-            TraitImplItem::Type { name, alias } => {
-                if visitor.visit_trait_impl_item_type(name, alias) {
+            TraitImplItemKind::Type { name, alias } => {
+                if visitor.visit_trait_impl_item_type(name, alias, span) {
                     alias.accept(visitor);
                 }
             }

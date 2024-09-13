@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 use noirc_frontend::ast::{
     Documented, ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, StructField,
-    TraitImplItem, TypeImpl, UnresolvedTypeData, UnresolvedTypeExpression,
+    TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use noirc_frontend::{
     graph::CrateId,
@@ -153,9 +153,10 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(Documented::not_documented(TraitImplItem::Function(
-                note_serialize_content_fn,
-            )));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(note_serialize_content_fn),
+                span: note_interface_impl_span,
+            }));
 
             let note_deserialize_content_fn = generate_note_deserialize_content(
                 &note_type,
@@ -165,9 +166,10 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(Documented::not_documented(TraitImplItem::Function(
-                note_deserialize_content_fn,
-            )));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(note_deserialize_content_fn),
+                span: note_interface_impl_span,
+            }));
 
             let note_properties_struct = generate_note_properties_struct(
                 &note_type,
@@ -196,9 +198,10 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl
-                .items
-                .push(Documented::not_documented(TraitImplItem::Function(get_header_fn)));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(get_header_fn),
+                span: note_interface_impl_span,
+            }));
         }
         if !check_trait_method_implemented(trait_impl, "set_header") {
             let set_header_fn = generate_note_set_header(
@@ -207,18 +210,20 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl
-                .items
-                .push(Documented::not_documented(TraitImplItem::Function(set_header_fn)));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(set_header_fn),
+                span: note_interface_impl_span,
+            }));
         }
 
         if !check_trait_method_implemented(trait_impl, "get_note_type_id") {
             let note_type_id = compute_note_type_id(&note_type);
             let get_note_type_id_fn =
                 generate_get_note_type_id(note_type_id, note_interface_impl_span, empty_spans)?;
-            trait_impl
-                .items
-                .push(Documented::not_documented(TraitImplItem::Function(get_note_type_id_fn)));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(get_note_type_id_fn),
+                span: note_interface_impl_span,
+            }));
         }
 
         if !check_trait_method_implemented(trait_impl, "compute_note_hiding_point") {
@@ -227,9 +232,10 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(Documented::not_documented(TraitImplItem::Function(
-                compute_note_hiding_point_fn,
-            )));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(compute_note_hiding_point_fn),
+                span: note_interface_impl_span,
+            }));
         }
 
         if !check_trait_method_implemented(trait_impl, "to_be_bytes") {
@@ -240,9 +246,10 @@ pub fn generate_note_interface_impl(
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl
-                .items
-                .push(Documented::not_documented(TraitImplItem::Function(to_be_bytes_fn)));
+            trait_impl.items.push(Documented::not_documented(TraitImplItem {
+                kind: TraitImplItemKind::Function(to_be_bytes_fn),
+                span: note_interface_impl_span,
+            }));
         }
     }
 

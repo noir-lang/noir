@@ -5,11 +5,15 @@ trait Foo {
 }
 
 impl Foo for Empty<u32> {
-    fn foo(_self: Self) -> u32 { 32 }
+    fn foo(_self: Self) -> u32 {
+        32
+    }
 }
 
 impl Foo for Empty<u64> {
-    fn foo(_self: Self) -> u32 { 64 }
+    fn foo(_self: Self) -> u32 {
+        64
+    }
 }
 
 fn main() {
@@ -43,7 +47,9 @@ trait T2 {
 struct S2<T> { x: T }
 
 impl<T> T2 for S2<T> {
-    fn t2(self) -> Self { self }
+    fn t2(self) -> Self {
+        self
+    }
 }
 
 fn call_impl_with_generic_function() {
@@ -55,5 +61,7 @@ trait T3 {
 }
 
 impl T3 for u32 {
-    fn t3<U>(_self: Self, y: U) -> U { y }
+    fn t3<U>(_self: Self, y: U) -> U {
+        y
+    }
 }

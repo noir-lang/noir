@@ -378,12 +378,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         name: &Ident,
         typ: &UnresolvedType,
         default_value: &Expression,
+        _span: Span,
     ) -> bool {
         self.collect_in_constant(name, typ, Some(default_value));
         false
     }
 
-    fn visit_trait_impl_item_type(&mut self, name: &Ident, alias: &UnresolvedType) -> bool {
+    fn visit_trait_impl_item_type(
+        &mut self,
+        name: &Ident,
+        alias: &UnresolvedType,
+        _span: Span,
+    ) -> bool {
         self.collect_in_type(name, Some(alias));
         false
     }
@@ -662,7 +668,7 @@ mod document_symbol_tests {
                             tags: None,
                             deprecated: None,
                             range: Range {
-                                start: Position { line: 19, character: 7 },
+                                start: Position { line: 19, character: 4 },
                                 end: Position { line: 20, character: 5 },
                             },
                             selection_range: Range {

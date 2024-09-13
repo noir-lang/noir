@@ -150,7 +150,8 @@ fn foo<T>() where T: Default {
 
 ```rust
 impl Eq for Type
+impl Hash for Type
 ```
 Note that this is syntactic equality, this is not the same as whether two types will type check
 to be the same type. Unless type inference or generics are being used however, users should not
-typically have to worry about this distinction.
+typically have to worry about this distinction unless `std::meta::typ::fresh_type_variable` is used.
