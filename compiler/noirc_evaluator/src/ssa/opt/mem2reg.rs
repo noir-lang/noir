@@ -708,7 +708,8 @@ impl<'f> PerFunctionContext<'f> {
     /// Returns a map of the removed load address to the number of load instructions removed for that address
     fn remove_unused_loads(&mut self) -> HashMap<ValueId, u32> {
         let mut removed_loads = HashMap::default();
-        for (result, PerFuncLoadResultContext { uses, load_instruction, .. }) in self.load_results.iter()
+        for (result, PerFuncLoadResultContext { uses, load_instruction, .. }) in
+            self.load_results.iter()
         {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
             else {
@@ -824,12 +825,12 @@ impl<'f> PerFunctionContext<'f> {
                     // If the number of removed loads for a given address is equal to the total number of loads for that address,
                     // we know we can safely remove any stores to that load address.
                     // TODO: Want to get rid of this usage of store_uses
-                    context.num_loads == *loads_removed_counter 
+                    context.num_loads == *loads_removed_counter
                     // && !is_used_in_terminator
                     // TODO: Without this `store_uses` I am getting failures in aztec-packages contracts
                     // && *store_uses == 1
                 } else {
-                    self.last_loads.get(store_address).is_none() 
+                    self.last_loads.get(store_address).is_none()
                     // && !is_used_in_terminator
                 };
 
@@ -847,7 +848,7 @@ impl<'f> PerFunctionContext<'f> {
                     && !is_reference_param
                     && !is_used_as_reference_arg
                     && !is_reference_alias
-                    // && !is_used_in_terminator
+                // && !is_used_in_terminator
                 {
                     self.instructions_to_remove.insert(*store_instruction);
                     if let Some(store_uses) = self.store_count.get_mut(store_address) {
@@ -881,7 +882,7 @@ impl<'f> PerFunctionContext<'f> {
             else {
                 unreachable!("Should only have a load instruction here");
             };
-            // remaining_last_stores.contains_key(&address) 
+            // remaining_last_stores.contains_key(&address)
             // && *uses > 0
             true
         });
