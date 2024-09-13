@@ -5,7 +5,7 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, ConstructorExpression, IfExpression, InfixExpression, Lambda,
+        ArrayLiteral, ConstructorExpression, IfExpression, InfixExpression, Lambda, UnaryOp,
         UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
@@ -248,10 +248,17 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
+        let rhs_span = prefix.rhs.span;
+
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
         let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
 
         let operator = prefix.operator;
+
+        if let UnaryOp::MutableReference = operator {
+            self.check_can_mutate(rhs, rhs_span);
+        }
+
         let expr =
             HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
         let expr_id = self.interner.push_expr(expr);
@@ -262,6 +269,19 @@ impl<'context> Elaborator<'context> {
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
+    }
+
+    fn check_can_mutate(&mut self, expr_id: ExprId, span: Span) {
+        let expr = self.interner.expression(&expr_id);
+        if let HirExpression::Ident(hir_ident, _) = expr {
+            let definition = self.interner.definition(hir_ident.id);
+            if !definition.mutable {
+                self.push_err(TypeCheckError::CannotMutateImmutableVariable {
+                    name: definition.name.clone(),
+                    span,
+                });
+            }
+        }
     }
 
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {

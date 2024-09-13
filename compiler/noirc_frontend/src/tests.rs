@@ -3462,3 +3462,26 @@ fn comptime_type_in_runtime_code() {
         CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
     ));
 }
+
+#[test]
+fn cannot_mutate_immutable_variable() {
+    let src = r#"
+    fn main() {
+        let array = [1];
+        mutate(&mut array);
+    }
+
+    fn mutate(_: &mut [Field; 1]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected an error about passing a constrained reference to unconstrained");
+    };
+
+    assert_eq!(name, "array");
+}
