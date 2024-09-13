@@ -51,6 +51,20 @@ impl <let N: u32> FromCallData<N> for Field {
     }
 }
 
+impl <let N: u32> FromCallData<N> for bool {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as bool;
+        (value, index + 1)
+    }
+}
+
+impl <let N: u32> FromCallData<N> for u1 {
+    fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
+        let value = calldata[index] as u1;
+        (value, index + 1)
+    }
+}
+
 impl <let N: u32> FromCallData<N> for u8 {
     fn from_calldata(calldata: [Field; N], index: Field) -> (Self, Field) {
         let value = calldata[index] as u8;
