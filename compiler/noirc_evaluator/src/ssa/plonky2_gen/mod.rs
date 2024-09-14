@@ -565,6 +565,16 @@ impl Builder {
         )
     }
 
+    fn get_integer_bitsize_and_signedness(typ: &P2Type) -> Option<(usize, bool)> {
+        Some(match typ {
+            P2Type::Integer(bit_size, signed) => (usize::try_from(*bit_size).unwrap(), *signed),
+            P2Type::Field => (usize::try_from(FIELD_BIT_SIZE).unwrap(), false),
+            _ => {
+                return None;
+            }
+        })
+    }
+
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
         let instruction = self.dfg[instruction_id].clone();
 
@@ -615,7 +625,9 @@ impl Builder {
                         let (type_of_b, target_b) = self.get_integer(rhs)?;
                         assert!(type_of_a == type_of_b);
 
-                        if let Some(bit_size) = Self::get_integer_bitsize(&type_of_a) {
+                        if let Some((bit_size, signed)) =
+                            Self::get_integer_bitsize_and_signedness(&type_of_a)
+                        {
                             self.asm_writer.comment_lessthan_begin(target_a, target_b);
 
                             let mut split_a = self.asm_writer.split_le(target_a, bit_size);
@@ -633,14 +645,22 @@ impl Builder {
                             //   ((a[0] == b[0]) and ... and (a[i-1] == b[i-1]) and (!a[i] and b[i])) or ...
                             //   ...
 
+                            // For signed, the first line changes to:
+                            // (!b[0] and a[0]) or ...
+
                             let mut first_i_minus_1_are_equal: Option<BoolTarget> = None;
                             let mut result: Option<BoolTarget> = None;
                             for i in 0..split_a.len() {
                                 let is_first = i == 0;
                                 let is_last = i == (split_a.len() - 1);
 
-                                let not_a_i = self.asm_writer.not(split_a[i]);
-                                let not_a_i_and_b_i = self.asm_writer.and(not_a_i, split_b[i]);
+                                let not_a_i_and_b_i = if signed && (i == 0) {
+                                    let not_b_0 = self.asm_writer.not(split_b[0]);
+                                    self.asm_writer.and(not_b_0, split_a[0])
+                                } else {
+                                    let not_a_i = self.asm_writer.not(split_a[i]);
+                                    self.asm_writer.and(not_a_i, split_b[i])
+                                };
 
                                 let not_a_i_and_b_i_and_first_i_minus_1_equal = if is_first {
                                     not_a_i_and_b_i
@@ -1193,7 +1213,9 @@ impl Builder {
 pub(crate) fn noir_to_plonky2_field(field: FieldElement) -> P2Field {
     // TODO(plonky2): Noir doesn't support the Goldilock field. FieldElement is 254 bit, so if the
     // user enters a large integer this will fail.
-    //
-    // TODO(plonky2): Consider negative numbers.
+
+    // TODO(plonky2): Unsigned 64-bit integers in the range 18446744069414584321..18446744073709551615 don't work!
+    // TODO(plonky2): Signed 64-bit integers in the range -4294967295..-1 don't work!
+
     P2Field::from_canonical_u64(field.to_u128() as u64)
 }
