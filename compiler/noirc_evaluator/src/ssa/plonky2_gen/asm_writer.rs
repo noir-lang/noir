@@ -543,11 +543,12 @@ impl AsmWriter {
         ));
     }
 
-    pub fn comment_lessthan_begin(&mut self, a: Target, b: Target) {
+    pub fn comment_lessthan_begin(&mut self, a: Target, b: Target, signed: bool) {
         self.comment(format!(
-            "lessthan begin (a = {}, b = {})",
+            "lessthan begin (a = {}, b = {}, signed = {})",
             TargetDisplay { t: a },
-            TargetDisplay { t: b }
+            TargetDisplay { t: b },
+            signed
         ));
     }
 

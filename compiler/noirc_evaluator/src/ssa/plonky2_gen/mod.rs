@@ -628,7 +628,7 @@ impl Builder {
                         if let Some((bit_size, signed)) =
                             Self::get_integer_bitsize_and_signedness(&type_of_a)
                         {
-                            self.asm_writer.comment_lessthan_begin(target_a, target_b);
+                            self.asm_writer.comment_lessthan_begin(target_a, target_b, signed);
 
                             let mut split_a = self.asm_writer.split_le(target_a, bit_size);
                             let mut split_b = self.asm_writer.split_le(target_b, bit_size);
