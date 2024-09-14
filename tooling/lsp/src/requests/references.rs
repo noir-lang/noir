@@ -113,11 +113,13 @@ mod references_tests {
 
         // We call this to open the document, so that the entire workspace is analyzed
         let output_diagnostics = true;
+        let only_check_open_files = false;
 
         notifications::process_workspace_for_noir_document(
             &mut state,
             one_lib.clone(),
             output_diagnostics,
+            only_check_open_files,
         )
         .unwrap();
 

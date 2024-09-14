@@ -4,11 +4,14 @@ use std::path::PathBuf;
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileManager, FileMap};
+use fm::{FileId, FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
 use lsp_types::{DiagnosticTag, Url};
 use noirc_driver::check_crate;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use noirc_frontend::ast::{NoirFunction, NoirTraitImpl, TraitImplItemKind, TypeImpl};
+use noirc_frontend::parser::ItemKind;
+use noirc_frontend::ParsedModule;
 
 use crate::types::{
     notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
@@ -43,8 +46,14 @@ pub(crate) fn on_did_open_text_document(
 
     let document_uri = params.text_document.uri;
     let output_diagnostics = true;
+    let only_check_open_files = false;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        output_diagnostics,
+        only_check_open_files,
+    ) {
         Ok(_) => {
             state.open_documents_count += 1;
             ControlFlow::Continue(())
@@ -62,8 +71,14 @@ pub(super) fn on_did_change_text_document(
 
     let document_uri = params.text_document.uri;
     let output_diagnostics = false;
+    let only_check_open_files = true;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        output_diagnostics,
+        only_check_open_files,
+    ) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -84,8 +99,14 @@ pub(super) fn on_did_close_text_document(
 
     let document_uri = params.text_document.uri;
     let output_diagnostics = false;
+    let only_check_open_files = false;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        output_diagnostics,
+        only_check_open_files,
+    ) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -97,8 +118,14 @@ pub(super) fn on_did_save_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let document_uri = params.text_document.uri;
     let output_diagnostics = true;
+    let only_check_open_files = false;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        output_diagnostics,
+        only_check_open_files,
+    ) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -111,6 +138,7 @@ pub(crate) fn process_workspace_for_noir_document(
     state: &mut LspState,
     document_uri: Url,
     output_diagnostics: bool,
+    only_check_open_files: bool,
 ) -> Result<(), async_lsp::Error> {
     let file_path = document_uri.to_file_path().map_err(|_| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
@@ -128,7 +156,28 @@ pub(crate) fn process_workspace_for_noir_document(
         &mut workspace_file_manager,
     );
 
-    let parsed_files = parse_diff(&workspace_file_manager, state);
+    let mut parsed_files = parse_diff(&workspace_file_manager, state);
+
+    // If we only want to check the currently open files, we empty function bodies of files that aren't open.
+    // These function bodies will error, but we are not interested in those errors (we don't report errors in this
+    // case). The function types are correct, though, because the types in the signature remain unchanged.
+    // Doing this greatly speeds up the time it takes to reanalyze a crate after incremental edits without saving
+    // (type-checking body functions is much slower than emptying them)
+    if only_check_open_files {
+        let mut currently_open_files: HashSet<FileId> = HashSet::new();
+        for filename in state.input_files.keys() {
+            let filename = filename.strip_prefix("file://").unwrap();
+            if let Some(file_id) = workspace_file_manager.name_to_id(PathBuf::from(filename)) {
+                currently_open_files.insert(file_id);
+            }
+        }
+
+        for (file_id, (parsed_module, _errors)) in parsed_files.iter_mut() {
+            if !currently_open_files.is_empty() && !currently_open_files.contains(file_id) {
+                empty_parsed_module_function_bodies(parsed_module);
+            }
+        }
+    };
 
     for package in workspace.into_iter() {
         let (mut context, crate_id) =
@@ -154,6 +203,7 @@ pub(crate) fn process_workspace_for_noir_document(
             package,
             Some(&file_path),
         );
+
         state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
         state.cached_definitions.insert(package.root_dir.clone(), context.def_interner);
         state.cached_def_maps.insert(package.root_dir.clone(), context.def_maps);
@@ -254,6 +304,47 @@ pub(super) fn on_exit(
     _params: (),
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     ControlFlow::Continue(())
+}
+
+fn empty_parsed_module_function_bodies(parsed_module: &mut ParsedModule) {
+    for item in &mut parsed_module.items {
+        match &mut item.kind {
+            ItemKind::Function(noir_function) => empty_noir_function_body(noir_function),
+            ItemKind::TraitImpl(noir_trait_impl) => {
+                empty_noir_trait_impl_function_bodies(noir_trait_impl)
+            }
+            ItemKind::Impl(noir_impl) => empty_noir_impl_function_bodies(noir_impl),
+            ItemKind::Submodules(parsed_sub_module) => {
+                empty_parsed_module_function_bodies(&mut parsed_sub_module.contents)
+            }
+            ItemKind::Import(_, _)
+            | ItemKind::Struct(_)
+            | ItemKind::Trait(_)
+            | ItemKind::TypeAlias(_)
+            | ItemKind::Global(_)
+            | ItemKind::ModuleDecl(_)
+            | ItemKind::InnerAttribute(_) => (),
+        }
+    }
+}
+
+fn empty_noir_trait_impl_function_bodies(noir_trait_impl: &mut NoirTraitImpl) {
+    for item in &mut noir_trait_impl.items {
+        match &mut item.item.kind {
+            TraitImplItemKind::Function(noir_function) => empty_noir_function_body(noir_function),
+            TraitImplItemKind::Constant(..) | TraitImplItemKind::Type { .. } => (),
+        }
+    }
+}
+
+fn empty_noir_impl_function_bodies(noir_impl: &mut TypeImpl) {
+    for (noir_function, _span) in &mut noir_impl.methods {
+        empty_noir_function_body(&mut noir_function.item)
+    }
+}
+
+fn empty_noir_function_body(noir_function: &mut NoirFunction) {
+    noir_function.def.body.statements.clear()
 }
 
 #[cfg(test)]
