@@ -91,7 +91,7 @@ r9c43 = le_sum (r4c1,r4c2,r4c3,r4c4,r4c5,r4c6,r4c7,r4c8)
 v85 = add_virtual_target
 connect r9c43,v85
 v86 = constant 8
-# lessthan begin (a = v85, b = v86)
+# lessthan begin (a = v85, b = v86, signed = false)
 (r10c1,r10c2,r10c3,r10c4,r10c5,r10c6,r10c7,r10c8) = split_le v85,8
 (r11c1,r11c2,r11c3,r11c4,r11c5,r11c6,r11c7,r11c8) = split_le v86,8
 r3c19 = not r10c8
@@ -143,7 +143,7 @@ r21c35 = le_sum (r16c1,r16c2,r16c3,r16c4,r16c5,r16c6,r16c7,r16c8)
 v102 = add_virtual_target
 connect r21c35,v102
 v86 = constant 8
-# lessthan begin (a = v102, b = v86)
+# lessthan begin (a = v102, b = v86, signed = false)
 (r22c1,r22c2,r22c3,r22c4,r22c5,r22c6,r22c7,r22c8) = split_le v102,8
 (r23c1,r23c2,r23c3,r23c4,r23c5,r23c6,r23c7,r23c8) = split_le v86,8
 r14c55 = not r22c8
@@ -232,7 +232,7 @@ r30c55 = le_sum (r32c1,r32c2,r32c3,r32c4,r32c5,r32c6,r32c7,r32c8)
 v135 = add_virtual_target
 connect r30c55,v135
 v86 = constant 8
-# lessthan begin (a = v135, b = v86)
+# lessthan begin (a = v135, b = v86, signed = false)
 (r37c1,r37c2,r37c3,r37c4,r37c5,r37c6,r37c7,r37c8) = split_le v135,8
 (r38c1,r38c2,r38c3,r38c4,r38c5,r38c6,r38c7,r38c8) = split_le v86,8
 r29c27 = not r37c8
@@ -284,7 +284,7 @@ r42c47 = le_sum (r43c1,r43c2,r43c3,r43c4,r43c5,r43c6,r43c7,r43c8)
 v150 = add_virtual_target
 connect r42c47,v150
 v86 = constant 8
-# lessthan begin (a = v150, b = v86)
+# lessthan begin (a = v150, b = v86, signed = false)
 (r48c1,r48c2,r48c3,r48c4,r48c5,r48c6,r48c7,r48c8) = split_le v150,8
 (r49c1,r49c2,r49c3,r49c4,r49c5,r49c6,r49c7,r49c8) = split_le v86,8
 r40c63 = not r48c8
@@ -381,7 +381,7 @@ r63c3 = le_sum (r58c1,r58c2,r58c3,r58c4,r58c5,r58c6,r58c7,r58c8)
 v181 = add_virtual_target
 connect r63c3,v181
 v86 = constant 8
-# lessthan begin (a = v181, b = v86)
+# lessthan begin (a = v181, b = v86, signed = false)
 (r64c1,r64c2,r64c3,r64c4,r64c5,r64c6,r64c7,r64c8) = split_le v181,8
 (r65c1,r65c2,r65c3,r65c4,r65c5,r65c6,r65c7,r65c8) = split_le v86,8
 r55c51 = not r64c8
@@ -433,7 +433,7 @@ r63c75 = le_sum (r70c1,r70c2,r70c3,r70c4,r70c5,r70c6,r70c7,r70c8)
 v196 = add_virtual_target
 connect r63c75,v196
 v86 = constant 8
-# lessthan begin (a = v196, b = v86)
+# lessthan begin (a = v196, b = v86, signed = false)
 (r75c1,r75c2,r75c3,r75c4,r75c5,r75c6,r75c7,r75c8) = split_le v196,8
 (r76c1,r76c2,r76c3,r76c4,r76c5,r76c6,r76c7,r76c8) = split_le v86,8
 r69c7 = not r75c8
@@ -530,7 +530,7 @@ r89c31 = le_sum (r84c1,r84c2,r84c3,r84c4,r84c5,r84c6,r84c7,r84c8)
 v227 = add_virtual_target
 connect r89c31,v227
 v86 = constant 8
-# lessthan begin (a = v227, b = v86)
+# lessthan begin (a = v227, b = v86, signed = false)
 (r90c1,r90c2,r90c3,r90c4,r90c5,r90c6,r90c7,r90c8) = split_le v227,8
 (r91c1,r91c2,r91c3,r91c4,r91c5,r91c6,r91c7,r91c8) = split_le v86,8
 r81c75 = not r90c8
@@ -582,7 +582,7 @@ r100c23 = le_sum (r95c1,r95c2,r95c3,r95c4,r95c5,r95c6,r95c7,r95c8)
 v242 = add_virtual_target
 connect r100c23,v242
 v86 = constant 8
-# lessthan begin (a = v242, b = v86)
+# lessthan begin (a = v242, b = v86, signed = false)
 (r101c1,r101c2,r101c3,r101c4,r101c5,r101c6,r101c7,r101c8) = split_le v242,8
 (r102c1,r102c2,r102c3,r102c4,r102c5,r102c6,r102c7,r102c8) = split_le v86,8
 r94c31 = not r101c8
@@ -679,7 +679,7 @@ r109c59 = le_sum (r111c1,r111c2,r111c3,r111c4,r111c5,r111c6,r111c7,r111c8)
 v273 = add_virtual_target
 connect r109c59,v273
 v86 = constant 8
-# lessthan begin (a = v273, b = v86)
+# lessthan begin (a = v273, b = v86, signed = false)
 (r116c1,r116c2,r116c3,r116c4,r116c5,r116c6,r116c7,r116c8) = split_le v273,8
 (r117c1,r117c2,r117c3,r117c4,r117c5,r117c6,r117c7,r117c8) = split_le v86,8
 r110c19 = not r116c8
@@ -731,7 +731,7 @@ r121c51 = le_sum (r122c1,r122c2,r122c3,r122c4,r122c5,r122c6,r122c7,r122c8)
 v288 = add_virtual_target
 connect r121c51,v288
 v86 = constant 8
-# lessthan begin (a = v288, b = v86)
+# lessthan begin (a = v288, b = v86, signed = false)
 (r127c1,r127c2,r127c3,r127c4,r127c5,r127c6,r127c7,r127c8) = split_le v288,8
 (r128c1,r128c2,r128c3,r128c4,r128c5,r128c6,r128c7,r128c8) = split_le v86,8
 r119c55 = not r127c8
@@ -828,7 +828,7 @@ r142c7 = le_sum (r137c1,r137c2,r137c3,r137c4,r137c5,r137c6,r137c7,r137c8)
 v319 = add_virtual_target
 connect r142c7,v319
 v86 = constant 8
-# lessthan begin (a = v319, b = v86)
+# lessthan begin (a = v319, b = v86, signed = false)
 (r143c1,r143c2,r143c3,r143c4,r143c5,r143c6,r143c7,r143c8) = split_le v319,8
 (r144c1,r144c2,r144c3,r144c4,r144c5,r144c6,r144c7,r144c8) = split_le v86,8
 r135c43 = not r143c8
@@ -880,7 +880,7 @@ r142c79 = le_sum (r148c1,r148c2,r148c3,r148c4,r148c5,r148c6,r148c7,r148c8)
 v334 = add_virtual_target
 connect r142c79,v334
 v86 = constant 8
-# lessthan begin (a = v334, b = v86)
+# lessthan begin (a = v334, b = v86, signed = false)
 (r153c1,r153c2,r153c3,r153c4,r153c5,r153c6,r153c7,r153c8) = split_le v334,8
 (r154c1,r154c2,r154c3,r154c4,r154c5,r154c6,r154c7,r154c8) = split_le v86,8
 r145c79 = not r153c8
@@ -977,7 +977,7 @@ r168c35 = le_sum (r163c1,r163c2,r163c3,r163c4,r163c5,r163c6,r163c7,r163c8)
 v365 = add_virtual_target
 connect r168c35,v365
 v86 = constant 8
-# lessthan begin (a = v365, b = v86)
+# lessthan begin (a = v365, b = v86, signed = false)
 (r169c1,r169c2,r169c3,r169c4,r169c5,r169c6,r169c7,r169c8) = split_le v365,8
 (r170c1,r170c2,r170c3,r170c4,r170c5,r170c6,r170c7,r170c8) = split_le v86,8
 r160c67 = not r169c8
@@ -1029,7 +1029,7 @@ r179c27 = le_sum (r174c1,r174c2,r174c3,r174c4,r174c5,r174c6,r174c7,r174c8)
 v380 = add_virtual_target
 connect r179c27,v380
 v86 = constant 8
-# lessthan begin (a = v380, b = v86)
+# lessthan begin (a = v380, b = v86, signed = false)
 (r180c1,r180c2,r180c3,r180c4,r180c5,r180c6,r180c7,r180c8) = split_le v380,8
 (r181c1,r181c2,r181c3,r181c4,r181c5,r181c6,r181c7,r181c8) = split_le v86,8
 r173c23 = not r180c8
