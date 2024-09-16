@@ -636,6 +636,48 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_lambda() {
+        comptime
+        {
+            let expr = quote { |x: Field| -> Field { 1 } }.as_expr().unwrap();
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.unwrap().is_field());
+            assert(return_type.unwrap().is_field());
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (1, false));
+
+            let expr = quote { |x| { 1 } }.as_expr().unwrap();
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.is_none());
+            assert(return_type.is_none());
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (1, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_modify_lambda() {
+        comptime
+        {
+            let expr = quote { |x: Field| -> Field { 1 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.unwrap().is_field());
+            assert(return_type.unwrap().is_field());
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), (2, false));
+
+            let expr = quote { |x| { 1 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.is_none());
+            assert(return_type.is_none());
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_let() {
         comptime
         {
