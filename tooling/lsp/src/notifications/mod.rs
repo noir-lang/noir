@@ -326,11 +326,11 @@ fn empty_parsed_module_function_bodies(parsed_module: &mut ParsedModule) {
         match &mut item.kind {
             ItemKind::Function(noir_function) => empty_noir_function_body(noir_function),
             ItemKind::TraitImpl(noir_trait_impl) => {
-                empty_noir_trait_impl_function_bodies(noir_trait_impl)
+                empty_noir_trait_impl_function_bodies(noir_trait_impl);
             }
             ItemKind::Impl(noir_impl) => empty_noir_impl_function_bodies(noir_impl),
             ItemKind::Submodules(parsed_sub_module) => {
-                empty_parsed_module_function_bodies(&mut parsed_sub_module.contents)
+                empty_parsed_module_function_bodies(&mut parsed_sub_module.contents);
             }
             ItemKind::Import(_, _)
             | ItemKind::Struct(_)
@@ -354,12 +354,12 @@ fn empty_noir_trait_impl_function_bodies(noir_trait_impl: &mut NoirTraitImpl) {
 
 fn empty_noir_impl_function_bodies(noir_impl: &mut TypeImpl) {
     for (noir_function, _span) in &mut noir_impl.methods {
-        empty_noir_function_body(&mut noir_function.item)
+        empty_noir_function_body(&mut noir_function.item);
     }
 }
 
 fn empty_noir_function_body(noir_function: &mut NoirFunction) {
-    noir_function.def.body.statements.clear()
+    noir_function.def.body.statements.clear();
 }
 
 #[cfg(test)]
