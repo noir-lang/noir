@@ -170,7 +170,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // TODO cleanup
-        dbg!("resolve_type_inner", &resolved_type, &kind);
+        // dbg!("resolve_type_inner", &resolved_type, &kind);
 
         // When Type::kind() is None, it matches every Kind
         if resolved_type
@@ -178,15 +178,15 @@ impl<'context> Elaborator<'context> {
             .map(|resolved_type_kind| resolved_type_kind != *kind)
             .unwrap_or(false)
         {
-            // TODO cleanup
-            dbg!(
-                "resolve_type_inner",
-                &resolved_type,
-                format!("{:?}", &resolved_type),
-                &resolved_type.kind(),
-                &kind,
-                matches!(&resolved_type, Type::Constant(..))
-            );
+            // // TODO cleanup
+            // dbg!(
+            //     "resolve_type_inner",
+            //     &resolved_type,
+            //     format!("{:?}", &resolved_type),
+            //     &resolved_type.kind(),
+            //     &kind,
+            //     matches!(&resolved_type, Type::Constant(..))
+            // );
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.to_string(),
                 expr_kind: resolved_type
@@ -430,13 +430,13 @@ impl<'context> Elaborator<'context> {
                 self.interner.add_global_reference(id, reference_location);
 
                 // TODO cleanup
-                dbg!(
-                    "lookup_generic_or_global_type",
-                    &path,
-                    self.eval_global_as_array_length(id, path),
-                    self.interner.get_global_let_statement(id),
-                    self.interner.get_global_let_statement(id).map(|let_statement| let_statement.r#type),
-                );
+                // dbg!(
+                //     "lookup_generic_or_global_type",
+                //     &path,
+                //     self.eval_global_as_array_length(id, path),
+                //     self.interner.get_global_let_statement(id),
+                //     self.interner.get_global_let_statement(id).map(|let_statement| let_statement.r#type),
+                // );
 
                 // panic!("TODO: Type::Constant needs to include the kind data from the global let statement (see above)");
                 Some(Type::Constant(self.eval_global_as_array_length(id, path), Kind::u32()))
@@ -461,7 +461,7 @@ impl<'context> Elaborator<'context> {
                 if let Type::NamedGeneric(ref _type_var, ref _name, ref kind) = resolved_length {
                     if !kind.is_numeric() {
                         // TODO: cleanup
-                        dbg!("convert_expression_type", &kind);
+                        // dbg!("convert_expression_type", &kind);
                         self.push_err(TypeCheckError::TypeKindMismatch {
                             expected_kind: Kind::Numeric(Box::new(Type::Integer(
                                 Signedness::Unsigned,
