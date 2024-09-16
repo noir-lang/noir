@@ -654,7 +654,7 @@ impl Instruction {
             Instruction::ArraySet { array: array_id, index, value, .. } => {
                 let array = dfg.get_array_constant(*array_id);
                 let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, element_type)), Some(index)) = (array, index) {
+                if let (Some((array, _element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
@@ -828,7 +828,7 @@ fn try_optimize_array_get_from_previous_set(
                             return SimplifyResult::None;
                         }
                     }
-                    Instruction::MakeArray { elements: array, typ } => {
+                    Instruction::MakeArray { elements: array, typ: _ } => {
                         elements = Some(array.clone());
                         break;
                     }

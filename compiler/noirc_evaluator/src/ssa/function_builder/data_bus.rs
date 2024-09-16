@@ -153,13 +153,10 @@ impl FunctionBuilder {
         }
         let len = databus.values.len();
 
-        let array = if len > 0 {
-            let array = self
-                .array_constant(databus.values, Type::Array(Arc::new(vec![Type::field()]), len));
-            Some(array)
-        } else {
-            None
-        };
+        let array = (len > 0).then(|| {
+            let array_type = Type::Array(Arc::new(vec![Type::field()]), len);
+            self.insert_make_array(databus.values, array_type)
+        });
 
         DataBusBuilder {
             index: 0,

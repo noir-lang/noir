@@ -1508,7 +1508,7 @@ impl<'a> Context<'a> {
         if !already_initialized {
             let value = &dfg[array];
             match value {
-                Value::Array { .. } | Value::Instruction { .. } => {
+                Value::Instruction { .. } => {
                     let value = self.convert_value(array, dfg);
                     let array_typ = dfg.type_of_value(array);
                     let len = if !array_typ.contains_slice_element() {
@@ -1551,13 +1551,13 @@ impl<'a> Context<'a> {
         match array_typ {
             Type::Array(_, _) | Type::Slice(_) => {
                 match &dfg[array_id] {
-                    Value::Array { array, .. } => {
-                        for (i, value) in array.iter().enumerate() {
-                            flat_elem_type_sizes.push(
-                                self.flattened_slice_size(*value, dfg) + flat_elem_type_sizes[i],
-                            );
-                        }
-                    }
+                    // Value::Array { array, .. } => {
+                    //     for (i, value) in array.iter().enumerate() {
+                    //         flat_elem_type_sizes.push(
+                    //             self.flattened_slice_size(*value, dfg) + flat_elem_type_sizes[i],
+                    //         );
+                    //     }
+                    // }
                     Value::Instruction { .. } | Value::Param { .. } => {
                         // An instruction representing the slice means it has been processed previously during ACIR gen.
                         // Use the previously defined result of an array operation to fetch the internal type information.
@@ -1690,13 +1690,13 @@ impl<'a> Context<'a> {
     fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
         let mut size = 0;
         match &dfg[array_id] {
-            Value::Array { array, .. } => {
-                // The array is going to be the flattened outer array
-                // Flattened slice size from SSA value does not need to be multiplied by the len
-                for value in array {
-                    size += self.flattened_slice_size(*value, dfg);
-                }
-            }
+            // Value::Array { array, .. } => {
+            //     // The array is going to be the flattened outer array
+            //     // Flattened slice size from SSA value does not need to be multiplied by the len
+            //     for value in array {
+            //         size += self.flattened_slice_size(*value, dfg);
+            //     }
+            // }
             Value::NumericConstant { .. } => {
                 size += 1;
             }
@@ -1884,10 +1884,10 @@ impl<'a> Context<'a> {
             Value::NumericConstant { constant, typ } => {
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ.into())
             }
-            Value::Array { array, .. } => {
-                let elements = array.iter().map(|element| self.convert_value(*element, dfg));
-                AcirValue::Array(elements.collect())
-            }
+            // Value::Array { array, .. } => {
+            //     let elements = array.iter().map(|element| self.convert_value(*element, dfg));
+            //     AcirValue::Array(elements.collect())
+            // }
             Value::Intrinsic(..) => todo!(),
             Value::Function(function_id) => {
                 // This conversion is for debugging support only, to allow the

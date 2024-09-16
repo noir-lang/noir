@@ -5,7 +5,7 @@ use crate::ssa::ir::types::Type;
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, InsertInstructionResult},
-    function::{Function, RuntimeType},
+    function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
@@ -36,34 +36,7 @@ impl<'f> FunctionInserter<'f> {
         value = self.function.dfg.resolve(value);
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
-            None => match &self.function.dfg[value] {
-                super::value::Value::Array { array, typ } => {
-                    let array = array.clone();
-                    let typ = typ.clone();
-                    let new_array: im::Vector<ValueId> =
-                        array.iter().map(|id| self.resolve(*id)).collect();
-
-                    if let Some(fetched_value) =
-                        self.const_arrays.get(&(new_array.clone(), typ.clone()))
-                    {
-                        // Arrays in ACIR are immutable, but in Brillig arrays are copy-on-write
-                        // so for function's with a Brillig runtime we make sure to check that value
-                        // in our constants array map matches the resolved array value id.
-                        if matches!(self.function.runtime(), RuntimeType::Acir(_)) {
-                            return *fetched_value;
-                        } else if *fetched_value == value {
-                            return value;
-                        }
-                    };
-
-                    let new_array_clone = new_array.clone();
-                    let new_id = self.function.dfg.make_array(new_array, typ.clone());
-                    self.values.insert(value, new_id);
-                    self.const_arrays.insert((new_array_clone, typ), new_id);
-                    new_id
-                }
-                _ => value,
-            },
+            None => value,
         }
     }
 

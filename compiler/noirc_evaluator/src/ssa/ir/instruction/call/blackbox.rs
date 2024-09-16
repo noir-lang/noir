@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
-use iter_extended::vecmap;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -68,6 +67,8 @@ pub(super) fn simplify_poseidon2_permutation(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     arguments: &[ValueId],
+    block: BasicBlockId,
+    call_stack: &CallStack,
 ) -> SimplifyResult {
     match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
         (Some((state, _)), Some(state_length)) if array_is_constant(dfg, &state) => {
@@ -87,7 +88,9 @@ pub(super) fn simplify_poseidon2_permutation(
                 return SimplifyResult::None;
             };
 
-            let result_array = make_constant_array(dfg, new_state, Type::field());
+            let new_state = new_state.into_iter();
+            let typ = Type::field();
+            let result_array = make_constant_array(dfg, new_state, typ, block, call_stack);
 
             SimplifyResult::SimplifiedTo(result_array)
         }
@@ -132,6 +135,8 @@ pub(super) fn simplify_hash(
     dfg: &mut DataFlowGraph,
     arguments: &[ValueId],
     hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
+    block: BasicBlockId,
+    call_stack: &CallStack,
 ) -> SimplifyResult {
     match dfg.get_array_constant(arguments[0]) {
         Some((input, _)) if array_is_constant(dfg, &input) => {
@@ -140,9 +145,10 @@ pub(super) fn simplify_hash(
             let hash = hash_function(&input_bytes)
                 .expect("Rust solvable black box function should not fail");
 
-            let hash_values = vecmap(hash, |byte| FieldElement::from_be_bytes_reduce(&[byte]));
+            let hash_values = hash.iter().map(|byte| FieldElement::from_be_bytes_reduce(&[*byte]));
 
-            let result_array = make_constant_array(dfg, hash_values, Type::unsigned(8));
+            let u8_type = Type::unsigned(8);
+            let result_array = make_constant_array(dfg, hash_values, u8_type, block, call_stack);
             SimplifyResult::SimplifiedTo(result_array)
         }
         _ => SimplifyResult::None,

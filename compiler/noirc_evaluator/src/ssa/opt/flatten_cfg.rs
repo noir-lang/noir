@@ -834,15 +834,15 @@ impl<'f> Context<'f> {
                             // which means the array is the second argument
                             1
                         };
-                        let (array_with_predicate, array_typ) = self
-                            .apply_predicate_to_msm_argument(
-                                arguments[points_array_idx],
-                                condition,
-                                call_stack.clone(),
-                            );
+                        let (elements, typ) = self.apply_predicate_to_msm_argument(
+                            arguments[points_array_idx],
+                            condition,
+                            call_stack.clone(),
+                        );
 
-                        arguments[points_array_idx] =
-                            self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
+                        let instruction = Instruction::MakeArray { elements, typ };
+                        let array = self.insert_instruction(instruction, call_stack);
+                        arguments[points_array_idx] = array;
                         Instruction::Call { func, arguments }
                     }
                     _ => Instruction::Call { func, arguments },

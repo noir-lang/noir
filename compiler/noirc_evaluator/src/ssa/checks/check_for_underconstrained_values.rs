@@ -247,8 +247,7 @@ impl Context {
                         Value::ForeignFunction(..) => {
                             panic!("Should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
                         }
-                        Value::Array { .. }
-                        | Value::Instruction { .. }
+                        Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. } => {
                             panic!("At the point we are running disconnect there shouldn't be any other values as arguments")

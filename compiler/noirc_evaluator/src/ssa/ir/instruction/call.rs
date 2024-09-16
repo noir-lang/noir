@@ -541,7 +541,7 @@ fn simplify_black_box_func(
             unreachable!("Keccak256 should have been replaced by calls to Keccakf1600")
         }
         BlackBoxFunc::Poseidon2Permutation => {
-            blackbox::simplify_poseidon2_permutation(dfg, solver, arguments)
+            blackbox::simplify_poseidon2_permutation(dfg, solver, arguments, block, call_stack)
         }
         BlackBoxFunc::EcdsaSecp256k1 => blackbox::simplify_signature(
             dfg,
