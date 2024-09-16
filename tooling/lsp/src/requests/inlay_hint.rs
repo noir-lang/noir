@@ -542,6 +542,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
         | ExpressionKind::Interned(..)
+        | ExpressionKind::InternedStatement(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,

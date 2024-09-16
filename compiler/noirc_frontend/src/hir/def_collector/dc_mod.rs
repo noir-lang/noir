@@ -424,6 +424,9 @@ impl<'a> ModCollector<'a> {
                         return_type,
                         where_clause,
                         body,
+                        is_unconstrained,
+                        visibility: _,
+                        is_comptime,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
                         method_ids.insert(name.to_string(), func_id);
@@ -434,9 +437,9 @@ impl<'a> ModCollector<'a> {
                             visibility: ItemVisibility::Public,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
-                            is_unconstrained: false,
+                            is_unconstrained: *is_unconstrained,
                             generic_count: generics.len(),
-                            is_comptime: false,
+                            is_comptime: *is_comptime,
                             name_location: location,
                         };
 

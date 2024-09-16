@@ -251,7 +251,6 @@ fn main() {
     let any = arr.any(|a| a == 5);
     assert(any);
 }
-
 ```
 
 ### as_str_unchecked
