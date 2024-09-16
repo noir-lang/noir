@@ -1297,8 +1297,8 @@ fn type_aliases_in_entry_point() {
 #[test]
 fn operators_in_global_used_in_type() {
     let src = r#"
-        global ONE = 1;
-        global COUNT = ONE + 2;
+        global ONE: u32 = 1;
+        global COUNT: u32 = ONE + 2;
         fn main() {
             let _array: [Field; COUNT] = [1, 2, 3];
         }
