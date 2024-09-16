@@ -962,10 +962,7 @@ impl<'a> NodeFinder<'a> {
             }
             LValue::Index { array, .. } => {
                 let typ = self.get_lvalue_type(array)?;
-                match typ {
-                    Type::Array(_, typ) | Type::Slice(typ) => Some(*typ),
-                    _ => None,
-                }
+                get_array_element_type(typ)
             }
             LValue::Dereference(lvalue, ..) => self.get_lvalue_type(lvalue),
             LValue::Interned(..) => None,
@@ -1339,18 +1336,15 @@ impl<'a> Visitor for NodeFinder<'a> {
         // then suggest methods of that type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(array) {
-                match typ {
-                    Type::Array(_, typ) | Type::Slice(typ) => {
-                        let prefix = "";
-                        let self_prefix = false;
-                        self.complete_type_fields_and_methods(
-                            &typ,
-                            prefix,
-                            FunctionCompletionKind::NameAndParameters,
-                            self_prefix,
-                        );
-                    }
-                    _ => (),
+                if let Some(typ) = get_array_element_type(typ) {
+                    let prefix = "";
+                    let self_prefix = false;
+                    self.complete_type_fields_and_methods(
+                        &typ,
+                        prefix,
+                        FunctionCompletionKind::NameAndParameters,
+                        self_prefix,
+                    );
                 }
             }
             return false;
@@ -1545,11 +1539,31 @@ impl<'a> Visitor for NodeFinder<'a> {
 }
 
 fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
-    let Type::Struct(struct_type, generic_args) = typ else {
-        return None;
-    };
+    match typ {
+        Type::Struct(struct_type, generics) => {
+            Some(struct_type.borrow().get_field(name, generics)?.0)
+        }
+        Type::Tuple(types) => {
+            if let Ok(index) = name.parse::<i32>() {
+                types.get(index as usize).cloned()
+            } else {
+                None
+            }
+        }
+        Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
+        _ => None,
+    }
+}
 
-    Some(struct_type.borrow().get_field(name, generic_args)?.0)
+fn get_array_element_type(typ: Type) -> Option<Type> {
+    match typ {
+        Type::Array(_, typ) | Type::Slice(typ) => Some(*typ),
+        Type::Alias(alias_type, generics) => {
+            let typ = alias_type.borrow().get_type(&generics);
+            get_array_element_type(typ)
+        }
+        _ => None,
+    }
 }
 
 /// Returns true if name matches a prefix written in code.
