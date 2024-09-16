@@ -19,9 +19,11 @@ mod bar {
 
         // Ensure closures can still access Bar even
         // though `map` separates them from `fn_attr`.
-        let _ = &[1, 2, 3].map(|_| {
+        let _ = &[1, 2, 3].map(
+            |_| {
             quote { Bar }.as_type()
-        });
+        }
+        );
     }
 
     // use_callers_scope should also work nested
