@@ -1556,10 +1556,10 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
 }
 
 fn get_array_element_type(typ: Type) -> Option<Type> {
-    match typ {
+    match typ.follow_bindings() {
         Type::Array(_, typ) | Type::Slice(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
-            let typ = alias_type.borrow().get_type(&generics).follow_bindings();
+            let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)
         }
         _ => None,
