@@ -698,11 +698,11 @@ impl Attributes {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
 
-    pub fn is_varargs(&self) -> bool {
+    pub fn has_varargs(&self) -> bool {
         self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
     }
 
-    pub fn is_use_callers_scope(&self) -> bool {
+    pub fn has_use_callers_scope(&self) -> bool {
         self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::UseCallersScope))
     }
 }

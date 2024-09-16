@@ -137,7 +137,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // This will affect where `Expression::resolve`, `Quoted::as_type`, and similar functions resolve.
         let mut old_function = self.current_function;
         let modifiers = self.elaborator.interner.function_modifiers(&function);
-        if !modifiers.attributes.is_use_callers_scope() {
+        if !modifiers.attributes.has_use_callers_scope() {
             self.current_function = Some(function);
         }
 
