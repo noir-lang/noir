@@ -437,8 +437,9 @@ impl<'context> Elaborator<'context> {
                     self.interner.get_global_let_statement(id),
                     self.interner.get_global_let_statement(id).map(|let_statement| let_statement.r#type),
                 );
-                panic!("TODO: Type::Constant needs to include the kind data from the global let statement (see above)");
-                Some(Type::Constant(self.eval_global_as_array_length(id, path)))
+
+                // panic!("TODO: Type::Constant needs to include the kind data from the global let statement (see above)");
+                Some(Type::Constant(self.eval_global_as_array_length(id, path), Kind::u32()))
             }
             _ => None,
         }
@@ -454,7 +455,7 @@ impl<'context> Elaborator<'context> {
                 let resolved_length =
                     self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
                         self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                        Type::Constant(0)
+                        Type::Constant(0, Kind::u32())
                     });
 
                 if let Type::NamedGeneric(ref _type_var, ref _name, ref kind) = resolved_length {
@@ -475,16 +476,24 @@ impl<'context> Elaborator<'context> {
                 }
                 resolved_length
             }
-            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::Constant(int, _span) => Type::Constant(int, Kind::u32()),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs, lhs_span);
                 let rhs = self.convert_expression_type(*rhs, rhs_span);
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                    (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
+                        if lhs_kind != rhs_kind {
+                            self.push_err(TypeCheckError::TypeKindMismatch {
+                                expected_kind: lhs_kind.to_string(),
+                                expr_kind: rhs_kind.to_string(),
+                                expr_span: span,
+                            });
+                            return Type::Error;
+                        }
                         if let Some(result) = op.function(lhs, rhs) {
-                            Type::Constant(result)
+                            Type::Constant(result, lhs_kind)
                         } else {
                             self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
                             Type::Error
@@ -1706,7 +1715,7 @@ impl<'context> Elaborator<'context> {
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
-            | Type::Constant(_)
+            | Type::Constant(..)
             | Type::NamedGeneric(_, _, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),

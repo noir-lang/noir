@@ -2321,7 +2321,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::Error
         | Type::Struct(_, _)
         | Type::InfixExpr(..)

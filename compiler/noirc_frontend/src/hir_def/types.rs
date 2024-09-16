@@ -112,7 +112,7 @@ pub enum Type {
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
-    Constant(u32),
+    Constant(u32, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -141,6 +141,20 @@ pub enum Kind {
 impl Kind {
     pub(crate) fn is_numeric(&self) -> bool {
         matches!(self, Self::Numeric { .. })
+    }
+
+    // TODO before merge: look for occurrences
+    // None matches everything, otherwise check equality
+    fn matches_opt(&self, other: Option<Self>) -> bool {
+        other.as_ref().map(|other_kind| self == other_kind).unwrap_or(true)
+    }
+
+    // TODO before merge: look for occurrences
+    pub(crate) fn u32() -> Self {
+        Self::Numeric(Box::new(Type::Integer(
+                                Signedness::Unsigned,
+                                IntegerBitSize::ThirtyTwo,
+                        )))
     }
 }
 
@@ -673,7 +687,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
-            Type::Constant(x) => x.fmt(f),
+            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -858,7 +872,7 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Error
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Forall(_, _)
             | Type::Quoted(_) => {}
 
@@ -941,7 +955,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Error => true,
 
             Type::FmtString(_, _)
@@ -987,7 +1001,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
             | Type::InfixExpr(..)
@@ -1030,7 +1044,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
@@ -1116,7 +1130,9 @@ impl Type {
     pub(crate) fn kind(&self) -> Option<Kind> {
         match self {
             Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
-            Type::Constant(..) | Type::TypeVariable(..) => None,
+            Type::Constant(_, kind) => Some(kind.clone()),
+            Type::TypeVariable(..) => None,
+
 
             // TODO: ensure kinds for InfixExpr are checked, e.g.
             //
@@ -1161,6 +1177,14 @@ impl Type {
         }
     }
 
+    // TODO
+    fn infix_kind(&self, other: &Self) -> Kind {
+
+        // TODO!!! add kind check, replace u32 default with Type::Error
+        self.kind().or(other.kind()).unwrap_or(Kind::u32())
+    }
+
+
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
@@ -1192,7 +1216,7 @@ impl Type {
             | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
             | Type::InfixExpr(..)
@@ -1250,7 +1274,7 @@ impl Type {
         let this = self.substitute(bindings).follow_bindings();
 
         match &this {
-            Type::Constant(length) if *length == target_length => {
+            Type::Constant(length, _kind) if *length == target_length => {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
@@ -1588,9 +1612,9 @@ impl Type {
                 }
             }
 
-            (Constant(value), other) | (other, Constant(value)) => {
+            (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 if let Some(other_value) = other.evaluate_to_u32() {
-                    if *value == other_value {
+                    if *value == other_value && kind.matches_opt(other.kind()) {
                         Ok(())
                     } else {
                         Err(UnificationError)
@@ -1598,7 +1622,7 @@ impl Type {
                 } else if let InfixExpr(lhs, op, rhs) = other {
                     if let Some(inverse) = op.inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type = InfixExpr(Box::new(Constant(*value)), inverse, rhs.clone());
+                        let new_type = InfixExpr(Box::new(Constant(*value, kind.clone())), inverse, rhs.clone());
                         new_type.try_unify(lhs, bindings)?;
                         Ok(())
                     } else {
@@ -1758,7 +1782,7 @@ impl Type {
         match self.canonicalize() {
             Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(size),
             Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x) => Some(x),
+            Type::Constant(x, _) => Some(x),
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_to_u32()?;
                 let rhs = rhs.evaluate_to_u32()?;
@@ -2036,7 +2060,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Error
             | Type::Quoted(_)
             | Type::Unit => self.clone(),
@@ -2084,7 +2108,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Error
             | Type::Quoted(_)
             | Type::Unit => false,
@@ -2152,7 +2176,7 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Quoted(_) | Error => {
+            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
                 self.clone()
             }
         }
@@ -2168,7 +2192,7 @@ impl Type {
     pub fn replace_named_generics_with_type_variables(&mut self) {
         match self {
             Type::FieldElement
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
@@ -2322,7 +2346,7 @@ impl TypeVariableKind {
         match self {
             TypeVariableKind::IntegerOrField => Some(Type::default_int_or_field_type()),
             TypeVariableKind::Integer => Some(Type::default_int_type()),
-            TypeVariableKind::Constant(length) => Some(Type::Constant(*length)),
+            TypeVariableKind::Constant(length) => Some(Type::Constant(*length, Kind::u32())),
             TypeVariableKind::Normal => None,
         }
     }
@@ -2373,7 +2397,7 @@ impl From<&Type> for PrintableType {
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
-            Type::Constant(_) => unreachable!(),
+            Type::Constant(_, _) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -2463,7 +2487,7 @@ impl std::fmt::Debug for Type {
                     write!(f, "({} : {}){:?}", name, typ, binding)
                 }
             },
-            Type::Constant(x) => x.fmt(f),
+            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
@@ -2568,7 +2592,7 @@ impl std::hash::Hash for Type {
                 vars.hash(state);
                 typ.hash(state);
             }
-            Type::Constant(value) => value.hash(state),
+            Type::Constant(value, _) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
             Type::InfixExpr(lhs, op, rhs) => {
                 lhs.hash(state);
@@ -2628,7 +2652,7 @@ impl PartialEq for Type {
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
-            (Constant(lhs), Constant(rhs)) => lhs == rhs,
+            (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => lhs == rhs && lhs_kind == rhs_kind,
             (Quoted(lhs), Quoted(rhs)) => lhs == rhs,
             (InfixExpr(l_lhs, l_op, l_rhs), InfixExpr(r_lhs, r_op, r_rhs)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs

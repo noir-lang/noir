@@ -1932,6 +1932,24 @@ fn assert_no_errors(src: &str) {
 
 #[test]
 fn numeric_generics_type_kind_mismatch() {
+    // let src = r#"
+    // fn foo<let N: u32>() -> u16 {
+    //     N as u16
+    // }
+    //
+    // global J: u16 = 10;
+    //
+    // fn bar<let N: u16>() -> u16 {
+    //     foo::<J>()
+    // }
+    //
+    // global M: u16 = 3;
+    // 
+    // fn main() {
+    //     let _ = bar::<M>();
+    // }
+    // "#;
+
     let src = r#"
     fn foo<let N: u32>() -> u16 {
         N as u16
