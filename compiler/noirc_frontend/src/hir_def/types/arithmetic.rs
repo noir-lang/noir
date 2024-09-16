@@ -17,7 +17,9 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs) => {
                 // evaluate_to_u32 also calls canonicalize so if we just called
                 // `self.evaluate_to_u32()` we'd get infinite recursion.
-                if let (Some(lhs_u32), Some(rhs_u32)) = (lhs.evaluate_to_u32(), rhs.evaluate_to_u32()) {
+                if let (Some(lhs_u32), Some(rhs_u32)) =
+                    (lhs.evaluate_to_u32(), rhs.evaluate_to_u32())
+                {
                     if let Some(result) = op.function(lhs_u32, rhs_u32) {
                         return Type::Constant(result, lhs.infix_kind(&rhs));
                     }
@@ -69,7 +71,9 @@ impl Type {
                     if let Some(result) = op.function(constant, new_constant) {
                         constant = result;
                     } else {
-                        *sorted.entry(Type::Constant(new_constant, new_constant_kind)).or_default() += 1;
+                        *sorted
+                            .entry(Type::Constant(new_constant, new_constant_kind))
+                            .or_default() += 1;
                     }
                 }
                 other => {
@@ -93,7 +97,11 @@ impl Type {
             }
 
             if constant != zero_value {
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(Type::Constant(constant, lhs.infix_kind(rhs))));
+                typ = Type::InfixExpr(
+                    Box::new(typ),
+                    op,
+                    Box::new(Type::Constant(constant, lhs.infix_kind(rhs))),
+                );
             }
 
             typ
@@ -202,7 +210,11 @@ impl Type {
                     op = op.inverse()?;
                 }
                 let result = op.function(l_const, r_const)?;
-                Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result, lhs.infix_kind(rhs)))))
+                Some(Type::InfixExpr(
+                    l_type,
+                    l_op,
+                    Box::new(Type::Constant(result, lhs.infix_kind(rhs))),
+                ))
             }
             (Multiplication | Division, Multiplication | Division) => {
                 // If l_op is a division we want to inverse the rhs operator.
@@ -215,7 +227,11 @@ impl Type {
                 } else {
                     let result = op.function(l_const, r_const)?;
                     // TODO: Type::InfixExpr kinds
-                    Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result, lhs.infix_kind(rhs)))))
+                    Some(Type::InfixExpr(
+                        l_type,
+                        l_op,
+                        Box::new(Type::Constant(result, lhs.infix_kind(rhs))),
+                    ))
                 }
             }
             _ => None,

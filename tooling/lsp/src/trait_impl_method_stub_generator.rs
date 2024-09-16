@@ -367,7 +367,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push(' ');
                 self.append_type(right);
             }
-            Type::Constant(_)
+            Type::Constant(..)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::String(_)

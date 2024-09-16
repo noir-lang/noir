@@ -151,10 +151,7 @@ impl Kind {
 
     // TODO before merge: look for occurrences
     pub(crate) fn u32() -> Self {
-        Self::Numeric(Box::new(Type::Integer(
-                                Signedness::Unsigned,
-                                IntegerBitSize::ThirtyTwo,
-                        )))
+        Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
     }
 }
 
@@ -1130,11 +1127,12 @@ impl Type {
     }
 
     pub(crate) fn kind(&self) -> Option<Kind> {
+        // TODO cleanup
+        dbg!("fn kind", &self);
         match self {
             Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
             Type::Constant(_, kind) => Some(kind.clone()),
             Type::TypeVariable(..) => None,
-
 
             // TODO: ensure kinds for InfixExpr are checked, e.g.
             //
@@ -1181,11 +1179,9 @@ impl Type {
 
     // TODO
     fn infix_kind(&self, other: &Self) -> Kind {
-
         // TODO!!! add kind check, replace u32 default with Type::Error
         self.kind().or(other.kind()).unwrap_or(Kind::u32())
     }
-
 
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
@@ -1624,7 +1620,11 @@ impl Type {
                 } else if let InfixExpr(lhs, op, rhs) = other {
                     if let Some(inverse) = op.inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type = InfixExpr(Box::new(Constant(*value, kind.clone())), inverse, rhs.clone());
+                        let new_type = InfixExpr(
+                            Box::new(Constant(*value, kind.clone())),
+                            inverse,
+                            rhs.clone(),
+                        );
                         new_type.try_unify(lhs, bindings)?;
                         Ok(())
                     } else {
@@ -2654,7 +2654,9 @@ impl PartialEq for Type {
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
-            (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => lhs == rhs && lhs_kind == rhs_kind,
+            (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => {
+                lhs == rhs && lhs_kind == rhs_kind
+            }
             (Quoted(lhs), Quoted(rhs)) => lhs == rhs,
             (InfixExpr(l_lhs, l_op, l_rhs), InfixExpr(r_lhs, r_op, r_rhs)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs

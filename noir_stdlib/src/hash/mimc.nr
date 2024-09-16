@@ -18,7 +18,7 @@ fn mimc<let N: u32>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Fi
     h + k
 }
 
-global MIMC_BN254_ROUNDS = 91;
+global MIMC_BN254_ROUNDS: u32 = 91;
 //generated from seed "mimc" using keccak256 
 global MIMC_BN254_CONSTANTS: [Field; MIMC_BN254_ROUNDS] = [
         0,

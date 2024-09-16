@@ -588,7 +588,7 @@ impl<'a> NodeFinder<'a> {
             | Type::NamedGeneric(_, _, _)
             | Type::Function(..)
             | Type::Forall(_, _)
-            | Type::Constant(_)
+            | Type::Constant(..)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _)
             | Type::Error => (),

@@ -438,8 +438,15 @@ impl<'context> Elaborator<'context> {
                 //     self.interner.get_global_let_statement(id).map(|let_statement| let_statement.r#type),
                 // );
 
+                let kind = self
+                    .interner
+                    .get_global_let_statement(id)
+                    .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
+                    .unwrap_or(Kind::u32());
+                dbg!("lookup_generic_or_global_type", &kind);
+
                 // panic!("TODO: Type::Constant needs to include the kind data from the global let statement (see above)");
-                Some(Type::Constant(self.eval_global_as_array_length(id, path), Kind::u32()))
+                Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
             }
             _ => None,
         }
