@@ -818,7 +818,7 @@ impl Attribute {
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
                     contents: word.to_owned(),
                     span,
                     contents_span,
@@ -927,7 +927,7 @@ pub enum SecondaryAttribute {
     ContractLibraryMethod,
     Export,
     Field(String),
-    Custom(CustomAtrribute),
+    Custom(CustomAttribute),
     Abi(String),
 
     /// A variable-argument comptime function.
@@ -935,7 +935,7 @@ pub enum SecondaryAttribute {
 }
 
 impl SecondaryAttribute {
-    pub(crate) fn as_custom(&self) -> Option<&CustomAtrribute> {
+    pub(crate) fn as_custom(&self) -> Option<&CustomAttribute> {
         if let Self::Custom(attribute) = self {
             Some(attribute)
         } else {
@@ -976,7 +976,7 @@ impl fmt::Display for SecondaryAttribute {
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub struct CustomAtrribute {
+pub struct CustomAttribute {
     pub contents: String,
     // The span of the entire attribute, including leading `#[` and trailing `]`
     pub span: Span,
@@ -984,7 +984,7 @@ pub struct CustomAtrribute {
     pub contents_span: Span,
 }
 
-impl CustomAtrribute {
+impl CustomAttribute {
     fn name(&self) -> Option<String> {
         let mut lexer = Lexer::new(&self.contents);
         let token = lexer.next()?.ok()?;
@@ -1051,6 +1051,7 @@ pub enum Keyword {
     Continue,
     Contract,
     Crate,
+    CtString,
     Dep,
     Else,
     Expr,
@@ -1107,6 +1108,7 @@ impl fmt::Display for Keyword {
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
+            Keyword::CtString => write!(f, "CtString"),
             Keyword::Dep => write!(f, "dep"),
             Keyword::Else => write!(f, "else"),
             Keyword::Expr => write!(f, "Expr"),
@@ -1166,6 +1168,7 @@ impl Keyword {
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
+            "CtString" => Keyword::CtString,
             "dep" => Keyword::Dep,
             "else" => Keyword::Else,
             "Expr" => Keyword::Expr,

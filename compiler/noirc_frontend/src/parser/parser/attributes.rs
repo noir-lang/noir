@@ -5,7 +5,7 @@ use crate::{
     macros_api::SecondaryAttribute,
     parser::{parenthesized, NoirParser, ParserError, ParserErrorReason},
     token::{
-        Attribute, Attributes, CustomAtrribute, FormalVerificationAttribute, Token, TokenKind,
+        Attribute, Attributes, CustomAttribute, FormalVerificationAttribute, Token, TokenKind,
     },
 };
 
@@ -64,7 +64,7 @@ pub(super) fn attributes() -> impl NoirParser<Vec<Attribute>> {
     attribute().repeated()
 }
 
-fn is_valid_custom_attribute(custom_attr: CustomAtrribute) -> bool {
+fn is_valid_custom_attribute(custom_attr: CustomAttribute) -> bool {
     !(custom_attr.contents.starts_with("ensures") || custom_attr.contents.starts_with("requires"))
 }
 

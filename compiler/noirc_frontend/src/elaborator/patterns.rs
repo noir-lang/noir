@@ -188,6 +188,7 @@ impl<'context> Elaborator<'context> {
             Some(Type::Struct(struct_type, generics)) => (struct_type, generics),
             None => return error_identifier(self),
             Some(typ) => {
+                let typ = typ.to_string();
                 self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
                 return error_identifier(self);
             }

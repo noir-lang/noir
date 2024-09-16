@@ -66,6 +66,7 @@ mod modules;
 mod notifications;
 mod requests;
 mod solver;
+mod trait_impl_method_stub_generator;
 mod types;
 mod utils;
 mod visibility;

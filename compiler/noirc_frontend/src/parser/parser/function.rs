@@ -48,39 +48,74 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
         .then(generics())
-        .then(parenthesized(function_parameters(allow_self)))
-        .then(function_return_type())
-        .then(where_clause())
-        .then(body_or_error)
-        .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
-            let ((((all_attributes, modifiers), name), generics), parameters) = args;
+        .then(
+            parenthesized(function_parameters(allow_self))
+                .then(function_return_type())
+                .then(where_clause())
+                .then(body_or_error)
+                // Allow parsing just `fn foo` for recovery and LSP autocompletion
+                .or_not(),
+        )
+        .validate(|args, span, emit| {
+            let (
+                (((all_attributes, (is_unconstrained, visibility, is_comptime)), name), generics),
+                params_and_others,
+            ) = args;
 
             let (fv_attributes, attributes) = split_attributes_in_two(all_attributes);
 
             // Validate collected attributes, filtering them into function and secondary variants
             let attributes = validate_attributes(attributes, fv_attributes, span, emit);
-            FunctionDefinition {
-                span: body_span,
-                name,
-                attributes,
-                is_unconstrained: modifiers.0,
-                visibility: modifiers.1,
-                is_comptime: modifiers.2,
-                generics,
-                parameters,
-                body,
-                where_clause,
-                return_type: ret.1,
-                return_visibility: ret.0,
-            }
-            .into()
+            let function_definition = if let Some(params_and_others) = params_and_others {
+                let (
+                    ((parameters, (return_visibility, return_type)), where_clause),
+                    (body, body_span),
+                ) = params_and_others;
+
+                FunctionDefinition {
+                    span: body_span,
+                    name,
+                    attributes,
+                    is_unconstrained,
+                    visibility,
+                    is_comptime,
+                    generics,
+                    parameters,
+                    body,
+                    where_clause,
+                    return_type,
+                    return_visibility,
+                }
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftParenOrLeftBracketAfterFunctionName,
+                    span,
+                ));
+
+                let empty_span = Span::from(span.end()..span.end());
+                FunctionDefinition {
+                    span: empty_span,
+                    name,
+                    attributes,
+                    is_unconstrained,
+                    visibility,
+                    is_comptime,
+                    generics,
+                    parameters: Vec::new(),
+                    body: BlockExpression { statements: vec![] },
+                    where_clause: Vec::new(),
+                    return_type: FunctionReturnType::Default(empty_span),
+                    return_visibility: Visibility::Private,
+                }
+            };
+            function_definition.into()
         })
 }
 
 /// function_modifiers: 'unconstrained'? (visibility)?
 ///
 /// returns (is_unconstrained, visibility) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
+pub(super) fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
     keyword(Keyword::Unconstrained).or_not().then(item_visibility()).then(maybe_comp_time()).map(
         |((unconstrained, visibility), comptime)| (unconstrained.is_some(), visibility, comptime),
     )
