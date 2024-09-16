@@ -1559,7 +1559,7 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
     match typ {
         Type::Array(_, typ) | Type::Slice(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
-            let typ = alias_type.borrow().get_type(&generics);
+            let typ = alias_type.borrow().get_type(&generics).follow_bindings();
             get_array_element_type(typ)
         }
         _ => None,
