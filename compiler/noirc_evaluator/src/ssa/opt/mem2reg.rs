@@ -471,16 +471,16 @@ impl<'f> PerFunctionContext<'f> {
                     self.store_count.insert(address, num_stores);
                 }
 
-                let expression =
-                    references.expressions.entry(address).or_insert(Expression::Other(address));
-                // Make sure this load result is marked an alias to itself
-                if let Some(aliases) = references.aliases.get_mut(expression) {
-                    // If we have an alias set, add to the set
-                    aliases.insert(address);
-                } else {
-                    // Otherwise, create a new alias set containing just the load result
-                    references.aliases.insert(Expression::Other(address), AliasSet::known(address));
+                if self.inserter.function.dfg.value_is_reference(value) {
+                    if let Some(expression) = references.expressions.get(&value) {
+                        if let Some(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                self.calls_reference_input.insert(alias);
+                            });
+                        }
+                    }
                 }
+
                 references.set_known_value(address, value);
             }
             Instruction::Allocate => {
@@ -721,6 +721,7 @@ impl<'f> PerFunctionContext<'f> {
             self.remove_unloaded_last_stores(&removed_loads, &all_terminator_values);
         self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
 
+        // println!("{}", self.inserter.function);
         // After possibly removing some instructions we need to map all the instructions
         // TODO: Add a check whether any loads were actually removed where we actually need to map values
         let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
@@ -812,7 +813,9 @@ impl<'f> PerFunctionContext<'f> {
                 else {
                     panic!("Should have Store instruction");
                 };
+
                 if self.instructions_to_remove.contains(store_instruction) {
+                    // println!("already set to remove");
                     continue;
                 }
 
@@ -833,8 +836,8 @@ impl<'f> PerFunctionContext<'f> {
                         );
                     });
 
-                    // If we are in a return terminator, and the last load of an address
-                    // comes after a store to that address, we can safely remove that store.
+                    // If we are in a return terminator, and the last loads of a reference
+                    // come before a store to that reference, we can safely remove that store.
                     let store_after_load = if let Some(max_load_index) =
                         self.return_block_load_locations.get(&(*store_address, *block_id))
                     {
@@ -848,7 +851,7 @@ impl<'f> PerFunctionContext<'f> {
                         // Otherwise there is no load in this block
                         true
                     };
-                    !is_return_value && store_after_load
+                    store_after_load
                 } else if let (Some(context), Some(loads_removed_counter), Some(store_uses)) = (
                     self.last_loads.get(store_address),
                     removed_loads.get(store_address),
@@ -858,13 +861,8 @@ impl<'f> PerFunctionContext<'f> {
                     // If the number of removed loads for a given address is equal to the total number of loads for that address,
                     // we know we can safely remove any stores to that load address.
                     context.num_loads == *loads_removed_counter
-                    && !is_used_in_terminator
-                    // TODO: We want to get rid of this usage of store_uses
-                    // TODO: Without this `store_uses` I am getting failures in aztec-packages contracts
-                    // The only failing contract is card_game_contract
-                    && *store_uses == 1
                 } else {
-                    self.last_loads.get(store_address).is_none() && !is_used_in_terminator
+                    self.last_loads.get(store_address).is_none()
                 };
 
                 // Extra checks on where a reference can be used aside a load instruction.
@@ -963,6 +961,7 @@ impl<'f> PerFunctionContext<'f> {
             if *store_counter != 0 {
                 continue;
             }
+            // println!("remaining last stores: store {value} at {store_address}");
             self.instructions_to_remove.insert(*store_instruction);
 
             // Map any remaining load results to the value from the removed store
@@ -1269,7 +1268,7 @@ mod tests {
         //     return
         // }
         let ssa = ssa.mem2reg();
-
+        println!("{}", ssa);
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
 
@@ -1672,5 +1671,115 @@ mod tests {
         assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
         assert_eq!(count_loads(b1, &main.dfg), 0);
         assert_eq!(count_loads(b2, &main.dfg), 1);
+    }
+
+    #[test]
+    fn keep_unused_store_used_as_alias_across_blocks() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: u32):
+        //       v1 = allocate
+        //       store u32 0 at v1
+        //       v3 = allocate
+        //       store v1 at v3
+        //       v4 = allocate
+        //       store v0 at v4
+        //       v5 = allocate
+        //       store v4 at v5
+        //       jmp b1(u32 0)
+        //     b1(v6: u32):
+        //       v7 = eq v6, u32 0
+        //       jmpif v7 then: b2, else: b3
+        //     b2():
+        //       v8 = load v5
+        //       store v8 at u2 2
+        //       v11 = add v6, u32 1
+        //       jmp b1(v11)
+        //     b3():
+        //       v12 = load v4
+        //       constrain v12 == u2 2
+        //       v13 = load v5
+        //       v14 = load v13
+        //       constrain v14 == u2 2
+        //       v15 = load v3
+        //       v16 = load v15
+        //       v18 = lt v16, u32 4
+        //       constrain v18 == u32 1
+        //       return
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::unsigned(32));
+
+        let v1 = builder.insert_allocate(Type::unsigned(32));
+        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        builder.insert_store(v1, zero);
+
+        let v1_type = builder.type_of_value(v1);
+        let v3 = builder.insert_allocate(v1_type.clone());
+        builder.insert_store(v3, v1);
+
+        let v4 = builder.insert_allocate(Type::unsigned(32));
+        builder.insert_store(v4, v0);
+
+        let v5 = builder.insert_allocate(Type::Reference(Arc::new(Type::unsigned(32))));
+        builder.insert_store(v5, v4);
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![zero]);
+        builder.switch_to_block(b1);
+
+        let v6 = builder.add_block_parameter(b1, Type::unsigned(32));
+        let is_zero = builder.insert_binary(v6, BinaryOp::Eq, zero);
+
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        builder.terminate_with_jmpif(is_zero, b2, b3);
+
+        builder.switch_to_block(b2);
+        let v4_type = builder.type_of_value(v4);
+        // let v0_type = builder.type_of_value(v4);
+        let v8 = builder.insert_load(v5, v4_type);
+        let two = builder.numeric_constant(2u128, Type::unsigned(2));
+        builder.insert_store(v8, two);
+        let one = builder.numeric_constant(1u128, Type::unsigned(32));
+        let v11 = builder.insert_binary(v6, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b1, vec![v11]);
+
+        builder.switch_to_block(b3);
+
+        let v12 = builder.insert_load(v4, Type::unsigned(32));
+        builder.insert_constrain(v12, two, None);
+
+        let v3_type = builder.type_of_value(v3);
+        let v13 = builder.insert_load(v5, v3_type);
+        let v14 = builder.insert_load(v13, Type::unsigned(32));
+        builder.insert_constrain(v14, two, None);
+
+        let v15 = builder.insert_load(v3, v1_type);
+        let v16 = builder.insert_load(v15, Type::unsigned(32));
+        let four = builder.numeric_constant(4u128, Type::unsigned(32));
+        let less_than_four = builder.insert_binary(v16, BinaryOp::Lt, four);
+        builder.insert_constrain(less_than_four, one, None);
+
+        builder.terminate_with_return(vec![]);
+        let ssa = builder.finish();
+
+        // We expect the same result as above.
+        let ssa = ssa.mem2reg();
+        println!("{}", ssa);
+        let main = ssa.main();
+
+        // We expect all the stores to remain.
+        // The references in b0 are aliased and those are aliases may never be stored to again,
+        // but they are loaded from and used in later instructions.
+        // We need to make sure that the store of the address being aliased, is not removed from the program.
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 4);
+        // The store inside of the loop should remain
+        assert_eq!(count_stores(b2, &main.dfg), 1);
+
+        // We expect the loads to remain the same
+        assert_eq!(count_loads(b2, &main.dfg), 1);
+        assert_eq!(count_loads(b3, &main.dfg), 5);
     }
 }

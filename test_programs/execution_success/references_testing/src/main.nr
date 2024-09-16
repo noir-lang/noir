@@ -32,7 +32,7 @@ struct LogHash {
 }
 
 impl Context {
-    fn emit_raw_log<let M: u32>(&mut self, randomness: Field, log: [u8; M], log_hash: Field) {
+    fn emit_raw_log<let M: u32>(&mut self, randomness: Field, _log: [u8; M], log_hash: Field) {
         let log_hash = LogHash { value: log_hash, counter: 0, length: 0, randomness };
         self.log_hashes.push(log_hash);
     }
