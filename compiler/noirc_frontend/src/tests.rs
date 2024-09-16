@@ -3533,3 +3533,27 @@ fn cannot_mutate_immutable_variable_on_member_access() {
 
     assert_eq!(name, "foo");
 }
+
+#[test]
+fn does_not_crash_when_passing_mutable_undefined_variable() {
+    let src = r#"
+    fn main() {
+        mutate(&mut undefined);
+    }
+
+    fn mutate(foo: &mut Field) {
+        *foo = 1;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a VariableNotDeclared error");
+    };
+
+    assert_eq!(name, "undefined");
+}
