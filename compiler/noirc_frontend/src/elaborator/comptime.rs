@@ -102,6 +102,9 @@ impl<'context> Elaborator<'context> {
         elaborator.function_context.push(FunctionContext::default());
         elaborator.scopes.start_function();
 
+        elaborator.local_module = self.local_module;
+        elaborator.file = self.file;
+
         setup(&mut elaborator);
 
         elaborator.populate_scope_from_comptime_scopes();
