@@ -78,7 +78,7 @@ unconstrained fn func(input: u32) {
 
 fn main(input: [Field; 4], randomness: Field, context_input: u32) {
     let b = [context_input, context_input, context_input];
-    let context = Context { a: context_input, b, log_hashes: BoundedVec::new() };
+    let mut context = Context { a: context_input, b, log_hashes: BoundedVec::new() };
 
     let event0 = ExampleEvent0 { value0: input[0], value1: input[1] };
     event0.emit(encode_event_with_randomness(&mut context, randomness));
