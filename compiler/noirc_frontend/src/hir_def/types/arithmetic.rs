@@ -226,7 +226,6 @@ impl Type {
                     None
                 } else {
                     let result = op.function(l_const, r_const)?;
-                    // TODO: Type::InfixExpr kinds
                     Some(Type::InfixExpr(
                         l_type,
                         l_op,
@@ -248,7 +247,6 @@ impl Type {
         if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
             if let Some(inverse) = op_a.inverse() {
                 if let Some(rhs_a_u32) = rhs_a.evaluate_to_u32() {
-                    // TODO: Type::InfixExpr kinds
                     let rhs_a = Box::new(Type::Constant(rhs_a_u32, lhs_a.infix_kind(rhs_a)));
                     let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
 

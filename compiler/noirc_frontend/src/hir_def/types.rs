@@ -139,17 +139,21 @@ pub enum Kind {
 }
 
 impl Kind {
+    pub(crate) fn is_error(&self) -> bool {
+        match self {
+            Self::Numeric(typ) => **typ == Type::Error,
+            _ => false,
+        }
+    }
+
     pub(crate) fn is_numeric(&self) -> bool {
         matches!(self, Self::Numeric { .. })
     }
 
-    // TODO before merge: look for occurrences
-    // None matches everything, otherwise check equality
-    fn matches_opt(&self, other: Option<Self>) -> bool {
+    pub(crate) fn matches_opt(&self, other: Option<Self>) -> bool {
         other.as_ref().map(|other_kind| self == other_kind).unwrap_or(true)
     }
 
-    // TODO before merge: look for occurrences
     pub(crate) fn u32() -> Self {
         Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
     }
@@ -786,7 +790,7 @@ impl Type {
         Type::TypeVariable(var, type_var_kind)
     }
 
-    // TODO: constant_variable along with TypeVariableKind::Constant are unused
+    // TODO: constant_variable and TypeVariableKind::Constant are unused
     /// Returns a TypeVariable(_, TypeVariableKind::Constant(length)) to bind to
     /// a constant integer for e.g. an array length.
     pub fn constant_variable(length: u32, interner: &mut NodeInterner) -> Type {
@@ -1127,36 +1131,11 @@ impl Type {
     }
 
     pub(crate) fn kind(&self) -> Option<Kind> {
-        // TODO cleanup
-        dbg!("fn kind", &self);
         match self {
             Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
             Type::Constant(_, kind) => Some(kind.clone()),
             Type::TypeVariable(..) => None,
-
-            // TODO: ensure kinds for InfixExpr are checked, e.g.
-            //
-            // Type::InfixExpr(lhs, _, rhs) =>
-            // {
-            //     let lhs_kind_opt = lhs.kind();
-            //     let rhs_kind_opt = rhs.kind();
-            //     if let Some(lhs_kind) = lhs_kind_opt {
-            //         if let Some(rhs_kind) = rhs_kind_opt {
-            //             if lhs_kind == rhs_kind {
-            //                 Some(lhs_kind)
-            //             } else {
-            //                 fail with TypeKindMismatch or
-            //                 Kind::Numeric(Box::new(Type::Error))
-            //             }
-            //         } else {
-            //             Some(lhs_kind)
-            //         }
-            //     } else {
-            //         rhs_kind
-            //     }
-            // }
-            Type::InfixExpr(..) => None,
-
+            Type::InfixExpr(lhs, _op, rhs) => Some(lhs.infix_kind(rhs)),
             Type::FieldElement
             | Type::Array(..)
             | Type::Slice(..)
@@ -1177,10 +1156,23 @@ impl Type {
         }
     }
 
-    // TODO
+    /// if both Kind's are equal to Some(_), return that Kind,
+    ///     otherwise return a Kind error
+    /// if both Kind's are None, default to u32
+    /// if exactly one Kind is None, return the other one
     fn infix_kind(&self, other: &Self) -> Kind {
-        // TODO!!! add kind check, replace u32 default with Type::Error
-        self.kind().or(other.kind()).unwrap_or(Kind::u32())
+        match (self.kind(), other.kind()) {
+            (Some(self_kind), Some(other_kind)) => {
+                if self_kind == other_kind {
+                    self_kind
+                } else {
+                    Kind::Numeric(Box::new(Type::Error))
+                }
+            }
+            (None, None) => Kind::u32(),
+            (Some(self_kind), None) => self_kind,
+            (None, Some(other_kind)) => other_kind,
+        }
     }
 
     /// Returns the number of field elements required to represent the type once encoded.

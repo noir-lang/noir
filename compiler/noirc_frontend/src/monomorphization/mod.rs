@@ -1073,9 +1073,15 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Unit
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
-            | HirType::Constant(..)
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
+            HirType::Constant(_value, kind) => {
+                if kind.is_error() {
+                    Err(MonomorphizationError::UnknownConstant { location })
+                } else {
+                    Ok(())
+                }
+            }
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
