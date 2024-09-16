@@ -1,7 +1,7 @@
-fn main(x1: pub [u8; 16], y1: pub [u8; 16],
-        x2: pub [u8; 16], y2: pub [u8; 16],
-        x3: pub [u8; 16], y3: pub [u8; 16],
-        x4: pub [u8; 16], y4: pub [u8; 16],
+fn main(x1: pub [i8; 16], y1: pub [i8; 16],
+        x2: pub [i8; 16], y2: pub [i8; 16],
+        x3: pub [i8; 16], y3: pub [i8; 16],
+        x4: pub [i8; 16], y4: pub [i8; 16],
         z: [[bool; 16]; 16]) {
     for i in 0..16 {
         for j in 0..16 {
