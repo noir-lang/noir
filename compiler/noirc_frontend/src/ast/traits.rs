@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::TraitId;
 
-use super::{Documented, GenericTypeArgs};
+use super::{Documented, GenericTypeArgs, ItemVisibility};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -29,6 +29,9 @@ pub struct NoirTrait {
 #[derive(Clone, Debug)]
 pub enum TraitItem {
     Function {
+        is_unconstrained: bool,
+        visibility: ItemVisibility,
+        is_comptime: bool,
         name: Ident,
         generics: UnresolvedGenerics,
         parameters: Vec<(Ident, UnresolvedType)>,
@@ -95,7 +98,13 @@ pub struct TraitBound {
 }
 
 #[derive(Clone, Debug)]
-pub enum TraitImplItem {
+pub struct TraitImplItem {
+    pub kind: TraitImplItemKind,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum TraitImplItemKind {
     Function(NoirFunction),
     Constant(Ident, UnresolvedType, Expression),
     Type { name: Ident, alias: UnresolvedType },
@@ -140,7 +149,17 @@ impl Display for NoirTrait {
 impl Display for TraitItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+            TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body,
+                is_unconstrained,
+                visibility,
+                is_comptime,
+            } => {
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);
@@ -149,9 +168,17 @@ impl Display for TraitItem {
                 let parameters = parameters.join(", ");
                 let where_clause = where_clause.join(", ");
 
+                let unconstrained = if *is_unconstrained { "unconstrained " } else { "" };
+                let visibility = if *visibility == ItemVisibility::Private {
+                    "".to_string()
+                } else {
+                    visibility.to_string()
+                };
+                let is_comptime = if *is_comptime { "comptime " } else { "" };
+
                 write!(
                     f,
-                    "fn {name}<{generics}>({parameters}) -> {return_type} where {where_clause}"
+                    "{unconstrained}{visibility}{is_comptime}fn {name}<{generics}>({parameters}) -> {return_type} where {where_clause}"
                 )?;
 
                 if let Some(body) = body {
@@ -203,10 +230,16 @@ impl Display for NoirTraitImpl {
 
 impl Display for TraitImplItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl Display for TraitImplItemKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitImplItem::Function(function) => function.fmt(f),
-            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias};"),
-            TraitImplItem::Constant(name, typ, value) => {
+            TraitImplItemKind::Function(function) => function.fmt(f),
+            TraitImplItemKind::Type { name, alias } => write!(f, "type {name} = {alias};"),
+            TraitImplItemKind::Constant(name, typ, value) => {
                 write!(f, "let {name}: {typ} = {value};")
             }
         }

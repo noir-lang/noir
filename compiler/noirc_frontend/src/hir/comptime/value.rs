@@ -24,7 +24,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId, StmtId, TraitId, TraitImplId},
+    node_interner::{ExprId, FuncId, InternedStatementKind, StmtId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -49,6 +49,7 @@ pub enum Value {
     U64(u64),
     String(Rc<String>),
     FormatString(Rc<String>, Type),
+    CtString(Rc<String>),
     Function(FuncId, Type, Rc<TypeBindings>),
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
@@ -151,6 +152,7 @@ impl Value {
             Value::Expr(_) => Type::Quoted(QuotedType::Expr),
             Value::TypedExpr(_) => Type::Quoted(QuotedType::TypedExpr),
             Value::UnresolvedType(_) => Type::Quoted(QuotedType::UnresolvedType),
+            Value::CtString(_) => Type::Quoted(QuotedType::CtString),
         })
     }
 
@@ -202,7 +204,9 @@ impl Value {
             Value::U64(value) => {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
-            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::String(value) | Value::CtString(value) => {
+                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            }
             // Format strings are lowered as normal strings since they are already interpolated.
             Value::FormatString(value, _) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
@@ -240,7 +244,7 @@ impl Value {
                 // Since we've provided the struct_type, the path should be ignored.
                 let type_name = Path::from_single(String::new(), location.span);
                 ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                    type_name,
+                    typ: UnresolvedType::from_path(type_name),
                     fields,
                     struct_type,
                 }))
@@ -349,7 +353,9 @@ impl Value {
             Value::U64(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
-            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            Value::String(value) | Value::CtString(value) => {
+                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
+            }
             // Format strings are lowered as normal strings since they are already interpolated.
             Value::FormatString(value, _) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
@@ -447,6 +453,9 @@ impl Value {
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
             Value::Expr(ExprValue::Expression(expr)) => {
                 Token::InternedExpr(interner.push_expression_kind(expr))
+            }
+            Value::Expr(ExprValue::Statement(StatementKind::Expression(expr))) => {
+                Token::InternedExpr(interner.push_expression_kind(expr.kind))
             }
             Value::Expr(ExprValue::Statement(statement)) => {
                 Token::InternedStatement(interner.push_statement_kind(statement))
@@ -589,6 +598,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::U32(value) => write!(f, "{value}"),
             Value::U64(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
+            Value::CtString(value) => write!(f, "{value}"),
             Value::FormatString(value, _) => write!(f, "{value}"),
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(_, _, _) => write!(f, "(closure)"),
@@ -865,7 +875,20 @@ fn remove_interned_in_expression_kind(
             remove_interned_in_expression_kind(interner, expr)
         }
         ExpressionKind::Error => expr,
+        ExpressionKind::InternedStatement(id) => remove_interned_in_statement_expr(interner, id),
     }
+}
+
+fn remove_interned_in_statement_expr(
+    interner: &NodeInterner,
+    id: InternedStatementKind,
+) -> ExpressionKind {
+    let expr = match interner.get_statement_kind(id).clone() {
+        StatementKind::Expression(expr) | StatementKind::Semi(expr) => expr.kind,
+        StatementKind::Interned(id) => remove_interned_in_statement_expr(interner, id),
+        _ => ExpressionKind::Error,
+    };
+    remove_interned_in_expression_kind(interner, expr)
 }
 
 fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Literal {

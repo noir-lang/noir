@@ -50,12 +50,9 @@ struct Slot<K, V> {
     _is_deleted: bool,
 }
 
-impl<K, V> Default for Slot<K, V>{
-    fn default() -> Self{
-        Slot{
-            _key_value: Option::none(),
-            _is_deleted: false
-        }
+impl<K, V> Default for Slot<K, V> {
+    fn default() -> Self {
+        Slot { _key_value: Option::none(), _is_deleted: false }
     }
 }
 
@@ -649,8 +646,7 @@ where
     K: Eq + Hash,
     V: Eq,
     B: BuildHasher<H>,
-    H: Hasher
-{
+    H: Hasher {
     /// Checks if two HashMaps are equal.
     /// 
     /// Example:
@@ -668,22 +664,22 @@ where
     /// assert(map1 == map2);
     /// ```
     fn eq(self, other: HashMap<K, V, N, B>) -> bool {
-// docs:end:eq
+        // docs:end:eq
         let mut equal = false;
 
-        if self.len() == other.len(){
+        if self.len() == other.len() {
             equal = true;
-            for slot in self._table{
+            for slot in self._table {
                 // Not marked as deleted and has key-value.
-                if equal & slot.is_valid(){
+                if equal & slot.is_valid() {
                     let (key, value) = slot.key_value_unchecked();
                     let other_value = other.get(key);
 
-                    if other_value.is_none(){
+                    if other_value.is_none() {
                         equal = false;
-                    }else{
+                    } else {
                         let other_value = other_value.unwrap_unchecked();
-                        if value != other_value{
+                        if value != other_value {
                             equal = false;
                         }
                     }
@@ -699,8 +695,7 @@ where
 impl<K, V, let N: u32, B, H> Default for HashMap<K, V, N, B>
 where
     B: BuildHasher<H> + Default,
-    H: Hasher + Default
-{
+    H: Hasher + Default {
     /// Constructs an empty HashMap.
     /// 
     /// Example:

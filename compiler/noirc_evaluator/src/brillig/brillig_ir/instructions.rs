@@ -48,12 +48,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result: SingleAddrVariable,
     ) {
         self.debug_show.not_instruction(input.address, input.bit_size, result.address);
-        // Compile !x as ((-1) - x)
-        let u_max = F::from(2_u128).pow(&F::from(input.bit_size as u128)) - F::one();
-        let max = self.make_constant(u_max, input.bit_size);
-
-        self.binary(max, input, result, BrilligBinaryOp::Sub);
-        self.deallocate_single_addr(max);
+        assert_eq!(input.bit_size, result.bit_size, "Not operands should have the same bit size");
+        self.push_opcode(BrilligOpcode::Not {
+            destination: result.address,
+            source: input.address,
+            bit_size: input.bit_size.try_into().unwrap(),
+        });
     }
 
     /// Utility method to perform a binary instruction with a memory address
@@ -415,12 +415,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) -> SingleAddrVariable {
         let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
         self.const_instruction(var, constant);
-        var
-    }
-
-    fn make_constant(&mut self, constant: F, bit_size: u32) -> SingleAddrVariable {
-        let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
-        self.constant(var.address, var.bit_size, constant, false);
         var
     }
 

@@ -8,6 +8,7 @@ mod completion_tests {
                     completion_item_with_detail, completion_item_with_sort_text,
                     completion_item_with_trigger_parameter_hints_command, module_completion_item,
                     simple_completion_item, snippet_completion_item,
+                    trait_impl_method_completion_item,
                 },
                 sort_text::{auto_import_sort_text, self_mismatch_sort_text},
             },
@@ -1395,6 +1396,7 @@ mod completion_tests {
     #[test]
     async fn test_auto_imports_when_in_nested_module_and_item_is_further_nested() {
         let src = r#"
+            #[something]
             mod foo {
                 mod bar {
                     pub fn hello_world() {}
@@ -1422,8 +1424,8 @@ mod completion_tests {
             item.additional_text_edits,
             Some(vec![TextEdit {
                 range: Range {
-                    start: Position { line: 2, character: 4 },
-                    end: Position { line: 2, character: 4 },
+                    start: Position { line: 3, character: 4 },
+                    end: Position { line: 3, character: 4 },
                 },
                 new_text: "use bar::hello_world;\n\n    ".to_string(),
             }])
@@ -1963,6 +1965,52 @@ mod completion_tests {
                 "some_attr(…)",
                 "some_attr(${1:x})",
                 "fn(TraitDefinition, Field)",
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_trait_impl_function() {
+        let src = r#"
+        trait Trait {
+            fn foo(x: i32) -> i32;
+        }
+
+        struct Foo {}
+
+        impl Trait for Foo {
+            fn f>|<
+        }"#;
+
+        assert_completion(
+            src,
+            vec![trait_impl_method_completion_item(
+                "fn foo(..)",
+                "foo(x: i32) -> i32 {\n    ${1}\n}",
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_trait_impl_default_function() {
+        let src = r#"
+        trait Trait {
+            fn foo(x: i32) -> i32 { 1 }
+        }
+
+        struct Foo {}
+
+        impl Trait for Foo {
+            fn f>|<
+        }"#;
+
+        assert_completion(
+            src,
+            vec![trait_impl_method_completion_item(
+                "fn foo(..)",
+                "foo(x: i32) -> i32 {\n    ${1}\n}",
             )],
         )
         .await;

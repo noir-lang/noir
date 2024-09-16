@@ -1,6 +1,9 @@
 use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
-use noirc_frontend::{ast::ConstructorExpression, node_interner::ReferenceId};
+use noirc_frontend::{
+    ast::{ConstructorExpression, UnresolvedTypeData},
+    node_interner::ReferenceId,
+};
 
 use crate::byte_span_to_range;
 
@@ -12,8 +15,11 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        // Find out which struct this is
-        let location = Location::new(constructor.type_name.last_ident().span(), self.file);
+        let UnresolvedTypeData::Named(path, _, _) = &constructor.typ.typ else {
+            return;
+        };
+
+        let location = Location::new(path.span, self.file);
         let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
             return;
         };

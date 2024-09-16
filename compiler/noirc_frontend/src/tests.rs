@@ -3462,3 +3462,98 @@ fn comptime_type_in_runtime_code() {
         CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
     ));
 }
+
+#[test]
+fn arithmetic_generics_canonicalization_deduplication_regression() {
+    let source = r#"
+        struct ArrData<let N: u32> {
+            a: [Field; N],
+            b: [Field; N + N - 1],
+        }
+
+        fn main() {
+            let _f: ArrData<5> = ArrData {
+                a: [0; 5],
+                b: [0; 9],
+            };
+        }
+    "#;
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cannot_mutate_immutable_variable() {
+    let src = r#"
+    fn main() {
+        let array = [1];
+        mutate(&mut array);
+    }
+
+    fn mutate(_: &mut [Field; 1]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a CannotMutateImmutableVariable error");
+    };
+
+    assert_eq!(name, "array");
+}
+
+#[test]
+fn cannot_mutate_immutable_variable_on_member_access() {
+    let src = r#"
+    struct Foo {
+        x: Field
+    }
+
+    fn main() {
+        let foo = Foo { x: 0 };
+        mutate(&mut foo.x);
+    }
+
+    fn mutate(foo: &mut Field) {
+        *foo = 1;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a CannotMutateImmutableVariable error");
+    };
+
+    assert_eq!(name, "foo");
+}
+
+#[test]
+fn does_not_crash_when_passing_mutable_undefined_variable() {
+    let src = r#"
+    fn main() {
+        mutate(&mut undefined);
+    }
+
+    fn mutate(foo: &mut Field) {
+        *foo = 1;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a VariableNotDeclared error");
+    };
+
+    assert_eq!(name, "undefined");
+}

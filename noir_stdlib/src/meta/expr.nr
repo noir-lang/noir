@@ -1,131 +1,229 @@
+//! Contains methods on the built-in `Expr` type for quoted, syntactically valid expressions.
+
 use crate::option::Option;
 use crate::meta::op::UnaryOp;
 use crate::meta::op::BinaryOp;
 
 impl Expr {
+    /// If this expression is an array literal `[elem1, ..., elemN]`, this returns a slice of each element in the array.
     #[builtin(expr_as_array)]
     // docs:start:as_array
     comptime fn as_array(self) -> Option<[Expr]> {}
     // docs:end:as_array
 
+    /// If this expression is an assert, this returns the assert expression and the optional message.
     #[builtin(expr_as_assert)]
     // docs:start:as_assert
     comptime fn as_assert(self) -> Option<(Expr, Option<Expr>)> {}
     // docs:end:as_assert
 
+    /// If this expression is an assert_eq, this returns the left-hand-side and right-hand-side
+    /// expressions, together with the optional message.
     #[builtin(expr_as_assert_eq)]
     // docs:start:as_assert_eq
     comptime fn as_assert_eq(self) -> Option<(Expr, Expr, Option<Expr>)> {}
     // docs:end:as_assert_eq
 
+    /// If this expression is an assignment, this returns a tuple with the left hand side
+    /// and right hand side in order.
     #[builtin(expr_as_assign)]
     // docs:start:as_assign
     comptime fn as_assign(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_assign
 
-    #[builtin(expr_as_integer)]
-    // docs:start:as_integer
-    comptime fn as_integer(self) -> Option<(Field, bool)> {}
-    // docs:end:as_integer
-
+    /// If this expression is a binary operator operation `<lhs> <op> <rhs>`,
+    /// return the left-hand side, operator, and the right-hand side of the operation.
     #[builtin(expr_as_binary_op)]
     // docs:start:as_binary_op
     comptime fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)> {}
     // docs:end:as_binary_op
 
+    /// If this expression is a block `{ stmt1; stmt2; ...; stmtN }`, return
+    /// a slice containing each statement.
     #[builtin(expr_as_block)]
     // docs:start:as_block
     comptime fn as_block(self) -> Option<[Expr]> {}
     // docs:end:as_block
 
+    /// If this expression is a boolean literal, return that literal.
     #[builtin(expr_as_bool)]
     // docs:start:as_bool
     comptime fn as_bool(self) -> Option<bool> {}
     // docs:end:as_bool
 
+    /// If this expression is a cast expression `expr as type`, returns the casted
+    /// expression and the type to cast to.
+    // docs:start:as_cast
     #[builtin(expr_as_cast)]
     comptime fn as_cast(self) -> Option<(Expr, UnresolvedType)> {}
+    // docs:end:as_cast
 
+    /// If this expression is a `comptime { stmt1; stmt2; ...; stmtN }` block,
+    /// return each statement in the block.
     #[builtin(expr_as_comptime)]
     // docs:start:as_comptime
     comptime fn as_comptime(self) -> Option<[Expr]> {}
     // docs:end:as_comptime
 
+    /// If this expression is a constructor `Type { field1: expr1, ..., fieldN: exprN }`,
+    /// return the type and the fields.
+    #[builtin(expr_as_constructor)]
+    // docs:start:as_constructor
+    comptime fn as_constructor(self) -> Option<(UnresolvedType, [(Quoted, Expr)])> {}
+    // docs:end:as_constructor
+
+    /// If this expression is a for statement over a single expression, return the identifier,
+    /// the expression and the for loop body.
+    #[builtin(expr_as_for)]
+    // docs:start:as_for
+    comptime fn as_for(self) -> Option<(Quoted, Expr, Expr)> {}
+    // docs:end:as_for
+
+    /// If this expression is a for statement over a range, return the identifier,
+    /// the range start, the range end and the for loop body.
+    #[builtin(expr_as_for_range)]
+    // docs:start:as_for_range
+    comptime fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)> {}
+    // docs:end:as_for_range
+
+    /// If this expression is a function call `foo(arg1, ..., argN)`, return
+    /// the function and a slice of each argument.
     #[builtin(expr_as_function_call)]
     // docs:start:as_function_call
     comptime fn as_function_call(self) -> Option<(Expr, [Expr])> {}
     // docs:end:as_function_call
 
+    /// If this expression is an `if condition { then_branch } else { else_branch }`,
+    /// return the condition, then branch, and else branch. If there is no else branch,
+    /// `None` is returned for that branch instead.
     #[builtin(expr_as_if)]
     // docs:start:as_if
     comptime fn as_if(self) -> Option<(Expr, Expr, Option<Expr>)> {}
     // docs:end:as_if
 
+    /// If this expression is an index into an array `array[index]`, return the
+    /// array and the index.
     #[builtin(expr_as_index)]
     // docs:start:as_index
     comptime fn as_index(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_index
 
+    /// If this expression is an integer literal, return the integer as a field
+    /// as well as whether the integer is negative (true) or not (false).
+    #[builtin(expr_as_integer)]
+    // docs:start:as_integer
+    comptime fn as_integer(self) -> Option<(Field, bool)> {}
+    // docs:end:as_integer
+
+    /// If this expression is a lambda, returns the parameters, return type and body.
+    #[builtin(expr_as_lambda)]
+    // docs:start:as_lambda
+    comptime fn as_lambda(self) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)> {}
+    // docs:end:as_lambda
+
+    /// If this expression is a let statement, returns the let pattern as an `Expr`,
+    /// the optional type annotation, and the assigned expression.
     #[builtin(expr_as_let)]
     // docs:start:as_let
     comptime fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)> {}
     // docs:end:as_let
 
+    /// If this expression is a member access `foo.bar`, return the struct/tuple
+    /// expression and the field. The field will be represented as a quoted value.
     #[builtin(expr_as_member_access)]
     // docs:start:as_member_access
     comptime fn as_member_access(self) -> Option<(Expr, Quoted)> {}
     // docs:end:as_member_access
 
+    /// If this expression is a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`, return
+    /// the receiver, method name, a slice of each generic argument, and a slice of each argument.
     #[builtin(expr_as_method_call)]
     // docs:start:as_method_call
     comptime fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])> {}
     // docs:end:as_method_call
 
+    /// If this expression is a repeated element array `[elem; length]`, return
+    /// the repeated element and the length expressions.
     #[builtin(expr_as_repeated_element_array)]
     // docs:start:as_repeated_element_array
     comptime fn as_repeated_element_array(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_repeated_element_array
 
+    /// If this expression is a repeated element slice `[elem; length]`, return
+    /// the repeated element and the length expressions.
     #[builtin(expr_as_repeated_element_slice)]
     // docs:start:as_repeated_element_slice
     comptime fn as_repeated_element_slice(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_repeated_element_slice
 
+    /// If this expression is a slice literal `&[elem1, ..., elemN]`,
+    /// return each element of the slice.
     #[builtin(expr_as_slice)]
     // docs:start:as_slice
     comptime fn as_slice(self) -> Option<[Expr]> {}
     // docs:end:as_slice
 
+    /// If this expression is a tuple `(field1, ..., fieldN)`,
+    /// return each element of the tuple.
     #[builtin(expr_as_tuple)]
     // docs:start:as_tuple
     comptime fn as_tuple(self) -> Option<[Expr]> {}
     // docs:end:as_tuple
 
+    /// If this expression is a unary operation `<op> <rhs>`,
+    /// return the unary operator as well as the right-hand side expression.
     #[builtin(expr_as_unary_op)]
     // docs:start:as_unary_op
     comptime fn as_unary_op(self) -> Option<(UnaryOp, Expr)> {}
     // docs:end:as_unary_op
 
+    /// If this expression is an `unsafe { stmt1; ...; stmtN }` block,
+    /// return each statement inside in a slice.
     #[builtin(expr_as_unsafe)]
     // docs:start:as_unsafe
     comptime fn as_unsafe(self) -> Option<[Expr]> {}
     // docs:end:as_unsafe
 
+    /// Returns `true` if this expression is trailed by a semicolon.
+    ///
+    /// Example:
+    /// 
+    /// ```noir
+    /// comptime {
+    ///     let expr1 = quote { 1 + 2 }.as_expr().unwrap();
+    ///     let expr2 = quote { 1 + 2; }.as_expr().unwrap();
+    ///
+    ///     assert(expr1.as_binary_op().is_some());
+    ///     assert(expr2.as_binary_op().is_some());
+    /// 
+    ///     assert(!expr1.has_semicolon());
+    ///     assert(expr2.has_semicolon());
+    /// }
+    /// ```
     #[builtin(expr_has_semicolon)]
     // docs:start:has_semicolon
     comptime fn has_semicolon(self) -> bool {}
     // docs:end:has_semicolon
 
+    /// Returns `true` if this expression is `break`.
     #[builtin(expr_is_break)]
     // docs:start:is_break
     comptime fn is_break(self) -> bool {}
     // docs:end:is_break
 
+    /// Returns `true` if this expression is `continue`.
     #[builtin(expr_is_continue)]
     // docs:start:is_continue
     comptime fn is_continue(self) -> bool {}
     // docs:end:is_continue
 
+    /// Applies a mapping function to this expression and to all of its sub-expressions.
+    /// `f` will be applied to each sub-expression first, then applied to the expression itself.
+    /// 
+    /// This happens recursively for every expression within `self`.
+    /// 
+    /// For example, calling `modify` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
+    /// for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
     // docs:start:modify
     comptime fn modify<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         // docs:end:modify
@@ -137,8 +235,12 @@ impl Expr {
         let result = result.or_else(|| modify_block(self, f));
         let result = result.or_else(|| modify_cast(self, f));
         let result = result.or_else(|| modify_comptime(self, f));
+        let result = result.or_else(|| modify_constructor(self, f));
         let result = result.or_else(|| modify_if(self, f));
         let result = result.or_else(|| modify_index(self, f));
+        let result = result.or_else(|| modify_for(self, f));
+        let result = result.or_else(|| modify_for_range(self, f));
+        let result = result.or_else(|| modify_lambda(self, f));
         let result = result.or_else(|| modify_let(self, f));
         let result = result.or_else(|| modify_function_call(self, f));
         let result = result.or_else(|| modify_member_access(self, f));
@@ -158,12 +260,22 @@ impl Expr {
         }
     }
 
+    /// Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.
     // docs:start:quoted
     comptime fn quoted(self) -> Quoted {
         // docs:end:quoted
         quote { $self }
     }
 
+    /// Resolves and type-checks this expression and returns the result as a `TypedExpr`. 
+    /// 
+    /// The `in_function` argument specifies where the expression is resolved:
+    /// - If it's `none`, the expression is resolved in the function where `resolve` was called
+    /// - If it's `some`, the expression is resolved in the given function
+    /// 
+    /// If any names used by this expression are not in scope or if there are any type errors, 
+    /// this will give compiler errors as if the expression was written directly into 
+    /// the current `comptime` function.
     #[builtin(expr_resolve)]
     // docs:start:resolve
     comptime fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr {}
@@ -252,6 +364,19 @@ comptime fn modify_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -
     )
 }
 
+comptime fn modify_constructor<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_constructor().map(
+        |expr: (UnresolvedType, [(Quoted, Expr)])| {
+        let (typ, fields) = expr;
+        let fields = fields.map(|field: (Quoted, Expr)| {
+            let (name, value) = field;
+            (name, value.modify(f))
+        });
+        new_constructor(typ, fields)
+    }
+    )
+}
+
 comptime fn modify_function_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_function_call().map(
         |expr: (Expr, [Expr])| {
@@ -282,6 +407,40 @@ comptime fn modify_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> O
         let object = object.modify(f);
         let index = index.modify(f);
         new_index(object, index)
+    }
+    )
+}
+
+comptime fn modify_for<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_for().map(
+        |expr: (Quoted, Expr, Expr)| {
+        let (identifier, array, body) = expr;
+        let array = array.modify(f);
+        let body = body.modify(f);
+        new_for(identifier, array, body)
+    }
+    )
+}
+
+comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_for_range().map(
+        |expr: (Quoted, Expr, Expr, Expr)| {
+        let (identifier, from, to, body) = expr;
+        let from = from.modify(f);
+        let to = to.modify(f);
+        let body = body.modify(f);
+        new_for_range(identifier, from, to, body)
+    }
+    )
+}
+
+comptime fn modify_lambda<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_lambda().map(
+        |expr: ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)| {
+            let (params, return_type, body) = expr;
+            let params = params.map(|param: (Expr, Option<UnresolvedType>)| (param.0.modify(f), param.1));
+            let body = body.modify(f);
+            new_lambda(params, return_type, body)
     }
     )
 }
@@ -427,6 +586,16 @@ comptime fn new_comptime(exprs: [Expr]) -> Expr {
     quote { comptime { $exprs }}.as_expr().unwrap()
 }
 
+comptime fn new_constructor(typ: UnresolvedType, fields: [(Quoted, Expr)]) -> Expr {
+    let fields = fields.map(
+        |field: (Quoted, Expr)| {
+        let (name, value) = field;
+        quote { $name: $value }
+    }
+    ).join(quote { , });
+    quote { $typ { $fields }}.as_expr().unwrap()
+}
+
 comptime fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr {
     if alternative.is_some() {
         let alternative = alternative.unwrap();
@@ -436,8 +605,41 @@ comptime fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>
     }
 }
 
+comptime fn new_for(identifier: Quoted, array: Expr, body: Expr) -> Expr {
+    quote { for $identifier in $array { $body } }.as_expr().unwrap()
+}
+
+comptime fn new_for_range(identifier: Quoted, from: Expr, to: Expr, body: Expr) -> Expr {
+    quote { for $identifier in $from .. $to { $body } }.as_expr().unwrap()
+}
+
 comptime fn new_index(object: Expr, index: Expr) -> Expr {
     quote { $object[$index] }.as_expr().unwrap()
+}
+
+comptime fn new_lambda(
+    params: [(Expr, Option<UnresolvedType>)],
+    return_type: Option<UnresolvedType>,
+    body: Expr
+) -> Expr {
+    let params = params.map(
+        |param: (Expr, Option<UnresolvedType>)| {
+        let (name, typ) = param;
+        if typ.is_some() {
+            let typ = typ.unwrap();
+            quote { $name: $typ }
+        } else {
+            quote { $name }
+        }
+    }
+    ).join(quote { , });
+
+    if return_type.is_some() {
+        let return_type = return_type.unwrap();
+        quote { |$params| -> $return_type { $body } }.as_expr().unwrap()
+    } else {
+        quote { |$params| { $body } }.as_expr().unwrap()
+    }
 }
 
 comptime fn new_let(pattern: Expr, typ: Option<UnresolvedType>, expr: Expr) -> Expr {
@@ -500,190 +702,4 @@ comptime fn new_unsafe(exprs: [Expr]) -> Expr {
 
 comptime fn join_expressions(exprs: [Expr], separator: Quoted) -> Quoted {
     exprs.map(|expr: Expr| expr.quoted()).join(separator)
-}
-
-mod tests {
-    use crate::meta::op::UnaryOp;
-    use crate::meta::op::BinaryOp;
-
-    #[test]
-    fn test_expr_as_array() {
-        comptime
-        {
-            let expr = quote { [1, 2, 4] }.as_expr().unwrap();
-            let elems = expr.as_array().unwrap();
-            assert_eq(elems.len(), 3);
-            assert_eq(elems[0].as_integer().unwrap(), (1, false));
-            assert_eq(elems[1].as_integer().unwrap(), (2, false));
-            assert_eq(elems[2].as_integer().unwrap(), (4, false));
-        }
-    }
-
-    #[test]
-    fn test_expr_as_integer() {
-        comptime
-        {
-            let expr = quote { 1 }.as_expr().unwrap();
-            assert_eq((1, false), expr.as_integer().unwrap());
-
-            let expr = quote { -2 }.as_expr().unwrap();
-            assert_eq((2, true), expr.as_integer().unwrap());
-        }
-    }
-
-    #[test]
-    fn test_expr_as_binary_op() {
-        comptime
-        {
-            assert(get_binary_op(quote { x + y }).is_add());
-            assert(get_binary_op(quote { x - y }).is_subtract());
-            assert(get_binary_op(quote { x * y }).is_multiply());
-            assert(get_binary_op(quote { x / y }).is_divide());
-            assert(get_binary_op(quote { x == y }).is_equal());
-            assert(get_binary_op(quote { x != y }).is_not_equal());
-            assert(get_binary_op(quote { x < y }).is_less_than());
-            assert(get_binary_op(quote { x <= y }).is_less_than_or_equal());
-            assert(get_binary_op(quote { x > y }).is_greater_than());
-            assert(get_binary_op(quote { x >= y }).is_greater_than_or_equal());
-            assert(get_binary_op(quote { x & y }).is_and());
-            assert(get_binary_op(quote { x | y }).is_or());
-            assert(get_binary_op(quote { x ^ y }).is_xor());
-            assert(get_binary_op(quote { x >> y }).is_shift_right());
-            assert(get_binary_op(quote { x << y }).is_shift_left());
-            assert(get_binary_op(quote { x % y }).is_modulo());
-        }
-    }
-
-    #[test]
-    fn test_expr_as_bool() {
-        comptime
-        {
-            let expr = quote { false }.as_expr().unwrap();
-            assert(expr.as_bool().unwrap() == false);
-
-            let expr = quote { true }.as_expr().unwrap();
-            assert_eq(expr.as_bool().unwrap(), true);
-        }
-    }
-
-    #[test]
-    fn test_expr_as_function_call() {
-        comptime
-        {
-            let expr = quote { foo(42) }.as_expr().unwrap();
-            let (_function, args) = expr.as_function_call().unwrap();
-            assert_eq(args.len(), 1);
-            assert_eq(args[0].as_integer().unwrap(), (42, false));
-        }
-    }
-
-    #[test]
-    fn test_expr_as_if() {
-        comptime
-        {
-            let expr = quote { if 1 { 2 } }.as_expr().unwrap();
-            let (_condition, _consequence, alternative) = expr.as_if().unwrap();
-            assert(alternative.is_none());
-
-            let expr = quote { if 1 { 2 } else { 3 } }.as_expr().unwrap();
-            let (_condition, _consequence, alternative) = expr.as_if().unwrap();
-            assert(alternative.is_some());
-        }
-    }
-
-    #[test]
-    fn test_expr_as_index() {
-        comptime
-        {
-            let expr = quote { foo[bar] }.as_expr().unwrap();
-            assert(expr.as_index().is_some());
-        }
-    }
-
-    #[test]
-    fn test_expr_as_member_access() {
-        comptime
-        {
-            let expr = quote { foo.bar }.as_expr().unwrap();
-            let (_, name) = expr.as_member_access().unwrap();
-            assert_eq(name, quote { bar });
-        }
-    }
-
-    #[test]
-    fn test_expr_as_repeated_element_array() {
-        comptime
-        {
-            let expr = quote { [1; 3] }.as_expr().unwrap();
-            let (expr, length) = expr.as_repeated_element_array().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (1, false));
-            assert_eq(length.as_integer().unwrap(), (3, false));
-        }
-    }
-
-    #[test]
-    fn test_expr_as_repeated_element_slice() {
-        comptime
-        {
-            let expr = quote { &[1; 3] }.as_expr().unwrap();
-            let (expr, length) = expr.as_repeated_element_slice().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (1, false));
-            assert_eq(length.as_integer().unwrap(), (3, false));
-        }
-    }
-
-    #[test]
-    fn test_expr_as_slice() {
-        comptime
-        {
-            let expr = quote { &[1, 3, 5] }.as_expr().unwrap();
-            let elems = expr.as_slice().unwrap();
-            assert_eq(elems.len(), 3);
-            assert_eq(elems[0].as_integer().unwrap(), (1, false));
-            assert_eq(elems[1].as_integer().unwrap(), (3, false));
-            assert_eq(elems[2].as_integer().unwrap(), (5, false));
-        }
-    }
-
-    #[test]
-    fn test_expr_as_tuple() {
-        comptime
-        {
-            let expr = quote { (1, 2) }.as_expr().unwrap();
-            let tuple_exprs = expr.as_tuple().unwrap();
-            assert_eq(tuple_exprs.len(), 2);
-        }
-    }
-
-    #[test]
-    fn test_expr_as_unary_op() {
-        comptime
-        {
-            assert(get_unary_op(quote { -x }).is_minus());
-            assert(get_unary_op(quote { !x }).is_not());
-            assert(get_unary_op(quote { &mut x }).is_mutable_reference());
-            assert(get_unary_op(quote { *x }).is_dereference());
-        }
-    }
-
-    #[test]
-    fn test_automatically_unwraps_parenthesized_expression() {
-        comptime
-        {
-            let expr = quote { ((if 1 { 2 })) }.as_expr().unwrap();
-            assert(expr.as_if().is_some());
-        }
-    }
-
-    comptime fn get_unary_op(quoted: Quoted) -> UnaryOp {
-        let expr = quoted.as_expr().unwrap();
-        let (op, _) = expr.as_unary_op().unwrap();
-        op
-    }
-
-    comptime fn get_binary_op(quoted: Quoted) -> BinaryOp {
-        let expr = quoted.as_expr().unwrap();
-        let (_, op, _) = expr.as_binary_op().unwrap();
-        op
-    }
 }

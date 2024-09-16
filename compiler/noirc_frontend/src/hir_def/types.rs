@@ -161,6 +161,7 @@ pub enum QuotedType {
     UnresolvedType,
     FunctionDefinition,
     Module,
+    CtString,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -759,6 +760,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::UnresolvedType => write!(f, "UnresolvedType"),
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
+            QuotedType::CtString => write!(f, "CtString"),
         }
     }
 }
@@ -1630,8 +1632,18 @@ impl Type {
 
             (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
                 if op_a == op_b {
-                    lhs_a.try_unify(lhs_b, bindings)?;
-                    rhs_a.try_unify(rhs_b, bindings)
+                    // We need to preserve the original bindings since if syntactic equality
+                    // fails we fall back to other equality strategies.
+                    let mut new_bindings = bindings.clone();
+                    let lhs_result = lhs_a.try_unify(lhs_b, &mut new_bindings);
+                    let rhs_result = rhs_a.try_unify(rhs_b, &mut new_bindings);
+
+                    if lhs_result.is_ok() && rhs_result.is_ok() {
+                        *bindings = new_bindings;
+                        Ok(())
+                    } else {
+                        lhs.try_unify_by_moving_constant_terms(&rhs, bindings)
+                    }
                 } else {
                     Err(UnificationError)
                 }
