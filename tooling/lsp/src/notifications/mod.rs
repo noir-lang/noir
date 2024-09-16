@@ -2,7 +2,9 @@ use std::collections::HashSet;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 
-use crate::insert_all_files_for_workspace_into_file_manager;
+use crate::{
+    insert_all_files_for_workspace_into_file_manager, PackageCacheData, WorkspaceCacheData,
+};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
@@ -79,7 +81,8 @@ pub(super) fn on_did_close_text_document(
     state.open_documents_count -= 1;
 
     if state.open_documents_count == 0 {
-        state.cached_definitions.clear();
+        state.package_cache.clear();
+        state.workspace_cache.clear();
     }
 
     let document_uri = params.text_document.uri;
@@ -155,8 +158,15 @@ pub(crate) fn process_workspace_for_noir_document(
             Some(&file_path),
         );
         state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
-        state.cached_definitions.insert(package.root_dir.clone(), context.def_interner);
-        state.cached_def_maps.insert(package.root_dir.clone(), context.def_maps);
+        state.package_cache.insert(
+            package.root_dir.clone(),
+            PackageCacheData {
+                crate_id,
+                crate_graph: context.crate_graph,
+                node_interner: context.def_interner,
+                def_maps: context.def_maps,
+            },
+        );
 
         let fm = &context.file_manager;
         let files = fm.as_file_map();
@@ -165,6 +175,11 @@ pub(crate) fn process_workspace_for_noir_document(
             publish_diagnostics(state, &package.root_dir, files, fm, file_diagnostics);
         }
     }
+
+    state.workspace_cache.insert(
+        workspace.root_dir.clone(),
+        WorkspaceCacheData { file_manager: workspace_file_manager },
+    );
 
     Ok(())
 }
