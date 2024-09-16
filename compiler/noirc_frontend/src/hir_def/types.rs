@@ -790,7 +790,8 @@ impl Type {
         Type::TypeVariable(var, type_var_kind)
     }
 
-    // TODO: constant_variable and TypeVariableKind::Constant are unused
+    // TODO(https://github.com/noir-lang/noir/issues/6052): constant_variable and
+    // TODO: TypeVariableKind::Constant are unused
     /// Returns a TypeVariable(_, TypeVariableKind::Constant(length)) to bind to
     /// a constant integer for e.g. an array length.
     pub fn constant_variable(length: u32, interner: &mut NodeInterner) -> Type {

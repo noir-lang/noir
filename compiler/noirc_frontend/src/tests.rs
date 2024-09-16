@@ -1949,9 +1949,6 @@ fn numeric_generics_type_kind_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
