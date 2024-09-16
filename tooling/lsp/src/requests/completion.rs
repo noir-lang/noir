@@ -17,7 +17,7 @@ use noirc_frontend::{
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
+        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
         NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement,
         TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
         UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
@@ -387,7 +387,7 @@ impl<'a> NodeFinder<'a> {
                 let description = if let Some(ReferenceId::Local(definition_id)) =
                     self.interner.reference_at_location(location)
                 {
-                    let typ = self.interner.definition_type(definition_id);
+                    let typ = self.interner.definition_type(definition_id).follow_bindings();
                     Some(typ.to_string())
                 } else {
                     None
@@ -551,6 +551,7 @@ impl<'a> NodeFinder<'a> {
         function_completion_kind: FunctionCompletionKind,
         self_prefix: bool,
     ) {
+        let typ = &typ.follow_bindings();
         match typ {
             Type::Struct(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix, self_prefix);
@@ -932,12 +933,42 @@ impl<'a> NodeFinder<'a> {
                     if let Some(ReferenceId::Local(definition_id)) =
                         self.interner.find_referenced(location)
                     {
-                        self.self_type = Some(self.interner.definition_type(definition_id));
+                        self.self_type =
+                            Some(self.interner.definition_type(definition_id).follow_bindings());
                     }
                 }
             }
             Pattern::Mutable(pattern, ..) => self.try_set_self_type(pattern),
             Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) => (),
+        }
+    }
+
+    fn get_lvalue_type(&self, lvalue: &LValue) -> Option<Type> {
+        match lvalue {
+            LValue::Ident(ident) => {
+                let location = Location::new(ident.span(), self.file);
+                if let Some(ReferenceId::Local(definition_id)) =
+                    self.interner.find_referenced(location)
+                {
+                    let typ = self.interner.definition_type(definition_id).follow_bindings();
+                    Some(typ)
+                } else {
+                    None
+                }
+            }
+            LValue::MemberAccess { object, field_name, .. } => {
+                let typ = self.get_lvalue_type(object)?;
+                get_field_type(&typ, &field_name.0.contents)
+            }
+            LValue::Index { array, .. } => {
+                let typ = self.get_lvalue_type(array)?;
+                match typ {
+                    Type::Array(_, typ) | Type::Slice(typ) => Some(*typ),
+                    _ => None,
+                }
+            }
+            LValue::Dereference(lvalue, ..) => self.get_lvalue_type(lvalue),
+            LValue::Interned(..) => None,
         }
     }
 
@@ -1258,11 +1289,12 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_lvalue_ident(&mut self, ident: &Ident) {
+        // If we have `foo.>|<` we suggest `foo`'s type fields and methods
         if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
             let location = Location::new(ident.span(), self.file);
             if let Some(ReferenceId::Local(definition_id)) = self.interner.find_referenced(location)
             {
-                let typ = self.interner.definition_type(definition_id);
+                let typ = self.interner.definition_type(definition_id).follow_bindings();
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
@@ -1273,6 +1305,75 @@ impl<'a> Visitor for NodeFinder<'a> {
                 );
             }
         }
+    }
+
+    fn visit_lvalue_member_access(
+        &mut self,
+        object: &LValue,
+        field_name: &Ident,
+        span: Span,
+    ) -> bool {
+        // If we have `foo.bar.>|<` we solve the type of `foo`, get the field `bar`,
+        // then suggest methods of the resulting type.
+        if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
+            if let Some(typ) = self.get_lvalue_type(object) {
+                if let Some(typ) = get_field_type(&typ, &field_name.0.contents) {
+                    let prefix = "";
+                    let self_prefix = false;
+                    self.complete_type_fields_and_methods(
+                        &typ,
+                        prefix,
+                        FunctionCompletionKind::NameAndParameters,
+                        self_prefix,
+                    );
+                }
+            }
+
+            return false;
+        }
+        true
+    }
+
+    fn visit_lvalue_index(&mut self, array: &LValue, _index: &Expression, span: Span) -> bool {
+        // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/slice element type,
+        // then suggest methods of that type.
+        if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
+            if let Some(typ) = self.get_lvalue_type(array) {
+                match typ {
+                    Type::Array(_, typ) | Type::Slice(typ) => {
+                        let prefix = "";
+                        let self_prefix = false;
+                        self.complete_type_fields_and_methods(
+                            &typ,
+                            prefix,
+                            FunctionCompletionKind::NameAndParameters,
+                            self_prefix,
+                        );
+                    }
+                    _ => (),
+                }
+            }
+            return false;
+        }
+        true
+    }
+
+    fn visit_lvalue_dereference(&mut self, lvalue: &LValue, span: Span) -> bool {
+        if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
+            if let Some(typ) = self.get_lvalue_type(lvalue) {
+                let prefix = "";
+                let self_prefix = false;
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                    self_prefix,
+                );
+            }
+            return false;
+        }
+
+        true
     }
 
     fn visit_variable(&mut self, path: &Path, _: Span) -> bool {
@@ -1441,6 +1542,14 @@ impl<'a> Visitor for NodeFinder<'a> {
 
         self.suggest_attributes(&attribute.contents, target);
     }
+}
+
+fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
+    let Type::Struct(struct_type, generic_args) = typ else {
+        return None;
+    };
+
+    Some(struct_type.borrow().get_field(name, generic_args)?.0)
 }
 
 /// Returns true if name matches a prefix written in code.
