@@ -188,6 +188,11 @@ pub enum BrilligOpcode<F> {
         lhs: MemoryAddress,
         rhs: MemoryAddress,
     },
+    Not {
+        destination: MemoryAddress,
+        source: MemoryAddress,
+        bit_size: IntegerBitSize,
+    },
     Cast {
         destination: MemoryAddress,
         source: MemoryAddress,

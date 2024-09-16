@@ -141,7 +141,7 @@ impl HirExpression {
                 let struct_type = None;
 
                 ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                    type_name,
+                    typ: UnresolvedType::from_path(type_name),
                     fields,
                     struct_type,
                 }))

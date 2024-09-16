@@ -326,6 +326,35 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_expr_as_constructor() {
+        comptime
+        {
+            let expr = quote { Foo { a: 1, b: 2 } }.as_expr().unwrap();
+            let (_typ, fields) = expr.as_constructor().unwrap();
+            assert_eq(fields.len(), 2);
+            assert_eq(fields[0].0, quote { a });
+            assert_eq(fields[0].1.as_integer().unwrap(), (1, false));
+            assert_eq(fields[1].0, quote { b });
+            assert_eq(fields[1].1.as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_modify_for_constructor() {
+        comptime
+        {
+            let expr = quote { foo::bar::Baz::<i32, i64> { a: 1, b: 2 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (_typ, fields) = expr.as_constructor().unwrap();
+            assert_eq(fields.len(), 2);
+            assert_eq(fields[0].0, quote { a });
+            assert_eq(fields[0].1.as_integer().unwrap(), (2, false));
+            assert_eq(fields[1].0, quote { b });
+            assert_eq(fields[1].1.as_integer().unwrap(), (4, false));
+        }
+    }
+
     // This test can't only be around the comptime block since that will cause
     // `nargo fmt` to remove the comptime keyword.
     // docs:start:as_expr_example
@@ -607,6 +636,48 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_lambda() {
+        comptime
+        {
+            let expr = quote { |x: Field| -> Field { 1 } }.as_expr().unwrap();
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.unwrap().is_field());
+            assert(return_type.unwrap().is_field());
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (1, false));
+
+            let expr = quote { |x| { 1 } }.as_expr().unwrap();
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.is_none());
+            assert(return_type.is_none());
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (1, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_modify_lambda() {
+        comptime
+        {
+            let expr = quote { |x: Field| -> Field { 1 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.unwrap().is_field());
+            assert(return_type.unwrap().is_field());
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), (2, false));
+
+            let expr = quote { |x| { 1 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (params, return_type, body) = expr.as_lambda().unwrap();
+            assert_eq(params.len(), 1);
+            assert(params[0].1.is_none());
+            assert(return_type.is_none());
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_let() {
         comptime
         {
@@ -638,6 +709,58 @@ mod tests {
             let (_pattern, typ, expr) = expr.as_let().unwrap();
             assert(typ.is_none());
             assert_eq(expr.as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_as_for_statement() {
+        comptime
+        {
+            let expr = quote { for x in 2 { 3 } }.as_expr().unwrap();
+            let (index, array, body) = expr.as_for().unwrap();
+            assert_eq(index, quote { x });
+            assert_eq(array.as_integer().unwrap(), (2, false));
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (3, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_modify_for_statement() {
+        comptime
+        {
+            let expr = quote { for x in 2 { 3 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (index, array, body) = expr.as_for().unwrap();
+            assert_eq(index, quote { x });
+            assert_eq(array.as_integer().unwrap(), (4, false));
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), (6, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_as_for_range_statement() {
+        comptime
+        {
+            let expr = quote { for x in 2..3 { 4 } }.as_expr().unwrap();
+            let (index, from, to, body) = expr.as_for_range().unwrap();
+            assert_eq(index, quote { x });
+            assert_eq(from.as_integer().unwrap(), (2, false));
+            assert_eq(to.as_integer().unwrap(), (3, false));
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (4, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_modify_for_range_statement() {
+        comptime
+        {
+            let expr = quote { for x in 2..3 { 4 } }.as_expr().unwrap();
+            let expr = expr.modify(times_two);
+            let (index, from, to, body) = expr.as_for_range().unwrap();
+            assert_eq(index, quote { x });
+            assert_eq(from.as_integer().unwrap(), (4, false));
+            assert_eq(to.as_integer().unwrap(), (6, false));
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), (8, false));
         }
     }
 

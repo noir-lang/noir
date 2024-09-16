@@ -65,8 +65,10 @@ pub enum TypeCheckError {
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, span: Span },
-    #[error("Variable {name} must be mutable to be assigned to")]
+    #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, span: Span },
+    #[error("Cannot mutate immutable variable `{name}`")]
+    CannotMutateImmutableVariable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
@@ -268,6 +270,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
+            | TypeCheckError::CannotMutateImmutableVariable { span, .. }
             | TypeCheckError::UnresolvedMethodCall { span, .. }
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }

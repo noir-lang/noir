@@ -27,6 +27,8 @@ use crate::errors::CliError;
 #[clap(visible_alias = "e")]
 pub(crate) struct ExecuteCommand {
     /// Write the execution witness to named file
+    ///
+    /// Defaults to the name of the package being executed.
     witness_name: Option<String>,
 
     /// The name of the toml file which contains the inputs for the prover
@@ -83,11 +85,11 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         if let Some(return_value) = return_value {
             println!("[{}] Circuit output: {return_value:?}", package.name);
         }
-        if let Some(witness_name) = &args.witness_name {
-            let witness_path = save_witness_to_dir(witness_stack, witness_name, target_dir)?;
 
-            println!("[{}] Witness saved to {}", package.name, witness_path.display());
-        }
+        let package_name = package.name.clone().into();
+        let witness_name = args.witness_name.as_ref().unwrap_or(&package_name);
+        let witness_path = save_witness_to_dir(witness_stack, witness_name, target_dir)?;
+        println!("[{}] Witness saved to {}", package.name, witness_path.display());
     }
     Ok(())
 }

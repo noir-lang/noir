@@ -108,7 +108,17 @@ fn empty_noir_function(noir_function: &mut NoirFunction) {
 
 fn empty_trait_item(trait_item: &mut TraitItem) {
     match trait_item {
-        TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+        TraitItem::Function {
+            name,
+            generics,
+            parameters,
+            return_type,
+            where_clause,
+            body,
+            is_unconstrained: _,
+            visibility: _,
+            is_comptime: _,
+        } => {
             empty_ident(name);
             empty_unresolved_generics(generics);
             for (name, typ) in parameters.iter_mut() {
@@ -289,6 +299,7 @@ fn empty_expression(expression: &mut Expression) {
         ExpressionKind::Quote(..)
         | ExpressionKind::Resolved(_)
         | ExpressionKind::Interned(_)
+        | ExpressionKind::InternedStatement(_)
         | ExpressionKind::Error => (),
     }
 }
@@ -495,7 +506,7 @@ fn empty_method_call_expression(method_call_expression: &mut MethodCallExpressio
 }
 
 fn empty_constructor_expression(constructor_expression: &mut ConstructorExpression) {
-    empty_path(&mut constructor_expression.type_name);
+    empty_unresolved_type(&mut constructor_expression.typ);
     for (name, expression) in constructor_expression.fields.iter_mut() {
         empty_ident(name);
         empty_expression(expression);
