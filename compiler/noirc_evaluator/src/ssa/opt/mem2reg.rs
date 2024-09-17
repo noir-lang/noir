@@ -81,7 +81,7 @@
 //! - As we go through each instruction, if a load result has been used we increment its usage counter.
 //!   Upon removing an instruction, we decrement the load result counter.
 //! After analyzing all of a function's blocks we can analyze the per function state:
-//! - If we find that a load result is unused we remove that load.
+//! - If we find that a load result's usage counter equals zero, we can remove that load.
 //! - We can then remove a store if the following conditions are met:
 //!   - All loads to a given address have been removed
 //!   - None of the aliases of a reference are used in any of the following:
