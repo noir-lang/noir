@@ -11,7 +11,7 @@ use crate::ast::{
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
-use crate::hir_def::types::{Type, TypeBinding, TypeVariableKind};
+use crate::hir_def::types::{Type, TypeBinding};
 use crate::macros_api::HirLiteral;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
@@ -308,28 +308,15 @@ impl Type {
                 let name = Path::from_ident(type_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
-            Type::TypeVariable(binding, kind) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => return typ.to_display_ast(),
-                    TypeBinding::Unbound(id) => {
-                        let expression = match kind {
-                            // TODO: fix span or make Option<Span>
-                            TypeVariableKind::Constant(value) => {
-                                UnresolvedTypeExpression::Constant(*value, Span::empty(0))
-                            }
-                            other_kind => {
-                                let name = format!("var_{:?}_{}", other_kind, id);
-
-                                // TODO: fix span or make Option<Span>
-                                let path = Path::from_single(name, Span::empty(0));
-                                UnresolvedTypeExpression::Variable(path)
-                            }
-                        };
-
-                        UnresolvedTypeData::Expression(expression)
-                    }
+            Type::TypeVariable(binding, kind) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => return typ.to_display_ast(),
+                TypeBinding::Unbound(id) => {
+                    let name = format!("var_{:?}_{}", kind, id);
+                    let path = Path::from_single(name, Span::empty(0));
+                    let expression = UnresolvedTypeExpression::Variable(path);
+                    UnresolvedTypeData::Expression(expression)
                 }
-            }
+            },
             Type::TraitAsType(_, name, generics) => {
                 let ordered_args = vecmap(&generics.ordered, |generic| generic.to_display_ast());
                 let named_args = vecmap(&generics.named, |named_type| {
