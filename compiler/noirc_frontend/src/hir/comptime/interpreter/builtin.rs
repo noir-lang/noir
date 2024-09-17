@@ -83,6 +83,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_if" => expr_as_if(interner, arguments, return_type, location),
             "expr_as_index" => expr_as_index(interner, arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(interner, arguments, return_type, location),
+            "expr_as_lambda" => expr_as_lambda(interner, arguments, return_type, location),
             "expr_as_let" => expr_as_let(interner, arguments, return_type, location),
             "expr_as_member_access" => {
                 expr_as_member_access(interner, arguments, return_type, location)
@@ -174,6 +175,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_module" => struct_def_module(self, arguments, location),
             "struct_def_name" => struct_def_name(interner, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
+            "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
@@ -754,6 +756,21 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
         value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
         Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
+}
+
+fn to_be_radix(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let le_radix_limbs = to_le_radix(arguments, return_type, location)?;
+
+    let Value::Array(limbs, typ) = le_radix_limbs else {
+        unreachable!("`to_le_radix` should always return an array");
+    };
+    let be_radix_limbs = limbs.into_iter().rev().collect();
+
+    Ok(Value::Array(be_radix_limbs, typ))
 }
 
 fn to_le_radix(
@@ -1593,6 +1610,68 @@ fn expr_as_integer(
             }
         }
         _ => None,
+    })
+}
+
+// fn as_lambda(self) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)>
+fn expr_as_lambda(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Lambda(lambda)) = expr {
+            // ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 3);
+
+            // Expr
+            tuple_types.pop().unwrap();
+
+            // Option<UnresolvedType>
+            let option_unresolved_type = tuple_types.pop().unwrap();
+
+            let parameters = lambda
+                .parameters
+                .into_iter()
+                .map(|(pattern, typ)| {
+                    let pattern = Value::pattern(pattern);
+                    let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
+                        None
+                    } else {
+                        Some(Value::UnresolvedType(typ.typ))
+                    };
+                    let typ = option(option_unresolved_type.clone(), typ).unwrap();
+                    Value::Tuple(vec![pattern, typ])
+                })
+                .collect();
+            let parameters = Value::Slice(
+                parameters,
+                Type::Slice(Box::new(Type::Tuple(vec![
+                    Type::Quoted(QuotedType::Expr),
+                    Type::Quoted(QuotedType::UnresolvedType),
+                ]))),
+            );
+
+            let return_type = lambda.return_type.typ;
+            let return_type = if let UnresolvedTypeData::Unspecified = return_type {
+                None
+            } else {
+                Some(return_type)
+            };
+            let return_type = return_type.map(Value::UnresolvedType);
+            let return_type = option(option_unresolved_type, return_type).ok()?;
+
+            let body = Value::expression(lambda.body.kind);
+
+            Some(Value::Tuple(vec![parameters, return_type, body]))
+        } else {
+            None
+        }
     })
 }
 

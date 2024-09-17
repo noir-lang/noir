@@ -115,6 +115,12 @@ impl Expr {
     comptime fn as_integer(self) -> Option<(Field, bool)> {}
     // docs:end:as_integer
 
+    /// If this expression is a lambda, returns the parameters, return type and body.
+    #[builtin(expr_as_lambda)]
+    // docs:start:as_lambda
+    comptime fn as_lambda(self) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)> {}
+    // docs:end:as_lambda
+
     /// If this expression is a let statement, returns the let pattern as an `Expr`,
     /// the optional type annotation, and the assigned expression.
     #[builtin(expr_as_let)]
@@ -234,6 +240,7 @@ impl Expr {
         let result = result.or_else(|| modify_index(self, f));
         let result = result.or_else(|| modify_for(self, f));
         let result = result.or_else(|| modify_for_range(self, f));
+        let result = result.or_else(|| modify_lambda(self, f));
         let result = result.or_else(|| modify_let(self, f));
         let result = result.or_else(|| modify_function_call(self, f));
         let result = result.or_else(|| modify_member_access(self, f));
@@ -427,6 +434,17 @@ comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) 
     )
 }
 
+comptime fn modify_lambda<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_lambda().map(
+        |expr: ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)| {
+            let (params, return_type, body) = expr;
+            let params = params.map(|param: (Expr, Option<UnresolvedType>)| (param.0.modify(f), param.1));
+            let body = body.modify(f);
+            new_lambda(params, return_type, body)
+    }
+    )
+}
+
 comptime fn modify_let<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_let().map(
         |expr: (Expr, Option<UnresolvedType>, Expr)| {
@@ -597,6 +615,31 @@ comptime fn new_for_range(identifier: Quoted, from: Expr, to: Expr, body: Expr) 
 
 comptime fn new_index(object: Expr, index: Expr) -> Expr {
     quote { $object[$index] }.as_expr().unwrap()
+}
+
+comptime fn new_lambda(
+    params: [(Expr, Option<UnresolvedType>)],
+    return_type: Option<UnresolvedType>,
+    body: Expr
+) -> Expr {
+    let params = params.map(
+        |param: (Expr, Option<UnresolvedType>)| {
+        let (name, typ) = param;
+        if typ.is_some() {
+            let typ = typ.unwrap();
+            quote { $name: $typ }
+        } else {
+            quote { $name }
+        }
+    }
+    ).join(quote { , });
+
+    if return_type.is_some() {
+        let return_type = return_type.unwrap();
+        quote { |$params| -> $return_type { $body } }.as_expr().unwrap()
+    } else {
+        quote { |$params| { $body } }.as_expr().unwrap()
+    }
 }
 
 comptime fn new_let(pattern: Expr, typ: Option<UnresolvedType>, expr: Expr) -> Expr {

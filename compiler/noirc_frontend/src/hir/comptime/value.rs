@@ -51,7 +51,11 @@ pub enum Value {
     FormatString(Rc<String>, Type),
     CtString(Rc<String>),
     Function(FuncId, Type, Rc<TypeBindings>),
-    Closure(HirLambda, Vec<Value>, Type),
+
+    // Closures also store their original scope (function & module)
+    // in case they use functions such as `Quoted::as_type` which require them.
+    Closure(HirLambda, Vec<Value>, Type, Option<FuncId>, ModuleId),
+
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool),
@@ -125,7 +129,7 @@ impl Value {
             }
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
-            Value::Closure(_, _, typ) => return Cow::Borrowed(typ),
+            Value::Closure(_, _, typ, ..) => return Cow::Borrowed(typ),
             Value::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
             }
@@ -221,11 +225,6 @@ impl Value {
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
-            Value::Closure(_lambda, _env, _typ) => {
-                // TODO: How should a closure's environment be inlined?
-                let item = "Returning closures from a comptime fn".into();
-                return Err(InterpreterError::Unimplemented { item, location });
-            }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
                 ExpressionKind::Tuple(fields)
@@ -293,6 +292,7 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::UnresolvedType(_)
+            | Value::Closure(..)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -370,11 +370,6 @@ impl Value {
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 return Ok(expr_id);
             }
-            Value::Closure(_lambda, _env, _typ) => {
-                // TODO: How should a closure's environment be inlined?
-                let item = "Returning closures from a comptime fn".into();
-                return Err(InterpreterError::Unimplemented { item, location });
-            }
             Value::Tuple(fields) => {
                 let fields =
                     try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
@@ -427,6 +422,7 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::UnresolvedType(_)
+            | Value::Closure(..)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -601,7 +597,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::CtString(value) => write!(f, "{value}"),
             Value::FormatString(value, _) => write!(f, "{value}"),
             Value::Function(..) => write!(f, "(function)"),
-            Value::Closure(_, _, _) => write!(f, "(closure)"),
+            Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.display(self.interner).to_string());
                 write!(f, "({})", fields.join(", "))

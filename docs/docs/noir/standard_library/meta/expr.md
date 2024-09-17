@@ -116,6 +116,12 @@ array and the index.
 If this expression is an integer literal, return the integer as a field
 as well as whether the integer is negative (true) or not (false).
 
+### as_lambda
+
+#include_code as_lambda noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a lambda, returns the parameters, return type and body.
+
 ### as_let
 
 #include_code as_let noir_stdlib/src/meta/expr.nr rust
