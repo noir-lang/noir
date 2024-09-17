@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
-set -x
+MAGENTA="\e[35m"
+DEFAULT_COLOR="\e[39m"
 
-cargo run --bin nargo "$@"
+echo -e "${MAGENTA}Note: nargo is not rebuilt; run 'cargo build' before, if you want to rebuild it${DEFAULT_COLOR}"
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+$SCRIPT_DIR/../../target/debug/nargo "$@"
