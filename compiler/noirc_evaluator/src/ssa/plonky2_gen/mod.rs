@@ -565,7 +565,7 @@ impl Builder {
         )
     }
 
-    fn get_integer_bitsize_and_signedness(typ: &P2Type) -> Option<(usize, bool)> {
+    fn get_integer_bitsize_and_sign(typ: &P2Type) -> Option<(usize, bool)> {
         Some(match typ {
             P2Type::Integer(bit_size, signed) => (usize::try_from(*bit_size).unwrap(), *signed),
             P2Type::Field => (usize::try_from(FIELD_BIT_SIZE).unwrap(), false),
@@ -626,7 +626,7 @@ impl Builder {
                         assert!(type_of_a == type_of_b);
 
                         if let Some((bit_size, signed)) =
-                            Self::get_integer_bitsize_and_signedness(&type_of_a)
+                            Self::get_integer_bitsize_and_sign(&type_of_a)
                         {
                             self.asm_writer.comment_lessthan_begin(target_a, target_b, signed);
 
