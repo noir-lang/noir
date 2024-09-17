@@ -1,4 +1,4 @@
-struct FunctionSelector {
+pub struct FunctionSelector {
 }
 
 impl FunctionSelector {
