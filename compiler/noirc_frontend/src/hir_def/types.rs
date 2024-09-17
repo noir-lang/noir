@@ -151,7 +151,7 @@ impl Kind {
     }
 
     pub(crate) fn matches_opt(&self, other: Option<Self>) -> bool {
-        other.as_ref().map(|other_kind| self == other_kind).unwrap_or(true)
+        other.as_ref().map_or(true, |other_kind| self == other_kind)
     }
 
     pub(crate) fn u32() -> Self {
