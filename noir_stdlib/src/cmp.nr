@@ -150,7 +150,7 @@ impl Eq for Ordering {
 
 // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
 // that has 3 public functions for constructing the struct.
-struct Ordering {
+pub struct Ordering {
     result: Field,
 }
 
