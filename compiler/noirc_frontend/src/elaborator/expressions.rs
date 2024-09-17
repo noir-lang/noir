@@ -301,12 +301,13 @@ impl<'context> Elaborator<'context> {
         let expr = self.interner.expression(&expr_id);
         match expr {
             HirExpression::Ident(hir_ident, _) => {
-                let definition = self.interner.definition(hir_ident.id);
-                if !definition.mutable {
-                    self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                        name: definition.name.clone(),
-                        span,
-                    });
+                if let Some(definition) = self.interner.try_definition(hir_ident.id) {
+                    if !definition.mutable {
+                        self.push_err(TypeCheckError::CannotMutateImmutableVariable {
+                            name: definition.name.clone(),
+                            span,
+                        });
+                    }
                 }
             }
             HirExpression::MemberAccess(member_access) => {
