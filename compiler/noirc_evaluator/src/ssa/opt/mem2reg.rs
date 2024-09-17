@@ -86,7 +86,7 @@
 //!   - All loads to a given address have been removed
 //!   - None of the aliases of a reference are used in any of the following:
 //!     - Block parameters, function parameters, call arguments, terminator arguments
-//!   - The store address also should not be aliased
+//!   - The store address is not aliased.
 //! - If a store is in a return block, we can have special handling that only checks if there is a load after
 //!   that store in the return block. In the case of a return block, even if there are other loads
 //!   in preceding blocks we can safely remove those stores.
