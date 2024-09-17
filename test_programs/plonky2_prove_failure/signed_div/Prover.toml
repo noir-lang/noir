@@ -1,0 +1,13 @@
+# Format: [ divident, divisor, quotient ]
+x = [
+    # Division without a remainder
+    [ 169, 13, 13 ], [ 169, -13, -13 ], [ -169, 13, -13 ], [ -169, -13, 13 ],
+    # Division with a remainder
+    [ 769, 107, 7 ], [ 769, -107, -7 ], [ -769, 107, -7 ], [ -769, -107, 7 ],
+]
+y = [
+    # Remainder division without a remainder
+    [ 169, 13, 0 ], [ 169, -13, 0 ], [ -169, 13, 0 ], [ -169, -13, 0 ],
+    # Remainder division with a remainder
+    [ 769, 107, 20 ], [ 769, -107, 20 ], [ -769, 107, -20 ], [ -769, -107, -20 ],
+]
