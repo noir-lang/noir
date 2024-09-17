@@ -268,7 +268,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::UnconstrainedMismatch { item, expected, span } => {
                 let msg = if *expected {
-                    format!("{item} expected to be unconstrained")
+                    format!("{item} is expected to be unconstrained")
                 } else {
                     format!("{item} is not expected to be unconstrained")
                 };
