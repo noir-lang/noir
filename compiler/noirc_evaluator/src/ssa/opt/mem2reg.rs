@@ -74,7 +74,7 @@
 //!
 //! The state contains the following:
 //! - For each load address we store the number of loads from a given address,
-//!   the last load instruction from a given load across all blocks, and the respective block id of that instruction.
+//!   the last load instruction from a given address across all blocks, and the respective block id of that instruction.
 //! - A mapping of each load result to its number of uses, the load instruction that produced the given result, and the respective block id of that instruction.
 //! - A set of the references passed into a call of another function entry point.
 //! - Maps the references which have been aliased to the instructions that aliased that reference.
