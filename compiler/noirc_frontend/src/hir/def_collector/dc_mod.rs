@@ -998,7 +998,7 @@ pub fn collect_struct(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_struct(id, name.to_string(), parent_module_id);
+        interner.register_struct(id, name.to_string(), visibility, parent_module_id);
     }
 
     Some((id, unresolved))
