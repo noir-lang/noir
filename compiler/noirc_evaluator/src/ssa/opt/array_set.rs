@@ -2,6 +2,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
+        function::Function,
         instruction::{Instruction, InstructionId},
         types::Type::{Array, Slice},
     },
@@ -16,16 +17,22 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            if !func.runtime().is_entry_point() {
-                let mut reachable_blocks = func.reachable_blocks();
-                assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
-
-                let block = reachable_blocks.pop_first().unwrap();
-                let instructions_to_update = analyze_last_uses(&func.dfg, block);
-                make_mutable(&mut func.dfg, block, instructions_to_update);
-            }
+            func.array_set_optimization();
         }
         self
+    }
+}
+
+impl Function {
+    pub(crate) fn array_set_optimization(&mut self) {
+        if !self.runtime().is_entry_point() {
+            let mut reachable_blocks = self.reachable_blocks();
+            assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
+
+            let block = reachable_blocks.pop_first().unwrap();
+            let instructions_to_update = analyze_last_uses(&self.dfg, block);
+            make_mutable(&mut self.dfg, block, instructions_to_update);
+        }
     }
 }
 
