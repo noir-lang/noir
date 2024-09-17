@@ -166,7 +166,7 @@ trait BuildHasher<H> where H: Hasher{
     fn build_hasher(self) -> H;
 }
 
-struct BuildHasherDefault<H>;
+pub struct BuildHasherDefault<H>;
 
 impl<H> BuildHasher<H> for BuildHasherDefault<H>
 where 

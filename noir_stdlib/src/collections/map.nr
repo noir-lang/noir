@@ -30,7 +30,7 @@ global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
 /// 
 /// let two = map.get(1).unwrap();
 /// ```
-struct HashMap<K, V, let N: u32, B> {
+pub struct HashMap<K, V, let N: u32, B> {
     _table: [Slot<K, V>; N],
 
     /// Amount of valid elements in the map.

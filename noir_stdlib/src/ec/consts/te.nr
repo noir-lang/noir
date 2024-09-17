@@ -1,7 +1,7 @@
 use crate::ec::tecurve::affine::Point as TEPoint;
 use crate::ec::tecurve::affine::Curve as TECurve;
 
-struct BabyJubjub {
+pub struct BabyJubjub {
     curve: TECurve,
     base8: TEPoint,
     suborder: Field,
