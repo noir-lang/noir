@@ -69,7 +69,7 @@
 //! For example, if a reference is not stored to again in the loop we should be able to remove that store which precedes the loop.
 //!
 //! To handle cases such as the one laid out above, we maintain some extra state per function,
-//! that we will analyze after the initial run through of all the blocks.
+//! that we will analyze after the initial run through all of the blocks.
 //! We refer to this as the "function cleanup" and it requires having already iterated through all blocks.
 //!
 //! The state contains the following:
