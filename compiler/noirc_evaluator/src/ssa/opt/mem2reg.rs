@@ -496,10 +496,11 @@ mod tests {
         // fn func() {
         //   b0():
         //     v0 = allocate
-        //     store [Field 1, Field 2] in v0
-        //     v1 = load v0
-        //     v2 = array_get v1, index 1
-        //     return v2
+        //     v1 = make_array [Field 1, Field 2]
+        //     store v1 in v0
+        //     v2 = load v0
+        //     v3 = array_get v2, index 1
+        //     return v3
         // }
 
         let func_id = Id::test_new(0);
@@ -510,12 +511,12 @@ mod tests {
 
         let element_type = Arc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
-        let array = builder.array_constant(vector![one, two], array_type.clone());
+        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
 
-        builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, array_type);
-        let v2 = builder.insert_array_get(v1, one, Type::field());
-        builder.terminate_with_return(vec![v2]);
+        builder.insert_store(v0, v1);
+        let v2 = builder.insert_load(v0, array_type);
+        let v3 = builder.insert_array_get(v2, one, Type::field());
+        builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();
 
