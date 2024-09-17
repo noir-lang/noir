@@ -1110,7 +1110,10 @@ impl Type {
         match self {
             Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
             Type::Constant(_, kind) => Some(kind.clone()),
-            Type::TypeVariable(..) => None,
+            Type::TypeVariable(var, _) => match *var.borrow() {
+                TypeBinding::Bound(ref typ) => typ.kind(),
+                TypeBinding::Unbound(_) => None,
+            },
             Type::InfixExpr(lhs, _op, rhs) => Some(lhs.infix_kind(rhs)),
             Type::FieldElement
             | Type::Array(..)
