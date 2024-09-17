@@ -739,8 +739,11 @@ impl<'a> Context<'a> {
             Instruction::IfElse { .. } => {
                 unreachable!("IfElse instruction remaining in acir-gen")
             }
-            Instruction::MakeArray { .. } => {
-                todo!("MakeArray in acir-gen")
+            Instruction::MakeArray { elements, typ: _ } => {
+                let elements = elements.iter().map(|element| self.convert_value(*element, dfg));
+                let value = AcirValue::Array(elements.collect());
+                let result = dfg.instruction_results(instruction_id)[0];
+                self.ssa_values.insert(result, value);
             }
         }
 
@@ -1884,10 +1887,6 @@ impl<'a> Context<'a> {
             Value::NumericConstant { constant, typ } => {
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ.into())
             }
-            // Value::Array { array, .. } => {
-            //     let elements = array.iter().map(|element| self.convert_value(*element, dfg));
-            //     AcirValue::Array(elements.collect())
-            // }
             Value::Intrinsic(..) => todo!(),
             Value::Function(function_id) => {
                 // This conversion is for debugging support only, to allow the
