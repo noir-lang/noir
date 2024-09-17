@@ -654,7 +654,8 @@ impl Builder {
                                 let is_first = i == 0;
                                 let is_last = i == (split_a.len() - 1);
 
-                                let not_a_i_and_b_i = if signed && (i == 0) {
+                                //  "!a[i] and b[i]" or "!b[0] and a[0]" for the first bit of signed numbers
+                                let line_last_member = if signed && (i == 0) {
                                     let not_b_0 = self.asm_writer.not(split_b[0]);
                                     self.asm_writer.and(not_b_0, split_a[0])
                                 } else {
@@ -663,10 +664,10 @@ impl Builder {
                                 };
 
                                 let not_a_i_and_b_i_and_first_i_minus_1_equal = if is_first {
-                                    not_a_i_and_b_i
+                                    line_last_member
                                 } else {
                                     self.asm_writer
-                                        .and(not_a_i_and_b_i, first_i_minus_1_are_equal.unwrap())
+                                        .and(line_last_member, first_i_minus_1_are_equal.unwrap())
                                 };
 
                                 result = if is_first {
