@@ -138,7 +138,8 @@ impl<'a> ValueMerger<'a> {
             .insert_instruction_and_results(conditional_diff, block, None, call_stack.clone())
             .first();
 
-        let merged_field = Instruction::binary(BinaryOp::Add, else_value, conditional_diff_value);
+        let merged_field =
+            Instruction::binary(BinaryOp::Add, else_field_value, conditional_diff_value);
         let merged_field_value = dfg
             .insert_instruction_and_results(merged_field, block, None, call_stack.clone())
             .first();
