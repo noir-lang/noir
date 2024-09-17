@@ -112,7 +112,7 @@ pub enum Type {
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
-    Constant(u32),
+    Constant(u32, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -136,6 +136,27 @@ pub enum Type {
 pub enum Kind {
     Normal,
     Numeric(Box<Type>),
+}
+
+impl Kind {
+    pub(crate) fn is_error(&self) -> bool {
+        match self {
+            Self::Numeric(typ) => **typ == Type::Error,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_numeric(&self) -> bool {
+        matches!(self, Self::Numeric { .. })
+    }
+
+    pub(crate) fn matches_opt(&self, other: Option<Self>) -> bool {
+        other.as_ref().map_or(true, |other_kind| self == other_kind)
+    }
+
+    pub(crate) fn u32() -> Self {
+        Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
+    }
 }
 
 impl std::fmt::Display for Kind {
@@ -210,6 +231,10 @@ pub struct ResolvedGeneric {
 impl ResolvedGeneric {
     pub fn as_named_generic(self) -> Type {
         Type::NamedGeneric(self.type_var, self.name, self.kind)
+    }
+
+    pub(crate) fn is_numeric(&self) -> bool {
+        self.kind.is_numeric()
     }
 }
 
@@ -328,15 +353,6 @@ impl StructType {
         }
     }
 
-    /// True if the given index is the same index as a generic type of this struct
-    /// which is expected to be a numeric generic.
-    /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
-    /// TODO(https://github.com/noir-lang/noir/issues/5156): This is outdated and we should remove this implicit searching for numeric generics
-    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].type_var.id();
-        self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
-    }
-
     /// Instantiate this struct type, returning a Vec of the new generic args (in
     /// the same order as self.generics)
     pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
@@ -418,14 +434,6 @@ impl TypeAlias {
             .collect();
 
         self.typ.substitute(&substitutions)
-    }
-
-    /// True if the given index is the same index as a generic type of this alias
-    /// which is expected to be a numeric generic.
-    /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
-    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].type_var.id();
-        self.typ.contains_numeric_typevar(target_id)
     }
 }
 
@@ -668,7 +676,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
-            Type::Constant(x) => x.fmt(f),
+            Type::Constant(x, _kind) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -826,78 +834,6 @@ impl Type {
         )
     }
 
-    fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
-        // True if the given type is a NamedGeneric with the target_id
-        let named_generic_id_matches_target = |typ: &Type| {
-            if let Type::NamedGeneric(type_variable, _, _) = typ {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(_) => {
-                        unreachable!("Named generics should not be bound until monomorphization")
-                    }
-                    TypeBinding::Unbound(id) => target_id == *id,
-                }
-            } else {
-                false
-            }
-        };
-
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::TypeVariable(_, _)
-            | Type::Constant(_)
-            | Type::NamedGeneric(_, _, _)
-            | Type::Forall(_, _)
-            | Type::Quoted(_) => false,
-
-            Type::TraitAsType(_, _, generics) => {
-                generics.ordered.iter().any(|generic| generic.contains_numeric_typevar(target_id))
-                    || generics.named.iter().any(|typ| typ.typ.contains_numeric_typevar(target_id))
-            }
-            Type::Array(length, elem) => {
-                elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
-            }
-            Type::Slice(elem) => elem.contains_numeric_typevar(target_id),
-            Type::Tuple(fields) => {
-                fields.iter().any(|field| field.contains_numeric_typevar(target_id))
-            }
-            Type::Function(parameters, return_type, env, _unconstrained) => {
-                parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
-                    || return_type.contains_numeric_typevar(target_id)
-                    || env.contains_numeric_typevar(target_id)
-            }
-            Type::Struct(struct_type, generics) => {
-                generics.iter().enumerate().any(|(i, generic)| {
-                    if named_generic_id_matches_target(generic) {
-                        struct_type.borrow().generic_is_numeric(i)
-                    } else {
-                        generic.contains_numeric_typevar(target_id)
-                    }
-                })
-            }
-            Type::Alias(alias, generics) => generics.iter().enumerate().any(|(i, generic)| {
-                if named_generic_id_matches_target(generic) {
-                    alias.borrow().generic_is_numeric(i)
-                } else {
-                    generic.contains_numeric_typevar(target_id)
-                }
-            }),
-            Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
-            Type::String(length) => named_generic_id_matches_target(length),
-            Type::FmtString(length, elements) => {
-                elements.contains_numeric_typevar(target_id)
-                    || named_generic_id_matches_target(length)
-            }
-            Type::InfixExpr(lhs, _op, rhs) => {
-                lhs.contains_numeric_typevar(target_id) || rhs.contains_numeric_typevar(target_id)
-            }
-        }
-    }
-
-    /// TODO(https://github.com/noir-lang/noir/issues/5156): Remove with explicit numeric generics
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a TypeKind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
@@ -915,7 +851,7 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Error
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Forall(_, _)
             | Type::Quoted(_) => {}
 
@@ -998,7 +934,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Error => true,
 
             Type::FmtString(_, _)
@@ -1044,7 +980,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
             | Type::InfixExpr(..)
@@ -1087,7 +1023,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
@@ -1170,35 +1106,53 @@ impl Type {
         }
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5156): Bring back this method when we remove implicit numeric generics
-    // It has been commented out as to not trigger clippy for an unused method
-    // pub(crate) fn kind(&self) -> Kind {
-    //     match self {
-    //         Type::NamedGeneric(_, _, kind) => kind.clone(),
-    //         Type::Constant(_) => Kind::Numeric(Box::new(Type::Integer(
-    //             Signedness::Unsigned,
-    //             IntegerBitSize::ThirtyTwo,
-    //         ))),
-    //         Type::FieldElement
-    //         | Type::Array(_, _)
-    //         | Type::Slice(_)
-    //         | Type::Integer(_, _)
-    //         | Type::Bool
-    //         | Type::String(_)
-    //         | Type::FmtString(_, _)
-    //         | Type::Unit
-    //         | Type::Tuple(_)
-    //         | Type::Struct(_, _)
-    //         | Type::Alias(_, _)
-    //         | Type::TypeVariable(_, _)
-    //         | Type::TraitAsType(_, _, _)
-    //         | Type::Function(_, _, _)
-    //         | Type::MutableReference(_)
-    //         | Type::Forall(_, _)
-    //         | Type::Quoted(_)
-    //         | Type::Error => Kind::Normal,
-    //     }
-    // }
+    pub(crate) fn kind(&self) -> Option<Kind> {
+        match self {
+            Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
+            Type::Constant(_, kind) => Some(kind.clone()),
+            Type::TypeVariable(var, _) => match *var.borrow() {
+                TypeBinding::Bound(ref typ) => typ.kind(),
+                TypeBinding::Unbound(_) => None,
+            },
+            Type::InfixExpr(lhs, _op, rhs) => Some(lhs.infix_kind(rhs)),
+            Type::FieldElement
+            | Type::Array(..)
+            | Type::Slice(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Tuple(..)
+            | Type::Struct(..)
+            | Type::Alias(..)
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::MutableReference(..)
+            | Type::Forall(..)
+            | Type::Quoted(..)
+            | Type::Error => Some(Kind::Normal),
+        }
+    }
+
+    /// if both Kind's are equal to Some(_), return that Kind,
+    ///     otherwise return a Kind error
+    /// if both Kind's are None, default to u32
+    /// if exactly one Kind is None, return the other one
+    fn infix_kind(&self, other: &Self) -> Kind {
+        match (self.kind(), other.kind()) {
+            (Some(self_kind), Some(other_kind)) => {
+                if self_kind == other_kind {
+                    self_kind
+                } else {
+                    Kind::Numeric(Box::new(Type::Error))
+                }
+            }
+            (None, None) => Kind::u32(),
+            (Some(self_kind), None) => self_kind,
+            (None, Some(other_kind)) => other_kind,
+        }
+    }
 
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
@@ -1231,7 +1185,7 @@ impl Type {
             | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
             | Type::InfixExpr(..)
@@ -1562,9 +1516,9 @@ impl Type {
                 }
             }
 
-            (Constant(value), other) | (other, Constant(value)) => {
+            (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 if let Some(other_value) = other.evaluate_to_u32() {
-                    if *value == other_value {
+                    if *value == other_value && kind.matches_opt(other.kind()) {
                         Ok(())
                     } else {
                         Err(UnificationError)
@@ -1572,7 +1526,11 @@ impl Type {
                 } else if let InfixExpr(lhs, op, rhs) = other {
                     if let Some(inverse) = op.inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type = InfixExpr(Box::new(Constant(*value)), inverse, rhs.clone());
+                        let new_type = InfixExpr(
+                            Box::new(Constant(*value, kind.clone())),
+                            inverse,
+                            rhs.clone(),
+                        );
                         new_type.try_unify(lhs, bindings)?;
                         Ok(())
                     } else {
@@ -1731,7 +1689,7 @@ impl Type {
 
         match self.canonicalize() {
             Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x) => Some(x),
+            Type::Constant(x, _) => Some(x),
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_to_u32()?;
                 let rhs = rhs.evaluate_to_u32()?;
@@ -2009,7 +1967,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Error
             | Type::Quoted(_)
             | Type::Unit => self.clone(),
@@ -2057,7 +2015,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Error
             | Type::Quoted(_)
             | Type::Unit => false,
@@ -2125,7 +2083,7 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Quoted(_) | Error => {
+            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
                 self.clone()
             }
         }
@@ -2141,7 +2099,7 @@ impl Type {
     pub fn replace_named_generics_with_type_variables(&mut self) {
         match self {
             Type::FieldElement
-            | Type::Constant(_)
+            | Type::Constant(_, _)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
@@ -2345,7 +2303,7 @@ impl From<&Type> for PrintableType {
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
-            Type::Constant(_) => unreachable!(),
+            Type::Constant(_, _) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -2432,7 +2390,7 @@ impl std::fmt::Debug for Type {
                     write!(f, "({} : {}){:?}", name, typ, binding)
                 }
             },
-            Type::Constant(x) => x.fmt(f),
+            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
@@ -2537,7 +2495,7 @@ impl std::hash::Hash for Type {
                 vars.hash(state);
                 typ.hash(state);
             }
-            Type::Constant(value) => value.hash(state),
+            Type::Constant(value, _) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
             Type::InfixExpr(lhs, op, rhs) => {
                 lhs.hash(state);
@@ -2597,7 +2555,9 @@ impl PartialEq for Type {
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
-            (Constant(lhs), Constant(rhs)) => lhs == rhs,
+            (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => {
+                lhs == rhs && lhs_kind == rhs_kind
+            }
             (Quoted(lhs), Quoted(rhs)) => lhs == rhs,
             (InfixExpr(l_lhs, l_op, l_rhs), InfixExpr(r_lhs, r_op, r_rhs)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs

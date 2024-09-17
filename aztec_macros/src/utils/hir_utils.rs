@@ -74,7 +74,7 @@ pub fn signature_of_type(typ: &Type) -> String {
         Type::FieldElement => "Field".to_owned(),
         Type::Bool => "bool".to_owned(),
         Type::Array(len, typ) => {
-            if let Type::Constant(len) = **len {
+            if let Type::Constant(len, _) = **len {
                 format!("[{};{len}]", signature_of_type(typ))
             } else {
                 unimplemented!("Cannot generate signature for array with length type {:?}", typ)
@@ -90,7 +90,7 @@ pub fn signature_of_type(typ: &Type) -> String {
             format!("({})", fields.join(","))
         }
         Type::String(len_typ) => {
-            if let Type::Constant(len) = **len_typ {
+            if let Type::Constant(len, _) = **len_typ {
                 format!("str<{len}>")
             } else {
                 unimplemented!(
@@ -326,7 +326,7 @@ pub fn get_serialized_length(
     let serialized_trait_impl = serialized_trait_impl_shared.borrow();
 
     match serialized_trait_impl.trait_generics.first().unwrap() {
-        Type::Constant(value) => Ok(*value),
+        Type::Constant(value, _) => Ok(*value),
         _ => Err(MacroError {
             primary_message: format!("{} length for {} must be a constant", trait_name, typ),
             secondary_message: None,

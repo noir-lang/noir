@@ -8,7 +8,7 @@ unconstrained fn decode_ascii(ascii: u8) -> u8 {
     }
 }
 
-unconstrained fn decode_hex<N, M>(s: str<N>) -> [u8; M] {
+unconstrained fn decode_hex<let N: u32, let M: u32>(s: str<N>) -> [u8; M] {
     let mut result: [u8; M] = [0; M];
     let as_bytes = s.as_bytes();
     for i in 0..N {

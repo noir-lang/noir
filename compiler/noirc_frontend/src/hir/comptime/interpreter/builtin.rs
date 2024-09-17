@@ -302,7 +302,7 @@ fn str_as_bytes(
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
     let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len() as u32)),
+        Box::new(Type::Constant(bytes.len() as u32, Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     );
     Ok(Value::Array(bytes, byte_array_type))
@@ -776,7 +776,7 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let limb_count = if let Type::Array(length, _) = return_type {
-        if let Type::Constant(limb_count) = *length {
+        if let Type::Constant(limb_count, _kind) = *length {
             limb_count
         } else {
             return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
@@ -1194,7 +1194,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error

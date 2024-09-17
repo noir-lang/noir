@@ -345,7 +345,7 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(_) => panic!("Type::Constant where a type was expected: {self:?}"),
+            Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
             Type::InfixExpr(lhs, op, rhs) => {
@@ -365,7 +365,7 @@ impl Type {
         let span = Span::default();
 
         match self.follow_bindings() {
-            Type::Constant(length) => UnresolvedTypeExpression::Constant(length, span),
+            Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, span),
             Type::NamedGeneric(_var, name, _kind) => {
                 let path = Path::from_single(name.as_ref().clone(), span);
                 UnresolvedTypeExpression::Variable(path)
@@ -408,10 +408,10 @@ impl HirArrayLiteral {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
-                    Type::Constant(length) => {
+                    Type::Constant(length, _kind) => {
                         let literal = Literal::Integer((*length as u128).into(), false);
-                        let kind = ExpressionKind::Literal(literal);
-                        Box::new(Expression::new(kind, span))
+                        let expr_kind = ExpressionKind::Literal(literal);
+                        Box::new(Expression::new(expr_kind, span))
                     }
                     other => panic!("Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"),
                 };

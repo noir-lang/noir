@@ -153,7 +153,7 @@ will implement `Foo` only for types that also implement `Bar`. This is often use
 For example, here is the implementation for array equality:
 
 ```rust
-impl<T, N> Eq for [T; N] where T: Eq {
+impl<T, let N: u32> Eq for [T; let N: u32] where T: Eq {
     // Test if two arrays have the same elements.
     // Because both arrays must have length N, we know their lengths already match.
     fn eq(self, other: Self) -> bool {

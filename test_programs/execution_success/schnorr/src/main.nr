@@ -36,7 +36,11 @@ fn main(
 // Meanwhile, you have to use a message with 32 additional bytes:
 // If you want to verify a signature on a message of 10 bytes, you need to pass a message of length 42,
 // where the first 10 bytes are the one from the original message (the other bytes are not used)
-pub fn verify_signature_noir<M>(public_key: embedded_curve_ops::EmbeddedCurvePoint, signature: [u8; 64], message: [u8; M]) -> bool {
+pub fn verify_signature_noir<let M: u32>(
+    public_key: embedded_curve_ops::EmbeddedCurvePoint,
+    signature: [u8; 64],
+    message: [u8; M]
+) -> bool {
     let N = message.len() - 32;
 
     //scalar lo/hi from bytes
@@ -85,7 +89,11 @@ pub fn bytes_to_scalar(bytes: [u8; 64], offset: u32) -> embedded_curve_ops::Embe
     sig_s
 }
 
-pub fn assert_valid_signature<M>(public_key: embedded_curve_ops::EmbeddedCurvePoint, signature: [u8; 64], message: [u8; M]) {
+pub fn assert_valid_signature<let M: u32>(
+    public_key: embedded_curve_ops::EmbeddedCurvePoint,
+    signature: [u8; 64],
+    message: [u8; M]
+) {
     let N = message.len() - 32;
     //scalar lo/hi from bytes
     let sig_s = bytes_to_scalar(signature, 0);
