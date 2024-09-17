@@ -18,33 +18,6 @@
 //!   - A reference with 0 aliases means we were unable to find which reference this reference
 //!     refers to. If such a reference is stored to, we must conservatively invalidate every
 //!     reference in the current block.
-//! - The steps above on their own can sometimes miss known references.
-//!   This most commonly occurs in the case of loops, where we may have allocations preceding a loop that are known,
-//!   but the loop body's blocks are predecessors to the loop header block, causing those known allocations to be marked unknown.
-//!   In certain cases we may be able to remove these allocations that precede a loop.
-//!   For example, if a reference is not stored to again in the loop we should be able to remove that store which precedes the loop.
-//! - To handle cases such as the one laid out above, we maintain state per function.
-//!   The state contains the following:
-//!     - For each load address we store the number of loads from a given address,
-//!       the last load instruction from a given load across all blocks, and the respective block id of that instruction.
-//!     - A mapping of each load result to its number of uses, the load instruction that produced the given result, and the respective block id of that instruction.
-//!     - A set of the references passed into a call of another function entry point.
-//!     - Maps the references which have been aliased to the instructions that aliased that reference.
-//! - As we go through each instruction, if a load result has been used we increment its usage counter.
-//!   Upon removing an instruction, we decrement the load result counter.
-//! After analyzing all of a function's blocks we can analyze the per function state:
-//! - If we find that a load result is unused we remove that load.
-//! - We can then remove a store if the following conditions are met:
-//!   - All loads to a given address have been removed
-//!   - None of the aliases of a reference are used in any of the following:
-//!     - Block parameters, function parameters, call arguments, terminator arguments
-//!   - The store address also should not be aliased
-//! - If a store is in a return block, we can have special handling that only checks if there is a load after
-//!   that store in the return block. In the case of a return block, even if there are other loads
-//!   in preceding blocks we can safely remove those stores.
-//! - To further catch any stores to references which are never loaded, we can count the number of stores
-//!   that were removed in the previous step. If there is only a single store leftover, we can safely map
-//!   the value of this final store to any loads of that store.
 //!
 //! From there, to figure out the value of each reference at the end of block, iterate each instruction:
 //! - On `Instruction::Allocate`:
@@ -88,6 +61,38 @@
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
 //! performed before loop unrolling to try to allow for mutable variables used for loop indices.
+//!
+//! As stated above, the algorithm above can sometimes miss known references.
+//! This most commonly occurs in the case of loops, where we may have allocations preceding a loop that are known,
+//! but the loop body's blocks are predecessors to the loop header block, causing those known allocations to be marked unknown.
+//! In certain cases we may be able to remove these allocations that precede a loop.
+//! For example, if a reference is not stored to again in the loop we should be able to remove that store which precedes the loop.
+//!
+//! To handle cases such as the one laid out above, we maintain some extra state per function,
+//! that we will analyze after the initial run through of all the blocks.
+//! We refer to this as the "function cleanup" and it requires having already iterated through all blocks.
+//!
+//! The state contains the following:
+//! - For each load address we store the number of loads from a given address,
+//!   the last load instruction from a given load across all blocks, and the respective block id of that instruction.
+//! - A mapping of each load result to its number of uses, the load instruction that produced the given result, and the respective block id of that instruction.
+//! - A set of the references passed into a call of another function entry point.
+//! - Maps the references which have been aliased to the instructions that aliased that reference.
+//! - As we go through each instruction, if a load result has been used we increment its usage counter.
+//!   Upon removing an instruction, we decrement the load result counter.
+//! After analyzing all of a function's blocks we can analyze the per function state:
+//! - If we find that a load result is unused we remove that load.
+//! - We can then remove a store if the following conditions are met:
+//!   - All loads to a given address have been removed
+//!   - None of the aliases of a reference are used in any of the following:
+//!     - Block parameters, function parameters, call arguments, terminator arguments
+//!   - The store address also should not be aliased
+//! - If a store is in a return block, we can have special handling that only checks if there is a load after
+//!   that store in the return block. In the case of a return block, even if there are other loads
+//!   in preceding blocks we can safely remove those stores.
+//! - To further catch any stores to references which are never loaded, we can count the number of stores
+//!   that were removed in the previous step. If there is only a single store leftover, we can safely map
+//!   the value of this final store to any loads of that store.
 mod alias_set;
 mod block;
 
