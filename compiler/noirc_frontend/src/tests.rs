@@ -514,7 +514,7 @@ fn check_trait_wrong_parameter2() {
 #[test]
 fn check_trait_wrong_parameter_type() {
     let src = "
-    trait Default {
+    pub trait Default {
         fn default(x: Field, y: NotAType) -> Field;
     }
     
@@ -1565,11 +1565,11 @@ fn struct_numeric_generic_in_function() {
 #[test]
 fn struct_numeric_generic_in_struct() {
     let src = r#"
-    struct Foo {
+    pub struct Foo {
         inner: u64
     }
 
-    struct Bar<let N: Foo> { }
+    pub struct Bar<let N: Foo> { }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
@@ -1658,7 +1658,7 @@ fn numeric_generic_in_function_signature() {
 #[test]
 fn numeric_generic_as_struct_field_type() {
     let src = r#"
-    struct Foo<let N: u32> {
+    pub struct Foo<let N: u32> {
         a: Field,
         b: N,
     }
@@ -1674,7 +1674,7 @@ fn numeric_generic_as_struct_field_type() {
 #[test]
 fn normal_generic_as_array_length() {
     let src = r#"
-    struct Foo<N> {
+    pub struct Foo<N> {
         a: Field,
         b: [Field; N],
     }
@@ -1719,11 +1719,11 @@ fn numeric_generic_as_param_type() {
 #[test]
 fn numeric_generic_used_in_nested_type_fail() {
     let src = r#"
-    struct Foo<let N: u32> {
+    pub struct Foo<let N: u32> {
         a: Field,
         b: Bar<N>,
     }
-    struct Bar<N> {
+    pub struct Bar<N> {
         inner: N
     }
     "#;
@@ -1738,11 +1738,11 @@ fn numeric_generic_used_in_nested_type_fail() {
 #[test]
 fn normal_generic_used_in_nested_array_length_fail() {
     let src = r#"
-    struct Foo<N> {
+    pub struct Foo<N> {
         a: Field,
         b: Bar<N>,
     }
-    struct Bar<let N: u32> {
+    pub struct Bar<let N: u32> {
         inner: [Field; N]
     }
     "#;
@@ -1756,11 +1756,11 @@ fn numeric_generic_used_in_nested_type_pass() {
     // The order of these structs should not be changed to make sure
     // that we are accurately resolving all struct generics before struct fields
     let src = r#"
-    struct NestedNumeric<let N: u32> {
+    pub struct NestedNumeric<let N: u32> {
         a: Field,
         b: InnerNumeric<N>
     }
-    struct InnerNumeric<let N: u32> {
+    pub struct InnerNumeric<let N: u32> {
         inner: [u64; N],
     }    
     "#;
@@ -2721,7 +2721,7 @@ fn bit_not_on_untyped_integer() {
 #[test]
 fn duplicate_struct_field() {
     let src = r#"
-    struct Foo {
+    pub struct Foo {
         x: i32,
         x: i32,
     }
@@ -2742,8 +2742,8 @@ fn duplicate_struct_field() {
     assert_eq!(first_def.to_string(), "x");
     assert_eq!(second_def.to_string(), "x");
 
-    assert_eq!(first_def.span().start(), 26);
-    assert_eq!(second_def.span().start(), 42);
+    assert_eq!(first_def.span().start(), 30);
+    assert_eq!(second_def.span().start(), 46);
 }
 
 #[test]
@@ -2996,11 +2996,11 @@ fn uses_self_type_inside_trait() {
 #[test]
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
-    trait Trait {
+    pub trait Trait {
         fn trait_func() -> bool;
     }
 
-    trait Foo where Self: Trait {
+    pub trait Foo where Self: Trait {
         fn foo(self) -> bool {
             self.trait_func()
         }
@@ -3222,7 +3222,7 @@ fn errors_on_unused_private_import() {
         pub fn bar() {}
         pub fn baz() {}
 
-        trait Foo {
+        pub trait Foo {
         }
     }
 
@@ -3258,7 +3258,7 @@ fn errors_on_unused_pub_crate_import() {
         pub fn bar() {}
         pub fn baz() {}
 
-        trait Foo {
+        pub trait Foo {
         }
     }
 
@@ -3424,6 +3424,58 @@ fn errors_on_unused_function() {
 }
 
 #[test]
+fn errors_on_unused_struct() {
+    let src = r#"
+    struct Foo {}
+    struct Bar {}
+
+    fn main() {
+        let _ = Bar {};
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "Foo");
+    assert_eq!(*item_type, "struct");
+}
+
+#[test]
+fn errors_on_unused_trait() {
+    let src = r#"
+    trait Foo {}
+    trait Bar {}
+
+    pub struct Baz {
+    }
+
+    impl Bar for Baz {}
+
+    fn main() {
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "Foo");
+    assert_eq!(*item_type, "trait");
+}
+
+#[test]
 fn constrained_reference_to_unconstrained() {
     let src = r#"
     fn main(mut x: u32, y: pub u32) {
@@ -3461,4 +3513,99 @@ fn comptime_type_in_runtime_code() {
         errors[0].0,
         CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
     ));
+}
+
+#[test]
+fn arithmetic_generics_canonicalization_deduplication_regression() {
+    let source = r#"
+        struct ArrData<let N: u32> {
+            a: [Field; N],
+            b: [Field; N + N - 1],
+        }
+
+        fn main() {
+            let _f: ArrData<5> = ArrData {
+                a: [0; 5],
+                b: [0; 9],
+            };
+        }
+    "#;
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cannot_mutate_immutable_variable() {
+    let src = r#"
+    fn main() {
+        let array = [1];
+        mutate(&mut array);
+    }
+
+    fn mutate(_: &mut [Field; 1]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a CannotMutateImmutableVariable error");
+    };
+
+    assert_eq!(name, "array");
+}
+
+#[test]
+fn cannot_mutate_immutable_variable_on_member_access() {
+    let src = r#"
+    struct Foo {
+        x: Field
+    }
+
+    fn main() {
+        let foo = Foo { x: 0 };
+        mutate(&mut foo.x);
+    }
+
+    fn mutate(foo: &mut Field) {
+        *foo = 1;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a CannotMutateImmutableVariable error");
+    };
+
+    assert_eq!(name, "foo");
+}
+
+#[test]
+fn does_not_crash_when_passing_mutable_undefined_variable() {
+    let src = r#"
+    fn main() {
+        mutate(&mut undefined);
+    }
+
+    fn mutate(foo: &mut Field) {
+        *foo = 1;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a VariableNotDeclared error");
+    };
+
+    assert_eq!(name, "undefined");
 }

@@ -84,7 +84,7 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                false,
+                true,
                 None,
                 Some(workspace.root_dir.clone()),
                 Some(package.name.to_string()),

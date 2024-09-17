@@ -620,7 +620,7 @@ impl Pattern {
                 }
                 Some(Expression {
                     kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                        type_name: path.clone(),
+                        typ: UnresolvedType::from_path(path.clone()),
                         fields,
                         struct_type: None,
                     })),

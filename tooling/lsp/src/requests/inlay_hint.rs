@@ -477,14 +477,6 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 push_type_variable_parts(binding, parts, files);
             }
         }
-        Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
-            if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                // TypeVariableKind::Constant(n) binds to Type::Constant(n) by default, so just show that.
-                parts.push(string_part(n.to_string()));
-            } else {
-                push_type_variable_parts(binding, parts, files);
-            }
-        }
 
         Type::FieldElement
         | Type::Integer(..)
@@ -542,6 +534,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
         | ExpressionKind::Interned(..)
+        | ExpressionKind::InternedStatement(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,

@@ -2,7 +2,7 @@ use crate::hash::{Hash, Hasher};
 use crate::cmp::{Ordering, Ord, Eq};
 use crate::default::Default;
 
-struct Option<T> {
+pub struct Option<T> {
     _is_some: bool,
     _value: T,
 }

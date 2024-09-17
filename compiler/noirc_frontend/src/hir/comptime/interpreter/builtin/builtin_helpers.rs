@@ -6,7 +6,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Pattern, Signedness,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
         StatementKind, UnresolvedTypeData,
     },
     hir::{
@@ -466,6 +466,14 @@ pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute])
     }
 
     false
+}
+
+pub(super) fn quote_ident(ident: &Ident) -> Value {
+    Value::Quoted(ident_to_tokens(ident))
+}
+
+pub(super) fn ident_to_tokens(ident: &Ident) -> Rc<Vec<Token>> {
+    Rc::new(vec![Token::Ident(ident.0.contents.clone())])
 }
 
 pub(super) fn hash_item<T: Hash>(

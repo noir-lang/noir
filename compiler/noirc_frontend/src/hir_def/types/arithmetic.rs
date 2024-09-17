@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use crate::{BinaryTypeOperator, Type, TypeBindings, UnificationError};
 
@@ -52,7 +52,8 @@ impl Type {
     fn sort_commutative(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
         let mut queue = vec![lhs.clone(), rhs.clone()];
 
-        let mut sorted = BTreeSet::new();
+        // Maps each term to the number of times that term was used.
+        let mut sorted = BTreeMap::new();
 
         let zero_value = if op == BinaryTypeOperator::Addition { 0 } else { 1 };
         let mut constant = zero_value;
@@ -68,20 +69,27 @@ impl Type {
                     if let Some(result) = op.function(constant, new_constant) {
                         constant = result;
                     } else {
-                        sorted.insert(Type::Constant(new_constant));
+                        *sorted.entry(Type::Constant(new_constant)).or_default() += 1;
                     }
                 }
                 other => {
-                    sorted.insert(other);
+                    *sorted.entry(other).or_default() += 1;
                 }
             }
         }
 
         if let Some(first) = sorted.pop_first() {
-            let mut typ = first.clone();
+            let (mut typ, first_type_count) = first.clone();
 
-            for rhs in sorted {
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(rhs.clone()));
+            // - 1 since `typ` already is set to the first instance
+            for _ in 0..first_type_count - 1 {
+                typ = Type::InfixExpr(Box::new(typ), op, Box::new(first.0.clone()));
+            }
+
+            for (rhs, rhs_count) in sorted {
+                for _ in 0..rhs_count {
+                    typ = Type::InfixExpr(Box::new(typ), op, Box::new(rhs.clone()));
+                }
             }
 
             if constant != zero_value {

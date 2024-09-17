@@ -16,7 +16,7 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAtrribute, SecondaryAttribute, Tokens},
+    token::{CustomAttribute, SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
@@ -461,7 +461,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_custom_attribute(&mut self, _: &CustomAtrribute, _target: AttributeTarget) {}
+    fn visit_custom_attribute(&mut self, _: &CustomAttribute, _target: AttributeTarget) {}
 }
 
 impl ParsedModule {
@@ -841,6 +841,7 @@ impl Expression {
             ExpressionKind::Quote(tokens) => visitor.visit_quote(tokens),
             ExpressionKind::Resolved(expr_id) => visitor.visit_resolved_expression(*expr_id),
             ExpressionKind::Interned(id) => visitor.visit_interned_expression(*id),
+            ExpressionKind::InternedStatement(id) => visitor.visit_interned_statement(*id),
             ExpressionKind::Error => visitor.visit_error_expression(),
         }
     }
@@ -948,7 +949,7 @@ impl ConstructorExpression {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.type_name.accept(visitor);
+        self.typ.accept(visitor);
 
         for (_field_name, expression) in &self.fields {
             expression.accept(visitor);
@@ -1377,7 +1378,7 @@ impl SecondaryAttribute {
     }
 }
 
-impl CustomAtrribute {
+impl CustomAttribute {
     pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
         visitor.visit_custom_attribute(self, target);
     }

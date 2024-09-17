@@ -3,7 +3,7 @@ use crate::append::Append;
 impl CtString {
     // docs:start:new
     comptime fn new() -> Self {
-        // docs::end::new
+        // docs:end:new
         "".as_ctstring()
     }
 
@@ -41,7 +41,7 @@ impl Append for CtString {
 }
 
 // docs:start:as-ctstring
-trait AsCtString {
+pub trait AsCtString {
     comptime fn as_ctstring(self) -> CtString;
 }
 // docs:end:as-ctstring

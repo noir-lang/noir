@@ -222,9 +222,11 @@ pub fn generate_storage_implementation(
         })
         .collect();
 
-    let storage_constructor_statement = make_statement(StatementKind::Expression(expression(
-        ExpressionKind::constructor((chained_path!(storage_struct_name), field_constructors)),
-    )));
+    let storage_constructor_statement =
+        make_statement(StatementKind::Expression(expression(ExpressionKind::constructor((
+            UnresolvedType::from_path(chained_path!(storage_struct_name)),
+            field_constructors,
+        )))));
 
     // This is the type over which the impl is generic.
     let generic_context_ident = ident("Context");

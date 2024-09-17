@@ -10,7 +10,7 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Short Weierstraß curve
+    pub struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
         a: Field,
         b: Field,
@@ -18,7 +18,7 @@ mod affine {
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         infty: bool // Indicator for point at infinity
@@ -194,7 +194,7 @@ mod curvegroup {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Short Weierstraß curve
+    pub struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
         a: Field,
         b: Field,
@@ -202,7 +202,7 @@ mod curvegroup {
         gen: Point
     }
     // Point in three-dimensional Jacobian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         z: Field // z = 0 corresponds to point at infinity.

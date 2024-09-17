@@ -7,7 +7,8 @@ use builtin_helpers::{
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
     get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, replace_func_meta_parameters, replace_func_meta_return_type,
+    mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
+    replace_func_meta_return_type,
 };
 use chumsky::{chain::Chain, prelude::choice, Parser};
 use im::Vector;
@@ -18,17 +19,17 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, FunctionKind,
-        FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
-        UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
+        FunctionKind, FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement,
+        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::def_collector::dc_crate::CollectedItems,
     hir::{
         comptime::{
             errors::IResult,
             value::{ExprValue, TypedExpr},
             InterpreterError, Value,
         },
+        def_collector::dc_crate::CollectedItems,
         def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
@@ -71,12 +72,18 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_bool" => expr_as_bool(interner, arguments, return_type, location),
             "expr_as_cast" => expr_as_cast(interner, arguments, return_type, location),
             "expr_as_comptime" => expr_as_comptime(interner, arguments, return_type, location),
+            "expr_as_constructor" => {
+                expr_as_constructor(interner, arguments, return_type, location)
+            }
+            "expr_as_for" => expr_as_for(interner, arguments, return_type, location),
+            "expr_as_for_range" => expr_as_for_range(interner, arguments, return_type, location),
             "expr_as_function_call" => {
                 expr_as_function_call(interner, arguments, return_type, location)
             }
             "expr_as_if" => expr_as_if(interner, arguments, return_type, location),
             "expr_as_index" => expr_as_index(interner, arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(interner, arguments, return_type, location),
+            "expr_as_lambda" => expr_as_lambda(interner, arguments, return_type, location),
             "expr_as_let" => expr_as_let(interner, arguments, return_type, location),
             "expr_as_member_access" => {
                 expr_as_member_access(interner, arguments, return_type, location)
@@ -168,6 +175,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_module" => struct_def_module(self, arguments, location),
             "struct_def_name" => struct_def_name(interner, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
+            "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
@@ -748,6 +756,21 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
         value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
         Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
+}
+
+fn to_be_radix(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let le_radix_limbs = to_le_radix(arguments, return_type, location)?;
+
+    let Value::Array(limbs, typ) = le_radix_limbs else {
+        unreachable!("`to_le_radix` should always return an array");
+    };
+    let be_radix_limbs = limbs.into_iter().rev().collect();
+
+    Ok(Value::Array(be_radix_limbs, typ))
 }
 
 fn to_le_radix(
@@ -1412,6 +1435,87 @@ fn expr_as_comptime(
     })
 }
 
+// fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])>
+fn expr_as_constructor(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
+
+    let option_value =
+        if let ExprValue::Expression(ExpressionKind::Constructor(constructor)) = expr_value {
+            let typ = Value::UnresolvedType(constructor.typ.typ);
+            let fields = constructor.fields.into_iter();
+            let fields = fields.map(|(name, value)| {
+                Value::Tuple(vec![quote_ident(&name), Value::expression(value.kind)])
+            });
+            let fields = fields.collect();
+            let fields_type = Type::Slice(Box::new(Type::Tuple(vec![
+                Type::Quoted(QuotedType::Quoted),
+                Type::Quoted(QuotedType::Expr),
+            ])));
+            let fields = Value::Slice(fields, fields_type);
+            Some(Value::Tuple(vec![typ, fields]))
+        } else {
+            None
+        };
+
+    option(return_type, option_value)
+}
+
+// fn as_for(self) -> Option<(Quoted, Expr, Expr)>
+fn expr_as_for(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
+            if let ForRange::Array(array) = for_statement.range {
+                let identifier =
+                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let array = Value::expression(array.kind);
+                let body = Value::expression(for_statement.block.kind);
+                Some(Value::Tuple(vec![identifier, array, body]))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)>
+fn expr_as_for_range(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
+            if let ForRange::Range(from, to) = for_statement.range {
+                let identifier =
+                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let from = Value::expression(from.kind);
+                let to = Value::expression(to.kind);
+                let body = Value::expression(for_statement.block.kind);
+                Some(Value::Tuple(vec![identifier, from, to, body]))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
 fn expr_as_function_call(
     interner: &NodeInterner,
@@ -1509,6 +1613,68 @@ fn expr_as_integer(
     })
 }
 
+// fn as_lambda(self) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)>
+fn expr_as_lambda(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Lambda(lambda)) = expr {
+            // ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 3);
+
+            // Expr
+            tuple_types.pop().unwrap();
+
+            // Option<UnresolvedType>
+            let option_unresolved_type = tuple_types.pop().unwrap();
+
+            let parameters = lambda
+                .parameters
+                .into_iter()
+                .map(|(pattern, typ)| {
+                    let pattern = Value::pattern(pattern);
+                    let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
+                        None
+                    } else {
+                        Some(Value::UnresolvedType(typ.typ))
+                    };
+                    let typ = option(option_unresolved_type.clone(), typ).unwrap();
+                    Value::Tuple(vec![pattern, typ])
+                })
+                .collect();
+            let parameters = Value::Slice(
+                parameters,
+                Type::Slice(Box::new(Type::Tuple(vec![
+                    Type::Quoted(QuotedType::Expr),
+                    Type::Quoted(QuotedType::UnresolvedType),
+                ]))),
+            );
+
+            let return_type = lambda.return_type.typ;
+            let return_type = if let UnresolvedTypeData::Unspecified = return_type {
+                None
+            } else {
+                Some(return_type)
+            };
+            let return_type = return_type.map(Value::UnresolvedType);
+            let return_type = option(option_unresolved_type, return_type).ok()?;
+
+            let body = Value::expression(lambda.body.kind);
+
+            Some(Value::Tuple(vec![parameters, return_type, body]))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)>
 fn expr_as_let(
     interner: &NodeInterner,
@@ -1553,15 +1719,13 @@ fn expr_as_member_access(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
-            let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
-                Value::Quoted(tokens),
+                quote_ident(&member_access.rhs),
             ]))
         }
         ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
-            let tokens = Rc::new(vec![Token::Ident(field_name.0.contents.clone())]);
-            Some(Value::Tuple(vec![Value::lvalue(*object), Value::Quoted(tokens)]))
+            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name)]))
         }
         _ => None,
     })
@@ -1578,9 +1742,7 @@ fn expr_as_method_call(
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
             let object = Value::expression(method_call.object.kind);
 
-            let name_tokens =
-                Rc::new(vec![Token::Ident(method_call.method_name.0.contents.clone())]);
-            let name = Value::Quoted(name_tokens);
+            let name = quote_ident(&method_call.method_name);
 
             let generics = method_call.generics.unwrap_or_default().into_iter();
             let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
