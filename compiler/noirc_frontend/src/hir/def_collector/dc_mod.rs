@@ -392,8 +392,20 @@ impl<'a> ModCollector<'a> {
             context.def_interner.set_doc_comments(ReferenceId::Trait(trait_id), doc_comments);
 
             // Add the trait to scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_trait(name.clone(), trait_id);
+            let visibility = trait_definition.visibility;
+            let result = self.def_collector.def_map.modules[self.module_id.0].declare_trait(
+                name.clone(),
+                visibility,
+                trait_id,
+            );
+
+            let parent_module_id = ModuleId { krate, local_id: self.module_id };
+            context.def_interner.usage_tracker.add_unused_item(
+                parent_module_id,
+                name.clone(),
+                UnusedItem::Trait(trait_id),
+                visibility,
+            );
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {

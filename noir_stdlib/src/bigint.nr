@@ -43,7 +43,7 @@ impl BigInt {
     }
 }
 
-trait BigField {
+pub trait BigField {
     fn from_le_bytes(bytes: [u8]) -> Self;
     fn from_le_bytes_32(bytes: [u8; 32]) -> Self;
     fn to_le_bytes(self) -> [u8];

@@ -514,7 +514,7 @@ fn check_trait_wrong_parameter2() {
 #[test]
 fn check_trait_wrong_parameter_type() {
     let src = "
-    trait Default {
+    pub trait Default {
         fn default(x: Field, y: NotAType) -> Field;
     }
     
@@ -2996,11 +2996,11 @@ fn uses_self_type_inside_trait() {
 #[test]
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
-    trait Trait {
+    pub trait Trait {
         fn trait_func() -> bool;
     }
 
-    trait Foo where Self: Trait {
+    pub trait Foo where Self: Trait {
         fn foo(self) -> bool {
             self.trait_func()
         }
@@ -3222,7 +3222,7 @@ fn errors_on_unused_private_import() {
         pub fn bar() {}
         pub fn baz() {}
 
-        trait Foo {
+        pub trait Foo {
         }
     }
 
@@ -3258,7 +3258,7 @@ fn errors_on_unused_pub_crate_import() {
         pub fn bar() {}
         pub fn baz() {}
 
-        trait Foo {
+        pub trait Foo {
         }
     }
 
@@ -3445,6 +3445,34 @@ fn errors_on_unused_struct() {
 
     assert_eq!(ident.to_string(), "Foo");
     assert_eq!(*item_type, "struct");
+}
+
+#[test]
+fn errors_on_unused_trait() {
+    let src = r#"
+    trait Foo {}
+    trait Bar {}
+
+    pub struct Baz {
+    }
+
+    impl Bar for Baz {}
+
+    fn main() {
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "Foo");
+    assert_eq!(*item_type, "trait");
 }
 
 #[test]
