@@ -4,7 +4,7 @@ use crate::{
     ast::{Ident, ItemVisibility},
     hir::def_map::ModuleId,
     macros_api::StructId,
-    node_interner::FuncId,
+    node_interner::{FuncId, TraitId},
 };
 
 #[derive(Debug)]
@@ -12,6 +12,7 @@ pub enum UnusedItem {
     Import,
     Function(FuncId),
     Struct(StructId),
+    Trait(TraitId),
 }
 
 impl UnusedItem {
@@ -20,6 +21,7 @@ impl UnusedItem {
             UnusedItem::Import => "import",
             UnusedItem::Function(_) => "function",
             UnusedItem::Struct(_) => "struct",
+            UnusedItem::Trait(_) => "trait",
         }
     }
 }

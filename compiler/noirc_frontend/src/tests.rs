@@ -3448,6 +3448,34 @@ fn errors_on_unused_struct() {
 }
 
 #[test]
+fn errors_on_unused_trait() {
+    let src = r#"
+    trait Foo {}
+    trait Bar {}
+
+    pub struct Baz {
+    }
+
+    impl Bar for Baz {}
+
+    fn main() {
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "Foo");
+    assert_eq!(*item_type, "trait");
+}
+
+#[test]
 fn constrained_reference_to_unconstrained() {
     let src = r#"
     fn main(mut x: u32, y: pub u32) {
