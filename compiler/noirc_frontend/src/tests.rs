@@ -1565,11 +1565,11 @@ fn struct_numeric_generic_in_function() {
 #[test]
 fn struct_numeric_generic_in_struct() {
     let src = r#"
-    struct Foo {
+    pub struct Foo {
         inner: u64
     }
 
-    struct Bar<let N: Foo> { }
+    pub struct Bar<let N: Foo> { }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
@@ -1658,7 +1658,7 @@ fn numeric_generic_in_function_signature() {
 #[test]
 fn numeric_generic_as_struct_field_type() {
     let src = r#"
-    struct Foo<let N: u32> {
+    pub struct Foo<let N: u32> {
         a: Field,
         b: N,
     }
@@ -1674,7 +1674,7 @@ fn numeric_generic_as_struct_field_type() {
 #[test]
 fn normal_generic_as_array_length() {
     let src = r#"
-    struct Foo<N> {
+    pub struct Foo<N> {
         a: Field,
         b: [Field; N],
     }
@@ -1719,11 +1719,11 @@ fn numeric_generic_as_param_type() {
 #[test]
 fn numeric_generic_used_in_nested_type_fail() {
     let src = r#"
-    struct Foo<let N: u32> {
+    pub struct Foo<let N: u32> {
         a: Field,
         b: Bar<N>,
     }
-    struct Bar<N> {
+    pub struct Bar<N> {
         inner: N
     }
     "#;
@@ -1738,11 +1738,11 @@ fn numeric_generic_used_in_nested_type_fail() {
 #[test]
 fn normal_generic_used_in_nested_array_length_fail() {
     let src = r#"
-    struct Foo<N> {
+    pub struct Foo<N> {
         a: Field,
         b: Bar<N>,
     }
-    struct Bar<let N: u32> {
+    pub struct Bar<let N: u32> {
         inner: [Field; N]
     }
     "#;
@@ -1756,11 +1756,11 @@ fn numeric_generic_used_in_nested_type_pass() {
     // The order of these structs should not be changed to make sure
     // that we are accurately resolving all struct generics before struct fields
     let src = r#"
-    struct NestedNumeric<let N: u32> {
+    pub struct NestedNumeric<let N: u32> {
         a: Field,
         b: InnerNumeric<N>
     }
-    struct InnerNumeric<let N: u32> {
+    pub struct InnerNumeric<let N: u32> {
         inner: [u64; N],
     }    
     "#;
@@ -2721,7 +2721,7 @@ fn bit_not_on_untyped_integer() {
 #[test]
 fn duplicate_struct_field() {
     let src = r#"
-    struct Foo {
+    pub struct Foo {
         x: i32,
         x: i32,
     }

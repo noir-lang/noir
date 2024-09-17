@@ -134,7 +134,7 @@ mod tests {
         let src = r#"
         mod foo {
             mod bar {
-                struct SomeTypeInBar {}
+                pub struct SomeTypeInBar {}
             }
         }
 
@@ -144,7 +144,7 @@ mod tests {
         let expected = r#"
         mod foo {
             mod bar {
-                struct SomeTypeInBar {}
+                pub struct SomeTypeInBar {}
             }
         }
 
