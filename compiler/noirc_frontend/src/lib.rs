@@ -64,24 +64,4 @@ pub mod macros_api {
     };
     pub use crate::hir::{def_map::ModuleDefId, Context as HirContext};
     pub use crate::{StructType, Type};
-
-    /// Methods to process the AST before and after type checking
-    pub trait MacroProcessor {
-        /// Function to manipulate the AST before type checking has been completed.
-        fn process_untyped_ast(
-            &self,
-            ast: SortedModule,
-            crate_id: &CrateId,
-            file_id: FileId,
-            context: &HirContext,
-        ) -> Result<SortedModule, (MacroError, FileId)>;
-
-        /// Function to manipulate the AST after type checking has been completed.
-        /// The AST after type checking has been done is called the HIR.
-        fn process_typed_ast(
-            &self,
-            crate_id: &CrateId,
-            context: &mut HirContext,
-        ) -> Result<(), (MacroError, FileId)>;
-    }
 }
