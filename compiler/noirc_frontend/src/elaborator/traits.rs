@@ -229,6 +229,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     function: FuncId,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
+    let modifiers = interner.function_modifiers(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
 
@@ -267,6 +268,14 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     // issue an error for it here.
     if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
         let trait_fn_meta = interner.function_meta(trait_fn_id);
+        let trait_fn_modifiers = interner.function_modifiers(trait_fn_id);
+
+        if modifiers.is_unconstrained != trait_fn_modifiers.is_unconstrained {
+            let expected = trait_fn_modifiers.is_unconstrained;
+            let span = meta.name.location.span;
+            let item = method_name.to_string();
+            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, span });
+        }
 
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
