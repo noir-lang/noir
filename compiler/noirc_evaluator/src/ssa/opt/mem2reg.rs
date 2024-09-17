@@ -159,21 +159,11 @@ struct PerFuncLoadResultContext {
     load_instruction: InstructionId,
     /// Block of the load instruction that produced a given result
     block_id: BasicBlockId,
-    /// Instructions that use a given load result
-    instructions_using_result: Vec<(InstructionId, BasicBlockId)>,
-    /// Terminators that use a given load result
-    terminators_using_result: Vec<(TerminatorInstruction, BasicBlockId)>,
 }
 
 impl PerFuncLoadResultContext {
     fn new(load_instruction: InstructionId, block_id: BasicBlockId) -> Self {
-        Self {
-            uses: 0,
-            load_instruction,
-            block_id,
-            instructions_using_result: vec![],
-            terminators_using_result: vec![],
-        }
+        Self { uses: 0, load_instruction, block_id }
     }
 }
 

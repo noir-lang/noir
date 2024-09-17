@@ -421,7 +421,6 @@ fn compile_contract_inner(
     let mut functions = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
-
     for contract_function in &contract.functions {
         let function_id = contract_function.function_id;
         let is_entry_point = contract_function.is_entry_point;

@@ -235,7 +235,7 @@ impl FunctionBuilder {
         if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
             assert_eq!(
                 lhs_type, rhs_type,
-                "ICE - Binary instruction operands must have the same type {lhs} and {rhs}, {operator}"
+                "ICE - Binary instruction operands must have the same type"
             );
         }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
