@@ -71,9 +71,8 @@ impl Type {
                     if let Some(result) = op.function(constant, new_constant) {
                         constant = result;
                     } else {
-                        *sorted
-                            .entry(Type::Constant(new_constant, new_constant_kind))
-                            .or_default() += 1;
+                        let constant = Type::Constant(new_constant, new_constant_kind);
+                        *sorted.entry(constant).or_default() += 1;
                     }
                 }
                 other => {
