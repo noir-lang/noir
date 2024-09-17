@@ -32,7 +32,7 @@ impl From<MonomorphizationError> for FileDiagnostic {
         let location = error.location();
         let call_stack = vec![location];
         let diagnostic = error.into_diagnostic();
-        diagnostic.in_file(location.file).with_call_stack(call_stack)
+        diagnostic.with_call_stack(call_stack).in_file(location.file)
     }
 }
 
