@@ -76,7 +76,7 @@
 //! - For each load address we store the number of loads from a given address,
 //!   the last load instruction from a given address across all blocks, and the respective block id of that instruction.
 //! - A mapping of each load result to its number of uses, the load instruction that produced the given result, and the respective block id of that instruction.
-//! - A set of the references passed into a call of another function entry point.
+//! - A set of the references and their aliases passed as an argument to a call.
 //! - Maps the references which have been aliased to the instructions that aliased that reference.
 //! - As we go through each instruction, if a load result has been used we increment its usage counter.
 //!   Upon removing an instruction, we decrement the load result counter.
