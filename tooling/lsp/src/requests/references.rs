@@ -16,7 +16,7 @@ pub(crate) fn on_references_request(
         find_all_references_in_workspace(
             args.location,
             args.interner,
-            args.interners,
+            args.package_cache,
             args.files,
             include_declaration,
             true,

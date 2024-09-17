@@ -22,7 +22,7 @@ use crate::{cmp::Eq, convert::From};
 /// assert(vector.len() == 5);
 /// assert(vector.max_len() == 10);
 /// ```
-struct BoundedVec<T, let MaxLen: u32> {
+pub struct BoundedVec<T, let MaxLen: u32> {
     storage: [T; MaxLen],
     len: u32,
 }

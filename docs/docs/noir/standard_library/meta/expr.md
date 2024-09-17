@@ -52,12 +52,40 @@ a slice containing each statement.
 
 If this expression is a boolean literal, return that literal.
 
+### as_cast
+
+#include_code as_cast noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a cast expression (`expr as type`), returns the casted
+expression and the type to cast to.
+
 ### as_comptime
 
 #include_code as_comptime noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a `comptime { stmt1; stmt2; ...; stmtN }` block,
 return each statement in the block.
+
+### as_constructor
+
+#include_code as_constructor noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a constructor `Type { field1: expr1, ..., fieldN: exprN }`,
+return the type and the fields.
+
+### as_for
+
+#include_code as_for noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a for statement over a single expression, return the identifier,
+the expression and the for loop body.
+
+### as_for_range
+
+#include_code as_for noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a for statement over a range, return the identifier,
+the range start, the range end and the for loop body.
 
 ### as_function_call
 
@@ -87,6 +115,12 @@ array and the index.
 
 If this expression is an integer literal, return the integer as a field
 as well as whether the integer is negative (true) or not (false).
+
+### as_lambda
+
+#include_code as_lambda noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a lambda, returns the parameters, return type and body.
 
 ### as_let
 

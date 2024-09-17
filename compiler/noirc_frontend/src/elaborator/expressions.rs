@@ -5,8 +5,8 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, ConstructorExpression, IfExpression, InfixExpression, Lambda,
-        UnresolvedTypeExpression,
+        ArrayLiteral, ConstructorExpression, IfExpression, InfixExpression, Lambda, UnaryOp,
+        UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -25,9 +25,9 @@ use crate::{
     macros_api::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirLiteral,
         HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, PrefixExpression,
+        MethodCallExpression, PrefixExpression, StatementKind,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
+    node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::Tokens,
     QuotedType, Shared, StructType, Type,
 };
@@ -67,6 +67,9 @@ impl<'context> Elaborator<'context> {
                 let expr = Expression::new(expr_kind.clone(), expr.span);
                 return self.elaborate_expression(expr);
             }
+            ExpressionKind::InternedStatement(id) => {
+                return self.elaborate_interned_statement_as_expr(id, expr.span);
+            }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
@@ -78,6 +81,29 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_location(id, expr.span, self.file);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
+    }
+
+    fn elaborate_interned_statement_as_expr(
+        &mut self,
+        id: InternedStatementKind,
+        span: Span,
+    ) -> (ExprId, Type) {
+        match self.interner.get_statement_kind(id) {
+            StatementKind::Expression(expr) | StatementKind::Semi(expr) => {
+                self.elaborate_expression(expr.clone())
+            }
+            StatementKind::Interned(id) => self.elaborate_interned_statement_as_expr(*id, span),
+            StatementKind::Error => {
+                let expr = Expression::new(ExpressionKind::Error, span);
+                self.elaborate_expression(expr)
+            }
+            other => {
+                let statement = other.to_string();
+                self.push_err(ResolverError::InvalidInternedStatementInExpr { statement, span });
+                let expr = Expression::new(ExpressionKind::Error, span);
+                self.elaborate_expression(expr)
+            }
+        }
     }
 
     pub(super) fn elaborate_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
@@ -248,10 +274,17 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
+        let rhs_span = prefix.rhs.span;
+
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
         let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
 
         let operator = prefix.operator;
+
+        if let UnaryOp::MutableReference = operator {
+            self.check_can_mutate(rhs, rhs_span);
+        }
+
         let expr =
             HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
         let expr_id = self.interner.push_expr(expr);
@@ -262,6 +295,26 @@ impl<'context> Elaborator<'context> {
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
+    }
+
+    fn check_can_mutate(&mut self, expr_id: ExprId, span: Span) {
+        let expr = self.interner.expression(&expr_id);
+        match expr {
+            HirExpression::Ident(hir_ident, _) => {
+                if let Some(definition) = self.interner.try_definition(hir_ident.id) {
+                    if !definition.mutable {
+                        self.push_err(TypeCheckError::CannotMutateImmutableVariable {
+                            name: definition.name.clone(),
+                            span,
+                        });
+                    }
+                }
+            }
+            HirExpression::MemberAccess(member_access) => {
+                self.check_can_mutate(member_access.lhs, span);
+            }
+            _ => (),
+        }
     }
 
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
@@ -436,11 +489,29 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&constructor.type_name, exclude_last_segment);
+        let span = constructor.typ.span;
 
-        let span = constructor.type_name.span();
-        let last_segment = constructor.type_name.last_segment();
+        // A constructor type can either be a Path or an interned UnresolvedType.
+        // We represent both as UnresolvedType (with Path being a Named UnresolvedType)
+        // and error if we don't get a Named path.
+        let mut typ = constructor.typ.typ;
+        if let UnresolvedTypeData::Interned(id) = typ {
+            typ = self.interner.get_unresolved_type_data(id).clone();
+        }
+        let UnresolvedTypeData::Named(mut path, generics, _) = typ else {
+            self.push_err(ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), span });
+            return (HirExpression::Error, Type::Error);
+        };
+
+        let last_segment = path.segments.last_mut().unwrap();
+        if !generics.ordered_args.is_empty() {
+            last_segment.generics = Some(generics.ordered_args);
+        }
+
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&path, exclude_last_segment);
+
+        let last_segment = path.last_segment();
         let is_self_type = last_segment.ident.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
@@ -448,10 +519,13 @@ impl<'context> Elaborator<'context> {
             let generics = typ.borrow().instantiate(self.interner);
             (typ, generics)
         } else {
-            match self.lookup_type_or_error(constructor.type_name) {
+            match self.lookup_type_or_error(path) {
                 Some(Type::Struct(r#type, struct_generics)) => (r#type, struct_generics),
                 Some(typ) => {
-                    self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
+                    self.push_err(ResolverError::NonStructUsedInConstructor {
+                        typ: typ.to_string(),
+                        span,
+                    });
                     return (HirExpression::Error, Type::Error);
                 }
                 None => return (HirExpression::Error, Type::Error),

@@ -143,9 +143,9 @@ pub(crate) fn rewrite(
             super::parenthesized(visitor, shape, span, *sub_expr)
         }
         ExpressionKind::Constructor(constructor) => {
-            let type_name = visitor.slice(span.start()..constructor.type_name.span().end());
-            let fields_span = visitor
-                .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
+            let type_name = visitor.slice(span.start()..constructor.typ.span.end());
+            let fields_span =
+                visitor.span_before(constructor.typ.span.end()..span.end(), Token::LeftBrace);
 
             visitor.format_struct_lit(type_name, fields_span, *constructor)
         }
@@ -177,6 +177,11 @@ pub(crate) fn rewrite(
         }
         ExpressionKind::Interned(_) => {
             unreachable!("ExpressionKind::Interned should only emitted by the comptime interpreter")
+        }
+        ExpressionKind::InternedStatement(_) => {
+            unreachable!(
+                "ExpressionKind::InternedStatement should only emitted by the comptime interpreter"
+            )
         }
         ExpressionKind::Unquote(expr) => {
             if matches!(&expr.kind, ExpressionKind::Variable(..)) {

@@ -55,7 +55,7 @@ pub enum ResolverError {
     #[error("Test functions are not allowed to have any parameters")]
     TestFunctionHasParameters { span: Span },
     #[error("Only struct types can be used in constructor expressions")]
-    NonStructUsedInConstructor { typ: Type, span: Span },
+    NonStructUsedInConstructor { typ: String, span: Span },
     #[error("Only struct types can have generics")]
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
@@ -130,6 +130,8 @@ pub enum ResolverError {
     ComptimeTypeInRuntimeCode { typ: String, span: Span },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, span: Span },
+    #[error("Failed to parse `{statement}` as an expression")]
+    InvalidInternedStatementInExpr { statement: String, span: Span },
 }
 
 impl ResolverError {
@@ -528,6 +530,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime variable `{name}` cannot be mutated in a non-comptime context"),
                     format!("`{name}` mutated here"),
+                    *span,
+                )
+            },
+            ResolverError::InvalidInternedStatementInExpr { statement, span } => {
+                Diagnostic::simple_error(
+                    format!("Failed to parse `{statement}` as an expression"),
+                    "The statement was used from a macro here".to_string(),
                     *span,
                 )
             },

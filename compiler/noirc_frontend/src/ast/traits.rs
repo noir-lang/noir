@@ -22,6 +22,7 @@ pub struct NoirTrait {
     pub span: Span,
     pub items: Vec<Documented<TraitItem>>,
     pub attributes: Vec<SecondaryAttribute>,
+    pub visibility: ItemVisibility,
 }
 
 /// Any declaration inside the body of a trait that a user is required to
