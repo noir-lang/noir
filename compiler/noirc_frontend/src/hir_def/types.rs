@@ -773,8 +773,7 @@ impl Type {
 
     pub fn type_variable(id: TypeVariableId) -> Type {
         let var = TypeVariable::unbound(id);
-        let type_var_kind = TypeVariableKind::Normal;
-        Type::TypeVariable(var, type_var_kind)
+        Type::TypeVariable(var, TypeVariableKind::Normal)
     }
 
     pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
