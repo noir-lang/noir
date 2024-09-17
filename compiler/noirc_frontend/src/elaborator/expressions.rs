@@ -10,6 +10,7 @@ use crate::{
     },
     hir::{
         comptime::{self, InterpreterError},
+        def_map::ModuleId,
         resolution::errors::ResolverError,
         type_check::{generics::TraitGenerics, TypeCheckError},
     },
@@ -532,6 +533,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
+        self.mark_struct_as_constructed(r#type.clone(), &last_segment.ident);
+
         let turbofish_span = last_segment.turbofish_span();
 
         let struct_generics = self.resolve_struct_turbofish_generics(
@@ -559,6 +562,15 @@ impl<'context> Elaborator<'context> {
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
+    }
+
+    fn mark_struct_as_constructed(&mut self, struct_type: Shared<StructType>, name: &Ident) {
+        let struct_module_id = struct_type.borrow().id.module_id();
+        let module_data = self.get_module(struct_module_id);
+        let parent_local_id = module_data.parent.expect("Expected struct module parent to exist");
+        let parent_module_id =
+            ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
+        self.interner.usage_tracker.mark_as_used(parent_module_id, name);
     }
 
     /// Resolve all the fields of a struct constructor expression.
