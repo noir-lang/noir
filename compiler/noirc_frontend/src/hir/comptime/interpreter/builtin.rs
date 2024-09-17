@@ -10,7 +10,7 @@ use builtin_helpers::{
     mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
-use chumsky::{chain::Chain, prelude::choice, Parser};
+use chumsky::{chain::Chain, prelude::choice, Parser, primitive::just};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -682,6 +682,7 @@ fn quoted_as_expr(
     let statement_parser = parser::fresh_statement().map(Value::statement);
     let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
     let parser = choice((expr_parser, statement_parser, lvalue_parser));
+    let parser = parser.then_ignore(just(Token::Semicolon).or_not());
 
     let expr = parse(argument, parser, "an expression").ok();
 
