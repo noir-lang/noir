@@ -10,7 +10,7 @@ use builtin_helpers::{
     mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
-use chumsky::{chain::Chain, prelude::choice, Parser, primitive::just};
+use chumsky::{chain::Chain, prelude::choice, primitive::just, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
