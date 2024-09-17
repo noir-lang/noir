@@ -194,7 +194,9 @@ fn check_trait_implementation_duplicate_method() {
         }
     }
     
-    fn main() {}";
+    fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
+    }";
 
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
@@ -235,6 +237,7 @@ fn check_trait_wrong_method_return_type() {
     }
     
     fn main() {
+        let _ = Foo {}; // silence Foo never constructed warning
     }
     ";
     let errors = get_program_errors(src);
@@ -277,6 +280,7 @@ fn check_trait_wrong_method_return_type2() {
     }
     
     fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
@@ -399,6 +403,7 @@ fn check_trait_wrong_method_name() {
     }
     
     fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
     let compilation_errors = get_program_errors(src);
     assert!(!has_parser_error(&compilation_errors));
@@ -638,7 +643,9 @@ fn check_impl_struct_not_trait() {
         }
     }
     
-    fn main() {}
+    fn main() {
+        let _ = Default { x: 1, z: 1 }; // silence Default never constructed warning
+    }
     ";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
@@ -717,6 +724,7 @@ fn check_trait_duplicate_implementation() {
     impl Default for Foo {
     }
     fn main() {
+        let _ = Foo { bar: 1 }; // silence Foo never constructed warning
     }
     ";
     let errors = get_program_errors(src);
@@ -755,6 +763,7 @@ fn check_trait_duplicate_implementation_with_alias() {
     }
     
     fn main() {
+        let _ = MyStruct {}; // silence MyStruct never constructed warning
     }
     ";
     let errors = get_program_errors(src);
@@ -1552,7 +1561,9 @@ fn struct_numeric_generic_in_function() {
         inner: u64
     }
 
-    pub fn bar<let N: Foo>() { }
+    pub fn bar<let N: Foo>() { 
+        let _ = Foo { inner: 1 }; // silence Foo never constructed warning
+    }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
@@ -1875,6 +1886,10 @@ fn constant_used_with_numeric_generic() {
             [self.value]
         }
     }
+
+    fn main() {
+        let _ = ValueNote {}; // silence ValueNote never constructed warning
+    }
     "#;
     assert_no_errors(src);
 }
@@ -1941,6 +1956,10 @@ fn implicit_numeric_generics_elaborator() {
             self.storage[self.len] = elem;
             self.len += 1;
         }
+    }
+
+    fn main() {
+        let _ = BoundedVec { storage: [1], len: 1 }; // silence never constructed warning
     }
     "#;
     let errors = get_program_errors(src);
@@ -2018,6 +2037,10 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
         fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
         }
+    }
+
+    fn main() {
+        let _ = MyType { a: 1, b: 1 }; // silence MyType never constructed warning
     }
     "#;
 
@@ -2109,6 +2132,10 @@ fn impl_stricter_than_trait_different_object_generics() {
 
         fn tuple_bad<B>() where (Option<B>, Option<A>): MyTrait { }
     }
+
+    fn main() {
+        let _ = OtherOption { inner: Option { inner: 1 } }; // silence unused warnings
+    }
     "#;
 
     let errors = get_program_errors(src);
@@ -2170,6 +2197,10 @@ fn impl_stricter_than_trait_different_trait() {
         // types are the same.
         fn bar<B>() where Option<A>: OtherDefault {}
     }
+
+    fn main() {
+        let _ = Option { inner: 1 }; // silence Option never constructed warning
+    }
     "#;
 
     let errors = get_program_errors(src);
@@ -2206,6 +2237,10 @@ fn trait_impl_where_clause_stricter_pass() {
         fn good_foo<A, B>() where B: OtherTrait { }
 
         fn bad_foo<A, B>() where A: OtherTrait { }
+    }
+    
+    fn main() {
+        let _ = Option { inner: 1 }; // silence Option never constructed warning
     }
     "#;
 
@@ -2291,6 +2326,10 @@ fn impl_not_found_for_inner_impl() {
         fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
         }
+    }
+
+    fn main() {
+        let _ = MyType { a: 1, b: 1 }; // silence MyType never constructed warning
     }
     "#;
 
@@ -2910,7 +2949,9 @@ fn incorrect_generic_count_on_struct_impl() {
     let src = r#"
     struct Foo {}
     impl <T> Foo<T> {}
-    fn main() {}
+    fn main() {
+        let _ = Foo {}; // silence Foo never constructed warning
+    }
     "#;
 
     let errors = get_program_errors(src);
@@ -2932,7 +2973,9 @@ fn incorrect_generic_count_on_type_alias() {
     let src = r#"
     pub struct Foo {}
     pub type Bar = Foo<i32>;
-    fn main() {}
+    fn main() {
+        let _ = Foo {}; // silence Foo never constructed warning
+    }
     "#;
 
     let errors = get_program_errors(src);
@@ -2964,7 +3007,9 @@ fn uses_self_type_for_struct_function_call() {
         }
     }
 
-    fn main() {}
+    fn main() {
+        let _ = S {}; // silence S never constructed warning
+    }
     "#;
     assert_no_errors(src);
 }
@@ -3014,7 +3059,9 @@ fn uses_self_type_in_trait_where_clause() {
 
     }
 
-    fn main() {}
+    fn main() {
+        let _ = Bar {}; // silence Bar never constructed warning
+    }
     "#;
 
     let errors = get_program_errors(src);
@@ -3174,6 +3221,8 @@ fn as_trait_path_syntax_resolves_outside_impl() {
         // AsTraitPath syntax is a bit silly when associated types
         // are explicitly specified
         let _: i64 = 1 as <Bar as Foo<Assoc = i32>>::Assoc;
+
+        let _ = Bar {}; // silence Bar never constructed warning
     }
     "#;
 
@@ -3205,6 +3254,8 @@ fn as_trait_path_syntax_no_impl() {
 
     fn main() {
         let _: i64 = 1 as <Bar as Foo<Assoc = i8>>::Assoc;
+
+        let _ = Bar {}; // silence Bar never constructed warning
     }
     "#;
 
