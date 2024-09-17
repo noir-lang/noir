@@ -3424,6 +3424,30 @@ fn errors_on_unused_function() {
 }
 
 #[test]
+fn errors_on_unused_struct() {
+    let src = r#"
+    struct Foo {}
+    struct Bar {}
+
+    fn main() {
+        let _ = Bar {};
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "Foo");
+    assert_eq!(*item_type, "struct");
+}
+
+#[test]
 fn constrained_reference_to_unconstrained() {
     let src = r#"
     fn main(mut x: u32, y: pub u32) {

@@ -979,6 +979,15 @@ pub fn collect_struct(
     let visibility = unresolved.struct_def.visibility;
     let result = def_map.modules[module_id.0].declare_struct(name.clone(), visibility, id);
 
+    let parent_module_id = ModuleId { krate, local_id: module_id };
+
+    interner.usage_tracker.add_unused_item(
+        parent_module_id,
+        name.clone(),
+        UnusedItem::Struct(id),
+        visibility,
+    );
+
     if let Err((first_def, second_def)) = result {
         let error = DefCollectorErrorKind::Duplicate {
             typ: DuplicateType::TypeDefinition,
@@ -989,7 +998,6 @@ pub fn collect_struct(
     }
 
     if interner.is_in_lsp_mode() {
-        let parent_module_id = ModuleId { krate, local_id: module_id };
         interner.register_struct(id, name.to_string(), parent_module_id);
     }
 

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{Ident, ItemVisibility},
     hir::def_map::ModuleId,
+    macros_api::StructId,
     node_interner::FuncId,
 };
 
@@ -10,6 +11,7 @@ use crate::{
 pub enum UnusedItem {
     Import,
     Function(FuncId),
+    Struct(StructId),
 }
 
 impl UnusedItem {
@@ -17,6 +19,7 @@ impl UnusedItem {
         match self {
             UnusedItem::Import => "import",
             UnusedItem::Function(_) => "function",
+            UnusedItem::Struct(_) => "struct",
         }
     }
 }
