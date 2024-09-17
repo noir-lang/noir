@@ -96,11 +96,8 @@ impl Type {
             }
 
             if constant != zero_value {
-                typ = Type::InfixExpr(
-                    Box::new(typ),
-                    op,
-                    Box::new(Type::Constant(constant, lhs.infix_kind(rhs))),
-                );
+                let constant = Type::Constant(constant, lhs.infix_kind(rhs));
+                typ = Type::InfixExpr(Box::new(typ), op, Box::new(constant));
             }
 
             typ
