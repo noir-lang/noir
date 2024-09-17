@@ -314,6 +314,7 @@ impl<'a> ModCollector<'a> {
             let doc_comments = type_alias.doc_comments;
             let type_alias = type_alias.item;
             let name = type_alias.name.clone();
+            let visibility = type_alias.visibility;
 
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
             let unresolved = UnresolvedTypeAlias {
@@ -335,8 +336,11 @@ impl<'a> ModCollector<'a> {
             context.def_interner.set_doc_comments(ReferenceId::Alias(type_alias_id), doc_comments);
 
             // Add the type alias to scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_type_alias(name.clone(), type_alias_id);
+            let result = self.def_collector.def_map.modules[self.module_id.0].declare_type_alias(
+                name.clone(),
+                visibility,
+                type_alias_id,
+            );
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
@@ -533,7 +537,11 @@ impl<'a> ModCollector<'a> {
                     TraitItem::Type { name } => {
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [trait_id.0.local_id.0]
-                            .declare_type_alias(name.clone(), TypeAliasId::dummy_id())
+                            .declare_type_alias(
+                                name.clone(),
+                                ItemVisibility::Public,
+                                TypeAliasId::dummy_id(),
+                            )
                         {
                             let error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedType,
