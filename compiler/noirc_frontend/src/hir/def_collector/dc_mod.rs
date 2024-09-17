@@ -976,7 +976,8 @@ pub fn collect_struct(
     }
 
     // Add the struct to scope so its path can be looked up later
-    let result = def_map.modules[module_id.0].declare_struct(name.clone(), id);
+    let visibility = unresolved.struct_def.visibility;
+    let result = def_map.modules[module_id.0].declare_struct(name.clone(), visibility, id);
 
     if let Err((first_def, second_def)) = result {
         let error = DefCollectorErrorKind::Duplicate {
