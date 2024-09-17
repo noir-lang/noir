@@ -676,7 +676,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
-            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
+            Type::Constant(x, _kind) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
