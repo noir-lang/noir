@@ -289,6 +289,7 @@ impl<'f> Context<'f> {
                 }
             }
         }
+        self.inserter.map_data_bus_in_place();
     }
 
     /// Returns the updated condition so that
