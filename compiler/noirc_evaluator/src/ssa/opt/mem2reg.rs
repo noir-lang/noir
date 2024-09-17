@@ -45,8 +45,6 @@
 //! - To further catch any stores to references which are never loaded, we can count the number of stores
 //!   that were removed in the previous step. If there is only a single store leftover, we can safely map
 //!   the value of this final store to any loads of that store.
-//!   
-//! - Throughout the pass we also collect information about loads and stores
 //!
 //! From there, to figure out the value of each reference at the end of block, iterate each instruction:
 //! - On `Instruction::Allocate`:
