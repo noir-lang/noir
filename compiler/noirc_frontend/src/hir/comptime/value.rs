@@ -554,6 +554,7 @@ fn parse_tokens<T>(
     parser: impl NoirParser<T>,
     location: Location,
 ) -> IResult<T> {
+    let parser = parser.then_ignore(chumsky::primitive::end());
     match parser.parse(add_token_spans(tokens.clone(), location.span)) {
         Ok(expr) => Ok(expr),
         Err(mut errors) => {

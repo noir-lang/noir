@@ -4,6 +4,7 @@ use std::{hash::Hasher, rc::Rc};
 use acvm::FieldElement;
 use noirc_errors::Location;
 
+use crate::lexer::Lexer;
 use crate::{
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
@@ -392,11 +393,21 @@ pub(super) fn check_function_not_yet_resolved(
     }
 }
 
+pub(super) fn lex(input: &str) -> Vec<Token> {
+    let (tokens, _) = Lexer::lex(input);
+    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
+    if let Some(Token::EOF) = tokens.last() {
+        tokens.pop();
+    }
+    tokens
+}
+
 pub(super) fn parse<T>(
     (value, location): (Value, Location),
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
+    let parser = parser.then_ignore(chumsky::primitive::end());
     let tokens = get_quoted((value, location))?;
     let quoted = add_token_spans(tokens.clone(), location.span);
     parse_tokens(tokens, quoted, location, parser, rule)
