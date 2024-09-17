@@ -514,7 +514,7 @@ fn check_trait_wrong_parameter2() {
 #[test]
 fn check_trait_wrong_parameter_type() {
     let src = "
-    trait Default {
+    pub trait Default {
         fn default(x: Field, y: NotAType) -> Field;
     }
     
@@ -2996,11 +2996,11 @@ fn uses_self_type_inside_trait() {
 #[test]
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
-    trait Trait {
+    pub trait Trait {
         fn trait_func() -> bool;
     }
 
-    trait Foo where Self: Trait {
+    pub trait Foo where Self: Trait {
         fn foo(self) -> bool {
             self.trait_func()
         }
@@ -3222,7 +3222,7 @@ fn errors_on_unused_private_import() {
         pub fn bar() {}
         pub fn baz() {}
 
-        trait Foo {
+        pub trait Foo {
         }
     }
 
@@ -3258,7 +3258,7 @@ fn errors_on_unused_pub_crate_import() {
         pub fn bar() {}
         pub fn baz() {}
 
-        trait Foo {
+        pub trait Foo {
         }
     }
 
