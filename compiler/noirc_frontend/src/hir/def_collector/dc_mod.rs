@@ -342,6 +342,14 @@ impl<'a> ModCollector<'a> {
                 type_alias_id,
             );
 
+            let parent_module_id = ModuleId { krate, local_id: self.module_id };
+            context.def_interner.usage_tracker.add_unused_item(
+                parent_module_id,
+                name.clone(),
+                UnusedItem::TypeAlias(type_alias_id),
+                visibility,
+            );
+
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
                     typ: DuplicateType::Function,
