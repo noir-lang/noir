@@ -1888,7 +1888,7 @@ fn constant_used_with_numeric_generic() {
     }
 
     fn main() {
-        let _ = ValueNote {}; // silence ValueNote never constructed warning
+        let _ = ValueNote { value: 1 }; // silence ValueNote never constructed warning
     }
     "#;
     assert_no_errors(src);
