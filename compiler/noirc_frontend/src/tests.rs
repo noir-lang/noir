@@ -2931,7 +2931,7 @@ fn incorrect_generic_count_on_struct_impl() {
 fn incorrect_generic_count_on_type_alias() {
     let src = r#"
     struct Foo {}
-    type Bar = Foo<i32>;
+    pub type Bar = Foo<i32>;
     fn main() {}
     "#;
 
