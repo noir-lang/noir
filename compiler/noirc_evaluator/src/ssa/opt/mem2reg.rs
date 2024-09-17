@@ -600,33 +600,27 @@ impl<'f> PerFunctionContext<'f> {
     /// We collect state about any final loads and stores to a given address during the initial mem2reg pass.
     /// We can then utilize this state to clean up any loads and stores that may have been missed.
     fn cleanup_function(&mut self) {
-        let mut all_terminator_values = HashSet::default();
-        for (block_id, _) in self.blocks.iter() {
-            let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-            terminator.for_each_value(|value| {
-                self.recursively_add_values(value, &mut all_terminator_values);
-            });
-        }
-
         // Removing remaining unused loads during mem2reg can help expose removable stores that the initial
         // mem2reg pass deemed we could not remove due to the existence of those unused loads.
         let removed_loads = self.remove_unused_loads();
-        let remaining_last_stores =
-            self.remove_unloaded_last_stores(&removed_loads, &all_terminator_values);
-        self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
+        let remaining_last_stores = self.remove_unloaded_last_stores(&removed_loads);
+        let stores_were_removed =
+            self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
 
-        // After possibly removing some instructions we need to map all the instructions
-        // TODO: Add a check whether any loads were actually removed where we actually need to map values
-        let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
-        block_order.reverse();
-        for block in block_order {
-            let instructions = self.inserter.function.dfg[block].take_instructions();
-            for instruction in instructions {
-                if !self.instructions_to_remove.contains(&instruction) {
-                    self.inserter.push_instruction(instruction, block);
+        // When removing some last loads with the last stores we will map the load result to the store value.
+        // We need to then map all the instructions again as we do not know which instructions are reliant on the load result.
+        if stores_were_removed {
+            let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
+            block_order.reverse();
+            for block in block_order {
+                let instructions = self.inserter.function.dfg[block].take_instructions();
+                for instruction in instructions {
+                    if !self.instructions_to_remove.contains(&instruction) {
+                        self.inserter.push_instruction(instruction, block);
+                    }
                 }
+                self.inserter.map_terminator_in_place(block);
             }
-            self.inserter.map_terminator_in_place(block);
         }
     }
 
@@ -679,12 +673,17 @@ impl<'f> PerFunctionContext<'f> {
     fn remove_unloaded_last_stores(
         &mut self,
         removed_loads: &HashMap<ValueId, u32>,
-        all_terminator_values: &HashSet<ValueId>,
     ) -> HashMap<ValueId, (InstructionId, u32)> {
+        let mut all_terminator_values = HashSet::default();
         let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
         for (block_id, _) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
+
+            let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
+            terminator.for_each_value(|value| {
+                self.recursively_add_values(value, &mut all_terminator_values);
+            });
         }
 
         let mut remaining_last_stores: HashMap<ValueId, (InstructionId, u32)> = HashMap::default();
@@ -704,7 +703,7 @@ impl<'f> PerFunctionContext<'f> {
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
-                    all_terminator_values,
+                    &all_terminator_values,
                     &per_func_block_params,
                 );
 
@@ -823,11 +822,13 @@ impl<'f> PerFunctionContext<'f> {
     }
 
     /// Check if any remaining last stores are only used in a single load
+    /// Returns true if any stores were removed.
     fn remove_remaining_last_stores(
         &mut self,
         removed_loads: &HashMap<ValueId, u32>,
         remaining_last_stores: &HashMap<ValueId, (InstructionId, u32)>,
-    ) {
+    ) -> bool {
+        let mut stores_were_removed = false;
         // Filter out any still in use load results and any load results that do not contain addresses from the remaining last stores
         self.load_results.retain(|_, PerFuncLoadResultContext { load_instruction, uses, .. }| {
             let Instruction::Load { address } = self.inserter.function.dfg[*load_instruction]
@@ -875,8 +876,11 @@ impl<'f> PerFunctionContext<'f> {
                 // as we do not know what instructions depend upon this result
                 self.inserter.map_value(*result, value);
                 self.instructions_to_remove.insert(context.load_instruction);
+
+                stores_were_removed = true;
             }
         }
+        stores_were_removed
     }
 }
 
