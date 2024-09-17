@@ -76,6 +76,8 @@ unconstrained fn func(input: u32) {
     assert(**ref == 2);
 }
 
+// This test aims to allocate a reference which is aliased and only accessed through its alias
+// across multiple blocks. We want to guarantee that this allocation is not removed.
 fn main(input: [Field; 4], randomness: Field, context_input: u32) {
     let b = [context_input, context_input, context_input];
     let mut context = Context { a: context_input, b, log_hashes: BoundedVec::new() };
