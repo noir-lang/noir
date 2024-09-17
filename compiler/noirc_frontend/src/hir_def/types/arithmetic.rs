@@ -219,11 +219,8 @@ impl Type {
                     None
                 } else {
                     let result = op.function(l_const, r_const)?;
-                    Some(Type::InfixExpr(
-                        l_type,
-                        l_op,
-                        Box::new(Type::Constant(result, lhs.infix_kind(rhs))),
-                    ))
+                    let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
+                    Some(Type::InfixExpr(l_type, l_op, constant))
                 }
             }
             _ => None,
