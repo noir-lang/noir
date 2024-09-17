@@ -7,7 +7,7 @@ global N: u32 = 5;
 global T_LEN: u32 = 2;
 
 // Globals can reference other globals
-global DERIVED: Field = (M as Field) + L;
+global DERIVED: Field = M as Field + L;
 
 struct Dummy {
      x: [Field; N],
