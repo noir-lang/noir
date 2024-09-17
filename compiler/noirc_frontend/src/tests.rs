@@ -2930,7 +2930,7 @@ fn incorrect_generic_count_on_struct_impl() {
 #[test]
 fn incorrect_generic_count_on_type_alias() {
     let src = r#"
-    struct Foo {}
+    pub struct Foo {}
     pub type Bar = Foo<i32>;
     fn main() {}
     "#;
