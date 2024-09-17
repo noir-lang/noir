@@ -126,7 +126,7 @@ pub fn mimc_bn254<let N: u32>(array: [Field; N]) -> Field {
     r
 }
 
-struct MimcHasher {
+pub struct MimcHasher {
     _state: [Field],
 }
 

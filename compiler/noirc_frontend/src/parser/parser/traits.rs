@@ -4,6 +4,7 @@ use super::attributes::{attributes, validate_secondary_attributes};
 use super::doc_comments::outer_doc_comments;
 use super::function::{function_modifiers, function_return_type};
 use super::path::path_no_turbofish;
+use super::visibility::item_visibility;
 use super::{
     block, expression, fresh_statement, function, function_declaration_parameters, let_statement,
 };
@@ -42,22 +43,26 @@ pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatementKind> {
         });
 
     attributes()
+        .then(item_visibility())
         .then_ignore(keyword(Keyword::Trait))
         .then(ident())
         .then(function::generics())
         .then(where_clause())
         .then(trait_body_or_error)
-        .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
-            let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatementKind::Trait(NoirTrait {
-                name,
-                generics,
-                where_clause,
-                span,
-                items,
-                attributes,
-            })
-        })
+        .validate(
+            |(((((attributes, visibility), name), generics), where_clause), items), span, emit| {
+                let attributes = validate_secondary_attributes(attributes, span, emit);
+                TopLevelStatementKind::Trait(NoirTrait {
+                    name,
+                    generics,
+                    where_clause,
+                    span,
+                    items,
+                    attributes,
+                    visibility,
+                })
+            },
+        )
 }
 
 fn trait_body() -> impl NoirParser<Vec<Documented<TraitItem>>> {

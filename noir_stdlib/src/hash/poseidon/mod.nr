@@ -5,7 +5,7 @@ use crate::default::Default;
 // A config struct defining the parameters of the Poseidon instance to use.
 //
 // A thorough writeup of this method (along with an unoptimized method) can be found at: https://spec.filecoin.io/algorithms/crypto/poseidon/
-struct PoseidonConfig<let T: u32, let N: u32, let X: u32> { 
+pub struct PoseidonConfig<let T: u32, let N: u32, let X: u32> { 
     // State width, should be equal to `T`
     t: Field,
     // Number of full rounds. should be even
@@ -165,7 +165,7 @@ fn sigma<let O: u32>(x: [Field; O]) -> [Field; O] {
     y
 }
 
-struct PoseidonHasher{
+pub struct PoseidonHasher{
     _state: [Field],
 }
 

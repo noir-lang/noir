@@ -518,11 +518,6 @@ pub enum TypeVariableKind {
     /// A generic integer type. This is a more specific kind of TypeVariable
     /// that can only be bound to Type::Integer, or other polymorphic integers.
     Integer,
-
-    /// A potentially constant array size. This will only bind to itself or
-    /// Type::Constant(n) with a matching size. This defaults to Type::Constant(n) if still unbound
-    /// during monomorphization.
-    Constant(u32),
 }
 
 /// A TypeVariable is a mutable reference that is either
@@ -642,14 +637,6 @@ impl std::fmt::Display for Type {
                     // what they bind to by default anyway. It is less confusing than displaying it
                     // as a generic.
                     write!(f, "Field")
-                } else {
-                    write!(f, "{}", binding.borrow())
-                }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
-                if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    // TypeVariableKind::Constant(n) binds to Type::Constant(n) by default, so just show that.
-                    write!(f, "{n}")
                 } else {
                     write!(f, "{}", binding.borrow())
                 }
@@ -788,17 +775,6 @@ impl Type {
         let var = TypeVariable::unbound(id);
         let type_var_kind = TypeVariableKind::Normal;
         Type::TypeVariable(var, type_var_kind)
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/6052): constant_variable and
-    // TODO: TypeVariableKind::Constant are unused
-    /// Returns a TypeVariable(_, TypeVariableKind::Constant(length)) to bind to
-    /// a constant integer for e.g. an array length.
-    pub fn constant_variable(length: u32, interner: &mut NodeInterner) -> Type {
-        let id = interner.next_type_variable_id();
-        let kind = TypeVariableKind::Constant(length);
-        let var = TypeVariable::unbound(id);
-        Type::TypeVariable(var, kind)
     }
 
     pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
@@ -1248,65 +1224,6 @@ impl Type {
         }
     }
 
-    /// Try to bind a MaybeConstant variable to self, succeeding if self is a Constant,
-    /// MaybeConstant, or type variable. If successful, the binding is placed in the
-    /// given TypeBindings map rather than linked immediately.
-    fn try_bind_to_maybe_constant(
-        &self,
-        var: &TypeVariable,
-        target_length: u32,
-        bindings: &mut TypeBindings,
-    ) -> Result<(), UnificationError> {
-        let target_id = match &*var.borrow() {
-            TypeBinding::Bound(_) => unreachable!(),
-            TypeBinding::Unbound(id) => *id,
-        };
-
-        let this = self.substitute(bindings).follow_bindings();
-
-        match &this {
-            Type::Constant(length, _kind) if *length == target_length => {
-                bindings.insert(target_id, (var.clone(), this));
-                Ok(())
-            }
-            // A TypeVariable is less specific than a MaybeConstant, so we bind
-            // to the other type variable instead.
-            Type::TypeVariable(new_var, kind) => {
-                let borrow = new_var.borrow();
-                match &*borrow {
-                    TypeBinding::Bound(typ) => {
-                        typ.try_bind_to_maybe_constant(var, target_length, bindings)
-                    }
-                    // Avoid infinitely recursive bindings
-                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
-                    TypeBinding::Unbound(new_target_id) => match kind {
-                        TypeVariableKind::Normal => {
-                            let clone = Type::TypeVariable(
-                                var.clone(),
-                                TypeVariableKind::Constant(target_length),
-                            );
-                            bindings.insert(*new_target_id, (new_var.clone(), clone));
-                            Ok(())
-                        }
-                        TypeVariableKind::Constant(length) if *length == target_length => {
-                            let clone = Type::TypeVariable(
-                                var.clone(),
-                                TypeVariableKind::Constant(target_length),
-                            );
-                            bindings.insert(*new_target_id, (new_var.clone(), clone));
-                            Ok(())
-                        }
-                        // *length != target_length
-                        TypeVariableKind::Constant(_) => Err(UnificationError),
-                        TypeVariableKind::IntegerOrField => Err(UnificationError),
-                        TypeVariableKind::Integer => Err(UnificationError),
-                    },
-                }
-            }
-            _ => Err(UnificationError),
-        }
-    }
-
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
@@ -1496,12 +1413,6 @@ impl Type {
                     other.try_bind_to(var, bindings)
                 })
             }
-
-            (TypeVariable(var, Kind::Constant(length)), other)
-            | (other, TypeVariable(var, Kind::Constant(length))) => other
-                .try_unify_to_type_variable(var, bindings, |bindings| {
-                    other.try_bind_to_maybe_constant(var, *length, bindings)
-                }),
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 len_a.try_unify(len_b, bindings)?;
@@ -1775,7 +1686,6 @@ impl Type {
         }
 
         match self.canonicalize() {
-            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(size),
             Type::Array(len, _elem) => len.evaluate_to_u32(),
             Type::Constant(x, _) => Some(x),
             Type::InfixExpr(lhs, op, rhs) => {
@@ -2341,7 +2251,6 @@ impl TypeVariableKind {
         match self {
             TypeVariableKind::IntegerOrField => Some(Type::default_int_or_field_type()),
             TypeVariableKind::Integer => Some(Type::default_int_type()),
-            TypeVariableKind::Constant(length) => Some(Type::Constant(*length, Kind::u32())),
             TypeVariableKind::Normal => None,
         }
     }
@@ -2442,9 +2351,6 @@ impl std::fmt::Debug for Type {
             }
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
                 write!(f, "Int{:?}", binding)
-            }
-            Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
-                write!(f, "{}{:?}", n, binding)
             }
             Type::Struct(s, args) => {
                 let args = vecmap(args, |arg| format!("{:?}", arg));

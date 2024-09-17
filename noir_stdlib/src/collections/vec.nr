@@ -1,4 +1,4 @@
-struct Vec<T> { 
+pub struct Vec<T> { 
     slice: [T]
 }
 // A mutable vector type implemented as a wrapper around immutable slices.

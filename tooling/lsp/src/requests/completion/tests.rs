@@ -176,7 +176,7 @@ mod completion_tests {
     async fn test_use_struct() {
         let src = r#"
             mod foo {
-                struct Foo {}
+                pub struct Foo {}
             }
             use foo::>|<
         "#;

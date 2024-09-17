@@ -463,3 +463,13 @@ impl Default for Wrapper {
 Since we have an impl for our own type, the behavior of this code will not change even if `some_library` is updated
 to provide its own `impl Default for Foo`. The downside of this pattern is that it requires extra wrapping and
 unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
+
+### Visibility
+
+By default, like functions, traits are private to the module the exist in. You can use `pub`
+to make the trait public or `pub(crate)` to make it public to just its crate:
+
+```rust
+// This trait is now public
+pub trait Trait {}
+```

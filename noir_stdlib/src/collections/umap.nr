@@ -11,7 +11,7 @@ use crate::hash::{Hash, Hasher, BuildHasher};
 //
 // Compared to the constrained HashMap type, UHashMap can grow automatically
 // as needed and is more efficient since it can break out of loops early.
-struct UHashMap<K, V, B> {
+pub struct UHashMap<K, V, B> {
     _table: [Slot<K, V>],
 
     // Amount of valid elements in the map.
