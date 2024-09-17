@@ -2742,8 +2742,8 @@ fn duplicate_struct_field() {
     assert_eq!(first_def.to_string(), "x");
     assert_eq!(second_def.to_string(), "x");
 
-    assert_eq!(first_def.span().start(), 26);
-    assert_eq!(second_def.span().start(), 42);
+    assert_eq!(first_def.span().start(), 30);
+    assert_eq!(second_def.span().start(), 46);
 }
 
 #[test]
