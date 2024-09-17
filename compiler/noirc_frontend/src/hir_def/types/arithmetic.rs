@@ -206,11 +206,8 @@ impl Type {
                     op = op.inverse()?;
                 }
                 let result = op.function(l_const, r_const)?;
-                Some(Type::InfixExpr(
-                    l_type,
-                    l_op,
-                    Box::new(Type::Constant(result, lhs.infix_kind(rhs))),
-                ))
+                let constant = Type::Constant(result, lhs.infix_kind(rhs));
+                Some(Type::InfixExpr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication | Division, Multiplication | Division) => {
                 // If l_op is a division we want to inverse the rhs operator.
