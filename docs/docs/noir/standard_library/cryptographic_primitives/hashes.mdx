@@ -144,7 +144,7 @@ fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field
 otherwise, use the `mimc_bn254` method:
 
 ```rust
-fn mimc_bn254<N>(array: [Field; N]) -> Field
+fn mimc_bn254<let N: u32>(array: [Field; N]) -> Field
 ```
 
 example:

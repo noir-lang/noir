@@ -2,7 +2,7 @@ use crate::meta::derive_via;
 
 #[derive_via(derive_eq)]
 // docs:start:eq-trait
-trait Eq {
+pub trait Eq {
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
@@ -150,7 +150,7 @@ impl Eq for Ordering {
 
 // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
 // that has 3 public functions for constructing the struct.
-struct Ordering {
+pub struct Ordering {
     result: Field,
 }
 
@@ -173,7 +173,7 @@ impl Ordering {
 
 #[derive_via(derive_ord)]
 // docs:start:ord-trait
-trait Ord {
+pub trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait

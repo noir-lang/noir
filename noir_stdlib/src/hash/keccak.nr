@@ -2,7 +2,7 @@ use crate::collections::vec::Vec;
 use crate::runtime::is_unconstrained;
 
 global LIMBS_PER_BLOCK = 17; //BLOCK_SIZE / 8;
-global NUM_KECCAK_LANES = 25;
+global NUM_KECCAK_LANES: u32 = 25;
 global BLOCK_SIZE = 136; //(1600 - BITS * 2) / WORD_SIZE;
 global WORD_SIZE = 8;
 
@@ -77,7 +77,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     }
 
     //2. sponge_absorb
-    let mut state : [u64;NUM_KECCAK_LANES]= [0; NUM_KECCAK_LANES];
+    let mut state : [u64; NUM_KECCAK_LANES]= [0; NUM_KECCAK_LANES];
     // When in an unconstrained runtime we can take advantage of runtime loop bounds,
     // thus allowing us to simplify the loop body.
     if is_unconstrained() {

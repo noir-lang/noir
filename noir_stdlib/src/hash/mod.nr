@@ -140,7 +140,7 @@ pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32)
 
 // Hash trait shall be implemented per type.
 #[derive_via(derive_hash)]
-trait Hash {
+pub trait Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher;
 }
 
@@ -155,18 +155,18 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
 // TODO: consider making the types generic here ([u8], [Field], etc.)
-trait Hasher{
+pub trait Hasher {
     fn finish(self) -> Field;
     
     fn write(&mut self, input: Field);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-trait BuildHasher<H> where H: Hasher{
+pub trait BuildHasher<H> where H: Hasher {
     fn build_hasher(self) -> H;
 }
 
-struct BuildHasherDefault<H>;
+pub struct BuildHasherDefault<H>;
 
 impl<H> BuildHasher<H> for BuildHasherDefault<H>
 where 

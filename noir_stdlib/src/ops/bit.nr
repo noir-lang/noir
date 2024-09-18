@@ -1,5 +1,5 @@
 // docs:start:not-trait
-trait Not {
+pub trait Not {
     fn not(self: Self) -> Self;
 }
 // docs:end:not-trait
@@ -60,7 +60,7 @@ impl Not for i64 {
 // docs:end:not-trait-impls
 
 // docs:start:bitor-trait
-trait BitOr {
+pub trait BitOr {
     fn bitor(self, other: Self) -> Self;
 }
 // docs:end:bitor-trait
@@ -119,7 +119,7 @@ impl BitOr for i64 {
 }
 
 // docs:start:bitand-trait
-trait BitAnd {
+pub trait BitAnd {
     fn bitand(self, other: Self) -> Self;
 }
 // docs:end:bitand-trait
@@ -178,7 +178,7 @@ impl BitAnd for i64 {
 }
 
 // docs:start:bitxor-trait
-trait BitXor {
+pub trait BitXor {
     fn bitxor(self, other: Self) -> Self;
 }
 // docs:end:bitxor-trait
@@ -237,7 +237,7 @@ impl BitXor for i64 {
 }
 
 // docs:start:shl-trait
-trait Shl {
+pub trait Shl {
     fn shl(self, other: u8) -> Self;
 }
 // docs:end:shl-trait
@@ -290,7 +290,7 @@ impl Shl for i64 {
 }
 
 // docs:start:shr-trait
-trait Shr {
+pub trait Shr {
     fn shr(self, other: u8) -> Self;
 }
 // docs:end:shr-trait
