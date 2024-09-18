@@ -578,7 +578,7 @@ impl<'a> NodeFinder<'a> {
             }
             Type::TypeVariable(var, _) | Type::NamedGeneric(var, _, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
-                    self.complete_type_fields_and_methods(
+                    return self.complete_type_fields_and_methods(
                         typ,
                         prefix,
                         function_completion_kind,
