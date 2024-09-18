@@ -2166,7 +2166,7 @@ fn impl_stricter_than_trait_different_object_generics() {
         ..
     }) = &errors[1].0
     {
-        assert!(matches!(constraint_typ.to_string().as_str(), "[B; 8]"));
+        assert!(matches!(constraint_typ.to_string().as_str(), "[B; (8: u32)]"));
         assert!(matches!(constraint_name.as_str(), "MyTrait"));
     } else {
         panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);

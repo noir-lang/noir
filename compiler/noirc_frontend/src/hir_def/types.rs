@@ -163,7 +163,7 @@ impl std::fmt::Display for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Kind::Normal => write!(f, "normal"),
-            Kind::Numeric(typ) => write!(f, "numeric {}", typ),
+            Kind::Numeric(typ) => write!(f, "{}", typ),
         }
     }
 }
@@ -676,7 +676,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
-            Type::Constant(x, _kind) => write!(f, "{x}"),
+            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
