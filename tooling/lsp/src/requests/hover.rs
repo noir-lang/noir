@@ -5,6 +5,7 @@ use fm::FileMap;
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::Visibility,
+    elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
     hir_def::{stmt::HirPattern, traits::Trait},
     macros_api::{NodeInterner, StructId},
@@ -167,6 +168,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     let global_info = args.interner.get_global(id);
     let definition_id = global_info.definition_id;
     let typ = args.interner.definition_type(definition_id);
+    dbg!(&global_info.value);
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Global(id), args, &mut string) {
@@ -177,6 +179,18 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&global_info.ident.0.contents);
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
+
+    // See if we can figure out what's the global's value
+    if let Some(stmt) = args.interner.get_global_let_statement(id) {
+        let length = stmt.expression;
+        let span = args.interner.expr_span(&length);
+
+        if let Ok(result) = try_eval_array_length_id(args.interner, length, span) {
+            string.push_str(" = ");
+            string.push_str(&result.to_string());
+        }
+    }
+
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
 
     append_doc_comments(args.interner, ReferenceId::Global(id), &mut string);
@@ -629,7 +643,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 15, character: 25 },
             r#"    one::subone
-    global some_global: Field"#,
+    global some_global: Field = 2"#,
         )
         .await;
     }
