@@ -215,7 +215,7 @@ impl<'context> Elaborator<'context> {
                         UnresolvedTypeExpression::Constant(0, span)
                     });
 
-                let length = self.convert_expression_type(length, span);
+                let length = self.convert_expression_type(length, &Kind::u32(), span);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
 
                 let length_clone = length.clone();
