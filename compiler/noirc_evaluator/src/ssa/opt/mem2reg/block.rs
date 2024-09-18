@@ -34,6 +34,9 @@ pub(super) struct Block {
 
     /// The last instance of a `Store` instruction to each address in this block
     pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+
+    // The last instance of a `Load` instruction to each address in this block
+    pub(super) last_loads: im::OrdMap<ValueId, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -113,6 +116,7 @@ impl Block {
     fn invalidate_all_references(&mut self) {
         self.references.clear();
         self.last_stores.clear();
+        // self.last_loads.clear();
     }
 
     pub(super) fn unify(mut self, other: &Self) -> Self {
@@ -141,6 +145,11 @@ impl Block {
             }
         }
         self.references = intersection;
+
+        // Last loads are truly "per block". During unification we are creating a new block from the current one,
+        // so we must clear the last loads of the current block before return the new block.
+        // self.last_loads.clear();
+        // other.last_loads.clear();
 
         self
     }
@@ -236,5 +245,15 @@ impl Block {
         }
 
         Cow::Owned(AliasSet::unknown())
+    }
+
+    pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
+        self.last_loads.insert(address, instruction);
+    }
+
+    pub(super) fn keep_last_load_for(&mut self, address: ValueId, function: &Function) {
+        let address = function.dfg.resolve(address);
+        self.last_loads.remove(&address);
+        self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));
     }
 }
