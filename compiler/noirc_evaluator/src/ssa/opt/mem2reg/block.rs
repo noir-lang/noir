@@ -146,11 +146,6 @@ impl Block {
         }
         self.references = intersection;
 
-        // Last loads are truly "per block". During unification we are creating a new block from the current one,
-        // so we must clear the last loads of the current block before return the new block.
-        // self.last_loads.clear();
-        // other.last_loads.clear();
-
         self
     }
 

@@ -543,9 +543,6 @@ impl<'f> PerFunctionContext<'f> {
                             }
                         }
                     }
-
-                    // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
-                    // references.keep_last_load_for(*arg, );
                 }
                 self.mark_all_unknown(arguments, references);
             }
