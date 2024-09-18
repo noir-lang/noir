@@ -232,6 +232,22 @@ mod tests {
             ]
         );
     }
+    #[test]
+    fn test_mov_registers_to_registers_no_op_filter() {
+        let movements = vec![(10, 11), (11, 11), (11, 12)];
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+        let mut context = create_context();
+
+        context.codegen_mov_registers_to_registers(sources, destinations);
+        let opcodes = context.artifact().byte_code;
+        assert_eq!(
+            opcodes,
+            vec![
+                Opcode::Mov { destination: MemoryAddress(12), source: MemoryAddress(11) },
+                Opcode::Mov { destination: MemoryAddress(11), source: MemoryAddress(10) },
+            ]
+        );
+    }
 
     #[test]
     fn test_mov_registers_to_registers_loop() {
