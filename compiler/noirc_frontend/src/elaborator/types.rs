@@ -61,6 +61,8 @@ impl<'context> Elaborator<'context> {
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
+        eprintln!("Resolving {typ}");
+
         let span = typ.span;
         let (named_path_span, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
@@ -78,6 +80,7 @@ impl<'context> Elaborator<'context> {
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 let size = self.convert_expression_type(size, span);
+                dbg!(&size);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
@@ -417,12 +420,15 @@ impl<'context> Elaborator<'context> {
                     .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
                     .unwrap_or(Kind::u32());
 
+                dbg!(&kind);
                 Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
             }
             _ => None,
         }
     }
 
+    /// Resolves a constant expression for an array or string.
+    /// Note that the kind of this expression is always expected to be u32 (unlike struct args)
     pub(super) fn convert_expression_type(
         &mut self,
         length: UnresolvedTypeExpression,
@@ -430,23 +436,8 @@ impl<'context> Elaborator<'context> {
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                let resolved_length =
-                    self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
-                        self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                        Type::Constant(0, Kind::u32())
-                    });
-
-                if let Type::NamedGeneric(ref _type_var, ref _name, ref kind) = resolved_length {
-                    if !kind.is_numeric() {
-                        self.push_err(TypeCheckError::TypeKindMismatch {
-                            expected_kind: Kind::u32().to_string(),
-                            expr_kind: kind.to_string(),
-                            expr_span: span,
-                        });
-                        return Type::Error;
-                    }
-                }
-                resolved_length
+                let typ = self.resolve_named_type(path, GenericTypeArgs::default());
+                self.check_u32_kind(typ, span)
             }
             UnresolvedTypeExpression::Constant(int, _span) => Type::Constant(int, Kind::u32()),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
@@ -456,7 +447,7 @@ impl<'context> Elaborator<'context> {
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
-                        if lhs_kind != rhs_kind {
+                        if !lhs_kind.unifies(&rhs_kind) {
                             self.push_err(TypeCheckError::TypeKindMismatch {
                                 expected_kind: lhs_kind.to_string(),
                                 expr_kind: rhs_kind.to_string(),
@@ -474,8 +465,25 @@ impl<'context> Elaborator<'context> {
                     (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
                 }
             }
-            UnresolvedTypeExpression::AsTraitPath(path) => self.resolve_as_trait_path(*path),
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                let typ = self.resolve_as_trait_path(*path);
+                self.check_u32_kind(typ, span)
+            }
         }
+    }
+
+    fn check_u32_kind(&mut self, typ: Type, span: Span) -> Type {
+        if let Some(kind) = typ.kind() {
+            if !kind.unifies(&Kind::u32()) {
+                self.push_err(TypeCheckError::TypeKindMismatch {
+                    expected_kind: Kind::u32().to_string(),
+                    expr_kind: kind.to_string(),
+                    expr_span: span,
+                });
+                return Type::Error;
+            }
+        }
+        typ
     }
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
