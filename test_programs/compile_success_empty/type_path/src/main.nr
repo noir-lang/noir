@@ -12,6 +12,5 @@ struct Foo {}
 
 impl Foo {
     fn static() {
-        println("Foo::static called");
     }
 }
