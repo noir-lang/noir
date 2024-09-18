@@ -13,8 +13,8 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn zero_arg_functions(mut self) -> Result<Ssa, RuntimeError> {
         for func in self.functions.values_mut() {
-            // TODO cleanup
-            dbg!((func.name(), func.parameters()));
+            // // TODO cleanup
+            // dbg!((func.name(), func.parameters()));
 
             // TODO UNUSED:
             // bubble_up_constrains(&mut self) {
@@ -31,15 +31,23 @@ impl Ssa {
                 func.mem2reg();
                 func.remove_if_else();
 
-                let without_constraint_info = false;
-                func.constant_fold(without_constraint_info);
+                // TODO: why does this fail with the following error?
+                //
+                // The application panicked (crashed).
+                // Message:  internal error: entered unreachable code: All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value v14 = Instruction { instruction: Id(14), position: 0, typ: Array([Numeric(NativeField)], 10) }
+                // Location: compiler/noirc_evaluator/src/ssa/opt/inlining.rs:343
+                // let without_constraint_info = false;
+                // func.constant_fold(without_constraint_info);
+
                 func.remove_enable_side_effects();
 
-                let with_constraint_info = true;
-                func.constant_fold(with_constraint_info);
+                // TODO: this fails with the same error as constant_fold(without_constraint_info);
+                // let with_constraint_info = true;
+                // func.constant_fold(with_constraint_info);
 
                 let insert_out_of_bounds_checks = true;
                 func.dead_instruction_elimination(insert_out_of_bounds_checks);
+
                 func.array_set_optimization();
             }
         }
