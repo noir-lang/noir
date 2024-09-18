@@ -2119,4 +2119,39 @@ mod completion_tests {
 
         assert_completion(src, vec![field_completion_item("bar", "Field")]).await;
     }
+
+    #[test]
+    async fn test_suggests_macro_call_if_comptime_function_returns_quoted() {
+        let src = r#"
+        comptime fn foobar() -> Quoted {}
+
+        fn main() {
+            fooba>|<
+        }
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![
+                function_completion_item("foobar!()", "foobar!()", "fn() -> Quoted"),
+                function_completion_item("foobar()", "foobar()", "fn() -> Quoted"),
+            ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_only_suggests_macro_call_for_unquote() {
+        let src = r#"
+        use std::meta::unquote;
+
+        fn main() {
+            unquot>|<
+        }
+        "#;
+
+        let completions = get_completions(src).await;
+        assert_eq!(completions.len(), 1);
+        assert_eq!(completions[0].label, "unquote!(…)");
+    }
 }
