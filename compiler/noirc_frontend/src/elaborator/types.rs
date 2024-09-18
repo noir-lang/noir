@@ -710,7 +710,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn unify(
+    pub fn unify(
         &mut self,
         actual: &Type,
         expected: &Type,
