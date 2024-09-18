@@ -1,0 +1,7 @@
+[package]
+name = "comptime_parse_all_tokens"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.34.0"
+
+[dependencies]

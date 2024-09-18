@@ -447,7 +447,7 @@ impl<'a> TypeLinksGatherer<'a> {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Forall(_, _)
-            | Type::Constant(_)
+            | Type::Constant(..)
             | Type::Quoted(_)
             | Type::Error => (),
         }

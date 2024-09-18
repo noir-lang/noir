@@ -391,15 +391,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                let mut diagnostic =
-                    CustomDiagnostic::simple_error(primary, secondary, location.span);
+                let diagnostic = CustomDiagnostic::simple_error(primary, secondary, location.span);
 
-                // Only take at most 5 frames starting from the top of the stack to avoid producing too much output
-                for frame in call_stack.iter().rev().take(5) {
-                    diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
-                }
-
-                diagnostic
+                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");

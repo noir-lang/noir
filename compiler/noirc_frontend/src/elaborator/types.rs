@@ -12,6 +12,7 @@ use crate::{
     },
     hir::{
         comptime::{Interpreter, Value},
+        def_collector::dc_crate::CompilationError,
         def_map::ModuleDefId,
         resolution::errors::ResolverError,
         type_check::{
@@ -76,45 +77,22 @@ impl<'context> Elaborator<'context> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
-                let mut size = self.convert_expression_type(size);
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = size {
-                    size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let size = self.convert_expression_type(size, span);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 Type::Slice(elem)
             }
-            Expression(expr) => self.convert_expression_type(expr),
+            Expression(expr) => self.convert_expression_type(expr, span),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let mut resolved_size = self.convert_expression_type(size);
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let resolved_size = self.convert_expression_type(size, span);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
-                let mut resolved_size = self.convert_expression_type(size);
-                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let resolved_size = self.convert_expression_type(size, span);
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
@@ -191,26 +169,18 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        // Check that any types with a type kind match the expected type kind supplied to this function
-        // TODO(https://github.com/noir-lang/noir/issues/5156): make this named generic check more general with `*resolved_kind != kind`
-        // as implicit numeric generics still existing makes this check more challenging to enforce
-        // An example of a more general check that we should switch to:
-        // if resolved_type.kind() != kind.clone() {
-        //     let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-        //         expected_kind: kind.to_string(),
-        //         expr_kind: resolved_type.kind().to_string(),
-        //         expr_span: span.expect("Type should have span"),
-        //     });
-        //     self.errors.push((expected_typ_err, self.file));
-        //     return Type::Error;
-        // }
-        if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
-                let expected_typ_err =
-                    ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
-                self.push_err(expected_typ_err);
-                return Type::Error;
-            }
+        if !kind.matches_opt(resolved_type.kind()) {
+            let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
+                expected_kind: kind.to_string(),
+                expr_kind: resolved_type
+                    .kind()
+                    .as_ref()
+                    .map(Kind::to_string)
+                    .unwrap_or("unknown".to_string()),
+                expr_span: span,
+            });
+            self.errors.push((expected_typ_err, self.file));
+            return Type::Error;
         }
 
         resolved_type
@@ -441,30 +411,61 @@ impl<'context> Elaborator<'context> {
 
                 let reference_location = Location::new(path.span(), self.file);
                 self.interner.add_global_reference(id, reference_location);
+                let kind = self
+                    .interner
+                    .get_global_let_statement(id)
+                    .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
+                    .unwrap_or(Kind::u32());
 
-                Some(Type::Constant(self.eval_global_as_array_length(id, path)))
+                Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
             }
             _ => None,
         }
     }
 
-    pub(super) fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
+    pub(super) fn convert_expression_type(
+        &mut self,
+        length: UnresolvedTypeExpression,
+        span: Span,
+    ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
-                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                    Type::Constant(0)
-                })
+                let resolved_length =
+                    self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
+                        self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                        Type::Constant(0, Kind::u32())
+                    });
+
+                if let Type::NamedGeneric(ref _type_var, ref _name, ref kind) = resolved_length {
+                    if !kind.is_numeric() {
+                        self.push_err(TypeCheckError::TypeKindMismatch {
+                            expected_kind: Kind::u32().to_string(),
+                            expr_kind: kind.to_string(),
+                            expr_span: span,
+                        });
+                        return Type::Error;
+                    }
+                }
+                resolved_length
             }
-            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::Constant(int, _span) => Type::Constant(int, Kind::u32()),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
-                let lhs = self.convert_expression_type(*lhs);
-                let rhs = self.convert_expression_type(*rhs);
+                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+                let lhs = self.convert_expression_type(*lhs, lhs_span);
+                let rhs = self.convert_expression_type(*rhs, rhs_span);
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                    (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
+                        if lhs_kind != rhs_kind {
+                            self.push_err(TypeCheckError::TypeKindMismatch {
+                                expected_kind: lhs_kind.to_string(),
+                                expr_kind: rhs_kind.to_string(),
+                                expr_span: span,
+                            });
+                            return Type::Error;
+                        }
                         if let Some(result) = op.function(lhs, rhs) {
-                            Type::Constant(result)
+                            Type::Constant(result, lhs_kind)
                         } else {
                             self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
                             Type::Error
@@ -1686,7 +1687,7 @@ impl<'context> Elaborator<'context> {
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
-            | Type::Constant(_)
+            | Type::Constant(..)
             | Type::NamedGeneric(_, _, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
@@ -1727,7 +1728,7 @@ impl<'context> Elaborator<'context> {
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
+                        if struct_type.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1738,7 +1739,7 @@ impl<'context> Elaborator<'context> {
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if alias.borrow().generic_is_numeric(i) {
+                        if alias.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {

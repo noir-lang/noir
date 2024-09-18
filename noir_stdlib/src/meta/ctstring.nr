@@ -41,7 +41,7 @@ impl Append for CtString {
 }
 
 // docs:start:as-ctstring
-trait AsCtString {
+pub trait AsCtString {
     comptime fn as_ctstring(self) -> CtString;
 }
 // docs:end:as-ctstring

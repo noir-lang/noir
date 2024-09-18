@@ -101,10 +101,12 @@ impl<'a> CodeActionFinder<'a> {
 
         for (name, func_id) in method_ids {
             let func_meta = self.interner.function_meta(func_id);
+            let modifiers = self.interner.function_modifiers(func_id);
 
             let mut generator = TraitImplMethodStubGenerator::new(
                 name,
                 func_meta,
+                modifiers,
                 trait_,
                 noir_trait_impl,
                 self.interner,

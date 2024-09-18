@@ -52,7 +52,7 @@ fn test_vec_get_unchecked<N>() {
 }
 
 // docs:start:get_unchecked_example
-fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
+fn sum_of_first_three<let N: u32>(v: BoundedVec<u32, N>) -> u32 {
     // Always ensure the length is larger than the largest
     // index passed to get_unchecked
     assert(v.len() > 2);

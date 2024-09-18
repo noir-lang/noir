@@ -12,7 +12,7 @@ global secpr1_fq = &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF];
 global secpr1_fr = &[81, 37, 99, 252, 194, 202, 185, 243, 132, 158, 23, 167, 173, 250, 230, 188, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255];
 // docs:start:big_int_definition
-struct BigInt {
+pub struct BigInt {
     pointer: u32,
     modulus: u32,
 }
@@ -43,13 +43,13 @@ impl BigInt {
     }
 }
 
-trait BigField {
+pub trait BigField {
     fn from_le_bytes(bytes: [u8]) -> Self;
     fn from_le_bytes_32(bytes: [u8; 32]) -> Self;
     fn to_le_bytes(self) -> [u8];
 }
 
-struct Secpk1Fq {
+pub struct Secpk1Fq {
    array: [u8;32],
 }
 
@@ -106,7 +106,7 @@ impl Eq for Secpk1Fq {
     }
 }
 
-struct Secpk1Fr {
+pub struct Secpk1Fr {
     array: [u8;32],
 }
 
@@ -163,7 +163,7 @@ impl Eq for Secpk1Fr {
     }
 }
 
-struct Bn254Fr {
+pub struct Bn254Fr {
     array: [u8;32],
 }
 
@@ -220,7 +220,7 @@ impl Eq for Bn254Fr {
     }
 }
 
-struct Bn254Fq {
+pub struct Bn254Fq {
     array: [u8;32],
 }
 
@@ -277,7 +277,7 @@ impl Eq for Bn254Fq {
     }
 }
 
-struct Secpr1Fq {
+pub struct Secpr1Fq {
     array: [u8;32],
 }
 
@@ -334,7 +334,7 @@ impl Eq for Secpr1Fq {
     }
 }
 
-struct Secpr1Fr {
+pub struct Secpr1Fr {
     array: [u8;32],
 }
 

@@ -1,0 +1,7 @@
+[package]
+name = "reference_only_used_as_alias"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

@@ -37,7 +37,7 @@ global T = foo(T); // dependency error
 If they are initialized to a literal integer, globals can be used to specify an array's length:
 
 ```rust
-global N: Field = 2;
+global N: u32 = 2;
 
 fn main(y : [Field; N]) {
     assert(y[0] == y[1])

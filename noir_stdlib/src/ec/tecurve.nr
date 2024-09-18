@@ -12,7 +12,7 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Twisted Edwards curve
+    pub struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
         a: Field,
         d: Field,
@@ -20,7 +20,7 @@ mod affine {
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field
     }
@@ -204,7 +204,7 @@ mod curvegroup {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Twisted Edwards curve
+    pub struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
         a: Field,
         d: Field,
@@ -212,7 +212,7 @@ mod curvegroup {
         gen: Point
     }
     // Point in extended twisted Edwards coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         t: Field,
