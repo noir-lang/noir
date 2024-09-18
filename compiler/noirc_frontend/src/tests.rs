@@ -1616,25 +1616,30 @@ fn numeric_generic_binary_operation_type_mismatch() {
 #[test]
 fn bool_generic_as_loop_bound() {
     let src = r#"
-    pub fn read<let N: bool>() {
-        let mut fields = [0; N];
-        for i in 0..N {
+    pub fn read<let N: bool>() { // error here
+        let mut fields = [0; N]; // error here
+        for i in 0..N {  // error here
             fields[i] = i + 1;
         }
         assert(fields[0] == 1);
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 3);
 
     assert!(matches!(
         errors[0].0,
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
     ));
 
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ, expr_typ, ..
-    }) = &errors[1].0
+    }) = &errors[2].0
     else {
         panic!("Got an error other than a type mismatch");
     };
@@ -1646,7 +1651,7 @@ fn bool_generic_as_loop_bound() {
 #[test]
 fn numeric_generic_in_function_signature() {
     let src = r#"
-    pub fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
+    pub fn foo<let N: u32>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
     assert_no_errors(src);
 }
@@ -3643,4 +3648,55 @@ fn does_not_crash_when_passing_mutable_undefined_variable() {
     };
 
     assert_eq!(name, "undefined");
+}
+
+#[test]
+fn infer_globals_to_u32_from_type_use() {
+    let src = r#"
+        global ARRAY_LEN = 3;
+        global STR_LEN = 2;
+        global FMT_STR_LEN = 2;
+
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+            let _b: str<STR_LEN> = "hi";
+            let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn non_u32_in_array_length() {
+    let src = r#"
+        global ARRAY_LEN: u8 = 3;
+
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
+    ));
+}
+
+#[test]
+fn use_non_u32_generic_in_struct() {
+    let src = r#"
+        struct S<let N: u8> {}
+
+        fn main() {
+            let _: S<3> = S {};
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
 }

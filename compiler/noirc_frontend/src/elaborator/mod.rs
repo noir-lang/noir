@@ -97,7 +97,7 @@ pub struct Elaborator<'context> {
 
     def_maps: &'context mut DefMaps,
 
-    file: FileId,
+    pub(crate) file: FileId,
 
     in_unsafe_block: bool,
     nested_loops: usize,
