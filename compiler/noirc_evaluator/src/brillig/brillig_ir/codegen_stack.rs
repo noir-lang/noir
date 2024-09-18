@@ -16,7 +16,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let chains =
             MoveRegistersSolver::sources_destinations_to_move_chains(sources, destinations);
         for mut chain in chains {
-            assert!(chain.len() > 0, "Empty chain found");
+            assert!(!chain.is_empty(), "Empty chain found");
 
             // If the chain is a loop, we need a temporary register to break the loop
             if is_loop(&chain) {

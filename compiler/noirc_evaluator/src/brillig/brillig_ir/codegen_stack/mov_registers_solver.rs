@@ -12,7 +12,7 @@ pub(crate) struct MoveRegistersSolver {
     // The source addresses that have been visited
     visited: HashSet<MemoryAddress>,
     // The chains of dependencies that we have found
-    dependency_chain: Vec<Vector<MemoryAddress>>,
+    dependency_chains: Vec<Vector<MemoryAddress>>,
 }
 
 impl MoveRegistersSolver {
@@ -28,7 +28,7 @@ impl MoveRegistersSolver {
         // Filter no-op movements
         let movements: Vec<_> = sources
             .into_iter()
-            .zip(destinations.into_iter())
+            .zip(destinations)
             .filter(|(source, destination)| source != destination)
             .collect();
 
@@ -45,13 +45,13 @@ impl MoveRegistersSolver {
             movements,
             visited: HashSet::default(),
             destinations,
-            dependency_chain: Vec::new(),
+            dependency_chains: Vec::new(),
         };
 
         solver.solve(sources);
         // Map the dependency chains to a chain of operations to perform
         solver
-            .dependency_chain
+            .dependency_chains
             .into_iter()
             .map(|chain| {
                 chain
@@ -102,10 +102,10 @@ impl MoveRegistersSolver {
         if !is_target_source
             || current_dependency_chain
                 .get(0)
-                .and_then(|first: &MemoryAddress| Some(first == target))
+                .map(|first: &MemoryAddress| first == target)
                 .unwrap_or(false)
         {
-            self.dependency_chain.push(current_dependency_chain);
+            self.dependency_chains.push(current_dependency_chain);
             return;
         }
 
