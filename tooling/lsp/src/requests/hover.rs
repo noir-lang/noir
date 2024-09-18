@@ -7,10 +7,10 @@ use noirc_frontend::{
     ast::Visibility,
     elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
-    hir_def::{stmt::HirPattern, traits::Trait},
-    macros_api::{NodeInterner, StructId},
+    hir_def::{expr::HirArrayLiteral, stmt::HirPattern, traits::Trait},
+    macros_api::{HirExpression, HirLiteral, NodeInterner, StructId},
     node_interner::{
-        DefinitionId, DefinitionKind, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
@@ -182,12 +182,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 
     // See if we can figure out what's the global's value
     if let Some(stmt) = args.interner.get_global_let_statement(id) {
-        let length = stmt.expression;
-        let span = args.interner.expr_span(&length);
-
-        if let Ok(result) = try_eval_array_length_id(args.interner, length, span) {
+        if let Some(value) = get_global_value(args.interner, stmt.expression) {
             string.push_str(" = ");
-            string.push_str(&result.to_string());
+            string.push_str(&value);
         }
     }
 
@@ -196,6 +193,74 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     append_doc_comments(args.interner, ReferenceId::Global(id), &mut string);
 
     string
+}
+
+fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
+    let span = interner.expr_span(&expr);
+
+    // Globals as array lengths are extremely common, so we try that first.
+    if let Ok(result) = try_eval_array_length_id(interner, expr, span) {
+        return Some(result.to_string());
+    }
+
+    match interner.expression(&expr) {
+        HirExpression::Literal(literal) => match literal {
+            HirLiteral::Array(hir_array_literal) => {
+                get_global_array_value(interner, hir_array_literal, false)
+            }
+            HirLiteral::Slice(hir_array_literal) => {
+                get_global_array_value(interner, hir_array_literal, true)
+            }
+            HirLiteral::Bool(value) => Some(value.to_string()),
+            HirLiteral::Integer(field_element, _) => Some(field_element.to_string()),
+            HirLiteral::Str(string) => Some(format!("{:?}", string)),
+            HirLiteral::FmtStr(..) => None,
+            HirLiteral::Unit => Some("()".to_string()),
+        },
+        HirExpression::Tuple(values) => {
+            let strings: Vec<String> =
+                values.iter().filter_map(|value| get_global_value(interner, *value)).collect();
+            if strings.len() == values.len() {
+                Some(format!("({})", strings.join(", ")))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn get_global_array_value(
+    interner: &NodeInterner,
+    literal: HirArrayLiteral,
+    is_slice: bool,
+) -> Option<String> {
+    match literal {
+        HirArrayLiteral::Standard(values) => {
+            let strings: Vec<String> =
+                values.iter().filter_map(|value| get_global_value(interner, *value)).collect();
+            if strings.len() == values.len() {
+                if is_slice {
+                    Some(format!("&[{}]", strings.join(", ")))
+                } else {
+                    Some(format!("[{}]", strings.join(", ")))
+                }
+            } else {
+                None
+            }
+        }
+        HirArrayLiteral::Repeated { repeated_element, length } => {
+            if let Some(value) = get_global_value(interner, repeated_element) {
+                if is_slice {
+                    Some(format!("&[{}; {}]", value, length))
+                } else {
+                    Some(format!("[{}; {}]", value, length))
+                }
+            } else {
+                None
+            }
+        }
+    }
 }
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
