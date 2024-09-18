@@ -3686,3 +3686,17 @@ fn non_u32_in_array_length() {
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
     ));
 }
+
+#[test]
+fn use_non_u32_generic_in_struct() {
+    let src = r#"
+        struct S<let N: u8> {}
+
+        fn main() {
+            let _: S<3> = S {};
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}

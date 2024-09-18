@@ -434,7 +434,9 @@ impl<'context> Elaborator<'context> {
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default());
                 self.check_kind(typ, expected_kind, span)
             }
-            UnresolvedTypeExpression::Constant(int, _span) => Type::Constant(int, Kind::u32()),
+            UnresolvedTypeExpression::Constant(int, _span) => {
+                Type::Constant(int, expected_kind.clone())
+            }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_span);
