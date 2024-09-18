@@ -217,7 +217,7 @@ impl<'a> NodeFinder<'a> {
             )
         };
 
-        // When suggestion functions in attributes, never suggest a macro call
+        // When suggesting functions in attributes, never suggest a macro call
         if attribute_first_type.is_some() {
             return vec![make_completion_item(false)];
         }
