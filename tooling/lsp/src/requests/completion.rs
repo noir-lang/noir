@@ -578,7 +578,7 @@ impl<'a> NodeFinder<'a> {
             }
             Type::TypeVariable(var, _) | Type::NamedGeneric(var, _, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
-                    self.complete_type_fields_and_methods(
+                    return self.complete_type_fields_and_methods(
                         typ,
                         prefix,
                         function_completion_kind,
@@ -627,15 +627,16 @@ impl<'a> NodeFinder<'a> {
         for (name, methods) in methods_by_name {
             for func_id in methods.iter() {
                 if name_matches(name, prefix) {
-                    if let Some(completion_item) = self.function_completion_item(
+                    let completion_items = self.function_completion_items(
                         name,
                         func_id,
                         function_completion_kind,
                         function_kind,
                         None, // attribute first type
                         self_prefix,
-                    ) {
-                        self.completion_items.push(completion_item);
+                    );
+                    if !completion_items.is_empty() {
+                        self.completion_items.extend(completion_items);
                         self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
                     }
                 }
@@ -654,15 +655,16 @@ impl<'a> NodeFinder<'a> {
 
         for (name, func_id) in &trait_.method_ids {
             if name_matches(name, prefix) {
-                if let Some(completion_item) = self.function_completion_item(
+                let completion_items = self.function_completion_items(
                     name,
                     *func_id,
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
                     self_prefix,
-                ) {
-                    self.completion_items.push(completion_item);
+                );
+                if !completion_items.is_empty() {
+                    self.completion_items.extend(completion_items);
                     self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(*func_id));
                 }
             }
@@ -742,14 +744,15 @@ impl<'a> NodeFinder<'a> {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
                     if is_visible(module_id, self.module_id, visibility, self.def_maps) {
-                        if let Some(completion_item) = self.module_def_id_completion_item(
+                        let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
-                        ) {
-                            self.completion_items.push(completion_item);
+                        );
+                        if !completion_items.is_empty() {
+                            self.completion_items.extend(completion_items);
                             self.suggested_module_def_ids.insert(module_def_id);
                         }
                     }
@@ -757,14 +760,15 @@ impl<'a> NodeFinder<'a> {
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
                     if is_visible(module_id, self.module_id, visibility, self.def_maps) {
-                        if let Some(completion_item) = self.module_def_id_completion_item(
+                        let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
-                        ) {
-                            self.completion_items.push(completion_item);
+                        );
+                        if !completion_items.is_empty() {
+                            self.completion_items.extend(completion_items);
                             self.suggested_module_def_ids.insert(module_def_id);
                         }
                     }

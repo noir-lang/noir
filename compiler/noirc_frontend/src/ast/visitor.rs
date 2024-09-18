@@ -22,7 +22,7 @@ use crate::{
 
 use super::{
     FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern, Signedness,
-    TraitImplItemKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
     UnresolvedTypeData, UnresolvedTypeExpression,
 };
 
@@ -337,6 +337,10 @@ pub trait Visitor {
     }
 
     fn visit_as_trait_path(&mut self, _: &AsTraitPath, _: Span) -> bool {
+        true
+    }
+
+    fn visit_type_path(&mut self, _: &TypePath, _: Span) -> bool {
         true
     }
 
@@ -838,6 +842,7 @@ impl Expression {
             ExpressionKind::AsTraitPath(as_trait_path) => {
                 as_trait_path.accept(self.span, visitor);
             }
+            ExpressionKind::TypePath(path) => path.accept(self.span, visitor),
             ExpressionKind::Quote(tokens) => visitor.visit_quote(tokens),
             ExpressionKind::Resolved(expr_id) => visitor.visit_resolved_expression(*expr_id),
             ExpressionKind::Interned(id) => visitor.visit_interned_expression(*id),
@@ -1205,6 +1210,19 @@ impl AsTraitPath {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.trait_path.accept(visitor);
         self.trait_generics.accept(visitor);
+    }
+}
+
+impl TypePath {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_type_path(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.typ.accept(visitor);
+        self.turbofish.accept(visitor);
     }
 }
 

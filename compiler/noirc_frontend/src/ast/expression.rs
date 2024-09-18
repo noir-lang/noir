@@ -14,7 +14,7 @@ use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
-use super::{AsTraitPath, UnaryRhsMemberAccess};
+use super::{AsTraitPath, TypePath, UnaryRhsMemberAccess};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -38,6 +38,7 @@ pub enum ExpressionKind {
     Comptime(BlockExpression, Span),
     Unsafe(BlockExpression, Span),
     AsTraitPath(AsTraitPath),
+    TypePath(TypePath),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -621,6 +622,7 @@ impl Display for ExpressionKind {
                 write!(f, "quote {{ {} }}", tokens.join(" "))
             }
             AsTraitPath(path) => write!(f, "{path}"),
+            TypePath(path) => write!(f, "{path}"),
             InternedStatement(_) => write!(f, "?InternedStatement"),
         }
     }
@@ -784,6 +786,16 @@ impl Display for Lambda {
 impl Display for AsTraitPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)
+    }
+}
+
+impl Display for TypePath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}::{}", self.typ, self.item)?;
+        if !self.turbofish.is_empty() {
+            write!(f, "::{}", self.turbofish)?;
+        }
+        Ok(())
     }
 }
 

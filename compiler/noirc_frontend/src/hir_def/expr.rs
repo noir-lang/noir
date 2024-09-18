@@ -4,7 +4,9 @@ use noirc_errors::Location;
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
+use crate::node_interner::{
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
+};
 use crate::token::Tokens;
 use crate::Shared;
 
@@ -201,6 +203,21 @@ pub enum HirMethodReference {
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
     TraitMethodId(TraitMethodId, TraitGenerics),
+}
+
+impl HirMethodReference {
+    pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
+        match self {
+            HirMethodReference::FuncId(func_id) => Some(*func_id),
+            HirMethodReference::TraitMethodId(method_id, _) => {
+                let id = interner.trait_method_id(*method_id);
+                match &interner.try_definition(id)?.kind {
+                    DefinitionKind::Function(func_id) => Some(*func_id),
+                    _ => None,
+                }
+            }
+        }
+    }
 }
 
 impl HirMethodCallExpression {
