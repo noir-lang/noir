@@ -437,8 +437,6 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        self.initialize_databus(&return_witness_vars, dfg)?;
-
         // TODO: This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
         //
@@ -447,6 +445,7 @@ impl<'a> Context<'a> {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
 
+        self.initialize_databus(&return_witnesses, dfg)?;
         warnings.extend(return_warnings);
         warnings.extend(self.acir_context.warnings.clone());
 
@@ -456,22 +455,20 @@ impl<'a> Context<'a> {
 
     fn initialize_databus(
         &mut self,
-        witnesses: &[AcirVar],
+        witnesses: &Vec<Witness>,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
-            let mut return_data_vars = Vector::new();
-            witnesses.iter().for_each(|v| {
-                return_data_vars.push_back(AcirValue::Var(*v, AcirType::field()));
-            });
-            let len = return_data_vars.len();
-            let acir_values = AcirValue::Array(return_data_vars);
-
             let block_id = self.block_id(&return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
-                self.initialize_array(block_id, len, Some(acir_values))?;
+                // We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
+                // but the databus contains the computed values instead, that have just been asserted to be equal to the return values.
+                // We do not use initialize_array either for the case where a constant value is returned.
+                // In that case, the constant value has already been assigned a witness and the returned acir vars will be
+                // converted to it, instead of the corresponding return value witness.
+                self.acir_context.initialize_return_data(block_id, witnesses.to_owned());
             }
         }
 
