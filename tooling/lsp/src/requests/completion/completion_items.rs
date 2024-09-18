@@ -20,17 +20,17 @@ use super::{
 };
 
 impl<'a> NodeFinder<'a> {
-    pub(super) fn module_def_id_completion_item(
+    pub(super) fn module_def_id_completion_items(
         &self,
         module_def_id: ModuleDefId,
         name: String,
         function_completion_kind: FunctionCompletionKind,
         function_kind: FunctionKind,
         requested_items: RequestedItems,
-    ) -> Option<CompletionItem> {
+    ) -> Vec<CompletionItem> {
         match requested_items {
             RequestedItems::OnlyTypes => match module_def_id {
-                ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => return None,
+                ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => return Vec::new(),
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeId(_)
                 | ModuleDefId::TypeAliasId(_)
@@ -38,7 +38,7 @@ impl<'a> NodeFinder<'a> {
             },
             RequestedItems::OnlyAttributeFunctions(..) => {
                 if !matches!(module_def_id, ModuleDefId::FunctionId(..)) {
-                    return None;
+                    return Vec::new();
                 }
             }
             RequestedItems::AnyItems => (),
@@ -57,8 +57,8 @@ impl<'a> NodeFinder<'a> {
             };
 
         match module_def_id {
-            ModuleDefId::ModuleId(id) => Some(self.module_completion_item(name, id)),
-            ModuleDefId::FunctionId(func_id) => self.function_completion_item(
+            ModuleDefId::ModuleId(id) => vec![self.module_completion_item(name, id)],
+            ModuleDefId::FunctionId(func_id) => self.function_completion_items(
                 &name,
                 func_id,
                 function_completion_kind,
@@ -66,10 +66,10 @@ impl<'a> NodeFinder<'a> {
                 attribute_first_type.as_ref(),
                 false, // self_prefix
             ),
-            ModuleDefId::TypeId(struct_id) => Some(self.struct_completion_item(name, struct_id)),
-            ModuleDefId::TypeAliasId(id) => Some(self.type_alias_completion_item(name, id)),
-            ModuleDefId::TraitId(trait_id) => Some(self.trait_completion_item(name, trait_id)),
-            ModuleDefId::GlobalId(global_id) => Some(self.global_completion_item(name, global_id)),
+            ModuleDefId::TypeId(struct_id) => vec![self.struct_completion_item(name, struct_id)],
+            ModuleDefId::TypeAliasId(id) => vec![self.type_alias_completion_item(name, id)],
+            ModuleDefId::TraitId(trait_id) => vec![self.trait_completion_item(name, trait_id)],
+            ModuleDefId::GlobalId(global_id) => vec![self.global_completion_item(name, global_id)],
         }
     }
 
@@ -133,7 +133,7 @@ impl<'a> NodeFinder<'a> {
         self.completion_item_with_doc_comments(ReferenceId::Global(global_id), completion_item)
     }
 
-    pub(super) fn function_completion_item(
+    pub(super) fn function_completion_items(
         &self,
         name: &String,
         func_id: FuncId,
@@ -141,7 +141,7 @@ impl<'a> NodeFinder<'a> {
         function_kind: FunctionKind,
         attribute_first_type: Option<&Type>,
         self_prefix: bool,
-    ) -> Option<CompletionItem> {
+    ) -> Vec<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
 
         let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.first() {
@@ -161,12 +161,12 @@ impl<'a> NodeFinder<'a> {
 
         if let Some(attribute_first_type) = attribute_first_type {
             if func_meta.parameters.is_empty() {
-                return None;
+                return Vec::new();
             }
 
             let (_, typ, _) = &func_meta.parameters.0[0];
             if typ != attribute_first_type {
-                return None;
+                return Vec::new();
             }
         }
 
@@ -186,23 +186,71 @@ impl<'a> NodeFinder<'a> {
                         }
 
                         if self_type != func_self_type {
-                            return None;
+                            return Vec::new();
                         }
                     } else if let Type::Tuple(self_tuple_types) = self_type {
                         // Tuple types of different lengths seem to also have methods defined on all of them,
                         // so here we reject methods for tuples where the length doesn't match.
                         if let Type::Tuple(func_self_tuple_types) = func_self_type {
                             if self_tuple_types.len() != func_self_tuple_types.len() {
-                                return None;
+                                return Vec::new();
                             }
                         }
                     }
                 } else {
-                    return None;
+                    return Vec::new();
                 }
             }
         }
 
+        let make_completion_item = |is_macro_call| {
+            self.function_completion_item(
+                name,
+                func_id,
+                func_meta,
+                func_self_type,
+                function_completion_kind,
+                function_kind,
+                attribute_first_type,
+                self_prefix,
+                is_macro_call,
+            )
+        };
+
+        // When suggesting functions in attributes, never suggest a macro call
+        if attribute_first_type.is_some() {
+            return vec![make_completion_item(false)];
+        }
+
+        // Special case: the `unquote` macro
+        // (it's unlikely users will define a function named `unquote` that does something different than std's unquote)
+        if name == "unquote" {
+            return vec![make_completion_item(true)];
+        }
+
+        let modifiers = self.interner.function_modifiers(&func_id);
+        if modifiers.is_comptime
+            && matches!(func_meta.return_type(), Type::Quoted(QuotedType::Quoted))
+        {
+            vec![make_completion_item(false), make_completion_item(true)]
+        } else {
+            vec![make_completion_item(false)]
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn function_completion_item(
+        &self,
+        name: &String,
+        func_id: FuncId,
+        func_meta: &FuncMeta,
+        func_self_type: Option<&Type>,
+        function_completion_kind: FunctionCompletionKind,
+        function_kind: FunctionKind,
+        attribute_first_type: Option<&Type>,
+        self_prefix: bool,
+        is_macro_call: bool,
+    ) -> CompletionItem {
         let is_operator = if let Some(trait_impl_id) = &func_meta.trait_impl {
             let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
             let trait_impl = trait_impl.borrow();
@@ -211,6 +259,7 @@ impl<'a> NodeFinder<'a> {
             false
         };
         let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
+        let name = if is_macro_call { format!("{}!", name) } else { name };
         let name = &name;
         let description = func_meta_type_to_string(func_meta, func_self_type.is_some());
         let mut has_arguments = false;
@@ -269,10 +318,8 @@ impl<'a> NodeFinder<'a> {
                 }
             }
         };
-        let completion_item =
-            self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item);
 
-        Some(completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item)
     }
 
     fn compute_function_insert_text(
