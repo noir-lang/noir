@@ -597,7 +597,7 @@ impl<'a> NodeFinder<'a> {
             | Type::TraitAsType(_, _, _)
             | Type::Function(..)
             | Type::Forall(_, _)
-            | Type::Constant(_)
+            | Type::Constant(..)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _)
             | Type::Error => (),
@@ -899,10 +899,12 @@ impl<'a> NodeFinder<'a> {
             }
 
             let func_meta = self.interner.function_meta(&func_id);
+            let modifiers = self.interner.function_modifiers(&func_id);
 
             let mut generator = TraitImplMethodStubGenerator::new(
                 &name,
                 func_meta,
+                modifiers,
                 trait_,
                 noir_trait_impl,
                 self.interner,

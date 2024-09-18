@@ -1,5 +1,5 @@
 // docs:start:add-trait
-trait Add {
+pub trait Add {
     fn add(self, other: Self) -> Self;
 }
 // docs:end:add-trait
@@ -58,7 +58,7 @@ impl Add for i64 {
 }
 
 // docs:start:sub-trait
-trait Sub {
+pub trait Sub {
     fn sub(self, other: Self) -> Self;
 }
 // docs:end:sub-trait
@@ -117,7 +117,7 @@ impl Sub for i64 {
 }
 
 // docs:start:mul-trait
-trait Mul {
+pub trait Mul {
     fn mul(self, other: Self) -> Self;
 }
 // docs:end:mul-trait
@@ -176,7 +176,7 @@ impl Mul for i64 {
 }
 
 // docs:start:div-trait
-trait Div {
+pub trait Div {
     fn div(self, other: Self) -> Self;
 }
 // docs:end:div-trait
@@ -235,7 +235,7 @@ impl Div for i64 {
 }
 
 // docs:start:rem-trait
-trait Rem{
+pub trait Rem {
     fn rem(self, other: Self) -> Self;
 }
 // docs:end:rem-trait
@@ -288,7 +288,7 @@ impl Rem for i64 {
 }
 
 // docs:start:neg-trait
-trait Neg {
+pub trait Neg {
     fn neg(self) -> Self;
 }
 // docs:end:neg-trait

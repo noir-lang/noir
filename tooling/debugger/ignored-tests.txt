@@ -4,3 +4,4 @@ is_unconstrained
 macros
 references
 regression_4709
+reference_only_used_as_alias

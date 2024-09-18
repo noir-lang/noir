@@ -237,4 +237,14 @@ mod tests {
         )
     }
     // docs:end:big-derive-usage-example
+
+    // This function is just to remove unused warnings
+    fn remove_unused_warnings() {
+        let _: Bar = crate::panic::panic(f"");
+        let _: MyStruct = crate::panic::panic(f"");
+        let _: MyOtherStruct = crate::panic::panic(f"");
+        let _ = derive_do_nothing(crate::panic::panic(f""));
+        let _ = derive_do_nothing_alt(crate::panic::panic(f""));
+        remove_unused_warnings();
+    }
 }
