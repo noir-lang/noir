@@ -22,3 +22,4 @@ mod resolve_is_unconstrained;
 mod runtime_separation;
 mod simplify_cfg;
 mod unrolling;
+mod zero_arg_functions;
