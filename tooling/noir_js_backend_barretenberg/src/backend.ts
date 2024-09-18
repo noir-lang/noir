@@ -51,7 +51,7 @@ export class BarretenbergBackend implements Backend, VerifierBackend {
         honkRecursion,
       );
 
-      const crs = await Crs.new(subgroupSize + 1);
+      const crs = await Crs.new(subgroupSize + 1, this.options.crsPath);
       await api.commonInitSlabAllocator(subgroupSize);
       await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
@@ -189,7 +189,7 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
         this.acirUncompressedBytecode,
         honkRecursion,
       );
-      const crs = await Crs.new(subgroupSize + 1);
+      const crs = await Crs.new(subgroupSize + 1, this.options.crsPath);
       await api.commonInitSlabAllocator(subgroupSize);
       await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
