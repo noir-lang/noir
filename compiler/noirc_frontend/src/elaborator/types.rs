@@ -655,18 +655,21 @@ impl<'context> Elaborator<'context> {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
             HirExpression::Ident(ident, _) => {
-                let definition = self.interner.definition(ident.id);
-                match definition.kind {
-                    DefinitionKind::Global(global_id) => {
-                        let let_statement = self.interner.get_global_let_statement(global_id);
-                        if let Some(let_statement) = let_statement {
-                            let expression = let_statement.expression;
-                            self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
-                        } else {
-                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                if let Some(definition) = self.interner.try_definition(ident.id) {
+                    match definition.kind {
+                        DefinitionKind::Global(global_id) => {
+                            let let_statement = self.interner.get_global_let_statement(global_id);
+                            if let Some(let_statement) = let_statement {
+                                let expression = let_statement.expression;
+                                self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
+                            } else {
+                                Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                            }
                         }
+                        _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
                     }
-                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                } else {
+                    Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
                 }
             }
             HirExpression::Infix(infix) => {
