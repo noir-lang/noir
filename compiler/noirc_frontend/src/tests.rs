@@ -98,7 +98,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 
         let debug_comptime_in_file = None;
         let error_on_unused_imports = true;
-        let macro_processors = &[];
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -108,7 +107,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             root_file_id,
             debug_comptime_in_file,
             error_on_unused_imports,
-            macro_processors,
         ));
     }
     (program, context, errors)
