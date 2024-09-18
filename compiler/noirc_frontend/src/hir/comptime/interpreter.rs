@@ -1305,7 +1305,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     // are inconsistencies or the type needs to be known.
                     let expected_type = self.elaborator.interner.id_type(id);
                     let actual_type = result.get_type();
-                    self.unify(&actual_type, &expected_type, location)
+                    self.unify(&actual_type, &expected_type, location);
                 }
                 Ok(result)
             }
@@ -1323,12 +1323,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // We need to swap out the elaborator's file since we may be
         // in a different one currently, and it uses that for the error location.
         let old_file = std::mem::replace(&mut self.elaborator.file, location.file);
-        self.elaborator.unify(actual, expected, || {
-            TypeCheckError::TypeMismatch {
-                expected_typ: expected.to_string(),
-                expr_typ: actual.to_string(),
-                expr_span: location.span,
-            }
+        self.elaborator.unify(actual, expected, || TypeCheckError::TypeMismatch {
+            expected_typ: expected.to_string(),
+            expr_typ: actual.to_string(),
+            expr_span: location.span,
         });
         self.elaborator.file = old_file;
     }
