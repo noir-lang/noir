@@ -1919,7 +1919,7 @@ mod completion_tests {
             #[some>|<]
             fn foo() {}
 
-            fn some_attr(f: FunctionDefinition, x: Field) {}
+            comptime fn some_attr(f: FunctionDefinition, x: Field) -> Quoted {}
             fn some_other_function(x: Field) {}
         "#;
 
@@ -1928,7 +1928,7 @@ mod completion_tests {
             vec![function_completion_item(
                 "some_attr(…)",
                 "some_attr(${1:x})",
-                "fn(FunctionDefinition, Field)",
+                "fn(FunctionDefinition, Field) -> Quoted",
             )],
         )
         .await;

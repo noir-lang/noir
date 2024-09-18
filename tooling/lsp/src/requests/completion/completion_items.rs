@@ -217,19 +217,24 @@ impl<'a> NodeFinder<'a> {
             )
         };
 
-        // It's unlikely users will define a function named `unquote` that does something different than std's unquote.
-        if name == "unquote" {
-            vec![make_completion_item(true)]
-        } else {
-            let modifiers = self.interner.function_modifiers(&func_id);
+        // When suggestion functions in attributes, never suggest a macro call
+        if attribute_first_type.is_some() {
+            return vec![make_completion_item(false)];
+        }
 
-            if modifiers.is_comptime
-                && matches!(func_meta.return_type(), Type::Quoted(QuotedType::Quoted))
-            {
-                vec![make_completion_item(false), make_completion_item(true)]
-            } else {
-                vec![make_completion_item(false)]
-            }
+        // Special case: the `unquote` macro
+        // (it's unlikely users will define a function named `unquote` that does something different than std's unquote)
+        if name == "unquote" {
+            return vec![make_completion_item(true)];
+        }
+
+        let modifiers = self.interner.function_modifiers(&func_id);
+        if modifiers.is_comptime
+            && matches!(func_meta.return_type(), Type::Quoted(QuotedType::Quoted))
+        {
+            vec![make_completion_item(false), make_completion_item(true)]
+        } else {
+            vec![make_completion_item(false)]
         }
     }
 
