@@ -140,9 +140,7 @@ mod tests {
         movements: Vec<(usize, usize)>,
     ) -> HashMap<MemoryAddress, HashSet<MemoryAddress>> {
         movements.into_iter().fold(HashMap::default(), |mut map, (source, destination)| {
-            map.entry(MemoryAddress(source))
-                .or_insert_with(HashSet::default)
-                .insert(MemoryAddress(destination));
+            map.entry(MemoryAddress(source)).or_default().insert(MemoryAddress(destination));
             map
         })
     }
