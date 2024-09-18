@@ -169,14 +169,12 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        if !kind.matches_opt(resolved_type.kind()) {
+        if !kind.unifies(&resolved_type.kind()) {
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.to_string(),
                 expr_kind: resolved_type
                     .kind()
-                    .as_ref()
-                    .map(Kind::to_string)
-                    .unwrap_or("unknown".to_string()),
+                    .to_string(),
                 expr_span: span,
             });
             self.errors.push((expected_typ_err, self.file));
@@ -470,15 +468,13 @@ impl<'context> Elaborator<'context> {
     }
 
     fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
-        if let Some(kind) = typ.kind() {
-            if !kind.unifies(expected_kind) {
-                self.push_err(TypeCheckError::TypeKindMismatch {
-                    expected_kind: expected_kind.to_string(),
-                    expr_kind: kind.to_string(),
-                    expr_span: span,
-                });
-                return Type::Error;
-            }
+        if !typ.kind().unifies(expected_kind) {
+            self.push_err(TypeCheckError::TypeKindMismatch {
+                expected_kind: expected_kind.to_string(),
+                expr_kind: typ.kind().to_string(),
+                expr_span: span,
+            });
+            return Type::Error;
         }
         typ
     }

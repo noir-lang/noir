@@ -150,10 +150,6 @@ impl Kind {
         matches!(self, Self::Numeric { .. })
     }
 
-    pub(crate) fn matches_opt(&self, other: Option<Self>) -> bool {
-        other.as_ref().map_or(true, |other_kind| self.unifies(other_kind))
-    }
-
     pub(crate) fn u32() -> Self {
         Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
     }
@@ -542,6 +538,18 @@ pub enum TypeVariableKind {
     /// A generic integer type. This is a more specific kind of TypeVariable
     /// that can only be bound to Type::Integer, or other polymorphic integers.
     Integer,
+}
+
+impl TypeVariableKind {
+    fn kind(&self) -> Kind {
+        // TODO: needs TypeVariableKind enum variants to be updated
+        // TODO: ensure that IntegerOrField and Integer are incompatible w/ Type::Constant or add to Kind
+        match self {
+            Self::Normal => _,
+            Self::IntegerOrField => _,
+            Self::Integer => _,
+        }
+    }
 }
 
 /// A TypeVariable is a mutable reference that is either
@@ -1130,15 +1138,15 @@ impl Type {
         }
     }
 
-    pub(crate) fn kind(&self) -> Option<Kind> {
+    pub(crate) fn kind(&self) -> Kind {
         match self {
-            Type::NamedGeneric(_, _, kind) => Some(kind.clone()),
-            Type::Constant(_, kind) => Some(kind.clone()),
-            Type::TypeVariable(var, _) => match *var.borrow() {
+            Type::NamedGeneric(_, _, kind) => kind.clone(),
+            Type::Constant(_, kind) => kind.clone(),
+            Type::TypeVariable(var, type_var_kind) => match *var.borrow() {
                 TypeBinding::Bound(ref typ) => typ.kind(),
-                TypeBinding::Unbound(_) => None,
+                TypeBinding::Unbound(_) => type_var_kind.kind(),
             },
-            Type::InfixExpr(lhs, _op, rhs) => Some(lhs.infix_kind(rhs)),
+            Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
             Type::FieldElement
             | Type::Array(..)
             | Type::Slice(..)
@@ -1155,26 +1163,18 @@ impl Type {
             | Type::MutableReference(..)
             | Type::Forall(..)
             | Type::Quoted(..)
-            | Type::Error => Some(Kind::Normal),
+            | Type::Error => Kind::Normal,
         }
     }
 
-    /// if both Kind's are equal to Some(_), return that Kind,
-    ///     otherwise return a Kind error
-    /// if both Kind's are None, default to u32
-    /// if exactly one Kind is None, return the other one
+    /// Unifies self and other kinds or fails with a Kind error
     fn infix_kind(&self, other: &Self) -> Kind {
-        match (self.kind(), other.kind()) {
-            (Some(self_kind), Some(other_kind)) => {
-                if self_kind == other_kind {
-                    self_kind
-                } else {
-                    Kind::Numeric(Box::new(Type::Error))
-                }
-            }
-            (None, None) => Kind::u32(),
-            (Some(self_kind), None) => self_kind,
-            (None, Some(other_kind)) => other_kind,
+        let self_kind = self.kind();
+        let other_kind = other.kind();
+        if self_kind.unifies(&other_kind) {
+            self_kind
+        } else {
+            Kind::Numeric(Box::new(Type::Error))
         }
     }
 
@@ -1542,7 +1542,7 @@ impl Type {
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 if let Some(other_value) = other.evaluate_to_u32() {
-                    if *value == other_value && kind.matches_opt(other.kind()) {
+                    if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
                         Err(UnificationError)
