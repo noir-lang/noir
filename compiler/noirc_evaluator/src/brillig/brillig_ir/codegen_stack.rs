@@ -21,9 +21,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // Now we need to detect all cycles.
         // First build a map of the movements. Note that a source could have multiple destinations
-        let mut movements_map =
+        let mut movements_map: HashMap<MemoryAddress, HashSet<_>> =
             movements.into_iter().fold(HashMap::default(), |mut map, (source, destination)| {
-                map.entry(source).or_insert_with(HashSet::default).insert(destination);
+                map.entry(source).or_default().insert(destination);
                 map
             });
 
