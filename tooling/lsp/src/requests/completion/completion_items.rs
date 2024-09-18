@@ -238,6 +238,7 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn function_completion_item(
         &self,
         name: &String,
