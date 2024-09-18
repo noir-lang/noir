@@ -17,19 +17,20 @@ use crate::{
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::FunctionBody,
+        function::{FunctionBody, ResolvedFvAttribute},
+        stmt::{HirLetStatement, HirPattern},
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
     macros_api::{
-        BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
+        BlockExpression, HirStatement, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
         SecondaryAttribute, StructId,
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, ReferenceId,
         TraitId, TypeAliasId,
     },
-    token::CustomAttribute,
+    token::{Attributes, CustomAttribute, FormalVerificationAttribute},
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -67,7 +68,7 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 
 use self::traits::check_trait_impl_method_matches_declaration;
 
@@ -348,8 +349,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
-        for (_, id, _) in functions.functions {
-            self.elaborate_function(id);
+        for (_, id, noir_function) in functions.functions {
+            self.elaborate_function(id, Some(noir_function.attributes()));
         }
 
         self.generics.clear();
@@ -371,7 +372,7 @@ impl<'context> Elaborator<'context> {
         self.generics = all_generics;
     }
 
-    pub(crate) fn elaborate_function(&mut self, id: FuncId) {
+    pub(crate) fn elaborate_function(&mut self, id: FuncId, attributes: Option<&Attributes>) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");
@@ -431,7 +432,19 @@ impl<'context> Elaborator<'context> {
 
         // Don't verify the return type for builtin functions & trait function declarations
         if !func_meta.is_stub() {
-            self.type_check_function_body(body_type, &func_meta, hir_func.as_expr());
+            self.type_check_function_body(body_type.clone(), &func_meta, hir_func.as_expr());
+        }
+
+        if let Some(attr) = attributes {
+            if !attr.fv_attributes.is_empty() {
+                self.elaborate_fv_attributes(
+                    attr.fv_attributes.clone(),
+                    &id,
+                    body_type,
+                    &hir_func,
+                    func_meta.location.span,
+                );
+            }
         }
 
         // Default any type variables that still need defaulting and
@@ -825,6 +838,7 @@ impl<'context> Elaborator<'context> {
             self_type: self.self_type.clone(),
             source_file: self.file,
             custom_attributes: attributes,
+            formal_verification_attributes: Vec::new(),
         };
 
         self.interner.push_fn_meta(meta, func_id);
@@ -1380,5 +1394,88 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => true,
             })
+    }
+
+    /// Performs semantic analysis on the formal verification attributes discovered by the parser.
+    ///
+    /// # Arguments
+    ///
+    /// * `fv_attributes` - the parsed attributes
+    /// * `func_id` - this is the `FuncId` of the function to which the attributes are attached
+    /// * `body_type` - this is the semantically inferred type of the expression that is the body of the function
+    /// * `hir_func` - this identifies the same expression
+    /// * `func_span` - represents the span in code
+    fn elaborate_fv_attributes(
+        &mut self,
+        fv_attributes: Vec<FormalVerificationAttribute>,
+        func_id: &FuncId,
+        body_type: Type,
+        hir_func: &HirFunction,
+        func_span: Span,
+    ) {
+        for attribute in fv_attributes {
+            match attribute {
+                FormalVerificationAttribute::Ensures(expr_body) => {
+                    self.add_result_variable_to_scope(body_type.clone(), hir_func, func_span);
+                    let expr_span = expr_body.span;
+                    // Type inference happens here:
+                    let (expr_id, typ) = self.elaborate_expression(expr_body.clone());
+                    // Type checking happens here:
+                    self.unify_with_coercions(&typ, &Type::Bool, expr_id, expr_span, || {
+                        TypeCheckError::TypeMismatch {
+                            expected_typ: Type::Bool.to_string(),
+                            expr_typ: typ.to_string(),
+                            expr_span: expr_span,
+                        }
+                    });
+                    // Saving the attributes in the function metadata:
+                    self.interner
+                        .function_meta_mut(func_id)
+                        .formal_verification_attributes
+                        .push(ResolvedFvAttribute::Ensures(expr_id));
+                }
+                FormalVerificationAttribute::Requires(expr_body) => {
+                    let expr_span = expr_body.span;
+                    let (expr_id, typ) = self.elaborate_expression(expr_body);
+                    self.unify_with_coercions(&typ, &Type::Bool, expr_id, expr_span, || {
+                        TypeCheckError::TypeMismatch {
+                            expected_typ: Type::Bool.to_string(),
+                            expr_typ: typ.to_string(),
+                            expr_span: expr_span,
+                        }
+                    });
+                    self.interner
+                        .function_meta_mut(func_id)
+                        .formal_verification_attributes
+                        .push(ResolvedFvAttribute::Requires(expr_id));
+                }
+            }
+        }
+    }
+    fn add_result_variable_to_scope(
+        &mut self,
+        body_type: Type,
+        hir_func: &HirFunction,
+        func_span: Span,
+    ) {
+        //TODO(totel) ugly hack for result. Only for the prototype. Will be fixed later on
+        let result_hir_ident = self.add_variable_decl_inner(
+            Ident(Spanned::from(func_span, String::from("result"))),
+            false,
+            true,
+            false,
+            DefinitionKind::Local(Some(hir_func.as_expr())),
+        );
+        self.interner.push_definition_type(result_hir_ident.id, body_type.clone());
+        let result_hir_pattern = HirPattern::Identifier(result_hir_ident);
+        let hir_statement = HirStatement::Let(HirLetStatement {
+            pattern: result_hir_pattern,
+            r#type: body_type.clone(),
+            expression: hir_func.as_expr(),
+            attributes: Vec::new(),
+            comptime: false,
+        });
+        let id = self.interner.push_stmt(hir_statement);
+        self.interner.push_stmt_location(id, func_span, self.file);
     }
 }

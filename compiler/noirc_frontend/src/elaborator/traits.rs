@@ -197,7 +197,7 @@ impl<'context> Elaborator<'context> {
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, Some(trait_id));
-        self.elaborate_function(func_id);
+        self.elaborate_function(func_id, Some(function.attributes()));
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);

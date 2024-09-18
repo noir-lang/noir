@@ -1,0 +1,7 @@
+[package]
+name = "fv_attribute_name_resolution"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.34.0"
+
+[dependencies]
