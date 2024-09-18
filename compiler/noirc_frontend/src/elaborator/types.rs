@@ -1306,11 +1306,13 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         method_name: &str,
         span: Span,
+        has_self_arg: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
             Type::Struct(typ, _args) => {
                 let id = typ.borrow().id;
-                match self.interner.lookup_method(object_type, id, method_name, false) {
+                match self.interner.lookup_method(object_type, id, method_name, false, has_self_arg)
+                {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.push_err(TypeCheckError::UnresolvedMethodCall {
@@ -1339,9 +1341,9 @@ impl<'context> Elaborator<'context> {
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, has_self_arg)
                 .map(HirMethodReference::FuncId)
-                .or_else(|| self.lookup_method(&element, method_name, span)),
+                .or_else(|| self.lookup_method(&element, method_name, span, has_self_arg)),
 
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
@@ -1353,7 +1355,8 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name) {
+            other => match self.interner.lookup_primitive_method(&other, method_name, has_self_arg)
+            {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     // It could be that this type is a composite type that is bound to a trait,

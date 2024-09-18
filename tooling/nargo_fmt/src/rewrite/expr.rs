@@ -192,7 +192,20 @@ pub(crate) fn rewrite(
         }
         ExpressionKind::AsTraitPath(path) => {
             let trait_path = rewrite_path(visitor, shape, path.trait_path);
-            format!("<{} as {}>::{}", path.typ, trait_path, path.impl_item)
+
+            if path.trait_generics.is_empty() {
+                format!("<{} as {}>::{}", path.typ, trait_path, path.impl_item)
+            } else {
+                let generics = path.trait_generics;
+                format!("<{} as {}::{}>::{}", path.typ, trait_path, generics, path.impl_item)
+            }
+        }
+        ExpressionKind::TypePath(path) => {
+            if path.turbofish.is_empty() {
+                format!("{}::{}", path.typ, path.item)
+            } else {
+                format!("{}::{}::{}", path.typ, path.item, path.turbofish)
+            }
         }
     }
 }

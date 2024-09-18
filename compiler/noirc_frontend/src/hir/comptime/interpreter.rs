@@ -1352,8 +1352,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 struct_def.borrow().id,
                 method_name,
                 false,
+                true,
             ),
-            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name),
+            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name, true),
         };
 
         if let Some(method) = method {
