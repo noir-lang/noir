@@ -61,8 +61,6 @@ impl<'context> Elaborator<'context> {
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
-        eprintln!("Resolving {typ}");
-
         let span = typ.span;
         let (named_path_span, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
@@ -80,7 +78,6 @@ impl<'context> Elaborator<'context> {
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 let size = self.convert_expression_type(size, span);
-                dbg!(&size);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
@@ -420,7 +417,6 @@ impl<'context> Elaborator<'context> {
                     .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
                     .unwrap_or(Kind::u32());
 
-                dbg!(&kind);
                 Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
             }
             _ => None,
