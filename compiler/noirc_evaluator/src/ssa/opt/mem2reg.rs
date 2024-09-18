@@ -420,12 +420,13 @@ impl<'f> PerFunctionContext<'f> {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
                     }
+                } else {
+                    // We want to set the load for every load even if the address has a known value
+                    // and the previous load instruction was removed.
+                    // We are safe to still remove a repeat load in this case as we are mapping from the current load's
+                    // result to the previous load, which if it was removed should already have a mapping to the known value.
+                    references.set_last_load(address, instruction);
                 }
-                // We want to set the load for every load even if the address has a known value
-                // and the previous load instruction was removed.
-                // We are safe to still remove a repeat load in this case as we are mapping from the current load's
-                // result to the previous load, which if it was removed should already have a mapping to the known value.
-                references.set_last_load(address, instruction);
             }
             Instruction::Store { address, value } => {
                 let address = self.inserter.function.dfg.resolve(*address);
@@ -546,6 +547,32 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
                 self.mark_all_unknown(arguments, references);
+            }
+            Instruction::IncrementRc { value } | Instruction::DecrementRc { value } => {
+                // Account for whether a load has been removed.
+                // If a load has been removed, there may potentially be an inc_rc/dec_rc instruction
+                // that follows the load instruction. With the load gone, we can also remove the inc_rc/dec_rc.
+                let instructions = self.inserter.function.dfg[block_id].instructions();
+                if instructions.len() < 2 {
+                    return;
+                }
+
+                // We subtract two as we always push an instruction before analyzing it and we want the instruction
+                // before this increment or decrement rc instruction.
+                let last_instruction = instructions[instructions.len() - 2];
+
+                let value = self.inserter.function.dfg.resolve(*value);
+                if self.instructions_to_remove.contains(&last_instruction) {
+                    if let Instruction::Load { .. } = self.inserter.function.dfg[last_instruction] {
+                        let result =
+                            self.inserter.function.dfg.instruction_results(last_instruction)[0];
+                        let result = self.inserter.resolve(result);
+
+                        if result == value {
+                            self.instructions_to_remove.insert(instruction);
+                        }
+                    }
+                }
             }
             _ => (),
         }
