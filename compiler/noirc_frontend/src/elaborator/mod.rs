@@ -95,7 +95,7 @@ pub struct Elaborator<'context> {
 
     pub(crate) interner: &'context mut NodeInterner,
 
-    def_maps: &'context mut DefMaps,
+    pub(crate) def_maps: &'context mut DefMaps,
 
     file: FileId,
 
@@ -1252,15 +1252,9 @@ impl<'context> Elaborator<'context> {
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
-                    // Go to the struct's parent module
-                    let module_data = self.get_module(struct_module_id);
-                    let parent_local_id =
-                        module_data.parent.expect("Expected struct module parent to exist");
-                    let parent_module_id =
-                        ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
-                    let parent_module_data = self.get_module(parent_module_id);
-
                     // Find the struct in the parent module so we can know its visibility
+                    let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+                    let parent_module_data = self.get_module(parent_module_id);
                     let per_ns = parent_module_data.find_name(&struct_type.name);
                     if let Some((_, aliased_visibility, _)) = per_ns.types {
                         if aliased_visibility < visibility {

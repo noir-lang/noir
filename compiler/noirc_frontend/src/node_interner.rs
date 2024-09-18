@@ -23,6 +23,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_map::DefMaps;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
@@ -478,6 +479,11 @@ impl StructId {
 
     pub fn local_module_id(self) -> LocalModuleId {
         self.0.local_id
+    }
+
+    /// Returns the module where this struct is defined.
+    pub fn parent_module_id(self, def_maps: &DefMaps) -> ModuleId {
+        self.module_id().parent(def_maps).expect("Expected struct module parent to exist")
     }
 }
 

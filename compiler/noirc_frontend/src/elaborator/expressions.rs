@@ -10,7 +10,6 @@ use crate::{
     },
     hir::{
         comptime::{self, InterpreterError},
-        def_map::ModuleId,
         resolution::errors::ResolverError,
         type_check::{generics::TraitGenerics, TypeCheckError},
     },
@@ -566,11 +565,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<StructType>) {
         let struct_type = struct_type.borrow();
-        let struct_module_id = struct_type.id.module_id();
-        let module_data = self.get_module(struct_module_id);
-        let parent_local_id = module_data.parent.expect("Expected struct module parent to exist");
-        let parent_module_id =
-            ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
+        let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         self.interner.usage_tracker.mark_as_used(parent_module_id, &struct_type.name);
     }
 

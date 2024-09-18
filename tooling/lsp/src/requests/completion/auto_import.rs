@@ -1,7 +1,7 @@
 use lsp_types::{Position, Range, TextEdit};
 use noirc_frontend::macros_api::ModuleDefId;
 
-use crate::modules::{get_parent_module_id, relative_module_full_path, relative_module_id_path};
+use crate::modules::{relative_module_full_path, relative_module_id_path};
 
 use super::{
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
@@ -17,7 +17,7 @@ impl<'a> NodeFinder<'a> {
         requested_items: RequestedItems,
         function_completion_kind: FunctionCompletionKind,
     ) {
-        let current_module_parent_id = get_parent_module_id(self.def_maps, self.module_id);
+        let current_module_parent_id = self.module_id.parent(self.def_maps);
 
         for (name, entries) in self.interner.get_auto_import_names() {
             if !name_matches(name, prefix) {
