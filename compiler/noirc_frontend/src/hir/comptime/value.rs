@@ -27,7 +27,7 @@ use crate::{
     node_interner::{ExprId, FuncId, InternedStatementKind, StmtId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
-    QuotedType, Shared, Type, TypeBindings,
+    Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -124,7 +124,7 @@ impl Value {
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Value::String(value) => {
-                let length = Type::Constant(value.len() as u32);
+                let length = Type::Constant(value.len() as u32, Kind::u32());
                 Type::String(Box::new(length))
             }
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
@@ -554,6 +554,7 @@ fn parse_tokens<T>(
     parser: impl NoirParser<T>,
     location: Location,
 ) -> IResult<T> {
+    let parser = parser.then_ignore(chumsky::primitive::end());
     match parser.parse(add_token_spans(tokens.clone(), location.span)) {
         Ok(expr) => Ok(expr),
         Err(mut errors) => {
@@ -681,7 +682,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 }
             }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{:?}", typ),
+            Value::Type(typ) => write!(f, "{}", typ),
             Value::Expr(ExprValue::Expression(expr)) => {
                 write!(f, "{}", remove_interned_in_expression_kind(self.interner, expr.clone()))
             }

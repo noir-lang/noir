@@ -10,7 +10,7 @@ use builtin_helpers::{
     mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
-use chumsky::{chain::Chain, prelude::choice, Parser};
+use chumsky::{chain::Chain, prelude::choice, primitive::just, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -33,15 +33,14 @@ use crate::{
         def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
-    lexer::Lexer,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
-    parser::{self},
+    parser,
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item};
+use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -303,7 +302,7 @@ fn str_as_bytes(
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
     let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len() as u32)),
+        Box::new(Type::Constant(bytes.len() as u32, Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     );
     Ok(Value::Array(bytes, byte_array_type))
@@ -330,10 +329,7 @@ fn struct_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
 
-    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
+    let mut tokens = lex(&format!("#[{}]", attribute));
     if tokens.len() != 1 {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -341,7 +337,7 @@ fn struct_def_add_attribute(
         });
     }
 
-    let token = tokens.into_iter().next().unwrap().into_token();
+    let token = tokens.remove(0);
     let Token::Attribute(attribute) = token else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -374,11 +370,7 @@ fn struct_def_add_generic(
     let generic_location = generic.1;
     let generic = get_str(interner, generic)?;
 
-    let mut tokens = Lexer::lex(&generic).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
-
+    let mut tokens = lex(&generic);
     if tokens.len() != 1 {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
@@ -386,7 +378,7 @@ fn struct_def_add_generic(
         });
     }
 
-    let Token::Ident(generic_name) = tokens.pop().unwrap().into_token() else {
+    let Token::Ident(generic_name) = tokens.remove(0) else {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
             location: generic_location,
@@ -690,6 +682,7 @@ fn quoted_as_expr(
     let statement_parser = parser::fresh_statement().map(Value::statement);
     let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
     let parser = choice((expr_parser, statement_parser, lvalue_parser));
+    let parser = parser.then_ignore(just(Token::Semicolon).or_not());
 
     let expr = parse(argument, parser, "an expression").ok();
 
@@ -783,7 +776,7 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let limb_count = if let Type::Array(length, _) = return_type {
-        if let Type::Constant(limb_count) = *length {
+        if let Type::Constant(limb_count, _kind) = *length {
             limb_count
         } else {
             return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
@@ -1201,7 +1194,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
@@ -2059,12 +2052,7 @@ fn fmtstr_quoted_contents(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (string, _) = get_format_string(interner, self_argument)?;
-    let (tokens, _) = Lexer::lex(&string);
-    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
-    if let Some(Token::EOF) = tokens.last() {
-        tokens.pop();
-    }
-
+    let tokens = lex(&string);
     Ok(Value::Quoted(Rc::new(tokens)))
 }
 
@@ -2083,10 +2071,7 @@ fn function_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
 
-    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
+    let mut tokens = lex(&format!("#[{}]", attribute));
     if tokens.len() != 1 {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -2094,7 +2079,7 @@ fn function_def_add_attribute(
         });
     }
 
-    let token = tokens.into_iter().next().unwrap().into_token();
+    let token = tokens.remove(0);
     let Token::Attribute(attribute) = token else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),

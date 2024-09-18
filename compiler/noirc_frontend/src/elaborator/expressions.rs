@@ -29,7 +29,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::Tokens,
-    QuotedType, Shared, StructType, Type,
+    Kind, QuotedType, Shared, StructType, Type,
 };
 
 use super::{Elaborator, LambdaContext};
@@ -162,7 +162,7 @@ impl<'context> Elaborator<'context> {
                 (Lit(int), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len() as u32);
+                let len = Type::Constant(str.len() as u32, Kind::u32());
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(str) => self.elaborate_fmt_string(str, span),
@@ -204,7 +204,7 @@ impl<'context> Elaborator<'context> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len() as u32);
+                let length = Type::Constant(elements.len() as u32, Kind::u32());
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -215,7 +215,7 @@ impl<'context> Elaborator<'context> {
                         UnresolvedTypeExpression::Constant(0, span)
                     });
 
-                let length = self.convert_expression_type(length);
+                let length = self.convert_expression_type(length, &Kind::u32(), span);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
 
                 let length_clone = length.clone();
@@ -268,7 +268,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        let len = Type::Constant(str.len() as u32);
+        let len = Type::Constant(str.len() as u32, Kind::u32());
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
@@ -478,7 +478,17 @@ impl<'context> Elaborator<'context> {
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
-                let typ = self.type_check_call(&function_call, func_type, function_args, span);
+                let mut typ = self.type_check_call(&function_call, func_type, function_args, span);
+                if is_macro_call {
+                    if self.in_comptime_context() {
+                        typ = self.interner.next_type_variable();
+                    } else {
+                        let args = function_call.arguments.clone();
+                        return self
+                            .call_macro(function_call.func, args, location, typ)
+                            .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                    }
+                }
                 (HirExpression::Call(function_call), typ)
             }
             None => (HirExpression::Error, Type::Error),
