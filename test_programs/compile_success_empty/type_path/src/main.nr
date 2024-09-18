@@ -1,5 +1,6 @@
 fn main() {
-    comptime {
+    comptime
+    {
         let foo = quote { Foo }.as_type();
         quote {
             $foo::static()
