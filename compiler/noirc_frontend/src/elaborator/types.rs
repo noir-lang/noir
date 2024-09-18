@@ -77,22 +77,22 @@ impl<'context> Elaborator<'context> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
-                let size = self.convert_expression_type(size, span);
+                let size = self.convert_expression_type(size, &Kind::u32(), span);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 Type::Slice(elem)
             }
-            Expression(expr) => self.convert_expression_type(expr, span),
+            Expression(expr) => self.convert_expression_type(expr, kind, span),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.convert_expression_type(size, span);
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
-                let resolved_size = self.convert_expression_type(size, span);
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
@@ -423,23 +423,22 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Resolves a constant expression for an array or string.
-    /// Note that the kind of this expression is always expected to be u32 (unlike struct args)
     pub(super) fn convert_expression_type(
         &mut self,
         length: UnresolvedTypeExpression,
+        expected_kind: &Kind,
         span: Span,
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default());
-                self.check_u32_kind(typ, span)
+                self.check_kind(typ, expected_kind, span)
             }
             UnresolvedTypeExpression::Constant(int, _span) => Type::Constant(int, Kind::u32()),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
-                let lhs = self.convert_expression_type(*lhs, lhs_span);
-                let rhs = self.convert_expression_type(*rhs, rhs_span);
+                let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_span);
+                let rhs = self.convert_expression_type(*rhs, expected_kind, rhs_span);
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
@@ -463,16 +462,16 @@ impl<'context> Elaborator<'context> {
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 let typ = self.resolve_as_trait_path(*path);
-                self.check_u32_kind(typ, span)
+                self.check_kind(typ, expected_kind, span)
             }
         }
     }
 
-    fn check_u32_kind(&mut self, typ: Type, span: Span) -> Type {
+    fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
         if let Some(kind) = typ.kind() {
-            if !kind.unifies(&Kind::u32()) {
+            if !kind.unifies(expected_kind) {
                 self.push_err(TypeCheckError::TypeKindMismatch {
-                    expected_kind: Kind::u32().to_string(),
+                    expected_kind: expected_kind.to_string(),
                     expr_kind: kind.to_string(),
                     expr_span: span,
                 });
