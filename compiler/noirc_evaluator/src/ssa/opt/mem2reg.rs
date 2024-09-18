@@ -418,6 +418,7 @@ impl<'f> PerFunctionContext<'f> {
                         self.inserter.function.dfg.instruction_results(*last_load)[0];
                     if *previous_address == address {
                         self.inserter.map_value(result, previous_result);
+                        self.instructions_to_remove.insert(instruction);
                     }
                 }
                 // We want to set the load for every load even if the address has a known value
