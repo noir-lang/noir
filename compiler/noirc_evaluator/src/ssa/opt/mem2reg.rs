@@ -615,9 +615,7 @@ impl<'f> PerFunctionContext<'f> {
 
     fn reduce_load_result_count(&mut self, value: ValueId) {
         if let Some(context) = self.load_results.get_mut(&value) {
-            if context.uses != 0 {
-                context.uses -= 1;
-            }
+            context.uses = context.uses.saturating_sub(1);
         }
     }
 
