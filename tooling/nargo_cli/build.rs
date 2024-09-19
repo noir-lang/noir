@@ -89,7 +89,7 @@ fn generate_test_case(
         test_file,
         r#"
 #[test]
-fn {test_name}() {{
+fn test_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
