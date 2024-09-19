@@ -347,7 +347,6 @@ impl<'f> PerFunctionContext<'f> {
             self.increase_load_ref_counts(value);
         }
 
-        // let mut values_to_reduce_counts = Vec::new();
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
                 let address = self.inserter.function.dfg.resolve(*address);
