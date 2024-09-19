@@ -232,7 +232,13 @@ impl<'a> NodeFinder<'a> {
         if modifiers.is_comptime
             && matches!(func_meta.return_type(), Type::Quoted(QuotedType::Quoted))
         {
-            vec![make_completion_item(false), make_completion_item(true)]
+            if self.in_comptime {
+                vec![make_completion_item(false), make_completion_item(true)]
+            } else {
+                // If not in a comptime block we can't operate with comptime values so the only thing
+                // we can do is call a macro.
+                vec![make_completion_item(true)]
+            }
         } else {
             vec![make_completion_item(false)]
         }

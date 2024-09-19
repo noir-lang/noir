@@ -1373,7 +1373,8 @@ impl NodeInterner {
             Type::Struct(struct_type, _generics) => {
                 let id = struct_type.borrow().id;
 
-                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true) {
+                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true, true)
+                {
                     return Some(existing);
                 }
 
@@ -1770,6 +1771,7 @@ impl NodeInterner {
         id: StructId,
         method_name: &str,
         force_type_check: bool,
+        has_self_arg: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&id).and_then(|h| h.get(method_name));
 
@@ -1781,7 +1783,7 @@ impl NodeInterner {
             }
         }
 
-        self.find_matching_method(typ, methods, method_name)
+        self.find_matching_method(typ, methods, method_name, has_self_arg)
     }
 
     /// Select the 1 matching method with an object type matching `typ`
@@ -1790,32 +1792,40 @@ impl NodeInterner {
         typ: &Type,
         methods: Option<&Methods>,
         method_name: &str,
+        has_self_arg: bool,
     ) -> Option<FuncId> {
-        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self)) {
+        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, has_self_arg, self))
+        {
             Some(method)
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
             // for all types `T`, e.g. `impl<T> Foo for T`
             let global_methods =
                 self.primitive_methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
-            global_methods.find_matching_method(typ, self)
+            global_methods.find_matching_method(typ, has_self_arg, self)
         }
     }
 
     /// Looks up a given method name on the given primitive type.
-    pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
+    pub fn lookup_primitive_method(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
         let methods = self.primitive_methods.get(&key)?.get(method_name)?;
-        self.find_matching_method(typ, Some(methods), method_name)
+        self.find_matching_method(typ, Some(methods), method_name, has_self_arg)
     }
 
     pub fn lookup_primitive_trait_method_mut(
         &self,
         typ: &Type,
         method_name: &str,
+        has_self_arg: bool,
     ) -> Option<FuncId> {
         let typ = Type::MutableReference(Box::new(typ.clone()));
-        self.lookup_primitive_method(&typ, method_name)
+        self.lookup_primitive_method(&typ, method_name, has_self_arg)
     }
 
     /// Returns what the next trait impl id is expected to be.
@@ -2256,19 +2266,30 @@ impl Methods {
     }
 
     /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(&self, typ: &Type, interner: &NodeInterner) -> Option<FuncId> {
+    fn find_matching_method(
+        &self,
+        typ: &Type,
+        has_self_param: bool,
+        interner: &NodeInterner,
+    ) -> Option<FuncId> {
         // When adding methods we always check they do not overlap, so there should be
         // at most 1 matching method in this list.
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _, _) => {
-                    if let Some(object) = args.first() {
-                        let mut bindings = TypeBindings::new();
+                    if has_self_param {
+                        if let Some(object) = args.first() {
+                            let mut bindings = TypeBindings::new();
 
-                        if object.try_unify(typ, &mut bindings).is_ok() {
-                            Type::apply_type_bindings(bindings);
-                            return Some(method);
+                            if object.try_unify(typ, &mut bindings).is_ok() {
+                                Type::apply_type_bindings(bindings);
+                                return Some(method);
+                            }
                         }
+                    } else {
+                        // Just return the first method whose name matches since we
+                        // can't match object types on static methods.
+                        return Some(method);
                     }
                 }
                 Type::Error => (),
