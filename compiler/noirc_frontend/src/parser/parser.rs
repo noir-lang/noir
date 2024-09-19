@@ -463,7 +463,8 @@ where
 {
     recursive(|statement| {
         choice((
-            assertion::any(expr_parser.clone()),
+            assertion::constrain(expr_parser.clone()),
+            assertion::assertion(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
             if_statement(expr_no_constructors.clone(), statement.clone()),
