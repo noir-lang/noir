@@ -4,7 +4,6 @@ import fold_fibonacci_json from '../noir_compiled_examples/fold_fibonacci/target
 import assert_raw_payload_json from '../noir_compiled_examples/assert_raw_payload/target/assert_raw_payload.json' assert { type: 'json' };
 import databus_json from '../noir_compiled_examples/databus/target/databus.json' assert { type: 'json' };
 
-
 import { Noir, ErrorWithPayload } from '@noir-lang/noir_js';
 import { CompiledCircuit } from '@noir-lang/types';
 import { expect } from 'chai';
@@ -13,7 +12,6 @@ const assert_lt_program = assert_lt_json as CompiledCircuit;
 const assert_msg_runtime = assert_msg_json as CompiledCircuit;
 const fold_fibonacci_program = fold_fibonacci_json as CompiledCircuit;
 const databus_program = databus_json as CompiledCircuit;
-
 
 it('executes a single-ACIR program correctly', async () => {
   const inputs = {
@@ -95,10 +93,10 @@ it('successfully executes a program with multiple acir circuits', async () => {
 
 it('successfully decodes the return values from a program using the databus', async () => {
   const inputs = {
-    x: "3",
-    y: "4",
-    z: [1,2,3,4],
+    x: '3',
+    y: '4',
+    z: [1, 2, 3, 4],
   };
   const { returnValue } = await new Noir(databus_program).execute(inputs);
-  expect(returnValue).to.be.eq("0x09")
+  expect(returnValue).to.be.eq('0x09');
 });
