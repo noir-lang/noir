@@ -20,9 +20,6 @@ pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
-#[foreign(blake2s)]
-pub(crate) fn blake2s_slice<let N: u32>(input: [u8]) -> [u8; 32] {}
-
 #[foreign(blake3)]
 // docs:start:blake3
 pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
