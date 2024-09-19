@@ -3701,7 +3701,6 @@ fn use_non_u32_generic_in_struct() {
     assert_eq!(errors.len(), 0);
 }
 
-
 #[test]
 fn use_numeric_generic_in_trait_method() {
     let src = r#"
