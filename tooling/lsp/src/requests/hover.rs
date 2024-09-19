@@ -347,6 +347,10 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
 
 fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     let definition_info = args.interner.definition(id);
+    if let DefinitionKind::Global(global_id) = &definition_info.kind {
+        return format_global(*global_id, args);
+    }
+
     let DefinitionKind::Local(expr_id) = definition_info.kind else {
         panic!("Expected a local reference to reference a local definition")
     };
