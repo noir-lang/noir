@@ -1947,7 +1947,6 @@ mod tests {
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
-        println!("{}", ssa);
 
         // Expected result of `b3` should be the unchanged:
         //
