@@ -1,0 +1,5 @@
+[package]
+name = "databus"
+type = "bin"
+authors = [""]
+[dependencies]
