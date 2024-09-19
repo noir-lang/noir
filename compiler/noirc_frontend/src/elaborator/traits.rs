@@ -334,7 +334,6 @@ fn check_function_type_matches_expected_type(
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
-                    println!("{a:?} != {b:?}");
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
