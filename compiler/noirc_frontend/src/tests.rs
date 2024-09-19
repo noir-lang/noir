@@ -3700,3 +3700,28 @@ fn use_non_u32_generic_in_struct() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
 }
+
+#[test]
+fn use_numeric_generic_in_trait_method() {
+    let src = r#"
+        trait Foo  {
+            fn foo<let N: u32>(self, x: [u8; N]) -> Self;
+        }
+
+        struct Bar;
+
+        impl Foo for Bar {
+            fn foo<let N: u32>(self, _x: [u8; N]) -> Self {
+                self
+            }
+        }
+
+        fn main() {
+            let _ = Bar{}.foo([1,2,3]);
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    println!("{errors:?}");
+    assert_eq!(errors.len(), 0);
+}
