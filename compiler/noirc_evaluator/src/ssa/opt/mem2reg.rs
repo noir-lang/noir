@@ -678,7 +678,6 @@ impl<'f> PerFunctionContext<'f> {
         let stores_were_removed =
             self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
 
-        println!("{}", self.inserter.function);
         // When removing some last loads with the last stores we will map the load result to the store value.
         // We need to then map all the instructions again as we do not know which instructions are reliant on the load result.
         if stores_were_removed {
