@@ -104,7 +104,7 @@ fn test_{test_name}() {{
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
-    
+
     writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
@@ -131,13 +131,13 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             );
         }
     }
-    writeln!(test_file, "}}").unwrap();    
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
-    
+
     writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
@@ -158,8 +158,8 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
 fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "noir_test_success";
     let test_cases = read_test_cases(test_data_dir, "noir_test_success");
-    
-    writeln!(test_file, "mod {test_type} {{").unwrap();  
+
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -179,7 +179,7 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
 fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "noir_test_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
-    
+
     writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
@@ -199,7 +199,7 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
 fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_empty";
     let test_cases = read_test_cases(test_data_dir, test_type);
-    
+
     writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
@@ -237,7 +237,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
 fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_contract";
     let test_cases = read_test_cases(test_data_dir, test_type);
-    
+
     writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
@@ -258,7 +258,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
 fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_no_bug";
     let test_cases = read_test_cases(test_data_dir, test_type);
-    
+
     writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
@@ -278,7 +278,7 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
 fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
-    
+
     writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
