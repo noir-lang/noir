@@ -1,5 +1,6 @@
 mod bn254;
 use bn254::lt as bn254_lt;
+use crate::runtime::is_unconstrained;
 
 impl Field {
     /// Asserts that `self` can be represented in `bit_size` bits.
@@ -66,29 +67,30 @@ impl Field {
             compute_byte_decomposition(self)
         };
 
-        // Verify that the byte decomposition is correct
-        let mut y = 0;
-        let mut r = 1;
-        for i in 0..N {
-            y += (bytes[i] as Field)*r;
-            r *= 256;
-        }
-        assert_eq(self, y);
+        if !is_unconstrained() {
+            // Verify that the byte decomposition is correct
+            let mut y = 0;
+            let mut r = 1;
+            for i in 0..N {
+                y += (bytes[i] as Field)*r;
+                r *= 256;
+            }
+            assert_eq(self, y);
 
-        // Ensure that the byte decomposition does not overflow the modulus
-        let  p = modulus_le_bytes();
-        assert(bytes.len() <= p.len());
-        let mut ok = bytes.len() != p.len();
-        for i in 0..N {
-            if !ok {
-                if (bytes[N - 1 - i] != p[N - 1 - i]) {
-                    assert(bytes[N - 1 - i] < p[N - 1 - i]);
-                    ok = true;
+            // Ensure that the byte decomposition does not overflow the modulus
+            let  p = modulus_le_bytes();
+            assert(bytes.len() <= p.len());
+            let mut ok = bytes.len() != p.len();
+            for i in 0..N {
+                if !ok {
+                    if (bytes[N - 1 - i] != p[N - 1 - i]) {
+                        assert(bytes[N - 1 - i] < p[N - 1 - i]);
+                        ok = true;
+                    }
                 }
             }
+            assert(ok);
         }
-        assert(ok);
-
         bytes
     }
 
