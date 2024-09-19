@@ -241,7 +241,6 @@ impl<'f> PerFunctionContext<'f> {
             let references = self.find_starting_references(block);
             self.analyze_block(block, references);
         }
-
         self.cleanup_function();
     }
 
@@ -679,6 +678,7 @@ impl<'f> PerFunctionContext<'f> {
         let stores_were_removed =
             self.remove_remaining_last_stores(&removed_loads, &remaining_last_stores);
 
+        println!("{}", self.inserter.function);
         // When removing some last loads with the last stores we will map the load result to the store value.
         // We need to then map all the instructions again as we do not know which instructions are reliant on the load result.
         if stores_were_removed {
@@ -1776,8 +1776,9 @@ mod tests {
         //       constrain v9 == Field 2
         //       v11 = load v2
         //       v12 = load v2
-        //       v13 = eq v12, Field 2
-        //       constrain v11 == Field 2
+        //       v13 = load v12
+        //       v14 = eq v13, Field 2
+        //       constrain v13 == Field 2
         //       return
         //   }
         let main_id = Id::test_new(0);
@@ -1821,10 +1822,11 @@ mod tests {
 
         builder.insert_constrain(v9, two, None);
         let v11 = builder.insert_load(v2, v2_type.clone());
-        let v12 = builder.insert_load(v2, Type::field());
-        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
+        let v12 = builder.insert_load(v2, v2_type);
+        let v13 = builder.insert_load(v12, Type::field());
+        let _ = builder.insert_binary(v13, BinaryOp::Eq, two);
 
-        builder.insert_constrain(v11, two, None);
+        builder.insert_constrain(v13, two, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
@@ -1855,6 +1857,7 @@ mod tests {
         //       return
         //   }
         let ssa = ssa.mem2reg();
+        println!("{}", ssa);
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 4);
@@ -1865,7 +1868,7 @@ mod tests {
 
         assert_eq!(count_loads(b2, &main.dfg), 1);
         // The repeated load to v2 should be removed
-        assert_eq!(count_loads(b3, &main.dfg), 2);
+        assert_eq!(count_loads(b3, &main.dfg), 3);
     }
 
     #[test]
@@ -1879,8 +1882,9 @@ mod tests {
         //   v11 = load v2
         //   call f1(v2)
         //   v13 = load v2
-        //   v14 = eq v13, Field 2
-        //   constrain v11 == Field 2
+        //   v14 = load v12
+        //   v15 = eq v14, Field 2
+        //   constrain v14 == Field 2
         //   return
         //
         // Where f1 is the following function with a reference parameter:
@@ -1935,8 +1939,9 @@ mod tests {
         let foo = builder.import_function(foo_id);
         builder.insert_call(foo, vec![v2], vec![]);
 
-        let v12 = builder.insert_load(v2, Type::field());
-        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
+        let v12 = builder.insert_load(v2, v2_type);
+        let v13 = builder.insert_load(v12, Type::field());
+        let _ = builder.insert_binary(v13, BinaryOp::Eq, two);
 
         builder.insert_constrain(v11, two, None);
         builder.terminate_with_return(vec![]);
@@ -1970,6 +1975,158 @@ mod tests {
 
         assert_eq!(count_loads(b2, &main.dfg), 1);
         // The repeated loads to v2 should remain as it is passed as a reference argument.
+        assert_eq!(count_loads(b3, &main.dfg), 4);
+    }
+
+    #[test]
+    fn keep_repeat_loads_with_alias_store() {
+        // v13 aliases v11. We want to make sure that a repeat load to v11 with a store
+        // to its alias v13 in between the repeat loads does not remove those loads.
+        //
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v0 = allocate
+        //       store Field 0 at v0
+        //       v2 = allocate
+        //       store v0 at v2
+        //       jmp b1(Field 0)
+        //     b1(v3: Field):
+        //       v4 = eq v3, Field 0
+        //       jmpif v4 then: b2, else: b3
+        //     b2():
+        //       v5 = load v2
+        //       store Field 2 at v5
+        //       v8 = add v3, Field 1
+        //       jmp b1(v8)
+        //     b3():
+        //       v9 = load v0
+        //       v10 = eq v9, Field 2
+        //       constrain v9 == Field 2
+        //       v11 = load v2
+        //       v13 = load v2
+        //       v14 = load v13
+        //       constrain v14 == Field 2
+        //       jmp b4()
+        //     b4():
+        //       v15 = load v11
+        //       store Field 2 at v13
+        //       v16 = load v11
+        //       v17 = eq v15, Field 2
+        //       constrain v16 == Field 2
+        //       return
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.insert_allocate(Type::field());
+        let zero = builder.numeric_constant(0u128, Type::field());
+        builder.insert_store(v0, zero);
+
+        let v2 = builder.insert_allocate(Type::field());
+        // Construct alias
+        builder.insert_store(v2, v0);
+        let v2_type = builder.current_function.dfg.type_of_value(v2);
+        assert!(builder.current_function.dfg.value_is_reference(v2));
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![zero]);
+
+        // Loop header
+        builder.switch_to_block(b1);
+        let v3 = builder.add_block_parameter(b1, Type::field());
+        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
+
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        builder.terminate_with_jmpif(is_zero, b2, b3);
+
+        // Loop body
+        builder.switch_to_block(b2);
+        let v5 = builder.insert_load(v2, v2_type.clone());
+        let two = builder.numeric_constant(2u128, Type::field());
+        builder.insert_store(v5, two);
+        let one = builder.numeric_constant(1u128, Type::field());
+        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
+
+        builder.switch_to_block(b3);
+        let v9 = builder.insert_load(v0, Type::field());
+
+        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
+
+        builder.insert_constrain(v9, two, None);
+
+        let v11 = builder.insert_load(v2, v2_type.clone());
+        // v13 aliases v11
+        let v13 = builder.insert_load(v2, v2_type.clone());
+
+        let v14 = builder.insert_load(v13, Type::field());
+
+        builder.insert_constrain(v14, two, None);
+
+        let b4 = builder.insert_block();
+        builder.terminate_with_jmp(b4, vec![]);
+
+        builder.switch_to_block(b4);
+
+        let v15 = builder.insert_load(v11, Type::field());
+        let ten = builder.numeric_constant(10u128, Type::unsigned(32));
+        builder.insert_store(v13, ten);
+        let v17 = builder.insert_load(v11, Type::field());
+
+        let _ = builder.insert_binary(v15, BinaryOp::Eq, two);
+        builder.insert_constrain(v17, two, None);
+
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+
+        // Expected result:
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       v18 = allocate
+        //       store Field 0 at v18
+        //       v19 = allocate
+        //       store v18 at v19
+        //       jmp b1(Field 0)
+        //     b1(v3: Field):
+        //       v20 = eq v3, Field 0
+        //       jmpif v20 then: b2, else: b3
+        //     b2():
+        //       v29 = load v19
+        //       store Field 2 at v29
+        //       v30 = add v3, Field 1
+        //       jmp b1(v30)
+        //     b3():
+        //       v21 = load v18
+        //       v22 = eq v21, Field 2
+        //       constrain v21 == Field 2
+        //       v23 = load v19
+        //       v25 = load v23
+        //       constrain v25 == Field 2
+        //       jmp b4()
+        //     b4():
+        //       v26 = load v23
+        //       store u32 10 at v23
+        //       v27 = load v23
+        //       v28 = eq v26, Field 2
+        //       constrain v27 == Field 2
+        //       return
+        //   }
+        let ssa = ssa.mem2reg();
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 5);
+
+        // The stores from the original SSA should remain
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
+        assert_eq!(count_stores(b2, &main.dfg), 1);
+
+        assert_eq!(count_loads(b2, &main.dfg), 1);
+        // The repeated load to v2 should be removed
         assert_eq!(count_loads(b3, &main.dfg), 3);
+        // The repeated load to v11 should remain as there is a store to its alias
+        // between the v11 loads.
+        assert_eq!(count_loads(b4, &main.dfg), 2);
     }
 }
