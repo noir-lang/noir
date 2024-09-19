@@ -135,7 +135,8 @@ impl<'context> Elaborator<'context> {
                 span,
             });
 
-            // TODO: error
+            // Given that we already produced an error, let's make this an `assert(true)` so
+            // we don't get further errors.
             let message = None;
             let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
             let expr = Expression { kind, span };
