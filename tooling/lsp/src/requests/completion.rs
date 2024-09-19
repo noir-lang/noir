@@ -113,6 +113,7 @@ struct NodeFinder<'a> {
     /// The line where an auto_import must be inserted
     auto_import_line: usize,
     self_type: Option<Type>,
+    in_comptime: bool,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -156,6 +157,7 @@ impl<'a> NodeFinder<'a> {
             nesting: 0,
             auto_import_line: 0,
             self_type: None,
+            in_comptime: false,
         }
     }
 
@@ -1056,8 +1058,12 @@ impl<'a> Visitor for NodeFinder<'a> {
             self.collect_local_variables(&param.pattern);
         }
 
+        let old_in_comptime = self.in_comptime;
+        self.in_comptime = noir_function.def.is_comptime;
+
         noir_function.def.body.accept(Some(span), self);
 
+        self.in_comptime = old_in_comptime;
         self.type_parameters = old_type_parameters;
         self.self_type = None;
 
@@ -1278,8 +1284,12 @@ impl<'a> Visitor for NodeFinder<'a> {
         let old_local_variables = self.local_variables.clone();
         self.local_variables.clear();
 
+        let old_in_comptime = self.in_comptime;
+        self.in_comptime = true;
+
         statement.accept(self);
 
+        self.in_comptime = old_in_comptime;
         self.local_variables = old_local_variables;
 
         false
@@ -1424,8 +1434,12 @@ impl<'a> Visitor for NodeFinder<'a> {
         let old_local_variables = self.local_variables.clone();
         self.local_variables.clear();
 
+        let old_in_comptime = self.in_comptime;
+        self.in_comptime = true;
+
         block_expression.accept(Some(span), self);
 
+        self.in_comptime = old_in_comptime;
         self.local_variables = old_local_variables;
 
         false
