@@ -34,6 +34,7 @@ use crate::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
             HirPattern,
         },
+        types::Kind,
     },
     macros_api::{HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
@@ -89,7 +90,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, binding) in instantiation_bindings.values_mut() {
+        for (_, _kind, binding) in instantiation_bindings.values_mut() {
             *binding = binding.follow_bindings();
         }
 
@@ -98,7 +99,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, binding) in impl_bindings.values_mut() {
+        for (_, _kind, binding) in impl_bindings.values_mut() {
             *binding = binding.follow_bindings();
         }
 
@@ -349,7 +350,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if let Some(bindings) = self.bound_generics.last() {
             for (var, binding) in bindings {
-                var.force_bind(binding.clone());
+                var.force_bind(binding.clone(), &Kind::Normal);
             }
         }
     }
@@ -360,11 +361,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .last_mut()
             .expect("remember_bindings called with no bound_generics on the stack");
 
-        for (var, binding) in main_bindings.values() {
+        for (var, _kind, binding) in main_bindings.values() {
             bound_generics.insert(var.clone(), binding.follow_bindings());
         }
 
-        for (var, binding) in impl_bindings.values() {
+        for (var, _kind, binding) in impl_bindings.values() {
             bound_generics.insert(var.clone(), binding.follow_bindings());
         }
     }

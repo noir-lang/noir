@@ -781,7 +781,7 @@ impl<'context> Elaborator<'context> {
                 let expected =
                     Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
-                if let Err(error) = binding.try_bind(expected, span) {
+                if let Err(error) = binding.try_bind(expected, &Kind::Normal, span) {
                     self.push_err(error);
                 }
                 ret
@@ -923,13 +923,13 @@ impl<'context> Elaborator<'context> {
             span,
         });
 
-        let use_impl = !lhs_type.is_numeric();
+        let use_impl = !lhs_type.is_numeric_value();
 
         // If this operator isn't valid for fields we have to possibly narrow
         // TypeVariableKind::IntegerOrField to TypeVariableKind::Integer.
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
-        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
             let target = Type::polymorphic_integer(self.interner);
 
             use crate::ast::BinaryOpKind::*;
@@ -978,7 +978,7 @@ impl<'context> Elaborator<'context> {
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
                         || TypeCheckError::InvalidShiftSize { span },
                     );
-                    let use_impl = if lhs_type.is_numeric() {
+                    let use_impl = if lhs_type.is_numeric_value() {
                         let integer_type = Type::polymorphic_integer(self.interner);
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
@@ -1078,14 +1078,14 @@ impl<'context> Elaborator<'context> {
 
                         // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
-                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
+                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric_value() {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
                             });
                         }
 
-                        Ok((rhs_type.clone(), !rhs_type.is_numeric()))
+                        Ok((rhs_type.clone(), !rhs_type.is_numeric_value()))
                     }
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
@@ -1167,7 +1167,7 @@ impl<'context> Elaborator<'context> {
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
                 the_trait.self_type_typevar.id(),
-                (the_trait.self_type_typevar.clone(), object_type.clone()),
+                (the_trait.self_type_typevar.clone(), Kind::Normal, object_type.clone()),
             );
             self.interner.select_impl_for_expression(
                 expr_id,
@@ -1732,7 +1732,7 @@ impl<'context> Elaborator<'context> {
         for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
             // Avoid binding t = t
             if !arg.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind.clone(), arg.clone()));
             }
         }
 
@@ -1751,7 +1751,7 @@ impl<'context> Elaborator<'context> {
 
             // Avoid binding t = t
             if !arg.typ.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.typ.clone()));
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind.clone(), arg.typ.clone()));
             }
         }
 
@@ -1760,7 +1760,8 @@ impl<'context> Elaborator<'context> {
         // to specify a redundant type annotation.
         if assumed {
             let self_type = the_trait.self_type_typevar.clone();
-            bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
+            // self_type has Kind::Normal
+            bindings.insert(self_type.id(), (self_type, Kind::Normal, constraint.typ.clone()));
         }
     }
 }

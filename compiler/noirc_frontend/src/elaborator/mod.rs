@@ -471,9 +471,9 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
 
         for typ in context.type_variables {
-            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+            if let Type::TypeVariable(variable, type_var_kind) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(kind.default_type().expect(msg));
+                variable.bind(type_var_kind.default_type().expect(msg), &type_var_kind.kind());
             }
         }
 
