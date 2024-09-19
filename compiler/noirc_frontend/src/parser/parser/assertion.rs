@@ -1,5 +1,5 @@
 use crate::ast::StatementKind;
-use crate::parser::{ignore_then_commit, ParserError, ParserErrorReason};
+use crate::parser::{ignore_then_commit, then_commit, ParserError, ParserErrorReason};
 use crate::parser::{labels::ParsingRuleLabel, parenthesized, ExprParser, NoirParser};
 
 use crate::ast::{ConstrainKind, ConstrainStatement};
@@ -41,8 +41,7 @@ where
 
     let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing();
 
-    keyword
-        .then(parenthesized(argument_parser))
+    then_commit(keyword, parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
         .map_with_span(|(kind, arguments), span| {
             StatementKind::Constrain(ConstrainStatement { arguments, kind, span })
