@@ -177,6 +177,11 @@ impl Kind {
             Err(UnificationError)
         }
     }
+
+    // TODO!
+    fn ensure_value_fits(&self, value: u32) -> Option<u32> {
+        Some(value)
+    }
 }
 
 impl std::fmt::Display for Kind {
@@ -542,13 +547,14 @@ pub enum TypeVariableKind {
 
 impl TypeVariableKind {
     fn kind(&self) -> Kind {
+        todo!()
         // TODO: needs TypeVariableKind enum variants to be updated
         // TODO: ensure that IntegerOrField and Integer are incompatible w/ Type::Constant or add to Kind
-        match self {
-            Self::Normal => _,
-            Self::IntegerOrField => _,
-            Self::Integer => _,
-        }
+        // match self {
+        //     Self::Normal => _,
+        //     Self::IntegerOrField => _,
+        //     Self::Integer => _,
+        // }
     }
 }
 
@@ -1713,11 +1719,11 @@ impl Type {
 
         match self.canonicalize() {
             Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x, _) => Some(x),
+            Type::Constant(x, kind) => kind.ensure_value_fits(x),
             Type::InfixExpr(lhs, op, rhs) => {
-                let lhs = lhs.evaluate_to_u32()?;
-                let rhs = rhs.evaluate_to_u32()?;
-                op.function(lhs, rhs)
+                let lhs_u32 = lhs.evaluate_to_u32()?;
+                let rhs_u32 = rhs.evaluate_to_u32()?;
+                op.function(lhs_u32, rhs_u32, &lhs.infix_kind(&rhs))
             }
             _ => None,
         }
@@ -2244,14 +2250,15 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
-    pub fn function(self, a: u32, b: u32) -> Option<u32> {
-        match self {
+    pub fn function(self, a: u32, b: u32, kind: &Kind) -> Option<u32> {
+        let result = match self {
             BinaryTypeOperator::Addition => a.checked_add(b),
             BinaryTypeOperator::Subtraction => a.checked_sub(b),
             BinaryTypeOperator::Multiplication => a.checked_mul(b),
             BinaryTypeOperator::Division => a.checked_div(b),
             BinaryTypeOperator::Modulo => a.checked_rem(b),
-        }
+        };
+        result.and_then(|result| kind.ensure_value_fits(result))
     }
 
     fn is_commutative(self) -> bool {

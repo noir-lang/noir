@@ -20,8 +20,9 @@ impl Type {
                 if let (Some(lhs_u32), Some(rhs_u32)) =
                     (lhs.evaluate_to_u32(), rhs.evaluate_to_u32())
                 {
-                    if let Some(result) = op.function(lhs_u32, rhs_u32) {
-                        return Type::Constant(result, lhs.infix_kind(&rhs));
+                    let kind = lhs.infix_kind(&rhs);
+                    if let Some(result) = op.function(lhs_u32, rhs_u32, &kind) {
+                        return Type::Constant(result, kind);
                     }
                 }
 
@@ -68,7 +69,7 @@ impl Type {
                     queue.push(*rhs);
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
-                    if let Some(result) = op.function(constant, new_constant) {
+                    if let Some(result) = op.function(constant, new_constant, &new_constant_kind) {
                         constant = result;
                     } else {
                         let constant = Type::Constant(new_constant, new_constant_kind);
@@ -205,7 +206,7 @@ impl Type {
                 if l_op == Subtraction {
                     op = op.inverse()?;
                 }
-                let result = op.function(l_const, r_const)?;
+                let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::InfixExpr(l_type, l_op, Box::new(constant)))
             }
@@ -218,7 +219,7 @@ impl Type {
                 if op == Division && (r_const == 0 || l_const % r_const != 0) {
                     None
                 } else {
-                    let result = op.function(l_const, r_const)?;
+                    let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
                     let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
                     Some(Type::InfixExpr(l_type, l_op, constant))
                 }

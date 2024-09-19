@@ -450,7 +450,7 @@ impl<'context> Elaborator<'context> {
                             });
                             return Type::Error;
                         }
-                        if let Some(result) = op.function(lhs, rhs) {
+                        if let Some(result) = op.function(lhs, rhs, &lhs_kind) {
                             Type::Constant(result, lhs_kind)
                         } else {
                             self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
