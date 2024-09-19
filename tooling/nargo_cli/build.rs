@@ -81,7 +81,6 @@ fn read_test_cases(
 
 fn generate_test_case(
     test_file: &mut File,
-    test_type: &str,
     test_name: &str,
     test_dir: &std::path::Display,
     test_content: &str,
@@ -90,7 +89,7 @@ fn generate_test_case(
         test_file,
         r#"
 #[test]
-fn {test_type}_{test_name}() {{
+fn {test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
@@ -105,12 +104,13 @@ fn {test_type}_{test_name}() {{
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -122,7 +122,6 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         if !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
             generate_test_case(
                 test_file,
-                test_type,
                 &format!("{test_name}_brillig"),
                 &test_dir,
                 r#"
@@ -132,17 +131,19 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             );
         }
     }
+    writeln!(test_file, "}}").unwrap();    
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -151,17 +152,19 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "noir_test_success";
     let test_cases = read_test_cases(test_data_dir, "noir_test_success");
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();  
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -170,16 +173,18 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
         nargo.assert().success();"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "noir_test_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -188,11 +193,14 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
         nargo.assert().failure();"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_empty";
     let test_cases = read_test_cases(test_data_dir, test_type);
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -213,7 +221,6 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             &format!(
@@ -224,17 +231,19 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             ),
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_contract";
     let test_cases = read_test_cases(test_data_dir, test_type);
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -242,18 +251,20 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
         nargo.assert().success();"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 /// Generate tests for checking that the contract compiles and there are no "bugs" in stderr
 fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_no_bug";
     let test_cases = read_test_cases(test_data_dir, test_type);
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -261,17 +272,19 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
+    
+    writeln!(test_file, "mod {test_type} {{").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"nargo.arg("compile").arg("--force");
@@ -279,4 +292,5 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
         nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
