@@ -1117,11 +1117,7 @@ impl ConstrainStatement {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.0.accept(visitor);
-
-        if let Some(exp) = &self.1 {
-            exp.accept(visitor);
-        }
+        visit_expressions(&self.arguments, visitor);
     }
 }
 

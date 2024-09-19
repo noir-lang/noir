@@ -1,7 +1,10 @@
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 
 use crate::{
-    ast::{AssignStatement, ConstrainStatement, LValue},
+    ast::{
+        AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
+        ExpressionKind, InfixExpression, LValue,
+    },
     hir::{
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
@@ -110,12 +113,59 @@ impl<'context> Elaborator<'context> {
         (HirStatement::Let(let_), Type::Unit)
     }
 
-    pub(super) fn elaborate_constrain(&mut self, stmt: ConstrainStatement) -> (HirStatement, Type) {
-        let expr_span = stmt.0.span;
-        let (expr_id, expr_type) = self.elaborate_expression(stmt.0);
+    pub(super) fn elaborate_constrain(
+        &mut self,
+        mut stmt: ConstrainStatement,
+    ) -> (HirStatement, Type) {
+        let span = stmt.span;
+        let min_args_count = match stmt.kind {
+            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
+            ConstrainKind::AssertEq => 2,
+        };
+        let max_args_count = min_args_count + 1;
+        let actual_args_count = stmt.arguments.len();
+
+        let (message, expr) = if actual_args_count < min_args_count
+            || actual_args_count > max_args_count
+        {
+            self.push_err(TypeCheckError::AssertionParameterCountMismatch {
+                expected1: min_args_count,
+                expected2: max_args_count,
+                found: actual_args_count,
+                span,
+            });
+
+            // TODO: error
+            let message = None;
+            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
+            let expr = Expression { kind, span };
+            (message, expr)
+        } else {
+            let message = if actual_args_count == min_args_count {
+                None
+            } else {
+                Some(stmt.arguments.pop().unwrap())
+            };
+            let expr = match stmt.kind {
+                ConstrainKind::Assert | ConstrainKind::Constrain => stmt.arguments.pop().unwrap(),
+                ConstrainKind::AssertEq => {
+                    let rhs = stmt.arguments.pop().unwrap();
+                    let lhs = stmt.arguments.pop().unwrap();
+                    let span = Span::from(lhs.span.start()..rhs.span.end());
+                    let operator = Spanned::from(span, BinaryOpKind::Equal);
+                    let kind =
+                        ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
+                    Expression { kind, span }
+                }
+            };
+            (message, expr)
+        };
+
+        let expr_span = expr.span;
+        let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = stmt.1.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),

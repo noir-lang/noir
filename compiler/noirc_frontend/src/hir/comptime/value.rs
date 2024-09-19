@@ -952,11 +952,12 @@ fn remove_interned_in_statement_kind(
             r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
             ..let_statement
         }),
-        StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainStatement(
-            remove_interned_in_expression(interner, constrain.0),
-            constrain.1.map(|expr| remove_interned_in_expression(interner, expr)),
-            constrain.2,
-        )),
+        StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainStatement {
+            arguments: vecmap(constrain.arguments, |expr| {
+                remove_interned_in_expression(interner, expr)
+            }),
+            ..constrain
+        }),
         StatementKind::Expression(expr) => {
             StatementKind::Expression(remove_interned_in_expression(interner, expr))
         }
