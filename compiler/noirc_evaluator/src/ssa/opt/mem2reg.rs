@@ -1822,7 +1822,7 @@ mod tests {
         let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
 
         builder.insert_constrain(v9, two, None);
-        let v11 = builder.insert_load(v2, v2_type.clone());
+        let _v11 = builder.insert_load(v2, v2_type.clone());
         let v12 = builder.insert_load(v2, v2_type);
         let v13 = builder.insert_load(v12, Type::field());
         let _ = builder.insert_binary(v13, BinaryOp::Eq, two);
