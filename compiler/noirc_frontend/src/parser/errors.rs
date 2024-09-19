@@ -31,6 +31,8 @@ pub enum ParserErrorReason {
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
     #[error("expected <, where or {{ after trait impl for type")]
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
+    #[error("expected ( or < after function name")]
+    ExpectedLeftParenOrLeftBracketAfterFunctionName,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
@@ -43,8 +45,8 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("Patterns aren't allowed in a trait impl's associated constants")]
     PatternInAssociatedConstant,
-    #[error("Modifiers are ignored on a trait impl method")]
-    TraitImplFunctionModifiers,
+    #[error("Visibility is ignored on a trait impl method")]
+    TraitImplVisibilityIgnored,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
@@ -200,7 +202,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::ExperimentalFeature(_) => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
                 }
-                ParserErrorReason::TraitImplFunctionModifiers => {
+                ParserErrorReason::TraitImplVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
                 }
                 ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(

@@ -102,6 +102,9 @@ impl<'context> Elaborator<'context> {
         elaborator.function_context.push(FunctionContext::default());
         elaborator.scopes.start_function();
 
+        elaborator.local_module = self.local_module;
+        elaborator.file = self.file;
+
         setup(&mut elaborator);
 
         elaborator.populate_scope_from_comptime_scopes();
@@ -316,7 +319,7 @@ impl<'context> Elaborator<'context> {
         // If the function is varargs, push the type of the last slice element N times
         // to account for N extra arguments.
         let modifiers = interpreter.elaborator.interner.function_modifiers(&function);
-        let is_varargs = modifiers.attributes.is_varargs();
+        let is_varargs = modifiers.attributes.has_varargs();
         let varargs_type = if is_varargs { parameters.pop() } else { None };
 
         let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());

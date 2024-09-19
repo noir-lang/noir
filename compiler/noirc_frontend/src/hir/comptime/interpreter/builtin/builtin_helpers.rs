@@ -4,9 +4,10 @@ use std::{hash::Hasher, rc::Rc};
 use acvm::FieldElement;
 use noirc_errors::Location;
 
+use crate::lexer::Lexer;
 use crate::{
     ast::{
-        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Pattern, Signedness,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
         StatementKind, UnresolvedTypeData,
     },
     hir::{
@@ -122,6 +123,13 @@ pub(crate) fn get_str(
             let expected = Type::String(Box::new(interner.next_type_variable()));
             type_mismatch(value, expected, location)
         }
+    }
+}
+
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+    match value {
+        Value::CtString(string) => Ok(string),
+        value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
     }
 }
 
@@ -385,11 +393,21 @@ pub(super) fn check_function_not_yet_resolved(
     }
 }
 
+pub(super) fn lex(input: &str) -> Vec<Token> {
+    let (tokens, _) = Lexer::lex(input);
+    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
+    if let Some(Token::EOF) = tokens.last() {
+        tokens.pop();
+    }
+    tokens
+}
+
 pub(super) fn parse<T>(
     (value, location): (Value, Location),
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
+    let parser = parser.then_ignore(chumsky::primitive::end());
     let tokens = get_quoted((value, location))?;
     let quoted = add_token_spans(tokens.clone(), location.span);
     parse_tokens(tokens, quoted, location, parser, rule)
@@ -459,6 +477,14 @@ pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute])
     }
 
     false
+}
+
+pub(super) fn quote_ident(ident: &Ident) -> Value {
+    Value::Quoted(ident_to_tokens(ident))
+}
+
+pub(super) fn ident_to_tokens(ident: &Ident) -> Rc<Vec<Token>> {
+    Rc::new(vec![Token::Ident(ident.0.contents.clone())])
 }
 
 pub(super) fn hash_item<T: Hash>(

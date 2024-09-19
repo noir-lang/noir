@@ -1,5 +1,6 @@
 use acvm::acir::AcirField;
 
+use bn254_blackbox_solver::poseidon_hash;
 use noirc_errors::Location;
 use noirc_frontend::ast::{Documented, Ident, NoirFunction, UnresolvedTypeData};
 use noirc_frontend::{
@@ -9,7 +10,7 @@ use noirc_frontend::{
     Type,
 };
 
-use tiny_keccak::{Hasher, Keccak};
+use itertools::Itertools;
 
 use crate::utils::parse_utils::parse_program;
 use crate::utils::{
@@ -251,7 +252,7 @@ pub fn generate_contract_interface(
         module_name,
         stubs.iter().map(|(src, _)| src.to_owned()).collect::<Vec<String>>().join("\n"),
         if has_storage_layout { storage_layout_getter.clone() } else { "".to_string() },
-        if has_storage_layout { format!("#[contract_library_method]\n{}", storage_layout_getter) } else { "".to_string() } 
+        if has_storage_layout { format!("#[contract_library_method]\n{}", storage_layout_getter) } else { "".to_string() }
     );
 
     let (contract_interface_ast, errors) = parse_program(&contract_interface, empty_spans);
@@ -296,14 +297,8 @@ fn compute_fn_signature_hash(fn_name: &str, parameters: &[Type]) -> u32 {
         fn_name,
         parameters.iter().map(signature_of_type).collect::<Vec<_>>().join(",")
     );
-    let mut keccak = Keccak::v256();
-    let mut result = [0u8; 32];
-    keccak.update(signature.as_bytes());
-    keccak.finalize(&mut result);
-    // Take the first 4 bytes of the hash and convert them to an integer
-    // If you change the following value you have to change NUM_BYTES_PER_NOTE_TYPE_ID in l1_note_payload.ts as well
-    let num_bytes_per_note_type_id = 4;
-    u32::from_be_bytes(result[0..num_bytes_per_note_type_id].try_into().unwrap())
+
+    hash_to_selector(&signature)
 }
 
 // Updates the function signatures in the contract interface with the actual ones, replacing the placeholder.
@@ -428,4 +423,46 @@ pub fn update_fn_signatures_in_contract_interface(
         }
     }
     Ok(())
+}
+
+fn poseidon2_hash_bytes(inputs: Vec<u8>) -> FieldElement {
+    let fields: Vec<_> = inputs
+        .into_iter()
+        .chunks(31)
+        .into_iter()
+        .map(|bytes_chunk| {
+            let mut chunk_as_vec: Vec<u8> = bytes_chunk.collect();
+            chunk_as_vec.extend(std::iter::repeat(0).take(32 - chunk_as_vec.len()));
+            // Build a little endian field element
+            chunk_as_vec.reverse();
+            FieldElement::from_be_bytes_reduce(&chunk_as_vec)
+        })
+        .collect();
+
+    poseidon_hash(&fields).expect("Poseidon hash failed")
+}
+
+pub(crate) fn hash_to_selector(inputs: &str) -> u32 {
+    let hash = poseidon2_hash_bytes(inputs.as_bytes().to_vec()).to_be_bytes();
+    // Take the last 4 bytes of the hash and convert them to an integer
+    // If you change the following value you have to change NUM_BYTES_PER_NOTE_TYPE_ID in l1_note_payload.ts as well
+    let num_bytes_per_note_type_id = 4;
+    u32::from_be_bytes(hash[(32 - num_bytes_per_note_type_id)..32].try_into().unwrap())
+}
+
+#[cfg(test)]
+mod test {
+    use crate::transforms::contract_interface::hash_to_selector;
+
+    #[test]
+    fn test_selector_is_valid() {
+        let selector = hash_to_selector("IS_VALID()");
+        assert_eq!(hex::encode(&selector.to_be_bytes()), "73cdda47");
+    }
+
+    #[test]
+    fn test_long_selector() {
+        let selector = hash_to_selector("foo_and_bar_and_baz_and_foo_bar_baz_and_bar_foo");
+        assert_eq!(hex::encode(&selector.to_be_bytes()), "7590a997");
+    }
 }

@@ -1,5 +1,5 @@
 #[derive(Eq, Hash)]
-struct UnaryOp {
+pub struct UnaryOp {
     op: Field
 }
 
@@ -47,7 +47,7 @@ impl UnaryOp {
 }
 
 #[derive(Eq, Hash)]
-struct BinaryOp {
+pub struct BinaryOp {
     op: Field
 }
 

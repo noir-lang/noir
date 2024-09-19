@@ -23,11 +23,15 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::path::as_trait_path;
-use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
+use self::path::{as_trait_path, type_path};
+use self::primitives::{
+    interned_statement, interned_statement_expr, keyword, macro_quote_marker, mutable_reference,
+    variable,
+};
 use self::types::{generic_type_args, maybe_comp_time};
 use attributes::{attributes, inner_attribute, validate_secondary_attributes};
 use doc_comments::{inner_doc_comments, outer_doc_comments};
+use types::interned_unresolved_type;
 pub use types::parse_type;
 use visibility::item_visibility;
 pub use visibility::visibility;
@@ -509,15 +513,6 @@ where
     .map_with_span(|kind, span| Box::new(Statement { kind, span }));
 
     keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
-}
-
-pub(super) fn interned_statement() -> impl NoirParser<StatementKind> {
-    token_kind(TokenKind::InternedStatement).map(|token| match token {
-        Token::InternedStatement(id) => StatementKind::Interned(id),
-        _ => {
-            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
-        }
-    })
 }
 
 /// Comptime in an expression position only accepts entire blocks
@@ -1155,8 +1150,10 @@ where
         variable(),
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        type_path(parse_type()),
         macro_quote_marker(),
         interned_expr(),
+        interned_statement_expr(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
@@ -1228,7 +1225,11 @@ fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> 
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-    path(super::parse_type()).then(args).map(ExpressionKind::constructor)
+    let path = path(super::parse_type()).map(UnresolvedType::from_path);
+    let interned_unresolved_type = interned_unresolved_type();
+    let typ = choice((path, interned_unresolved_type));
+
+    typ.then(args).map(ExpressionKind::constructor)
 }
 
 fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>
@@ -1621,11 +1622,11 @@ mod test {
     #[test]
     fn statement_recovery() {
         let cases = vec![
-            Case { source: "let a = 4 + 3", expect: "let a: unspecified = (4 + 3)", errors: 0 },
+            Case { source: "let a = 4 + 3", expect: "let a = (4 + 3)", errors: 0 },
             Case { source: "let a: = 4 + 3", expect: "let a: error = (4 + 3)", errors: 1 },
-            Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
-            Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
-            Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
+            Case { source: "let = 4 + 3", expect: "let $error = (4 + 3)", errors: 1 },
+            Case { source: "let = ", expect: "let $error = Error", errors: 2 },
+            Case { source: "let", expect: "let $error = Error", errors: 3 },
             Case { source: "foo = one two three", expect: "foo = one", errors: 1 },
             Case { source: "constrain", expect: "constrain Error", errors: 2 },
             Case { source: "assert", expect: "constrain Error", errors: 1 },
@@ -1659,7 +1660,7 @@ mod test {
             },
             Case {
                 source: "{ return 123; let foo = 4 + 3; }",
-                expect: concat!("{\n", "    Error\n", "    let foo: unspecified = (4 + 3)\n", "}"),
+                expect: concat!("{\n", "    Error\n", "    let foo = (4 + 3)\n", "}"),
                 errors: 1,
             },
             Case {
@@ -1709,7 +1710,7 @@ mod test {
                 expect: concat!(
                     "{\n",
                     "    if ({\n",
-                    "        let foo: unspecified = (bar { baz: 42 })\n",
+                    "        let foo = (bar { baz: 42 })\n",
                     "        (foo == (bar { baz: 42 }))\n",
                     "    }) {\n",
                     "    }\n",
