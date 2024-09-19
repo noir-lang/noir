@@ -2126,7 +2126,9 @@ mod completion_tests {
         comptime fn foobar() -> Quoted {}
 
         fn main() {
-            fooba>|<
+            comptime {
+                fooba>|<
+            }
         }
         "#;
 
@@ -2136,6 +2138,24 @@ mod completion_tests {
                 function_completion_item("foobar!()", "foobar!()", "fn() -> Quoted"),
                 function_completion_item("foobar()", "foobar()", "fn() -> Quoted"),
             ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_only_macro_call_if_comptime_function_returns_quoted_and_outside_comptime(
+    ) {
+        let src = r#"
+        comptime fn foobar() -> Quoted {}
+
+        fn main() {
+            fooba>|<
+        }
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![function_completion_item("foobar!()", "foobar!()", "fn() -> Quoted")],
         )
         .await;
     }

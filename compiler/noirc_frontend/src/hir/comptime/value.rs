@@ -862,7 +862,17 @@ fn remove_interned_in_expression_kind(
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Unsafe(BlockExpression { statements }, span)
         }
-        ExpressionKind::AsTraitPath(_) => expr,
+        ExpressionKind::AsTraitPath(mut path) => {
+            path.typ = remove_interned_in_unresolved_type(interner, path.typ);
+            path.trait_generics =
+                remove_interned_in_generic_type_args(interner, path.trait_generics);
+            ExpressionKind::AsTraitPath(path)
+        }
+        ExpressionKind::TypePath(mut path) => {
+            path.typ = remove_interned_in_unresolved_type(interner, path.typ);
+            path.turbofish = remove_interned_in_generic_type_args(interner, path.turbofish);
+            ExpressionKind::TypePath(path)
+        }
         ExpressionKind::Resolved(id) => {
             let expr = interner.expression(&id);
             expr.to_display_ast(interner, Span::default()).kind

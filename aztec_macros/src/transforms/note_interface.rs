@@ -776,6 +776,7 @@ pub fn inject_note_exports(
                     note.borrow().id,
                     "get_note_type_id",
                     false,
+                    true,
                 )
                 .ok_or((
                     AztecMacroError::CouldNotExportStorageLayout {
