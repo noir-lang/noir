@@ -12,7 +12,7 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Twisted Edwards curve
+    pub struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
         a: Field,
         d: Field,
@@ -20,7 +20,7 @@ mod affine {
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field
     }
@@ -70,7 +70,7 @@ mod affine {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-             let Self {x: x1, y: y1} = self;
+            let Self {x: x1, y: y1} = self;
             let Self {x: x2, y: y2} = p;
 
             (x1 == x2) & (y1 == y2)
@@ -204,7 +204,7 @@ mod curvegroup {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Twisted Edwards curve
+    pub struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
         a: Field,
         d: Field,
@@ -212,7 +212,7 @@ mod curvegroup {
         gen: Point
     }
     // Point in extended twisted Edwards coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         t: Field,
@@ -261,7 +261,7 @@ mod curvegroup {
             let Self {x: x1, y: y1, t: _t1, z: z1} = self;
             let Self {x: x2, y: y2, t: _t2, z:z2} = p;
 
-            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
+            (x1 * z2 == x2 * z1) & (y1 * z2 == y2 * z1)
         }
     }
 

@@ -35,7 +35,7 @@ use nargo::{
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
-    graph::{CrateId, CrateName},
+    graph::{CrateGraph, CrateId, CrateName},
     hir::{
         def_map::{parse_file, CrateDefMap},
         Context, FunctionNameMatch, ParsedFiles,
@@ -66,6 +66,7 @@ mod modules;
 mod notifications;
 mod requests;
 mod solver;
+mod trait_impl_method_stub_generator;
 mod types;
 mod utils;
 mod visibility;
@@ -91,13 +92,24 @@ pub struct LspState {
     open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
-    cached_definitions: HashMap<PathBuf, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    cached_def_maps: HashMap<PathBuf, BTreeMap<CrateId, CrateDefMap>>,
+    workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
+    package_cache: HashMap<PathBuf, PackageCacheData>,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+}
+
+struct WorkspaceCacheData {
+    file_manager: FileManager,
+}
+
+struct PackageCacheData {
+    crate_id: CrateId,
+    crate_graph: CrateGraph,
+    node_interner: NodeInterner,
+    def_maps: BTreeMap<CrateId, CrateDefMap>,
 }
 
 impl LspState {
@@ -111,12 +123,11 @@ impl LspState {
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
             cached_lenses: HashMap::new(),
-            cached_definitions: HashMap::new(),
-            open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
-            cached_def_maps: HashMap::new(),
+            workspace_cache: HashMap::new(),
+            package_cache: HashMap::new(),
+            open_documents_count: 0,
             options: Default::default(),
-
             files_with_errors: HashMap::new(),
         }
     }

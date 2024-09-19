@@ -10,7 +10,7 @@ use noirc_errors::Span;
 use noirc_frontend::{
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
+        NoirTraitImpl, TypeImpl, UnresolvedType, Visitor,
     },
     parser::ParsedSubModule,
     ParsedModule,
@@ -171,7 +171,9 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         };
 
         let mut children = Vec::new();
-        for (field_name, typ) in &noir_struct.fields {
+        for field in &noir_struct.fields {
+            let field_name = &field.item.name;
+            let typ = &field.item.typ;
             let span = Span::from(field_name.span().start()..typ.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {
@@ -223,7 +225,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for item in &noir_trait.items {
-            item.accept(self);
+            item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -350,7 +352,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for trait_impl_item in &noir_trait_impl.items {
-            trait_impl_item.accept(self);
+            trait_impl_item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -376,12 +378,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         name: &Ident,
         typ: &UnresolvedType,
         default_value: &Expression,
+        _span: Span,
     ) -> bool {
         self.collect_in_constant(name, typ, Some(default_value));
         false
     }
 
-    fn visit_trait_impl_item_type(&mut self, name: &Ident, alias: &UnresolvedType) -> bool {
+    fn visit_trait_impl_item_type(
+        &mut self,
+        name: &Ident,
+        alias: &UnresolvedType,
+        _span: Span,
+    ) -> bool {
         self.collect_in_type(name, Some(alias));
         false
     }
@@ -391,13 +399,9 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         };
 
-        let UnresolvedTypeData::Named(name_path, ..) = &type_impl.object_type.typ else {
-            return false;
-        };
+        let name = type_impl.object_type.typ.to_string();
 
-        let name = name_path.last_ident();
-
-        let Some(name_location) = self.to_lsp_location(name.span()) else {
+        let Some(name_location) = self.to_lsp_location(type_impl.object_type.span) else {
             return false;
         };
 
@@ -405,7 +409,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.accept(*noir_function_span, self);
+            noir_function.item.accept(*noir_function_span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -664,7 +668,7 @@ mod document_symbol_tests {
                             tags: None,
                             deprecated: None,
                             range: Range {
-                                start: Position { line: 19, character: 7 },
+                                start: Position { line: 19, character: 4 },
                                 end: Position { line: 20, character: 5 },
                             },
                             selection_range: Range {
@@ -710,6 +714,23 @@ mod document_symbol_tests {
                         }
                     ]),
                 },
+                #[allow(deprecated)]
+                DocumentSymbol {
+                    name: "i32".to_string(),
+                    detail: None,
+                    kind: SymbolKind::NAMESPACE,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position { line: 27, character: 0 },
+                        end: Position { line: 27, character: 11 }
+                    },
+                    selection_range: Range {
+                        start: Position { line: 27, character: 5 },
+                        end: Position { line: 27, character: 8 }
+                    },
+                    children: Some(Vec::new())
+                }
             ]
         );
     }

@@ -5,10 +5,12 @@ use std::{fmt, iter::Map, vec::IntoIter};
 use crate::{
     lexer::errors::LexerErrorKind,
     node_interner::{
-        ExprId, InternedExpressionKind, InternedStatementKind, InternedUnresolvedTypeData,
-        QuotedTypeId,
+        ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
+        InternedUnresolvedTypeData, QuotedTypeId,
     },
 };
+
+use super::Lexer;
 
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
@@ -36,6 +38,7 @@ pub enum BorrowedToken<'input> {
     InternedStatement(InternedStatementKind),
     InternedLValue(InternedExpressionKind),
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
+    InternedPattern(InternedPattern),
     /// <
     Less,
     /// <=
@@ -151,6 +154,8 @@ pub enum Token {
     InternedLValue(InternedExpressionKind),
     /// A reference to an interned `UnresolvedTypeData`.
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
+    /// A reference to an interned `Patter`.
+    InternedPattern(InternedPattern),
     /// <
     Less,
     /// <=
@@ -255,6 +260,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::InternedStatement(id) => BorrowedToken::InternedStatement(*id),
         Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
         Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
+        Token::InternedPattern(id) => BorrowedToken::InternedPattern(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -358,11 +364,11 @@ impl fmt::Display for Token {
             Token::Ident(ref s) => write!(f, "{s}"),
             Token::Int(n) => write!(f, "{}", n.to_u128()),
             Token::Bool(b) => write!(f, "{b}"),
-            Token::Str(ref b) => write!(f, "{b}"),
-            Token::FmtStr(ref b) => write!(f, "f{b}"),
+            Token::Str(ref b) => write!(f, "{b:?}"),
+            Token::FmtStr(ref b) => write!(f, "f{b:?}"),
             Token::RawStr(ref b, hashes) => {
                 let h: String = std::iter::once('#').cycle().take(hashes as usize).collect();
-                write!(f, "r{h}\"{b}\"{h}")
+                write!(f, "r{h}{b:?}{h}")
             }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
@@ -378,7 +384,10 @@ impl fmt::Display for Token {
             }
             // Quoted types and exprs only have an ID so there is nothing to display
             Token::QuotedType(_) => write!(f, "(type)"),
-            Token::InternedExpr(_) | Token::InternedStatement(_) | Token::InternedLValue(_) => {
+            Token::InternedExpr(_)
+            | Token::InternedStatement(_)
+            | Token::InternedLValue(_)
+            | Token::InternedPattern(_) => {
                 write!(f, "(expr)")
             }
             Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
@@ -439,7 +448,10 @@ pub enum TokenKind {
     InternedStatement,
     InternedLValue,
     InternedUnresolvedTypeData,
+    InternedPattern,
     UnquoteMarker,
+    OuterDocComment,
+    InnerDocComment,
 }
 
 impl fmt::Display for TokenKind {
@@ -457,7 +469,10 @@ impl fmt::Display for TokenKind {
             TokenKind::InternedStatement => write!(f, "interned statement"),
             TokenKind::InternedLValue => write!(f, "interned lvalue"),
             TokenKind::InternedUnresolvedTypeData => write!(f, "interned unresolved type"),
+            TokenKind::InternedPattern => write!(f, "interned pattern"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
+            TokenKind::OuterDocComment => write!(f, "outer doc comment"),
+            TokenKind::InnerDocComment => write!(f, "inner doc comment"),
         }
     }
 }
@@ -481,6 +496,11 @@ impl Token {
             Token::InternedStatement(_) => TokenKind::InternedStatement,
             Token::InternedLValue(_) => TokenKind::InternedLValue,
             Token::InternedUnresolvedTypeData(_) => TokenKind::InternedUnresolvedTypeData,
+            Token::InternedPattern(_) => TokenKind::InternedPattern,
+            Token::LineComment(_, Some(DocStyle::Outer))
+            | Token::BlockComment(_, Some(DocStyle::Outer)) => TokenKind::OuterDocComment,
+            Token::LineComment(_, Some(DocStyle::Inner))
+            | Token::BlockComment(_, Some(DocStyle::Inner)) => TokenKind::InnerDocComment,
             tok => TokenKind::Token(tok.clone()),
         }
     }
@@ -678,8 +698,12 @@ impl Attributes {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
 
-    pub fn is_varargs(&self) -> bool {
+    pub fn has_varargs(&self) -> bool {
         self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+    }
+
+    pub fn has_use_callers_scope(&self) -> bool {
+        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::UseCallersScope))
     }
 }
 
@@ -779,9 +803,10 @@ impl Attribute {
                 ))
             }
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
+            ["use_callers_scope"] => Attribute::Secondary(SecondaryAttribute::UseCallersScope),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
                     contents: word.to_owned(),
                     span,
                     contents_span,
@@ -850,6 +875,18 @@ impl FunctionAttribute {
     pub fn is_no_predicates(&self) -> bool {
         matches!(self, FunctionAttribute::NoPredicates)
     }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            FunctionAttribute::Foreign(_) => "foreign",
+            FunctionAttribute::Builtin(_) => "builtin",
+            FunctionAttribute::Oracle(_) => "oracle",
+            FunctionAttribute::Test(_) => "test",
+            FunctionAttribute::Recursive => "recursive",
+            FunctionAttribute::Fold => "fold",
+            FunctionAttribute::NoPredicates => "no_predicates",
+        }
+    }
 }
 
 impl fmt::Display for FunctionAttribute {
@@ -878,28 +915,39 @@ pub enum SecondaryAttribute {
     ContractLibraryMethod,
     Export,
     Field(String),
-    Custom(CustomAtrribute),
+    Custom(CustomAttribute),
     Abi(String),
 
     /// A variable-argument comptime function.
     Varargs,
-}
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub struct CustomAtrribute {
-    pub contents: String,
-    // The span of the entire attribute, including leading `#[` and trailing `]`
-    pub span: Span,
-    // The span for the attribute contents (what's inside `#[...]`)
-    pub contents_span: Span,
+    /// Treat any metaprogramming functions within this one as resolving
+    /// within the scope of the calling function/module rather than this one.
+    /// This affects functions such as `Expression::resolve` or `Quoted::as_type`.
+    UseCallersScope,
 }
 
 impl SecondaryAttribute {
-    pub(crate) fn as_custom(&self) -> Option<&CustomAtrribute> {
+    pub(crate) fn as_custom(&self) -> Option<&CustomAttribute> {
         if let Self::Custom(attribute) = self {
             Some(attribute)
         } else {
             None
+        }
+    }
+
+    pub(crate) fn name(&self) -> Option<String> {
+        match self {
+            SecondaryAttribute::Deprecated(_) => Some("deprecated".to_string()),
+            SecondaryAttribute::ContractLibraryMethod => {
+                Some("contract_library_method".to_string())
+            }
+            SecondaryAttribute::Export => Some("export".to_string()),
+            SecondaryAttribute::Field(_) => Some("field".to_string()),
+            SecondaryAttribute::Custom(custom) => custom.name(),
+            SecondaryAttribute::Abi(_) => Some("abi".to_string()),
+            SecondaryAttribute::Varargs => Some("varargs".to_string()),
+            SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
         }
     }
 }
@@ -917,6 +965,28 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
             SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
+            SecondaryAttribute::UseCallersScope => write!(f, "#[use_callers_scope]"),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub struct CustomAttribute {
+    pub contents: String,
+    // The span of the entire attribute, including leading `#[` and trailing `]`
+    pub span: Span,
+    // The span for the attribute contents (what's inside `#[...]`)
+    pub contents_span: Span,
+}
+
+impl CustomAttribute {
+    fn name(&self) -> Option<String> {
+        let mut lexer = Lexer::new(&self.contents);
+        let token = lexer.next()?.ok()?;
+        if let Token::Ident(ident) = token.into_token() {
+            Some(ident)
+        } else {
+            None
         }
     }
 }
@@ -945,6 +1015,7 @@ impl AsRef<str> for SecondaryAttribute {
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
             SecondaryAttribute::Varargs => "",
+            SecondaryAttribute::UseCallersScope => "",
         }
     }
 }
@@ -965,6 +1036,7 @@ pub enum Keyword {
     Continue,
     Contract,
     Crate,
+    CtString,
     Dep,
     Else,
     Expr,
@@ -1021,6 +1093,7 @@ impl fmt::Display for Keyword {
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
+            Keyword::CtString => write!(f, "CtString"),
             Keyword::Dep => write!(f, "dep"),
             Keyword::Else => write!(f, "else"),
             Keyword::Expr => write!(f, "Expr"),
@@ -1080,6 +1153,7 @@ impl Keyword {
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
+            "CtString" => Keyword::CtString,
             "dep" => Keyword::Dep,
             "else" => Keyword::Else,
             "Expr" => Keyword::Expr,

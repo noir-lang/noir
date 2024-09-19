@@ -1,6 +1,8 @@
 use crate::native_types::Witness;
-use crate::BlackBoxFunc;
+use crate::{AcirField, BlackBoxFunc};
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use thiserror::Error;
 
 // Note: Some functions will not use all of the witness
 // So we need to supply how many bits of the witness is needed
@@ -13,8 +15,8 @@ pub enum ConstantOrWitnessEnum<F> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionInput<F> {
-    pub input: ConstantOrWitnessEnum<F>,
-    pub num_bits: u32,
+    input: ConstantOrWitnessEnum<F>,
+    num_bits: u32,
 }
 
 impl<F> FunctionInput<F> {
@@ -25,6 +27,14 @@ impl<F> FunctionInput<F> {
         }
     }
 
+    pub fn input(self) -> ConstantOrWitnessEnum<F> {
+        self.input
+    }
+
+    pub fn input_ref(&self) -> &ConstantOrWitnessEnum<F> {
+        &self.input
+    }
+
     pub fn num_bits(&self) -> u32 {
         self.num_bits
     }
@@ -32,9 +42,25 @@ impl<F> FunctionInput<F> {
     pub fn witness(witness: Witness, num_bits: u32) -> FunctionInput<F> {
         FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits }
     }
+}
 
-    pub fn constant(value: F, num_bits: u32) -> FunctionInput<F> {
-        FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits }
+#[derive(Clone, PartialEq, Eq, Debug, Error)]
+#[error("FunctionInput value has too many bits: value: {value}, {value_num_bits} >= {max_bits}")]
+pub struct InvalidInputBitSize {
+    pub value: String,
+    pub value_num_bits: u32,
+    pub max_bits: u32,
+}
+
+impl<F: AcirField> FunctionInput<F> {
+    pub fn constant(value: F, max_bits: u32) -> Result<FunctionInput<F>, InvalidInputBitSize> {
+        if value.num_bits() <= max_bits {
+            Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
+        } else {
+            let value_num_bits = value.num_bits();
+            let value = format!("{}", value);
+            Err(InvalidInputBitSize { value, value_num_bits, max_bits })
+        }
     }
 }
 

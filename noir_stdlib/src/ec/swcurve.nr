@@ -10,7 +10,7 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Short Weierstraß curve
+    pub struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
         a: Field,
         b: Field,
@@ -18,7 +18,7 @@ mod affine {
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         infty: bool // Indicator for point at infinity
@@ -60,11 +60,10 @@ mod affine {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-             let Self {x: x1, y: y1, infty: inf1} = self;
+            let Self {x: x1, y: y1, infty: inf1} = self;
             let Self {x: x2, y: y2, infty: inf2} = p;
 
-            (inf1 & inf2)
-                | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
+            (inf1 & inf2) | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
         }
     }
 
@@ -195,7 +194,7 @@ mod curvegroup {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Short Weierstraß curve
+    pub struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
         a: Field,
         b: Field,
@@ -203,7 +202,7 @@ mod curvegroup {
         gen: Point
     }
     // Point in three-dimensional Jacobian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         z: Field // z = 0 corresponds to point at infinity.
@@ -245,10 +244,13 @@ mod curvegroup {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-               let Self {x: x1, y: y1, z: z1} = self;
+            let Self {x: x1, y: y1, z: z1} = self;
             let Self {x: x2, y: y2, z: z2} = p;
 
-            ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2*z2 == x2*z1*z1) & (y1*z2*z2*z2 == y2*z1*z1*z1))
+            ((z1 == 0) & (z2 == 0)) | ((z1 != 0)
+                    & (z2 != 0)
+                    & (x1 * z2 * z2 == x2 * z1 * z1)
+                    & (y1 * z2 * z2 * z2 == y2 * z1 * z1 * z1))
         }
     }
 

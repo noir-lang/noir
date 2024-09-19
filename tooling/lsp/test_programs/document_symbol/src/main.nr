@@ -24,3 +24,5 @@ impl SomeTrait<i32> for SomeStruct {
 mod submodule {
     global SOME_GLOBAL = 1;
 }
+
+impl i32 {}

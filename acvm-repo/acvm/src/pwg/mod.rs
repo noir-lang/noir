@@ -6,7 +6,9 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput},
+        opcodes::{
+            AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
+        },
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
@@ -128,6 +130,11 @@ pub enum OpcodeResolutionError<F> {
     },
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
     IndexOutOfBounds { opcode_location: ErrorLocation, index: u32, array_size: u32 },
+    #[error("Cannot solve opcode: {invalid_input_bit_size}")]
+    InvalidInputBitSize {
+        opcode_location: ErrorLocation,
+        invalid_input_bit_size: InvalidInputBitSize,
+    },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
@@ -148,6 +155,15 @@ impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
             BlackBoxResolutionError::Failed(func, reason) => {
                 OpcodeResolutionError::BlackBoxFunctionFailed(func, reason)
             }
+        }
+    }
+}
+
+impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
+    fn from(invalid_input_bit_size: InvalidInputBitSize) -> Self {
+        Self::InvalidInputBitSize {
+            opcode_location: ErrorLocation::Unresolved,
+            invalid_input_bit_size,
         }
     }
 }
@@ -386,6 +402,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                         let location = OpcodeLocation::Acir(self.instruction_pointer());
                         *opcode_index = ErrorLocation::Resolved(location);
                         *assertion_payload = self.extract_assertion_payload(location);
+                    }
+                    OpcodeResolutionError::InvalidInputBitSize {
+                        opcode_location: opcode_index,
+                        ..
+                    } => {
+                        let location = OpcodeLocation::Acir(self.instruction_pointer());
+                        *opcode_index = ErrorLocation::Resolved(location);
                     }
                     // All other errors are thrown normally.
                     _ => (),
@@ -633,12 +656,31 @@ pub fn witness_to_value<F>(
     }
 }
 
+// TODO(https://github.com/noir-lang/noir/issues/5985):
+// remove skip_bitsize_checks
 pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     input: FunctionInput<F>,
+    skip_bitsize_checks: bool,
 ) -> Result<F, OpcodeResolutionError<F>> {
-    match input.input {
-        ConstantOrWitnessEnum::Witness(witness) => Ok(*witness_to_value(initial_witness, witness)?),
+    match input.input() {
+        ConstantOrWitnessEnum::Witness(witness) => {
+            let initial_value = *witness_to_value(initial_witness, witness)?;
+            if skip_bitsize_checks || initial_value.num_bits() <= input.num_bits() {
+                Ok(initial_value)
+            } else {
+                let value_num_bits = initial_value.num_bits();
+                let value = initial_value.to_string();
+                Err(OpcodeResolutionError::InvalidInputBitSize {
+                    opcode_location: ErrorLocation::Unresolved,
+                    invalid_input_bit_size: InvalidInputBitSize {
+                        value,
+                        value_num_bits,
+                        max_bits: input.num_bits(),
+                    },
+                })
+            }
+        }
         ConstantOrWitnessEnum::Constant(value) => Ok(value),
     }
 }

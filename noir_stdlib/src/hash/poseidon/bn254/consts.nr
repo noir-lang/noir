@@ -5,11 +5,6 @@
 // Consistent with https://github.com/iden3/circomlib/blob/master/circuits/poseidon.circom and https://github.com/iden3/circomlib/blob/master/circuits/poseidon_constants.circom
 use crate::hash::poseidon::PoseidonConfig;
 use crate::hash::poseidon::config;
-// Number of full rounds
-// Number of partial rounds
-fn rp() -> [u8; 16] {
-    [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68]
-}
 // S-box power
 fn alpha() -> Field {
     5
