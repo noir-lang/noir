@@ -161,30 +161,29 @@ impl Field {
     }
 }
 
-    /// Convert a big endian byte array to a field element by modding
-    pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
-        let mut v = 1;
-        let mut result = 0;
+/// Convert a big endian byte array to a field element by modding
+pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
+    let mut v = 1;
+    let mut result = 0;
 
-        for i in 0..N {
-            result += (bytes[i] as Field) * v;
-            v = v * 256;
-        }
-        result
+    for i in 0..N {
+        result += (bytes[i] as Field) * v;
+        v = v * 256;
     }
+    result
+}
 
-    /// Convert a little endian byte array to a field element by modding
-    pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {
-        let mut v = 1;
-        let mut result = 0;
+/// Convert a little endian byte array to a field element by modding
+pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {
+    let mut v = 1;
+    let mut result = 0;
 
-        for i in 0..N {
-            result += (bytes[N-1-i] as Field) * v;
-            v = v * 256;
-        }
-        result
+    for i in 0..N {
+        result += (bytes[N-1-i] as Field) * v;
+        v = v * 256;
     }
-
+    result
+}
 
 #[builtin(modulus_num_bits)]
 pub comptime fn modulus_num_bits() -> u64 {}
@@ -300,7 +299,7 @@ mod tests {
         let field = 2;
         let bits: [u8; 8] = field.to_le_radix(256);
         assert_eq(bits, [2, 0, 0, 0, 0, 0, 0, 0]);
-         assert_eq(crate::field::from_le_bytes(bits), field);
+        assert_eq(crate::field::from_le_bytes(bits), field);
     }
     // docs:end:to_le_radix_example
 }
