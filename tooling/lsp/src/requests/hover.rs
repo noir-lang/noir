@@ -218,13 +218,7 @@ fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
             HirLiteral::Unit => Some("()".to_string()),
         },
         HirExpression::Tuple(values) => {
-            let strings: Vec<String> =
-                values.iter().filter_map(|value| get_global_value(interner, *value)).collect();
-            if strings.len() == values.len() {
-                Some(format!("({})", strings.join(", ")))
-            } else {
-                None
-            }
+            get_exprs_global_value(interner, &values).map(|value| format!("({})", value))
         }
         _ => None,
     }
@@ -237,29 +231,33 @@ fn get_global_array_value(
 ) -> Option<String> {
     match literal {
         HirArrayLiteral::Standard(values) => {
-            let strings: Vec<String> =
-                values.iter().filter_map(|value| get_global_value(interner, *value)).collect();
-            if strings.len() == values.len() {
+            get_exprs_global_value(interner, &values).map(|value| {
                 if is_slice {
-                    Some(format!("&[{}]", strings.join(", ")))
+                    format!("&[{}]", value)
                 } else {
-                    Some(format!("[{}]", strings.join(", ")))
+                    format!("[{}]", value)
                 }
-            } else {
-                None
-            }
+            })
         }
         HirArrayLiteral::Repeated { repeated_element, length } => {
-            if let Some(value) = get_global_value(interner, repeated_element) {
+            get_global_value(interner, repeated_element).map(|value| {
                 if is_slice {
-                    Some(format!("&[{}; {}]", value, length))
+                    format!("&[{}; {}]", value, length)
                 } else {
-                    Some(format!("[{}; {}]", value, length))
+                    format!("[{}; {}]", value, length)
                 }
-            } else {
-                None
-            }
+            })
         }
+    }
+}
+
+fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<String> {
+    let strings: Vec<String> =
+        exprs.iter().filter_map(|value| get_global_value(interner, *value)).collect();
+    if strings.len() == exprs.len() {
+        Some(strings.join(", "))
+    } else {
+        None
     }
 }
 
