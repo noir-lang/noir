@@ -743,9 +743,7 @@ impl<'f> PerFunctionContext<'f> {
                 if all_loads_removed && !store_alias_used {
                     self.instructions_to_remove.insert(*store_instruction);
                     if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
-                        if *counter != 0 {
-                            *counter -= 1;
-                        }
+                        *counter = counter.saturating_sub(1);
                     }
                 } else if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
                     *counter += 1;
