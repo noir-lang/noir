@@ -116,7 +116,6 @@ impl Block {
     fn invalidate_all_references(&mut self) {
         self.references.clear();
         self.last_stores.clear();
-        // self.last_loads.clear();
     }
 
     pub(super) fn unify(mut self, other: &Self) -> Self {
