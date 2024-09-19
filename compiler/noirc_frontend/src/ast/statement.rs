@@ -568,6 +568,22 @@ pub struct ConstrainStatement {
     pub span: Span,
 }
 
+impl Display for ConstrainStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
+                f,
+                "{}({})",
+                self.kind,
+                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
+            ),
+            ConstrainKind::Constrain => {
+                write!(f, "constrain {}", &self.arguments[0])
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ConstrainKind {
     Assert,
@@ -895,22 +911,6 @@ impl Display for LetStatement {
             write!(f, "let {} = {}", self.pattern, self.expression)
         } else {
             write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
-        }
-    }
-}
-
-impl Display for ConstrainStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
-                f,
-                "{}({})",
-                self.kind,
-                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
-            ),
-            ConstrainKind::Constrain => {
-                write!(f, "constrain {}", &self.arguments[0])
-            }
         }
     }
 }
