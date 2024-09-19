@@ -364,10 +364,12 @@ impl<'f> PerFunctionContext<'f> {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
 
+                let mut known_value_exists = false;
                 // If the load is known, replace it with the known value and remove the load
                 if let Some(value) = references.get_known_value(address) {
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
+                    known_value_exists = true;
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
@@ -420,7 +422,7 @@ impl<'f> PerFunctionContext<'f> {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
                     }
-                } else {
+                } else if !known_value_exists {
                     // We want to set the load for every load even if the address has a known value
                     // and the previous load instruction was removed.
                     // We are safe to still remove a repeat load in this case as we are mapping from the current load's
@@ -556,24 +558,25 @@ impl<'f> PerFunctionContext<'f> {
                 if instructions.len() < 2 {
                     return;
                 }
-
                 // We subtract two as we always push an instruction before analyzing it and we want the instruction
                 // before this increment or decrement rc instruction.
                 let last_instruction = instructions[instructions.len() - 2];
-
                 let value = self.inserter.function.dfg.resolve(*value);
                 if self.instructions_to_remove.contains(&last_instruction) {
-                    if let Instruction::Load { .. } = self.inserter.function.dfg[last_instruction] {
+                    if let Instruction::Load { address } = self.inserter.function.dfg[last_instruction] {
                         let result =
                             self.inserter.function.dfg.instruction_results(last_instruction)[0];
                         let result = self.inserter.resolve(result);
-
-                        if result == value {
-                            self.instructions_to_remove.insert(instruction);
+                        // We only want to remove the inc/dec rc if the removed load came from a last load
+                        if references.last_loads.get(&address).is_some() {
+                            if result == value {
+                                self.instructions_to_remove.insert(instruction);
+                            }
                         }
                     }
                 }
             }
+            
             _ => (),
         }
     }
