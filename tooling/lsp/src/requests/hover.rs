@@ -167,14 +167,21 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
 fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     let global_info = args.interner.get_global(id);
     let definition_id = global_info.definition_id;
+    let definition = args.interner.definition(definition_id);
     let typ = args.interner.definition_type(definition_id);
-    dbg!(&global_info.value);
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Global(id), args, &mut string) {
         string.push('\n');
     }
+
     string.push_str("    ");
+    if definition.comptime {
+        string.push_str("comptime ");
+    }
+    if definition.mutable {
+        string.push_str("mut ");
+    }
     string.push_str("global ");
     string.push_str(&global_info.ident.0.contents);
     string.push_str(": ");
