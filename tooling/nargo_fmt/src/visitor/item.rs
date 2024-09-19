@@ -7,7 +7,7 @@ use crate::{
     visitor::expr::{format_seq, NewlineMode},
 };
 use noirc_frontend::{
-    ast::{NoirFunction, Visibility},
+    ast::{NoirFunction, TraitImplItemKind, Visibility},
     macros_api::UnresolvedTypeData,
 };
 use noirc_frontend::{
@@ -151,7 +151,7 @@ impl super::FmtVisitor<'_> {
     }
 
     fn visit_module(&mut self, module: ParsedModule) {
-        for Item { kind, span } in module.items {
+        for Item { kind, span, doc_comments } in module.items {
             match kind {
                 ItemKind::Function(func) => {
                     self.visit_function(span, func);
@@ -163,6 +163,11 @@ impl super::FmtVisitor<'_> {
                         self.push_str(self.slice(span));
                         self.last_position = span.end();
                         continue;
+                    }
+
+                    for doc_comment in doc_comments {
+                        self.push_str(&format!("///{doc_comment}\n"));
+                        self.push_str(&self.indent.to_string());
                     }
 
                     for attribute in module.outer_attributes {
@@ -214,7 +219,48 @@ impl super::FmtVisitor<'_> {
                         self.indent.block_indent(self.config);
 
                         for (method, span) in impl_.methods {
-                            self.visit_function(span, method);
+                            self.visit_function(span, method.item);
+                        }
+
+                        self.close_block((self.last_position..span.end() - 1).into());
+                        self.last_position = span.end();
+                    }
+                }
+                ItemKind::TraitImpl(noir_trait_impl) => {
+                    self.format_missing_indent(span.start(), true);
+
+                    if std::mem::take(&mut self.ignore_next_node) {
+                        self.push_str(self.slice(span));
+                        self.last_position = span.end();
+                        continue;
+                    }
+
+                    let before_brace = self.span_before(span, Token::LeftBrace).start();
+                    let slice = self.slice(self.last_position..before_brace).trim();
+                    let after_brace = self.span_after(span, Token::LeftBrace).start();
+                    self.last_position = after_brace;
+
+                    self.push_str(&format!("{slice} "));
+
+                    if noir_trait_impl.items.is_empty() {
+                        self.visit_empty_block((after_brace - 1..span.end()).into());
+                        continue;
+                    } else {
+                        self.push_str("{");
+                        self.indent.block_indent(self.config);
+
+                        for documented_item in noir_trait_impl.items {
+                            let span = documented_item.item.span;
+                            match documented_item.item.kind {
+                                TraitImplItemKind::Function(method) => {
+                                    self.visit_function(span, method);
+                                }
+                                TraitImplItemKind::Constant(..)
+                                | TraitImplItemKind::Type { .. } => {
+                                    self.push_rewrite(self.slice(span).to_string(), span);
+                                    self.last_position = span.end();
+                                }
+                            }
                         }
 
                         self.close_block((self.last_position..span.end() - 1).into());
@@ -229,7 +275,6 @@ impl super::FmtVisitor<'_> {
                 }
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
-                | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)
                 | ItemKind::Global(_)
                 | ItemKind::ModuleDecl(_)

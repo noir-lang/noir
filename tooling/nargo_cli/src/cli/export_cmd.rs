@@ -12,8 +12,7 @@ use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
-    compile_no_check, file_manager_with_stdlib, CompileOptions, CompiledProgram,
-    NOIR_ARTIFACT_VERSION_STRING,
+    compile_no_check, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
 
 use noirc_frontend::graph::CrateName;
@@ -54,7 +53,7 @@ pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliErr
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 

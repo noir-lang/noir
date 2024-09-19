@@ -18,7 +18,7 @@ fn mimc<let N: u32>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Fi
     h + k
 }
 
-global MIMC_BN254_ROUNDS = 91;
+global MIMC_BN254_ROUNDS: u32 = 91;
 //generated from seed "mimc" using keccak256 
 global MIMC_BN254_CONSTANTS: [Field; MIMC_BN254_ROUNDS] = [
         0,
@@ -126,7 +126,7 @@ pub fn mimc_bn254<let N: u32>(array: [Field; N]) -> Field {
     r
 }
 
-struct MimcHasher {
+pub struct MimcHasher {
     _state: [Field],
 }
 
@@ -142,15 +142,13 @@ impl Hasher for MimcHasher {
         r
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: Field) {
         self._state = self._state.push_back(input);
     }
 }
 
-impl Default for MimcHasher{
-    fn default() -> Self{
-        MimcHasher {
-            _state: &[],
-        }
+impl Default for MimcHasher {
+    fn default() -> Self {
+        MimcHasher { _state: &[] }
     }
 }

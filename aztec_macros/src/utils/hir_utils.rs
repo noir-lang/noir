@@ -74,7 +74,7 @@ pub fn signature_of_type(typ: &Type) -> String {
         Type::FieldElement => "Field".to_owned(),
         Type::Bool => "bool".to_owned(),
         Type::Array(len, typ) => {
-            if let Type::Constant(len) = **len {
+            if let Type::Constant(len, _) = **len {
                 format!("[{};{len}]", signature_of_type(typ))
             } else {
                 unimplemented!("Cannot generate signature for array with length type {:?}", typ)
@@ -90,7 +90,7 @@ pub fn signature_of_type(typ: &Type) -> String {
             format!("({})", fields.join(","))
         }
         Type::String(len_typ) => {
-            if let Type::Constant(len) = **len_typ {
+            if let Type::Constant(len, _) = **len_typ {
                 format!("str<{len}>")
             } else {
                 unimplemented!(
@@ -195,7 +195,7 @@ pub fn inject_fn(
     let trait_id = None;
     items.functions.push(UnresolvedFunctions { file_id, functions, trait_id, self_type: None });
 
-    let mut errors = Elaborator::elaborate(context, *crate_id, items, None, false);
+    let mut errors = Elaborator::elaborate(context, *crate_id, items, None);
     errors.retain(|(error, _)| !CustomDiagnostic::from(error).is_warning());
 
     if !errors.is_empty() {
@@ -241,7 +241,7 @@ pub fn inject_global(
     let mut items = CollectedItems::default();
     items.globals.push(UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global });
 
-    let _errors = Elaborator::elaborate(context, *crate_id, items, None, false);
+    let _errors = Elaborator::elaborate(context, *crate_id, items, None);
 }
 
 pub fn fully_qualified_note_path(context: &HirContext, note_id: StructId) -> Option<String> {
@@ -326,7 +326,7 @@ pub fn get_serialized_length(
     let serialized_trait_impl = serialized_trait_impl_shared.borrow();
 
     match serialized_trait_impl.trait_generics.first().unwrap() {
-        Type::Constant(value) => Ok(*value),
+        Type::Constant(value, _) => Ok(*value),
         _ => Err(MacroError {
             primary_message: format!("{} length for {} must be a constant", trait_name, typ),
             secondary_message: None,

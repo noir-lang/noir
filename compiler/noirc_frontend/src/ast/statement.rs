@@ -7,13 +7,13 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, Expression, ExpressionKind, GenericTypeArgs, IndexExpression, ItemVisibility,
-    MemberAccessExpression, MethodCallExpression, UnresolvedType,
+    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
+    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::{SecondaryAttribute, UnresolvedTypeData};
-use crate::node_interner::{InternedExpressionKind, InternedStatementKind};
+use crate::macros_api::{NodeInterner, SecondaryAttribute, UnresolvedTypeData};
+use crate::node_interner::{InternedExpressionKind, InternedPattern, InternedStatementKind};
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 
@@ -109,6 +109,8 @@ impl StatementKind {
                     // Semicolons are optional for these expressions
                     (ExpressionKind::Block(_), semi, _)
                     | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::Interned(..), semi, _)
+                    | (ExpressionKind::InternedStatement(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
@@ -387,6 +389,16 @@ pub struct AsTraitPath {
     pub impl_item: Ident,
 }
 
+/// A special kind of path in the form `Type::ident::<turbofish>`
+/// Unlike normal paths, the type here can be a primitive type or
+/// interned type.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypePath {
+    pub typ: UnresolvedType,
+    pub item: Ident,
+    pub turbofish: GenericTypeArgs,
+}
+
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
@@ -565,6 +577,7 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
+    Interned(InternedPattern, Span),
 }
 
 impl Pattern {
@@ -577,7 +590,8 @@ impl Pattern {
             Pattern::Identifier(ident) => ident.span(),
             Pattern::Mutable(_, span, _)
             | Pattern::Tuple(_, span)
-            | Pattern::Struct(_, _, span) => *span,
+            | Pattern::Struct(_, _, span)
+            | Pattern::Interned(_, span) => *span,
         }
     }
     pub fn name_ident(&self) -> &Ident {
@@ -593,6 +607,39 @@ impl Pattern {
             Pattern::Identifier(ident) => ident,
             Pattern::Mutable(pattern, _, _) => pattern.into_ident(),
             other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
+        }
+    }
+
+    pub(crate) fn try_as_expression(&self, interner: &NodeInterner) -> Option<Expression> {
+        match self {
+            Pattern::Identifier(ident) => Some(Expression {
+                kind: ExpressionKind::Variable(Path::from_ident(ident.clone())),
+                span: ident.span(),
+            }),
+            Pattern::Mutable(_, _, _) => None,
+            Pattern::Tuple(patterns, span) => {
+                let mut expressions = Vec::new();
+                for pattern in patterns {
+                    expressions.push(pattern.try_as_expression(interner)?);
+                }
+                Some(Expression { kind: ExpressionKind::Tuple(expressions), span: *span })
+            }
+            Pattern::Struct(path, patterns, span) => {
+                let mut fields = Vec::new();
+                for (field, pattern) in patterns {
+                    let expression = pattern.try_as_expression(interner)?;
+                    fields.push((field.clone(), expression));
+                }
+                Some(Expression {
+                    kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                        typ: UnresolvedType::from_path(path.clone()),
+                        fields,
+                        struct_type: None,
+                    })),
+                    span: *span,
+                })
+            }
+            Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
     }
 }
@@ -830,7 +877,11 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
+            write!(f, "let {} = {}", self.pattern, self.expression)
+        } else {
+            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+        }
     }
 }
 
@@ -904,6 +955,9 @@ impl Display for Pattern {
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+            Pattern::Interned(_, _) => {
+                write!(f, "?Interned")
             }
         }
     }

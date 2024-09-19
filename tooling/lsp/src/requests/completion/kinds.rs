@@ -1,4 +1,4 @@
-use noirc_frontend::Type;
+use noirc_frontend::{ast::AttributeTarget, Type};
 
 /// When suggest a function as a result of completion, whether to autocomplete its name or its name and parameters.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -27,4 +27,6 @@ pub(super) enum RequestedItems {
     AnyItems,
     // Only suggest types.
     OnlyTypes,
+    // Only attribute functions
+    OnlyAttributeFunctions(AttributeTarget),
 }

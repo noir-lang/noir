@@ -16,6 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::ExpressionKind;
 use crate::ast::Ident;
 use crate::ast::LValue;
+use crate::ast::Pattern;
 use crate::ast::StatementKind;
 use crate::ast::UnresolvedTypeData;
 use crate::graph::CrateId;
@@ -222,6 +223,9 @@ pub struct NodeInterner {
     // Interned `UnresolvedTypeData`s during comptime code.
     interned_unresolved_type_datas: noirc_arena::Arena<UnresolvedTypeData>,
 
+    // Interned `Pattern`s during comptime code.
+    interned_patterns: noirc_arena::Arena<Pattern>,
+
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
@@ -269,6 +273,9 @@ pub struct NodeInterner {
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     pub(crate) usage_tracker: UsageTracker,
+
+    /// Captures the documentation comments for each module, struct, trait, function, etc.
+    pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -607,6 +614,9 @@ pub struct InternedStatementKind(noirc_arena::Index);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedUnresolvedTypeData(noirc_arena::Index);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternedPattern(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -647,6 +657,7 @@ impl Default for NodeInterner {
             interned_expression_kinds: Default::default(),
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_datas: Default::default(),
+            interned_patterns: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -656,6 +667,7 @@ impl Default for NodeInterner {
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
             usage_tracker: UsageTracker::new(),
+            doc_comments: HashMap::default(),
         }
     }
 }
@@ -1361,7 +1373,8 @@ impl NodeInterner {
             Type::Struct(struct_type, _generics) => {
                 let id = struct_type.borrow().id;
 
-                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true) {
+                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true, true)
+                {
                     return Some(existing);
                 }
 
@@ -1758,6 +1771,7 @@ impl NodeInterner {
         id: StructId,
         method_name: &str,
         force_type_check: bool,
+        has_self_arg: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&id).and_then(|h| h.get(method_name));
 
@@ -1769,7 +1783,7 @@ impl NodeInterner {
             }
         }
 
-        self.find_matching_method(typ, methods, method_name)
+        self.find_matching_method(typ, methods, method_name, has_self_arg)
     }
 
     /// Select the 1 matching method with an object type matching `typ`
@@ -1778,32 +1792,40 @@ impl NodeInterner {
         typ: &Type,
         methods: Option<&Methods>,
         method_name: &str,
+        has_self_arg: bool,
     ) -> Option<FuncId> {
-        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self)) {
+        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, has_self_arg, self))
+        {
             Some(method)
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
             // for all types `T`, e.g. `impl<T> Foo for T`
             let global_methods =
                 self.primitive_methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
-            global_methods.find_matching_method(typ, self)
+            global_methods.find_matching_method(typ, has_self_arg, self)
         }
     }
 
     /// Looks up a given method name on the given primitive type.
-    pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
+    pub fn lookup_primitive_method(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
         let methods = self.primitive_methods.get(&key)?.get(method_name)?;
-        self.find_matching_method(typ, Some(methods), method_name)
+        self.find_matching_method(typ, Some(methods), method_name, has_self_arg)
     }
 
     pub fn lookup_primitive_trait_method_mut(
         &self,
         typ: &Type,
         method_name: &str,
+        has_self_arg: bool,
     ) -> Option<FuncId> {
         let typ = Type::MutableReference(Box::new(typ.clone()));
-        self.lookup_primitive_method(&typ, method_name)
+        self.lookup_primitive_method(&typ, method_name, has_self_arg)
     }
 
     /// Returns what the next trait impl id is expected to be.
@@ -2097,6 +2119,14 @@ impl NodeInterner {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
     }
 
+    pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {
+        InternedPattern(self.interned_patterns.insert(pattern))
+    }
+
+    pub fn get_pattern(&self, id: InternedPattern) -> &Pattern {
+        &self.interned_patterns[id.0]
+    }
+
     pub fn push_unresolved_type_data(
         &mut self,
         typ: UnresolvedTypeData,
@@ -2196,6 +2226,16 @@ impl NodeInterner {
 
         bindings
     }
+
+    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<String>) {
+        if !doc_comments.is_empty() {
+            self.doc_comments.insert(id, doc_comments);
+        }
+    }
+
+    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
+        self.doc_comments.get(&id)
+    }
 }
 
 impl Methods {
@@ -2226,19 +2266,30 @@ impl Methods {
     }
 
     /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(&self, typ: &Type, interner: &NodeInterner) -> Option<FuncId> {
+    fn find_matching_method(
+        &self,
+        typ: &Type,
+        has_self_param: bool,
+        interner: &NodeInterner,
+    ) -> Option<FuncId> {
         // When adding methods we always check they do not overlap, so there should be
         // at most 1 matching method in this list.
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _, _) => {
-                    if let Some(object) = args.first() {
-                        let mut bindings = TypeBindings::new();
+                    if has_self_param {
+                        if let Some(object) = args.first() {
+                            let mut bindings = TypeBindings::new();
 
-                        if object.try_unify(typ, &mut bindings).is_ok() {
-                            Type::apply_type_bindings(bindings);
-                            return Some(method);
+                            if object.try_unify(typ, &mut bindings).is_ok() {
+                                Type::apply_type_bindings(bindings);
+                                return Some(method);
+                            }
                         }
+                    } else {
+                        // Just return the first method whose name matches since we
+                        // can't match object types on static methods.
+                        return Some(method);
                     }
                 }
                 Type::Error => (),
@@ -2291,7 +2342,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::Error
         | Type::Struct(_, _)
         | Type::InfixExpr(..)
