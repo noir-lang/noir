@@ -11,6 +11,5 @@ fn main() {
 struct Foo {}
 
 impl Foo {
-    fn static() {
-    }
+    fn static() {}
 }
