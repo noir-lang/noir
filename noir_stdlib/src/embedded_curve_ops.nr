@@ -151,10 +151,7 @@ fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: Embedde
 /// Neither point is the infinity point.
 /// If it is used with correct input, the function ensures the correct non-zero result is returned.
 /// Except for points on the curve, the other assumptions are checked by the function. It will cause assertion failure if they are not respected.
-pub fn embedded_curve_add_not_nul(
-    point1: EmbeddedCurvePoint,
-    point2: EmbeddedCurvePoint
-) -> EmbeddedCurvePoint {
+pub fn embedded_curve_add_not_nul(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
     assert(point1.x - point2.x != 0);
     assert(point1.is_infinite == false);
     assert(point2.is_infinite == false);
