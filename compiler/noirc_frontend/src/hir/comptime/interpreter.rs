@@ -1324,9 +1324,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn unify_without_binding(&mut self, actual: &Type, expected: &Type, location: Location) {
         self.elaborator.unify_without_applying_bindings(actual, expected, location.file, || {
             TypeCheckError::TypeMismatch {
-            expected_typ: expected.to_string(),
-            expr_typ: actual.to_string(),
-            expr_span: location.span,
+                expected_typ: expected.to_string(),
+                expr_typ: actual.to_string(),
+                expr_span: location.span,
             }
         });
     }
