@@ -1828,7 +1828,6 @@ mod tests {
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
-        println!("{}", ssa);
 
         // Expected result:
         // acir(inline) fn main f0 {
