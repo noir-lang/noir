@@ -563,20 +563,20 @@ impl<'f> PerFunctionContext<'f> {
                 let last_instruction = instructions[instructions.len() - 2];
                 let value = self.inserter.function.dfg.resolve(*value);
                 if self.instructions_to_remove.contains(&last_instruction) {
-                    if let Instruction::Load { address } = self.inserter.function.dfg[last_instruction] {
+                    if let Instruction::Load { address } =
+                        self.inserter.function.dfg[last_instruction]
+                    {
                         let result =
                             self.inserter.function.dfg.instruction_results(last_instruction)[0];
                         let result = self.inserter.resolve(result);
-                        // We only want to remove the inc/dec rc if the removed load came from a last load
-                        if references.last_loads.get(&address).is_some() {
-                            if result == value {
-                                self.instructions_to_remove.insert(instruction);
-                            }
+                        // We only want to remove the inc/dec rc if the removed load came from a repeated load
+                        if result == value && references.last_loads.get(&address).is_some() {
+                            self.instructions_to_remove.insert(instruction);
                         }
                     }
                 }
             }
-            
+
             _ => (),
         }
     }
