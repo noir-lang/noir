@@ -288,7 +288,7 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         // Last loads are truly "per block". During unification we are creating a new block from the current one,
-        // so we must clear the last loads of the current block before return the new block.
+        // so we must clear the last loads of the current block before we return the new block.
         references.last_loads.clear();
 
         self.blocks.insert(block, references);
