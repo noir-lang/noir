@@ -151,11 +151,35 @@ impl Kind {
     }
 
     pub(crate) fn matches_opt(&self, other: Option<Self>) -> bool {
-        other.as_ref().map_or(true, |other_kind| self == other_kind)
+        other.as_ref().map_or(true, |other_kind| self.unifies(other_kind))
     }
 
     pub(crate) fn u32() -> Self {
         Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
+    }
+
+    /// Unifies this kind with the other. Returns true on success
+    pub(crate) fn unifies(&self, other: &Kind) -> bool {
+        match (self, other) {
+            (Kind::Normal, Kind::Normal) => true,
+            (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
+                let mut bindings = TypeBindings::new();
+                let unifies = lhs.try_unify(rhs, &mut bindings).is_ok();
+                if unifies {
+                    Type::apply_type_bindings(bindings);
+                }
+                unifies
+            }
+            _ => false,
+        }
+    }
+
+    pub(crate) fn unify(&self, other: &Kind) -> Result<(), UnificationError> {
+        if self.unifies(other) {
+            Ok(())
+        } else {
+            Err(UnificationError)
+        }
     }
 }
 
@@ -1465,13 +1489,13 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding_a, name_a, _), NamedGeneric(binding_b, name_b, _)) => {
+            (NamedGeneric(binding_a, name_a, kind_a), NamedGeneric(binding_b, name_b, kind_b)) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
                 if name_a == name_b {
-                    Ok(())
+                    kind_a.unify(kind_b)
                 } else {
                     Err(UnificationError)
                 }
@@ -1656,7 +1680,7 @@ impl Type {
         if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
             // We can only do the coercion if the `as_slice` method exists.
             // This is usually true, but some tests don't have access to the standard library.
-            if let Some(as_slice) = interner.lookup_primitive_method(&this, "as_slice") {
+            if let Some(as_slice) = interner.lookup_primitive_method(&this, "as_slice", true) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();
