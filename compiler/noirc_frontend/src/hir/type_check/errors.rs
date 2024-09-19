@@ -61,12 +61,16 @@ pub enum TypeCheckError {
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
+    #[error("{item} has incompatible `unconstrained`")]
+    UnconstrainedMismatch { item: String, expected: bool, span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, span: Span },
-    #[error("Variable {name} must be mutable to be assigned to")]
+    #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, span: Span },
+    #[error("Cannot mutate immutable variable `{name}`")]
+    CannotMutateImmutableVariable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
@@ -262,12 +266,21 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
+            TypeCheckError::UnconstrainedMismatch { item, expected, span } => {
+                let msg = if *expected {
+                    format!("{item} is expected to be unconstrained")
+                } else {
+                    format!("{item} is not expected to be unconstrained")
+                };
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
+            | TypeCheckError::CannotMutateImmutableVariable { span, .. }
             | TypeCheckError::UnresolvedMethodCall { span, .. }
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }

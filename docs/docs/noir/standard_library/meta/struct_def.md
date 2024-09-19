@@ -13,6 +13,24 @@ This type corresponds to `struct Name { field1: Type1, ... }` items in the sourc
 
 Adds an attribute to the struct.
 
+### add_generic
+
+#include_code add_generic noir_stdlib/src/meta/struct_def.nr rust
+
+Adds an generic to the struct. Returns the new generic type.
+Errors if the given generic name isn't a single identifier or if
+the struct already has a generic with the same name.
+
+This method should be used carefully, if there is existing code referring
+to the struct type it may be checked before this function is called and
+see the struct with the original number of generics. This method should
+thus be preferred to use on code generated from other macros and structs
+that are not used in function signatures.
+
+Example:
+
+#include_code add-generic-example test_programs/compile_success_empty/comptime_struct_definition/src/main.nr rust
+
 ### as_type
 
 #include_code as_type noir_stdlib/src/meta/struct_def.nr rust
@@ -62,6 +80,15 @@ Returns true if this struct has a custom attribute with the given name.
 
 Returns the module where the struct is defined.
 
+### name
+
+#include_code name noir_stdlib/src/meta/struct_def.nr rust
+
+Returns the name of this struct
+
+Note that the returned quoted value will be just the struct name, it will
+not be the full path to the struct, nor will it include any generics.
+
 ### set_fields
 
 #include_code set_fields noir_stdlib/src/meta/struct_def.nr rust
@@ -90,3 +117,14 @@ comptime fn mangle_fields(s: StructDefinition) {
     ]);
 }
 ```
+
+## Trait Implementations
+
+```rust
+impl Eq for StructDefinition
+impl Hash for StructDefinition
+```
+
+Note that each struct is assigned a unique ID internally and this is what is used for
+equality and hashing. So even structs with identical generics and fields may not
+be equal in this sense if they were originally different items in the source program.

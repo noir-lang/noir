@@ -13,7 +13,7 @@ use crate::ssa::ir::function::FunctionId;
 
 use super::{
     artifact::{Label, UnresolvedJumpLocation},
-    brillig_variable::{BrilligArray, BrilligVector, SingleAddrVariable},
+    brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     procedures::ProcedureId,
     registers::RegisterAllocator,
@@ -48,12 +48,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result: SingleAddrVariable,
     ) {
         self.debug_show.not_instruction(input.address, input.bit_size, result.address);
-        // Compile !x as ((-1) - x)
-        let u_max = F::from(2_u128).pow(&F::from(input.bit_size as u128)) - F::one();
-        let max = self.make_constant(u_max, input.bit_size);
-
-        self.binary(max, input, result, BrilligBinaryOp::Sub);
-        self.deallocate_single_addr(max);
+        assert_eq!(input.bit_size, result.bit_size, "Not operands should have the same bit size");
+        self.push_opcode(BrilligOpcode::Not {
+            destination: result.address,
+            source: input.address,
+            bit_size: input.bit_size.try_into().unwrap(),
+        });
     }
 
     /// Utility method to perform a binary instruction with a memory address
@@ -309,12 +309,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
-    /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
-    pub(crate) fn array_to_vector_instruction(&mut self, array: &BrilligArray) -> BrilligVector {
-        let size_register = self.make_usize_constant_instruction(array.size.into());
-        BrilligVector { size: size_register.address, pointer: array.pointer, rc: array.rc }
-    }
-
     /// Emits a load instruction
     pub(crate) fn load_instruction(
         &mut self,
@@ -394,43 +388,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             constant,
             bit_size
         );
-        if bit_size > 128 && constant.num_bits() > 128 {
-            let high = F::from_be_bytes_reduce(
-                constant.to_be_bytes().get(0..16).expect("FieldElement::to_be_bytes() too short!"),
-            );
-            let low = F::from(constant.to_u128());
-            let high_register = SingleAddrVariable::new(self.allocate_register(), 254);
-            let low_register = SingleAddrVariable::new(self.allocate_register(), 254);
-            let intermediate_register = SingleAddrVariable::new(self.allocate_register(), 254);
-
-            self.constant(high_register.address, high_register.bit_size, high, false);
-            self.constant(low_register.address, low_register.bit_size, low, false);
-            // I want to multiply high by 2^128, but I can't get that big constant in.
-            // So I'll multiply by 2^64 twice.
-            self.constant(
-                intermediate_register.address,
-                intermediate_register.bit_size,
-                F::from(1_u128 << 64),
-                false,
-            );
-            self.binary(high_register, intermediate_register, high_register, BrilligBinaryOp::Mul);
-            self.binary(high_register, intermediate_register, high_register, BrilligBinaryOp::Mul);
-            // Now we can add.
-            self.binary(high_register, low_register, intermediate_register, BrilligBinaryOp::Add);
-            if indirect {
-                self.cast(
-                    SingleAddrVariable::new(intermediate_register.address, bit_size),
-                    intermediate_register,
-                );
-                self.store_instruction(result, intermediate_register.address);
-            } else {
-                self.cast(SingleAddrVariable::new(result, bit_size), intermediate_register);
-            }
-
-            self.deallocate_single_addr(high_register);
-            self.deallocate_single_addr(low_register);
-            self.deallocate_single_addr(intermediate_register);
-        } else if indirect {
+        if indirect {
             self.push_opcode(BrilligOpcode::IndirectConst {
                 destination_pointer: result,
                 value: constant,
@@ -460,12 +418,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         var
     }
 
-    fn make_constant(&mut self, constant: F, bit_size: u32) -> SingleAddrVariable {
-        let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
-        self.constant(var.address, var.bit_size, constant, false);
-        var
-    }
-
     /// Returns a register which holds the value of an usize constant
     pub(crate) fn make_usize_constant_instruction(&mut self, constant: F) -> SingleAddrVariable {
         let register = self.allocate_register();
@@ -481,11 +433,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         self.debug_show.calldata_copy_instruction(destination, calldata_size, offset);
 
+        let size_var = self.make_usize_constant_instruction(calldata_size.into());
+        let offset_var = self.make_usize_constant_instruction(offset.into());
         self.push_opcode(BrilligOpcode::CalldataCopy {
             destination_address: destination,
-            size: calldata_size,
-            offset,
+            size_address: size_var.address,
+            offset_address: offset_var.address,
         });
+        self.deallocate_single_addr(size_var);
+        self.deallocate_single_addr(offset_var);
     }
 
     pub(super) fn trap_instruction(&mut self, revert_data: HeapArray) {

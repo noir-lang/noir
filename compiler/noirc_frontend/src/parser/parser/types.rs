@@ -89,6 +89,7 @@ pub(super) fn comptime_type() -> impl NoirParser<UnresolvedType> {
         top_level_item_type(),
         quoted_type(),
         typed_expr_type(),
+        comptime_string_type(),
     ))
 }
 
@@ -164,6 +165,12 @@ fn quoted_type() -> impl NoirParser<UnresolvedType> {
 fn typed_expr_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TypedExpr)
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TypedExpr).with_span(span))
+}
+
+/// This is the `CtString` type for dynamically-sized compile-time strings
+fn comptime_string_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::CtString)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::CtString).with_span(span))
 }
 
 /// This is the type of an already resolved type.

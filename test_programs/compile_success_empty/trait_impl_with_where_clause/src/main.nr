@@ -13,7 +13,7 @@ trait MyEq {
 impl<T> MyEq for [T; 3] where T: MyEq {
     fn my_eq(self, other: Self) -> bool {
         let mut ret = true;
-        for i in 0 .. self.len() {
+        for i in 0..self.len() {
             ret &= self[i].my_eq(other[i]);
         }
         ret

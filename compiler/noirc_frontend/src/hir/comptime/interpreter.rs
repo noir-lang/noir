@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -10,6 +11,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
+use crate::hir::def_map::ModuleId;
 use crate::hir_def::expr::ImplKind;
 use crate::hir_def::function::FunctionBody;
 use crate::macros_api::UnaryOp;
@@ -131,9 +133,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return self.call_special(function, arguments, return_type, location);
         }
 
-        // Wait until after call_special to set the current function so that builtin functions like
-        // `.as_type()` still call the resolver in the caller's scope.
-        let old_function = self.current_function.replace(function);
+        // Don't change the current function scope if we're in a #[use_callers_scope] function.
+        // This will affect where `Expression::resolve`, `Quoted::as_type`, and similar functions resolve.
+        let mut old_function = self.current_function;
+        let modifiers = self.elaborator.interner.function_modifiers(&function);
+        if !modifiers.attributes.has_use_callers_scope() {
+            self.current_function = Some(function);
+        }
+
         let result = self.call_user_defined_function(function, arguments, location);
         self.current_function = old_function;
         result
@@ -170,7 +177,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborate_item(None, |elaborator| {
+                    self.elaborate_in_function(None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -183,13 +190,25 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn elaborate_item<T>(
+    fn elaborate_in_function<T>(
         &mut self,
         function: Option<FuncId>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime(function, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, f);
+        self.rebind_generics_from_previous_function();
+        result
+    }
+
+    fn elaborate_in_module<T>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        f: impl FnOnce(&mut Elaborator) -> T,
+    ) -> T {
+        self.unbind_generics_from_previous_function();
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, file, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -228,6 +247,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn call_closure(
+        &mut self,
+        closure: HirLambda,
+        environment: Vec<Value>,
+        arguments: Vec<(Value, Location)>,
+        function_scope: Option<FuncId>,
+        module_scope: ModuleId,
+        call_location: Location,
+    ) -> IResult<Value> {
+        // Set the closure's scope to that of the function it was originally evaluated in
+        let old_module = self.elaborator.replace_module(module_scope);
+        let old_function = std::mem::replace(&mut self.current_function, function_scope);
+
+        let result = self.call_closure_inner(closure, environment, arguments, call_location);
+
+        self.current_function = old_function;
+        self.elaborator.replace_module(old_module);
+        result
+    }
+
+    fn call_closure_inner(
         &mut self,
         closure: HirLambda,
         environment: Vec<Value>,
@@ -420,7 +459,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
-                entry.insert(argument);
+                match entry.get() {
+                    Value::Pointer(reference, true) => {
+                        *reference.borrow_mut() = argument;
+                    }
+                    _ => {
+                        entry.insert(argument);
+                    }
+                }
                 return Ok(());
             }
         }
@@ -513,12 +559,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 // Avoid resetting the value if it is already known
-                if let Ok(value) = self.lookup(&ident) {
-                    Ok(value)
+                if let Some(value) = &self.elaborator.interner.get_global(*global_id).value {
+                    Ok(value.clone())
                 } else {
-                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
+                    let global_id = *global_id;
+                    let crate_of_global = self.elaborator.interner.get_global(global_id).crate_id;
                     let let_ =
-                        self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
+                        self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
                             || {
                                 let location = self.elaborator.interner.expr_location(&id);
                                 InterpreterError::VariableNotInScope { location }
@@ -528,7 +575,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
-                    self.lookup(&ident)
+
+                    let value = self.lookup(&ident)?;
+                    self.elaborator.interner.get_global_mut(global_id).value = Some(value.clone());
+                    Ok(value)
                 }
             }
             DefinitionKind::GenericType(type_variable) => {
@@ -1244,14 +1294,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
-                    let expr = self.elaborate_item(self.current_function, |elaborator| {
+                    let expr = self.elaborate_in_function(self.current_function, |elaborator| {
                         elaborator.elaborate_expression(expr).0
                     });
                     result = self.evaluate(expr)?;
                 }
                 Ok(result)
             }
-            Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
+            Value::Closure(closure, env, _, function_scope, module_scope) => {
+                self.call_closure(closure, env, arguments, function_scope, module_scope, location)
+            }
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1433,7 +1485,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
-        Ok(Value::Closure(lambda, environment, typ))
+        let module = self.elaborator.module_id();
+        Ok(Value::Closure(lambda, environment, typ, self.current_function, module))
     }
 
     fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {

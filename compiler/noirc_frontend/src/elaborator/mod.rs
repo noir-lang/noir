@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::{FunctionBody, Parameters},
+        function::FunctionBody,
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
@@ -29,7 +29,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, ReferenceId,
         TraitId, TypeAliasId,
     },
-    token::CustomAtrribute,
+    token::CustomAttribute,
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -158,6 +158,10 @@ pub struct Elaborator<'context> {
     /// Initially empty, it is set whenever a new top-level item is resolved.
     local_module: LocalModuleId,
 
+    /// True if we're elaborating a comptime item such as a comptime function,
+    /// block, global, or attribute.
+    in_comptime_context: bool,
+
     crate_id: CrateId,
 
     /// The scope of --debug-comptime, or None if unset
@@ -215,6 +219,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             current_trait: None,
             interpreter_call_stack,
+            in_comptime_context: false,
         }
     }
 
@@ -253,7 +258,7 @@ impl<'context> Elaborator<'context> {
         this
     }
 
-    fn elaborate_items(&mut self, mut items: CollectedItems) {
+    pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         //
@@ -410,7 +415,6 @@ impl<'context> Elaborator<'context> {
             self.add_existing_variable_to_scope(name, parameter.clone(), true);
         }
 
-        self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
         let (hir_func, body_type) = match kind {
@@ -795,7 +799,7 @@ impl<'context> Elaborator<'context> {
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes: Vec<CustomAtrribute> = attributes.cloned().collect();
+        let attributes: Vec<CustomAttribute> = attributes.cloned().collect();
 
         let meta = FuncMeta {
             name: name_ident,
@@ -888,44 +892,6 @@ impl<'context> Elaborator<'context> {
             func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
-        }
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/5156): Remove implicit numeric generics
-    fn declare_numeric_generics(&mut self, params: &Parameters, return_type: &Type) {
-        if self.generics.is_empty() {
-            return;
-        }
-
-        for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
-            // Declare any generics to let users use numeric generics in scope.
-            // Don't issue a warning if these are unused
-            //
-            // We can fail to find the generic in self.generics if it is an implicit one created
-            // by the compiler. This can happen when, e.g. eliding array lengths using the slice
-            // syntax [T].
-            if let Some(ResolvedGeneric { name, span, kind, .. }) =
-                self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
-            {
-                let scope = self.scopes.get_mut_scope();
-                let value = scope.find(&name_to_find);
-                if value.is_some() {
-                    // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
-                    // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
-                    // to transition to the new syntax
-                    // e.g. this code would break with a duplicate definition error:
-                    // ```
-                    // fn foo<let N: u8>(arr: [Field; N]) { }
-                    // ```
-                    continue;
-                }
-                *kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                let ident = Ident::new(name.to_string(), *span);
-                let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-
-                self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-            }
         }
     }
 
@@ -1182,28 +1148,6 @@ impl<'context> Elaborator<'context> {
             let fields_len = fields.len();
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
-
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
-                // This is only necessary for resolving named types when implicit numeric generics are used.
-                let mut found_names = Vec::new();
-                struct_def.find_numeric_generics_in_fields(&mut found_names);
-                for generic in struct_def.generics.iter_mut() {
-                    for found_generic in found_names.iter() {
-                        if found_generic == generic.name.as_str() {
-                            if matches!(generic.kind, Kind::Normal) {
-                                let ident = Ident::new(generic.name.to_string(), generic.span);
-                                self.errors.push((
-                                    CompilationError::ResolverError(
-                                        ResolverError::UseExplicitNumericGeneric { ident },
-                                    ),
-                                    self.file,
-                                ));
-                                generic.kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                            }
-                            break;
-                        }
-                    }
-                }
             });
 
             for field_index in 0..fields_len {
@@ -1248,7 +1192,9 @@ impl<'context> Elaborator<'context> {
             let struct_def = this.interner.get_struct(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let fields = vecmap(&unresolved.fields, |(ident, typ)| {
+            let fields = vecmap(&unresolved.fields, |field| {
+                let ident = &field.item.name;
+                let typ = &field.item.typ;
                 (ident.clone(), this.resolve_type(typ.clone()))
             });
 
@@ -1287,7 +1233,12 @@ impl<'context> Elaborator<'context> {
 
         let comptime = let_stmt.comptime;
 
-        let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
+        let (let_statement, _typ) = if comptime {
+            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
+        } else {
+            self.elaborate_let(let_stmt, Some(global_id))
+        };
+
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
@@ -1322,9 +1273,7 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
-            self.debug_comptime(location, |interner| {
-                interner.get_global(global_id).let_statement.to_display_ast(interner).kind
-            });
+            self.debug_comptime(location, |interner| value.display(interner).to_string());
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
@@ -1418,21 +1367,6 @@ impl<'context> Elaborator<'context> {
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None);
             });
-        }
-    }
-
-    /// True if we're currently within a `comptime` block, function, or global
-    fn in_comptime_context(&self) -> bool {
-        // The first context is the global context, followed by the function-specific context.
-        // Any context after that is a `comptime {}` block's.
-        if self.function_context.len() > 2 {
-            return true;
-        }
-
-        match self.current_item {
-            Some(DependencyId::Function(id)) => self.interner.function_modifiers(&id).is_comptime,
-            Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
-            _ => false,
         }
     }
 
