@@ -1856,7 +1856,6 @@ mod tests {
         //       return
         //   }
         let ssa = ssa.mem2reg();
-        println!("{}", ssa);
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 4);
