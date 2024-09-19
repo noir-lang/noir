@@ -288,10 +288,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, kind, .. },
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), Kind::Normal);
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), kind.clone());
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 
@@ -334,6 +334,7 @@ fn check_function_type_matches_expected_type(
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
+                    println!("{a:?} != {b:?}");
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
