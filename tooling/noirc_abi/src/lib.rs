@@ -198,8 +198,11 @@ impl Abi {
     /// Returns whether any values are needed to be made public for verification.
     pub fn has_public_inputs(&self) -> bool {
         let has_public_args = self.parameters.iter().any(|param| param.is_public());
-        let has_public_return = self.return_type.as_ref().map_or(false, |typ| matches!(typ.visibility, AbiVisibility::Public));
-        has_public_args || has_public_return 
+        let has_public_return = self
+            .return_type
+            .as_ref()
+            .map_or(false, |typ| matches!(typ.visibility, AbiVisibility::Public));
+        has_public_args || has_public_return
     }
 
     /// Returns `true` if the ABI contains no parameters or return value.
