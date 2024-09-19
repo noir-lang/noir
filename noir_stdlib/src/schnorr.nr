@@ -74,14 +74,14 @@ fn calculate_signature_challenge<let N: u32>(
     let pedersen_hash = crate::hash::pedersen_hash([r.x, public_key.x, public_key.y]);
     let pde: [u8; 32] = pedersen_hash.to_be_bytes();
 
-    let mut hash_input = Vec::new();
+    let mut hash_input = [0; N + 32];
     for i in 0..32 {
-        hash_input.push(pde[i]);
+        hash_input[i] = pde[i];
     }
     for i in 0..N {
-        hash_input.push(message[i]);
+        hash_input[32+i] = message[i];
     }
 
-    let result = crate::hash::blake2s_slice(hash_input.slice);
+    let result = crate::hash::blake2s(hash_input);
     (r.is_infinite, result)
 }
