@@ -1,4 +1,5 @@
-use crate::ast::{AsTraitPath, Path, PathKind, PathSegment, UnresolvedType};
+use crate::ast::{AsTraitPath, Path, PathKind, PathSegment, TypePath, UnresolvedType};
+use crate::macros_api::ExpressionKind;
 use crate::parser::{NoirParser, ParserError, ParserErrorReason};
 
 use crate::token::{Keyword, Token};
@@ -6,8 +7,8 @@ use crate::token::{Keyword, Token};
 use chumsky::prelude::*;
 
 use super::keyword;
-use super::primitives::{ident, path_segment, path_segment_no_turbofish};
-use super::types::generic_type_args;
+use super::primitives::{ident, path_segment, path_segment_no_turbofish, turbofish};
+use super::types::{generic_type_args, primitive_type};
 
 pub(super) fn path<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
@@ -65,6 +66,23 @@ pub(super) fn as_trait_path<'a>(
             trait_path,
             trait_generics,
             impl_item,
+        })
+}
+
+/// Parses `MyType::path_segment`
+/// These paths only support exactly two segments.
+/// Unlike normal paths `MyType` here can also be a primitive type or interned type
+/// in addition to a named type.
+pub(super) fn type_path<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<ExpressionKind> + 'a {
+    primitive_type()
+        .then_ignore(just(Token::DoubleColon))
+        .then(ident())
+        .then(turbofish(type_parser))
+        .map(|((typ, item), turbofish)| {
+            let turbofish = turbofish.unwrap_or_default();
+            ExpressionKind::TypePath(TypePath { typ, item, turbofish })
         })
 }
 
