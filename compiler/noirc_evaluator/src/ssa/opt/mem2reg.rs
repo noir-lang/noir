@@ -2082,6 +2082,7 @@ mod tests {
         let ssa = builder.finish();
 
         // Expected result:
+        //
         // acir(inline) fn main f0 {
         //     b0():
         //       v18 = allocate
