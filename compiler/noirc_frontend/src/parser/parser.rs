@@ -1631,7 +1631,7 @@ mod test {
             Case { source: "assert", expect: "assert()", errors: 1 },
             Case { source: "constrain x ==", expect: "constrain (x == Error)", errors: 2 },
             Case { source: "assert(x ==)", expect: "assert((x == Error))", errors: 1 },
-            Case { source: "assert(x == x, x)", expect: "assert((x == x))", errors: 0 },
+            Case { source: "assert(x == x, x)", expect: "assert((x == x), x)", errors: 0 },
             Case { source: "assert_eq(x,)", expect: "assert_eq(x)", errors: 0 },
             Case { source: "assert_eq(x, x, x, x)", expect: "assert_eq(x, x, x, x)", errors: 0 },
             Case { source: "assert_eq(x, x, x)", expect: "assert_eq(x, x, x)", errors: 0 },
