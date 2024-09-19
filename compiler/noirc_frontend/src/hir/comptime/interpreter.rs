@@ -1303,9 +1303,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     // Macro calls are typed as type variables during type checking.
                     // Now that we know the type we need to further unify it in case there
                     // are inconsistencies or the type needs to be known.
+                    // We don't commit any type bindings made this way in case the type of
+                    // the macro result changes across loop iterations.
                     let expected_type = self.elaborator.interner.id_type(id);
                     let actual_type = result.get_type();
-                    self.unify(&actual_type, &expected_type, location);
+                    self.unify_without_binding(&actual_type, &expected_type, location);
                 }
                 Ok(result)
             }
@@ -1319,16 +1321,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn unify(&mut self, actual: &Type, expected: &Type, location: Location) {
-        // We need to swap out the elaborator's file since we may be
-        // in a different one currently, and it uses that for the error location.
-        let old_file = std::mem::replace(&mut self.elaborator.file, location.file);
-        self.elaborator.unify(actual, expected, || TypeCheckError::TypeMismatch {
-            expected_typ: expected.to_string(),
-            expr_typ: actual.to_string(),
-            expr_span: location.span,
+    fn unify_without_binding(&mut self, actual: &Type, expected: &Type, location: Location) {
+        self.elaborator.unify_without_applying_bindings(actual, expected, location.file, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: expected.to_string(),
+                expr_typ: actual.to_string(),
+                expr_span: location.span,
+            }
         });
-        self.elaborator.file = old_file;
     }
 
     fn evaluate_method_call(
