@@ -3722,5 +3722,9 @@ fn use_numeric_generic_in_trait_method() {
     "#;
 
     let errors = get_program_errors(src);
+<<<<<<< aztec-packages
+=======
+    println!("{errors:?}");
+>>>>>>> master
     assert_eq!(errors.len(), 0);
 }
