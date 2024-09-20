@@ -179,9 +179,23 @@ impl Kind {
         }
     }
 
-    // TODO!
+    /// Ensure the given value fits in max(u32::MAX, max_of_self)
     fn ensure_value_fits(&self, value: u32) -> Option<u32> {
-        Some(value)
+        match self {
+            Self::Normal => Some(value),
+            Self::Numeric(typ) => {
+                match typ.integral_maximum_size() {
+                    None => Some(value),
+                    Some(maximum_size) => {
+                        if value <= maximum_size {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    }
+                }
+            },
+        }
     }
 }
 
@@ -580,7 +594,12 @@ impl TypeVariable {
     /// Also Panics if the ID of this TypeVariable occurs within the given
     /// binding, as that would cause an infinitely recursive type.
     pub fn bind(&self, typ: Type, kind: &Kind) {
-        todo!("check kind against typ");
+        assert!(
+            typ.kind().unifies(kind),
+            "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
+            typ.kind(),
+            kind
+        );
 
         let id = match &*self.1.borrow() {
             TypeBinding::Bound(binding) => {
@@ -594,7 +613,12 @@ impl TypeVariable {
     }
 
     pub fn try_bind(&self, binding: Type, kind: &Kind, span: Span) -> Result<(), TypeCheckError> {
-        todo!("check kind against typ");
+        assert!(
+            binding.kind().unifies(kind),
+            "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
+            binding.kind(),
+            kind
+        );
 
         let id = match &*self.1.borrow() {
             TypeBinding::Bound(binding) => {
@@ -631,7 +655,7 @@ impl TypeVariable {
     pub fn force_bind(&self, typ: Type, kind: &Kind) {
         assert!(
             typ.kind().unifies(kind),
-            "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
+            "expected kind of TypeVariable ({:?}) to match the kind of its binding ({:?})",
             kind,
             typ.kind()
         );
@@ -1375,21 +1399,21 @@ impl Type {
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
+        kind: Kind,
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
         };
 
+        if !self.kind().unifies(&kind) {
+            return Err(UnificationError)
+        }
+
         let this = self.substitute(bindings).follow_bindings();
         if let Some((binding, kind)) = this.get_inner_type_variable() {
-            // TypeVariableKind::Normal can't bind to numeric Kind's
-            if kind.is_numeric() {
-                return Err(UnificationError)
-            }
-
             match &*binding.borrow() {
-                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings),
+                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id) if *id == target_id => return Ok(()),
                 _ => (),
@@ -1471,18 +1495,9 @@ impl Type {
                 })
             }
 
-            (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
+            (TypeVariable(var, type_var_kind), other) | (other, TypeVariable(var, type_var_kind)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
-                    other.try_bind_to(var, bindings)
-                })
-            }
-
-            (TypeVariable(var, Kind::Numeric(numeric_kind)), other) | (other, TypeVariable(var, Kind::Numeric(numeric_kind))) => {
-                todo!();
-
-                // something like:
-                other.try_unify_to_type_variable(var, bindings, |bindings| {
-                    other.try_bind_to(var, bindings)
+                    other.try_bind_to(var, bindings, type_var_kind.kind())
                 })
             }
 
@@ -2281,6 +2296,34 @@ impl Type {
     pub fn slice_element_type(&self) -> Option<&Type> {
         match self {
             Type::Slice(element) => Some(element),
+            _ => None,
+        }
+    }
+
+    fn integral_maximum_size(&self) -> Option<u32> {
+        match self {
+            Type::FieldElement => Some(u32::MAX),
+            Type::Integer(sign, num_bits) => {
+                let mut max_bit_size = num_bits.bit_size();
+                if sign == &Signedness::Signed {
+                    max_bit_size >>= 1;
+                }
+                if 32 <= max_bit_size {
+                    Some(u32::MAX)
+                } else {
+                    Some((1u32 << max_bit_size) - 1)
+                }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::Integer | TypeVariableKind::IntegerOrField) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(typ) => typ.integral_maximum_size(),
+                    TypeBinding::Unbound(_) => Some(u32::MAX),
+                }
+            }
+            Type::TypeVariable(_var, TypeVariableKind::Numeric(typ)) => typ.integral_maximum_size(),
+            Type::Alias(alias, _args) => alias.borrow().typ.integral_maximum_size(),
+            Type::Bool => Some(1),
+            Type::NamedGeneric(_binding, _name, Kind::Numeric(typ)) => typ.integral_maximum_size(),
             _ => None,
         }
     }
