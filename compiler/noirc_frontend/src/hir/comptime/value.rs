@@ -817,17 +817,20 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         let last_was_name = self.last_was_name;
         self.last_was_name = false;
 
+        // After `}` we usually want a newline... but not always!
         if self.last_was_right_brace {
             self.last_was_right_brace = false;
 
             match token {
                 Token::Keyword(Keyword::Else) => {
+                    // If we have `} else` we don't want a newline
                     write!(f, " else")?;
                     self.last_was_name = true;
                     return Ok(());
                 }
                 Token::RightBrace => {
-                    // We don't want an extra newline in this case
+                    // Because we insert a newline right before `}`, if we have two
+                    // (or more) in a row we don't want extra newlines.
                 }
                 _ => {
                     writeln!(f)?;
