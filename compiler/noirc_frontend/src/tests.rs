@@ -3725,3 +3725,26 @@ fn use_numeric_generic_in_trait_method() {
     println!("{errors:?}");
     assert_eq!(errors.len(), 0);
 }
+
+#[test]
+fn macro_result_type_mismatch() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let x = unquote!(quote { "test" });
+                let _: Field = x;
+            }
+        }
+
+        comptime fn unquote(q: Quoted) -> Quoted {
+            q
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
+}

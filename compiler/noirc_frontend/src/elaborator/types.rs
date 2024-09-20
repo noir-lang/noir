@@ -633,7 +633,7 @@ impl<'context> Elaborator<'context> {
         0
     }
 
-    pub fn unify(
+    pub(super) fn unify(
         &mut self,
         actual: &Type,
         expected: &Type,
@@ -641,6 +641,22 @@ impl<'context> Elaborator<'context> {
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
             self.errors.push((make_error().into(), self.file));
+        }
+    }
+
+    /// Do not apply type bindings even after a successful unification.
+    /// This function is used by the interpreter for some comptime code
+    /// which can change types e.g. on each iteration of a for loop.
+    pub fn unify_without_applying_bindings(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        file: fm::FileId,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        let mut bindings = TypeBindings::new();
+        if actual.try_unify(expected, &mut bindings).is_err() {
+            self.errors.push((make_error().into(), file));
         }
     }
 
