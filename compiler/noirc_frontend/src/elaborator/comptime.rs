@@ -97,6 +97,7 @@ impl<'context> Elaborator<'context> {
             self.crate_id,
             self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
+            self.perform_formal_verification,
         );
 
         elaborator.function_context.push(FunctionContext::default());

@@ -174,6 +174,9 @@ pub struct Elaborator<'context> {
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
+
+    /// Indicates if we have to elaborate or ignore formal verification attributes.
+    perform_formal_verification: bool,
 }
 
 #[derive(Default)]
@@ -197,6 +200,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
+        perform_formal_verification: bool,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -221,6 +225,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            perform_formal_verification,
         }
     }
 
@@ -235,6 +240,7 @@ impl<'context> Elaborator<'context> {
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
+            context.perform_formal_verification,
         )
     }
 
@@ -440,7 +446,7 @@ impl<'context> Elaborator<'context> {
         }
 
         if let Some(attr) = attributes {
-            if !attr.fv_attributes.is_empty() {
+            if !attr.fv_attributes.is_empty() && self.perform_formal_verification {
                 self.elaborate_fv_attributes(
                     attr.fv_attributes.clone(),
                     &id,

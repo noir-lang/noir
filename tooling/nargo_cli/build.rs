@@ -47,6 +47,8 @@ fn main() {
     generate_plonky2_verify_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_trace_tests(&mut test_file, &test_dir);
     generate_plonky2_show_plonky2_regression_tests(&mut test_file, &test_dir);
+    generate_formal_verify_success_tests(&mut test_file, &test_dir);
+    generate_formal_verify_failure_tests(&mut test_file, &test_dir);
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -697,6 +699,80 @@ fn plonky2_show_plonky2_regression_{test_name}() {{
 }}
             "#,
             test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+/// Tests which must succeed after undergoing formal verification.
+fn generate_formal_verify_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "formal_verify_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
+        write!(
+            test_file,
+            r#"
+#[test]
+fn formal_verify_success_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("formal-verify");
+
+    cmd.assert().success();
+}}
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+/// Tests which must fail during formal verification.
+fn generate_formal_verify_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "formal_verify_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    let expected_messages = HashMap::from([("simple_add", vec!["Cannot satisfy constraint"])]);
+
+    for (test_name, test_dir) in test_cases {
+        write!(
+            test_file,
+            r#"
+#[test]
+fn formal_verify_failure_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("formal-verify");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+
+        // Not all tests have expected messages, so match.
+        match expected_messages.get(test_name.as_str()) {
+            Some(messages) => {
+                for message in messages.iter() {
+                    write!(
+                        test_file,
+                        r#"
+    cmd.assert().failure().stderr(predicate::str::contains("{message}"));"#
+                    )
+                    .expect("Could not write templated test file.");
+                }
+            }
+            None => {}
+        }
+
+        write!(
+            test_file,
+            r#"
+}}
+"#
         )
         .expect("Could not write templated test file.");
     }
