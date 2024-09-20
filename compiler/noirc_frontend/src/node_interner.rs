@@ -2309,7 +2309,10 @@ impl Methods {
                         // If we recorded the concrete type this trait impl method belongs to,
                         // and it matches typ, it's an exact match and we return that.
                         if let Some(method_type) = method_type {
-                            if typ == method_type {
+                            let mut bindings = TypeBindings::new();
+
+                            if method_type.try_unify(typ, &mut bindings).is_ok() {
+                                Type::apply_type_bindings(bindings);
                                 return Some(method);
                             }
                         } else {
