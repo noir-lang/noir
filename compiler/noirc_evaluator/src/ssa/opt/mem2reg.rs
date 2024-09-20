@@ -322,18 +322,6 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn increase_load_ref_counts(&mut self, value: ValueId) {
-        if let Some(context) = self.load_results.get_mut(&value) {
-            context.uses += 1;
-        }
-        let array_const = self.inserter.function.dfg.get_array_constant(value);
-        if let Some((values, _)) = array_const {
-            for array_value in values {
-                self.increase_load_ref_counts(array_value);
-            }
-        }
-    }
-
     fn analyze_instruction(
         &mut self,
         block_id: BasicBlockId,
