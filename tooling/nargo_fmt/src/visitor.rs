@@ -36,8 +36,7 @@ impl<'me> FmtVisitor<'me> {
 
     pub(crate) fn slice(&self, span: impl Into<Span>) -> &'me str {
         let span = span.into();
-        let end = ceil_char_boundary(self.source, span.end() as usize);
-        &self.source[span.start() as usize..end]
+        str_slice(self.source, span.start() as usize, span.end() as usize)
     }
 
     pub(crate) fn span_after(&self, span: impl Into<Span>, token: Token) -> Span {
