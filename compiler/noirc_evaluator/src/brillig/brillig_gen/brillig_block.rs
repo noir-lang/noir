@@ -690,11 +690,6 @@ impl<'block> BrilligBlock<'block> {
                     value_variable,
                     *mutable,
                 );
-
-                // if mutable {
-                // self.brillig_context.
-                // self.variables.define_variable(self.function_context, self.brillig_context, result_ids[0], dfg);
-                // }
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.convert_ssa_single_addr_value(*value, dfg);

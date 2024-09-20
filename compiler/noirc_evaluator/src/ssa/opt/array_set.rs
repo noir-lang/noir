@@ -25,7 +25,6 @@ impl Ssa {
                 func.find_last_block()
             };
 
-            // let block = reachable_blocks.pop_first().unwrap();
             let instructions_to_update = analyze_last_uses(&func.dfg, block);
             make_mutable(&mut func.dfg, block, instructions_to_update);
         }
