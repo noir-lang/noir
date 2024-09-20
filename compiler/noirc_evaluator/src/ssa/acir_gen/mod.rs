@@ -450,7 +450,40 @@ impl<'a> Context<'a> {
         warnings.extend(self.acir_context.warnings.clone());
 
         // Add the warnings from the alter Ssa passes
-        Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
+        Ok(self.acir_context.finish(
+            input_witness,
+            // Don't embed databus return witnesses into the circuit.
+            if self.data_bus.return_data.is_some() { Vec::new() } else { return_witnesses },
+            warnings,
+        ))
+    }
+
+    fn initialize_databus(
+        &mut self,
+        witnesses: &Vec<Witness>,
+        dfg: &DataFlowGraph,
+    ) -> Result<(), RuntimeError> {
+        // Initialize return_data using provided witnesses
+        if let Some(return_data) = self.data_bus.return_data {
+            let block_id = self.block_id(&return_data);
+            let already_initialized = self.initialized_arrays.contains(&block_id);
+            if !already_initialized {
+                // We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
+                // but the databus contains the computed values instead, that have just been asserted to be equal to the return values.
+                // We do not use initialize_array either for the case where a constant value is returned.
+                // In that case, the constant value has already been assigned a witness and the returned acir vars will be
+                // converted to it, instead of the corresponding return value witness.
+                self.acir_context.initialize_return_data(block_id, witnesses.to_owned());
+            }
+        }
+
+        // Initialize call_data
+        let call_data_arrays: Vec<ValueId> =
+            self.data_bus.call_data.iter().map(|cd| cd.array_id).collect();
+        for call_data_array in call_data_arrays {
+            self.ensure_array_is_initialized(call_data_array, dfg)?;
+        }
+        Ok(())
     }
 
     fn initialize_databus(
