@@ -316,14 +316,17 @@ fn create_static_check(fname: &str, is_private: bool) -> Statement {
             .iter()
             .fold(variable("context"), |acc, member| member_access(acc, member))
     };
-    make_statement(StatementKind::Constrain(ConstrainStatement(
-        make_eq(is_static_call_expr, expression(ExpressionKind::Literal(Literal::Bool(true)))),
-        Some(expression(ExpressionKind::Literal(Literal::Str(format!(
-            "Function {} can only be called statically",
-            fname
-        ))))),
-        ConstrainKind::Assert,
-    )))
+    make_statement(StatementKind::Constrain(ConstrainStatement {
+        kind: ConstrainKind::Assert,
+        arguments: vec![
+            make_eq(is_static_call_expr, expression(ExpressionKind::Literal(Literal::Bool(true)))),
+            expression(ExpressionKind::Literal(Literal::Str(format!(
+                "Function {} can only be called statically",
+                fname
+            )))),
+        ],
+        span: Default::default(),
+    }))
 }
 
 /// Creates a check for internal functions ensuring that the caller is self.
@@ -332,17 +335,20 @@ fn create_static_check(fname: &str, is_private: bool) -> Statement {
 /// assert(context.msg_sender() == context.this_address(), "Function can only be called internally");
 /// ```
 fn create_internal_check(fname: &str) -> Statement {
-    make_statement(StatementKind::Constrain(ConstrainStatement(
-        make_eq(
-            method_call(variable("context"), "msg_sender", vec![]),
-            method_call(variable("context"), "this_address", vec![]),
-        ),
-        Some(expression(ExpressionKind::Literal(Literal::Str(format!(
-            "Function {} can only be called internally",
-            fname
-        ))))),
-        ConstrainKind::Assert,
-    )))
+    make_statement(StatementKind::Constrain(ConstrainStatement {
+        kind: ConstrainKind::Assert,
+        arguments: vec![
+            make_eq(
+                method_call(variable("context"), "msg_sender", vec![]),
+                method_call(variable("context"), "this_address", vec![]),
+            ),
+            expression(ExpressionKind::Literal(Literal::Str(format!(
+                "Function {} can only be called internally",
+                fname
+            )))),
+        ],
+        span: Default::default(),
+    }))
 }
 
 /// Creates a call to assert_initialization_matches_address_preimage to be inserted

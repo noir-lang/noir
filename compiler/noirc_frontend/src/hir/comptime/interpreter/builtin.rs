@@ -1240,9 +1240,17 @@ fn expr_as_assert(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
-            if constrain.2 == ConstrainKind::Assert {
-                let predicate = Value::expression(constrain.0.kind);
+        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+            if constrain.kind == ConstrainKind::Assert
+                && !constrain.arguments.is_empty()
+                && constrain.arguments.len() <= 2
+            {
+                let (message, predicate) = if constrain.arguments.len() == 1 {
+                    (None, constrain.arguments.pop().unwrap())
+                } else {
+                    (Some(constrain.arguments.pop().unwrap()), constrain.arguments.pop().unwrap())
+                };
+                let predicate = Value::expression(predicate.kind);
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1251,7 +1259,7 @@ fn expr_as_assert(
                 assert_eq!(tuple_types.len(), 2);
 
                 let option_type = tuple_types.pop().unwrap();
-                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = message.map(|msg| Value::expression(msg.kind));
                 let message = option(option_type, message).ok()?;
 
                 Some(Value::Tuple(vec![predicate, message]))
@@ -1272,14 +1280,23 @@ fn expr_as_assert_eq(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
-            if constrain.2 == ConstrainKind::AssertEq {
-                let ExpressionKind::Infix(infix) = constrain.0.kind else {
-                    panic!("Expected AssertEq constrain statement to have an infix expression");
+        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+            if constrain.kind == ConstrainKind::AssertEq
+                && constrain.arguments.len() >= 2
+                && constrain.arguments.len() <= 3
+            {
+                let (message, rhs, lhs) = if constrain.arguments.len() == 2 {
+                    (None, constrain.arguments.pop().unwrap(), constrain.arguments.pop().unwrap())
+                } else {
+                    (
+                        Some(constrain.arguments.pop().unwrap()),
+                        constrain.arguments.pop().unwrap(),
+                        constrain.arguments.pop().unwrap(),
+                    )
                 };
 
-                let lhs = Value::expression(infix.lhs.kind);
-                let rhs = Value::expression(infix.rhs.kind);
+                let lhs = Value::expression(lhs.kind);
+                let rhs = Value::expression(rhs.kind);
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1288,7 +1305,7 @@ fn expr_as_assert_eq(
                 assert_eq!(tuple_types.len(), 3);
 
                 let option_type = tuple_types.pop().unwrap();
-                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = message.map(|message| Value::expression(message.kind));
                 let message = option(option_type, message).ok()?;
 
                 Some(Value::Tuple(vec![lhs, rhs, message]))
