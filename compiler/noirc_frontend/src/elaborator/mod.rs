@@ -360,7 +360,7 @@ impl<'context> Elaborator<'context> {
         // Introduce all numeric generics into scope
         for generic in &all_generics {
             if let Kind::Numeric(typ) = &generic.kind {
-                let definition = DefinitionKind::GenericType(generic.type_var.clone());
+                let definition = DefinitionKind::GenericType(generic.type_var.clone(), typ.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
                 let hir_ident =
                     self.add_variable_decl_inner(ident, false, false, false, definition);

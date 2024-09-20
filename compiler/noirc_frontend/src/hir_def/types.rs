@@ -5,6 +5,7 @@ use std::{
     rc::Rc,
 };
 
+use acvm::FieldElement;
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
@@ -180,14 +181,14 @@ impl Kind {
     }
 
     /// Ensure the given value fits in max(u32::MAX, max_of_self)
-    fn ensure_value_fits(&self, value: u32) -> Option<u32> {
+    pub(crate) fn ensure_value_fits<T: Clone + Into<FieldElement>>(&self, value: T) -> Option<T> {
         match self {
             Self::Normal => Some(value),
             Self::Numeric(typ) => {
                 match typ.integral_maximum_size() {
                     None => Some(value),
                     Some(maximum_size) => {
-                        if value <= maximum_size {
+                        if value.clone().into() <= maximum_size {
                             Some(value)
                         } else {
                             None
@@ -722,7 +723,9 @@ impl std::fmt::Display for Type {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
                     write!(f, "{}", typ)
                 } else {
-                    write!(f, "{}", binding.borrow())
+                    // TODO: revert after debugging
+                    // write!(f, "{}", binding.borrow())
+                    write!(f, "{}:! {}", binding.borrow(), typ)
                 }
             }
             Type::Struct(s, args) => {
@@ -755,12 +758,17 @@ impl std::fmt::Display for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::NamedGeneric(binding, name, _) => match &*binding.borrow() {
+            Type::NamedGeneric(binding, name, kind) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.fmt(f),
-                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
+                // TODO: revert after debugging
+                // TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_", kind),
+                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_:! {:?}", kind),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
-            Type::Constant(x, _kind) => write!(f, "{x}"),
+
+            // TODO: revert after debugging
+            // Type::Constant(x, _kind) => write!(f, "{x}"),
+            Type::Constant(x, kind) => write!(f, "{x}:! {kind}"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -811,7 +819,9 @@ impl std::fmt::Display for BinaryTypeOperator {
 
 impl std::fmt::Display for TypeVariableId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "_")
+        // TODO: revert after debugging
+        // TODO remove '!'
+        write!(f, "_!")
     }
 }
 
@@ -860,18 +870,20 @@ impl Type {
         Type::TypeVariable(var, TypeVariableKind::Normal)
     }
 
-    pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
+    pub fn type_variable_with_kind(interner: &mut NodeInterner, type_var_kind: TypeVariableKind) -> Type {
         let id = interner.next_type_variable_id();
-        let kind = TypeVariableKind::IntegerOrField;
         let var = TypeVariable::unbound(id);
-        Type::TypeVariable(var, kind)
+        Type::TypeVariable(var, type_var_kind)
+    }
+
+    pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
+        let type_var_kind = TypeVariableKind::IntegerOrField;
+        Self::type_variable_with_kind(interner, type_var_kind)
     }
 
     pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
-        let id = interner.next_type_variable_id();
-        let kind = TypeVariableKind::Integer;
-        let var = TypeVariable::unbound(id);
-        Type::TypeVariable(var, kind)
+        let type_var_kind = TypeVariableKind::Integer;
+        Self::type_variable_with_kind(interner, type_var_kind)
     }
 
     /// A bit of an awkward name for this function - this function returns
@@ -1602,6 +1614,7 @@ impl Type {
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
+                // TODO: replace evaluate_to_u32
                 if let Some(other_value) = other.evaluate_to_u32() {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
@@ -1789,6 +1802,11 @@ impl Type {
         }
     }
 
+    // TODO!
+    pub(crate) fn evaluate_to_field_element(&self) -> acvm::FieldElement {
+        unimplemented!("evaluate_to_field_element")
+    }
+    
     /// Iterate over the fields of this type.
     /// Panics if the type is not a struct or tuple.
     pub fn iter_fields(&self) -> impl Iterator<Item = (String, Type)> {
@@ -2300,29 +2318,25 @@ impl Type {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<u32> {
+    fn integral_maximum_size(&self) -> Option<FieldElement> {
         match self {
-            Type::FieldElement => Some(u32::MAX),
+            Type::FieldElement => Some(FieldElement::max_value()),
             Type::Integer(sign, num_bits) => {
                 let mut max_bit_size = num_bits.bit_size();
                 if sign == &Signedness::Signed {
                     max_bit_size >>= 1;
                 }
-                if 32 <= max_bit_size {
-                    Some(u32::MAX)
-                } else {
-                    Some((1u32 << max_bit_size) - 1)
-                }
+                Some(((1u128 << max_bit_size) - 1).into())
             }
             Type::TypeVariable(binding, TypeVariableKind::Integer | TypeVariableKind::IntegerOrField) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.integral_maximum_size(),
-                    TypeBinding::Unbound(_) => Some(u32::MAX),
+                    TypeBinding::Unbound(_) => Some(FieldElement::max_value()),
                 }
             }
             Type::TypeVariable(_var, TypeVariableKind::Numeric(typ)) => typ.integral_maximum_size(),
             Type::Alias(alias, _args) => alias.borrow().typ.integral_maximum_size(),
-            Type::Bool => Some(1),
+            Type::Bool => Some(FieldElement::from(1u128)),
             Type::NamedGeneric(_binding, _name, Kind::Numeric(typ)) => typ.integral_maximum_size(),
             _ => None,
         }

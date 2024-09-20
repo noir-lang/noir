@@ -677,6 +677,15 @@ impl<'context> Elaborator<'context> {
         typ
     }
 
+    /// Return a fresh integer type variable and log it
+    /// in self.type_variables to default it later.
+    pub(super) fn type_variable_with_kind(&mut self, type_var_kind: TypeVariableKind) -> Type {
+        let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
+        self.push_type_variable(typ.clone());
+        typ
+    }
+
+
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {

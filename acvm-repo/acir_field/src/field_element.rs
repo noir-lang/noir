@@ -172,6 +172,10 @@ impl<F: PrimeField> From<bool> for FieldElement<F> {
 }
 
 impl<F: PrimeField> FieldElement<F> {
+    pub fn max_value() -> Self {
+        Self::zero() - Self::one()
+    }
+
     pub fn from_repr(field: F) -> Self {
         Self(field)
     }

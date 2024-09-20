@@ -583,15 +583,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(value)
                 }
             }
-            DefinitionKind::GenericType(type_variable) => {
+            DefinitionKind::GenericType(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => None,
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u32(),
+                    // TODO: fix clone
+                    TypeBinding::Bound(binding) => Kind::Numeric(numeric_typ.clone()).ensure_value_fits(binding.evaluate_to_field_element()),
                 };
 
                 if let Some(value) = value {
                     let typ = self.elaborator.interner.id_type(id);
-                    self.evaluate_integer((value as u128).into(), false, id)
+                    self.evaluate_integer(value, false, id)
                 } else {
                     let location = self.elaborator.interner.expr_location(&id);
                     let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);

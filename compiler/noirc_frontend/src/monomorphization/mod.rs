@@ -21,7 +21,7 @@ use crate::{
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
-    Type, TypeBinding, TypeBindings,
+    Kind, Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -916,17 +916,15 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Expression::Ident(ident)
                 }
             },
-            DefinitionKind::GenericType(type_variable) => {
+            DefinitionKind::GenericType(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u32().unwrap_or_else(|| {
+                    TypeBinding::Bound(binding) => Kind::Numeric(numeric_typ.clone()).ensure_value_fits(binding.evaluate_to_field_element()).unwrap_or_else(|| {
                         panic!("Non-numeric type variable used in expression expecting a value")
                     }),
                 };
-
-                let value = FieldElement::from(value as u128);
                 let location = self.interner.id_location(expr_id);
                 let typ = Self::convert_type(&typ, ident.location)?;
                 ast::Expression::Literal(ast::Literal::Integer(value, false, typ, location))
@@ -1769,7 +1767,8 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone())
+            // TODO remove "??"
+            (self.next_local_id(), false, "_??".into(), parameter_type.clone())
         });
 
         let body = self.zeroed_value_of_type(ret_type, location);
