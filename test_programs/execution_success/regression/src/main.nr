@@ -20,7 +20,7 @@ impl Eq for U4 {
     }
 }
 
-fn compact_decode<N>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Field) {
+fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Field) {
     assert(2 * input.len() <= NIBBLE_LENGTH);
     assert(length as u32 <= input.len());
 
@@ -53,7 +53,7 @@ fn compact_decode<N>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Fie
     out
 }
 
-fn enc<N>(value: [u8; N], value_length: Field) -> ([u8; 32], Field) {
+fn enc<let N: u32>(value: [u8; N], value_length: Field) -> ([u8; 32], Field) {
     assert(value.len() as u8 >= value_length as u8);
     let mut out_value = [0; 32];
     if value_length == 0 {

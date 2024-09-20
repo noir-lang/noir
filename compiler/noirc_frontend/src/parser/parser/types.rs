@@ -24,12 +24,7 @@ pub(super) fn parse_type_inner<'a>(
     recursive_type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<UnresolvedType> + 'a {
     choice((
-        field_type(),
-        int_type(),
-        bool_type(),
-        string_type(),
-        comptime_type(),
-        resolved_type(),
+        primitive_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
@@ -40,6 +35,17 @@ pub(super) fn parse_type_inner<'a>(
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser.clone()),
         as_trait_path_type(recursive_type_parser),
+    ))
+}
+
+pub(super) fn primitive_type() -> impl NoirParser<UnresolvedType> {
+    choice((
+        field_type(),
+        int_type(),
+        bool_type(),
+        string_type(),
+        comptime_type(),
+        resolved_type(),
         interned_unresolved_type(),
     ))
 }
@@ -89,6 +95,7 @@ pub(super) fn comptime_type() -> impl NoirParser<UnresolvedType> {
         top_level_item_type(),
         quoted_type(),
         typed_expr_type(),
+        comptime_string_type(),
     ))
 }
 
@@ -164,6 +171,12 @@ fn quoted_type() -> impl NoirParser<UnresolvedType> {
 fn typed_expr_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TypedExpr)
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TypedExpr).with_span(span))
+}
+
+/// This is the `CtString` type for dynamically-sized compile-time strings
+fn comptime_string_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::CtString)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::CtString).with_span(span))
 }
 
 /// This is the type of an already resolved type.

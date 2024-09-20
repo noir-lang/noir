@@ -1944,6 +1944,15 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
+    /// Insert the MemoryInit for the Return Data array, using the provided witnesses
+    pub(crate) fn initialize_return_data(&mut self, block_id: BlockId, init: Vec<Witness>) {
+        self.acir_ir.push_opcode(Opcode::MemoryInit {
+            block_id,
+            init,
+            block_type: BlockType::ReturnData,
+        });
+    }
+
     /// Initializes an array in memory with the given values `optional_values`.
     /// If `optional_values` is empty, then the array is initialized with zeros.
     pub(crate) fn initialize_array(

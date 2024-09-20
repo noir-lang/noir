@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::{collections::HashMap, future::Future};
 
-use crate::insert_all_files_for_workspace_into_file_manager;
+use crate::{insert_all_files_for_workspace_into_file_manager, parse_diff, PackageCacheData};
 use crate::{
-    parse_diff, resolve_workspace_for_source_path,
+    resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
 };
 use async_lsp::{ErrorCode, ResponseError};
@@ -407,7 +407,7 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     location: noirc_errors::Location,
     files: &'a FileMap,
     interner: &'a NodeInterner,
-    interners: &'a HashMap<PathBuf, NodeInterner>,
+    package_cache: &'a HashMap<PathBuf, PackageCacheData>,
     crate_id: CrateId,
     crate_name: String,
     dependencies: &'a Vec<Dependency>,
@@ -415,6 +415,63 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
 }
 
 pub(crate) fn process_request<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+{
+    let file_path =
+        text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })?;
+
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
+    })?;
+
+    // In practice when `process_request` is called, a document in the project should already have been
+    // open so both the workspace and package cache will have data. However, just in case this isn't true
+    // for some reason, and also for tests (some tests just test a request without going through the full
+    // LSP workflow), we have a fallback where we type-check the workspace/package, then continue with
+    // processing the request.
+    let Some(workspace_cache_data) = state.workspace_cache.get(&workspace.root_dir) else {
+        return process_request_no_workspace_cache(state, text_document_position_params, callback);
+    };
+
+    let Some(package_cache_data) = state.package_cache.get(&package.root_dir) else {
+        return process_request_no_workspace_cache(state, text_document_position_params, callback);
+    };
+
+    let file_manager = &workspace_cache_data.file_manager;
+    let interner = &package_cache_data.node_interner;
+    let def_maps = &package_cache_data.def_maps;
+    let crate_graph = &package_cache_data.crate_graph;
+    let crate_id = package_cache_data.crate_id;
+
+    let files = file_manager.as_file_map();
+
+    let location = position_to_location(
+        files,
+        &PathString::from(file_path),
+        &text_document_position_params.position,
+    )?;
+
+    Ok(callback(ProcessRequestCallbackArgs {
+        location,
+        files,
+        interner,
+        package_cache: &state.package_cache,
+        crate_id,
+        crate_name: package.name.to_string(),
+        dependencies: &crate_graph[crate_id].dependencies,
+        def_maps,
+    }))
+}
+
+pub(crate) fn process_request_no_workspace_cache<F, T>(
     state: &mut LspState,
     text_document_position_params: TextDocumentPositionParams,
     callback: F,
@@ -445,9 +502,9 @@ where
 
     let interner;
     let def_maps;
-    if let Some(def_interner) = state.cached_definitions.get(&package.root_dir) {
-        interner = def_interner;
-        def_maps = state.cached_def_maps.get(&package.root_dir).unwrap();
+    if let Some(package_cache) = state.package_cache.get(&package.root_dir) {
+        interner = &package_cache.node_interner;
+        def_maps = &package_cache.def_maps;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
         let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
@@ -455,7 +512,7 @@ where
         def_maps = &context.def_maps;
     }
 
-    let files = context.file_manager.as_file_map();
+    let files = workspace_file_manager.as_file_map();
 
     let location = position_to_location(
         files,
@@ -467,17 +524,18 @@ where
         location,
         files,
         interner,
-        interners: &state.cached_definitions,
+        package_cache: &state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
+        dependencies: &context.crate_graph[crate_id].dependencies,
         def_maps,
     }))
 }
+
 pub(crate) fn find_all_references_in_workspace(
     location: noirc_errors::Location,
     interner: &NodeInterner,
-    cached_interners: &HashMap<PathBuf, NodeInterner>,
+    package_cache: &HashMap<PathBuf, PackageCacheData>,
     files: &FileMap,
     include_declaration: bool,
     include_self_type_name: bool,
@@ -499,10 +557,10 @@ pub(crate) fn find_all_references_in_workspace(
             include_declaration,
             include_self_type_name,
         );
-        for interner in cached_interners.values() {
+        for cache_data in package_cache.values() {
             locations.extend(find_all_references(
                 referenced_location,
-                interner,
+                &cache_data.node_interner,
                 files,
                 include_declaration,
                 include_self_type_name,

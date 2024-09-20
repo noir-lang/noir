@@ -74,6 +74,9 @@ impl<'context> Elaborator<'context> {
                 return_type,
                 where_clause,
                 body: _,
+                is_unconstrained,
+                visibility: _,
+                is_comptime: _,
             } = &item.item
             {
                 self.recover_generics(|this| {
@@ -134,9 +137,12 @@ impl<'context> Elaborator<'context> {
                     };
 
                     let no_environment = Box::new(Type::Unit);
-                    // TODO: unconstrained
-                    let function_type =
-                        Type::Function(arguments, Box::new(return_type), no_environment, false);
+                    let function_type = Type::Function(
+                        arguments,
+                        Box::new(return_type),
+                        no_environment,
+                        *is_unconstrained,
+                    );
 
                     functions.push(TraitFunction {
                         name: name.clone(),
@@ -223,6 +229,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     function: FuncId,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
+    let modifiers = interner.function_modifiers(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
 
@@ -261,6 +268,14 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     // issue an error for it here.
     if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
         let trait_fn_meta = interner.function_meta(trait_fn_id);
+        let trait_fn_modifiers = interner.function_modifiers(trait_fn_id);
+
+        if modifiers.is_unconstrained != trait_fn_modifiers.is_unconstrained {
+            let expected = trait_fn_modifiers.is_unconstrained;
+            let span = meta.name.location.span;
+            let item = method_name.to_string();
+            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, span });
+        }
 
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
@@ -273,10 +288,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, kind, .. },
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), Kind::Normal);
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), kind.clone());
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 

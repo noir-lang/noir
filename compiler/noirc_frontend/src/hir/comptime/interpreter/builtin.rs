@@ -7,9 +7,10 @@ use builtin_helpers::{
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
     get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, replace_func_meta_parameters, replace_func_meta_return_type,
+    mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
+    replace_func_meta_return_type,
 };
-use chumsky::{chain::Chain, prelude::choice, Parser};
+use chumsky::{chain::Chain, prelude::choice, primitive::just, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -18,29 +19,28 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, FunctionKind,
-        FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
-        UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
+        FunctionKind, FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement,
+        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::def_collector::dc_crate::CollectedItems,
     hir::{
         comptime::{
             errors::IResult,
             value::{ExprValue, TypedExpr},
             InterpreterError, Value,
         },
+        def_collector::dc_crate::CollectedItems,
         def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
-    lexer::Lexer,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
-    parser::{self},
+    parser,
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_str, get_u8, hash_item};
+use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -60,6 +60,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "assert_constant" => Ok(Value::Bool(true)),
             "as_slice" => as_slice(interner, arguments, location),
+            "ctstring_eq" => ctstring_eq(arguments, location),
+            "ctstring_hash" => ctstring_hash(arguments, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
             "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
             "expr_as_assert_eq" => expr_as_assert_eq(interner, arguments, return_type, location),
@@ -69,12 +71,18 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_bool" => expr_as_bool(interner, arguments, return_type, location),
             "expr_as_cast" => expr_as_cast(interner, arguments, return_type, location),
             "expr_as_comptime" => expr_as_comptime(interner, arguments, return_type, location),
+            "expr_as_constructor" => {
+                expr_as_constructor(interner, arguments, return_type, location)
+            }
+            "expr_as_for" => expr_as_for(interner, arguments, return_type, location),
+            "expr_as_for_range" => expr_as_for_range(interner, arguments, return_type, location),
             "expr_as_function_call" => {
                 expr_as_function_call(interner, arguments, return_type, location)
             }
             "expr_as_if" => expr_as_if(interner, arguments, return_type, location),
             "expr_as_index" => expr_as_index(interner, arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(interner, arguments, return_type, location),
+            "expr_as_lambda" => expr_as_lambda(interner, arguments, return_type, location),
             "expr_as_let" => expr_as_let(interner, arguments, return_type, location),
             "expr_as_member_access" => {
                 expr_as_member_access(interner, arguments, return_type, location)
@@ -97,6 +105,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
+            "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
@@ -151,6 +160,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
+            "str_as_ctstring" => str_as_ctstring(interner, arguments, location),
             "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
             "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
@@ -164,6 +174,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_module" => struct_def_module(self, arguments, location),
             "struct_def_name" => struct_def_name(interner, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
+            "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
@@ -291,10 +302,21 @@ fn str_as_bytes(
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
     let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len() as u32)),
+        Box::new(Type::Constant(bytes.len() as u32, Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     );
     Ok(Value::Array(bytes, byte_array_type))
+}
+
+// fn str_as_ctstring(self) -> CtString
+fn str_as_ctstring(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let string = get_str(interner, self_argument)?;
+    Ok(Value::CtString(string))
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
@@ -307,10 +329,7 @@ fn struct_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
 
-    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
+    let mut tokens = lex(&format!("#[{}]", attribute));
     if tokens.len() != 1 {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -318,7 +337,7 @@ fn struct_def_add_attribute(
         });
     }
 
-    let token = tokens.into_iter().next().unwrap().into_token();
+    let token = tokens.remove(0);
     let Token::Attribute(attribute) = token else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -351,11 +370,7 @@ fn struct_def_add_generic(
     let generic_location = generic.1;
     let generic = get_str(interner, generic)?;
 
-    let mut tokens = Lexer::lex(&generic).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
-
+    let mut tokens = lex(&generic);
     if tokens.len() != 1 {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
@@ -363,7 +378,7 @@ fn struct_def_add_generic(
         });
     }
 
-    let Token::Ident(generic_name) = tokens.pop().unwrap().into_token() else {
+    let Token::Ident(generic_name) = tokens.remove(0) else {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
             location: generic_location,
@@ -667,6 +682,7 @@ fn quoted_as_expr(
     let statement_parser = parser::fresh_statement().map(Value::statement);
     let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
     let parser = choice((expr_parser, statement_parser, lvalue_parser));
+    let parser = parser.then_ignore(just(Token::Semicolon).or_not());
 
     let expr = parse(argument, parser, "an expression").ok();
 
@@ -735,6 +751,21 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     ))
 }
 
+fn to_be_radix(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let le_radix_limbs = to_le_radix(arguments, return_type, location)?;
+
+    let Value::Array(limbs, typ) = le_radix_limbs else {
+        unreachable!("`to_le_radix` should always return an array");
+    };
+    let be_radix_limbs = limbs.into_iter().rev().collect();
+
+    Ok(Value::Array(be_radix_limbs, typ))
+}
+
 fn to_le_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
@@ -745,7 +776,7 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let limb_count = if let Type::Array(length, _) = return_type {
-        if let Type::Constant(limb_count) = *length {
+        if let Type::Constant(limb_count, _kind) = *length {
             limb_count
         } else {
             return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
@@ -755,7 +786,7 @@ fn to_le_radix(
     };
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix(value, radix);
+    let decomposed_integer = compute_to_radix_le(value, radix);
     let decomposed_integer = vecmap(0..limb_count as usize, |i| match decomposed_integer.get(i) {
         Some(digit) => Value::U8(*digit),
         None => Value::U8(0),
@@ -766,7 +797,7 @@ fn to_le_radix(
     ))
 }
 
-fn compute_to_radix(field: FieldElement, radix: u32) -> Vec<u8> {
+fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -1163,7 +1194,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
@@ -1397,6 +1428,87 @@ fn expr_as_comptime(
     })
 }
 
+// fn as_constructor(self) -> Option<(Quoted, [(Quoted, Expr)])>
+fn expr_as_constructor(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
+
+    let option_value =
+        if let ExprValue::Expression(ExpressionKind::Constructor(constructor)) = expr_value {
+            let typ = Value::UnresolvedType(constructor.typ.typ);
+            let fields = constructor.fields.into_iter();
+            let fields = fields.map(|(name, value)| {
+                Value::Tuple(vec![quote_ident(&name), Value::expression(value.kind)])
+            });
+            let fields = fields.collect();
+            let fields_type = Type::Slice(Box::new(Type::Tuple(vec![
+                Type::Quoted(QuotedType::Quoted),
+                Type::Quoted(QuotedType::Expr),
+            ])));
+            let fields = Value::Slice(fields, fields_type);
+            Some(Value::Tuple(vec![typ, fields]))
+        } else {
+            None
+        };
+
+    option(return_type, option_value)
+}
+
+// fn as_for(self) -> Option<(Quoted, Expr, Expr)>
+fn expr_as_for(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
+            if let ForRange::Array(array) = for_statement.range {
+                let identifier =
+                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let array = Value::expression(array.kind);
+                let body = Value::expression(for_statement.block.kind);
+                Some(Value::Tuple(vec![identifier, array, body]))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)>
+fn expr_as_for_range(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
+            if let ForRange::Range(from, to) = for_statement.range {
+                let identifier =
+                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let from = Value::expression(from.kind);
+                let to = Value::expression(to.kind);
+                let body = Value::expression(for_statement.block.kind);
+                Some(Value::Tuple(vec![identifier, from, to, body]))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
 fn expr_as_function_call(
     interner: &NodeInterner,
@@ -1494,6 +1606,68 @@ fn expr_as_integer(
     })
 }
 
+// fn as_lambda(self) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)>
+fn expr_as_lambda(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Lambda(lambda)) = expr {
+            // ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 3);
+
+            // Expr
+            tuple_types.pop().unwrap();
+
+            // Option<UnresolvedType>
+            let option_unresolved_type = tuple_types.pop().unwrap();
+
+            let parameters = lambda
+                .parameters
+                .into_iter()
+                .map(|(pattern, typ)| {
+                    let pattern = Value::pattern(pattern);
+                    let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
+                        None
+                    } else {
+                        Some(Value::UnresolvedType(typ.typ))
+                    };
+                    let typ = option(option_unresolved_type.clone(), typ).unwrap();
+                    Value::Tuple(vec![pattern, typ])
+                })
+                .collect();
+            let parameters = Value::Slice(
+                parameters,
+                Type::Slice(Box::new(Type::Tuple(vec![
+                    Type::Quoted(QuotedType::Expr),
+                    Type::Quoted(QuotedType::UnresolvedType),
+                ]))),
+            );
+
+            let return_type = lambda.return_type.typ;
+            let return_type = if let UnresolvedTypeData::Unspecified = return_type {
+                None
+            } else {
+                Some(return_type)
+            };
+            let return_type = return_type.map(Value::UnresolvedType);
+            let return_type = option(option_unresolved_type, return_type).ok()?;
+
+            let body = Value::expression(lambda.body.kind);
+
+            Some(Value::Tuple(vec![parameters, return_type, body]))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)>
 fn expr_as_let(
     interner: &NodeInterner,
@@ -1538,15 +1712,13 @@ fn expr_as_member_access(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
-            let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
-                Value::Quoted(tokens),
+                quote_ident(&member_access.rhs),
             ]))
         }
         ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
-            let tokens = Rc::new(vec![Token::Ident(field_name.0.contents.clone())]);
-            Some(Value::Tuple(vec![Value::lvalue(*object), Value::Quoted(tokens)]))
+            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name)]))
         }
         _ => None,
     })
@@ -1563,9 +1735,7 @@ fn expr_as_method_call(
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
             let object = Value::expression(method_call.object.kind);
 
-            let name_tokens =
-                Rc::new(vec![Token::Ident(method_call.method_name.0.contents.clone())]);
-            let name = Value::Quoted(name_tokens);
+            let name = quote_ident(&method_call.method_name);
 
             let generics = method_call.generics.unwrap_or_default().into_iter();
             let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
@@ -1863,6 +2033,17 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
     expr_value
 }
 
+// fn fmtstr_as_ctstring(self) -> CtString
+fn fmtstr_as_ctstring(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let (string, _) = get_format_string(interner, self_argument)?;
+    Ok(Value::CtString(string))
+}
+
 // fn quoted_contents(self) -> Quoted
 fn fmtstr_quoted_contents(
     interner: &NodeInterner,
@@ -1871,12 +2052,7 @@ fn fmtstr_quoted_contents(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (string, _) = get_format_string(interner, self_argument)?;
-    let (tokens, _) = Lexer::lex(&string);
-    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
-    if let Some(Token::EOF) = tokens.last() {
-        tokens.pop();
-    }
-
+    let tokens = lex(&string);
     Ok(Value::Quoted(Rc::new(tokens)))
 }
 
@@ -1895,10 +2071,7 @@ fn function_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
 
-    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
+    let mut tokens = lex(&format!("#[{}]", attribute));
     if tokens.len() != 1 {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -1906,7 +2079,7 @@ fn function_def_add_attribute(
         });
     }
 
-    let token = tokens.into_iter().next().unwrap().into_token();
+    let token = tokens.remove(0);
     let Token::Attribute(attribute) = token else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -2434,4 +2607,12 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.0.contents, "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
+}
+
+fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    eq_item(arguments, location, get_ctstring)
+}
+
+fn ctstring_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    hash_item(arguments, location, get_ctstring)
 }

@@ -344,6 +344,19 @@ impl UnresolvedType {
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
     }
+
+    pub fn from_path(mut path: Path) -> Self {
+        let span = path.span;
+        let last_segment = path.segments.last_mut().unwrap();
+        let generics = last_segment.generics.take();
+        let generic_type_args = if let Some(generics) = generics {
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new() }
+        } else {
+            GenericTypeArgs::default()
+        };
+        let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
+        UnresolvedType { typ, span }
+    }
 }
 
 impl UnresolvedTypeData {

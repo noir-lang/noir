@@ -15,14 +15,14 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
+    pub struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
         j: Field,
         k: Field,
         // Generator as point in Cartesian coordinates
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         infty: bool // Indicator for point at infinity
@@ -222,14 +222,14 @@ mod curvegroup {
     use crate::ec::tecurve::curvegroup::Point as TEPoint;
     use crate::cmp::Eq;
 
-    struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
+    pub struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
         j: Field,
         k: Field,
         // Generator as point in projective coordinates
         gen: Point
     }
     // Point in projective coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         z: Field

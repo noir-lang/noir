@@ -109,6 +109,8 @@ impl StatementKind {
                     // Semicolons are optional for these expressions
                     (ExpressionKind::Block(_), semi, _)
                     | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::Interned(..), semi, _)
+                    | (ExpressionKind::InternedStatement(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
@@ -387,6 +389,16 @@ pub struct AsTraitPath {
     pub impl_item: Ident,
 }
 
+/// A special kind of path in the form `Type::ident::<turbofish>`
+/// Unlike normal paths, the type here can be a primitive type or
+/// interned type.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypePath {
+    pub typ: UnresolvedType,
+    pub item: Ident,
+    pub turbofish: GenericTypeArgs,
+}
+
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
@@ -620,7 +632,7 @@ impl Pattern {
                 }
                 Some(Expression {
                     kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                        type_name: path.clone(),
+                        typ: UnresolvedType::from_path(path.clone()),
                         fields,
                         struct_type: None,
                     })),
@@ -865,7 +877,11 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
+            write!(f, "let {} = {}", self.pattern, self.expression)
+        } else {
+            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+        }
     }
 }
 

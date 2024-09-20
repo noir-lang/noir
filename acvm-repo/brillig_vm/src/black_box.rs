@@ -369,9 +369,13 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::ToRadix { input, radix, output, output_bits } => {
             let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
+            let radix = memory
+                .read(*radix)
+                .expect_integer_with_bit_size(IntegerBitSize::U32)
+                .expect("ToRadix opcode's radix bit size does not match expected bit size 32");
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
-            let radix = BigUint::from(*radix);
+            let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
             let mut limbs: Vec<MemoryValue<F>> = Vec::with_capacity(output.size);
 

@@ -1,3 +1,4 @@
+mod ctstring;
 mod expr;
 mod format_string;
 mod function_def;
@@ -129,8 +130,13 @@ mod tests {
             // let _a: Quoted = quote { 1 };
             let _a: Quoted = quote_one();
 
-            // let _b: i32 = 1;
-            let _b: i32 = quote_one!();
+            // let _b: Field = 1;
+            let _b: Field = quote_one!();
+
+            // Since integers default to fields, if we
+            // want a different type we have to explicitly cast
+            // let _c: i32 = 1 as i32;
+            let _c: i32 = quote_one!() as i32;
         }
     }
     // docs:end:quote-example
@@ -236,4 +242,14 @@ mod tests {
         )
     }
     // docs:end:big-derive-usage-example
+
+    // This function is just to remove unused warnings
+    fn remove_unused_warnings() {
+        let _: Bar = crate::panic::panic(f"");
+        let _: MyStruct = crate::panic::panic(f"");
+        let _: MyOtherStruct = crate::panic::panic(f"");
+        let _ = derive_do_nothing(crate::panic::panic(f""));
+        let _ = derive_do_nothing_alt(crate::panic::panic(f""));
+        remove_unused_warnings();
+    }
 }
