@@ -432,6 +432,27 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_complete_type_path_with_non_empty_name() {
+        let src = r#"
+          trait One {
+              fn one() -> Self;
+          }
+
+          impl One for Field {
+              fn one() -> Self {
+                  1
+              }
+          }
+
+          fn main() {
+            Field::o>|<
+          }
+        "#;
+        assert_completion(src, vec![function_completion_item("one()", "one()", "fn() -> Field")])
+            .await;
+    }
+
+    #[test]
     async fn test_complete_function_without_arguments() {
         let src = r#"
           fn hello() { }

@@ -17,10 +17,11 @@ use noirc_frontend::{
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement,
-        TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
+        Signedness, Statement, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UseTree,
+        UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
@@ -29,7 +30,7 @@ use noirc_frontend::{
     node_interner::ReferenceId,
     parser::{Item, ItemKind, ParsedSubModule},
     token::{CustomAttribute, Token, Tokens},
-    ParsedModule, StructType, Type, TypeBinding,
+    Kind, ParsedModule, StructType, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
 
@@ -1550,6 +1551,44 @@ impl<'a> Visitor for NodeFinder<'a> {
     ) -> bool {
         self.find_in_path(path, RequestedItems::OnlyTypes);
         unresolved_types.accept(self);
+        false
+    }
+
+    fn visit_type_path(&mut self, type_path: &TypePath, _: Span) -> bool {
+        if type_path.item.span().end() as usize != self.byte_index {
+            return true;
+        }
+
+        let typ = match &type_path.typ.typ {
+            UnresolvedTypeData::FieldElement => Some(Type::FieldElement),
+            UnresolvedTypeData::Integer(signedness, integer_bit_size) => {
+                Some(Type::Integer(*signedness, *integer_bit_size))
+            }
+            UnresolvedTypeData::Bool => Some(Type::Bool),
+            UnresolvedTypeData::String(UnresolvedTypeExpression::Constant(value, _)) => {
+                Some(Type::String(Box::new(Type::Constant(
+                    *value,
+                    Kind::Numeric(Box::new(Type::Integer(
+                        Signedness::Unsigned,
+                        IntegerBitSize::ThirtyTwo,
+                    ))),
+                ))))
+            }
+            UnresolvedTypeData::Quoted(quoted_type) => Some(Type::Quoted(*quoted_type)),
+            _ => None,
+        };
+
+        if let Some(typ) = typ {
+            let prefix = &type_path.item.0.contents;
+            self.complete_type_methods(
+                &typ,
+                prefix,
+                FunctionKind::Any,
+                FunctionCompletionKind::NameAndParameters,
+                false, // self_prefix
+            );
+        }
+
         false
     }
 
