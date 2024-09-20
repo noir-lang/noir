@@ -2298,10 +2298,7 @@ impl Methods {
                 Type::Function(args, _, _, _) => {
                     if has_self_param {
                         if let Some(object) = args.first() {
-                            let mut bindings = TypeBindings::new();
-
-                            if object.try_unify(typ, &mut bindings).is_ok() {
-                                Type::apply_type_bindings(bindings);
+                            if object.unify(typ).is_ok() {
                                 return Some(method);
                             }
                         }
@@ -2309,10 +2306,7 @@ impl Methods {
                         // If we recorded the concrete type this trait impl method belongs to,
                         // and it matches typ, it's an exact match and we return that.
                         if let Some(method_type) = method_type {
-                            let mut bindings = TypeBindings::new();
-
-                            if method_type.try_unify(typ, &mut bindings).is_ok() {
-                                Type::apply_type_bindings(bindings);
+                            if method_type.unify(typ).is_ok() {
                                 return Some(method);
                             }
                         } else {
