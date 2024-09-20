@@ -363,6 +363,8 @@ impl<'a> NodeFinder<'a> {
                     self.local_variables_completion(&prefix);
                     self.builtin_functions_completion(&prefix, function_completion_kind);
                     self.builtin_values_completion(&prefix);
+                    self.builtin_types_completion(&prefix);
+                    self.type_parameters_completion(&prefix);
                     if let Some(self_type) = &self.self_type {
                         let self_prefix = true;
                         self.complete_type_fields_and_methods(

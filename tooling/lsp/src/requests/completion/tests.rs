@@ -778,21 +778,29 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_suggest_builtin_types_in_any_position() {
+        let src = r#"
+            fn foo() {
+                i>|<
+            }
+        "#;
+
+        let items = get_completions(src).await;
+        assert!(items.iter().any(|item| item.label == "i8"));
+    }
+
+    #[test]
     async fn test_suggest_true() {
         let src = r#"
             fn main() {
                 let x = t>|<
             }
         "#;
-        assert_completion_excluding_auto_import(
-            src,
-            vec![simple_completion_item(
-                "true",
-                CompletionItemKind::KEYWORD,
-                Some("bool".to_string()),
-            )],
-        )
-        .await;
+
+        let items = get_completions(src).await;
+        assert!(items
+            .iter()
+            .any(|item| item.label == "true" && item.kind == Some(CompletionItemKind::KEYWORD)));
     }
 
     #[test]
