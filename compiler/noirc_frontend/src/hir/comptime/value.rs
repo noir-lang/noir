@@ -26,7 +26,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, InternedStatementKind, StmtId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
-    token::{SpannedToken, Token, Tokens},
+    token::{Keyword, SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -622,14 +622,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "&[{}]", values.join(", "))
             }
-            Value::Quoted(tokens) => {
-                write!(f, "quote {{")?;
-                for token in tokens.iter() {
-                    write!(f, " ")?;
-                    token.display(self.interner).fmt(f)?;
-                }
-                write!(f, " }}")
-            }
+            Value::Quoted(tokens) => print_quoted(tokens, 0, self.interner, f),
             Value::StructDefinition(id) => {
                 let def = self.interner.get_struct(*id);
                 let def = def.borrow();
@@ -684,7 +677,8 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
             Value::Expr(ExprValue::Expression(expr)) => {
-                write!(f, "{}", remove_interned_in_expression_kind(self.interner, expr.clone()))
+                let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
+                write!(f, "{}", expr)
             }
             Value::Expr(ExprValue::Statement(statement)) => {
                 write!(f, "{}", remove_interned_in_statement_kind(self.interner, statement.clone()))
@@ -758,6 +752,252 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
             }
             other => write!(f, "{other}"),
         }
+    }
+}
+
+fn print_quoted(
+    tokens: &[Token],
+    indent: usize,
+    interner: &NodeInterner,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    if tokens.is_empty() {
+        write!(f, "quote {{ }}")
+    } else {
+        writeln!(f, "quote {{")?;
+        let indent = indent + 1;
+        write!(f, "{}", " ".repeat(indent * 4))?;
+        let mut token_printer = TokenPrettyPrinter::new(interner, indent);
+        for token in tokens.iter() {
+            token_printer.print(token, f)?;
+        }
+        writeln!(f)?;
+        let indent = indent - 1;
+        write!(f, "{}", " ".repeat(indent * 4))?;
+        write!(f, "}}")
+    }
+}
+
+/// Tries to print tokens in a way that it'll be easier for the user to understand a
+/// stream of tokens without having to format it themselves.
+///
+/// The gist is:
+/// - Keep track of the current indent level
+/// - When '{' is found, a newline is inserted and the indent is incremented
+/// - When '}' is found, a newline is inserted and the indent is decremented
+/// - When ';' is found a newline is inserted
+/// - When interned values are encountered, they are turned into strings and indented
+///   according to the current indentation.
+///
+/// There are a few more details that needs to be taken into account:
+/// - two consecutive words shouldn't be glued together (as they are separate tokens)
+/// - inserting spaces when needed
+/// - not inserting extra newlines if possible
+/// - ';' shouldn't always insert newlines (this is when it's something like `[Field; 2]`)
+struct TokenPrettyPrinter<'interner> {
+    interner: &'interner NodeInterner,
+    indent: usize,
+    last_was_name: bool,
+    last_was_right_brace: bool,
+    last_was_semicolon: bool,
+}
+
+impl<'interner> TokenPrettyPrinter<'interner> {
+    fn new(interner: &'interner NodeInterner, indent: usize) -> Self {
+        Self {
+            interner,
+            indent,
+            last_was_name: false,
+            last_was_right_brace: false,
+            last_was_semicolon: false,
+        }
+    }
+
+    fn print(&mut self, token: &Token, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let last_was_name = self.last_was_name;
+        self.last_was_name = false;
+
+        if self.last_was_right_brace {
+            self.last_was_right_brace = false;
+
+            match token {
+                Token::Keyword(Keyword::Else) => {
+                    write!(f, " else")?;
+                    self.last_was_name = true;
+                    return Ok(());
+                }
+                Token::RightBrace => {
+                    // We don't want an extra newline in this case
+                }
+                _ => {
+                    writeln!(f)?;
+                    self.write_indent(f)?;
+                }
+            }
+        }
+
+        // Heuristic: if we have `; 2` then we assume we are inside something like `[Field; 2]`
+        // and don't include a newline. If this is not the case then a generated body with some
+        // statements and retruning an integer value would look slightly off, but not that much.
+        // We do the same if an all caps ident follows (a case like `[Field; N]`).
+        if self.last_was_semicolon {
+            self.last_was_semicolon = false;
+
+            match token {
+                Token::Int(..) => {
+                    write!(f, " ")?;
+                }
+                Token::Ident(ident) => {
+                    if ident.chars().all(|char| char.is_ascii_uppercase()) {
+                        write!(f, " ")?;
+                    } else {
+                        writeln!(f)?;
+                        self.write_indent(f)?;
+                    }
+                }
+                Token::RightBrace => {
+                    // We don't want an extra newline in this case
+                }
+                _ => {
+                    writeln!(f)?;
+                    self.write_indent(f)?;
+                }
+            }
+        }
+
+        match token {
+            Token::QuotedType(id) => write!(f, "{}", self.interner.get_quoted_type(*id)),
+            Token::InternedExpr(id) => {
+                let value = Value::expression(ExpressionKind::Interned(*id));
+                self.print_value(&value, f)
+            }
+            Token::InternedStatement(id) => {
+                let value = Value::statement(StatementKind::Interned(*id));
+                self.print_value(&value, f)
+            }
+            Token::InternedLValue(id) => {
+                let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                self.print_value(&value, f)
+            }
+            Token::InternedUnresolvedTypeData(id) => {
+                let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
+                self.print_value(&value, f)
+            }
+            Token::InternedPattern(id) => {
+                let value = Value::pattern(Pattern::Interned(*id, Span::default()));
+                self.print_value(&value, f)
+            }
+            Token::UnquoteMarker(id) => {
+                let value = Value::TypedExpr(TypedExpr::ExprId(*id));
+                self.print_value(&value, f)
+            }
+            Token::Keyword(..) | Token::Ident(..) => {
+                if last_was_name {
+                    write!(f, " ")?;
+                }
+                self.last_was_name = true;
+                write!(f, "{token}")
+            }
+            Token::Comma => {
+                write!(f, "{token} ")
+            }
+            Token::LeftBrace => {
+                writeln!(f, " {{")?;
+                self.indent += 1;
+                self.write_indent(f)
+            }
+            Token::RightBrace => {
+                self.last_was_right_brace = true;
+                writeln!(f)?;
+                self.indent -= 1;
+                self.write_indent(f)?;
+                write!(f, "}}")
+            }
+            Token::Semicolon => {
+                self.last_was_semicolon = true;
+                write!(f, ";")
+            }
+            Token::IntType(..) => {
+                if last_was_name {
+                    write!(f, " ")?;
+                }
+                self.last_was_name = true;
+                write!(f, "{token}")
+            }
+            Token::Quote(tokens) => {
+                if last_was_name {
+                    write!(f, " ")?;
+                }
+                let tokens = vecmap(&tokens.0, |spanned_token| spanned_token.clone().into_token());
+                print_quoted(&tokens, self.indent, self.interner, f)
+            }
+            Token::Colon => {
+                write!(f, "{token} ")
+            }
+            Token::Less
+            | Token::LessEqual
+            | Token::Greater
+            | Token::GreaterEqual
+            | Token::Equal
+            | Token::NotEqual
+            | Token::Plus
+            | Token::Minus
+            | Token::Star
+            | Token::Slash
+            | Token::Percent
+            | Token::Ampersand
+            | Token::ShiftLeft
+            | Token::ShiftRight
+            | Token::Assign
+            | Token::Arrow => write!(f, " {token} "),
+            Token::LeftParen
+            | Token::RightParen
+            | Token::LeftBracket
+            | Token::RightBracket
+            | Token::Dot
+            | Token::DoubleColon
+            | Token::DoubleDot
+            | Token::Caret
+            | Token::Pound
+            | Token::Pipe
+            | Token::Bang
+            | Token::DollarSign => {
+                write!(f, "{token}")
+            }
+            Token::Int(..)
+            | Token::Bool(..)
+            | Token::Str(..)
+            | Token::RawStr(..)
+            | Token::FmtStr(..)
+            | Token::Whitespace(_)
+            | Token::LineComment(..)
+            | Token::BlockComment(..)
+            | Token::Attribute(..)
+            | Token::InnerAttribute(..)
+            | Token::Invalid(_) => {
+                if last_was_name {
+                    write!(f, " ")?;
+                }
+                write!(f, "{token}")
+            }
+            Token::EOF => Ok(()),
+        }
+    }
+
+    fn print_value(&mut self, value: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = value.display(self.interner).to_string();
+        for (index, line) in string.lines().enumerate() {
+            if index > 0 {
+                writeln!(f)?;
+                self.write_indent(f)?;
+            }
+            line.fmt(f)?;
+        }
+        Ok(())
+    }
+
+    fn write_indent(&mut self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", " ".repeat(self.indent * 4))
     }
 }
 
