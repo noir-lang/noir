@@ -91,12 +91,12 @@ pub(crate) fn optimize_into_acir(
         &options.emit_ssa,
     )?
     .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
-    .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
     .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
     .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
     .run_pass(Ssa::inline_functions, "After Inlining:")
     // Run mem2reg with the CFG separated into blocks
     .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    // .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
     .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
     .try_run_pass(
         Ssa::evaluate_static_assert_and_assert_constant,
@@ -104,6 +104,9 @@ pub(crate) fn optimize_into_acir(
     )?
     .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
     .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+    // The RC optimization pass only checks the entry and exit blocks of a function.
+    // We want it to be after simplify_cfg in case a block can be simplified to be part of the exit block.
+    .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
     .run_pass(Ssa::flatten_cfg, "After Flattening:")
     .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
     // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores

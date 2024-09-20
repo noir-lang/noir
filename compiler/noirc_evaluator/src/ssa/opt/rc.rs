@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -29,16 +29,26 @@ impl Ssa {
     }
 }
 
-#[derive(Default)]
-struct Context {
+struct Context<'f> {
+    function: &'f Function,
+
+    last_block: BasicBlockId,
     // All inc_rc instructions encountered without a corresponding dec_rc.
-    // These are only searched for in the first block of a function.
+    // These are only searched for in the first and exit block of a function.
     //
     // The type of the array being operated on is recorded.
     // If an array_set to that array type is encountered, that is also recorded.
     inc_rcs: HashMap<Type, Vec<IncRc>>,
 }
 
+impl<'f> Context<'f> {
+    fn new(function: &'f Function) -> Self {
+        let last_block = Self::find_last_block(function);
+        Context { function, last_block, inc_rcs: HashMap::default() }
+    }
+}
+
+#[derive(Clone, Debug)]
 struct IncRc {
     id: InstructionId,
     array: ValueId,
@@ -59,11 +69,11 @@ fn remove_paired_rc(function: &mut Function) {
         return;
     }
 
-    let mut context = Context::default();
+    let mut context = Context::new(function);
 
-    context.find_rcs_in_entry_block(function);
-    context.scan_for_array_sets(function);
-    let to_remove = context.find_rcs_to_remove(function);
+    context.find_rcs_in_entry_and_exit_block();
+    context.scan_for_array_sets();
+    let to_remove = context.find_rcs_to_remove();
     remove_instructions(to_remove, function);
 }
 
@@ -72,13 +82,17 @@ fn contains_array_parameter(function: &mut Function) -> bool {
     parameters.any(|parameter| function.dfg.type_of_value(*parameter).contains_an_array())
 }
 
-impl Context {
-    fn find_rcs_in_entry_block(&mut self, function: &Function) {
-        let entry = function.entry_block();
+impl<'f> Context<'f> {
+    fn find_rcs_in_entry_and_exit_block(&mut self) {
+        let entry = self.function.entry_block();
+        self.find_rcs_in_block(entry);
+        self.find_rcs_in_block(self.last_block);
+    }
 
-        for instruction in function.dfg[entry].instructions() {
-            if let Instruction::IncrementRc { value } = &function.dfg[*instruction] {
-                let typ = function.dfg.type_of_value(*value);
+    fn find_rcs_in_block(&mut self, block_id: BasicBlockId) {
+        for instruction in self.function.dfg[block_id].instructions() {
+            if let Instruction::IncrementRc { value } = &self.function.dfg[*instruction] {
+                let typ = self.function.dfg.type_of_value(*value);
 
                 // We assume arrays aren't mutated until we find an array_set
                 let inc_rc = IncRc { id: *instruction, array: *value, possibly_mutated: false };
@@ -89,14 +103,16 @@ impl Context {
 
     /// Find each array_set instruction in the function and mark any arrays used
     /// by the inc_rc instructions as possibly mutated if they're the same type.
-    fn scan_for_array_sets(&mut self, function: &Function) {
-        for block in function.reachable_blocks() {
-            for instruction in function.dfg[block].instructions() {
-                if let Instruction::ArraySet { array, .. } = function.dfg[*instruction] {
-                    let typ = function.dfg.type_of_value(array);
+    fn scan_for_array_sets(&mut self) {
+        for block in self.function.reachable_blocks() {
+            for instruction in self.function.dfg[block].instructions() {
+                if let Instruction::ArraySet { array, .. } = self.function.dfg[*instruction] {
+                    let typ = self.function.dfg.type_of_value(array);
                     if let Some(inc_rcs) = self.inc_rcs.get_mut(&typ) {
                         for inc_rc in inc_rcs {
-                            inc_rc.possibly_mutated = true;
+                            if inc_rc.array == array {
+                                inc_rc.possibly_mutated = true;
+                            }
                         }
                     }
                 }
@@ -106,13 +122,12 @@ impl Context {
 
     /// Find each dec_rc instruction and if the most recent inc_rc instruction for the same value
     /// is not possibly mutated, then we can remove them both. Returns each such pair.
-    fn find_rcs_to_remove(&mut self, function: &Function) -> HashSet<InstructionId> {
-        let last_block = Self::find_last_block(function);
-        let mut to_remove = HashSet::new();
+    fn find_rcs_to_remove(&mut self) -> HashSet<InstructionId> {
+        let mut to_remove = HashSet::default();
 
-        for instruction in function.dfg[last_block].instructions() {
-            if let Instruction::DecrementRc { value } = &function.dfg[*instruction] {
-                if let Some(inc_rc) = self.pop_rc_for(*value, function) {
+        for instruction in self.function.dfg[self.last_block].instructions() {
+            if let Instruction::DecrementRc { value } = &self.function.dfg[*instruction] {
+                if let Some(inc_rc) = self.pop_rc_for(*value) {
                     if !inc_rc.possibly_mutated {
                         to_remove.insert(inc_rc.id);
                         to_remove.insert(*instruction);
@@ -139,8 +154,8 @@ impl Context {
     }
 
     /// Finds and pops the IncRc for the given array value if possible.
-    fn pop_rc_for(&mut self, value: ValueId, function: &Function) -> Option<IncRc> {
-        let typ = function.dfg.type_of_value(value);
+    fn pop_rc_for(&mut self, value: ValueId) -> Option<IncRc> {
+        let typ = self.function.dfg.type_of_value(value);
 
         let rcs = self.inc_rcs.get_mut(&typ)?;
         let position = rcs.iter().position(|inc_rc| inc_rc.array == value)?;
