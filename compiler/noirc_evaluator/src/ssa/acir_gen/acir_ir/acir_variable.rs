@@ -1471,6 +1471,7 @@ impl<F: AcirField> AcirContext<F> {
                 | BlackBoxFunc::AND
                 | BlackBoxFunc::XOR
                 | BlackBoxFunc::AES128Encrypt
+                | BlackBoxFunc::EmbeddedCurveAdd
         );
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
