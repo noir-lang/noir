@@ -2291,8 +2291,6 @@ impl Methods {
         has_self_param: bool,
         interner: &NodeInterner,
     ) -> Option<FuncId> {
-        let mut candidate = None;
-
         // When adding methods we always check they do not overlap, so there should be
         // at most 1 matching method in this list.
         for (method, method_type) in self.iter() {
@@ -2304,19 +2302,18 @@ impl Methods {
 
                             if object.try_unify(typ, &mut bindings).is_ok() {
                                 Type::apply_type_bindings(bindings);
-                                candidate = Some(method);
-                                break;
+                                return Some(method);
                             }
                         }
                     } else {
-                        candidate = Some(method);
-
                         // If we recorded the concrete type this trait impl method belongs to,
                         // and it matches typ, it's an exact match and we return that.
                         if let Some(method_type) = method_type {
                             if typ == method_type {
-                                break;
+                                return Some(method);
                             }
+                        } else {
+                            return Some(method);
                         }
                     }
                 }
@@ -2325,7 +2322,7 @@ impl Methods {
             }
         }
 
-        candidate
+        None
     }
 }
 
