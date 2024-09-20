@@ -628,7 +628,15 @@ impl<'a> NodeFinder<'a> {
         };
 
         for (name, methods) in methods_by_name {
-            for (func_id, _method_type) in methods.iter() {
+            for (func_id, method_type) in methods.iter() {
+                if function_kind == FunctionKind::Any {
+                    if let Some(method_type) = method_type {
+                        if method_type.unify(typ).is_err() {
+                            continue;
+                        }
+                    }
+                }
+
                 if name_matches(name, prefix) {
                     let completion_items = self.function_completion_items(
                         name,
