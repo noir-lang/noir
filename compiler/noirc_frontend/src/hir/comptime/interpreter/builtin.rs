@@ -146,7 +146,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(arguments, location),
             "modulus_num_bits" => modulus_num_bits(arguments, location),
-            "quoted_as_expr" => quoted_as_expr(arguments, return_type, location),
+            "quoted_as_expr" => quoted_as_expr(interner, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
@@ -672,6 +672,7 @@ fn slice_insert(
 
 // fn as_expr(quoted: Quoted) -> Option<Expr>
 fn quoted_as_expr(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -684,7 +685,7 @@ fn quoted_as_expr(
     let parser = choice((expr_parser, statement_parser, lvalue_parser));
     let parser = parser.then_ignore(just(Token::Semicolon).or_not());
 
-    let expr = parse(argument, parser, "an expression").ok();
+    let expr = parse(interner, argument, parser, "an expression").ok();
 
     option(return_type, expr)
 }
@@ -698,7 +699,9 @@ fn quoted_as_module(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let path = parse(argument, parser::path_no_turbofish(), "a path").ok();
+    let path =
+        parse(interpreter.elaborator.interner, argument, parser::path_no_turbofish(), "a path")
+            .ok();
     let option_value = path.and_then(|path| {
         let module = interpreter
             .elaborate_in_function(interpreter.current_function, |elaborator| {
@@ -717,7 +720,12 @@ fn quoted_as_trait_constraint(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let trait_bound = parse(argument, parser::trait_bound(), "a trait constraint")?;
+    let trait_bound = parse(
+        interpreter.elaborator.interner,
+        argument,
+        parser::trait_bound(),
+        "a trait constraint",
+    )?;
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
@@ -734,7 +742,7 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(argument, parser::parse_type(), "a type")?;
+    let typ = parse(interpreter.elaborator.interner, argument, parser::parse_type(), "a type")?;
     let typ = interpreter
         .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
@@ -2301,6 +2309,7 @@ fn function_def_set_parameters(
         )?;
         let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
         let parameter_pattern = parse(
+            interpreter.elaborator.interner,
             (tuple.pop().unwrap(), parameters_argument_location),
             parser::pattern(),
             "a pattern",
@@ -2403,7 +2412,8 @@ fn module_add_item(
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let parser = parser::top_level_items();
-    let top_level_statements = parse(item, parser, "a top-level item")?;
+    let top_level_statements =
+        parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
 
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
         let mut generated_items = CollectedItems::default();
