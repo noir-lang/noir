@@ -28,7 +28,7 @@ use noirc_frontend::{
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
     parser::{Item, ItemKind, ParsedSubModule},
-    token::CustomAttribute,
+    token::{CustomAttribute, Token, Tokens},
     ParsedModule, StructType, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
@@ -1559,6 +1559,39 @@ impl<'a> Visitor for NodeFinder<'a> {
         }
 
         self.suggest_attributes(&attribute.contents, target);
+    }
+
+    fn visit_quote(&mut self, tokens: &Tokens) {
+        let mut last_was_dollar = false;
+
+        for token in &tokens.0 {
+            let span = token.to_span();
+            if span.end() as usize > self.byte_index {
+                break;
+            }
+
+            let token = token.token();
+
+            if let Token::DollarSign = token {
+                if span.end() as usize == self.byte_index {
+                    self.local_variables_completion("");
+                    break;
+                }
+
+                last_was_dollar = true;
+                continue;
+            }
+
+            if span.end() as usize == self.byte_index {
+                let prefix = token.to_string();
+                if last_was_dollar {
+                    self.local_variables_completion(&prefix);
+                }
+                break;
+            }
+
+            last_was_dollar = false;
+        }
     }
 }
 
