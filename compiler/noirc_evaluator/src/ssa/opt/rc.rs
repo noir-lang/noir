@@ -44,6 +44,7 @@ struct Context<'f> {
 impl<'f> Context<'f> {
     fn new(function: &'f Function) -> Self {
         let last_block = Self::find_last_block(function);
+        // let all_block_params =
         Context { function, last_block, inc_rcs: HashMap::default() }
     }
 }
@@ -104,6 +105,15 @@ impl<'f> Context<'f> {
     /// Find each array_set instruction in the function and mark any arrays used
     /// by the inc_rc instructions as possibly mutated if they're the same type.
     fn scan_for_array_sets(&mut self) {
+        // Block parameters could be passed to from function parameters.
+        // Thus, any inc rcs from block parameters with matching array sets need to marked possibly mutated.
+        let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
+
+        for block in self.function.reachable_blocks() {
+            let block_params = self.function.dfg.block_parameters(block);
+            per_func_block_params.extend(block_params.iter());
+        }
+
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
                 if let Instruction::ArraySet { array, .. } = self.function.dfg[*instruction] {
@@ -111,6 +121,11 @@ impl<'f> Context<'f> {
                     if let Some(inc_rcs) = self.inc_rcs.get_mut(&typ) {
                         for inc_rc in inc_rcs {
                             if inc_rc.array == array {
+                                inc_rc.possibly_mutated = true;
+                            }
+                            if self.function.parameters().contains(&inc_rc.array)
+                                || per_func_block_params.contains(&inc_rc.array)
+                            {
                                 inc_rc.possibly_mutated = true;
                             }
                         }
@@ -280,6 +295,7 @@ mod test {
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().remove_paired_rc();
+        println!("{}", ssa);
         let main = ssa.main();
         let entry = main.entry_block();
 
@@ -339,5 +355,161 @@ mod test {
         // No changes, the array is possibly mutated
         assert_eq!(count_inc_rcs(entry, &main.dfg), 1);
         assert_eq!(count_dec_rcs(entry, &main.dfg), 1);
+    }
+
+    #[test]
+    fn separate_entry_and_exit_block_fn_return_array() {
+        // brillig fn foo f0 {
+        //     b0(v0: [Field; 2]):
+        //       jmp b1(v0)
+        //     b1():
+        //       inc_rc v0
+        //       inc_rc v0
+        //       dec_rc v0
+        //       return [v0]
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("foo".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
+
+        let inner_array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
+        let v0 = builder.add_parameter(inner_array_type.clone());
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![v0]);
+
+        builder.switch_to_block(b1);
+        builder.insert_inc_rc(v0);
+        builder.insert_inc_rc(v0);
+        builder.insert_dec_rc(v0);
+
+        let outer_array_type = Type::Array(Arc::new(vec![inner_array_type]), 1);
+        let array = builder.array_constant(vec![v0].into(), outer_array_type);
+        builder.terminate_with_return(vec![array]);
+
+        // Expected result:
+        //
+        // brillig fn foo f0 {
+        //     b0(v0: [Field; 2]):
+        //       jmp b1(v0)
+        //     b1():
+        //       inc_rc v0
+        //       return [v0]
+        //   }
+        let ssa = builder.finish().remove_paired_rc();
+        let main = ssa.main();
+
+        assert_eq!(count_inc_rcs(b1, &main.dfg), 1);
+        assert_eq!(count_dec_rcs(b1, &main.dfg), 0);
+    }
+
+    #[test]
+    fn exit_block_single_mutation() {
+        // fn mutator(mut array: [Field; 2]) {
+        //     array[0] = 5;
+        // }
+        //
+        // acir(inline) fn mutator f0 {
+        //     b0(v0: [Field; 2]):
+        //       jmp b1(v0)
+        //     b1(v1: [Field; 2]):
+        //       v2 = allocate
+        //       store v1 at v2
+        //       inc_rc v1
+        //       v3 = load v2
+        //       v6 = array_set v3, index u64 0, value Field 5
+        //       store v6 at v2
+        //       dec_rc v1
+        //       return
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("mutator".into(), main_id);
+
+        let array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
+        let v0 = builder.add_parameter(array_type.clone());
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![v0]);
+
+        builder.switch_to_block(b1);
+        // We want to make sure we go through the block parameter
+        let v1 = builder.add_block_parameter(b1, array_type.clone());
+
+        let v2 = builder.insert_allocate(array_type.clone());
+        builder.insert_store(v2, v1);
+        builder.insert_inc_rc(v1);
+        let v3 = builder.insert_load(v2, array_type);
+
+        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let five = builder.field_constant(5u128);
+        let v8 = builder.insert_array_set(v3, zero, five);
+
+        builder.insert_store(v2, v8);
+        builder.insert_dec_rc(v1);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().remove_paired_rc();
+        let main = ssa.main();
+
+        // No changes, the array is possibly mutated
+        assert_eq!(count_inc_rcs(b1, &main.dfg), 1);
+        assert_eq!(count_dec_rcs(b1, &main.dfg), 1);
+    }
+
+    #[test]
+    fn exit_block_mutation_through_reference() {
+        // fn mutator2(array: &mut [Field; 2]) {
+        //     array[0] = 5;
+        // }
+        // acir(inline) fn mutator2 f0 {
+        //     b0(v0: &mut [Field; 2]):
+        //       jmp b1(v0)
+        //     b1(v1: &mut [Field; 2]):
+        //       v2 = load v1
+        //       inc_rc v1
+        //       store v2 at v1
+        //       v3 = load v2
+        //       v6 = array_set v3, index u64 0, value Field 5
+        //       store v6 at v1
+        //       v7 = load v1
+        //       dec_rc v7
+        //       store v7 at v1
+        //       return
+        //   }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("mutator2".into(), main_id);
+
+        let array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
+        let reference_type = Type::Reference(Arc::new(array_type.clone()));
+
+        let v0 = builder.add_parameter(reference_type.clone());
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![v0]);
+
+        builder.switch_to_block(b1);
+        let v1 = builder.add_block_parameter(b1, reference_type);
+
+        let v2 = builder.insert_load(v1, array_type.clone());
+        builder.insert_inc_rc(v1);
+        builder.insert_store(v1, v2);
+
+        let v3 = builder.insert_load(v2, array_type.clone());
+        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let five = builder.field_constant(5u128);
+        let v6 = builder.insert_array_set(v3, zero, five);
+
+        builder.insert_store(v1, v6);
+        let v7 = builder.insert_load(v1, array_type);
+        builder.insert_dec_rc(v7);
+        builder.insert_store(v1, v7);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().remove_paired_rc();
+        let main = ssa.main();
+
+        // No changes, the array is possibly mutated
+        assert_eq!(count_inc_rcs(b1, &main.dfg), 1);
+        assert_eq!(count_dec_rcs(b1, &main.dfg), 1);
     }
 }
