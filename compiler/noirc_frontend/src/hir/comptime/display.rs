@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
 use iter_extended::vecmap;
 use noirc_errors::Span;
@@ -68,8 +68,9 @@ fn display_tokens(
     Ok(())
 }
 
-pub(super) fn tokens_to_string(tokens: &[Token], interner: &NodeInterner) -> String {
-    TokensPrettyPrinter { tokens, interner }.to_string()
+pub(super) fn tokens_to_string(tokens: Rc<Vec<Token>>, interner: &NodeInterner) -> String {
+    let tokens: Vec<Token> = tokens.iter().cloned().collect();
+    TokensPrettyPrinter { tokens: &tokens, interner }.to_string()
 }
 
 /// Tries to print tokens in a way that it'll be easier for the user to understand a

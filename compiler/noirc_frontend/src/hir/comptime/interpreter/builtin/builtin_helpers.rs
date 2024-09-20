@@ -425,8 +425,7 @@ pub(super) fn parse_tokens<T>(
 ) -> IResult<T> {
     parser.parse(quoted).map_err(|mut errors| {
         let error = errors.swap_remove(0);
-        let tokens: Vec<Token> = tokens.iter().cloned().collect();
-        let tokens = tokens_to_string(&tokens, interner);
+        let tokens = tokens_to_string(tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })
 }

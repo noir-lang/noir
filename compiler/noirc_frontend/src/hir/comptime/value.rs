@@ -267,8 +267,7 @@ impl Value {
                         let error = errors.swap_remove(0);
                         let file = location.file;
                         let rule = "an expression";
-                        let tokens: Vec<Token> = tokens.iter().cloned().collect();
-                        let tokens = tokens_to_string(&tokens, interner);
+                        let tokens = tokens_to_string(tokens, interner);
                         Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
                     }
                 };
@@ -525,9 +524,10 @@ impl Value {
         location: Location,
         interner: &NodeInterner,
     ) -> IResult<Vec<TopLevelStatement>> {
+        let parser = parser::top_level_items();
         match self {
             Value::Quoted(tokens) => {
-                parse_tokens(tokens, interner, parser::top_level_items(), location)
+                parse_tokens(tokens, interner, parser, location, "top-level item")
             }
             _ => {
                 let typ = self.get_type().into_owned();
@@ -548,16 +548,15 @@ fn parse_tokens<T>(
     interner: &NodeInterner,
     parser: impl NoirParser<T>,
     location: Location,
+    rule: &'static str,
 ) -> IResult<T> {
     let parser = parser.then_ignore(chumsky::primitive::end());
     match parser.parse(add_token_spans(tokens.clone(), location.span)) {
         Ok(expr) => Ok(expr),
         Err(mut errors) => {
             let error = errors.swap_remove(0);
-            let rule = "an expression";
             let file = location.file;
-            let tokens: Vec<Token> = tokens.iter().cloned().collect();
-            let tokens = tokens_to_string(&tokens, interner);
+            let tokens = tokens_to_string(tokens, interner);
             Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
         }
     }
