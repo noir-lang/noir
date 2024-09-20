@@ -450,7 +450,12 @@ impl<'a> Context<'a> {
         warnings.extend(self.acir_context.warnings.clone());
 
         // Add the warnings from the alter Ssa passes
-        Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
+        Ok(self.acir_context.finish(
+            input_witness,
+            // Don't embed databus return witnesses into the circuit.
+            if self.data_bus.return_data.is_some() { Vec::new() } else { return_witnesses },
+            warnings,
+        ))
     }
 
     fn initialize_databus(
