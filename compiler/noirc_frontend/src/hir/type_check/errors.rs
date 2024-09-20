@@ -60,7 +60,7 @@ pub enum TypeCheckError {
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
     #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
-    #[error("{} expects {:?} parameters but {found} were given", kind, kind.arguments_count())]
+    #[error("{} expects {} or {} parameters but {found} were given", kind, kind.required_arguments_count(), kind.required_arguments_count() + 1)]
     AssertionParameterCountMismatch { kind: ConstrainKind, found: usize, span: Span },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
@@ -265,9 +265,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::AssertionParameterCountMismatch { kind, found, span } => {
                 let was_or_were = if *found == 1 { "was" } else { "were" };
-                let arguments_count = kind.arguments_count();
-                let min = arguments_count.start();
-                let max = arguments_count.end();
+                let min = kind.required_arguments_count();
+                let max = min + 1;
                 let msg = format!("{kind} expects {min} or {max} parameters but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }

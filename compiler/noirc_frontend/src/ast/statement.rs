@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::ops::RangeInclusive;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use acvm::acir::AcirField;
@@ -593,12 +592,10 @@ pub enum ConstrainKind {
 }
 
 impl ConstrainKind {
-    /// Returns the expected number of arguments.
-    /// It's guaranteed that the range's end will be the range's start plus one.
-    pub fn arguments_count(&self) -> RangeInclusive<usize> {
+    pub fn required_arguments_count(&self) -> usize {
         match self {
-            ConstrainKind::Assert | ConstrainKind::Constrain => 1..=2,
-            ConstrainKind::AssertEq => 2..=3,
+            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
+            ConstrainKind::AssertEq => 2,
         }
     }
 }

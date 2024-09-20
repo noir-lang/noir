@@ -118,10 +118,11 @@ impl<'context> Elaborator<'context> {
         mut stmt: ConstrainStatement,
     ) -> (HirStatement, Type) {
         let span = stmt.span;
-        let expected_args_count = stmt.kind.arguments_count();
+        let min_args_count = stmt.kind.required_arguments_count();
+        let max_args_count = min_args_count + 1;
         let actual_args_count = stmt.arguments.len();
 
-        let (message, expr) = if !expected_args_count.contains(&actual_args_count) {
+        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
             self.push_err(TypeCheckError::AssertionParameterCountMismatch {
                 kind: stmt.kind,
                 found: actual_args_count,
@@ -135,8 +136,8 @@ impl<'context> Elaborator<'context> {
             let expr = Expression { kind, span };
             (message, expr)
         } else {
-            let message = (&actual_args_count != expected_args_count.start())
-                .then(|| stmt.arguments.pop().unwrap());
+            let message =
+                (actual_args_count != min_args_count).then(|| stmt.arguments.pop().unwrap());
             let expr = match stmt.kind {
                 ConstrainKind::Assert | ConstrainKind::Constrain => stmt.arguments.pop().unwrap(),
                 ConstrainKind::AssertEq => {
