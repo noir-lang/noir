@@ -36,15 +36,40 @@ pub(super) fn display_quoted(
         writeln!(f, "quote {{")?;
         let indent = indent + 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
-        let mut token_printer = TokenPrettyPrinter::new(interner, indent);
-        for token in tokens.iter() {
-            token_printer.print(token, f)?;
-        }
+        display_tokens(tokens, interner, indent, f)?;
         writeln!(f)?;
         let indent = indent - 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
         write!(f, "}}")
     }
+}
+
+struct TokensPrettyPrinter<'tokens, 'interner> {
+    tokens: &'tokens [Token],
+    interner: &'interner NodeInterner,
+}
+
+impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        display_tokens(self.tokens, self.interner, 0, f)
+    }
+}
+
+fn display_tokens(
+    tokens: &[Token],
+    interner: &NodeInterner,
+    indent: usize,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let mut token_printer = TokenPrettyPrinter::new(interner, indent);
+    for token in tokens {
+        token_printer.print(token, f)?;
+    }
+    Ok(())
+}
+
+pub(super) fn tokens_to_string(tokens: &[Token], interner: &NodeInterner) -> String {
+    TokensPrettyPrinter { tokens, interner }.to_string()
 }
 
 /// Tries to print tokens in a way that it'll be easier for the user to understand a

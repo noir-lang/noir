@@ -25,7 +25,10 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-use super::errors::{IResult, InterpreterError};
+use super::{
+    display::tokens_to_string,
+    errors::{IResult, InterpreterError},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
@@ -264,6 +267,8 @@ impl Value {
                         let error = errors.swap_remove(0);
                         let file = location.file;
                         let rule = "an expression";
+                        let tokens: Vec<Token> = tokens.iter().cloned().collect();
+                        let tokens = tokens_to_string(&tokens, interner);
                         Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
                     }
                 };
@@ -521,7 +526,9 @@ impl Value {
         interner: &NodeInterner,
     ) -> IResult<Vec<TopLevelStatement>> {
         match self {
-            Value::Quoted(tokens) => parse_tokens(tokens, parser::top_level_items(), location),
+            Value::Quoted(tokens) => {
+                parse_tokens(tokens, interner, parser::top_level_items(), location)
+            }
             _ => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -538,6 +545,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 
 fn parse_tokens<T>(
     tokens: Rc<Vec<Token>>,
+    interner: &NodeInterner,
     parser: impl NoirParser<T>,
     location: Location,
 ) -> IResult<T> {
@@ -548,6 +556,8 @@ fn parse_tokens<T>(
             let error = errors.swap_remove(0);
             let rule = "an expression";
             let file = location.file;
+            let tokens: Vec<Token> = tokens.iter().cloned().collect();
+            let tokens = tokens_to_string(&tokens, interner);
             Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
         }
     }
