@@ -92,7 +92,7 @@ pub(super) fn tokens_to_string(tokens: Rc<Vec<Token>>, interner: &NodeInterner) 
 struct TokenPrettyPrinter<'interner> {
     interner: &'interner NodeInterner,
     indent: usize,
-    last_was_name: bool,
+    last_was_alphanumeric: bool,
     last_was_right_brace: bool,
     last_was_semicolon: bool,
 }
@@ -102,15 +102,15 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         Self {
             interner,
             indent,
-            last_was_name: false,
+            last_was_alphanumeric: false,
             last_was_right_brace: false,
             last_was_semicolon: false,
         }
     }
 
     fn print(&mut self, token: &Token, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let last_was_name = self.last_was_name;
-        self.last_was_name = false;
+        let last_was_alphanumeric = self.last_was_alphanumeric;
+        self.last_was_alphanumeric = false;
 
         // After `}` we usually want a newline... but not always!
         if self.last_was_right_brace {
@@ -120,7 +120,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 Token::Keyword(Keyword::Else) => {
                     // If we have `} else` we don't want a newline
                     write!(f, " else")?;
-                    self.last_was_name = true;
+                    self.last_was_alphanumeric = true;
                     return Ok(());
                 }
                 Token::RightBrace => {
@@ -189,11 +189,15 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
                 self.print_value(&value, f)
             }
-            Token::Keyword(..) | Token::Ident(..) => {
-                if last_was_name {
+            Token::Keyword(..)
+            | Token::Ident(..)
+            | Token::IntType(..)
+            | Token::Int(..)
+            | Token::Bool(..) => {
+                if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
-                self.last_was_name = true;
+                self.last_was_alphanumeric = true;
                 write!(f, "{token}")
             }
             Token::Comma => {
@@ -215,15 +219,8 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 self.last_was_semicolon = true;
                 write!(f, ";")
             }
-            Token::IntType(..) => {
-                if last_was_name {
-                    write!(f, " ")?;
-                }
-                self.last_was_name = true;
-                write!(f, "{token}")
-            }
             Token::Quote(tokens) => {
-                if last_was_name {
+                if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
                 let tokens = vecmap(&tokens.0, |spanned_token| spanned_token.clone().into_token());
@@ -262,9 +259,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::DollarSign => {
                 write!(f, "{token}")
             }
-            Token::Int(..)
-            | Token::Bool(..)
-            | Token::Str(..)
+            Token::Str(..)
             | Token::RawStr(..)
             | Token::FmtStr(..)
             | Token::Whitespace(_)
@@ -273,7 +268,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Attribute(..)
             | Token::InnerAttribute(..)
             | Token::Invalid(_) => {
-                if last_was_name {
+                if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
                 write!(f, "{token}")
@@ -291,6 +286,11 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             }
             line.fmt(f)?;
         }
+
+        self.last_was_alphanumeric = string.bytes().all(|byte| byte.is_ascii_alphanumeric());
+        self.last_was_right_brace = string.ends_with('}');
+        self.last_was_semicolon = string.ends_with(';');
+
         Ok(())
     }
 
