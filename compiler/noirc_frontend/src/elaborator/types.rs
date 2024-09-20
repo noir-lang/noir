@@ -622,7 +622,7 @@ impl<'context> Elaborator<'context> {
 
         let length = stmt.expression;
         let span = self.interner.expr_span(&length);
-        let result = self.try_eval_array_length_id(length, span);
+        let result = try_eval_array_length_id(self.interner, length, span);
 
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
@@ -633,89 +633,7 @@ impl<'context> Elaborator<'context> {
         0
     }
 
-    fn try_eval_array_length_id(
-        &self,
-        rhs: ExprId,
-        span: Span,
-    ) -> Result<u128, Option<ResolverError>> {
-        // Arbitrary amount of recursive calls to try before giving up
-        let fuel = 100;
-        self.try_eval_array_length_id_with_fuel(rhs, span, fuel)
-    }
-
-    fn try_eval_array_length_id_with_fuel(
-        &self,
-        rhs: ExprId,
-        span: Span,
-        fuel: u32,
-    ) -> Result<u128, Option<ResolverError>> {
-        if fuel == 0 {
-            // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
-            // be issued for them after name resolution so issue no error now.
-            return Err(None);
-        }
-
-        match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-                int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
-            }
-            HirExpression::Ident(ident, _) => {
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    match definition.kind {
-                        DefinitionKind::Global(global_id) => {
-                            let let_statement = self.interner.get_global_let_statement(global_id);
-                            if let Some(let_statement) = let_statement {
-                                let expression = let_statement.expression;
-                                self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
-                            } else {
-                                Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
-                            }
-                        }
-                        _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-                    }
-                } else {
-                    Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
-                }
-            }
-            HirExpression::Infix(infix) => {
-                let lhs = self.try_eval_array_length_id_with_fuel(infix.lhs, span, fuel - 1)?;
-                let rhs = self.try_eval_array_length_id_with_fuel(infix.rhs, span, fuel - 1)?;
-
-                match infix.operator.kind {
-                    BinaryOpKind::Add => Ok(lhs + rhs),
-                    BinaryOpKind::Subtract => Ok(lhs - rhs),
-                    BinaryOpKind::Multiply => Ok(lhs * rhs),
-                    BinaryOpKind::Divide => Ok(lhs / rhs),
-                    BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
-                    BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
-                    BinaryOpKind::Less => Ok((lhs < rhs) as u128),
-                    BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
-                    BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
-                    BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
-                    BinaryOpKind::And => Ok(lhs & rhs),
-                    BinaryOpKind::Or => Ok(lhs | rhs),
-                    BinaryOpKind::Xor => Ok(lhs ^ rhs),
-                    BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
-                    BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
-                    BinaryOpKind::Modulo => Ok(lhs % rhs),
-                }
-            }
-            HirExpression::Cast(cast) => {
-                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
-                let lhs_value = Value::Field(lhs.into());
-                let evaluated_value =
-                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
-                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
-
-                evaluated_value
-                    .to_u128()
-                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
-            }
-            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-        }
-    }
-
-    pub fn unify(
+    pub(super) fn unify(
         &mut self,
         actual: &Type,
         expected: &Type,
@@ -723,6 +641,22 @@ impl<'context> Elaborator<'context> {
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
             self.errors.push((make_error().into(), self.file));
+        }
+    }
+
+    /// Do not apply type bindings even after a successful unification.
+    /// This function is used by the interpreter for some comptime code
+    /// which can change types e.g. on each iteration of a for loop.
+    pub fn unify_without_applying_bindings(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        file: fm::FileId,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        let mut bindings = TypeBindings::new();
+        if actual.try_unify(expected, &mut bindings).is_err() {
+            self.errors.push((make_error().into(), file));
         }
     }
 
@@ -1848,6 +1782,88 @@ impl<'context> Elaborator<'context> {
             let self_type = the_trait.self_type_typevar.clone();
             bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
         }
+    }
+}
+
+pub fn try_eval_array_length_id(
+    interner: &NodeInterner,
+    rhs: ExprId,
+    span: Span,
+) -> Result<u128, Option<ResolverError>> {
+    // Arbitrary amount of recursive calls to try before giving up
+    let fuel = 100;
+    try_eval_array_length_id_with_fuel(interner, rhs, span, fuel)
+}
+
+fn try_eval_array_length_id_with_fuel(
+    interner: &NodeInterner,
+    rhs: ExprId,
+    span: Span,
+    fuel: u32,
+) -> Result<u128, Option<ResolverError>> {
+    if fuel == 0 {
+        // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
+        // be issued for them after name resolution so issue no error now.
+        return Err(None);
+    }
+
+    match interner.expression(&rhs) {
+        HirExpression::Literal(HirLiteral::Integer(int, false)) => {
+            int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+        }
+        HirExpression::Ident(ident, _) => {
+            if let Some(definition) = interner.try_definition(ident.id) {
+                match definition.kind {
+                    DefinitionKind::Global(global_id) => {
+                        let let_statement = interner.get_global_let_statement(global_id);
+                        if let Some(let_statement) = let_statement {
+                            let expression = let_statement.expression;
+                            try_eval_array_length_id_with_fuel(interner, expression, span, fuel - 1)
+                        } else {
+                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                        }
+                    }
+                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                }
+            } else {
+                Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+            }
+        }
+        HirExpression::Infix(infix) => {
+            let lhs = try_eval_array_length_id_with_fuel(interner, infix.lhs, span, fuel - 1)?;
+            let rhs = try_eval_array_length_id_with_fuel(interner, infix.rhs, span, fuel - 1)?;
+
+            match infix.operator.kind {
+                BinaryOpKind::Add => Ok(lhs + rhs),
+                BinaryOpKind::Subtract => Ok(lhs - rhs),
+                BinaryOpKind::Multiply => Ok(lhs * rhs),
+                BinaryOpKind::Divide => Ok(lhs / rhs),
+                BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                BinaryOpKind::And => Ok(lhs & rhs),
+                BinaryOpKind::Or => Ok(lhs | rhs),
+                BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                BinaryOpKind::Modulo => Ok(lhs % rhs),
+            }
+        }
+        HirExpression::Cast(cast) => {
+            let lhs = try_eval_array_length_id_with_fuel(interner, cast.lhs, span, fuel - 1)?;
+            let lhs_value = Value::Field(lhs.into());
+            let evaluated_value =
+                Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
+                    .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+            evaluated_value
+                .to_u128()
+                .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
+        }
+        _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
     }
 }
 

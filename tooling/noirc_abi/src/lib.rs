@@ -197,7 +197,12 @@ impl Abi {
 
     /// Returns whether any values are needed to be made public for verification.
     pub fn has_public_inputs(&self) -> bool {
-        self.return_type.is_some() || self.parameters.iter().any(|param| param.is_public())
+        let has_public_args = self.parameters.iter().any(|param| param.is_public());
+        let has_public_return = self
+            .return_type
+            .as_ref()
+            .map_or(false, |typ| matches!(typ.visibility, AbiVisibility::Public));
+        has_public_args || has_public_return
     }
 
     /// Returns `true` if the ABI contains no parameters or return value.
@@ -346,15 +351,7 @@ impl Abi {
                         .copied()
                 })
             {
-                // We do not return value for the data bus.
-                if return_type.visibility == AbiVisibility::DataBus {
-                    None
-                } else {
-                    Some(decode_value(
-                        &mut return_witness_values.into_iter(),
-                        &return_type.abi_type,
-                    )?)
-                }
+                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
