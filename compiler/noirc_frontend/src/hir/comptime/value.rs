@@ -837,9 +837,9 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         }
 
         // Heuristic: if we have `; 2` then we assume we are inside something like `[Field; 2]`
-        // and don't include a newline. If this is not the case then a generated body with some
-        // statements and retruning an integer value would look slightly off, but not that much.
-        // We do the same if an all caps ident follows (a case like `[Field; N]`).
+        // and don't include a newline.
+        // The only consequence of getting this wrong is that we'll end with two consecutive
+        // statements in a single line (not a big deal).
         if self.last_was_semicolon {
             self.last_was_semicolon = false;
 
