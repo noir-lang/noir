@@ -120,10 +120,8 @@ impl<'f> Context<'f> {
                     let typ = self.function.dfg.type_of_value(array);
                     if let Some(inc_rcs) = self.inc_rcs.get_mut(&typ) {
                         for inc_rc in inc_rcs {
-                            if inc_rc.array == array {
-                                inc_rc.possibly_mutated = true;
-                            }
-                            if self.function.parameters().contains(&inc_rc.array)
+                            if inc_rc.array == array
+                                || self.function.parameters().contains(&inc_rc.array)
                                 || per_func_block_params.contains(&inc_rc.array)
                             {
                                 inc_rc.possibly_mutated = true;
