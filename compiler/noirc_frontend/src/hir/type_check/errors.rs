@@ -5,6 +5,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
+use crate::ast::ConstrainKind;
 use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
@@ -59,8 +60,8 @@ pub enum TypeCheckError {
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
     #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
-    #[error("Function expects {expected1} or {expected2} parameters but {found} were given")]
-    AssertionParameterCountMismatch { expected1: usize, expected2: usize, found: usize, span: Span },
+    #[error("{} expects {:?} parameters but {found} were given", kind, kind.arguments_count())]
+    AssertionParameterCountMismatch { kind: ConstrainKind, found: usize, span: Span },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
     #[error("{item} has incompatible `unconstrained`")]
@@ -262,9 +263,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
-            TypeCheckError::AssertionParameterCountMismatch { expected1, expected2, found, span } => {
+            TypeCheckError::AssertionParameterCountMismatch { kind, found, span } => {
                 let was_or_were = if *found == 1 { "was" } else { "were" };
-                let msg = format!("Function expects {expected1} or {expected2} parameters but {found} {was_or_were} given");
+                let arguments_count = kind.arguments_count();
+                let min = arguments_count.start();
+                let max = arguments_count.end();
+                let msg = format!("{kind} expects {min} or {max} parameters but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
             TypeCheckError::GenericCountMismatch { item, expected, found, span } => {
