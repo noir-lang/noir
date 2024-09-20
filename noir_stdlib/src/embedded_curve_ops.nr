@@ -162,24 +162,23 @@ fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: Embedde
 
 /// This function assumes that:
 /// The points are on the curve, and
-/// The points have not the same abscissa, and
+/// The points don't share an x-coordinate, and
 /// Neither point is the infinity point.
 /// If it is used with correct input, the function ensures the correct non-zero result is returned.
 /// Except for points on the curve, the other assumptions are checked by the function. It will cause assertion failure if they are not respected.
 pub fn embedded_curve_add_not_nul(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
-    assert(point1.x - point2.x != 0);
-    assert(point1.is_infinite == false);
-    assert(point2.is_infinite == false);
+    assert(point1.x != point2.x);
+    assert(!point1.is_infinite);
+    assert(!point2.is_infinite);
     embedded_curve_add_unsafe(point1, point2)
 }
 
 /// Unsafe ec addition
-/// It assumes (but does not check) that the points have not the same absissa, or that they are the same variable
+/// If the inputs are the same, it will perform a doubling, but only if point1 and point2 are the same variable.
+/// If they have the same value but are different variables, the result will be incorrect because in this case
+/// it assumes (but does not check) that the points' x-coordinates are not equal.
 /// It also assumes neither point is the infinity point.
-pub fn embedded_curve_add_unsafe(
-    point1: EmbeddedCurvePoint,
-    point2: EmbeddedCurvePoint
-) -> EmbeddedCurvePoint {
+pub fn embedded_curve_add_unsafe(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
     let point_array = embedded_curve_add_array_return(point1, point2);
     let x = point_array[0];
     let y = point_array[1];
