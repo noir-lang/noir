@@ -241,6 +241,7 @@ impl<'f> PerFunctionContext<'f> {
             let references = self.find_starting_references(block);
             self.analyze_block(block, references);
         }
+
         self.cleanup_function();
     }
 
@@ -629,6 +630,13 @@ impl<'f> PerFunctionContext<'f> {
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
                 assert_eq!(destination_parameters.len(), arguments.len());
+                // let parameters_set = destination_parameters.iter().collect::<HashSet<_>>();
+
+                // If we have multiple parameters that alias that same argument value,
+                // then those parameters also alias each other.
+                // We save parameters with repeat arguments to later mark those
+                // parameters as aliasing one another.
+                let mut arg_set: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
@@ -639,8 +647,30 @@ impl<'f> PerFunctionContext<'f> {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
                                 // The argument reference is possibly aliased by this block parameter
                                 aliases.insert(*parameter);
+
+                                // Check if we have seen the same argument
+                                if let Some(seen_parameters) = arg_set.get_mut(&argument) {
+                                    // Add the current parameter to the parameter we have seen for this argument.
+                                    // The previous parameters and the current one alias one another.
+                                    seen_parameters.insert(*parameter);
+                                } else {
+                                    let mut new_param_set = HashSet::default();
+                                    new_param_set.insert(*parameter);
+                                    arg_set.insert(argument, new_param_set);
+                                }
                             }
                         }
+                    }
+                }
+
+                // Set the aliases of the parameters
+                for (_, aliased_params) in arg_set {
+                    for param in aliased_params.iter() {
+                        self.set_aliases(
+                            references,
+                            *param,
+                            AliasSet::known_multiple(aliased_params.iter().copied()),
+                        );
                     }
                 }
             }
@@ -1980,154 +2010,91 @@ mod tests {
 
     #[test]
     fn keep_repeat_loads_with_alias_store() {
-        // v13 aliases v11. We want to make sure that a repeat load to v11 with a store
-        // to its alias v13 in between the repeat loads does not remove those loads.
+        // v7, v8, and v9 alias one another. We want to make sure that a repeat load to v7 with a store
+        // to its aliases in between the repeat loads does not remove those loads.
         //
         // acir(inline) fn main f0 {
-        //     b0():
-        //       v0 = allocate
-        //       store Field 0 at v0
-        //       v2 = allocate
-        //       store v0 at v2
-        //       jmp b1(Field 0)
-        //     b1(v3: Field):
-        //       v4 = eq v3, Field 0
-        //       jmpif v4 then: b2, else: b3
-        //     b2():
-        //       v5 = load v2
-        //       store Field 2 at v5
-        //       v8 = add v3, Field 1
-        //       jmp b1(v8)
-        //     b3():
-        //       v9 = load v0
-        //       v10 = eq v9, Field 2
-        //       constrain v9 == Field 2
-        //       v11 = load v2
-        //       v13 = load v2
-        //       v14 = load v13
-        //       constrain v14 == Field 2
-        //       jmp b4()
-        //     b4():
-        //       v15 = load v11
-        //       store Field 2 at v13
-        //       v16 = load v11
-        //       v17 = eq v15, Field 2
-        //       constrain v16 == Field 2
+        //     b0(v4: u1):
+        //       jmpif v4 then: b1, else: b2
+        //     b1():
+        //       v5 = allocate
+        //       store Field 0 at v5
+        //       jmp b3(v5, v5, v5)
+        //     b3(v7: &mut Field, v8: &mut Field, v9: &mut Field):
+        //       v10 = load v7
+        //       store Field 2 at v8
+        //       v11 = load v7
+        //       store Field 1 at v9
+        //       v12 = load v7
+        //       store Field 3 at v9
+        //       v13 = load v7
+        //       constrain v10 == Field 0 // assume v4 = true, but this is just so v10 is not unused
+        //       constrain v11 == Field 2
+        //       constrain v12 == Field 1
+        //       constrain v13 == Field 3
         //       return
+        //     b2():
+        //       v6 = allocate
+        //       store Field 1 at v6
+        //       jmp b3(v6, v6, v6)
         //   }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.numeric_constant(0u128, Type::field());
-        builder.insert_store(v0, zero);
-
-        let v2 = builder.insert_allocate(Type::field());
-        // Construct alias
-        builder.insert_store(v2, v0);
-        let v2_type = builder.current_function.dfg.type_of_value(v2);
-        assert!(builder.current_function.dfg.value_is_reference(v2));
-
         let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![zero]);
-
-        // Loop header
-        builder.switch_to_block(b1);
-        let v3 = builder.add_block_parameter(b1, Type::field());
-        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
-
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
-        builder.terminate_with_jmpif(is_zero, b2, b3);
 
-        // Loop body
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(1u128);
+        let two = builder.field_constant(2u128);
+        let three = builder.field_constant(3u128);
+
+        let v4 = builder.add_parameter(Type::bool());
+        builder.terminate_with_jmpif(v4, b1, b2);
+
+        builder.switch_to_block(b1);
+        let v5 = builder.insert_allocate(Type::field());
+        builder.insert_store(v5, zero);
+        builder.terminate_with_jmp(b3, vec![v5, v5, v5]);
+
         builder.switch_to_block(b2);
-        let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.numeric_constant(2u128, Type::field());
-        builder.insert_store(v5, two);
-        let one = builder.numeric_constant(1u128, Type::field());
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
-        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
+        let v6 = builder.insert_allocate(Type::field());
+        builder.insert_store(v6, one);
+        builder.terminate_with_jmp(b3, vec![v6, v6, v6]);
 
         builder.switch_to_block(b3);
-        let v9 = builder.insert_load(v0, Type::field());
+        let v7 = builder.add_block_parameter(b3, Type::Reference(Arc::new(Type::field())));
+        let v8 = builder.add_block_parameter(b3, Type::Reference(Arc::new(Type::field())));
+        let v9 = builder.add_block_parameter(b3, Type::Reference(Arc::new(Type::field())));
 
-        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
+        let v10 = builder.insert_load(v7, Type::field());
+        builder.insert_store(v8, two);
+        let v11 = builder.insert_load(v7, Type::field());
+        builder.insert_store(v9, one);
+        // We expect this load to be removed
+        let v12 = builder.insert_load(v7, Type::field());
+        builder.insert_store(v9, three);
+        let v13 = builder.insert_load(v7, Type::field());
 
-        builder.insert_constrain(v9, two, None);
-
-        let v11 = builder.insert_load(v2, v2_type.clone());
-        // v13 aliases v11
-        let v13 = builder.insert_load(v2, v2_type.clone());
-
-        let v14 = builder.insert_load(v13, Type::field());
-
-        builder.insert_constrain(v14, two, None);
-
-        let b4 = builder.insert_block();
-        builder.terminate_with_jmp(b4, vec![]);
-
-        builder.switch_to_block(b4);
-
-        let v15 = builder.insert_load(v11, Type::field());
-        let ten = builder.numeric_constant(10u128, Type::unsigned(32));
-        builder.insert_store(v13, ten);
-        let v17 = builder.insert_load(v11, Type::field());
-
-        let _ = builder.insert_binary(v15, BinaryOp::Eq, two);
-        builder.insert_constrain(v17, two, None);
+        builder.insert_constrain(v10, zero, None);
+        builder.insert_constrain(v11, two, None);
+        builder.insert_constrain(v12, one, None);
+        builder.insert_constrain(v13, three, None);
 
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
 
-        // Expected result:
-        //
-        // acir(inline) fn main f0 {
-        //     b0():
-        //       v18 = allocate
-        //       store Field 0 at v18
-        //       v19 = allocate
-        //       store v18 at v19
-        //       jmp b1(Field 0)
-        //     b1(v3: Field):
-        //       v20 = eq v3, Field 0
-        //       jmpif v20 then: b2, else: b3
-        //     b2():
-        //       v29 = load v19
-        //       store Field 2 at v29
-        //       v30 = add v3, Field 1
-        //       jmp b1(v30)
-        //     b3():
-        //       v21 = load v18
-        //       v22 = eq v21, Field 2
-        //       constrain v21 == Field 2
-        //       v23 = load v19
-        //       v25 = load v23
-        //       constrain v25 == Field 2
-        //       jmp b4()
-        //     b4():
-        //       v26 = load v23
-        //       store u32 10 at v23
-        //       v27 = load v23
-        //       v28 = eq v26, Field 2
-        //       constrain v27 == Field 2
-        //       return
-        //   }
+        // Expected result should be the same as above
         let ssa = ssa.mem2reg();
-
         let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 5);
+        assert_eq!(main.reachable_blocks().len(), 4);
 
-        // The stores from the original SSA should remain
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
+        // The stores from the original SSA should remain, although both are removed
+        assert_eq!(count_stores(b1, &main.dfg), 1);
         assert_eq!(count_stores(b2, &main.dfg), 1);
 
-        assert_eq!(count_loads(b2, &main.dfg), 1);
-        // The repeated load to v2 should be removed
-        assert_eq!(count_loads(b3, &main.dfg), 3);
-        // The repeated load to v11 should remain as there is a store to its alias
-        // between the v11 loads.
-        assert_eq!(count_loads(b4, &main.dfg), 2);
+        // The repeated loads from v3 should not be removed
+        assert_eq!(count_loads(b3, &main.dfg), 4);
     }
 }
