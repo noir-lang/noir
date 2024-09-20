@@ -457,12 +457,12 @@ mod test {
     #[test]
     fn test_selector_is_valid() {
         let selector = hash_to_selector("IS_VALID()");
-        assert_eq!(hex::encode(&selector.to_be_bytes()), "73cdda47");
+        assert_eq!(hex::encode(selector.to_be_bytes()), "73cdda47");
     }
 
     #[test]
     fn test_long_selector() {
         let selector = hash_to_selector("foo_and_bar_and_baz_and_foo_bar_baz_and_bar_foo");
-        assert_eq!(hex::encode(&selector.to_be_bytes()), "7590a997");
+        assert_eq!(hex::encode(selector.to_be_bytes()), "7590a997");
     }
 }
