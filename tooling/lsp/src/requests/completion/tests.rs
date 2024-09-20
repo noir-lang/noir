@@ -2174,4 +2174,52 @@ mod completion_tests {
         assert_eq!(completions.len(), 1);
         assert_eq!(completions[0].label, "unquote!(…)");
     }
+
+    #[test]
+    async fn test_suggests_variable_in_quoted_after_dollar() {
+        let src = r#"
+        fn main() {
+            comptime {
+                let some_var = 1;
+                quote {
+                    $>|<
+                }
+            }
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "some_var",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_variable_in_quoted_after_dollar_and_letters() {
+        let src = r#"
+        fn main() {
+            comptime {
+                let some_var = 1;
+                quote {
+                    $s>|<
+                }
+            }
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "some_var",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
+            )],
+        )
+        .await;
+    }
 }
