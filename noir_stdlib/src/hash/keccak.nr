@@ -35,32 +35,19 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     block_bytes[message_size] = 1;
     block_bytes[real_blocks_bytes - 1] = 0x80;
 
-    // keccak lanes interpret memory as little-endian integers,
-    // means we need to swap our byte ordering
     let num_limbs = max_blocks * LIMBS_PER_BLOCK; //max_blocks_length / WORD_SIZE;
-    for i in 0..num_limbs {
-        let mut temp = [0; WORD_SIZE];
-        let word_size_times_i = WORD_SIZE * i;
-        for j in 0..WORD_SIZE {
-            temp[j] = block_bytes[word_size_times_i+j];
-        }
-        for j in 0..WORD_SIZE {
-            block_bytes[word_size_times_i + j] = temp[7 - j];
-        }
-    }
-
     let mut sliced_buffer = Vec::new();
     // populate a vector of 64-bit limbs from our byte array
     for i in 0..num_limbs {
-        let word_size_times_i = i * WORD_SIZE;
-        let ws_times_i_plus_7 = word_size_times_i + 7;
+        let limb_start = WORD_SIZE * i;
+
         let mut sliced = 0;
-        if (word_size_times_i + WORD_SIZE > max_blocks_length) {
-            let slice_size = max_blocks_length - word_size_times_i;
+        if (limb_start + WORD_SIZE > max_blocks_length) {
+            let slice_size = max_blocks_length - limb_start;
             let byte_shift = (WORD_SIZE - slice_size) * 8;
             let mut v = 1;
             for k in 0..slice_size {
-                sliced += v * (block_bytes[ws_times_i_plus_7-k] as Field);
+                sliced += v * (block_bytes[limb_start+k] as Field);
                 v *= 256;
             }
             let w = 1 << (byte_shift as u8);
@@ -68,7 +55,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
         } else {
             let mut v = 1;
             for k in 0..WORD_SIZE {
-                sliced += v * (block_bytes[ws_times_i_plus_7-k] as Field);
+                sliced += v * (block_bytes[limb_start+k] as Field);
                 v *= 256;
             }
         }
@@ -156,4 +143,3 @@ mod tests {
         assert_eq(keccak256(input, 13), result);
     }
 }
-
