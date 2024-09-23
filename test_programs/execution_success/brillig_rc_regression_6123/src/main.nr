@@ -39,19 +39,3 @@ unconstrained fn main() {
         assert_eq(note_hashes[i], original_first_note_hash);
     }
 }
-
-// unconstrained fn main() {
-//     let mut array = [0; 10000];
-
-//     for i in 0..array.len() {
-//         array[i] = i;
-
-//         // This increments the reference count of `array` on each iteration,
-//         // tanking performance even though the `array2` parameter of `foo`:
-//         // 1. is not returned, so its lifetime should not prevent the mutation of `array`
-//         // 2. is not itself mutable
-//         foo(array);
-//     }
-// }
-
-// unconstrained fn foo<let N: u32>(_array2: [u32; N]) {}
