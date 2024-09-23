@@ -330,6 +330,10 @@ impl Display for UseTree {
 
         match &self.kind {
             UseTreeKind::Path(name, alias) => {
+                if !(self.prefix.segments.is_empty() && self.prefix.kind == PathKind::Plain) {
+                    write!(f, "::")?;
+                }
+
                 write!(f, "{name}")?;
 
                 while let Some(alias) = alias {
