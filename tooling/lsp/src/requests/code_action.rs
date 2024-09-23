@@ -84,7 +84,7 @@ struct CodeActionFinder<'a> {
     auto_import_line: usize,
     /// Text edits for the "Remove all unused imports" code action
     unused_imports_text_edits: Vec<TextEdit>,
-    code_actions: Vec<CodeActionOrCommand>,
+    code_actions: Vec<CodeAction>,
 }
 
 impl<'a> CodeActionFinder<'a> {
@@ -145,25 +145,16 @@ impl<'a> CodeActionFinder<'a> {
         }
 
         let mut code_actions = std::mem::take(&mut self.code_actions);
-        code_actions.sort_by_key(|code_action| {
-            let CodeActionOrCommand::CodeAction(code_action) = code_action else {
-                panic!("We only gather code actions, never commands");
-            };
-            code_action.title.clone()
-        });
+        code_actions.sort_by_key(|code_action| code_action.title.clone());
 
-        Some(code_actions)
+        Some(code_actions.into_iter().map(CodeActionOrCommand::CodeAction).collect())
     }
 
-    fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeActionOrCommand {
+    fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeAction {
         self.new_quick_fix_multiple_edits(title, vec![text_edit])
     }
 
-    fn new_quick_fix_multiple_edits(
-        &self,
-        title: String,
-        text_edits: Vec<TextEdit>,
-    ) -> CodeActionOrCommand {
+    fn new_quick_fix_multiple_edits(&self, title: String, text_edits: Vec<TextEdit>) -> CodeAction {
         let mut changes = HashMap::new();
         changes.insert(self.uri.clone(), text_edits);
 
@@ -173,7 +164,7 @@ impl<'a> CodeActionFinder<'a> {
             change_annotations: None,
         };
 
-        CodeActionOrCommand::CodeAction(CodeAction {
+        CodeAction {
             title,
             kind: Some(CodeActionKind::QUICKFIX),
             diagnostics: None,
@@ -182,7 +173,7 @@ impl<'a> CodeActionFinder<'a> {
             is_preferred: None,
             disabled: None,
             data: None,
-        })
+        }
     }
 
     fn includes_span(&self, span: Span) -> bool {
