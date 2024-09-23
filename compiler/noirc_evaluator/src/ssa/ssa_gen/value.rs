@@ -41,11 +41,7 @@ impl Value {
     pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, typ) => {
-                let value = ctx.builder.insert_load(address, typ);
-                ctx.builder.increment_array_reference_count(address);
-                value
-            }
+            Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
         }
     }
 
