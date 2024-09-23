@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     future::{self, Future},
+    ops::Range,
 };
 
 use async_lsp::ResponseError;
@@ -43,7 +44,7 @@ pub(crate) fn on_code_action_request(
     let result = process_request(state, text_document_position_params, |args| {
         let path = PathString::from_path(uri.to_file_path().unwrap());
         args.files.get_file_id(&path).and_then(|file_id| {
-            utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
+            utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
                 let (parsed_module, _errors) = noirc_frontend::parse_program(source);
@@ -53,7 +54,7 @@ pub(crate) fn on_code_action_request(
                     args.files,
                     file_id,
                     source,
-                    byte_index,
+                    byte_range,
                     args.crate_id,
                     args.def_maps,
                     args.interner,
@@ -71,7 +72,7 @@ struct CodeActionFinder<'a> {
     file: FileId,
     source: &'a str,
     lines: Vec<&'a str>,
-    byte_index: usize,
+    byte_range: Range<usize>,
     /// The module ID in scope. This might change as we traverse the AST
     /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
@@ -91,7 +92,7 @@ impl<'a> CodeActionFinder<'a> {
         files: &'a FileMap,
         file: FileId,
         source: &'a str,
-        byte_index: usize,
+        byte_range: Range<usize>,
         krate: CrateId,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         interner: &'a NodeInterner,
@@ -112,7 +113,7 @@ impl<'a> CodeActionFinder<'a> {
             file,
             source,
             lines: source.lines().collect(),
-            byte_index,
+            byte_range,
             module_id,
             def_maps,
             interner,
@@ -163,7 +164,8 @@ impl<'a> CodeActionFinder<'a> {
     }
 
     fn includes_span(&self, span: Span) -> bool {
-        span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
+        let byte_range_span = Span::from(self.byte_range.start as u32..self.byte_range.end as u32);
+        span.intersects(&byte_range_span)
     }
 }
 
