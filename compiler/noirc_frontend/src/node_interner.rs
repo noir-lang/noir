@@ -28,6 +28,7 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::macros_api::ModuleDefId;
 use crate::macros_api::UnaryOp;
+use crate::usage_tracker::UnusedItem;
 use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
 
@@ -2248,6 +2249,12 @@ impl NodeInterner {
 
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
+    }
+
+    pub fn unused_items(
+        &self,
+    ) -> &std::collections::HashMap<ModuleId, std::collections::HashMap<Ident, UnusedItem>> {
+        self.usage_tracker.unused_items()
     }
 }
 

@@ -1012,7 +1012,12 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.includes_span(item.span)
     }
 
-    fn visit_import(&mut self, use_tree: &UseTree, _visibility: ItemVisibility) -> bool {
+    fn visit_import(
+        &mut self,
+        use_tree: &UseTree,
+        _span: Span,
+        _visibility: ItemVisibility,
+    ) -> bool {
         let mut prefixes = Vec::new();
         self.find_in_use_tree(use_tree, &mut prefixes);
         false
