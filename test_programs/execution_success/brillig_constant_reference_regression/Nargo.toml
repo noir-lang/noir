@@ -1,0 +1,6 @@
+[package]
+name = "brillig_constant_reference_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]
