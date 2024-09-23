@@ -59,6 +59,18 @@ impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
+        // TODO: cleanup
+        let dbg_this = match &typ.typ {
+            UnresolvedTypeData::Integer(..) => true,
+            UnresolvedTypeData::Named(..) => true,
+            UnresolvedTypeData::FieldElement => true,
+            UnresolvedTypeData::Expression(..) => true,
+            _ => false,
+        };
+        if dbg_this {
+            dbg!("resolve_type_inner", &typ, kind);
+        }
+
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
@@ -228,6 +240,9 @@ impl<'context> Elaborator<'context> {
                     return self_type;
                 }
             } else if name == WILDCARD_TYPE {
+                // TODO: cleanup
+                dbg!("resolve_named_type: WILDCARD_TYPE", &name);
+
                 return self.interner.next_type_variable();
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
@@ -685,13 +700,25 @@ impl<'context> Elaborator<'context> {
         typ
     }
 
-
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
+        // TODO: cleanup
+        //
+        // match &typ.typ {
+        //     UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
+        //     _ => self.resolve_type(typ),
+        // }
+        //
         match &typ.typ {
-            UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
-            _ => self.resolve_type(typ),
+            UnresolvedTypeData::Unspecified => {
+                dbg!("resolve_inferred_type: unspecified", &typ);
+                self.interner.next_type_variable()
+            }
+            _ => {
+                // dbg!("resolve_inferred_type: specified", &typ);
+                self.resolve_type(typ)
+            }
         }
     }
 
@@ -784,6 +811,8 @@ impl<'context> Elaborator<'context> {
                     return self.bind_function_type(typ.clone(), args, span);
                 }
 
+                // TODO: cleanup
+                dbg!("bind_function_type", &binding);
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
@@ -819,7 +848,7 @@ impl<'context> Elaborator<'context> {
             Type::TypeVariable(_, _) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
@@ -939,7 +968,7 @@ impl<'context> Elaborator<'context> {
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
-            let target = Type::polymorphic_integer(self.interner);
+            let target = self.polymorphic_integer();
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
@@ -988,7 +1017,7 @@ impl<'context> Elaborator<'context> {
                         || TypeCheckError::InvalidShiftSize { span },
                     );
                     let use_impl = if lhs_type.is_numeric_value() {
-                        let integer_type = Type::polymorphic_integer(self.interner);
+                        let integer_type = self.polymorphic_integer();
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
                         true
