@@ -66,13 +66,13 @@ fn value(function: &Function, id: ValueId) -> String {
     let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
-            format!("{typ} {constant}")
+            format!("{id}:{typ} {constant}")
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         Value::Array { array, .. } => {
             let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
+            format!("{id}=[{}]", elements.join(", "))
         }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()

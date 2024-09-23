@@ -130,6 +130,9 @@ impl Context {
                         self.mark_used_instruction_results(&function.dfg, value);
                     });
                 }
+                // instruction.for_each_value(|value| {
+                //     self.mark_used_instruction_results(&function.dfg, value);
+                // });
             }
         }
 
