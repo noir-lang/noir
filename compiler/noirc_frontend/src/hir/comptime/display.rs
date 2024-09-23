@@ -36,7 +36,7 @@ pub(super) fn display_quoted(
         writeln!(f, "quote {{")?;
         let indent = indent + 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
-        display_tokens(tokens, interner, indent, f)?;
+        TokensPrettyPrinter { tokens, interner, indent }.fmt(f)?;
         writeln!(f)?;
         let indent = indent - 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
@@ -47,30 +47,26 @@ pub(super) fn display_quoted(
 struct TokensPrettyPrinter<'tokens, 'interner> {
     tokens: &'tokens [Token],
     interner: &'interner NodeInterner,
+    indent: usize,
 }
 
 impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        display_tokens(self.tokens, self.interner, 0, f)
-    }
-}
+        let mut token_printer = TokenPrettyPrinter::new(self.interner, self.indent);
+        for token in self.tokens {
+            token_printer.print(token, f)?;
+        }
 
-fn display_tokens(
-    tokens: &[Token],
-    interner: &NodeInterner,
-    indent: usize,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    let mut token_printer = TokenPrettyPrinter::new(interner, indent);
-    for token in tokens {
-        token_printer.print(token, f)?;
+        // If the printer refrained from printing a token right away, this will make it do it
+        token_printer.print(&Token::EOF, f)?;
+
+        Ok(())
     }
-    Ok(())
 }
 
 pub(super) fn tokens_to_string(tokens: Rc<Vec<Token>>, interner: &NodeInterner) -> String {
     let tokens: Vec<Token> = tokens.iter().cloned().collect();
-    TokensPrettyPrinter { tokens: &tokens, interner }.to_string()
+    TokensPrettyPrinter { tokens: &tokens, interner, indent: 0 }.to_string()
 }
 
 /// Tries to print tokens in a way that it'll be easier for the user to understand a
@@ -95,6 +91,7 @@ struct TokenPrettyPrinter<'interner> {
     last_was_alphanumeric: bool,
     last_was_right_brace: bool,
     last_was_semicolon: bool,
+    last_was_op: bool,
 }
 
 impl<'interner> TokenPrettyPrinter<'interner> {
@@ -105,12 +102,16 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             last_was_alphanumeric: false,
             last_was_right_brace: false,
             last_was_semicolon: false,
+            last_was_op: false,
         }
     }
 
     fn print(&mut self, token: &Token, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let last_was_alphanumeric = self.last_was_alphanumeric;
         self.last_was_alphanumeric = false;
+
+        let last_was_op = self.last_was_op;
+        self.last_was_op = false;
 
         // After `}` we usually want a newline... but not always!
         if self.last_was_right_brace {
@@ -161,6 +162,12 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                     self.write_indent(f)?;
                 }
             }
+        }
+
+        // If the last token was one of `+`, `-`, etc. and the current token is not `=`, we want a space
+        // (we avoid outputting a space if the token is `=` a bit below)
+        if last_was_op && !matches!(token, Token::Assign) {
+            write!(f, " ")?;
         }
 
         match token {
@@ -235,16 +242,25 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::GreaterEqual
             | Token::Equal
             | Token::NotEqual
-            | Token::Plus
+            | Token::Arrow => write!(f, " {token} "),
+            Token::Assign => {
+                if last_was_op {
+                    write!(f, "{token} ")
+                } else {
+                    write!(f, " {token} ")
+                }
+            }
+            Token::Plus
             | Token::Minus
             | Token::Star
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
             | Token::ShiftLeft
-            | Token::ShiftRight
-            | Token::Assign
-            | Token::Arrow => write!(f, " {token} "),
+            | Token::ShiftRight => {
+                self.last_was_op = true;
+                write!(f, " {token}")
+            }
             Token::LeftParen
             | Token::RightParen
             | Token::LeftBracket
