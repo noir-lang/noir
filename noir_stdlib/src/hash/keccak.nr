@@ -40,17 +40,6 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     // populate a vector of 64-bit limbs from our byte array
     for i in 0..num_limbs {
         let limb_start = WORD_SIZE * i;
-        let limb_end: u32 = limb_start + (WORD_SIZE - 1);
-
-        // TODO: we should be able to just remove this for-loop by indexing `block_bytes` more intelligently
-        // when constructing `sliced` below.
-        for j in 0..WORD_SIZE / 2 {
-            // keccak lanes interpret memory as little-endian integers,
-            // means we need to swap our byte ordering
-            let temp = block_bytes[limb_end - j];
-            block_bytes[limb_end - j] = block_bytes[limb_start+j];
-            block_bytes[limb_start + j] = temp;
-        }
 
         let mut sliced = 0;
         if (limb_start + WORD_SIZE > max_blocks_length) {
@@ -58,7 +47,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
             let byte_shift = (WORD_SIZE - slice_size) * 8;
             let mut v = 1;
             for k in 0..slice_size {
-                sliced += v * (block_bytes[limb_end-k] as Field);
+                sliced += v * (block_bytes[limb_start+k] as Field);
                 v *= 256;
             }
             let w = 1 << (byte_shift as u8);
@@ -66,7 +55,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
         } else {
             let mut v = 1;
             for k in 0..WORD_SIZE {
-                sliced += v * (block_bytes[limb_end-k] as Field);
+                sliced += v * (block_bytes[limb_start+k] as Field);
                 v *= 256;
             }
         }
