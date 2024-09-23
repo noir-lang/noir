@@ -12,7 +12,7 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{ConstructorExpression, NoirTraitImpl, Path, Visitor},
+    ast::{ConstructorExpression, ItemVisibility, NoirTraitImpl, Path, UseTree, Visitor},
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     macros_api::NodeInterner,
@@ -29,6 +29,7 @@ use super::{process_request, to_lsp_location};
 mod fill_struct_fields;
 mod implement_missing_members;
 mod import_or_qualify;
+mod remove_unused_import;
 mod tests;
 
 pub(crate) fn on_code_action_request(
@@ -81,6 +82,8 @@ struct CodeActionFinder<'a> {
     nesting: usize,
     /// The line where an auto_import must be inserted
     auto_import_line: usize,
+    /// Text edits for the "Remove all unused imports" code action
+    unused_imports_text_edits: Vec<TextEdit>,
     code_actions: Vec<CodeActionOrCommand>,
 }
 
@@ -118,6 +121,7 @@ impl<'a> CodeActionFinder<'a> {
             interner,
             nesting: 0,
             auto_import_line: 0,
+            unused_imports_text_edits: vec![],
             code_actions: vec![],
         }
     }
@@ -127,6 +131,17 @@ impl<'a> CodeActionFinder<'a> {
 
         if self.code_actions.is_empty() {
             return None;
+        }
+
+        // We also suggest a single "Remove all the unused imports" code action that combines all of the
+        // "Remove unused imports" (similar to Rust Analyzer)
+        if !self.unused_imports_text_edits.is_empty() {
+            let text_edits = std::mem::take(&mut self.unused_imports_text_edits);
+            let code_action = self.new_quick_fix_multiple_edits(
+                "Remove all the unused imports".to_string(),
+                text_edits,
+            );
+            self.code_actions.push(code_action);
         }
 
         let mut code_actions = std::mem::take(&mut self.code_actions);
@@ -141,8 +156,16 @@ impl<'a> CodeActionFinder<'a> {
     }
 
     fn new_quick_fix(&self, title: String, text_edit: TextEdit) -> CodeActionOrCommand {
+        self.new_quick_fix_multiple_edits(title, vec![text_edit])
+    }
+
+    fn new_quick_fix_multiple_edits(
+        &self,
+        title: String,
+        text_edits: Vec<TextEdit>,
+    ) -> CodeActionOrCommand {
         let mut changes = HashMap::new();
-        changes.insert(self.uri.clone(), vec![text_edit]);
+        changes.insert(self.uri.clone(), text_edits);
 
         let workspace_edit = WorkspaceEdit {
             changes: Some(changes),
@@ -206,6 +229,17 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         self.auto_import_line = old_auto_import_line;
 
         false
+    }
+
+    fn visit_import(
+        &mut self,
+        use_tree: &UseTree,
+        span: Span,
+        _visibility: ItemVisibility,
+    ) -> bool {
+        self.remove_unused_import(use_tree, span);
+
+        true
     }
 
     fn visit_path(&mut self, path: &Path) {
