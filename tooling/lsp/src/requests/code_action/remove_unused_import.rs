@@ -14,7 +14,12 @@ use crate::byte_span_to_range;
 use super::CodeActionFinder;
 
 impl<'a> CodeActionFinder<'a> {
-    pub(super) fn remove_unused_import(&mut self, use_tree: &UseTree, span: Span) {
+    pub(super) fn remove_unused_import(
+        &mut self,
+        use_tree: &UseTree,
+        visibility: ItemVisibility,
+        span: Span,
+    ) {
         if !self.includes_span(span) {
             return;
         }
@@ -41,7 +46,7 @@ impl<'a> CodeActionFinder<'a> {
                     } else {
                         "Remove unused imports".to_string()
                     },
-                    use_tree_to_string(use_tree, self.nesting),
+                    use_tree_to_string(use_tree, visibility, self.nesting),
                 ),
                 None => ("Remove the whole `use` item".to_string(), "".to_string()),
             };
@@ -114,12 +119,16 @@ fn use_tree_without_unused_import(
     }
 }
 
-fn use_tree_to_string(use_tree: UseTree, nesting: usize) -> String {
+fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: usize) -> String {
     // We are going to use the formatter to format the use tree
-    let source = format!("use {};", &use_tree);
+    let source = if visibility == ItemVisibility::Private {
+        format!("use {};", &use_tree)
+    } else {
+        format!("{} use {};", visibility, &use_tree)
+    };
     let parsed_module = ParsedModule {
         items: vec![Item {
-            kind: ItemKind::Import(use_tree, ItemVisibility::Private),
+            kind: ItemKind::Import(use_tree, visibility),
             span: Span::from(0..source.len() as u32),
             doc_comments: Vec::new(),
         }],
@@ -240,7 +249,7 @@ mod tests {
     }
 
     #[test]
-    async fn test_removes_multiple_import() {
+    async fn test_removes_multiple_imports() {
         let title = "Remove unused imports";
 
         let src = r#"
@@ -263,6 +272,37 @@ mod tests {
             fn baz() {}
         }
         use moo::bar;
+
+        fn main() {
+            bar();
+        }
+        "#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_removes_single_import_with_visibility() {
+        let title = "Remove unused import";
+
+        let src = r#"
+        mod moo {
+            fn foo() {}
+            fn bar() {}
+        }
+        pub use moo::{fo>|<o, bar};
+
+        fn main() {
+            bar();
+        }
+        "#;
+
+        let expected = r#"
+        mod moo {
+            fn foo() {}
+            fn bar() {}
+        }
+        pub use moo::bar;
 
         fn main() {
             bar();

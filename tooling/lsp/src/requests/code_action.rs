@@ -231,13 +231,8 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         false
     }
 
-    fn visit_import(
-        &mut self,
-        use_tree: &UseTree,
-        span: Span,
-        _visibility: ItemVisibility,
-    ) -> bool {
-        self.remove_unused_import(use_tree, span);
+    fn visit_import(&mut self, use_tree: &UseTree, span: Span, visibility: ItemVisibility) -> bool {
+        self.remove_unused_import(use_tree, visibility, span);
 
         true
     }
