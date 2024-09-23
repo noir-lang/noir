@@ -41,7 +41,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     for i in 0..num_limbs {
         let word_size_times_i = WORD_SIZE * i;
         for j in 0..WORD_SIZE / 2 {
-            let temp = block_bytes[word_size_times_i + 7 - j]; 
+            let temp = block_bytes[word_size_times_i + 7 - j];
             block_bytes[word_size_times_i + 7 - j] = block_bytes[word_size_times_i+j];
             block_bytes[word_size_times_i + j] = temp;
         }
