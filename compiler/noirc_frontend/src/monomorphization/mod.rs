@@ -301,7 +301,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
-            the_trait.self_type_typevar.force_bind(self_type, &types::Kind::Normal);
+            the_trait.self_type_typevar.force_bind(self_type);
         }
 
         let meta = self.interner.function_meta(&f).clone();
@@ -857,7 +857,7 @@ impl<'interner> Monomorphizer<'interner> {
         // Ensure all instantiation bindings are bound.
         // This ensures even unused type variables like `fn foo<T>() {}` have concrete types
         if let Some(bindings) = self.interner.try_get_instantiation_bindings(expr_id) {
-            for (_, _kind, binding) in bindings.values() {
+            for (_, binding) in bindings.values() {
                 Self::check_type(binding, ident.location)?;
             }
         }
@@ -916,12 +916,18 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Expression::Ident(ident)
                 }
             },
-            DefinitionKind::GenericType(type_variable, numeric_typ) => {
+            // TODO: After sync kinds PR
+            // DefinitionKind::GenericType(type_variable, numeric_typ) => {
+            DefinitionKind::GenericType(type_variable) => {
+                // TODO: After sync kinds PR
+                let numeric_typ = Box::new(Type::FieldElement);
+
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => Kind::Numeric(numeric_typ.clone()).ensure_value_fits(binding.evaluate_to_field_element()).unwrap_or_else(|| {
+                    // TODO: remove clone if possible
+                    TypeBinding::Bound(binding) => binding.evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone())).unwrap_or_else(|| {
                         panic!("Non-numeric type variable used in expression expecting a value")
                     }),
                 };
@@ -965,7 +971,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(binding, _, kind) => {
+            HirType::NamedGeneric(binding, _, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::convert_type(binding, location);
                 }
@@ -973,11 +979,11 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                binding.bind(HirType::default_int_or_field_type(), kind);
+                binding.bind(HirType::default_int_or_field_type());
                 ast::Type::Field
             }
 
-            HirType::TypeVariable(binding, type_var_kind) => {
+            HirType::TypeVariable(binding, kind) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::convert_type(binding, location);
                 }
@@ -985,13 +991,13 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
+                let default = match kind.default_type() {
                     Some(typ) => typ,
                     None => return Err(MonomorphizationError::NoDefaultType { location }),
                 };
 
                 let monomorphized_default = Self::convert_type(&default, location)?;
-                binding.bind(default, &type_var_kind.kind());
+                binding.bind(default);
                 monomorphized_default
             }
 
@@ -1439,9 +1445,9 @@ impl<'interner> Monomorphizer<'interner> {
     fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
         bindings
             .iter()
-            .map(|(id, (var, kind, binding))| {
+            .map(|(id, (var, binding))| {
                 let binding2 = binding.follow_bindings();
-                (*id, (var.clone(), kind.clone(), binding2))
+                (*id, (var.clone(), binding2))
             })
             .collect()
     }
@@ -1767,8 +1773,7 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            // TODO remove "??"
-            (self.next_local_id(), false, "_??".into(), parameter_type.clone())
+            (self.next_local_id(), false, "_".into(), parameter_type.clone())
         });
 
         let body = self.zeroed_value_of_type(ret_type, location);
@@ -1909,13 +1914,13 @@ fn unwrap_struct_type(
 }
 
 pub fn perform_instantiation_bindings(bindings: &TypeBindings) {
-    for (var, kind, binding) in bindings.values() {
-        var.force_bind(binding.clone(), kind);
+    for (var, binding) in bindings.values() {
+        var.force_bind(binding.clone());
     }
 }
 
 pub fn undo_instantiation_bindings(bindings: TypeBindings) {
-    for (id, (var, _, _)) in bindings {
+    for (id, (var, _)) in bindings {
         var.unbind(id);
     }
 }
@@ -1943,7 +1948,7 @@ pub fn perform_impl_bindings(
             interner.function_meta(&impl_method).typ.unwrap_forall().1.clone();
 
         // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
-        // with the same internal id, binding.
+        // with the same internal id and binding.
         trait_method_type.replace_named_generics_with_type_variables();
         impl_method_type.replace_named_generics_with_type_variables();
 

@@ -287,12 +287,12 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
-            ResolvedGeneric { type_var: trait_fn_generic, kind: trait_fn_kind, .. },
+            ResolvedGeneric { type_var: trait_fn_generic, .. },
             ResolvedGeneric { name, type_var: impl_fn_generic, kind, .. },
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), kind.clone());
-            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind.clone(), arg));
+            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);

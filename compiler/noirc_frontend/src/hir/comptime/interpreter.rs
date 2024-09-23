@@ -34,11 +34,10 @@ use crate::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
             HirPattern,
         },
-        types::Kind,
     },
     macros_api::{HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
-    Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
+    Kind, Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use super::errors::{IResult, InterpreterError};
@@ -90,7 +89,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, _kind, binding) in instantiation_bindings.values_mut() {
+        for (_, binding) in instantiation_bindings.values_mut() {
             *binding = binding.follow_bindings();
         }
 
@@ -99,7 +98,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, _kind, binding) in impl_bindings.values_mut() {
+        for (_, binding) in impl_bindings.values_mut() {
             *binding = binding.follow_bindings();
         }
 
@@ -350,7 +349,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if let Some(bindings) = self.bound_generics.last() {
             for (var, binding) in bindings {
-                var.force_bind(binding.clone(), &Kind::Normal);
+                var.force_bind(binding.clone());
             }
         }
     }
@@ -361,11 +360,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .last_mut()
             .expect("remember_bindings called with no bound_generics on the stack");
 
-        for (var, _kind, binding) in main_bindings.values() {
+        for (var, binding) in main_bindings.values() {
             bound_generics.insert(var.clone(), binding.follow_bindings());
         }
 
-        for (var, _kind, binding) in impl_bindings.values() {
+        for (var, binding) in impl_bindings.values() {
             bound_generics.insert(var.clone(), binding.follow_bindings());
         }
     }
@@ -583,11 +582,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(value)
                 }
             }
-            DefinitionKind::GenericType(type_variable, numeric_typ) => {
+            DefinitionKind::GenericType(type_variable) => {
+                // TODO: DefinitionKind::GenericType(_, numeric_typ) after sync-TypeVariableKind
+                let numeric_typ = Box::new(Type::FieldElement);
+
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => None,
-                    // TODO: fix clone
-                    TypeBinding::Bound(binding) => Kind::Numeric(numeric_typ.clone()).ensure_value_fits(binding.evaluate_to_field_element()),
+                    // TODO: remove clone if possible
+                    TypeBinding::Bound(binding) => binding.evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone())),
                 };
 
                 if let Some(value) = value {

@@ -38,7 +38,7 @@ use crate::hir_def::expr::HirIdent;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::hir_def::types::{Kind, StructType, Type};
+use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -580,7 +580,7 @@ pub enum DefinitionKind {
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
-    GenericType(TypeVariable, Box<Type>),
+    GenericType(TypeVariable),
 }
 
 impl DefinitionKind {
@@ -595,7 +595,7 @@ impl DefinitionKind {
             DefinitionKind::Function(_) => None,
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
-            DefinitionKind::GenericType(_, _) => None,
+            DefinitionKind::GenericType(_) => None,
         }
     }
 }
@@ -1731,7 +1731,7 @@ impl NodeInterner {
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
-            .map(|typevar| (typevar.id(), (typevar, Kind::Normal, self.next_type_variable())))
+            .map(|typevar| (typevar.id(), (typevar, self.next_type_variable())))
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);
@@ -2222,11 +2222,11 @@ impl NodeInterner {
         let trait_generics = the_trait.generics.clone();
 
         let self_type_var = the_trait.self_type_typevar.clone();
-        bindings.insert(self_type_var.id(), (self_type_var, Kind::Normal, impl_self_type));
+        bindings.insert(self_type_var.id(), (self_type_var, impl_self_type));
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
             let type_var = trait_generic.type_var.clone();
-            bindings.insert(type_var.id(), (type_var, trait_generic.kind.clone(), trait_impl_generic.clone()));
+            bindings.insert(type_var.id(), (type_var, trait_impl_generic.clone()));
         }
 
         // Now that the normal bindings are added, we still need to bind the associated types
@@ -2235,7 +2235,7 @@ impl NodeInterner {
 
         for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
             let type_variable = trait_type.type_var.clone();
-            bindings.insert(type_variable.id(), (type_variable, trait_type.kind.clone(), impl_type.typ.clone()));
+            bindings.insert(type_variable.id(), (type_variable, impl_type.typ.clone()));
         }
 
         bindings

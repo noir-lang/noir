@@ -360,7 +360,7 @@ impl<'context> Elaborator<'context> {
         // Introduce all numeric generics into scope
         for generic in &all_generics {
             if let Kind::Numeric(typ) = &generic.kind {
-                let definition = DefinitionKind::GenericType(generic.type_var.clone(), typ.clone());
+                let definition = DefinitionKind::GenericType(generic.type_var.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
                 let hir_ident =
                     self.add_variable_decl_inner(ident, false, false, false, definition);
@@ -471,9 +471,9 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
 
         for typ in context.type_variables {
-            if let Type::TypeVariable(variable, type_var_kind) = typ.follow_bindings() {
+            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(type_var_kind.default_type().expect(msg), &type_var_kind.kind());
+                variable.bind(kind.default_type().expect(msg));
             }
         }
 

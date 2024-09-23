@@ -59,18 +59,6 @@ impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        // TODO: cleanup
-        let dbg_this = match &typ.typ {
-            UnresolvedTypeData::Integer(..) => true,
-            UnresolvedTypeData::Named(..) => true,
-            UnresolvedTypeData::FieldElement => true,
-            UnresolvedTypeData::Expression(..) => true,
-            _ => false,
-        };
-        if dbg_this {
-            dbg!("resolve_type_inner", &typ, kind);
-        }
-
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
@@ -181,12 +169,14 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        if !kind.unifies(&resolved_type.kind()) {
+        if !kind.matches_opt(resolved_type.kind()) {
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.to_string(),
                 expr_kind: resolved_type
                     .kind()
-                    .to_string(),
+                    .as_ref()
+                    .map(Kind::to_string)
+                    .unwrap_or("unknown".to_string()),
                 expr_span: span,
             });
             self.errors.push((expected_typ_err, self.file));
@@ -240,9 +230,6 @@ impl<'context> Elaborator<'context> {
                     return self_type;
                 }
             } else if name == WILDCARD_TYPE {
-                // TODO: cleanup
-                dbg!("resolve_named_type: WILDCARD_TYPE", &name);
-
                 return self.interner.next_type_variable();
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
@@ -483,13 +470,15 @@ impl<'context> Elaborator<'context> {
     }
 
     fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
-        if !typ.kind().unifies(expected_kind) {
-            self.push_err(TypeCheckError::TypeKindMismatch {
-                expected_kind: expected_kind.to_string(),
-                expr_kind: typ.kind().to_string(),
-                expr_span: span,
-            });
-            return Type::Error;
+        if let Some(kind) = typ.kind() {
+            if !kind.unifies(expected_kind) {
+                self.push_err(TypeCheckError::TypeKindMismatch {
+                    expected_kind: expected_kind.to_string(),
+                    expr_kind: kind.to_string(),
+                    expr_span: span,
+                });
+                return Type::Error;
+            }
         }
         typ
     }
@@ -708,33 +697,12 @@ impl<'context> Elaborator<'context> {
         typ
     }
 
-    /// Return a fresh integer type variable and log it
-    /// in self.type_variables to default it later.
-    pub(super) fn type_variable_with_kind(&mut self, type_var_kind: TypeVariableKind) -> Type {
-        let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
-        self.push_type_variable(typ.clone());
-        typ
-    }
-
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
-        // TODO: cleanup
-        //
-        // match &typ.typ {
-        //     UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
-        //     _ => self.resolve_type(typ),
-        // }
-        //
         match &typ.typ {
-            UnresolvedTypeData::Unspecified => {
-                dbg!("resolve_inferred_type: unspecified", &typ);
-                self.interner.next_type_variable()
-            }
-            _ => {
-                // dbg!("resolve_inferred_type: specified", &typ);
-                self.resolve_type(typ)
-            }
+            UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
+            _ => self.resolve_type(typ),
         }
     }
 
@@ -827,15 +795,13 @@ impl<'context> Elaborator<'context> {
                     return self.bind_function_type(typ.clone(), args, span);
                 }
 
-                // TODO: cleanup
-                dbg!("bind_function_type", &binding);
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
                 let expected =
                     Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
-                if let Err(error) = binding.try_bind(expected, &Kind::Normal, span) {
+                if let Err(error) = binding.try_bind(expected, span) {
                     self.push_err(error);
                 }
                 ret
@@ -864,7 +830,7 @@ impl<'context> Elaborator<'context> {
             Type::TypeVariable(_, _) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
-                let expected = self.polymorphic_integer_or_field();
+                let expected = Type::polymorphic_integer_or_field(self.interner);
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
@@ -977,14 +943,14 @@ impl<'context> Elaborator<'context> {
             span,
         });
 
-        let use_impl = !lhs_type.is_numeric_value();
+        let use_impl = !lhs_type.is_numeric();
 
         // If this operator isn't valid for fields we have to possibly narrow
         // TypeVariableKind::IntegerOrField to TypeVariableKind::Integer.
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
-        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
-            let target = self.polymorphic_integer();
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
+            let target = Type::polymorphic_integer(self.interner);
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
@@ -1032,8 +998,8 @@ impl<'context> Elaborator<'context> {
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
                         || TypeCheckError::InvalidShiftSize { span },
                     );
-                    let use_impl = if lhs_type.is_numeric_value() {
-                        let integer_type = self.polymorphic_integer();
+                    let use_impl = if lhs_type.is_numeric() {
+                        let integer_type = Type::polymorphic_integer(self.interner);
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
                         true
@@ -1132,14 +1098,14 @@ impl<'context> Elaborator<'context> {
 
                         // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
-                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric_value() {
+                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
                             });
                         }
 
-                        Ok((rhs_type.clone(), !rhs_type.is_numeric_value()))
+                        Ok((rhs_type.clone(), !rhs_type.is_numeric()))
                     }
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
@@ -1221,7 +1187,7 @@ impl<'context> Elaborator<'context> {
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
                 the_trait.self_type_typevar.id(),
-                (the_trait.self_type_typevar.clone(), Kind::Normal, object_type.clone()),
+                (the_trait.self_type_typevar.clone(), object_type.clone()),
             );
             self.interner.select_impl_for_expression(
                 expr_id,
@@ -1786,7 +1752,7 @@ impl<'context> Elaborator<'context> {
         for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
             // Avoid binding t = t
             if !arg.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind.clone(), arg.clone()));
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
             }
         }
 
@@ -1805,7 +1771,7 @@ impl<'context> Elaborator<'context> {
 
             // Avoid binding t = t
             if !arg.typ.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind.clone(), arg.typ.clone()));
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.typ.clone()));
             }
         }
 
@@ -1814,8 +1780,7 @@ impl<'context> Elaborator<'context> {
         // to specify a redundant type annotation.
         if assumed {
             let self_type = the_trait.self_type_typevar.clone();
-            // self_type has Kind::Normal
-            bindings.insert(self_type.id(), (self_type, Kind::Normal, constraint.typ.clone()));
+            bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
         }
     }
 }
