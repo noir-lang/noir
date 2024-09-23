@@ -869,7 +869,6 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            self.builder.increment_array_reference_count(array);
             array = self.builder.insert_array_set(array, index, value);
             index = self.builder.insert_binary(index, BinaryOp::Add, one);
         });
