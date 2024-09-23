@@ -630,7 +630,6 @@ impl<'f> PerFunctionContext<'f> {
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
                 assert_eq!(destination_parameters.len(), arguments.len());
-                // let parameters_set = destination_parameters.iter().collect::<HashSet<_>>();
 
                 // If we have multiple parameters that alias that same argument value,
                 // then those parameters also alias each other.
