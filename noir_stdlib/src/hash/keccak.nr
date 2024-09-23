@@ -3,7 +3,7 @@ use crate::runtime::is_unconstrained;
 
 global BLOCK_SIZE_IN_BYTES: u32 = 136; //(1600 - BITS * 2) / WORD_SIZE;
 global WORD_SIZE: u32 = 8; // Limbs are made up of u64s so 8 bytes each.
-global LIMBS_PER_BLOCK: u32 = BLOCK_SIZE_IN_BYTES / WORD_SIZE; 
+global LIMBS_PER_BLOCK: u32 = BLOCK_SIZE_IN_BYTES / WORD_SIZE;
 global NUM_KECCAK_LANES: u32 = 25;
 
 #[foreign(keccakf1600)]
@@ -40,7 +40,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     let mut sliced_buffer = Vec::new();
     for i in 0..num_limbs {
         let limb_start = WORD_SIZE * i;
-        
+
         let mut sliced = 0;
         let mut v = 1;
         for k in 0..WORD_SIZE {
