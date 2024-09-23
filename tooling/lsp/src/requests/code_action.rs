@@ -29,7 +29,6 @@ use super::{process_request, to_lsp_location};
 mod fill_struct_fields;
 mod implement_missing_members;
 mod import_or_qualify;
-#[cfg(test)]
 mod tests;
 
 pub(crate) fn on_code_action_request(
