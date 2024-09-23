@@ -3748,3 +3748,26 @@ fn macro_result_type_mismatch() {
         CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
     ));
 }
+
+#[test]
+fn errors_once_on_unused_import_that_is_not_accessible() {
+    // Tests that we don't get an "unused import" here given that the import is not accessible
+    let src = r#"
+        mod moo {
+            struct Foo {}
+        }
+
+        use moo::Foo;
+
+        fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::PathResolutionError(
+            PathResolutionError::Private { .. }
+        ))
+    ));
+}
