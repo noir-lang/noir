@@ -336,7 +336,7 @@ impl Display for UseTree {
 
                 write!(f, "{name}")?;
 
-                while let Some(alias) = alias {
+                if let Some(alias) = alias {
                     write!(f, " as {alias}")?;
                 }
 
