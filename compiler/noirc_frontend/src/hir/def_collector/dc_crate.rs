@@ -424,17 +424,17 @@ impl DefCollector {
                                 UnusedItem::Import,
                                 visibility,
                             );
-                        }
 
-                        if visibility != ItemVisibility::Private {
-                            let local_id = resolved_import.module_scope;
-                            let defining_module = ModuleId { krate: crate_id, local_id };
-                            context.def_interner.register_name_for_auto_import(
-                                name.to_string(),
-                                module_def_id,
-                                visibility,
-                                Some(defining_module),
-                            );
+                            if visibility != ItemVisibility::Private {
+                                let local_id = resolved_import.module_scope;
+                                let defining_module = ModuleId { krate: crate_id, local_id };
+                                context.def_interner.register_name_for_auto_import(
+                                    name.to_string(),
+                                    module_def_id,
+                                    visibility,
+                                    Some(defining_module),
+                                );
+                            }
                         }
 
                         let last_segment = collected_import.path.last_ident();
