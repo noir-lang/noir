@@ -39,11 +39,12 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     // means we need to swap our byte ordering
     let num_limbs = max_blocks * LIMBS_PER_BLOCK; //max_blocks_length / WORD_SIZE;
     for i in 0..num_limbs {
-        let word_size_times_i = WORD_SIZE * i;
+        let limb_start = WORD_SIZE * i;
+        let limb_end: u32 = limb_start + (WORD_SIZE - 1);
         for j in 0..WORD_SIZE / 2 {
-            let temp = block_bytes[word_size_times_i + 7 - j];
-            block_bytes[word_size_times_i + 7 - j] = block_bytes[word_size_times_i+j];
-            block_bytes[word_size_times_i + j] = temp;
+            let temp = block_bytes[limb_end - j];
+            block_bytes[limb_end - j] = block_bytes[limb_start+j];
+            block_bytes[limb_start + j] = temp;
         }
     }
 
@@ -154,4 +155,3 @@ mod tests {
         assert_eq(keccak256(input, 13), result);
     }
 }
-
