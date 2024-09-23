@@ -135,7 +135,7 @@ impl<'a> CodeActionFinder<'a> {
 
         // We also suggest a single "Remove all the unused imports" code action that combines all of the
         // "Remove unused imports" (similar to Rust Analyzer)
-        if !self.unused_imports_text_edits.is_empty() {
+        if self.unused_imports_text_edits.len() > 1 {
             let text_edits = std::mem::take(&mut self.unused_imports_text_edits);
             let code_action = self.new_quick_fix_multiple_edits(
                 "Remove all the unused imports".to_string(),
