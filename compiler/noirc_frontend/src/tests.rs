@@ -3766,7 +3766,7 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::PathResolutionError(
+        CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
             PathResolutionError::Private { .. }
         ))
     ));
