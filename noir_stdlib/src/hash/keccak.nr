@@ -51,15 +51,15 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     let mut sliced_buffer = Vec::new();
     // populate a vector of 64-bit limbs from our byte array
     for i in 0..num_limbs {
-        let word_size_times_i = i * WORD_SIZE;
-        let ws_times_i_plus_7 = word_size_times_i + 7;
+        let limb_start = WORD_SIZE * i;
+        let limb_end: u32 = limb_start + (WORD_SIZE - 1);
         let mut sliced = 0;
-        if (word_size_times_i + WORD_SIZE > max_blocks_length) {
-            let slice_size = max_blocks_length - word_size_times_i;
+        if (limb_start + WORD_SIZE > max_blocks_length) {
+            let slice_size = max_blocks_length - limb_start;
             let byte_shift = (WORD_SIZE - slice_size) * 8;
             let mut v = 1;
             for k in 0..slice_size {
-                sliced += v * (block_bytes[ws_times_i_plus_7-k] as Field);
+                sliced += v * (block_bytes[limb_end-k] as Field);
                 v *= 256;
             }
             let w = 1 << (byte_shift as u8);
@@ -67,7 +67,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
         } else {
             let mut v = 1;
             for k in 0..WORD_SIZE {
-                sliced += v * (block_bytes[ws_times_i_plus_7-k] as Field);
+                sliced += v * (block_bytes[limb_end-k] as Field);
                 v *= 256;
             }
         }
