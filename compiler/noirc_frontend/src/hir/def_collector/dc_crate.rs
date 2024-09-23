@@ -499,7 +499,7 @@ impl DefCollector {
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        let unused_imports = context.def_interner.usage_tracker.unused_items().iter();
+        let unused_imports = context.def_interner.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
