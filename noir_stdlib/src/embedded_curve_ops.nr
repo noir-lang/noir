@@ -125,20 +125,63 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
     multi_scalar_mul([g1], [scalar])
 }
 
-// This is a hack as returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
+/// This function only assumes that the points are on the curve
+/// It handles corner cases around the infinity point causing some overhead compared to embedded_curve_add_not_nul and embedded_curve_add_unsafe
+// This is a hack because returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
 // as is defined in the brillig bytecode format. This is a workaround which allows us to fix this without modifying the serialization format.
 // docs:start:embedded_curve_add
-fn embedded_curve_add(
-    point1: EmbeddedCurvePoint,
-    point2: EmbeddedCurvePoint
-) -> EmbeddedCurvePoint
-// docs:end:embedded_curve_add
-{
-    let point_array = embedded_curve_add_array_return(point1, point2);
-    let x = point_array[0];
-    let y = point_array[1];
-    EmbeddedCurvePoint { x, y, is_infinite: point_array[2] == 1 }
+pub fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
+    // docs:end:embedded_curve_add
+    let x_coordinates_match = point1.x == point2.x;
+    let y_coordinates_match = point1.y == point2.y;
+    let double_predicate = (x_coordinates_match & y_coordinates_match);
+    let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
+    let point1_1 = EmbeddedCurvePoint { x: point1.x + (x_coordinates_match as Field), y: point1.y, is_infinite: x_coordinates_match };
+    // point1_1 is guaranteed to have a different abscissa than point2
+    let mut result = embedded_curve_add_unsafe(point1_1, point2);
+    result.is_infinite = x_coordinates_match;
+
+    // dbl if x_match, y_match
+    let double = embedded_curve_add_unsafe(point1, point1);
+    result = if double_predicate { double } else { result };
+
+    // infinity if x_match, !y_match
+    if point1.is_infinite {
+        result= point2;
+    }
+    if point2.is_infinite {
+        result = point1;
+    }
+    let mut result_is_infinity = infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
+    result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
+    result
 }
 
 #[foreign(embedded_curve_add)]
 fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 3] {}
+
+/// This function assumes that:
+/// The points are on the curve, and
+/// The points don't share an x-coordinate, and
+/// Neither point is the infinity point.
+/// If it is used with correct input, the function ensures the correct non-zero result is returned.
+/// Except for points on the curve, the other assumptions are checked by the function. It will cause assertion failure if they are not respected.
+pub fn embedded_curve_add_not_nul(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
+    assert(point1.x != point2.x);
+    assert(!point1.is_infinite);
+    assert(!point2.is_infinite);
+    embedded_curve_add_unsafe(point1, point2)
+}
+
+/// Unsafe ec addition
+/// If the inputs are the same, it will perform a doubling, but only if point1 and point2 are the same variable.
+/// If they have the same value but are different variables, the result will be incorrect because in this case
+/// it assumes (but does not check) that the points' x-coordinates are not equal.
+/// It also assumes neither point is the infinity point.
+pub fn embedded_curve_add_unsafe(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
+    let point_array = embedded_curve_add_array_return(point1, point2);
+    let x = point_array[0];
+    let y = point_array[1];
+
+    EmbeddedCurvePoint { x, y, is_infinite: false }
+}

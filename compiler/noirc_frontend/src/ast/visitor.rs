@@ -271,7 +271,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_import(&mut self, _: &UseTree, _visibility: ItemVisibility) -> bool {
+    fn visit_import(&mut self, _: &UseTree, _: Span, _visibility: ItemVisibility) -> bool {
         true
     }
 
@@ -506,7 +506,7 @@ impl Item {
             }
             ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
             ItemKind::Import(use_tree, visibility) => {
-                if visitor.visit_import(use_tree, *visibility) {
+                if visitor.visit_import(use_tree, self.span, *visibility) {
                     use_tree.accept(visitor);
                 }
             }
@@ -1117,11 +1117,7 @@ impl ConstrainStatement {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.0.accept(visitor);
-
-        if let Some(exp) = &self.1 {
-            exp.accept(visitor);
-        }
+        visit_expressions(&self.arguments, visitor);
     }
 }
 

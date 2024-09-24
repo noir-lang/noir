@@ -28,6 +28,7 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::macros_api::ModuleDefId;
 use crate::macros_api::UnaryOp;
+use crate::usage_tracker::UnusedItem;
 use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
 
@@ -361,7 +362,16 @@ pub enum ImplSearchErrorKind {
 #[derive(Default, Debug, Clone)]
 pub struct Methods {
     pub direct: Vec<FuncId>,
-    pub trait_impl_methods: Vec<FuncId>,
+    pub trait_impl_methods: Vec<TraitImplMethod>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TraitImplMethod {
+    // This type is only stored for primitive types to be able to
+    // select the correct static methods between multiple options keyed
+    // under TypeMethodKey::FieldOrInt
+    pub typ: Option<Type>,
+    pub method: FuncId,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -1383,7 +1393,7 @@ impl NodeInterner {
                     .or_default()
                     .entry(method_name)
                     .or_default()
-                    .add_method(method_id, is_trait_method);
+                    .add_method(method_id, None, is_trait_method);
                 None
             }
             Type::Error => None,
@@ -1395,12 +1405,16 @@ impl NodeInterner {
                 let key = get_type_method_key(self_type).unwrap_or_else(|| {
                     unreachable!("Cannot add a method to the unsupported type '{}'", other)
                 });
+                // Only remember the actual type if it's FieldOrInt,
+                // so later we can disambiguate on calls like `u32::call`.
+                let typ =
+                    if key == TypeMethodKey::FieldOrInt { Some(self_type.clone()) } else { None };
                 self.primitive_methods
                     .entry(key)
                     .or_default()
                     .entry(method_name)
                     .or_default()
-                    .add_method(method_id, is_trait_method);
+                    .add_method(method_id, typ, is_trait_method);
                 None
             }
         }
@@ -2236,6 +2250,12 @@ impl NodeInterner {
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
     }
+
+    pub fn unused_items(
+        &self,
+    ) -> &std::collections::HashMap<ModuleId, std::collections::HashMap<Ident, UnusedItem>> {
+        self.usage_tracker.unused_items()
+    }
 }
 
 impl Methods {
@@ -2246,23 +2266,29 @@ impl Methods {
         if self.direct.len() == 1 {
             Some(self.direct[0])
         } else if self.direct.is_empty() && self.trait_impl_methods.len() == 1 {
-            Some(self.trait_impl_methods[0])
+            Some(self.trait_impl_methods[0].method)
         } else {
             None
         }
     }
 
-    fn add_method(&mut self, method: FuncId, is_trait_method: bool) {
+    fn add_method(&mut self, method: FuncId, typ: Option<Type>, is_trait_method: bool) {
         if is_trait_method {
-            self.trait_impl_methods.push(method);
+            let trait_impl_method = TraitImplMethod { typ, method };
+            self.trait_impl_methods.push(trait_impl_method);
         } else {
             self.direct.push(method);
         }
     }
 
     /// Iterate through each method, starting with the direct methods
-    pub fn iter(&self) -> impl Iterator<Item = FuncId> + '_ {
-        self.direct.iter().copied().chain(self.trait_impl_methods.iter().copied())
+    pub fn iter(&self) -> impl Iterator<Item = (FuncId, &Option<Type>)> + '_ {
+        let trait_impl_methods = self.trait_impl_methods.iter().map(|m| (m.method, &m.typ));
+        let direct = self.direct.iter().copied().map(|func_id| {
+            let typ: &Option<Type> = &None;
+            (func_id, typ)
+        });
+        direct.chain(trait_impl_methods)
     }
 
     /// Select the 1 matching method with an object type matching `typ`
@@ -2274,28 +2300,32 @@ impl Methods {
     ) -> Option<FuncId> {
         // When adding methods we always check they do not overlap, so there should be
         // at most 1 matching method in this list.
-        for method in self.iter() {
+        for (method, method_type) in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _, _) => {
                     if has_self_param {
                         if let Some(object) = args.first() {
-                            let mut bindings = TypeBindings::new();
-
-                            if object.try_unify(typ, &mut bindings).is_ok() {
-                                Type::apply_type_bindings(bindings);
+                            if object.unify(typ).is_ok() {
                                 return Some(method);
                             }
                         }
                     } else {
-                        // Just return the first method whose name matches since we
-                        // can't match object types on static methods.
-                        return Some(method);
+                        // If we recorded the concrete type this trait impl method belongs to,
+                        // and it matches typ, it's an exact match and we return that.
+                        if let Some(method_type) = method_type {
+                            if method_type.unify(typ).is_ok() {
+                                return Some(method);
+                            }
+                        } else {
+                            return Some(method);
+                        }
                     }
                 }
                 Type::Error => (),
                 other => unreachable!("Expected function type, found {other}"),
             }
         }
+
         None
     }
 }

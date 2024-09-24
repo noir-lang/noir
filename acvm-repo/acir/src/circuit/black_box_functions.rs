@@ -164,7 +164,15 @@ pub enum BlackBoxFunc {
     /// ultimately fail.
     RecursiveAggregation,
 
-    /// Addition over the embedded curve on which the witness is defined.
+    /// Addition over the embedded curve on which the witness is defined
+    /// The opcode makes the following assumptions but does not enforce them because
+    /// it is more efficient to do it only when required. For instance, adding two
+    /// points that are on the curve it guarantee to give a point on the curve.
+    ///
+    /// It assumes that the points are on the curve.
+    /// If the inputs are the same witnesses index, it will perform a doubling,
+    /// If not, it assumes that the points' x-coordinates are not equal.
+    /// It also assumes neither point is the infinity point.
     EmbeddedCurveAdd,
 
     /// BigInt addition
