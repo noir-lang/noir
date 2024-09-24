@@ -3769,7 +3769,7 @@ fn trait_unconstrained_methods_typechecked_correctly() {
             }
         }
 
-        fn main() {
+        unconstrained fn main() {
             assert_eq(2.foo() as Field, 2.identity());
         }
     "#;
