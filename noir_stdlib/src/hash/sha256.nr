@@ -36,11 +36,11 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
 
 unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u64, msg_start: u32) -> ([u8; 64], u64) {
     let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
-    let msg_byte_ptr: u32 = if msg_start + message_size as u32 > N {N} else {message_size as u32};
-    for k in 0..msg_byte_ptr {
+    let msg_byte_ptr: u64 = msg_start as u64 + message_size;
+    for k in 0..message_size as u32 {
         msg_block[k] = msg[msg_start + k];
     }
-    (msg_block, msg_byte_ptr as u64)
+    (msg_block, msg_byte_ptr)
 }
 
 // Verify the block we are compressing was appropriately constructed
