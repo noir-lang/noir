@@ -221,7 +221,6 @@ unconstrained fn pad_msg_block(
     } else {
         (msg_block, msg_byte_ptr)
     }
-    
 }
 
 unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; BLOCK_SIZE], msg_byte_ptr: u32, message_size: u32) -> [u8; BLOCK_SIZE] {
