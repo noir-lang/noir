@@ -84,6 +84,18 @@ impl UnresolvedGeneric {
         }
     }
 
+    pub fn type_variable_kind(&self) -> TypeVariableKind {
+        match self {
+            UnresolvedGeneric::Variable(_) => TypeVariableKind::Normal,
+            UnresolvedGeneric::Numeric { typ, .. } => {
+                let typ = self.resolve_numeric_kind_type(typ)?;
+                TypeVariableKind::Numeric(Box::new(typ))
+            }
+            // TODO: do we need kind info here?
+            UnresolvedGeneric::Resolved(..) => TypeVariableKind::Normal,
+        }
+    }
+
     pub fn kind(&self) -> Result<Kind, DefCollectorErrorKind> {
         match self {
             UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),

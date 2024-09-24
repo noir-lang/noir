@@ -280,7 +280,8 @@ impl Context<'_, '_> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
-            let type_var = TypeVariable::unbound(id);
+            let type_var_kind = generic.type_variable_kind();
+            let type_var = TypeVariable::unbound(id, type_var_kind);
             let ident = generic.ident();
             let span = ident.0.span();
 

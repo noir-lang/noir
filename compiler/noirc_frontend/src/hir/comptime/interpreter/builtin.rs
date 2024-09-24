@@ -401,7 +401,8 @@ fn struct_def_add_generic(
         }
     }
 
-    let type_var = TypeVariable::unbound(interner.next_type_variable_id());
+    let type_var_kind = TypeVariableKind::Normal;
+    let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
     let span = generic_location.span;
     let kind = Kind::Normal;
     let typ = Type::NamedGeneric(type_var.clone(), name.clone(), kind.clone());
@@ -1200,7 +1201,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
             Ok(Value::Pointer(Shared::new(element), false))
         }
         // Optimistically assume we can resolve this type later or that the value is unused
-        Type::TypeVariable(_, _)
+        Type::TypeVariable(_)
         | Type::Forall(_, _)
         | Type::Constant(..)
         | Type::InfixExpr(..)

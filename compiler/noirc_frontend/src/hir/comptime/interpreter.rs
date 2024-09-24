@@ -585,7 +585,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             DefinitionKind::GenericType(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_) => None,
+                    TypeBinding::Unbound(_, _) => None,
                     TypeBinding::Bound(binding) => binding.evaluate_to_u32(),
                 };
 
@@ -594,7 +594,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     self.evaluate_integer((value as u128).into(), false, id)
                 } else {
                     let location = self.elaborator.interner.expr_location(&id);
-                    let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
+                    let typ = Type::TypeVariable(type_variable.clone());
                     Err(InterpreterError::NonIntegerArrayLength { typ, location })
                 }
             }
@@ -753,14 +753,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::I64(value))
                 }
             }
-        } else if let Type::TypeVariable(variable, TypeVariableKind::IntegerOrField) = &typ {
+        } else if let Type::TypeVariable(variable) = &typ && variable.is_integer_or_field() {
             Ok(Value::Field(value))
-        } else if let Type::TypeVariable(variable, TypeVariableKind::Integer) = &typ {
+        } else if let Type::TypeVariable(variable) = &typ && variable.is_integer() {
             let value: u64 = value
                 .try_to_u64()
                 .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
             let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
             Ok(Value::U64(value))
+
         } else {
             Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
         }

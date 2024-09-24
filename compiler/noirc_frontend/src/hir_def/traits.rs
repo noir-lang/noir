@@ -168,7 +168,7 @@ impl Trait {
         });
 
         TraitConstraint {
-            typ: Type::TypeVariable(self.self_type_typevar.clone(), TypeVariableKind::Normal),
+            typ: Type::TypeVariable(self.self_type_typevar.clone()),
             trait_generics: TraitGenerics { ordered, named },
             trait_id: self.id,
             span,

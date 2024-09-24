@@ -918,7 +918,7 @@ impl<'interner> Monomorphizer<'interner> {
             },
             DefinitionKind::GenericType(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_) => {
+                    TypeBinding::Unbound(_, _) => {
                         unreachable!("Unbound type variable used in expression")
                     }
                     TypeBinding::Bound(binding) => binding.evaluate_to_u32().unwrap_or_else(|| {
@@ -985,10 +985,13 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Field
             }
 
-            HirType::TypeVariable(binding, type_var_kind) => {
-                if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return Self::convert_type(binding, location);
-                }
+            HirType::TypeVariable(binding) => {
+                let type_var_kind = match &*binding.borrow() {
+                    TypeBinding::Bound(ref binding) => {
+                        return Self::convert_type(binding, location);
+                    }
+                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind,
+                };
 
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
@@ -1092,22 +1095,25 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
             HirType::NamedGeneric(binding, _, _) => {
-                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                if let TypeBinding::Bound(ref binding) = &*binding.borrow() {
                     return Self::check_type(binding, location);
                 }
 
                 Ok(())
             }
 
-            HirType::TypeVariable(binding, kind) => {
-                if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return Self::check_type(binding, location);
-                }
+            HirType::TypeVariable(binding) => {
+                let type_var_kind = match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        return Self::check_type(binding, location);
+                    }
+                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind,
+                };
 
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match kind.default_type() {
+                let default = match type_var_kind.default_type() {
                     Some(typ) => typ,
                     None => return Err(MonomorphizationError::NoDefaultType { location }),
                 };
@@ -1923,8 +1929,8 @@ pub fn perform_instantiation_bindings(bindings: &TypeBindings) {
 }
 
 pub fn undo_instantiation_bindings(bindings: TypeBindings) {
-    for (id, (var, _, _)) in bindings {
-        var.unbind(id);
+    for (id, (var, kind, _)) in bindings {
+        var.unbind(id, kind);
     }
 }
 

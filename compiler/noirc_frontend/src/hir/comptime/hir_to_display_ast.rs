@@ -315,10 +315,10 @@ impl Type {
                 let name = Path::from_ident(type_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
-            Type::TypeVariable(binding, kind) => match &*binding.borrow() {
+            Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
-                TypeBinding::Unbound(id) => {
-                    let name = format!("var_{:?}_{}", kind, id);
+                TypeBinding::Unbound(id, type_var_kind) => {
+                    let name = format!("var_{:?}_{}", type_var_kind, id);
                     let path = Path::from_single(name, Span::empty(0));
                     let expression = UnresolvedTypeExpression::Variable(path);
                     UnresolvedTypeData::Expression(expression)
