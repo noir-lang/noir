@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use acvm::FieldElement;
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
@@ -177,25 +176,6 @@ impl Kind {
             Ok(())
         } else {
             Err(UnificationError)
-        }
-    }
-
-    /// Ensure the given value fits in max(u32::MAX, max_of_self)
-    pub(crate) fn ensure_value_fits<T: Clone + Into<FieldElement>>(&self, value: T) -> Option<T> {
-        match self {
-            Self::Normal => Some(value),
-            Self::Numeric(typ) => {
-                match typ.integral_maximum_size() {
-                    None => Some(value),
-                    Some(maximum_size) => {
-                        if value.clone().into() <= maximum_size {
-                            Some(value)
-                        } else {
-                            None
-                        }
-                    }
-                }
-            },
         }
     }
 }
@@ -1784,15 +1764,15 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self) -> Option<u32> {
-        if let Some((binding, kind)) = self.get_inner_type_variable() {
+        if let Some((binding, _kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                return binding.evaluate_to_u32().and_then(|result| kind.ensure_value_fits(result));
+                return binding.evaluate_to_u32();
             }
         }
 
         match self.canonicalize() {
             Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x, kind) => kind.ensure_value_fits(x),
+            Type::Constant(x, _kind) => Some(x),
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs_u32 = lhs.evaluate_to_u32()?;
                 let rhs_u32 = rhs.evaluate_to_u32()?;
@@ -1802,11 +1782,6 @@ impl Type {
         }
     }
 
-    // TODO!
-    pub(crate) fn evaluate_to_field_element(&self) -> acvm::FieldElement {
-        unimplemented!("evaluate_to_field_element")
-    }
-    
     /// Iterate over the fields of this type.
     /// Panics if the type is not a struct or tuple.
     pub fn iter_fields(&self) -> impl Iterator<Item = (String, Type)> {
@@ -2317,30 +2292,6 @@ impl Type {
             _ => None,
         }
     }
-
-    fn integral_maximum_size(&self) -> Option<FieldElement> {
-        match self {
-            Type::FieldElement => Some(FieldElement::max_value()),
-            Type::Integer(sign, num_bits) => {
-                let mut max_bit_size = num_bits.bit_size();
-                if sign == &Signedness::Signed {
-                    max_bit_size >>= 1;
-                }
-                Some(((1u128 << max_bit_size) - 1).into())
-            }
-            Type::TypeVariable(binding, TypeVariableKind::Integer | TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => typ.integral_maximum_size(),
-                    TypeBinding::Unbound(_) => Some(FieldElement::max_value()),
-                }
-            }
-            Type::TypeVariable(_var, TypeVariableKind::Numeric(typ)) => typ.integral_maximum_size(),
-            Type::Alias(alias, _args) => alias.borrow().typ.integral_maximum_size(),
-            Type::Bool => Some(FieldElement::from(1u128)),
-            Type::NamedGeneric(_binding, _name, Kind::Numeric(typ)) => typ.integral_maximum_size(),
-            _ => None,
-        }
-    }
 }
 
 /// Wraps a given `expression` in `expression.as_slice()`
@@ -2378,15 +2329,15 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
-    pub fn function(self, a: u32, b: u32, kind: &Kind) -> Option<u32> {
-        let result = match self {
+    // TODO: the Kind is included since it'll be needed for size checks
+    pub fn function(self, a: u32, b: u32, _kind: &Kind) -> Option<u32> {
+        match self {
             BinaryTypeOperator::Addition => a.checked_add(b),
             BinaryTypeOperator::Subtraction => a.checked_sub(b),
             BinaryTypeOperator::Multiplication => a.checked_mul(b),
             BinaryTypeOperator::Division => a.checked_div(b),
             BinaryTypeOperator::Modulo => a.checked_rem(b),
-        };
-        result.and_then(|result| kind.ensure_value_fits(result))
+        }
     }
 
     fn is_commutative(self) -> bool {

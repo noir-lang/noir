@@ -921,13 +921,21 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Unbound(_) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => Kind::Numeric(numeric_typ.clone()).ensure_value_fits(binding.evaluate_to_field_element()).unwrap_or_else(|| {
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u32().unwrap_or_else(|| {
                         panic!("Non-numeric type variable used in expression expecting a value")
                     }),
                 };
                 let location = self.interner.id_location(expr_id);
+
+                // TODO: check that numeric_typ matches typ
+                // TODO: possible to remove clones?
+                if !Kind::Numeric(numeric_typ.clone()).unifies(&Kind::Numeric(Box::new(typ.clone()))) {
+                    let message = "ICE: Generic's kind does not match expected type";
+                    return Err(MonomorphizationError::InternalError { location, message });
+                }
+
                 let typ = Self::convert_type(&typ, ident.location)?;
-                ast::Expression::Literal(ast::Literal::Integer(value, false, typ, location))
+                ast::Expression::Literal(ast::Literal::Integer((value as u128).into(), false, typ, location))
             }
         };
 

@@ -15,7 +15,7 @@ use crate::{
     },
     macros_api::{Expression, ExpressionKind, HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    ResolvedGeneric, Shared, StructType, Type, TypeBindings, TypeVariable, TypeVariableKind,
+    ResolvedGeneric, Shared, StructType, Type, TypeBindings, TypeVariableKind,
 };
 
 use super::{Elaborator, ResolverMeta};

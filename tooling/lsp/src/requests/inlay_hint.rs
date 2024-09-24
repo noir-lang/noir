@@ -477,6 +477,13 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 push_type_variable_parts(binding, parts, files);
             }
         }
+        Type::TypeVariable(binding, TypeVariableKind::Numeric(typ)) => {
+            if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                push_type_parts(&typ, parts, files);
+            } else {
+                push_type_variable_parts(binding, parts, files);
+            }
+        }
 
         Type::FieldElement
         | Type::Integer(..)
