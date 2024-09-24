@@ -13,6 +13,5 @@ impl Foo for Field {
 }
 
 fn main() {
-    assert_eq(2.foo() as Field, 2.identity());
-    
+    assert_eq(2.foo() as Field, 2.identity());  
 }
