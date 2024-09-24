@@ -78,7 +78,7 @@ pub enum Type {
     /// is a process that replaces each NamedGeneric in a generic function with a TypeVariable.
     /// Doing this at each call site of a generic function is how they can be called with
     /// different argument types each time.
-    TypeVariable(TypeVariable, TypeVariableKind),
+    TypeVariable(TypeVariable),
 
     /// `impl Trait` when used in a type position.
     /// These are only matched based on the TraitId. The trait name parameter is only
@@ -526,7 +526,7 @@ pub enum BinaryTypeOperator {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum TypeVariableKind {
-    /// Can bind to any type, except Type::Constant
+    /// Can bind to any type, except Type::Constant and Type::InfixExpr
     Normal,
 
     /// A generic integer or field type. This is a more specific kind of TypeVariable
@@ -540,7 +540,7 @@ pub enum TypeVariableKind {
     /// that can only be bound to Type::Integer, or other polymorphic integers.
     Integer,
 
-    /// Can bind to a Type::Constant of the given kind
+    /// Can bind to a Type::Constant or Type::InfixExpr of the given kind
     Numeric(Box<Type>),
 }
 
@@ -561,8 +561,8 @@ impl TypeVariableKind {
 pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
 
 impl TypeVariable {
-    pub fn unbound(id: TypeVariableId) -> Self {
-        TypeVariable(id, Shared::new(TypeBinding::Unbound(id)))
+    pub fn unbound(id: TypeVariableId, type_var_kind: TypeVariableKind) -> Self {
+        TypeVariable(id, Shared::new(TypeBinding::Unbound(id, type_var_kind)))
     }
 
     pub fn id(&self) -> TypeVariableId {
@@ -575,6 +575,7 @@ impl TypeVariable {
     /// Also Panics if the ID of this TypeVariable occurs within the given
     /// binding, as that would cause an infinitely recursive type.
     pub fn bind(&self, typ: Type, kind: &Kind) {
+        // TODO: remove before review
         assert!(
             typ.kind().unifies(kind),
             "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
@@ -586,7 +587,7 @@ impl TypeVariable {
             TypeBinding::Bound(binding) => {
                 unreachable!("TypeVariable::bind, cannot bind bound var {} to {}", binding, typ)
             }
-            TypeBinding::Unbound(id) => *id,
+            TypeBinding::Unbound(id, _) => *id,
         };
 
         assert!(!typ.occurs(id), "{self:?} occurs within {typ:?}");
@@ -594,6 +595,7 @@ impl TypeVariable {
     }
 
     pub fn try_bind(&self, binding: Type, kind: &Kind, span: Span) -> Result<(), TypeCheckError> {
+        // TODO: remove before review
         assert!(
             binding.kind().unifies(kind),
             "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
@@ -605,7 +607,7 @@ impl TypeVariable {
             TypeBinding::Bound(binding) => {
                 unreachable!("Expected unbound, found bound to {binding}")
             }
-            TypeBinding::Unbound(id) => *id,
+            TypeBinding::Unbound(id, _) => *id,
         };
 
         if binding.occurs(id) {
@@ -624,8 +626,8 @@ impl TypeVariable {
     /// Unbind this type variable, setting it to Unbound(id).
     ///
     /// This is generally a logic error to use outside of monomorphization.
-    pub fn unbind(&self, id: TypeVariableId) {
-        *self.1.borrow_mut() = TypeBinding::Unbound(id);
+    pub fn unbind(&self, id: TypeVariableId, type_var_kind: TypeVariableKind) {
+        *self.1.borrow_mut() = TypeBinding::Unbound(id, type_var_kind);
     }
 
     /// Forcibly bind a type variable to a new type - even if the type
@@ -634,6 +636,7 @@ impl TypeVariable {
     ///
     /// Asserts that the given type is compatible with the given Kind 
     pub fn force_bind(&self, typ: Type, kind: &Kind) {
+        // TODO: remove before review
         assert!(
             typ.kind().unifies(kind),
             "expected kind of TypeVariable ({:?}) to match the kind of its binding ({:?})",
@@ -652,12 +655,12 @@ impl TypeVariable {
 #[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum TypeBinding {
     Bound(Type),
-    Unbound(TypeVariableId),
+    Unbound(TypeVariableId, TypeVariableKind),
 }
 
 impl TypeBinding {
     pub fn is_unbound(&self) -> bool {
-        matches!(self, TypeBinding::Unbound(_))
+        matches!(self, TypeBinding::Unbound(_, _))
     }
 }
 
@@ -681,31 +684,23 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
-            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
-                if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    write!(f, "{}", Type::default_int_type())
-                } else {
-                    write!(f, "{}", binding.borrow())
-                }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
-                    // what they bind to by default anyway. It is less confusing than displaying it
-                    // as a generic.
-                    write!(f, "Field")
-                } else {
-                    write!(f, "{}", binding.borrow())
-                }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::Numeric(typ)) => {
-                if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    write!(f, "{}", typ)
-                } else {
-                    // TODO: revert after debugging
-                    // write!(f, "{}", binding.borrow())
-                    write!(f, "{}:! {}", binding.borrow(), typ)
+            Type::TypeVariable(var) => {
+                match &*binding.borrow() {
+                    TypeBinding::Unbound(_, type_var_kind) => {
+                        match type_var_kind {
+                            TypeVariableKind::Normal => write!(f, "{}", var.borrow()),
+                            TypeVariableKind::Integer => write!(f, "{}", Type::default_int_type()),
+                            TypeVariableKind::IntegerOrField => write!(f, "Field"),
+
+                            // TODO: after debugging
+                            // TypeVariableKind::Numeric(typ) => write!(f, "_"),
+                            TypeVariableKind::Numeric(typ) => write!(f, "_!({:?})", typ),
+
+                        }
+                    }
+                    TypeBinding::Bound(binding) => {
+                        write!(f, "{}", binding)
+                    }
                 }
             }
             Type::Struct(s, args) => {
@@ -742,8 +737,8 @@ impl std::fmt::Display for Type {
                 TypeBinding::Bound(binding) => binding.fmt(f),
                 // TODO: revert after debugging
                 // TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_", kind),
-                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_:! {:?}", kind),
-                TypeBinding::Unbound(_) => write!(f, "{name}"),
+                TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_:! {:?}", kind),
+                TypeBinding::Unbound(_, _) => write!(f, "{name}"),
             },
 
             // TODO: revert after debugging
@@ -809,7 +804,7 @@ impl std::fmt::Display for TypeBinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeBinding::Bound(typ) => typ.fmt(f),
-            TypeBinding::Unbound(id) => id.fmt(f),
+            TypeBinding::Unbound(id, _) => id.fmt(f),
         }
     }
 }
@@ -845,15 +840,14 @@ impl Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 
-    pub fn type_variable(id: TypeVariableId) -> Type {
-        let var = TypeVariable::unbound(id);
-        Type::TypeVariable(var, TypeVariableKind::Normal)
-    }
-
     pub fn type_variable_with_kind(interner: &mut NodeInterner, type_var_kind: TypeVariableKind) -> Type {
         let id = interner.next_type_variable_id();
-        let var = TypeVariable::unbound(id);
-        Type::TypeVariable(var, type_var_kind)
+        let var = TypeVariable::unbound(id, type_var_kind);
+        Type::TypeVariable(var)
+    }
+
+    pub fn type_variable(id: TypeVariableId) -> Type {
+        Self::type_variable_with_kind(interner, TypeVariableKind::Normal)
     }
 
     pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
@@ -872,9 +866,9 @@ impl Type {
     /// they shouldn't be bound over until monomorphization.
     pub fn is_bindable(&self) -> bool {
         match self {
-            Type::TypeVariable(binding, _) => match &*binding.borrow() {
+            Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.is_bindable(),
-                TypeBinding::Unbound(_) => true,
+                TypeBinding::Unbound(_, _) => true,
             },
             Type::Alias(alias, args) => alias.borrow().get_type(args).is_bindable(),
             _ => false,
@@ -906,14 +900,21 @@ impl Type {
     pub fn is_numeric_value(&self) -> bool {
         use Type::*;
         use TypeVariableKind as K;
-        matches!(
-            self.follow_bindings(),
-            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
-        )
+        match self.follow_bindings() {
+            FieldElement => true,
+            Integer(..) => true,
+            Bool => true,
+            TypeVariable(var) => {
+                match &*var.borrow() {
+                    TypeBinding::Bound(typ) => typ.is_numeric_value(),
+                    TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind, K::Integer | K::IntegerOrField),
+                }
+            }
+        }
     }
 
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
-        // Return whether the named generic has a TypeKind::Numeric and save its name
+        // Return whether the named generic has a Kind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
             if let Type::NamedGeneric(_, name, Kind::Numeric { .. }) = typ {
                 found_names.push(name.to_string());
@@ -933,7 +934,7 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_) => {}
 
-            Type::TypeVariable(type_var, _) => {
+            Type::TypeVariable(type_var) => {
                 if let TypeBinding::Bound(typ) = &*type_var.borrow() {
                     named_generic_is_numeric(typ, found_names);
                 }
@@ -1016,7 +1017,7 @@ impl Type {
             | Type::Error => true,
 
             Type::FmtString(_, _)
-            | Type::TypeVariable(_, _)
+            | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
@@ -1059,7 +1060,7 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Constant(_, _)
-            | Type::TypeVariable(_, _)
+            | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _, _)
             | Type::InfixExpr(..)
             | Type::Error => true,
@@ -1108,7 +1109,7 @@ impl Type {
             | Type::InfixExpr(..)
             | Type::Error => true,
 
-            Type::TypeVariable(type_var, _) | Type::NamedGeneric(type_var, _, _) => {
+            Type::TypeVariable(type_var) | Type::NamedGeneric(type_var, _, _) => {
                 if let TypeBinding::Bound(typ) = &*type_var.borrow() {
                     typ.is_valid_for_unconstrained_boundary()
                 } else {
@@ -1148,10 +1149,10 @@ impl Type {
     pub fn generic_count(&self) -> usize {
         match self {
             Type::Forall(generics, _) => generics.len(),
-            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _, _) => {
+            Type::TypeVariable(type_variable) | Type::NamedGeneric(type_variable, _, _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
-                    TypeBinding::Unbound(_) => 0,
+                    TypeBinding::Unbound(_, _) => 0,
                 }
             }
             _ => 0,
@@ -1189,9 +1190,9 @@ impl Type {
         match self {
             Type::NamedGeneric(_, _, kind) => kind.clone(),
             Type::Constant(_, kind) => kind.clone(),
-            Type::TypeVariable(var, type_var_kind) => match *var.borrow() {
+            Type::TypeVariable(var) => match *var.borrow() {
                 TypeBinding::Bound(ref typ) => typ.kind(),
-                TypeBinding::Unbound(_) => type_var_kind.kind(),
+                TypeBinding::Unbound(_, type_var_kind) => type_var_kind.kind(),
             },
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
             Type::FieldElement
@@ -1250,7 +1251,7 @@ impl Type {
                 .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
             | Type::Unit
-            | Type::TypeVariable(_, _)
+            | Type::TypeVariable(_)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _, _)
@@ -1308,8 +1309,12 @@ impl Type {
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
-            TypeBinding::Unbound(id) => *id,
+            TypeBinding::Unbound(id, _) => *id,
         };
+
+        if !self.kind().unifies(&TypeVariableKind::IntegerOrField.kind()) {
+            return Err(UnificationError)
+        }
 
         let this = self.substitute(bindings).follow_bindings();
         match &this {
@@ -1328,13 +1333,18 @@ impl Type {
                         typ.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }
                     // Avoid infinitely recursive bindings
-                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
-                    TypeBinding::Unbound(new_target_id) => {
+                    TypeBinding::Unbound(ref id, _) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(new_target_id, type_var_kind) => {
                         if only_integer {
+                            let mut var_clone = var.clone();
+                            TypeVariableKind::Integer.kind().unify(&type_var_kind.kind())?;
+
+                            // TODO: set kind on var
+                            *var.1.borrow() = TypeVariableKind::Integer;
                             // Integer is more specific than IntegerOrField so we bind the type
                             // variable to Integer instead.
-                            let clone = Type::TypeVariable(var.clone(), TypeVariableKind::Integer);
-                            bindings.insert(*new_target_id, (self_var.clone(), Kind::Normal, clone));
+                            let clone = Type::TypeVariable(var_clone);
+                            bindings.insert(new_target_id, (self_var.clone(), TypeVariableKind::Integer.kind(), clone));
                         } else {
                             bindings.insert(target_id, (var.clone(), Kind::Normal, this.clone()));
                         }
@@ -1349,9 +1359,10 @@ impl Type {
                         typ.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }
                     // Avoid infinitely recursive bindings
-                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
-                    TypeBinding::Unbound(_) => {
-                        bindings.insert(target_id, (var.clone(), Kind::Normal, this.clone()));
+                    TypeBinding::Unbound(ref id, _) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(_, type_var_kind) => {
+                        TypeVariableKind::Integer.kind().unify(&type_var_kind.kind())?;
+                        bindings.insert(target_id, (var.clone(), type_var_kind.kind(), this.clone()));
                         Ok(())
                     }
                 }
@@ -1363,16 +1374,19 @@ impl Type {
                         typ.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }
                     // Avoid infinitely recursive bindings
-                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
-                    TypeBinding::Unbound(new_target_id) => {
+                    TypeBinding::Unbound(ref id, _) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(new_target_id, type_var_kind) => {
+                        let mut var_clone = var.clone();
                         // Bind to the most specific type variable kind
                         let clone_kind = if only_integer {
                             TypeVariableKind::Integer
                         } else {
                             TypeVariableKind::IntegerOrField
                         };
-                        let clone = Type::TypeVariable(var.clone(), clone_kind);
-                        bindings.insert(*new_target_id, (self_var.clone(), Kind::Normal, clone));
+                        clone_kind.kind().unify(&type_var_kind.kind())?;
+                        *var_clone.borrow() = clone_kind;
+                        let clone = Type::TypeVariable(var_clone);
+                        bindings.insert(*new_target_id, (self_var.clone(), clone_kind.kind(), clone));
                         Ok(())
                     }
                 }
@@ -1395,7 +1409,7 @@ impl Type {
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
-            TypeBinding::Unbound(id) => *id,
+            TypeBinding::Unbound(id, _) => *id,
         };
 
         if !self.kind().unifies(&kind) {
@@ -1407,7 +1421,7 @@ impl Type {
             match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
                 // Don't recursively bind the same id to itself
-                TypeBinding::Unbound(id) if *id == target_id => return Ok(()),
+                TypeBinding::Unbound(id, _) if *id == target_id => return Ok(()),
                 _ => (),
             }
         }
@@ -1424,7 +1438,7 @@ impl Type {
 
     fn get_inner_type_variable(&self) -> Option<(Shared<TypeBinding>, Kind)> {
         match self {
-            Type::TypeVariable(var, type_var_kind) => Some((var.1.clone(), type_var_kind.kind())),
+            Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
             Type::NamedGeneric(var, _, kind) => Some((var.1.clone(), kind.clone())),
             _ => None,
         }
@@ -1471,6 +1485,15 @@ impl Type {
                 alias.try_unify(other, bindings)
             }
 
+            // TODO
+            // (TypeVariable(var), other) | (other, TypeVariable(var)) => {
+            //     match var.1 {
+            //         TypeBinding::Bound(typ) => _,
+            //         TypeBinding::Unbound(id, type_var_kind) => _,
+            //     }
+            //
+            // }
+
             (TypeVariable(var, Kind::IntegerOrField), other)
             | (other, TypeVariable(var, Kind::IntegerOrField)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
@@ -1492,6 +1515,7 @@ impl Type {
                     other.try_bind_to(var, bindings, type_var_kind.kind())
                 })
             }
+
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 len_a.try_unify(len_b, bindings)?;
@@ -1644,7 +1668,7 @@ impl Type {
         match &*type_variable.borrow() {
             // If it is already bound, unify against what it is bound to
             TypeBinding::Bound(link) => link.try_unify(self, bindings),
-            TypeBinding::Unbound(id) => {
+            TypeBinding::Unbound(id, _) => {
                 // We may have already "bound" this type variable in this call to
                 // try_unify, so check those bindings as well.
                 match bindings.get(id) {
@@ -1898,7 +1922,7 @@ impl Type {
 
     fn type_variable_id(&self) -> Option<TypeVariableId> {
         match self {
-            Type::TypeVariable(variable, _) | Type::NamedGeneric(variable, _, _) => {
+            Type::TypeVariable(variable) | Type::NamedGeneric(variable, _, _) => {
                 Some(variable.0)
             }
             _ => None,
@@ -1967,7 +1991,7 @@ impl Type {
                     TypeBinding::Bound(binding) => {
                         binding.substitute_helper(type_bindings, substitute_bound_typevars)
                     }
-                    TypeBinding::Unbound(id) => match type_bindings.get(id) {
+                    TypeBinding::Unbound(id, _) => match type_bindings.get(id) {
                         Some((_, kind, replacement)) => {
                             assert!(
                                 kind.unifies(&replacement.kind()),
@@ -2003,7 +2027,7 @@ impl Type {
                 let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
-            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding, _) => {
+            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding) => {
                 substitute_binding(binding)
             }
             // Do not substitute_helper fields, it can lead to infinite recursion
@@ -2092,12 +2116,12 @@ impl Type {
                     || args.named.iter().any(|arg| arg.typ.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var, _) => {
+            Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var) => {
                 match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => {
                         type_var.id() == target_id || binding.occurs(target_id)
                     }
-                    TypeBinding::Unbound(id) => *id == target_id,
+                    TypeBinding::Unbound(id, _) => *id == target_id,
                 }
             }
             Type::Forall(typevars, typ) => {
@@ -2150,7 +2174,7 @@ impl Type {
                 def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            TypeVariable(var, _) | NamedGeneric(var, _, _) => {
+            TypeVariable(var) | NamedGeneric(var, _, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
                 }
@@ -2189,7 +2213,7 @@ impl Type {
     }
 
     pub fn from_generics(generics: &GenericTypeVars) -> Vec<Type> {
-        vecmap(generics, |var| Type::TypeVariable(var.clone(), TypeVariableKind::Normal))
+        vecmap(generics, |var| Type::TypeVariable(var.clone()))
     }
 
     /// Replace any `Type::NamedGeneric` in this type with a `Type::TypeVariable`
@@ -2231,18 +2255,11 @@ impl Type {
                 typ.replace_named_generics_with_type_variables();
                 *self = typ;
             }
-            Type::TypeVariable(var, type_var_kind) => {
+            Type::TypeVariable(var) => {
                 let var = var.borrow();
                 if let TypeBinding::Bound(binding) = &*var {
                     let mut binding = binding.clone();
                     drop(var);
-                    binding.replace_named_generics_with_type_variables();
-                    assert!(
-                        type_var_kind.kind().unifies(&binding.kind()),
-                        "expected kind of bound TypeVariable ({:?}) to match the kind of its binding ({:?})",
-                        type_var_kind.kind(),
-                        binding.kind()
-                    );
                     *self = binding;
                 }
             }
@@ -2263,11 +2280,7 @@ impl Type {
                     *self = binding;
                 } else {
                     drop(type_binding);
-                    let type_var_kind = match kind {
-                        Kind::Normal => TypeVariableKind::Normal,
-                        Kind::Numeric(typ) => TypeVariableKind::Numeric(typ.clone()),
-                    };
-                    *self = Type::TypeVariable(var.clone(), type_var_kind);
+                    *self = Type::TypeVariable(var.clone());
                 }
             }
             Type::Function(args, ret, env, _unconstrained) => {
@@ -2396,16 +2409,12 @@ impl From<&Type> for PrintableType {
                 }
                 Signedness::Signed => PrintableType::SignedInteger { width: (*bit_width).into() },
             },
-            Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+            Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.into(),
-                TypeBinding::Unbound(_) => Type::default_int_type().into(),
+                TypeBinding::Unbound(_, TypeVariableKind::Integer) => Type::default_int_type().into(),
+                TypeBinding::Unbound(_, TypeVariableKind::IntegerOrField) => Type::default_int_or_field_type().into(),
+                TypeBinding::Unbound(_, TypeVariableKind::Numeric(typ)) => (**typ).into(),
             },
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => typ.into(),
-                    TypeBinding::Unbound(_) => Type::default_int_or_field_type().into(),
-                }
-            }
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
                 let size = size.evaluate_to_u32().expect("Cannot print variable sized strings");
@@ -2424,7 +2433,6 @@ impl From<&Type> for PrintableType {
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
             Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
-            Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
@@ -2458,15 +2466,17 @@ impl std::fmt::Debug for Type {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{:?}", var),
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                write!(f, "IntOrField{:?}", binding)
-            }
-            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
-                write!(f, "Int{:?}", binding)
-            }
-            Type::TypeVariable(binding, TypeVariableKind::Numeric(typ)) => {
-                write!(f, "Numeric({:?}: {:?})", binding, typ)
+            Type::TypeVariable(var) => {
+                if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
+                    match type_var_kind {
+                        TypeVariableKind::Normal => write!(f, "{:?}", var),
+                        TypeVariableKind::IntegerOrField => write!(f, "IntOrField{:?}", binding),
+                        TypeVariableKind::Integer => write!(f, "Int{:?}", binding),
+                        TypeVariableKind::Numeric(typ) => write!(f, "Numeric({:?}: {:?})", binding, typ),
+                    }
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
             }
             Type::Struct(s, args) => {
                 let args = vecmap(args, |arg| format!("{:?}", arg));
@@ -2594,7 +2604,7 @@ impl std::hash::Hash for Type {
                 alias.hash(state);
                 args.hash(state);
             }
-            Type::TypeVariable(var, _) | Type::NamedGeneric(var, ..) => var.hash(state),
+            Type::TypeVariable(var) | Type::NamedGeneric(var, ..) => var.hash(state),
             Type::TraitAsType(trait_id, _, args) => {
                 trait_id.hash(state);
                 args.hash(state);
@@ -2624,7 +2634,7 @@ impl std::hash::Hash for Type {
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         if let Some((variable, kind)) = self.get_inner_type_variable() {
-            if !kind.unifies(&other.kind()) {
+            if kind != other.kind() {
                 return false;
             }
             if let TypeBinding::Bound(typ) = &*variable.borrow() {
@@ -2633,7 +2643,7 @@ impl PartialEq for Type {
         }
 
         if let Some((variable, other_kind)) = other.get_inner_type_variable() {
-            if !self.kind().unifies(&other_kind) {
+            if self.kind() != other_kind {
                 return false;
             }
             if let TypeBinding::Bound(typ) = &*variable.borrow() {
@@ -2689,8 +2699,8 @@ impl PartialEq for Type {
             // still want them to be equal for canonicalization checks in arithmetic generics.
             // Without this we'd fail the `serialize` test.
             (
-                NamedGeneric(lhs_var, _, _) | TypeVariable(lhs_var, _),
-                NamedGeneric(rhs_var, _, _) | TypeVariable(rhs_var, _),
+                NamedGeneric(lhs_var, _, _) | TypeVariable(lhs_var),
+                NamedGeneric(rhs_var, _, _) | TypeVariable(rhs_var),
             ) => lhs_var.id() == rhs_var.id(),
             _ => false,
         }
