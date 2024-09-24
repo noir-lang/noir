@@ -1,9 +1,9 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, ItemVisibility},
+    ast::{Expression, Ident, ItemVisibility},
     lexer::{Lexer, SpannedTokenResult},
-    token::{Keyword, SpannedToken, Token, TokenKind},
+    token::{Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
 use super::{Item, ItemKind, ParsedModule, ParserError};
@@ -20,25 +20,45 @@ mod use_tree;
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let lexer = Lexer::new(source_program);
-    let mut parser = Parser::new(TokenStream::Lexer(lexer));
+    let mut parser = Parser::for_lexer(lexer);
     let program = parser.parse_module();
     let errors = parser.errors;
     (program, errors)
 }
 
+pub fn parse_result<'a, T, F>(mut parser: Parser<'a>, f: F) -> Result<T, Vec<ParserError>>
+where
+    F: FnOnce(&mut Parser<'a>) -> T,
+{
+    let item = f(&mut parser);
+    if parser.errors.is_empty() {
+        Ok(item)
+    } else {
+        Err(parser.errors)
+    }
+}
+
 enum TokenStream<'a> {
     Lexer(Lexer<'a>),
+    Tokens(Tokens),
 }
 
 impl<'a> TokenStream<'a> {
     fn next(&mut self) -> Option<SpannedTokenResult> {
         match self {
             TokenStream::Lexer(lexer) => lexer.next(),
+            TokenStream::Tokens(tokens) => {
+                if let Some(token) = tokens.0.pop() {
+                    Some(Ok(token))
+                } else {
+                    None
+                }
+            }
         }
     }
 }
 
-struct Parser<'a> {
+pub struct Parser<'a> {
     errors: Vec<ParserError>,
     tokens: TokenStream<'a>,
     token: SpannedToken,
@@ -47,6 +67,15 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    pub fn for_lexer(lexer: Lexer<'a>) -> Self {
+        Self::new(TokenStream::Lexer(lexer))
+    }
+
+    pub fn for_tokens(mut tokens: Tokens) -> Self {
+        tokens.0.reverse();
+        Self::new(TokenStream::Tokens(tokens))
+    }
+
     fn new(tokens: TokenStream<'a>) -> Self {
         let mut parser = Self {
             errors: Vec::new(),
@@ -59,11 +88,15 @@ impl<'a> Parser<'a> {
         parser
     }
 
-    fn parse_module(&mut self) -> ParsedModule {
+    pub(crate) fn parse_module(&mut self) -> ParsedModule {
         let inner_doc_comments = self.parse_inner_doc_comments();
         let items = self.parse_top_level_items();
 
         ParsedModule { items, inner_doc_comments }
+    }
+
+    pub(crate) fn parse_expression(&mut self) -> Expression {
+        todo!("Parser")
     }
 
     fn parse_top_level_items(&mut self) -> Vec<Item> {

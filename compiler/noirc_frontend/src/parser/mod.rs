@@ -20,7 +20,7 @@ use crate::token::{SecondaryAttribute, Token};
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
-pub use parser::parse_program;
+pub use parser::{parse_program, parse_result, Parser};
 
 pub trait NoirParser<T> {}
 

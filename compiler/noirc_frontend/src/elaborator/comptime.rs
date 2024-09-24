@@ -24,7 +24,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{TopLevelStatement, TopLevelStatementKind},
+    parser::{parse_result, Parser, TopLevelStatement, TopLevelStatementKind},
     Type, TypeBindings, UnificationError,
 };
 
@@ -262,10 +262,9 @@ impl<'context> Elaborator<'context> {
             return Err((lexing_errors.swap_remove(0).into(), location.file));
         }
 
-        // let expression = parser::expression()
-        //     .parse(tokens)
-        //     .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
-        let expression: Expression = todo!("Parser");
+        let parser = Parser::for_tokens(tokens);
+        let expression = parse_result(parser, Parser::parse_expression)
+            .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
 
         let (mut func, mut arguments) = match expression.kind {
             ExpressionKind::Call(call) => (*call.func, call.arguments),

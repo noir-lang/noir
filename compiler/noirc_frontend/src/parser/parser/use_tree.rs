@@ -118,8 +118,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{ItemVisibility, PathKind, UseTreeKind},
-        parse_program,
-        parser::ItemKind,
+        parser::{parser::parse_program, ItemKind},
     };
 
     #[test]
