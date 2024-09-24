@@ -203,7 +203,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>
         .map(|(name, alias)| TraitImplItemKind::Type { name, alias });
 
     let let_statement = let_statement(expression()).then_ignore(just(Token::Semicolon)).try_map(
-        |(_attributes, pattern, typ, expr), span| match pattern {
+        |((pattern, typ), expr), span| match pattern {
             Pattern::Identifier(ident) => Ok(TraitImplItemKind::Constant(ident, typ, expr)),
             _ => Err(ParserError::with_reason(
                 ParserErrorReason::PatternInTraitFunctionParameter,
