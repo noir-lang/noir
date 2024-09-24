@@ -238,6 +238,7 @@ pub fn generate_storage_implementation(
 
     let init = NoirFunction::normal(FunctionDefinition::normal(
         &ident("init"),
+        false,
         &vec![],
         &[(ident("context"), generic_context_type.clone())],
         &BlockExpression { statements: vec![storage_constructor_statement] },
