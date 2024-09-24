@@ -195,7 +195,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         let len = 8 * message_size;
         let mut reconstructed_len: Field = 0;
         for i in 0..8 {
-            reconstructed_len += msg_block[63 - i] as Field * (1 << (i as u8)) as Field;
+            reconstructed_len =  256 * reconstructed_len + msg_block[56 + i] as Field;
         }
         assert_eq(reconstructed_len, len as Field);
     }
@@ -254,4 +254,3 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 
     out_h
 }
-
