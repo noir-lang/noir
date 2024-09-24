@@ -18,7 +18,7 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
+            HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
@@ -76,6 +76,7 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.span, self.file);
@@ -406,21 +407,13 @@ impl<'context> Elaborator<'context> {
 
         let method_name_span = method_call.method_name.span();
         let method_name = method_call.method_name.0.contents.as_str();
-        match self.lookup_method(&object_type, method_name, span) {
+        match self.lookup_method(&object_type, method_name, span, true) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
-                let func_id = match &method_ref {
-                    HirMethodReference::FuncId(func_id) => *func_id,
-                    HirMethodReference::TraitMethodId(method_id, _) => {
-                        let id = self.interner.trait_method_id(*method_id);
-                        let definition = self.interner.definition(id);
-                        let DefinitionKind::Function(func_id) = definition.kind else {
-                            unreachable!("Expected trait function to be a DefinitionKind::Function")
-                        };
-                        func_id
-                    }
-                };
+                let func_id = method_ref
+                    .func_id(self.interner)
+                    .expect("Expected trait function to be a DefinitionKind::Function");
 
                 let generics = if func_id != FuncId::dummy_id() {
                     let function_type = self.interner.function_meta(&func_id).typ.clone();

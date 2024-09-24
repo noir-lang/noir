@@ -23,7 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::path::as_trait_path;
+use self::path::{as_trait_path, type_path};
 use self::primitives::{
     interned_statement, interned_statement_expr, keyword, macro_quote_marker, mutable_reference,
     variable,
@@ -465,7 +465,6 @@ where
         choice((
             assertion::constrain(expr_parser.clone()),
             assertion::assertion(expr_parser.clone()),
-            assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
             if_statement(expr_no_constructors.clone(), statement.clone()),
@@ -1150,6 +1149,7 @@ where
         variable(),
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        type_path(parse_type()),
         macro_quote_marker(),
         interned_expr(),
         interned_statement_expr(),
@@ -1628,17 +1628,13 @@ mod test {
             Case { source: "let", expect: "let $error = Error", errors: 3 },
             Case { source: "foo = one two three", expect: "foo = one", errors: 1 },
             Case { source: "constrain", expect: "constrain Error", errors: 2 },
-            Case { source: "assert", expect: "constrain Error", errors: 1 },
+            Case { source: "assert", expect: "assert()", errors: 1 },
             Case { source: "constrain x ==", expect: "constrain (x == Error)", errors: 2 },
-            Case { source: "assert(x ==)", expect: "constrain (x == Error)", errors: 1 },
-            Case { source: "assert(x == x, x)", expect: "constrain (x == x)", errors: 0 },
-            Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
-            Case {
-                source: "assert_eq(x, x, x, x)",
-                expect: "constrain (Error == Error)",
-                errors: 1,
-            },
-            Case { source: "assert_eq(x, x, x)", expect: "constrain (x == x)", errors: 0 },
+            Case { source: "assert(x ==)", expect: "assert((x == Error))", errors: 1 },
+            Case { source: "assert(x == x, x)", expect: "assert((x == x), x)", errors: 0 },
+            Case { source: "assert_eq(x,)", expect: "assert_eq(x)", errors: 0 },
+            Case { source: "assert_eq(x, x, x, x)", expect: "assert_eq(x, x, x, x)", errors: 0 },
+            Case { source: "assert_eq(x, x, x)", expect: "assert_eq(x, x, x)", errors: 0 },
         ];
 
         check_cases_with_errors(&cases[..], fresh_statement());

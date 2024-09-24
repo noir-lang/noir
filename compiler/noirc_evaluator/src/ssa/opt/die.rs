@@ -191,11 +191,15 @@ impl Context {
                 self.used_values.insert(value_id);
             }
             Value::Array { array, .. } => {
+                self.used_values.insert(value_id);
                 for elem in array {
                     self.mark_used_instruction_results(dfg, *elem);
                 }
             }
             Value::Param { .. } => {
+                self.used_values.insert(value_id);
+            }
+            Value::NumericConstant { .. } => {
                 self.used_values.insert(value_id);
             }
             _ => {

@@ -666,7 +666,7 @@ impl<'block> BrilligBlock<'block> {
 
                 self.brillig_context.deallocate_register(items_pointer);
             }
-            Instruction::ArraySet { array, index, value, mutable: _ } => {
+            Instruction::ArraySet { array, index, value, mutable } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
                 let index_register = self.convert_ssa_single_addr_value(*index, dfg);
                 let value_variable = self.convert_ssa_value(*value, dfg);
@@ -688,6 +688,7 @@ impl<'block> BrilligBlock<'block> {
                     destination_variable,
                     index_register,
                     value_variable,
+                    *mutable,
                 );
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -868,6 +869,7 @@ impl<'block> BrilligBlock<'block> {
         destination_variable: BrilligVariable,
         index_register: SingleAddrVariable,
         value_variable: BrilligVariable,
+        mutable: bool,
     ) {
         assert!(index_register.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         match (source_variable, destination_variable) {
@@ -875,26 +877,40 @@ impl<'block> BrilligBlock<'block> {
                 BrilligVariable::BrilligArray(source_array),
                 BrilligVariable::BrilligArray(destination_array),
             ) => {
-                self.brillig_context.call_array_copy_procedure(source_array, destination_array);
+                if !mutable {
+                    self.brillig_context.call_array_copy_procedure(source_array, destination_array);
+                }
             }
             (
                 BrilligVariable::BrilligVector(source_vector),
                 BrilligVariable::BrilligVector(destination_vector),
             ) => {
-                self.brillig_context.call_vector_copy_procedure(source_vector, destination_vector);
+                if !mutable {
+                    self.brillig_context
+                        .call_vector_copy_procedure(source_vector, destination_vector);
+                }
             }
             _ => unreachable!("ICE: array set on non-array"),
         }
 
+        let destination_for_store = if mutable { source_variable } else { destination_variable };
         // Then set the value in the newly created array
         let items_pointer =
-            self.brillig_context.codegen_make_array_or_vector_items_pointer(destination_variable);
+            self.brillig_context.codegen_make_array_or_vector_items_pointer(destination_for_store);
 
         self.brillig_context.codegen_store_with_offset(
             items_pointer,
             index_register,
             value_variable.extract_register(),
         );
+
+        // If we mutated the source array we want instructions that use the destination array to point to the source array
+        if mutable {
+            self.brillig_context.mov_instruction(
+                destination_variable.extract_register(),
+                source_variable.extract_register(),
+            );
+        }
 
         self.brillig_context.deallocate_register(items_pointer);
     }
