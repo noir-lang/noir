@@ -3040,6 +3040,27 @@ fn use_numeric_generic_in_trait_method() {
 }
 
 #[test]
+fn errors_once_on_unused_import_that_is_not_accessible() {
+    // Tests that we don't get an "unused import" here given that the import is not accessible
+    let src = r#"
+        mod moo {
+            struct Foo {}
+        }
+        use moo::Foo;
+        fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
+            PathResolutionError::Private { .. }
+        ))
+    ));
+}
+
+#[test]
 fn trait_unconstrained_methods_typechecked_correctly() {
     // This test checks that we properly track whether a method has been declared as unconstrained on the trait definition
     // and preserves that through typechecking.
