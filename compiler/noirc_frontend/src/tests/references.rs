@@ -1,4 +1,7 @@
-use crate::hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError, type_check::TypeCheckError};
+use crate::hir::{
+    def_collector::dc_crate::CompilationError, resolution::errors::ResolverError,
+    type_check::TypeCheckError,
+};
 
 use super::get_program_errors;
 

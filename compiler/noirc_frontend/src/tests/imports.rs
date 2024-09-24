@@ -1,4 +1,7 @@
-use crate::hir::{def_collector::{dc_crate::CompilationError, errors::DefCollectorErrorKind}, resolution::{errors::ResolverError, import::PathResolutionError}};
+use crate::hir::{
+    def_collector::{dc_crate::CompilationError, errors::DefCollectorErrorKind},
+    resolution::{errors::ResolverError, import::PathResolutionError},
+};
 
 use super::{assert_no_errors, get_program_errors};
 
@@ -31,7 +34,6 @@ fn use_super_in_path() {
     "#;
     assert_no_errors(src);
 }
-
 
 #[test]
 fn warns_on_use_of_private_exported_item() {

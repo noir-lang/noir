@@ -74,9 +74,6 @@ fn errors_on_unused_pub_crate_import() {
     assert_eq!(*item_type, "import");
 }
 
-
-
-
 #[test]
 fn errors_on_unused_function() {
     let src = r#"

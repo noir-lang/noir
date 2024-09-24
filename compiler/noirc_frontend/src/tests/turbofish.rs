@@ -53,8 +53,6 @@ fn turbofish_numeric_generic_nested_call() {
     assert_no_errors(src);
 }
 
-
-
 #[test]
 fn turbofish_in_constructor_generics_mismatch() {
     let src = r#"

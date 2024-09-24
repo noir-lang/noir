@@ -42,8 +42,6 @@ use crate::{
 use fm::FileManager;
 use noirc_arena::Arena;
 
-
-
 pub(crate) fn has_parser_error(errors: &[(CompilationError, FileId)]) -> bool {
     errors.iter().any(|(e, _f)| matches!(e, CompilationError::ParseError(_)))
 }
@@ -2347,7 +2345,6 @@ fn impl_not_found_for_inner_impl() {
     ));
 }
 
-
 #[test]
 fn no_super() {
     let src = "use super::some_func;";
@@ -2949,8 +2946,6 @@ fn as_trait_path_syntax_no_impl() {
     assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
 }
 
-
-
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
     let source = r#"
@@ -3045,4 +3040,3 @@ fn use_numeric_generic_in_trait_method() {
     println!("{errors:?}");
     assert_eq!(errors.len(), 0);
 }
-
