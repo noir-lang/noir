@@ -32,6 +32,7 @@ pub enum AttributeTarget {
     Struct,
     Trait,
     Function,
+    Let,
 }
 
 /// Implements the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) for Noir's AST.
@@ -1097,6 +1098,10 @@ impl Statement {
 
 impl LetStatement {
     pub fn accept(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Let, visitor);
+        }
+
         if visitor.visit_let_statement(self) {
             self.accept_children(visitor);
         }
