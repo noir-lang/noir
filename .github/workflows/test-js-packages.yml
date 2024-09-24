@@ -183,7 +183,7 @@ jobs:
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
-      
+
       - name: Set up test environment
         uses: ./.github/actions/setup
 
@@ -230,13 +230,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Download nargo binary
         uses: actions/download-artifact@v4
         with:
           name: nargo
           path: ./nargo
-      
+
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
@@ -248,7 +248,7 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-      
+
       - name: Set nargo on PATH
         run: |
           nargo_binary="${{ github.workspace }}/nargo/nargo"
@@ -336,13 +336,13 @@ jobs:
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
-      
+
       - name: Download noirc_abi package artifact
         uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-      
+
       - name: Set nargo on PATH
         run: |
           nargo_binary="${{ github.workspace }}/nargo/nargo"
@@ -468,7 +468,7 @@ jobs:
         working-directory: ./compiler/integration-tests
         run: |
           yarn test:browser
-  
+
   test-examples:
     name: Example scripts
     runs-on: ubuntu-latest
@@ -509,6 +509,59 @@ jobs:
         working-directory: ./examples/codegen_verifier
         run: ./test.sh
 
+  external-repo-checks:
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    # Only run when 'run-external-checks' label is present
+    if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+         # Disabled as these are currently failing with many visibility errors
+         # - { repo: AztecProtocol/aztec-nr, path: ./ }
+         # - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+         # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
+         #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
+        - { repo: zac-williamson/noir-edwards, path: ./, ref: 037e44b2ee8557c51f6aef9bb9d63ea9e32722d1  }
+        # TODO: Enable these once they're passing against master again.
+        #  - { repo: zac-williamson/noir-bignum, path: ./, ref: 030c2acce1e6b97c44a3bbbf3429ed96f20d72d3  }
+        #  - { repo: vlayer-xyz/monorepo, path: ./, ref: ee46af88c025863872234eb05d890e1e447907cb }
+        #  - { repo: hashcloak/noir-bigint, path: ./, ref: 940ddba3a5201b508e7b37a2ef643551afcf5ed8 }
+    name: Check external repo - ${{ matrix.project.repo }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Remove requirements on compiler version
+        working-directory: ./test-repo
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          sed -i '/^compiler_version/d' ./**/Nargo.toml
+      - name: Run nargo check
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: nargo check
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
@@ -526,7 +579,7 @@ jobs:
       - test-integration-node
       - test-integration-browser
       - test-examples
-    
+
     steps:
         - name: Report overall success
           run: |

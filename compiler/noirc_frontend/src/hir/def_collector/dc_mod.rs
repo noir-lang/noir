@@ -23,7 +23,6 @@ use crate::usage_tracker::UnusedItem;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    macros_api::MacroProcessor,
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
 };
@@ -59,21 +58,15 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
-    macro_processors: &[&dyn MacroProcessor],
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        errors.extend(collector.parse_module_declaration(
-            context,
-            decl,
-            crate_id,
-            file_id,
-            module_id,
-            macro_processors,
-        ));
+        errors.extend(
+            collector.parse_module_declaration(context, decl, crate_id, file_id, module_id),
+        );
     }
 
     errors.extend(collector.collect_submodules(
@@ -82,7 +75,6 @@ pub fn collect_defs(
         module_id,
         ast.submodules,
         file_id,
-        macro_processors,
     ));
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
@@ -474,6 +466,7 @@ impl<'a> ModCollector<'a> {
                                     let impl_method =
                                         NoirFunction::normal(FunctionDefinition::normal(
                                             name,
+                                            *is_unconstrained,
                                             generics,
                                             parameters,
                                             body,
@@ -593,7 +586,6 @@ impl<'a> ModCollector<'a> {
         parent_module_id: LocalModuleId,
         submodules: Vec<Documented<SortedSubModule>>,
         file_id: FileId,
-        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
@@ -636,7 +628,6 @@ impl<'a> ModCollector<'a> {
                         child.local_id,
                         crate_id,
                         context,
-                        macro_processors,
                     ));
                 }
                 Err(error) => {
@@ -658,7 +649,6 @@ impl<'a> ModCollector<'a> {
         crate_id: CrateId,
         parent_file_id: FileId,
         parent_module_id: LocalModuleId,
-        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut doc_comments = mod_decl.doc_comments;
         let mod_decl = mod_decl.item;
@@ -694,24 +684,7 @@ impl<'a> ModCollector<'a> {
 
         // Parse the AST for the module we just found and then recursively look for it's defs
         let (ast, parsing_errors) = context.parsed_file_results(child_file_id);
-        let mut ast = ast.into_sorted();
-
-        for macro_processor in macro_processors {
-            match macro_processor.process_untyped_ast(
-                ast.clone(),
-                &crate_id,
-                child_file_id,
-                context,
-            ) {
-                Ok(processed_ast) => {
-                    ast = processed_ast;
-                }
-                Err((error, file_id)) => {
-                    let def_error = DefCollectorErrorKind::MacroError(error);
-                    errors.push((def_error.into(), file_id));
-                }
-            }
-        }
+        let ast = ast.into_sorted();
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), child_file_id)).collect::<Vec<_>>(),
@@ -755,7 +728,6 @@ impl<'a> ModCollector<'a> {
                     child_mod_id.local_id,
                     crate_id,
                     context,
-                    macro_processors,
                 ));
             }
             Err(error) => {

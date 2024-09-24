@@ -1,10 +1,10 @@
 use crate::collections::vec::Vec;
 use crate::runtime::is_unconstrained;
 
-global LIMBS_PER_BLOCK = 17; //BLOCK_SIZE / 8;
+global BLOCK_SIZE_IN_BYTES: u32 = 136; //(1600 - BITS * 2) / WORD_SIZE;
+global WORD_SIZE: u32 = 8; // Limbs are made up of u64s so 8 bytes each.
+global LIMBS_PER_BLOCK: u32 = BLOCK_SIZE_IN_BYTES / WORD_SIZE;
 global NUM_KECCAK_LANES: u32 = 25;
-global BLOCK_SIZE = 136; //(1600 - BITS * 2) / WORD_SIZE;
-global WORD_SIZE = 8;
 
 #[foreign(keccakf1600)]
 fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
@@ -12,7 +12,7 @@ fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 #[no_predicates]
 pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     assert(N >= message_size);
-    let mut block_bytes = [0; BLOCK_SIZE];
+    let mut block_bytes = [0; BLOCK_SIZE_IN_BYTES];
     if is_unconstrained() {
         for i in 0..message_size {
             block_bytes[i] = input[i];
@@ -26,51 +26,26 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     }
 
     //1. format_input_lanes
-    let max_blocks = (N + BLOCK_SIZE) / BLOCK_SIZE;
+    let max_blocks = (N + BLOCK_SIZE_IN_BYTES) / BLOCK_SIZE_IN_BYTES;
     //maximum number of bytes to hash
-    let max_blocks_length = (BLOCK_SIZE * (max_blocks));
-    let real_max_blocks = (message_size + BLOCK_SIZE) / BLOCK_SIZE;
-    let real_blocks_bytes = real_max_blocks * BLOCK_SIZE;
+    let max_blocks_length = (BLOCK_SIZE_IN_BYTES * max_blocks);
+    let real_max_blocks = (message_size + BLOCK_SIZE_IN_BYTES) / BLOCK_SIZE_IN_BYTES;
+    let real_blocks_bytes = real_max_blocks * BLOCK_SIZE_IN_BYTES;
 
     block_bytes[message_size] = 1;
     block_bytes[real_blocks_bytes - 1] = 0x80;
 
-    // keccak lanes interpret memory as little-endian integers,
-    // means we need to swap our byte ordering
-    let num_limbs = max_blocks * LIMBS_PER_BLOCK; //max_blocks_length / WORD_SIZE;
-    for i in 0..num_limbs {
-        let mut temp = [0; WORD_SIZE];
-        let word_size_times_i = WORD_SIZE * i;
-        for j in 0..WORD_SIZE {
-            temp[j] = block_bytes[word_size_times_i+j];
-        }
-        for j in 0..WORD_SIZE {
-            block_bytes[word_size_times_i + j] = temp[7 - j];
-        }
-    }
-
-    let mut sliced_buffer = Vec::new();
     // populate a vector of 64-bit limbs from our byte array
+    let num_limbs = max_blocks_length / WORD_SIZE;
+    let mut sliced_buffer = Vec::new();
     for i in 0..num_limbs {
-        let word_size_times_i = i * WORD_SIZE;
-        let ws_times_i_plus_7 = word_size_times_i + 7;
+        let limb_start = WORD_SIZE * i;
+
         let mut sliced = 0;
-        if (word_size_times_i + WORD_SIZE > max_blocks_length) {
-            let slice_size = max_blocks_length - word_size_times_i;
-            let byte_shift = (WORD_SIZE - slice_size) * 8;
-            let mut v = 1;
-            for k in 0..slice_size {
-                sliced += v * (block_bytes[ws_times_i_plus_7-k] as Field);
-                v *= 256;
-            }
-            let w = 1 << (byte_shift as u8);
-            sliced *= w as Field;
-        } else {
-            let mut v = 1;
-            for k in 0..WORD_SIZE {
-                sliced += v * (block_bytes[ws_times_i_plus_7-k] as Field);
-                v *= 256;
-            }
+        let mut v = 1;
+        for k in 0..WORD_SIZE {
+            sliced += v * (block_bytes[limb_start+k] as Field);
+            v *= 256;
         }
 
         sliced_buffer.push(sliced as u64);
@@ -156,4 +131,3 @@ mod tests {
         assert_eq(keccak256(input, 13), result);
     }
 }
-
