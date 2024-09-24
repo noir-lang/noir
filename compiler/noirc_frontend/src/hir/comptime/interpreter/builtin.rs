@@ -146,7 +146,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(arguments, location),
             "modulus_num_bits" => modulus_num_bits(arguments, location),
-            "quoted_as_expr" => quoted_as_expr(arguments, return_type, location),
+            "quoted_as_expr" => quoted_as_expr(interner, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
@@ -672,6 +672,7 @@ fn slice_insert(
 
 // fn as_expr(quoted: Quoted) -> Option<Expr>
 fn quoted_as_expr(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -684,7 +685,7 @@ fn quoted_as_expr(
     let parser = choice((expr_parser, statement_parser, lvalue_parser));
     let parser = parser.then_ignore(just(Token::Semicolon).or_not());
 
-    let expr = parse(argument, parser, "an expression").ok();
+    let expr = parse(interner, argument, parser, "an expression").ok();
 
     option(return_type, expr)
 }
@@ -698,7 +699,9 @@ fn quoted_as_module(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let path = parse(argument, parser::path_no_turbofish(), "a path").ok();
+    let path =
+        parse(interpreter.elaborator.interner, argument, parser::path_no_turbofish(), "a path")
+            .ok();
     let option_value = path.and_then(|path| {
         let module = interpreter
             .elaborate_in_function(interpreter.current_function, |elaborator| {
@@ -717,7 +720,12 @@ fn quoted_as_trait_constraint(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let trait_bound = parse(argument, parser::trait_bound(), "a trait constraint")?;
+    let trait_bound = parse(
+        interpreter.elaborator.interner,
+        argument,
+        parser::trait_bound(),
+        "a trait constraint",
+    )?;
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
@@ -734,7 +742,7 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(argument, parser::parse_type(), "a type")?;
+    let typ = parse(interpreter.elaborator.interner, argument, parser::parse_type(), "a type")?;
     let typ = interpreter
         .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
@@ -1232,9 +1240,17 @@ fn expr_as_assert(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
-            if constrain.2 == ConstrainKind::Assert {
-                let predicate = Value::expression(constrain.0.kind);
+        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+            if constrain.kind == ConstrainKind::Assert
+                && !constrain.arguments.is_empty()
+                && constrain.arguments.len() <= 2
+            {
+                let (message, predicate) = if constrain.arguments.len() == 1 {
+                    (None, constrain.arguments.pop().unwrap())
+                } else {
+                    (Some(constrain.arguments.pop().unwrap()), constrain.arguments.pop().unwrap())
+                };
+                let predicate = Value::expression(predicate.kind);
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1243,7 +1259,7 @@ fn expr_as_assert(
                 assert_eq!(tuple_types.len(), 2);
 
                 let option_type = tuple_types.pop().unwrap();
-                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = message.map(|msg| Value::expression(msg.kind));
                 let message = option(option_type, message).ok()?;
 
                 Some(Value::Tuple(vec![predicate, message]))
@@ -1264,14 +1280,23 @@ fn expr_as_assert_eq(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
-            if constrain.2 == ConstrainKind::AssertEq {
-                let ExpressionKind::Infix(infix) = constrain.0.kind else {
-                    panic!("Expected AssertEq constrain statement to have an infix expression");
+        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+            if constrain.kind == ConstrainKind::AssertEq
+                && constrain.arguments.len() >= 2
+                && constrain.arguments.len() <= 3
+            {
+                let (message, rhs, lhs) = if constrain.arguments.len() == 2 {
+                    (None, constrain.arguments.pop().unwrap(), constrain.arguments.pop().unwrap())
+                } else {
+                    (
+                        Some(constrain.arguments.pop().unwrap()),
+                        constrain.arguments.pop().unwrap(),
+                        constrain.arguments.pop().unwrap(),
+                    )
                 };
 
-                let lhs = Value::expression(infix.lhs.kind);
-                let rhs = Value::expression(infix.rhs.kind);
+                let lhs = Value::expression(lhs.kind);
+                let rhs = Value::expression(rhs.kind);
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1280,7 +1305,7 @@ fn expr_as_assert_eq(
                 assert_eq!(tuple_types.len(), 3);
 
                 let option_type = tuple_types.pop().unwrap();
-                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = message.map(|message| Value::expression(message.kind));
                 let message = option(option_type, message).ok()?;
 
                 Some(Value::Tuple(vec![lhs, rhs, message]))
@@ -2301,6 +2326,7 @@ fn function_def_set_parameters(
         )?;
         let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
         let parameter_pattern = parse(
+            interpreter.elaborator.interner,
             (tuple.pop().unwrap(), parameters_argument_location),
             parser::pattern(),
             "a pattern",
@@ -2403,7 +2429,8 @@ fn module_add_item(
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let parser = parser::top_level_items();
-    let top_level_statements = parse(item, parser, "a top-level item")?;
+    let top_level_statements =
+        parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
 
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
         let mut generated_items = CollectedItems::default();

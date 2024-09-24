@@ -432,6 +432,27 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_complete_type_path_with_non_empty_name() {
+        let src = r#"
+          trait One {
+              fn one() -> Self;
+          }
+
+          impl One for Field {
+              fn one() -> Self {
+                  1
+              }
+          }
+
+          fn main() {
+            Field::o>|<
+          }
+        "#;
+        assert_completion(src, vec![function_completion_item("one()", "one()", "fn() -> Field")])
+            .await;
+    }
+
+    #[test]
     async fn test_complete_function_without_arguments() {
         let src = r#"
           fn hello() { }
@@ -757,21 +778,29 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_suggest_builtin_types_in_any_position() {
+        let src = r#"
+            fn foo() {
+                i>|<
+            }
+        "#;
+
+        let items = get_completions(src).await;
+        assert!(items.iter().any(|item| item.label == "i8"));
+    }
+
+    #[test]
     async fn test_suggest_true() {
         let src = r#"
             fn main() {
                 let x = t>|<
             }
         "#;
-        assert_completion_excluding_auto_import(
-            src,
-            vec![simple_completion_item(
-                "true",
-                CompletionItemKind::KEYWORD,
-                Some("bool".to_string()),
-            )],
-        )
-        .await;
+
+        let items = get_completions(src).await;
+        assert!(items
+            .iter()
+            .any(|item| item.label == "true" && item.kind == Some(CompletionItemKind::KEYWORD)));
     }
 
     #[test]
@@ -2173,5 +2202,53 @@ mod completion_tests {
         let completions = get_completions(src).await;
         assert_eq!(completions.len(), 1);
         assert_eq!(completions[0].label, "unquote!(…)");
+    }
+
+    #[test]
+    async fn test_suggests_variable_in_quoted_after_dollar() {
+        let src = r#"
+        fn main() {
+            comptime {
+                let some_var = 1;
+                quote {
+                    $>|<
+                }
+            }
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "some_var",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_variable_in_quoted_after_dollar_and_letters() {
+        let src = r#"
+        fn main() {
+            comptime {
+                let some_var = 1;
+                quote {
+                    $s>|<
+                }
+            }
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "some_var",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
+            )],
+        )
+        .await;
     }
 }
