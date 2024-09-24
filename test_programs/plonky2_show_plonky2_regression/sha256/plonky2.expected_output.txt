@@ -62,6 +62,8 @@ v60 = add_virtual_target
 v61 = add_virtual_target
 v62 = add_virtual_target
 v63 = add_virtual_target
+# [/home/nickysn/code/repos/metacraft-labs/noir/test_programs/plonky2_show_plonky2_regression/sha256/src/main.nr]
+# [4] let digest = std::hash::sha256(x);
 # sha256 begin (msg_len_in_bits = 256)
 v64 = add_virtual_bool_target_unsafe
 v65 = add_virtual_bool_target_unsafe
@@ -116312,6 +116314,10 @@ r5872c75 = le_sum (r5830c25,r5830c26,r5830c27,r5830c28,r5830c29,r5830c30,r5830c3
 r5873c23 = le_sum (r5830c17,r5830c18,r5830c19,r5830c20,r5830c21,r5830c22,r5830c23,r5830c24)
 r5873c51 = le_sum (r5830c9,r5830c10,r5830c11,r5830c12,r5830c13,r5830c14,r5830c15,r5830c16)
 r5873c79 = le_sum (r5830c1,r5830c2,r5830c3,r5830c4,r5830c5,r5830c6,r5830c7,r5830c8)
+# [std/cmp.nr]
+# [93] result &= self[i].eq(other[i]);
+# [/home/nickysn/code/repos/metacraft-labs/noir/test_programs/plonky2_show_plonky2_regression/sha256/src/main.nr]
+# [5] assert(digest == result);
 connect r5863c11,v32
 connect r5863c39,v33
 connect r5863c67,v34
