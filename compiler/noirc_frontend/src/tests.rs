@@ -3749,7 +3749,6 @@ fn macro_result_type_mismatch() {
     ));
 }
 
-
 #[test]
 fn trait_unconstrained_methods_typechecked_correctly() {
     // This test checks that we properly track whether a method has been declared as unconstrained on the trait definition
@@ -3778,5 +3777,3 @@ fn trait_unconstrained_methods_typechecked_correctly() {
     println!("{errors:?}");
     assert_eq!(errors.len(), 0);
 }
-
-
