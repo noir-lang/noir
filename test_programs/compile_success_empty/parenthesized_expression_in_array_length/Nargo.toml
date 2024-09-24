@@ -1,0 +1,7 @@
+[package]
+name = "parenthesized_expression_in_array_length"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]
