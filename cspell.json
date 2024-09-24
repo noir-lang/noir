@@ -213,6 +213,7 @@
         "udiv",
         "umap",
         "underconstrained",
+        "underflowing",
         "uninstantiated",
         "unnormalized",
         "unoptimized",
@@ -226,8 +227,7 @@
         "wasmer",
         "Weierstraß",
         "zkhash",
-        "zshell",
-        "Linea"
+        "zshell"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
