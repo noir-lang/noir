@@ -5,11 +5,16 @@ use std::{
     io::{BufWriter, Write},
 };
 
+use codespan_reporting::files::Files;
+use fm::{FileId, FileMap};
 use plonky2::iop::{
     target::{BoolTarget, Target},
     wire::Wire,
 };
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use tracing::Instrument;
+
+use crate::ssa::ir::dfg::CallStack;
 
 use super::config::P2Builder;
 use super::config::P2Field;
@@ -171,6 +176,11 @@ pub struct AsmWriter {
     pub builder: P2Builder,
     pub show_plonky2: bool,
     file: Option<BufWriter<File>>,
+    last_call_stack: CallStack,
+    last_file: FileId,
+    last_line_number_begin: usize,
+    last_line_number_end: usize,
+    file_map: FileMap,
 }
 
 impl AsmWriter {
@@ -198,7 +208,12 @@ impl AsmWriter {
         self.builder
     }
 
-    pub fn new(builder: P2Builder, show_plonky2: bool, plonky2_print_file: Option<String>) -> Self {
+    pub fn new(
+        builder: P2Builder,
+        show_plonky2: bool,
+        plonky2_print_file: Option<String>,
+        file_map: FileMap,
+    ) -> Self {
         AsmWriter {
             builder,
             show_plonky2,
@@ -209,6 +224,11 @@ impl AsmWriter {
             } else {
                 None
             },
+            last_call_stack: CallStack::default(),
+            last_file: FileId::default(),
+            last_line_number_begin: 0,
+            last_line_number_end: 0,
+            file_map,
         }
     }
 
@@ -566,5 +586,40 @@ impl AsmWriter {
             VecBoolTargetDisplay { t: message },
             VecBoolTargetDisplay { t: digest }
         ));
+    }
+
+    pub fn comment_update_call_stack(&mut self, call_stack: CallStack) {
+        if call_stack != self.last_call_stack {
+            if let Some(last_loc) = call_stack.last() {
+                let span_begin =
+                    self.file_map.location(last_loc.file, last_loc.span.start() as usize).unwrap();
+                let span_end =
+                    self.file_map.location(last_loc.file, last_loc.span.end() as usize).unwrap();
+
+                if last_loc.file != self.last_file {
+                    self.comment(format!("[{}]", self.file_map.name(last_loc.file).unwrap()));
+                    self.last_file = last_loc.file;
+                    self.last_line_number_begin = 0;
+                    self.last_line_number_end = 0;
+                }
+                if (span_begin.line_number != self.last_line_number_begin)
+                    || (span_end.line_number != self.last_line_number_end)
+                {
+                    self.last_line_number_begin = span_begin.line_number;
+                    self.last_line_number_end = span_end.line_number;
+                    for ln in span_begin.line_number..span_end.line_number + 1 {
+                        let lr = self.file_map.line_range(last_loc.file, ln - 1).unwrap();
+                        self.comment(format!(
+                            "[{}] {}",
+                            ln,
+                            &self.file_map.source(last_loc.file).unwrap()[lr.start..lr.end]
+                                .to_string()
+                                .trim()
+                        ));
+                    }
+                }
+            }
+            self.last_call_stack = call_stack;
+        }
     }
 }

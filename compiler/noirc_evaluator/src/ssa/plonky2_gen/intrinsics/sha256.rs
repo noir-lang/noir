@@ -362,6 +362,7 @@ pub(crate) fn make_sha256_circuit(
 
 #[cfg(test)]
 mod tests {
+    use fm::FileMap;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
@@ -377,7 +378,7 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         let builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let mut asm_writer = AsmWriter::new(builder, false, None);
+        let mut asm_writer = AsmWriter::new(builder, false, None, FileMap::default());
         let targets = make_sha256_circuit(&mut asm_writer, message_bits.len() as u64);
         let mut pw = PartialWitness::new();
 

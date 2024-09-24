@@ -16,6 +16,7 @@ use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
 use asm_writer::AsmWriter;
 pub use circuit::Plonky2Circuit;
 use div_generator::add_div_mod;
+use fm::FileMap;
 use noirc_frontend::{ast::Visibility, hir_def::function::FunctionSignature};
 use plonky2::{
     field::types::Field, iop::target::BoolTarget, iop::target::Target,
@@ -301,10 +302,19 @@ pub(crate) struct Builder {
 }
 
 impl Builder {
-    pub(crate) fn new(show_plonky2: bool, plonky2_print_file: Option<String>) -> Builder {
+    pub(crate) fn new(
+        show_plonky2: bool,
+        plonky2_print_file: Option<String>,
+        file_map: FileMap,
+    ) -> Builder {
         let config = CircuitConfig::standard_recursion_config();
         Builder {
-            asm_writer: AsmWriter::new(P2Builder::new(config), show_plonky2, plonky2_print_file),
+            asm_writer: AsmWriter::new(
+                P2Builder::new(config),
+                show_plonky2,
+                plonky2_print_file,
+                file_map,
+            ),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
             function_names: BTreeMap::new(),
@@ -570,6 +580,7 @@ impl Builder {
     }
 
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
+        self.asm_writer.comment_update_call_stack(self.dfg.get_call_stack(instruction_id));
         let instruction = self.dfg[instruction_id].clone();
 
         match instruction {

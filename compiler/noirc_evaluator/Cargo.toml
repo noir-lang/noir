@@ -15,6 +15,7 @@ workspace = true
 noirc_frontend.workspace = true
 noirc_errors.workspace = true
 noirc_abi.workspace = true
+fm.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 fxhash.workspace = true
@@ -31,6 +32,7 @@ plonky2 = { git = "https://github.com/metacraft-labs/plonky2" }
 plonky2_u32 = { git = "https://github.com/metacraft-labs/plonky2-u32" }
 rayon.workspace = true
 cfg-if.workspace = true
+codespan-reporting.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

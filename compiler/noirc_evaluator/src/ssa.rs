@@ -26,6 +26,7 @@ use acvm::{
     FieldElement,
 };
 
+use fm::FileMap;
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
 use noirc_frontend::ast::Visibility;
@@ -158,6 +159,7 @@ pub(crate) fn optimize_into_plonky2(
     program: Program,
     options: &SsaEvaluatorOptions,
     parameter_names: Vec<String>,
+    file_map: &FileMap,
 ) -> Result<Plonky2Circuit, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
@@ -202,7 +204,7 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Builder::new(options.show_plonky2, options.plonky2_print_file.clone()).build(
+    Builder::new(options.show_plonky2, options.plonky2_print_file.clone(), file_map.clone()).build(
         ssa,
         parameter_names,
         main_function_signature,
@@ -443,8 +445,9 @@ pub fn create_plonky2_circuit(
     program: Program,
     options: &SsaEvaluatorOptions,
     parameter_names: Vec<String>,
+    file_map: &FileMap,
 ) -> Result<Plonky2Circuit, RuntimeError> {
-    optimize_into_plonky2(program, options, parameter_names)
+    optimize_into_plonky2(program, options, parameter_names, file_map)
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.

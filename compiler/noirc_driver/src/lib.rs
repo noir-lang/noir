@@ -611,7 +611,12 @@ pub fn compile_no_check(
 
     let plonky2_circuit = if compile_plonky2_circuit {
         let parameter_names = abi.parameters.iter().map(|param| param.name.clone()).collect();
-        Some(create_plonky2_circuit(monomorph, &ssa_evaluator_options, parameter_names)?)
+        Some(create_plonky2_circuit(
+            monomorph,
+            &ssa_evaluator_options,
+            parameter_names,
+            context.file_manager.as_file_map(),
+        )?)
     } else {
         None
     };
