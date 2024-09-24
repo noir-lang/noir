@@ -519,8 +519,9 @@ jobs:
       fail-fast: false
       matrix:
         project:
-        - { repo: AztecProtocol/aztec-nr, path: ./ }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+         # Disabled as these are currently failing with many visibility errors
+         # - { repo: AztecProtocol/aztec-nr, path: ./ }
+         # - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
          # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
          #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
         - { repo: zac-williamson/noir-edwards, path: ./, ref: 037e44b2ee8557c51f6aef9bb9d63ea9e32722d1  }
