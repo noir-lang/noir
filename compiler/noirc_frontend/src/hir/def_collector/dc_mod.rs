@@ -466,6 +466,7 @@ impl<'a> ModCollector<'a> {
                                     let impl_method =
                                         NoirFunction::normal(FunctionDefinition::normal(
                                             name,
+                                            *is_unconstrained,
                                             generics,
                                             parameters,
                                             body,

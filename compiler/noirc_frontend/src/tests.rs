@@ -3046,9 +3046,7 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
         mod moo {
             struct Foo {}
         }
-
         use moo::Foo;
-
         fn main() {}
     "#;
 
@@ -3060,4 +3058,33 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
             PathResolutionError::Private { .. }
         ))
     ));
+}
+
+#[test]
+fn trait_unconstrained_methods_typechecked_correctly() {
+    // This test checks that we properly track whether a method has been declared as unconstrained on the trait definition
+    // and preserves that through typechecking.
+    let src = r#"
+        trait Foo {
+            unconstrained fn identity(self) -> Self {
+                self
+            }
+
+            unconstrained fn foo(self) -> u64;
+        }
+
+        impl Foo for Field {
+            unconstrained fn foo(self) -> u64 {
+                self as u64
+            }
+        }
+
+        unconstrained fn main() {
+            assert_eq(2.foo() as Field, 2.identity());
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    println!("{errors:?}");
+    assert_eq!(errors.len(), 0);
 }
