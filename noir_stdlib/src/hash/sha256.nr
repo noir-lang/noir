@@ -34,23 +34,22 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     msg32
 }
 
-unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u64, msg_start: u32) -> ([u8; 64], u64) {
+unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> ([u8; 64], u32) {
     let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
-    let msg_byte_ptr: u64 = msg_start as u64 + message_size;
-    for k in 0..message_size as u32 {
+    for k in 0..message_size {
         msg_block[k] = msg[msg_start + k];
     }
-    (msg_block, msg_byte_ptr)
+    (msg_block, msg_start + message_size)
 }
 
 // Verify the block we are compressing was appropriately constructed
 fn verify_msg_block<let N: u32>(
     msg: [u8; N],
-    message_size: u64,
+    message_size: u32,
     msg_block: [u8; 64],
     msg_start: u32
-) -> u64 {
-    let mut msg_byte_ptr: u64 = 0; // Message byte pointer
+) -> u32 {
+    let mut msg_byte_ptr: u32 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
     let mut extra_bytes = 0;
     if msg_end > N {
@@ -59,7 +58,7 @@ fn verify_msg_block<let N: u32>(
     }
 
     for k in msg_start..msg_end {
-        if k as u64 < message_size {
+        if k < message_size {
             assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
         }
@@ -73,6 +72,7 @@ global ZERO = 0;
 
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
+    let message_size = message_size as u32;
     let num_blocks = N / BLOCK_SIZE;
     let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
     let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
@@ -83,17 +83,17 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
             build_msg_block_iter(msg, message_size, msg_start)
         };
-        if msg_start as u64 < message_size {
+        if msg_start < message_size {
             msg_block = new_msg_block;
         }
 
         if !is_unconstrained() {
             // Verify the block we are compressing was appropriately constructed
             let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
-            if msg_start as u64 < message_size {
+            if msg_start < message_size {
                 msg_byte_ptr = new_msg_byte_ptr;
             }
-        } else if msg_start as u64 < message_size {
+        } else if msg_start < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
         }
 
@@ -114,21 +114,21 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             build_msg_block_iter(msg, message_size, msg_start)
         };
 
-        if msg_start as u64 < message_size {
+        if msg_start < message_size {
             msg_block = new_msg_block;
         }
 
         if !is_unconstrained() {
             let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
-            if msg_start as u64 < message_size {
+            if msg_start < message_size {
                 msg_byte_ptr = new_msg_byte_ptr;
             }
-        } else if msg_start as u64 < message_size {
+        } else if msg_start < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
         }
     }
 
-    if msg_byte_ptr == BLOCK_SIZE as u64 {
+    if msg_byte_ptr == BLOCK_SIZE {
         msg_byte_ptr = 0;
     }
 
@@ -196,7 +196,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     hash_final_block(msg_block, h)
 }
 
-unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64) -> ([u8; 64], u64) {
+unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u32) -> ([u8; 64], u32) {
     // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
     // the 1 and 0s fill up the current block, which we then compress accordingly.
     if msg_byte_ptr >= 57 {
@@ -213,7 +213,7 @@ unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64) -
     (msg_block, msg_byte_ptr)
 }
 
-unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64, message_size: u64) -> [u8; 64] {
+unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u32, message_size: u32) -> [u8; 64] {
     let len = 8 * message_size;
     let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
     
