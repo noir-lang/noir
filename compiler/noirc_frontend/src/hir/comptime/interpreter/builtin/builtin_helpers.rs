@@ -14,7 +14,7 @@ use crate::{
     hir::{
         comptime::{
             errors::IResult,
-            value::{add_token_spans, ExprValue, TypedExpr},
+            value::{ExprValue, TypedExpr},
             Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
@@ -409,10 +409,11 @@ pub(super) fn parse<T>(
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
-    let parser = parser.then_ignore(chumsky::primitive::end());
-    let tokens = get_quoted((value, location))?;
-    let quoted = add_token_spans(tokens.clone(), location.span);
-    parse_tokens(tokens, quoted, interner, location, parser, rule)
+    todo!("Parser")
+    // let parser = parser.then_ignore(chumsky::primitive::end());
+    // let tokens = get_quoted((value, location))?;
+    // let quoted = add_token_spans(tokens.clone(), location.span);
+    // parse_tokens(tokens, quoted, interner, location, parser, rule)
 }
 
 pub(super) fn parse_tokens<T>(
@@ -423,11 +424,12 @@ pub(super) fn parse_tokens<T>(
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
-    parser.parse(quoted).map_err(|mut errors| {
-        let error = errors.swap_remove(0);
-        let tokens = tokens_to_string(tokens, interner);
-        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
-    })
+    todo!("Parser")
+    // parser.parse(quoted).map_err(|mut errors| {
+    //     let error = errors.swap_remove(0);
+    //     let tokens = tokens_to_string(tokens, interner);
+    //     InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
+    // })
 }
 
 pub(super) fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)

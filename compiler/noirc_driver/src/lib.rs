@@ -182,8 +182,8 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 pub fn file_manager_with_stdlib(root: &Path) -> FileManager {
     let mut file_manager = FileManager::new(root);
 
-    add_stdlib_source_to_file_manager(&mut file_manager);
-    add_debug_source_to_file_manager(&mut file_manager);
+    // add_stdlib_source_to_file_manager(&mut file_manager);
+    // add_debug_source_to_file_manager(&mut file_manager);
 
     file_manager
 }

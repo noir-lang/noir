@@ -308,7 +308,7 @@ pub enum DocStyle {
     Inner,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct SpannedToken(Spanned<Token>);
 
 impl PartialEq<SpannedToken> for Token {
@@ -331,6 +331,12 @@ impl From<SpannedToken> for Token {
 impl<'a> From<&'a SpannedToken> for &'a Token {
     fn from(spt: &'a SpannedToken) -> Self {
         &spt.0.contents
+    }
+}
+
+impl Default for Token {
+    fn default() -> Self {
+        Token::EOF
     }
 }
 
@@ -1207,23 +1213,6 @@ impl Keyword {
 pub struct Tokens(pub Vec<SpannedToken>);
 
 type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
-
-impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
-    fn from(tokens: Tokens) -> Self {
-        let end_of_input = match tokens.0.last() {
-            Some(spanned_token) => spanned_token.to_span(),
-            None => Span::single_char(0),
-        };
-
-        fn get_span(token: SpannedToken) -> (Token, Span) {
-            let span = token.to_span();
-            (token.into_token(), span)
-        }
-
-        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
-        chumsky::Stream::from_iter(end_of_input, iter)
-    }
-}
 
 #[cfg(test)]
 mod keywords {

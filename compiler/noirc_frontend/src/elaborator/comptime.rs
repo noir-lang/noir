@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, fmt::Display};
 
-use chumsky::Parser;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -25,7 +24,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement, TopLevelStatementKind},
+    parser::{TopLevelStatement, TopLevelStatementKind},
     Type, TypeBindings, UnificationError,
 };
 
@@ -263,9 +262,10 @@ impl<'context> Elaborator<'context> {
             return Err((lexing_errors.swap_remove(0).into(), location.file));
         }
 
-        let expression = parser::expression()
-            .parse(tokens)
-            .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
+        // let expression = parser::expression()
+        //     .parse(tokens)
+        //     .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
+        let expression: Expression = todo!("Parser");
 
         let (mut func, mut arguments) = match expression.kind {
             ExpressionKind::Call(call) => (*call.func, call.arguments),

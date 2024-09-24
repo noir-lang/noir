@@ -1,78 +1,31 @@
-use chumsky::Parser;
-use noirc_errors::Span;
+use crate::token::{Attribute, Token, TokenKind};
 
-use crate::{
-    macros_api::SecondaryAttribute,
-    parser::{NoirParser, ParserError, ParserErrorReason},
-    token::{Attribute, Attributes, Token, TokenKind},
-};
+use super::ItemKind;
 
-use super::primitives::token_kind;
+use super::Parser;
 
-fn attribute() -> impl NoirParser<Attribute> {
-    token_kind(TokenKind::Attribute).map(|token| match token {
-        Token::Attribute(attribute) => attribute,
-        _ => unreachable!("Parser should have already errored due to token not being an attribute"),
-    })
-}
+impl<'a> Parser<'a> {
+    pub(super) fn parse_inner_attribute(&mut self) -> Option<ItemKind> {
+        let token = self.eat_kind(TokenKind::InnerAttribute)?;
+        match token.into_token() {
+            Token::InnerAttribute(attribute) => Some(ItemKind::InnerAttribute(attribute)),
+            _ => unreachable!(),
+        }
+    }
 
-pub(super) fn attributes() -> impl NoirParser<Vec<Attribute>> {
-    attribute().repeated()
-}
+    pub(super) fn parse_attributes(&mut self) -> Vec<Attribute> {
+        let mut attributes: Vec<Attribute> = Vec::new();
 
-pub(super) fn validate_attributes(
-    attributes: Vec<Attribute>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> Attributes {
-    let mut primary = None;
-    let mut secondary = Vec::new();
-
-    for attribute in attributes {
-        match attribute {
-            Attribute::Function(attr) => {
-                if primary.is_some() {
-                    emit(ParserError::with_reason(
-                        ParserErrorReason::MultipleFunctionAttributesFound,
-                        span,
-                    ));
+        while let Some(token) = self.eat_kind(TokenKind::Attribute) {
+            match token.into_token() {
+                Token::Attribute(attribute) => {
+                    attributes.push(attribute.clone());
+                    self.next_token();
                 }
-                primary = Some(attr);
+                _ => unreachable!(),
             }
-            Attribute::Secondary(attr) => secondary.push(attr),
         }
+
+        attributes
     }
-
-    Attributes { function: primary, secondary }
-}
-
-pub(super) fn validate_secondary_attributes(
-    attributes: Vec<Attribute>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> Vec<SecondaryAttribute> {
-    let mut struct_attributes = vec![];
-
-    for attribute in attributes {
-        match attribute {
-            Attribute::Function(..) => {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
-                    span,
-                ));
-            }
-            Attribute::Secondary(attr) => struct_attributes.push(attr),
-        }
-    }
-
-    struct_attributes
-}
-
-pub(super) fn inner_attribute() -> impl NoirParser<SecondaryAttribute> {
-    token_kind(TokenKind::InnerAttribute).map(|token| match token {
-        Token::InnerAttribute(attribute) => attribute,
-        _ => unreachable!(
-            "Parser should have already errored due to token not being an inner attribute"
-        ),
-    })
 }

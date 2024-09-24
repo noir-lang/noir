@@ -1,36 +1,39 @@
-use chumsky::Parser;
+use crate::token::{DocStyle, Token, TokenKind};
 
-use crate::{
-    parser::NoirParser,
-    token::{DocStyle, Token, TokenKind},
-};
+use super::Parser;
 
-use super::primitives::token_kind;
+impl<'a> Parser<'a> {
+    pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<String> {
+        let mut comments: Vec<String> = Vec::new();
 
-fn outer_doc_comment() -> impl NoirParser<String> {
-    token_kind(TokenKind::OuterDocComment).map(|token| match token {
-        Token::LineComment(comment, Some(DocStyle::Outer)) => comment,
-        Token::BlockComment(comment, Some(DocStyle::Outer)) => comment,
-        _ => unreachable!(
-            "Parser should have already errored due to token not being an outer doc comment"
-        ),
-    })
-}
+        while let Some(token) = self.eat_kind(TokenKind::InnerDocComment) {
+            match token.into_token() {
+                Token::LineComment(comment, Some(DocStyle::Inner))
+                | Token::BlockComment(comment, Some(DocStyle::Inner)) => {
+                    comments.push(comment);
+                    self.next_token();
+                }
+                _ => unreachable!(),
+            }
+        }
 
-pub(super) fn outer_doc_comments() -> impl NoirParser<Vec<String>> {
-    outer_doc_comment().repeated()
-}
+        comments
+    }
 
-fn inner_doc_comment() -> impl NoirParser<String> {
-    token_kind(TokenKind::InnerDocComment).map(|token| match token {
-        Token::LineComment(comment, Some(DocStyle::Inner)) => comment,
-        Token::BlockComment(comment, Some(DocStyle::Inner)) => comment,
-        _ => unreachable!(
-            "Parser should have already errored due to token not being an inner doc comment"
-        ),
-    })
-}
+    pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<String> {
+        let mut comments: Vec<String> = Vec::new();
 
-pub(super) fn inner_doc_comments() -> impl NoirParser<Vec<String>> {
-    inner_doc_comment().repeated()
+        while let Some(token) = self.eat_kind(TokenKind::OuterDocComment) {
+            match token.into_token() {
+                Token::LineComment(comment, Some(DocStyle::Outer))
+                | Token::BlockComment(comment, Some(DocStyle::Outer)) => {
+                    comments.push(comment);
+                    self.next_token();
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        comments
+    }
 }

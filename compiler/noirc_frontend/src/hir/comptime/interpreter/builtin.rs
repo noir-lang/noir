@@ -7,10 +7,9 @@ use builtin_helpers::{
     get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
     get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
     get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
+    mutate_func_meta_type, quote_ident, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
-use chumsky::{chain::Chain, prelude::choice, primitive::just, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -35,7 +34,6 @@ use crate::{
     hir_def::function::FunctionBody,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
-    parser,
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
@@ -677,17 +675,19 @@ fn quoted_as_expr(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let argument = check_one_argument(arguments, location)?;
+    todo!("Parser");
 
-    let expr_parser = parser::expression().map(|expr| Value::expression(expr.kind));
-    let statement_parser = parser::fresh_statement().map(Value::statement);
-    let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
-    let parser = choice((expr_parser, statement_parser, lvalue_parser));
-    let parser = parser.then_ignore(just(Token::Semicolon).or_not());
+    // let argument = check_one_argument(arguments, location)?;
 
-    let expr = parse(interner, argument, parser, "an expression").ok();
+    // let expr_parser = parser::expression().map(|expr| Value::expression(expr.kind));
+    // let statement_parser = parser::fresh_statement().map(Value::statement);
+    // let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
+    // let parser = choice((expr_parser, statement_parser, lvalue_parser));
+    // let parser = parser.then_ignore(just(Token::Semicolon).or_not());
 
-    option(return_type, expr)
+    // let expr = parse(interner, argument, parser, "an expression").ok();
+
+    // option(return_type, expr)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
@@ -697,20 +697,21 @@ fn quoted_as_module(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let argument = check_one_argument(arguments, location)?;
+    todo!("Parser")
+    // let argument = check_one_argument(arguments, location)?;
 
-    let path =
-        parse(interpreter.elaborator.interner, argument, parser::path_no_turbofish(), "a path")
-            .ok();
-    let option_value = path.and_then(|path| {
-        let module = interpreter
-            .elaborate_in_function(interpreter.current_function, |elaborator| {
-                elaborator.resolve_module_by_path(path)
-            });
-        module.map(Value::ModuleDefinition)
-    });
+    // let path =
+    //     parse(interpreter.elaborator.interner, argument, parser::path_no_turbofish(), "a path")
+    //         .ok();
+    // let option_value = path.and_then(|path| {
+    //     let module = interpreter
+    //         .elaborate_in_function(interpreter.current_function, |elaborator| {
+    //             elaborator.resolve_module_by_path(path)
+    //         });
+    //     module.map(Value::ModuleDefinition)
+    // });
 
-    option(return_type, option_value)
+    // option(return_type, option_value)
 }
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
@@ -719,20 +720,21 @@ fn quoted_as_trait_constraint(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let argument = check_one_argument(arguments, location)?;
-    let trait_bound = parse(
-        interpreter.elaborator.interner,
-        argument,
-        parser::trait_bound(),
-        "a trait constraint",
-    )?;
-    let bound = interpreter
-        .elaborate_in_function(interpreter.current_function, |elaborator| {
-            elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
-        })
-        .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
+    todo!("Parser")
+    // let argument = check_one_argument(arguments, location)?;
+    // let trait_bound = parse(
+    //     interpreter.elaborator.interner,
+    //     argument,
+    //     parser::trait_bound(),
+    //     "a trait constraint",
+    // )?;
+    // let bound = interpreter
+    //     .elaborate_in_function(interpreter.current_function, |elaborator| {
+    //         elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
+    //     })
+    //     .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
-    Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
+    // Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
 }
 
 // fn as_type(quoted: Quoted) -> Type
@@ -741,11 +743,12 @@ fn quoted_as_type(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let argument = check_one_argument(arguments, location)?;
-    let typ = parse(interpreter.elaborator.interner, argument, parser::parse_type(), "a type")?;
-    let typ = interpreter
-        .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
-    Ok(Value::Type(typ))
+    todo!("Parser")
+    // let argument = check_one_argument(arguments, location)?;
+    // let typ = parse(interpreter.elaborator.interner, argument, parser::parse_type(), "a type")?;
+    // let typ = interpreter
+    //     .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
+    // Ok(Value::Type(typ))
 }
 
 // fn tokens(quoted: Quoted) -> [Quoted]
@@ -2325,12 +2328,13 @@ fn function_def_set_parameters(
             (input_parameter, parameters_argument_location),
         )?;
         let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
-        let parameter_pattern = parse(
-            interpreter.elaborator.interner,
-            (tuple.pop().unwrap(), parameters_argument_location),
-            parser::pattern(),
-            "a pattern",
-        )?;
+        let parameter_pattern = todo!("Parser");
+        // let parameter_pattern = parse(
+        //     interpreter.elaborator.interner,
+        //     (tuple.pop().unwrap(), parameters_argument_location),
+        //     parser::pattern(),
+        //     "a pattern",
+        // )?;
 
         let hir_pattern = interpreter.elaborate_in_function(Some(func_id), |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
@@ -2428,23 +2432,24 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
 
-    let parser = parser::top_level_items();
-    let top_level_statements =
-        parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
+    // let parser = parser::top_level_items();
+    // let top_level_statements =
+    //     parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
+    let top_level_statements = todo!("Parser");
 
-    interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
-        let mut generated_items = CollectedItems::default();
+    // interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
+    //     let mut generated_items = CollectedItems::default();
 
-        for top_level_statement in top_level_statements {
-            elaborator.add_item(top_level_statement, &mut generated_items, location);
-        }
+    //     for top_level_statement in top_level_statements {
+    //         elaborator.add_item(top_level_statement, &mut generated_items, location);
+    //     }
 
-        if !generated_items.is_empty() {
-            elaborator.elaborate_items(generated_items);
-        }
-    });
+    //     if !generated_items.is_empty() {
+    //         elaborator.elaborate_items(generated_items);
+    //     }
+    // });
 
-    Ok(Value::Unit)
+    // Ok(Value::Unit)
 }
 
 fn module_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {

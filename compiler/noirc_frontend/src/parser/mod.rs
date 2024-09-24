@@ -12,23 +12,17 @@ mod labels;
 mod parser;
 
 use crate::ast::{
-    Documented, Expression, Ident, ImportStatement, ItemVisibility, LetStatement,
-    ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias,
-    Recoverable, StatementKind, TypeImpl, UseTree,
+    Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
+    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl, UseTree,
 };
-use crate::token::{Keyword, SecondaryAttribute, Token};
+use crate::token::{SecondaryAttribute, Token};
 
-use chumsky::prelude::*;
-use chumsky::primitive::Container;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
-pub use parser::path::path_no_turbofish;
-pub use parser::traits::trait_bound;
-pub use parser::{
-    block, expression, fresh_statement, lvalue, module, parse_program, parse_type, pattern,
-    top_level_items, top_level_statement, visibility,
-};
+pub use parser::parse_program;
+
+pub trait NoirParser<T> {}
 
 #[derive(Debug, Clone)]
 pub struct TopLevelStatement {
@@ -69,175 +63,6 @@ impl TopLevelStatementKind {
             TopLevelStatementKind::Error => None,
         }
     }
-}
-
-// Helper trait that gives us simpler type signatures for return types:
-// e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
-pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {}
-impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
-
-// ExprParser just serves as a type alias for NoirParser<Expression> + Clone
-pub trait ExprParser: NoirParser<Expression> {}
-impl<P> ExprParser for P where P: NoirParser<Expression> {}
-
-fn parenthesized<P, T>(parser: P) -> impl NoirParser<T>
-where
-    P: NoirParser<T>,
-    T: Recoverable,
-{
-    use Token::*;
-    parser.delimited_by(just(LeftParen), just(RightParen)).recover_with(nested_delimiters(
-        LeftParen,
-        RightParen,
-        [(LeftBracket, RightBracket)],
-        Recoverable::error,
-    ))
-}
-
-fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
-where
-    P: NoirParser<T>,
-{
-    parser.map_with_span(|value, span| (value, span))
-}
-
-// Parse with the first parser, then continue by
-// repeating the second parser 0 or more times.
-// The passed in function is then used to combine the
-// results of both parsers along with their spans at
-// each step.
-fn foldl_with_span<P1, P2, T1, T2, F>(
-    first_parser: P1,
-    to_be_repeated: P2,
-    f: F,
-) -> impl NoirParser<T1>
-where
-    P1: NoirParser<T1>,
-    P2: NoirParser<T2>,
-    F: Fn(T1, T2, Span) -> T1 + Clone,
-{
-    spanned(first_parser)
-        .then(spanned(to_be_repeated).repeated())
-        .foldl(move |(a, a_span), (b, b_span)| {
-            let span = a_span.merge(b_span);
-            (f(a, b, span), span)
-        })
-        .map(|(value, _span)| value)
-}
-
-/// Sequence the two parsers.
-/// Fails if the first parser fails, otherwise forces
-/// the second parser to succeed while logging any errors.
-fn then_commit<'a, P1, P2, T1, T2>(
-    first_parser: P1,
-    second_parser: P2,
-) -> impl NoirParser<(T1, T2)> + 'a
-where
-    P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    T2: Clone + Recoverable + 'a,
-{
-    let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
-
-    first_parser.then(second_parser)
-}
-
-fn then_commit_ignore<'a, P1, P2, T1, T2>(
-    first_parser: P1,
-    second_parser: P2,
-) -> impl NoirParser<T1> + 'a
-where
-    P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    T1: 'a,
-    T2: Clone + 'a,
-{
-    let second_parser = skip_then_retry_until(second_parser);
-    first_parser.then_ignore(second_parser)
-}
-
-fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a>(
-    first_parser: P1,
-    second_parser: P2,
-) -> impl NoirParser<T2> + 'a
-where
-    P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    T2: Recoverable,
-{
-    let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
-
-    first_parser.ignore_then(second_parser)
-}
-
-fn skip_then_retry_until<'a, P, T>(parser: P) -> impl NoirParser<Option<T>> + 'a
-where
-    P: NoirParser<T> + 'a,
-    T: Clone + 'a,
-{
-    let terminators = [
-        Token::EOF,
-        Token::Colon,
-        Token::Semicolon,
-        Token::RightBrace,
-        Token::Keyword(Keyword::Let),
-        Token::Keyword(Keyword::Constrain),
-    ];
-    force(parser.recover_with(chumsky::prelude::skip_then_retry_until(terminators)))
-}
-
-/// General recovery strategy: try to skip to the target token, failing if we encounter the
-/// 'too_far' token beforehand.
-///
-/// Expects all of `too_far` to be contained within `targets`
-fn try_skip_until<T, C1, C2>(targets: C1, too_far: C2) -> impl NoirParser<T>
-where
-    T: Recoverable + Clone,
-    C1: Container<Token> + Clone,
-    C2: Container<Token> + Clone,
-{
-    chumsky::prelude::none_of(targets)
-        .repeated()
-        .ignore_then(one_of(too_far.clone()).rewind())
-        .try_map(move |peek, span| {
-            if too_far.get_iter().any(|t| t == peek) {
-                // This error will never be shown to the user
-                Err(ParserError::empty(Token::EOF, span))
-            } else {
-                Ok(Recoverable::error(span))
-            }
-        })
-}
-
-/// Recovery strategy for statements: If a statement fails to parse skip until the next ';' or fail
-/// if we find a '}' first.
-fn statement_recovery() -> impl NoirParser<StatementKind> {
-    use Token::*;
-    try_skip_until([Semicolon, RightBrace], RightBrace)
-}
-
-fn parameter_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
-    use Token::*;
-    try_skip_until([Comma, RightParen], RightParen)
-}
-
-fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
-    use Token::*;
-    try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
-}
-
-fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatementKind> {
-    none_of([Token::RightBrace, Token::EOF])
-        .repeated()
-        .ignore_then(one_of([Token::Semicolon]))
-        .map(|_| TopLevelStatementKind::Error)
-}
-
-/// Force the given parser to succeed, logging any errors it had
-fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T>> + 'a {
-    parser.map(Some).recover_via(empty().map(|_| None))
 }
 
 #[derive(Clone, Default)]
