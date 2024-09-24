@@ -3748,3 +3748,35 @@ fn macro_result_type_mismatch() {
         CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
     ));
 }
+
+
+#[test]
+fn trait_unconstrained_methods_typechecked_correctly() {
+    // This test checks that we properly track whether a method has been declared as unconstrained on the trait definition
+    // and preserves that through typechecking.
+    let src = r#"
+        trait Foo {
+            unconstrained fn identity(self) -> Self {
+                self
+            }
+
+            unconstrained fn foo(self) -> u64;
+        }
+
+        impl Foo for Field {
+            unconstrained fn foo(self) -> u64 {
+                self as u64
+            }
+        }
+
+        fn main() {
+            assert_eq(2.foo() as Field, 2.identity());
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    println!("{errors:?}");
+    assert_eq!(errors.len(), 0);
+}
+
+

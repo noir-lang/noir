@@ -1,6 +1,0 @@
-[package]
-name = "trait_unconstrained_method"
-type = "bin"
-authors = [""]
-
-[dependencies]
