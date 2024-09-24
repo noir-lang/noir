@@ -41,7 +41,7 @@ unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u3
     for k in 0..block_input {
         msg_block[k] = msg[msg_start + k];
     }
-    (msg_block, msg_start + message_size)
+    (msg_block, msg_start + block_input)
 }
 
 // Verify the block we are compressing was appropriately constructed
