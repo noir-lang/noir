@@ -214,16 +214,14 @@ unconstrained fn pad_msg_block(
     // the 1 and 0s fill up the current block, which we then compress accordingly.
     if msg_byte_ptr >= 57 {
         // Not enough bits (64) to store length. Fill up with zeros.
-        if msg_byte_ptr < BLOCK_SIZE {
-            for _ in 57..64 {
-                if msg_byte_ptr <= 63 {
-                    msg_block[msg_byte_ptr] = 0;
-                    msg_byte_ptr += 1;
-                }
-            }
+        for i in msg_byte_ptr..BLOCK_SIZE {
+            msg_block[i] = 0;
         }
+        (msg_block, BLOCK_SIZE)
+    } else {
+        (msg_block, msg_byte_ptr)
     }
-    (msg_block, msg_byte_ptr)
+    
 }
 
 unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; BLOCK_SIZE], msg_byte_ptr: u32, message_size: u32) -> [u8; BLOCK_SIZE] {
