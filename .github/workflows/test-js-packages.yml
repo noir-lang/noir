@@ -523,7 +523,7 @@ jobs:
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
          # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
          #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
-         - { repo: zac-williamson/noir-edwards, path: ./, ref: 0016ce82cd58b6ebb0c43c271725590bcff4e755  }
+        - { repo: zac-williamson/noir-edwards, path: ./, ref: 037e44b2ee8557c51f6aef9bb9d63ea9e32722d1  }
         # TODO: Enable these once they're passing against master again.
         #  - { repo: zac-williamson/noir-bignum, path: ./, ref: 030c2acce1e6b97c44a3bbbf3429ed96f20d72d3  }
         #  - { repo: vlayer-xyz/monorepo, path: ./, ref: ee46af88c025863872234eb05d890e1e447907cb }
