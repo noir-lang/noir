@@ -38,7 +38,7 @@ unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u3
     let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
     // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
     let block_input = if msg_start + BLOCK_SIZE > message_size {
-        if msg_start < message_size  {
+        if message_size < msg_start  {
             // This function is sometimes called with `msg_start` past the end of the message.
             // In this case we return an empty block and zero pointer to signal that the result should be ignored.
             0
