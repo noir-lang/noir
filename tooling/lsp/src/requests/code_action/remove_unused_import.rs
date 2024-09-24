@@ -163,7 +163,7 @@ mod tests {
 
         let src = r#"
         mod moo {
-            fn foo() {}
+            pub fn foo() {}
         }
         use moo::fo>|<o;
 
@@ -173,7 +173,7 @@ mod tests {
 
         let expected = r#"
         mod moo {
-            fn foo() {}
+            pub fn foo() {}
         }
         
 
@@ -190,7 +190,7 @@ mod tests {
 
         let src = r#"
         mod moo {
-            fn foo() {}
+            pub fn foo() {}
         }
 
         mod qux {
@@ -203,7 +203,7 @@ mod tests {
 
         let expected = r#"
         mod moo {
-            fn foo() {}
+            pub fn foo() {}
         }
 
         mod qux {
@@ -223,8 +223,8 @@ mod tests {
 
         let src = r#"
         mod moo {
-            fn foo() {}
-            fn bar() {}
+            pub fn foo() {}
+            pub fn bar() {}
         }
         use moo::{fo>|<o, bar};
 
@@ -235,8 +235,8 @@ mod tests {
 
         let expected = r#"
         mod moo {
-            fn foo() {}
-            fn bar() {}
+            pub fn foo() {}
+            pub fn bar() {}
         }
         use moo::bar;
 
@@ -254,9 +254,9 @@ mod tests {
 
         let src = r#"
         mod moo {
-            fn foo() {}
-            fn bar() {}
-            fn baz() {}
+            pub fn foo() {}
+            pub fn bar() {}
+            pub fn baz() {}
         }
         use moo::{fo>|<o, bar, baz};
 
@@ -267,9 +267,9 @@ mod tests {
 
         let expected = r#"
         mod moo {
-            fn foo() {}
-            fn bar() {}
-            fn baz() {}
+            pub fn foo() {}
+            pub fn bar() {}
+            pub fn baz() {}
         }
         use moo::bar;
 
@@ -287,10 +287,10 @@ mod tests {
 
         let src = r#"
         mod moo {
-            fn foo() {}
-            fn bar() {}
+            pub fn foo() {}
+            pub fn bar() {}
         }
-        pub use moo::{fo>|<o, bar};
+        pub(crate) use moo::{fo>|<o, bar};
 
         fn main() {
             bar();
@@ -299,10 +299,10 @@ mod tests {
 
         let expected = r#"
         mod moo {
-            fn foo() {}
-            fn bar() {}
+            pub fn foo() {}
+            pub fn bar() {}
         }
-        pub use moo::bar;
+        pub(crate) use moo::bar;
 
         fn main() {
             bar();

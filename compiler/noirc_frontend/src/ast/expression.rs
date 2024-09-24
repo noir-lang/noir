@@ -802,6 +802,7 @@ impl Display for TypePath {
 impl FunctionDefinition {
     pub fn normal(
         name: &Ident,
+        is_unconstrained: bool,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         body: &BlockExpression,
@@ -821,7 +822,7 @@ impl FunctionDefinition {
         FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_unconstrained: false,
+            is_unconstrained,
             is_comptime: false,
             visibility: ItemVisibility::Private,
             generics: generics.clone(),

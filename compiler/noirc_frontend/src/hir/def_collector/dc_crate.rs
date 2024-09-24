@@ -372,6 +372,8 @@ impl DefCollector {
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
                     let file_id = current_def_map.file_id(module_id);
 
+                    let has_path_resolution_error = resolved_import.error.is_some();
+
                     if let Some(error) = resolved_import.error {
                         errors.push((
                             DefCollectorErrorKind::PathResolutionError(error).into(),
@@ -401,24 +403,29 @@ impl DefCollector {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), visibility, module_def_id, is_prelude);
 
-                        let module_id =
-                            ModuleId { krate: crate_id, local_id: resolved_import.module_scope };
-                        context.def_interner.usage_tracker.add_unused_item(
-                            module_id,
-                            name.clone(),
-                            UnusedItem::Import,
-                            visibility,
-                        );
-
-                        if visibility != ItemVisibility::Private {
-                            let local_id = resolved_import.module_scope;
-                            let defining_module = ModuleId { krate: crate_id, local_id };
-                            context.def_interner.register_name_for_auto_import(
-                                name.to_string(),
-                                module_def_id,
+                        // If we error on path resolution don't also say it's unused (in case it ends up being unused)
+                        if !has_path_resolution_error {
+                            let module_id = ModuleId {
+                                krate: crate_id,
+                                local_id: resolved_import.module_scope,
+                            };
+                            context.def_interner.usage_tracker.add_unused_item(
+                                module_id,
+                                name.clone(),
+                                UnusedItem::Import,
                                 visibility,
-                                Some(defining_module),
                             );
+
+                            if visibility != ItemVisibility::Private {
+                                let local_id = resolved_import.module_scope;
+                                let defining_module = ModuleId { krate: crate_id, local_id };
+                                context.def_interner.register_name_for_auto_import(
+                                    name.to_string(),
+                                    module_def_id,
+                                    visibility,
+                                    Some(defining_module),
+                                );
+                            }
                         }
 
                         let last_segment = collected_import.path.last_ident();
