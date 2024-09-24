@@ -89,7 +89,7 @@ impl<'context> Elaborator<'context> {
                     self.add_variable_decl(
                         name,
                         mutable.is_some(),
-                        true,
+                        true, // allow_shadowing
                         warn_if_unused,
                         definition,
                     )
@@ -278,7 +278,7 @@ impl<'context> Elaborator<'context> {
                 definition.clone(),
                 mutable,
                 new_definitions,
-                true,
+                true, // warn_if_unused
                 None,
             );
 

@@ -2338,7 +2338,7 @@ fn function_def_set_parameters(
                 parameter_type.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
-                true,
+                true, // warn_if_unused
                 None,
             )
         });
