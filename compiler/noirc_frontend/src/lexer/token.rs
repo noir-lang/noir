@@ -955,6 +955,13 @@ impl SecondaryAttribute {
             SecondaryAttribute::Allow(_) => Some("allow".to_string()),
         }
     }
+
+    pub(crate) fn is_allow_unused_variables(&self) -> bool {
+        match self {
+            SecondaryAttribute::Allow(string) => string == "unused_variables",
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for SecondaryAttribute {

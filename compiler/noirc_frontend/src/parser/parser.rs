@@ -54,7 +54,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Keyword, Token, TokenKind};
+use crate::token::{Keyword, SecondaryAttribute, Token, TokenKind};
 use acvm::AcirField;
 
 use chumsky::prelude::*;
@@ -535,23 +535,30 @@ where
 
 fn let_statement<'a, P>(
     expr_parser: P,
-) -> impl NoirParser<((Pattern, UnresolvedType), Expression)> + 'a
+) -> impl NoirParser<(Vec<SecondaryAttribute>, Pattern, UnresolvedType, Expression)> + 'a
 where
     P: ExprParser + 'a,
 {
-    let p =
-        ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern());
+    let p = attributes();
+    let p = p.then_ignore(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement));
+    let p = then_commit(p, pattern());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    then_commit(p, expr_parser)
+    let p = then_commit(p, expr_parser);
+    p.validate(|(((attributes, pattern), typ), expr), span, emit| {
+        let attributes = attributes::validate_secondary_attributes(attributes, span, emit);
+
+        (attributes, pattern, typ, expr)
+    })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let_statement(expr_parser)
-        .map(|((pattern, typ), expr)| StatementKind::new_let(pattern, typ, expr))
+    let_statement(expr_parser).map(|(attributes, pattern, typ, expr)| {
+        StatementKind::new_let(pattern, typ, expr, attributes)
+    })
 }
 
 pub fn pattern() -> impl NoirParser<Pattern> {

@@ -362,8 +362,7 @@ impl<'context> Elaborator<'context> {
             if let Kind::Numeric(typ) = &generic.kind {
                 let definition = DefinitionKind::GenericType(generic.type_var.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
-                let hir_ident =
-                    self.add_variable_decl_inner(ident, false, false, false, definition);
+                let hir_ident = self.add_variable_decl(ident, false, false, false, definition);
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());
             }
         }
@@ -760,6 +759,7 @@ impl<'context> Elaborator<'context> {
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
+                true,
                 None,
             );
 
