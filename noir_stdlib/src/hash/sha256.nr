@@ -194,8 +194,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         // We verify the message length was inserted correctly by reversing the byte decomposition.
         let len = 8 * message_size;
         let mut reconstructed_len: Field = 0;
-        for i in 0..8 {
-            reconstructed_len =  256 * reconstructed_len + msg_block[56 + i] as Field;
+        for i in 56..64 {
+            reconstructed_len = 256 * reconstructed_len + msg_block[i] as Field;
         }
         assert_eq(reconstructed_len, len as Field);
     }
