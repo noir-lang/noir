@@ -186,11 +186,9 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
     if !crate::runtime::is_unconstrained() {
         for i in 0..56 {
-            if i < msg_byte_ptr {
-                assert_eq(msg_block[i], last_block[i]);
-            } else {
-                assert_eq(msg_block[i], zero);
-            }
+            let predicate = (i < msg_byte_ptr) as u8;
+            let expected_byte = predicate * last_block[i];
+            assert_eq(msg_block[i], expected_byte);
         }
 
         let len = 8 * message_size;
