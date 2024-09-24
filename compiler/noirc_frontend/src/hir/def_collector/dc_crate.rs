@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::{Expression, MacroError, MacroProcessor};
+use crate::macros_api::Expression;
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
@@ -214,12 +214,6 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
     }
 }
 
-impl From<MacroError> for CompilationError {
-    fn from(value: MacroError) -> Self {
-        CompilationError::DefinitionError(DefCollectorErrorKind::MacroError(value))
-    }
-}
-
 impl From<ParserError> for CompilationError {
     fn from(value: ParserError) -> Self {
         CompilationError::ParseError(value)
@@ -272,7 +266,6 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         error_on_unused_items: bool,
-        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let crate_id = def_map.krate;
@@ -291,7 +284,6 @@ impl DefCollector {
                 context,
                 debug_comptime_in_file,
                 error_on_usage_tracker,
-                macro_processors,
             ));
 
             let dep_def_map =
@@ -329,7 +321,6 @@ impl DefCollector {
             crate_root,
             crate_id,
             context,
-            macro_processors,
         ));
 
         let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
@@ -485,14 +476,6 @@ impl DefCollector {
             Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
 
         errors.append(&mut more_errors);
-
-        for macro_processor in macro_processors {
-            macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
-                |(macro_err, file_id)| {
-                    errors.push((macro_err.into(), file_id));
-                },
-            );
-        }
 
         if error_on_unused_items {
             Self::check_unused_items(context, crate_id, &mut errors);
