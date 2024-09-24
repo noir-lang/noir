@@ -46,7 +46,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context, &[]);
+    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
