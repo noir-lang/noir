@@ -216,17 +216,15 @@ unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64) -
 unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64, message_size: u64) -> [u8; 64] {
     let len = 8 * message_size;
     let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
-    for _i in 0..64 {
-        // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
-        if msg_byte_ptr < 56 {
-            msg_block[msg_byte_ptr] = 0;
-            msg_byte_ptr = msg_byte_ptr + 1;
-        } else if msg_byte_ptr < 64 {
-            for j in 0..8 {
-                msg_block[msg_byte_ptr + j] = len_bytes[j];
-            }
-            msg_byte_ptr += 8;
-        }
+    
+    // We assume that `msg_byte_ptr` is less than 57 because if not then it is reset to zero before calling this function.
+    // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
+
+    for i in msg_byte_ptr..56 {
+        msg_block[i] = 0;
+    }
+    for i in 0..8 {
+        msg_block[56 + i] = len_bytes[i];
     }
     msg_block
 }
