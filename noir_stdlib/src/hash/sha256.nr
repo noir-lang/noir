@@ -37,7 +37,7 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
 unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> ([u8; 64], u32) {
     let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
     // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
-    let block_input = crate::cmp::min( BLOCK_SIZE, N - msg_start);
+    let block_input = crate::cmp::min(BLOCK_SIZE, N - msg_start);
     for k in 0..block_input {
         msg_block[k] = msg[msg_start + k];
     }
