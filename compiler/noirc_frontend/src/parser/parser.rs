@@ -1,18 +1,21 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Expression, Ident, LValue, Path, Pattern, Statement, TraitBound, UnresolvedType},
+    ast::{Expression, Ident, LValue, Path, Pattern, Statement, TraitBound},
     lexer::{Lexer, SpannedTokenResult},
-    token::{Keyword, SpannedToken, Token, TokenKind, Tokens},
+    token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
 use super::{ItemKind, ParsedModule, ParserError};
 
 mod attributes;
 mod doc_comments;
+mod generics;
 mod item;
 mod item_visibility;
 mod module;
+mod structs;
+mod types;
 mod use_tree;
 
 /// Entry function for the parser - also handles lexing internally.
@@ -110,10 +113,6 @@ impl<'a> Parser<'a> {
         todo!("Parser")
     }
 
-    pub(crate) fn parse_type(&mut self) -> UnresolvedType {
-        todo!("Parser")
-    }
-
     pub(crate) fn parse_trait_bound(&mut self) -> TraitBound {
         todo!("Parser")
     }
@@ -182,6 +181,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_int_type(&mut self) -> Option<IntType> {
+        let is_int_type = matches!(self.token.token(), Token::IntType(..));
+        if is_int_type {
+            let token = std::mem::take(&mut self.token);
+            self.next_token();
+            match token.into_token() {
+                Token::IntType(int_type) => Some(int_type),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma)
     }
@@ -199,6 +212,10 @@ impl<'a> Parser<'a> {
 
     fn eat_semicolon(&mut self) -> bool {
         self.eat(Token::Semicolon)
+    }
+
+    fn eat_colon(&mut self) -> bool {
+        self.eat(Token::Colon)
     }
 
     fn eat_double_colon(&mut self) -> bool {
@@ -219,6 +236,14 @@ impl<'a> Parser<'a> {
 
     fn eat_right_brace(&mut self) -> bool {
         self.eat(Token::RightBrace)
+    }
+
+    fn eat_less(&mut self) -> bool {
+        self.eat(Token::Less)
+    }
+
+    fn eat_greater(&mut self) -> bool {
+        self.eat(Token::Greater)
     }
 
     fn eat_semicolons(&mut self) -> bool {

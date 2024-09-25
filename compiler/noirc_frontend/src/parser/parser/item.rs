@@ -34,6 +34,8 @@ impl<'a> Parser<'a> {
         let visibility = self.parse_item_visibility();
         let attributes = self.parse_attributes();
 
+        let start_span = self.current_token_span;
+
         if self.eat_keyword(Keyword::Use) {
             let use_tree = self.parse_use_tree();
             return Some(ItemKind::Import(use_tree, visibility));
@@ -46,6 +48,10 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+
+        if self.eat_keyword(Keyword::Struct) {
+            return Some(ItemKind::Struct(self.parse_struct(attributes, visibility, start_span)));
+        }
 
         if let Some(is_contract) = module_or_contract {
             return Some(self.parse_module_or_contract(attributes, is_contract));

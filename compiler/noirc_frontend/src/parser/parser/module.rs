@@ -32,10 +32,7 @@ impl<'a> Parser<'a> {
             }
         } else {
             // TODO: error
-            ItemKind::ModuleDecl(ModuleDeclaration {
-                ident: Ident::new(String::new(), Default::default()),
-                outer_attributes,
-            })
+            ItemKind::ModuleDecl(ModuleDeclaration { ident: Ident::default(), outer_attributes })
         }
     }
 }

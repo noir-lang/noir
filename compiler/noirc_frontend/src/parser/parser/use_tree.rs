@@ -86,10 +86,7 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_path_use_tree_end(&mut self, mut prefix: Path) -> UseTree {
         if prefix.segments.is_empty() {
             // TODO: error
-            UseTree {
-                prefix,
-                kind: UseTreeKind::Path(Ident::new(String::new(), Span::default()), None),
-            }
+            UseTree { prefix, kind: UseTreeKind::Path(Ident::default(), None) }
         } else {
             let ident = prefix.segments.pop().unwrap().ident;
             if self.eat_keyword(Keyword::As) {

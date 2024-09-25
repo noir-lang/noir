@@ -176,7 +176,7 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone, Default)]
 pub struct Ident(pub Spanned<String>);
 
 impl Ident {
