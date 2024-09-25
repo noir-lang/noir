@@ -1943,6 +1943,26 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_suggests_built_in_let_attribute() {
+        let src = r#"
+            fn foo() {
+                #[allo>|<]
+                let x = 1;
+            }
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item(
+                "allow(unused_variables)",
+                CompletionItemKind::METHOD,
+                None,
+            )],
+        )
+        .await;
+    }
+
+    #[test]
     async fn test_suggests_function_attribute() {
         let src = r#"
             #[some>|<]
