@@ -28,16 +28,12 @@ impl UnusedItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct UsageTracker {
     unused_items: HashMap<ModuleId, HashMap<Ident, UnusedItem>>,
 }
 
 impl UsageTracker {
-    pub(crate) fn new() -> Self {
-        Self { unused_items: HashMap::new() }
-    }
-
     pub(crate) fn add_unused_item(
         &mut self,
         module_id: ModuleId,
