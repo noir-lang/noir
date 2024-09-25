@@ -146,6 +146,32 @@ mod tests {
     }
 
     #[test]
+    fn parse_simple_pub() {
+        let src = "pub use foo;";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Import(_, visibility) = &item.kind else {
+            panic!("Expected import");
+        };
+        assert_eq!(visibility, &ItemVisibility::Public);
+    }
+
+    #[test]
+    fn parse_simple_pub_crate() {
+        let src = "pub(crate) use foo;";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Import(_, visibility) = &item.kind else {
+            panic!("Expected import");
+        };
+        assert_eq!(visibility, &ItemVisibility::PublicCrate);
+    }
+
+    #[test]
     fn parse_simple_with_alias() {
         let src = "use foo as bar;";
         let (mut module, errors) = parse_program(src);

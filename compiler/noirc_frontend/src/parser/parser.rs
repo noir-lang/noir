@@ -123,8 +123,7 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
-        // TODO: visibility
-        let visibility = ItemVisibility::Private;
+        let visibility = self.parse_item_visibility();
 
         if self.eat_keyword(Keyword::Use) {
             let use_tree = self.parse_use_tree();
@@ -132,6 +131,33 @@ impl<'a> Parser<'a> {
         }
 
         None
+    }
+
+    fn parse_item_visibility(&mut self) -> ItemVisibility {
+        if !self.eat_keyword(Keyword::Pub) {
+            return ItemVisibility::Private;
+        }
+
+        if self.eat(Token::LeftParen).is_none() {
+            // `pub`
+            return ItemVisibility::Public;
+        }
+
+        if !self.eat_keyword(Keyword::Crate) {
+            // TODO: error
+            // `pub(` or `pub()`
+            self.eat(Token::RightParen);
+            return ItemVisibility::Public;
+        }
+
+        if self.eat(Token::RightParen).is_some() {
+            // `pub(crate)`
+            ItemVisibility::PublicCrate
+        } else {
+            // `pub(crate`
+            // TODO: error
+            ItemVisibility::PublicCrate
+        }
     }
 
     pub(crate) fn parse_expression(&mut self) -> Expression {
