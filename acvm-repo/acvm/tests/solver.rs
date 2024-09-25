@@ -1077,18 +1077,6 @@ fn solve_blackbox_func_call(
 
 // N inputs
 // 32 outputs
-fn sha256_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    Ok(BlackBoxFuncCall::SHA256 {
-        inputs: function_inputs,
-        outputs: outputs.try_into().expect("SHA256 returns 32 outputs"),
-    })
-}
-
-// N inputs
-// 32 outputs
 fn blake2s_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
@@ -1458,19 +1446,6 @@ fn poseidon2_permutation_zeroes() {
 }
 
 #[test]
-fn sha256_zeros() {
-    let results = solve_array_input_blackbox_call(vec![], 32, None, sha256_op);
-    let expected_results: Vec<_> = vec![
-        227, 176, 196, 66, 152, 252, 28, 20, 154, 251, 244, 200, 153, 111, 185, 36, 39, 174, 65,
-        228, 100, 155, 147, 76, 164, 149, 153, 27, 120, 82, 184, 85,
-    ]
-    .into_iter()
-    .map(|x: u128| FieldElement::from(x))
-    .collect();
-    assert_eq!(results, Ok(expected_results));
-}
-
-#[test]
 fn sha256_compression_zeros() {
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 24].try_into().unwrap(),
@@ -1643,12 +1618,6 @@ proptest! {
         prop_assert_eq!(result, expected_result)
     }
 
-    #[test]
-    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, sha256_op);
-        prop_assert!(result, "{}", message);
-    }
 
     #[test]
     fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {

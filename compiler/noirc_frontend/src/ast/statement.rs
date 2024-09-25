@@ -109,6 +109,8 @@ impl StatementKind {
                     // Semicolons are optional for these expressions
                     (ExpressionKind::Block(_), semi, _)
                     | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::Interned(..), semi, _)
+                    | (ExpressionKind::InternedStatement(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
@@ -139,13 +141,14 @@ impl StatementKind {
         pattern: Pattern,
         r#type: UnresolvedType,
         expression: Expression,
+        attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
             r#type,
             expression,
             comptime: false,
-            attributes: vec![],
+            attributes,
         })
     }
 
@@ -328,9 +331,13 @@ impl Display for UseTree {
 
         match &self.kind {
             UseTreeKind::Path(name, alias) => {
+                if !(self.prefix.segments.is_empty() && self.prefix.kind == PathKind::Plain) {
+                    write!(f, "::")?;
+                }
+
                 write!(f, "{name}")?;
 
-                while let Some(alias) = alias {
+                if let Some(alias) = alias {
                     write!(f, " as {alias}")?;
                 }
 
@@ -385,6 +392,16 @@ pub struct AsTraitPath {
     pub trait_path: Path,
     pub trait_generics: GenericTypeArgs,
     pub impl_item: Ident,
+}
+
+/// A special kind of path in the form `Type::ident::<turbofish>`
+/// Unlike normal paths, the type here can be a primitive type or
+/// interned type.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypePath {
+    pub typ: UnresolvedType,
+    pub item: Ident,
+    pub turbofish: GenericTypeArgs,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -550,13 +567,52 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression, pub Option<Expression>, pub ConstrainKind);
+pub struct ConstrainStatement {
+    pub kind: ConstrainKind,
+    pub arguments: Vec<Expression>,
+    pub span: Span,
+}
+
+impl Display for ConstrainStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
+                f,
+                "{}({})",
+                self.kind,
+                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
+            ),
+            ConstrainKind::Constrain => {
+                write!(f, "constrain {}", &self.arguments[0])
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ConstrainKind {
     Assert,
     AssertEq,
     Constrain,
+}
+
+impl ConstrainKind {
+    pub fn required_arguments_count(&self) -> usize {
+        match self {
+            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
+            ConstrainKind::AssertEq => 2,
+        }
+    }
+}
+
+impl Display for ConstrainKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConstrainKind::Assert => write!(f, "assert"),
+            ConstrainKind::AssertEq => write!(f, "assert_eq"),
+            ConstrainKind::Constrain => write!(f, "constrain"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -759,6 +815,7 @@ impl ForRange {
                         Pattern::Identifier(array_ident.clone()),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         array,
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -803,6 +860,7 @@ impl ForRange {
                         Pattern::Identifier(identifier),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         Expression::new(loop_element, array_span),
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -865,13 +923,11 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
-    }
-}
-
-impl Display for ConstrainStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "constrain {}", self.0)
+        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
+            write!(f, "let {} = {}", self.pattern, self.expression)
+        } else {
+            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+        }
     }
 }
 

@@ -16,14 +16,17 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            if !func.runtime().is_entry_point() {
-                let mut reachable_blocks = func.reachable_blocks();
+            let mut reachable_blocks = func.reachable_blocks();
+            let block = if !func.runtime().is_entry_point() {
                 assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
+                reachable_blocks.pop_first().unwrap()
+            } else {
+                // We only apply the array set optimization in the return block of Brillig functions
+                func.find_last_block()
+            };
 
-                let block = reachable_blocks.pop_first().unwrap();
-                let instructions_to_update = analyze_last_uses(&func.dfg, block);
-                make_mutable(&mut func.dfg, block, instructions_to_update);
-            }
+            let instructions_to_update = analyze_last_uses(&func.dfg, block);
+            make_mutable(&mut func.dfg, block, instructions_to_update);
         }
         self
     }

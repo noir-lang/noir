@@ -10,7 +10,7 @@ use builtin_helpers::{
     mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
-use chumsky::{chain::Chain, prelude::choice, Parser};
+use chumsky::{chain::Chain, prelude::choice, primitive::just, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -32,15 +32,14 @@ use crate::{
         def_collector::dc_crate::CollectedItems,
     },
     hir_def::function::FunctionBody,
-    lexer::Lexer,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
-    parser::{self},
+    parser,
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item};
+use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -146,7 +145,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(arguments, location),
             "modulus_num_bits" => modulus_num_bits(arguments, location),
-            "quoted_as_expr" => quoted_as_expr(arguments, return_type, location),
+            "quoted_as_expr" => quoted_as_expr(interner, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
@@ -302,7 +301,7 @@ fn str_as_bytes(
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
     let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len() as u32)),
+        Box::new(Type::Constant(bytes.len() as u32, Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     );
     Ok(Value::Array(bytes, byte_array_type))
@@ -329,10 +328,7 @@ fn struct_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
 
-    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
+    let mut tokens = lex(&format!("#[{}]", attribute));
     if tokens.len() != 1 {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -340,7 +336,7 @@ fn struct_def_add_attribute(
         });
     }
 
-    let token = tokens.into_iter().next().unwrap().into_token();
+    let token = tokens.remove(0);
     let Token::Attribute(attribute) = token else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -373,11 +369,7 @@ fn struct_def_add_generic(
     let generic_location = generic.1;
     let generic = get_str(interner, generic)?;
 
-    let mut tokens = Lexer::lex(&generic).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
-
+    let mut tokens = lex(&generic);
     if tokens.len() != 1 {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
@@ -385,7 +377,7 @@ fn struct_def_add_generic(
         });
     }
 
-    let Token::Ident(generic_name) = tokens.pop().unwrap().into_token() else {
+    let Token::Ident(generic_name) = tokens.remove(0) else {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
             location: generic_location,
@@ -672,6 +664,7 @@ fn slice_insert(
 
 // fn as_expr(quoted: Quoted) -> Option<Expr>
 fn quoted_as_expr(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -682,8 +675,9 @@ fn quoted_as_expr(
     let statement_parser = parser::fresh_statement().map(Value::statement);
     let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
     let parser = choice((expr_parser, statement_parser, lvalue_parser));
+    let parser = parser.then_ignore(just(Token::Semicolon).or_not());
 
-    let expr = parse(argument, parser, "an expression").ok();
+    let expr = parse(interner, argument, parser, "an expression").ok();
 
     option(return_type, expr)
 }
@@ -697,7 +691,9 @@ fn quoted_as_module(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let path = parse(argument, parser::path_no_turbofish(), "a path").ok();
+    let path =
+        parse(interpreter.elaborator.interner, argument, parser::path_no_turbofish(), "a path")
+            .ok();
     let option_value = path.and_then(|path| {
         let module = interpreter
             .elaborate_in_function(interpreter.current_function, |elaborator| {
@@ -716,7 +712,12 @@ fn quoted_as_trait_constraint(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let trait_bound = parse(argument, parser::trait_bound(), "a trait constraint")?;
+    let trait_bound = parse(
+        interpreter.elaborator.interner,
+        argument,
+        parser::trait_bound(),
+        "a trait constraint",
+    )?;
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
@@ -733,7 +734,7 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(argument, parser::parse_type(), "a type")?;
+    let typ = parse(interpreter.elaborator.interner, argument, parser::parse_type(), "a type")?;
     let typ = interpreter
         .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
@@ -775,7 +776,7 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let limb_count = if let Type::Array(length, _) = return_type {
-        if let Type::Constant(limb_count) = *length {
+        if let Type::Constant(limb_count, _kind) = *length {
             limb_count
         } else {
             return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
@@ -785,7 +786,7 @@ fn to_le_radix(
     };
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix(value, radix);
+    let decomposed_integer = compute_to_radix_le(value, radix);
     let decomposed_integer = vecmap(0..limb_count as usize, |i| match decomposed_integer.get(i) {
         Some(digit) => Value::U8(*digit),
         None => Value::U8(0),
@@ -796,7 +797,7 @@ fn to_le_radix(
     ))
 }
 
-fn compute_to_radix(field: FieldElement, radix: u32) -> Vec<u8> {
+fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -1193,7 +1194,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
@@ -1231,9 +1232,17 @@ fn expr_as_assert(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
-            if constrain.2 == ConstrainKind::Assert {
-                let predicate = Value::expression(constrain.0.kind);
+        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+            if constrain.kind == ConstrainKind::Assert
+                && !constrain.arguments.is_empty()
+                && constrain.arguments.len() <= 2
+            {
+                let (message, predicate) = if constrain.arguments.len() == 1 {
+                    (None, constrain.arguments.pop().unwrap())
+                } else {
+                    (Some(constrain.arguments.pop().unwrap()), constrain.arguments.pop().unwrap())
+                };
+                let predicate = Value::expression(predicate.kind);
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1242,7 +1251,7 @@ fn expr_as_assert(
                 assert_eq!(tuple_types.len(), 2);
 
                 let option_type = tuple_types.pop().unwrap();
-                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = message.map(|msg| Value::expression(msg.kind));
                 let message = option(option_type, message).ok()?;
 
                 Some(Value::Tuple(vec![predicate, message]))
@@ -1263,14 +1272,23 @@ fn expr_as_assert_eq(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
-            if constrain.2 == ConstrainKind::AssertEq {
-                let ExpressionKind::Infix(infix) = constrain.0.kind else {
-                    panic!("Expected AssertEq constrain statement to have an infix expression");
+        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+            if constrain.kind == ConstrainKind::AssertEq
+                && constrain.arguments.len() >= 2
+                && constrain.arguments.len() <= 3
+            {
+                let (message, rhs, lhs) = if constrain.arguments.len() == 2 {
+                    (None, constrain.arguments.pop().unwrap(), constrain.arguments.pop().unwrap())
+                } else {
+                    (
+                        Some(constrain.arguments.pop().unwrap()),
+                        constrain.arguments.pop().unwrap(),
+                        constrain.arguments.pop().unwrap(),
+                    )
                 };
 
-                let lhs = Value::expression(infix.lhs.kind);
-                let rhs = Value::expression(infix.rhs.kind);
+                let lhs = Value::expression(lhs.kind);
+                let rhs = Value::expression(rhs.kind);
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1279,7 +1297,7 @@ fn expr_as_assert_eq(
                 assert_eq!(tuple_types.len(), 3);
 
                 let option_type = tuple_types.pop().unwrap();
-                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = message.map(|message| Value::expression(message.kind));
                 let message = option(option_type, message).ok()?;
 
                 Some(Value::Tuple(vec![lhs, rhs, message]))
@@ -2051,12 +2069,7 @@ fn fmtstr_quoted_contents(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (string, _) = get_format_string(interner, self_argument)?;
-    let (tokens, _) = Lexer::lex(&string);
-    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
-    if let Some(Token::EOF) = tokens.last() {
-        tokens.pop();
-    }
-
+    let tokens = lex(&string);
     Ok(Value::Quoted(Rc::new(tokens)))
 }
 
@@ -2075,10 +2088,7 @@ fn function_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
 
-    let mut tokens = Lexer::lex(&format!("#[{}]", attribute)).0 .0;
-    if let Some(Token::EOF) = tokens.last().map(|token| token.token()) {
-        tokens.pop();
-    }
+    let mut tokens = lex(&format!("#[{}]", attribute));
     if tokens.len() != 1 {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -2086,7 +2096,7 @@ fn function_def_add_attribute(
         });
     }
 
-    let token = tokens.into_iter().next().unwrap().into_token();
+    let token = tokens.remove(0);
     let Token::Attribute(attribute) = token else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -2308,6 +2318,7 @@ fn function_def_set_parameters(
         )?;
         let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
         let parameter_pattern = parse(
+            interpreter.elaborator.interner,
             (tuple.pop().unwrap(), parameters_argument_location),
             parser::pattern(),
             "a pattern",
@@ -2319,6 +2330,7 @@ fn function_def_set_parameters(
                 parameter_type.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
+                true, // warn_if_unused
                 None,
             )
         });
@@ -2410,7 +2422,8 @@ fn module_add_item(
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let parser = parser::top_level_items();
-    let top_level_statements = parse(item, parser, "a top-level item")?;
+    let top_level_statements =
+        parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
 
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
         let mut generated_items = CollectedItems::default();

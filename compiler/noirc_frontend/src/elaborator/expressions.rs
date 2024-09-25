@@ -18,7 +18,7 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
+            HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
@@ -29,7 +29,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::Tokens,
-    QuotedType, Shared, StructType, Type,
+    Kind, QuotedType, Shared, StructType, Type,
 };
 
 use super::{Elaborator, LambdaContext};
@@ -76,6 +76,7 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.span, self.file);
@@ -162,7 +163,7 @@ impl<'context> Elaborator<'context> {
                 (Lit(int), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len() as u32);
+                let len = Type::Constant(str.len() as u32, Kind::u32());
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(str) => self.elaborate_fmt_string(str, span),
@@ -204,7 +205,7 @@ impl<'context> Elaborator<'context> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len() as u32);
+                let length = Type::Constant(elements.len() as u32, Kind::u32());
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -215,7 +216,7 @@ impl<'context> Elaborator<'context> {
                         UnresolvedTypeExpression::Constant(0, span)
                     });
 
-                let length = self.convert_expression_type(length);
+                let length = self.convert_expression_type(length, &Kind::u32(), span);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
 
                 let length_clone = length.clone();
@@ -268,7 +269,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        let len = Type::Constant(str.len() as u32);
+        let len = Type::Constant(str.len() as u32, Kind::u32());
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
@@ -406,21 +407,13 @@ impl<'context> Elaborator<'context> {
 
         let method_name_span = method_call.method_name.span();
         let method_name = method_call.method_name.0.contents.as_str();
-        match self.lookup_method(&object_type, method_name, span) {
+        match self.lookup_method(&object_type, method_name, span, true) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
-                let func_id = match &method_ref {
-                    HirMethodReference::FuncId(func_id) => *func_id,
-                    HirMethodReference::TraitMethodId(method_id, _) => {
-                        let id = self.interner.trait_method_id(*method_id);
-                        let definition = self.interner.definition(id);
-                        let DefinitionKind::Function(func_id) = definition.kind else {
-                            unreachable!("Expected trait function to be a DefinitionKind::Function")
-                        };
-                        func_id
-                    }
-                };
+                let func_id = method_ref
+                    .func_id(self.interner)
+                    .expect("Expected trait function to be a DefinitionKind::Function");
 
                 let generics = if func_id != FuncId::dummy_id() {
                     let function_type = self.interner.function_meta(&func_id).typ.clone();
@@ -478,7 +471,17 @@ impl<'context> Elaborator<'context> {
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
-                let typ = self.type_check_call(&function_call, func_type, function_args, span);
+                let mut typ = self.type_check_call(&function_call, func_type, function_args, span);
+                if is_macro_call {
+                    if self.in_comptime_context() {
+                        typ = self.interner.next_type_variable();
+                    } else {
+                        let args = function_call.arguments.clone();
+                        return self
+                            .call_macro(function_call.func, args, location, typ)
+                            .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                    }
+                }
                 (HirExpression::Call(function_call), typ)
             }
             None => (HirExpression::Error, Type::Error),
@@ -795,7 +798,7 @@ impl<'context> Elaborator<'context> {
             let parameter = DefinitionKind::Local(None);
             let typ = self.resolve_inferred_type(typ);
             arg_types.push(typ.clone());
-            (self.elaborate_pattern(pattern, typ.clone(), parameter), typ)
+            (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
         });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);

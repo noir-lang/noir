@@ -187,8 +187,8 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatementKind> {
 
 fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>> {
     let function = function::function_definition(true).validate(|mut f, span, emit| {
-        if f.def().is_unconstrained || f.def().visibility != ItemVisibility::Private {
-            emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
+        if f.def().visibility != ItemVisibility::Private {
+            emit(ParserError::with_reason(ParserErrorReason::TraitImplVisibilityIgnored, span));
         }
         // Trait impl functions are always public
         f.def_mut().visibility = ItemVisibility::Public;
