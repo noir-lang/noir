@@ -56,13 +56,7 @@ impl<'a> TokenStream<'a> {
     fn next(&mut self) -> Option<SpannedTokenResult> {
         match self {
             TokenStream::Lexer(lexer) => lexer.next(),
-            TokenStream::Tokens(tokens) => {
-                if let Some(token) = tokens.0.pop() {
-                    Some(Ok(token))
-                } else {
-                    None
-                }
-            }
+            TokenStream::Tokens(tokens) => tokens.0.pop().map(Ok),
         }
     }
 }

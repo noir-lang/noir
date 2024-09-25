@@ -124,7 +124,7 @@ pub enum BorrowedToken<'input> {
     Invalid(char),
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord, Default)]
 pub enum Token {
     Ident(String),
     Int(FieldElement),
@@ -223,6 +223,7 @@ pub enum Token {
     /// $
     DollarSign,
     #[allow(clippy::upper_case_acronyms)]
+    #[default]
     EOF,
 
     Whitespace(String),
@@ -331,12 +332,6 @@ impl From<SpannedToken> for Token {
 impl<'a> From<&'a SpannedToken> for &'a Token {
     fn from(spt: &'a SpannedToken) -> Self {
         &spt.0.contents
-    }
-}
-
-impl Default for Token {
-    fn default() -> Self {
-        Token::EOF
     }
 }
 

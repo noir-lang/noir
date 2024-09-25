@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
                     span: Span::default(),
                 },
                 expression: Expression { kind: ExpressionKind::Error, span: Span::default() },
-                attributes: attributes,
+                attributes,
                 comptime,
             };
         };
