@@ -7,7 +7,7 @@
 // - `T::empty().append(x) == x`
 // - `x.append(T::empty()) == x`
 // docs:start:append-trait
-trait Append {
+pub trait Append {
     fn empty() -> Self;
     fn append(self, other: Self) -> Self;
 }

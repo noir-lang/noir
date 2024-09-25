@@ -3,7 +3,7 @@ use crate::default::Default;
 
 comptime global RATE: u32 = 3;
 
-struct Poseidon2 {
+pub struct Poseidon2 {
     cache: [Field;3],
     state: [Field;4],
     cache_size: u32,
@@ -82,7 +82,7 @@ impl Poseidon2 {
     }
 }
 
-struct Poseidon2Hasher{
+pub struct Poseidon2Hasher{
     _state: [Field],
 }
 

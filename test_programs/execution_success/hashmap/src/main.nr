@@ -15,7 +15,7 @@ struct Entry{
     value: Field
 }
 
-global HASHMAP_CAP = 8;
+global HASHMAP_CAP: u32 = 8;
 global HASHMAP_LEN = 6;
 
 global FIELD_CMP = |a: Field, b: Field| a.lt(b);

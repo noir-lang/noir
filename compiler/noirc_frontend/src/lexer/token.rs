@@ -698,8 +698,12 @@ impl Attributes {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
 
-    pub fn is_varargs(&self) -> bool {
+    pub fn has_varargs(&self) -> bool {
         self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+    }
+
+    pub fn has_use_callers_scope(&self) -> bool {
+        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::UseCallersScope))
     }
 }
 
@@ -799,9 +803,10 @@ impl Attribute {
                 ))
             }
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
+            ["use_callers_scope"] => Attribute::Secondary(SecondaryAttribute::UseCallersScope),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+                Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
                     contents: word.to_owned(),
                     span,
                     contents_span,
@@ -910,15 +915,20 @@ pub enum SecondaryAttribute {
     ContractLibraryMethod,
     Export,
     Field(String),
-    Custom(CustomAtrribute),
+    Custom(CustomAttribute),
     Abi(String),
 
     /// A variable-argument comptime function.
     Varargs,
+
+    /// Treat any metaprogramming functions within this one as resolving
+    /// within the scope of the calling function/module rather than this one.
+    /// This affects functions such as `Expression::resolve` or `Quoted::as_type`.
+    UseCallersScope,
 }
 
 impl SecondaryAttribute {
-    pub(crate) fn as_custom(&self) -> Option<&CustomAtrribute> {
+    pub(crate) fn as_custom(&self) -> Option<&CustomAttribute> {
         if let Self::Custom(attribute) = self {
             Some(attribute)
         } else {
@@ -937,6 +947,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Custom(custom) => custom.name(),
             SecondaryAttribute::Abi(_) => Some("abi".to_string()),
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
+            SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
         }
     }
 }
@@ -954,12 +965,13 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
             SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
+            SecondaryAttribute::UseCallersScope => write!(f, "#[use_callers_scope]"),
         }
     }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub struct CustomAtrribute {
+pub struct CustomAttribute {
     pub contents: String,
     // The span of the entire attribute, including leading `#[` and trailing `]`
     pub span: Span,
@@ -967,7 +979,7 @@ pub struct CustomAtrribute {
     pub contents_span: Span,
 }
 
-impl CustomAtrribute {
+impl CustomAttribute {
     fn name(&self) -> Option<String> {
         let mut lexer = Lexer::new(&self.contents);
         let token = lexer.next()?.ok()?;
@@ -1003,6 +1015,7 @@ impl AsRef<str> for SecondaryAttribute {
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
             SecondaryAttribute::Varargs => "",
+            SecondaryAttribute::UseCallersScope => "",
         }
     }
 }
@@ -1023,6 +1036,7 @@ pub enum Keyword {
     Continue,
     Contract,
     Crate,
+    CtString,
     Dep,
     Else,
     Expr,
@@ -1079,6 +1093,7 @@ impl fmt::Display for Keyword {
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
+            Keyword::CtString => write!(f, "CtString"),
             Keyword::Dep => write!(f, "dep"),
             Keyword::Else => write!(f, "else"),
             Keyword::Expr => write!(f, "Expr"),
@@ -1138,6 +1153,7 @@ impl Keyword {
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
+            "CtString" => Keyword::CtString,
             "dep" => Keyword::Dep,
             "else" => Keyword::Else,
             "Expr" => Keyword::Expr,

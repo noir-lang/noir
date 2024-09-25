@@ -2,7 +2,7 @@ use crate::meta::derive_via;
 
 #[derive_via(derive_default)]
 // docs:start:default-trait
-trait Default {
+pub trait Default {
     fn default() -> Self;
 }
 // docs:end:default-trait

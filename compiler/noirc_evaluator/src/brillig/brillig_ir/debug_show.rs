@@ -285,9 +285,6 @@ impl DebugShow {
                     outputs
                 );
             }
-            BlackBoxOp::Sha256 { message, output } => {
-                debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
-            }
             BlackBoxOp::Keccak256 { message, output } => {
                 debug_println!(self.enable_debug_trace, "  KECCAK256 {} -> {}", message, output);
             }

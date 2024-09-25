@@ -12,6 +12,7 @@ use crate::{
     },
     hir::{
         comptime::{Interpreter, Value},
+        def_collector::dc_crate::CompilationError,
         def_map::ModuleDefId,
         resolution::errors::ResolverError,
         type_check::{
@@ -76,45 +77,22 @@ impl<'context> Elaborator<'context> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
-                let mut size = self.convert_expression_type(size);
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = size {
-                    size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let size = self.convert_expression_type(size, &Kind::u32(), span);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 Type::Slice(elem)
             }
-            Expression(expr) => self.convert_expression_type(expr),
+            Expression(expr) => self.convert_expression_type(expr, kind, span),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let mut resolved_size = self.convert_expression_type(size);
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
-                let mut resolved_size = self.convert_expression_type(size);
-                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
@@ -191,26 +169,18 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        // Check that any types with a type kind match the expected type kind supplied to this function
-        // TODO(https://github.com/noir-lang/noir/issues/5156): make this named generic check more general with `*resolved_kind != kind`
-        // as implicit numeric generics still existing makes this check more challenging to enforce
-        // An example of a more general check that we should switch to:
-        // if resolved_type.kind() != kind.clone() {
-        //     let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-        //         expected_kind: kind.to_string(),
-        //         expr_kind: resolved_type.kind().to_string(),
-        //         expr_span: span.expect("Type should have span"),
-        //     });
-        //     self.errors.push((expected_typ_err, self.file));
-        //     return Type::Error;
-        // }
-        if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
-                let expected_typ_err =
-                    ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
-                self.push_err(expected_typ_err);
-                return Type::Error;
-            }
+        if !kind.matches_opt(resolved_type.kind()) {
+            let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
+                expected_kind: kind.to_string(),
+                expr_kind: resolved_type
+                    .kind()
+                    .as_ref()
+                    .map(Kind::to_string)
+                    .unwrap_or("unknown".to_string()),
+                expr_span: span,
+            });
+            self.errors.push((expected_typ_err, self.file));
+            return Type::Error;
         }
 
         resolved_type
@@ -441,30 +411,49 @@ impl<'context> Elaborator<'context> {
 
                 let reference_location = Location::new(path.span(), self.file);
                 self.interner.add_global_reference(id, reference_location);
+                let kind = self
+                    .interner
+                    .get_global_let_statement(id)
+                    .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
+                    .unwrap_or(Kind::u32());
 
-                Some(Type::Constant(self.eval_global_as_array_length(id, path)))
+                Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
             }
             _ => None,
         }
     }
 
-    pub(super) fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
+    pub(super) fn convert_expression_type(
+        &mut self,
+        length: UnresolvedTypeExpression,
+        expected_kind: &Kind,
+        span: Span,
+    ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
-                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                    Type::Constant(0)
-                })
+                let typ = self.resolve_named_type(path, GenericTypeArgs::default());
+                self.check_kind(typ, expected_kind, span)
             }
-            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::Constant(int, _span) => {
+                Type::Constant(int, expected_kind.clone())
+            }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
-                let lhs = self.convert_expression_type(*lhs);
-                let rhs = self.convert_expression_type(*rhs);
+                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+                let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_span);
+                let rhs = self.convert_expression_type(*rhs, expected_kind, rhs_span);
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                    (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
+                        if !lhs_kind.unifies(&rhs_kind) {
+                            self.push_err(TypeCheckError::TypeKindMismatch {
+                                expected_kind: lhs_kind.to_string(),
+                                expr_kind: rhs_kind.to_string(),
+                                expr_span: span,
+                            });
+                            return Type::Error;
+                        }
                         if let Some(result) = op.function(lhs, rhs) {
-                            Type::Constant(result)
+                            Type::Constant(result, lhs_kind)
                         } else {
                             self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
                             Type::Error
@@ -473,8 +462,25 @@ impl<'context> Elaborator<'context> {
                     (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
                 }
             }
-            UnresolvedTypeExpression::AsTraitPath(path) => self.resolve_as_trait_path(*path),
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                let typ = self.resolve_as_trait_path(*path);
+                self.check_kind(typ, expected_kind, span)
+            }
         }
+    }
+
+    fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
+        if let Some(kind) = typ.kind() {
+            if !kind.unifies(expected_kind) {
+                self.push_err(TypeCheckError::TypeKindMismatch {
+                    expected_kind: expected_kind.to_string(),
+                    expr_kind: kind.to_string(),
+                    expr_span: span,
+                });
+                return Type::Error;
+            }
+        }
+        typ
     }
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
@@ -616,7 +622,7 @@ impl<'context> Elaborator<'context> {
 
         let length = stmt.expression;
         let span = self.interner.expr_span(&length);
-        let result = self.try_eval_array_length_id(length, span);
+        let result = try_eval_array_length_id(self.interner, length, span);
 
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
@@ -627,85 +633,6 @@ impl<'context> Elaborator<'context> {
         0
     }
 
-    fn try_eval_array_length_id(
-        &self,
-        rhs: ExprId,
-        span: Span,
-    ) -> Result<u128, Option<ResolverError>> {
-        // Arbitrary amount of recursive calls to try before giving up
-        let fuel = 100;
-        self.try_eval_array_length_id_with_fuel(rhs, span, fuel)
-    }
-
-    fn try_eval_array_length_id_with_fuel(
-        &self,
-        rhs: ExprId,
-        span: Span,
-        fuel: u32,
-    ) -> Result<u128, Option<ResolverError>> {
-        if fuel == 0 {
-            // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
-            // be issued for them after name resolution so issue no error now.
-            return Err(None);
-        }
-
-        match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-                int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
-            }
-            HirExpression::Ident(ident, _) => {
-                let definition = self.interner.definition(ident.id);
-                match definition.kind {
-                    DefinitionKind::Global(global_id) => {
-                        let let_statement = self.interner.get_global_let_statement(global_id);
-                        if let Some(let_statement) = let_statement {
-                            let expression = let_statement.expression;
-                            self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
-                        } else {
-                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
-                        }
-                    }
-                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-                }
-            }
-            HirExpression::Infix(infix) => {
-                let lhs = self.try_eval_array_length_id_with_fuel(infix.lhs, span, fuel - 1)?;
-                let rhs = self.try_eval_array_length_id_with_fuel(infix.rhs, span, fuel - 1)?;
-
-                match infix.operator.kind {
-                    BinaryOpKind::Add => Ok(lhs + rhs),
-                    BinaryOpKind::Subtract => Ok(lhs - rhs),
-                    BinaryOpKind::Multiply => Ok(lhs * rhs),
-                    BinaryOpKind::Divide => Ok(lhs / rhs),
-                    BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
-                    BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
-                    BinaryOpKind::Less => Ok((lhs < rhs) as u128),
-                    BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
-                    BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
-                    BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
-                    BinaryOpKind::And => Ok(lhs & rhs),
-                    BinaryOpKind::Or => Ok(lhs | rhs),
-                    BinaryOpKind::Xor => Ok(lhs ^ rhs),
-                    BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
-                    BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
-                    BinaryOpKind::Modulo => Ok(lhs % rhs),
-                }
-            }
-            HirExpression::Cast(cast) => {
-                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
-                let lhs_value = Value::Field(lhs.into());
-                let evaluated_value =
-                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
-                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
-
-                evaluated_value
-                    .to_u128()
-                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
-            }
-            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-        }
-    }
-
     pub(super) fn unify(
         &mut self,
         actual: &Type,
@@ -714,6 +641,22 @@ impl<'context> Elaborator<'context> {
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
             self.errors.push((make_error().into(), self.file));
+        }
+    }
+
+    /// Do not apply type bindings even after a successful unification.
+    /// This function is used by the interpreter for some comptime code
+    /// which can change types e.g. on each iteration of a for loop.
+    pub fn unify_without_applying_bindings(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        file: fm::FileId,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        let mut bindings = TypeBindings::new();
+        if actual.try_unify(expected, &mut bindings).is_err() {
+            self.errors.push((make_error().into(), file));
         }
     }
 
@@ -1297,11 +1240,13 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         method_name: &str,
         span: Span,
+        has_self_arg: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
             Type::Struct(typ, _args) => {
                 let id = typ.borrow().id;
-                match self.interner.lookup_method(object_type, id, method_name, false) {
+                match self.interner.lookup_method(object_type, id, method_name, false, has_self_arg)
+                {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.push_err(TypeCheckError::UnresolvedMethodCall {
@@ -1330,9 +1275,9 @@ impl<'context> Elaborator<'context> {
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, has_self_arg)
                 .map(HirMethodReference::FuncId)
-                .or_else(|| self.lookup_method(&element, method_name, span)),
+                .or_else(|| self.lookup_method(&element, method_name, span, has_self_arg)),
 
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
@@ -1344,7 +1289,8 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name) {
+            other => match self.interner.lookup_primitive_method(&other, method_name, has_self_arg)
+            {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     // It could be that this type is a composite type that is bound to a trait,
@@ -1686,7 +1632,7 @@ impl<'context> Elaborator<'context> {
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
-            | Type::Constant(_)
+            | Type::Constant(..)
             | Type::NamedGeneric(_, _, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
@@ -1727,7 +1673,7 @@ impl<'context> Elaborator<'context> {
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
+                        if struct_type.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1738,7 +1684,7 @@ impl<'context> Elaborator<'context> {
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if alias.borrow().generic_is_numeric(i) {
+                        if alias.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1836,6 +1782,88 @@ impl<'context> Elaborator<'context> {
             let self_type = the_trait.self_type_typevar.clone();
             bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
         }
+    }
+}
+
+pub fn try_eval_array_length_id(
+    interner: &NodeInterner,
+    rhs: ExprId,
+    span: Span,
+) -> Result<u128, Option<ResolverError>> {
+    // Arbitrary amount of recursive calls to try before giving up
+    let fuel = 100;
+    try_eval_array_length_id_with_fuel(interner, rhs, span, fuel)
+}
+
+fn try_eval_array_length_id_with_fuel(
+    interner: &NodeInterner,
+    rhs: ExprId,
+    span: Span,
+    fuel: u32,
+) -> Result<u128, Option<ResolverError>> {
+    if fuel == 0 {
+        // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
+        // be issued for them after name resolution so issue no error now.
+        return Err(None);
+    }
+
+    match interner.expression(&rhs) {
+        HirExpression::Literal(HirLiteral::Integer(int, false)) => {
+            int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+        }
+        HirExpression::Ident(ident, _) => {
+            if let Some(definition) = interner.try_definition(ident.id) {
+                match definition.kind {
+                    DefinitionKind::Global(global_id) => {
+                        let let_statement = interner.get_global_let_statement(global_id);
+                        if let Some(let_statement) = let_statement {
+                            let expression = let_statement.expression;
+                            try_eval_array_length_id_with_fuel(interner, expression, span, fuel - 1)
+                        } else {
+                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                        }
+                    }
+                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                }
+            } else {
+                Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+            }
+        }
+        HirExpression::Infix(infix) => {
+            let lhs = try_eval_array_length_id_with_fuel(interner, infix.lhs, span, fuel - 1)?;
+            let rhs = try_eval_array_length_id_with_fuel(interner, infix.rhs, span, fuel - 1)?;
+
+            match infix.operator.kind {
+                BinaryOpKind::Add => Ok(lhs + rhs),
+                BinaryOpKind::Subtract => Ok(lhs - rhs),
+                BinaryOpKind::Multiply => Ok(lhs * rhs),
+                BinaryOpKind::Divide => Ok(lhs / rhs),
+                BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                BinaryOpKind::And => Ok(lhs & rhs),
+                BinaryOpKind::Or => Ok(lhs | rhs),
+                BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                BinaryOpKind::Modulo => Ok(lhs % rhs),
+            }
+        }
+        HirExpression::Cast(cast) => {
+            let lhs = try_eval_array_length_id_with_fuel(interner, cast.lhs, span, fuel - 1)?;
+            let lhs_value = Value::Field(lhs.into());
+            let evaluated_value =
+                Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
+                    .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+            evaluated_value
+                .to_u128()
+                .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
+        }
+        _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
     }
 }
 
