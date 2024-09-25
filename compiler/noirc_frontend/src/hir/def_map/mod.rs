@@ -1,7 +1,6 @@
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::macros_api::MacroProcessor;
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId};
 use crate::parser::{parse_program, ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
@@ -17,8 +16,6 @@ mod module_data;
 pub use module_data::*;
 mod namespace;
 pub use namespace::*;
-
-use super::def_collector::errors::DefCollectorErrorKind;
 
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
@@ -76,9 +73,7 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         debug_comptime_in_file: Option<&str>,
-        enable_arithmetic_generics: bool,
         error_on_unused_imports: bool,
-        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -93,25 +88,18 @@ impl CrateDefMap {
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let (ast, parsing_errors) = context.parsed_file_results(root_file_id);
-        let mut ast = ast.into_sorted();
-
-        for macro_processor in macro_processors {
-            match macro_processor.process_untyped_ast(ast.clone(), &crate_id, root_file_id, context)
-            {
-                Ok(processed_ast) => {
-                    ast = processed_ast;
-                }
-                Err((error, file_id)) => {
-                    let def_error = DefCollectorErrorKind::MacroError(error);
-                    errors.push((def_error.into(), file_id));
-                }
-            }
-        }
+        let ast = ast.into_sorted();
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(None, location, false));
+        let root = modules.insert(ModuleData::new(
+            None,
+            location,
+            Vec::new(),
+            ast.inner_attributes.clone(),
+            false,
+        ));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -127,9 +115,7 @@ impl CrateDefMap {
             ast,
             root_file_id,
             debug_comptime_in_file,
-            enable_arithmetic_generics,
             error_on_unused_imports,
-            macro_processors,
         ));
 
         errors.extend(

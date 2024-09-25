@@ -2,7 +2,7 @@ use crate::hash::{Hash, Hasher};
 use crate::cmp::{Ordering, Ord, Eq};
 use crate::default::Default;
 
-struct Option<T> {
+pub struct Option<T> {
     _is_some: bool,
     _value: T,
 }
@@ -195,12 +195,10 @@ impl<T> Ord for Option<T> where T: Ord {
             } else {
                 Ordering::greater()
             }
+        } else if other._is_some {
+            Ordering::less()
         } else {
-            if other._is_some {
-                Ordering::less()
-            } else {
-                Ordering::equal()
-            }
+            Ordering::equal()
         }
     }
 }

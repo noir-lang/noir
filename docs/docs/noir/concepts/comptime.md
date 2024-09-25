@@ -183,7 +183,7 @@ comptime fn my_function_annotation(f: FunctionDefinition) {
 
 Anything returned from one of these functions will be inserted at top-level along with the original item.
 Note that expressions are not valid at top-level so you'll get an error trying to return `3` or similar just as if you tried to write a program containing `3; struct Foo {}`.
-You can insert other top-level items such as traits, structs, or functions this way though.
+You can insert other top-level items such as trait impls, structs, or functions this way though.
 For example, this is the mechanism used to insert additional trait implementations into the program when deriving a trait impl from a struct:
 
 #include_code derive-field-count-example noir_stdlib/src/meta/mod.nr rust
@@ -237,6 +237,17 @@ The following is an incomplete list of some `comptime` types along with some use
 
 There are many more functions available by exploring the `std::meta` module and its submodules.
 Using these methods is the key to writing powerful metaprogramming libraries.
+
+## `#[use_callers_scope]`
+
+Since certain functions such as `Quoted::as_type`, `Expression::as_type`, or `Quoted::as_trait_constraint` will attempt
+to resolve their contents in a particular scope - it can be useful to change the scope they resolve in. By default
+these functions will resolve in the current function's scope which is usually the attribute function they are called in.
+If you're working on a library however, this may be a completely different module or crate to the item you're trying to
+use the attribute on. If you want to be able to use `Quoted::as_type` to refer to types local to the caller's scope for
+example, you can annotate your attribute function with `#[use_callers_scope]`. This will ensure your attribute, and any
+closures it uses, can refer to anything in the caller's scope. `#[use_callers_scope]` also works recursively. So if both
+your attribute function and a helper function it calls use it, then they can both refer to the same original caller.
 
 ---
 

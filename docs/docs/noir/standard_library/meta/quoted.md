@@ -50,8 +50,15 @@ stream doesn't parse to a type or if the type isn't a valid type in scope.
 
 #include_code implements_example test_programs/compile_success_empty/comptime_type/src/main.nr rust
 
+### tokens
+
+#include_code tokens noir_stdlib/src/meta/quoted.nr rust
+
+Returns a slice of the individual tokens that form this token stream.
+
 ## Trait Implementations
 
 ```rust
 impl Eq for Quoted
+impl Hash for Quoted
 ```

@@ -191,11 +191,15 @@ impl Context {
                 self.used_values.insert(value_id);
             }
             Value::Array { array, .. } => {
+                self.used_values.insert(value_id);
                 for elem in array {
                     self.mark_used_instruction_results(dfg, *elem);
                 }
             }
             Value::Param { .. } => {
+                self.used_values.insert(value_id);
+            }
+            Value::NumericConstant { .. } => {
                 self.used_values.insert(value_id);
             }
             _ => {
@@ -377,13 +381,12 @@ fn handle_array_get_group(
     next_out_of_bounds_index: &mut Option<usize>,
     possible_index_out_of_bounds_indexes: &mut Vec<usize>,
 ) {
-    let Some(array_length) = function.dfg.try_get_array_length(*array) else {
+    if function.dfg.try_get_array_length(*array).is_none() {
         // Nothing to do for slices
         return;
     };
 
-    let flattened_size = function.dfg.type_of_value(*array).flattened_size();
-    let element_size = flattened_size / array_length;
+    let element_size = function.dfg.type_of_value(*array).element_size();
     if element_size <= 1 {
         // Not a composite type
         return;

@@ -12,6 +12,7 @@ pub use acir_field;
 pub use acir_field::{AcirField, FieldElement};
 pub use brillig;
 pub use circuit::black_box_functions::BlackBoxFunc;
+pub use circuit::opcodes::InvalidInputBitSize;
 
 #[cfg(test)]
 mod reflection {

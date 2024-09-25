@@ -15,14 +15,14 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
+    pub struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
         j: Field,
         k: Field,
         // Generator as point in Cartesian coordinates
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         infty: bool // Indicator for point at infinity
@@ -145,7 +145,7 @@ mod affine {
             TECurve::new((j + 2) / k, (j - 2) / k, gen.into_tecurve())
         }
 
-        // Conversion to equivalent Short Weierstraß curve
+        // Conversion to equivalent Short Weierstrass curve
         pub fn into_swcurve(self) -> SWCurve {
             let j = self.j;
             let k = self.k;
@@ -155,7 +155,7 @@ mod affine {
             SWCurve::new(a0, b0, self.map_into_swcurve(self.gen))
         }
 
-        // Point mapping into equivalent Short Weierstraß curve
+        // Point mapping into equivalent Short Weierstrass curve
         pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             if p.is_zero() {
                 SWPoint::zero()
@@ -164,7 +164,7 @@ mod affine {
             }
         }
 
-        // Point mapping from equivalent Short Weierstraß curve
+        // Point mapping from equivalent Short Weierstrass curve
         fn map_from_swcurve(self, p: SWPoint) -> Point {
             let SWPoint {x, y, infty} = p;
             let j = self.j;
@@ -222,14 +222,14 @@ mod curvegroup {
     use crate::ec::tecurve::curvegroup::Point as TEPoint;
     use crate::cmp::Eq;
 
-    struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
+    pub struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
         j: Field,
         k: Field,
         // Generator as point in projective coordinates
         gen: Point
     }
     // Point in projective coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         z: Field
@@ -276,7 +276,8 @@ mod curvegroup {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-             (self.z == p.z) | (((self.x * self.z) == (p.x * p.z)) & ((self.y * self.z) == (p.y * p.z)))
+            (self.z == p.z)
+                | (((self.x * self.z) == (p.x * p.z)) & ((self.y * self.z) == (p.y * p.z)))
         }
     }
 
@@ -346,7 +347,7 @@ mod curvegroup {
             TECurve::new((j + 2) / k, (j - 2) / k, gen.into_tecurve())
         }
 
-        // Conversion to equivalent Short Weierstraß curve
+        // Conversion to equivalent Short Weierstrass curve
         fn into_swcurve(self) -> SWCurve {
             let j = self.j;
             let k = self.k;
@@ -356,12 +357,12 @@ mod curvegroup {
             SWCurve::new(a0, b0, self.map_into_swcurve(self.gen))
         }
 
-        // Point mapping into equivalent Short Weierstraß curve
+        // Point mapping into equivalent Short Weierstrass curve
         pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             self.into_affine().map_into_swcurve(p.into_affine()).into_group()
         }
 
-        // Point mapping from equivalent Short Weierstraß curve
+        // Point mapping from equivalent Short Weierstrass curve
         fn map_from_swcurve(self, p: SWPoint) -> Point {
             self.into_affine().map_from_swcurve(p.into_affine()).into_group()
         }

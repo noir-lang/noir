@@ -99,7 +99,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         }
         Type::Error
         | Type::Unit
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::TraitAsType(..)
         | Type::TypeVariable(_, _)

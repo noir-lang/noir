@@ -8,11 +8,11 @@ fn foo<T>(bar: Bar<T>) {
     assert(bar.one == bar.two);
 }
 
-struct BigInt<N> {
+struct BigInt<let N: u32> {
     limbs: [u32; N],
 }
 
-impl<N> BigInt<N> {
+impl<let N: u32> BigInt<N> {
     // `N` is in scope of all methods in the impl
     fn first(first: BigInt<N>, second: BigInt<N>) -> Self {
         assert(first.limbs != second.limbs);
@@ -69,7 +69,7 @@ fn main(x: Field, y: Field) {
     let _ = regression_2055([1, 2, 3]);
 }
 
-fn regression_2055<LEN>(bytes: [u8; LEN]) -> Field {
+fn regression_2055<let LEN: u32>(bytes: [u8; LEN]) -> Field {
     let mut f = 0;
     let mut b = 1;
     let mut len = LEN - 1; // FAILS

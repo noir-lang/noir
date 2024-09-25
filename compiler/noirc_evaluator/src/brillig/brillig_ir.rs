@@ -112,10 +112,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             can_call_procedures: true,
         }
     }
-    /// Allows disabling procedures so tests don't need a linking pass
-    pub(crate) fn disable_procedures(&mut self) {
-        self.can_call_procedures = false;
-    }
 }
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
@@ -165,7 +161,8 @@ pub(crate) mod tests {
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::ssa::ir::function::FunctionId;
 
-    use super::artifact::{BrilligParameter, GeneratedBrillig, Label};
+    use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
+    use super::procedures::compile_procedure;
     use super::registers::Stack;
     use super::{BrilligOpcode, ReservedRegisters};
 
@@ -240,6 +237,14 @@ pub(crate) mod tests {
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, FunctionId::test_new(0));
         entry_point_artifact.link_with(&artifact);
+        while let Some(unresolved_fn_label) = entry_point_artifact.first_unresolved_function_call()
+        {
+            let LabelType::Procedure(procedure_id) = unresolved_fn_label.label_type else {
+                panic!("Test functions cannot be linked with other functions");
+            };
+            let procedure_artifact = compile_procedure(procedure_id);
+            entry_point_artifact.link_with(&procedure_artifact);
+        }
         entry_point_artifact.finish()
     }
 

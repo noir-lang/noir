@@ -5,6 +5,30 @@ title: Type
 `std::meta::typ` contains methods on the built-in `Type` type used for representing
 a type in the source program.
 
+## Functions
+
+#include_code fresh_type_variable noir_stdlib/src/meta/typ.nr rust
+
+Creates and returns an unbound type variable. This is a special kind of type internal
+to type checking which will type check with any other type. When it is type checked
+against another type it will also be set to that type. For example, if `a` is a type
+variable and we have the type equality `(a, i32) = (u8, i32)`, the compiler will set
+`a` equal to `u8`.
+
+Unbound type variables will often be rendered as `_` while printing them. Bound type
+variables will appear as the type they are bound to.
+
+This can be used in conjunction with functions which internally perform type checks
+such as `Type::implements` or `Type::get_trait_impl` to potentially grab some of the types used.
+
+Note that calling `Type::implements` or `Type::get_trait_impl` on a type variable will always
+fail.
+
+Example:
+
+#include_code serialize-setup test_programs/compile_success_empty/comptime_type/src/main.nr rust
+#include_code fresh-type-variable-example test_programs/compile_success_empty/comptime_type/src/main.nr rust
+
 ## Methods
 
 ### as_array
@@ -126,7 +150,8 @@ fn foo<T>() where T: Default {
 
 ```rust
 impl Eq for Type
+impl Hash for Type
 ```
 Note that this is syntactic equality, this is not the same as whether two types will type check
 to be the same type. Unless type inference or generics are being used however, users should not
-typically have to worry about this distinction.
+typically have to worry about this distinction unless `std::meta::typ::fresh_type_variable` is used.
