@@ -790,7 +790,7 @@ impl<'context> Elaborator<'context> {
             let parameter = DefinitionKind::Local(None);
             let typ = self.resolve_inferred_type(typ);
             arg_types.push(typ.clone());
-            (self.elaborate_pattern(pattern, typ.clone(), parameter), typ)
+            (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
         });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);
