@@ -59,6 +59,10 @@ impl<'a> Parser<'a> {
             return Some(ItemKind::Global(self.parse_global(attributes, comptime, mutable)));
         }
 
+        if self.eat_keyword(Keyword::Type) {
+            return Some(ItemKind::TypeAlias(self.parse_type_alias(start_span)));
+        }
+
         None
     }
 

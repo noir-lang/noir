@@ -18,6 +18,7 @@ mod item;
 mod item_visibility;
 mod module;
 mod structs;
+mod type_alias;
 mod types;
 mod use_tree;
 
