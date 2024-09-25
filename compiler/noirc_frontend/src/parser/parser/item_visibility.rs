@@ -8,7 +8,7 @@ impl<'a> Parser<'a> {
             return ItemVisibility::Private;
         }
 
-        if self.eat_left_paren() {
+        if !self.eat_left_paren() {
             // `pub`
             return ItemVisibility::Public;
         }
@@ -20,13 +20,12 @@ impl<'a> Parser<'a> {
             return ItemVisibility::Public;
         }
 
-        if self.eat_right_paren() {
-            // `pub(crate)`
-            ItemVisibility::PublicCrate
-        } else {
+        if !self.eat_right_paren() {
             // `pub(crate`
             // TODO: error
-            ItemVisibility::PublicCrate
         }
+
+        // `pub(crate)``
+        ItemVisibility::PublicCrate
     }
 }
