@@ -17,7 +17,6 @@ use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
-use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -288,9 +287,6 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let macros: &[&dyn MacroProcessor] =
-        if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
-
     let mut errors = vec![];
     let error_on_unused_imports = true;
     let diagnostics = CrateDefMap::collect_defs(
@@ -298,7 +294,6 @@ pub fn check_crate(
         context,
         options.debug_comptime_in_file.as_deref(),
         error_on_unused_imports,
-        macros,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);

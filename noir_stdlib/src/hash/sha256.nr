@@ -186,18 +186,18 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
     if !crate::runtime::is_unconstrained() {
         for i in 0..56 {
-            if i < msg_byte_ptr {
-                assert_eq(msg_block[i], last_block[i]);
-            } else {
-                assert_eq(msg_block[i], zero);
-            }
+            let predicate = (i < msg_byte_ptr) as u8;
+            let expected_byte = predicate * last_block[i];
+            assert_eq(msg_block[i], expected_byte);
         }
 
+        // We verify the message length was inserted correctly by reversing the byte decomposition.
         let len = 8 * message_size;
-        let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
+        let mut reconstructed_len: Field = 0;
         for i in 56..64 {
-            assert_eq(msg_block[i], len_bytes[i - 56]);
+            reconstructed_len = 256 * reconstructed_len + msg_block[i] as Field;
         }
+        assert_eq(reconstructed_len, len as Field);
     }
 
     hash_final_block(msg_block, h)
@@ -254,4 +254,3 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 
     out_h
 }
-

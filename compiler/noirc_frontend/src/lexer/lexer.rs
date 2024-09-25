@@ -611,6 +611,11 @@ impl<'a> Lexer<'a> {
         };
         let comment = self.eat_while(None, |ch| ch != '\n');
 
+        if !comment.is_ascii() {
+            let span = Span::from(start..self.position);
+            return Err(LexerErrorKind::NonAsciiComment { span });
+        }
+
         if doc_style.is_none() && self.skip_comments {
             return self.next_token();
         }
@@ -656,6 +661,11 @@ impl<'a> Lexer<'a> {
         }
 
         if depth == 0 {
+            if !content.is_ascii() {
+                let span = Span::from(start..self.position);
+                return Err(LexerErrorKind::NonAsciiComment { span });
+            }
+
             if doc_style.is_none() && self.skip_comments {
                 return self.next_token();
             }
@@ -1348,6 +1358,7 @@ mod tests {
 
                             Err(LexerErrorKind::InvalidIntegerLiteral { .. })
                             | Err(LexerErrorKind::UnexpectedCharacter { .. })
+                            | Err(LexerErrorKind::NonAsciiComment { .. })
                             | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
                                 expected_token_found = true;
                             }
@@ -1534,5 +1545,17 @@ mod tests {
         ];
 
         assert_fv_attribute_lexes_to_tokens(input, expected);
+    }
+    #[test]
+    fn test_non_ascii_comments() {
+        let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
+
+        for source in cases {
+            let mut lexer = Lexer::new(source);
+            assert!(
+                lexer.any(|token| matches!(token, Err(LexerErrorKind::NonAsciiComment { .. }))),
+                "Expected NonAsciiComment error"
+            );
+        }
     }
 }
