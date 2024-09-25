@@ -1131,11 +1131,104 @@ impl<'context> Elaborator<'context> {
         self.file = alias.file_id;
         self.local_module = alias.module_id;
 
+        let name = &alias.type_alias_def.name;
+        let visibility = alias.type_alias_def.visibility;
+        let span = alias.type_alias_def.typ.span;
+
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
+
+        if visibility != ItemVisibility::Private {
+            self.check_aliased_type_is_not_more_private(name, visibility, &typ, span);
+        }
+
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
+    }
+
+    fn check_aliased_type_is_not_more_private(
+        &mut self,
+        name: &Ident,
+        visibility: ItemVisibility,
+        typ: &Type,
+        span: Span,
+    ) {
+        match typ {
+            Type::Struct(struct_type, generics) => {
+                let struct_type = struct_type.borrow();
+                let struct_module_id = struct_type.id.module_id();
+
+                // We only check this in types in the same crate. If it's in a different crate
+                // then it's either accessible (all good) or it's not, in which case a different
+                // error will happen somewhere else, but no need to error again here.
+                if struct_module_id.krate == self.crate_id {
+                    // Go to the struct's parent module
+                    let module_data = self.get_module(struct_module_id);
+                    let parent_local_id =
+                        module_data.parent.expect("Expected struct module parent to exist");
+                    let parent_module_id =
+                        ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
+                    let parent_module_data = self.get_module(parent_module_id);
+
+                    // Find the struct in the parent module so we can know its visibility
+                    let per_ns = parent_module_data.find_name(&struct_type.name);
+                    if let Some((_, aliased_visibility, _)) = per_ns.types {
+                        if aliased_visibility < visibility {
+                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                                typ: struct_type.name.to_string(),
+                                item: name.to_string(),
+                                span,
+                            });
+                        }
+                    }
+                }
+
+                for generic in generics {
+                    self.check_aliased_type_is_not_more_private(name, visibility, generic, span);
+                }
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.check_aliased_type_is_not_more_private(
+                    name,
+                    visibility,
+                    &alias_type.borrow().get_type(generics),
+                    span,
+                );
+            }
+            Type::Function(args, return_type, env, _) => {
+                for arg in args {
+                    self.check_aliased_type_is_not_more_private(name, visibility, arg, span);
+                }
+                self.check_aliased_type_is_not_more_private(name, visibility, return_type, span);
+                self.check_aliased_type_is_not_more_private(name, visibility, env, span);
+            }
+            Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
+                self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.check_aliased_type_is_not_more_private(name, visibility, left, span);
+                self.check_aliased_type_is_not_more_private(name, visibility, right, span);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::TypeVariable(..)
+            | Type::Forall(..)
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::NamedGeneric(..)
+            | Type::Error => (),
+        }
     }
 
     fn collect_struct_definitions(&mut self, structs: &BTreeMap<StructId, UnresolvedStruct>) {

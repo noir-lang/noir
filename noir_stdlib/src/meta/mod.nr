@@ -36,7 +36,7 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a struct definition can
 // create us a quoted trait impl from it.
-type DeriveFunction = fn(StructDefinition) -> Quoted;
+pub type DeriveFunction = fn(StructDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
