@@ -328,12 +328,12 @@ impl Display for UseTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.prefix)?;
 
+        if !self.prefix.segments.is_empty() {
+            write!(f, "::")?;
+        }
+
         match &self.kind {
             UseTreeKind::Path(name, alias) => {
-                if !(self.prefix.segments.is_empty() && self.prefix.kind == PathKind::Plain) {
-                    write!(f, "::")?;
-                }
-
                 write!(f, "{name}")?;
 
                 if let Some(alias) = alias {
@@ -343,7 +343,7 @@ impl Display for UseTree {
                 Ok(())
             }
             UseTreeKind::List(trees) => {
-                write!(f, "::{{")?;
+                write!(f, "{{")?;
                 let tree = vecmap(trees, ToString::to_string).join(", ");
                 write!(f, "{tree}}}")
             }

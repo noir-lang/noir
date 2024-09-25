@@ -47,6 +47,10 @@ impl<'a> Parser<'a> {
         let span = if segments.is_empty() { start_span } else { self.span_since(start_span) };
         let prefix = Path { segments, kind, span };
 
+        if prefix.segments.is_empty() && kind != PathKind::Plain {
+            trailing_double_colon = true;
+        }
+
         if trailing_double_colon {
             if self.eat(Token::LeftBrace).is_some() {
                 let mut use_trees = Vec::new();
@@ -133,7 +137,7 @@ mod tests {
         };
         assert_eq!(visibility, &ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
-        assert_eq!("", use_tree.prefix.to_string());
+        assert_eq!("foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = &use_tree.kind else {
             panic!("Expected path");
         };
@@ -153,7 +157,7 @@ mod tests {
         };
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
-        assert_eq!("", use_tree.prefix.to_string());
+        assert_eq!("foo as bar", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");
         };
@@ -173,7 +177,7 @@ mod tests {
         };
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Crate);
-        assert_eq!("crate::", use_tree.prefix.to_string());
+        assert_eq!("crate::foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");
         };
@@ -193,7 +197,7 @@ mod tests {
         };
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Dep);
-        assert_eq!("dep::", use_tree.prefix.to_string());
+        assert_eq!("dep::foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");
         };
@@ -213,7 +217,7 @@ mod tests {
         };
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Super);
-        assert_eq!("super::", use_tree.prefix.to_string());
+        assert_eq!("super::foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");
         };
@@ -233,7 +237,7 @@ mod tests {
         };
         assert_eq!(visibility, &ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
-        assert_eq!("foo", use_tree.prefix.to_string());
+        assert_eq!("foo::{bar, baz}", use_tree.to_string());
         let UseTreeKind::List(use_trees) = &use_tree.kind else {
             panic!("Expected list");
         };
@@ -252,10 +256,24 @@ mod tests {
         };
         assert_eq!(visibility, &ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
-        assert_eq!("foo", use_tree.prefix.to_string());
+        assert_eq!("foo::{bar, baz}", use_tree.to_string());
         let UseTreeKind::List(use_trees) = &use_tree.kind else {
             panic!("Expected list");
         };
         assert_eq!(use_trees.len(), 2);
+    }
+
+    #[test]
+    fn parse_list_that_starts_with_crate() {
+        let src = "use crate::{foo, bar};";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Import(use_tree, visibility) = &item.kind else {
+            panic!("Expected import");
+        };
+        assert_eq!(visibility, &ItemVisibility::Private);
+        assert_eq!("crate::{foo, bar}", use_tree.to_string());
     }
 }

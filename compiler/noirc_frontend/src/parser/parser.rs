@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_semicolon(&mut self) -> bool {
-        self.eat(Token::Semicolon).is_none()
+        self.eat(Token::Semicolon).is_some()
     }
 
     fn eat_semicolons(&mut self) -> bool {
