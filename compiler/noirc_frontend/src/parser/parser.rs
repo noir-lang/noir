@@ -1,7 +1,8 @@
+use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Expression, Ident, LValue, Path, Pattern, Statement, TraitBound},
+    ast::{Ident, LValue, Path, Pattern, Statement, TraitBound},
     lexer::{Lexer, SpannedTokenResult},
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
@@ -10,7 +11,9 @@ use super::{ItemKind, ParsedModule, ParserError};
 
 mod attributes;
 mod doc_comments;
+mod expression;
 mod generics;
+mod global;
 mod item;
 mod item_visibility;
 mod module;
@@ -99,10 +102,6 @@ impl<'a> Parser<'a> {
         let items = self.parse_items();
 
         ParsedModule { items, inner_doc_comments }
-    }
-
-    pub(crate) fn parse_expression(&mut self) -> Expression {
-        todo!("Parser")
     }
 
     pub(crate) fn parse_path_no_turbofish(&mut self) -> Path {
@@ -195,6 +194,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_int(&mut self) -> Option<FieldElement> {
+        let is_int = matches!(self.token.token(), Token::Int(..));
+        if is_int {
+            let token = std::mem::take(&mut self.token);
+            self.next_token();
+            match token.into_token() {
+                Token::Int(int) => Some(int),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma)
     }
@@ -244,6 +257,10 @@ impl<'a> Parser<'a> {
 
     fn eat_greater(&mut self) -> bool {
         self.eat(Token::Greater)
+    }
+
+    fn eat_assign(&mut self) -> bool {
+        self.eat(Token::Assign)
     }
 
     fn eat_semicolons(&mut self) -> bool {

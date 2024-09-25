@@ -1,3 +1,5 @@
+use noirc_errors::Span;
+
 use crate::{
     ast::{UnresolvedType, UnresolvedTypeData},
     token::Keyword,
@@ -26,5 +28,13 @@ impl<'a> Parser<'a> {
         };
 
         UnresolvedType { typ, span: self.span_since(start_span) }
+    }
+
+    pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {
+        if self.eat_colon() {
+            self.parse_type()
+        } else {
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
+        }
     }
 }

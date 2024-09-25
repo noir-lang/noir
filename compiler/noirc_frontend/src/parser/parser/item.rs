@@ -36,7 +36,11 @@ impl<'a> Parser<'a> {
 
         let start_span = self.current_token_span;
 
+        let comptime = self.eat_keyword(Keyword::Comptime);
+        let mutable = self.eat_keyword(Keyword::Mut);
+
         if self.eat_keyword(Keyword::Use) {
+            // TODO: error if there's comptime or mutable
             let use_tree = self.parse_use_tree();
             return Some(ItemKind::Import(use_tree, visibility));
         }
@@ -50,7 +54,12 @@ impl<'a> Parser<'a> {
         };
 
         if self.eat_keyword(Keyword::Struct) {
+            // TODO: error if there's comptime or mutable
             return Some(ItemKind::Struct(self.parse_struct(attributes, visibility, start_span)));
+        }
+
+        if self.eat_keyword(Keyword::Global) {
+            return Some(ItemKind::Global(self.parse_global(attributes, comptime, mutable)));
         }
 
         if let Some(is_contract) = module_or_contract {
