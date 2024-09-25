@@ -150,7 +150,7 @@ mod tests {
         function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
-            instruction::{self, BinaryOp, Instruction},
+            instruction::{BinaryOp, Instruction},
             map::Id,
             types::Type,
         },
