@@ -4,10 +4,11 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         instruction::{Instruction, InstructionId},
         types::Type::{Array, Slice},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
-use fxhash::{FxHashMap as HashMap, FxHashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 impl Ssa {
     /// Map arrays with the last instruction that uses it
@@ -16,28 +17,41 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            let mut reachable_blocks = func.reachable_blocks();
-            let block = if !func.runtime().is_entry_point() {
-                assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
-                reachable_blocks.pop_first().unwrap()
-            } else {
-                // We only apply the array set optimization in the return block of Brillig functions
-                func.find_last_block()
-            };
+            let reachable_blocks = func.reachable_blocks();
 
-            let instructions_to_update = analyze_last_uses(&func.dfg, block);
-            make_mutable(&mut func.dfg, block, instructions_to_update);
+            if !func.runtime().is_entry_point() {
+                assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
+            }
+            let mut array_to_last_use = HashMap::default();
+            let mut instructions_to_update = HashSet::default();
+            let mut arrays_from_load = HashSet::default();
+            for block in reachable_blocks.iter() {
+                analyze_last_uses_new(
+                    &func.dfg,
+                    *block,
+                    &mut array_to_last_use,
+                    &mut instructions_to_update,
+                    &mut arrays_from_load,
+                );
+            }
+            for block in reachable_blocks {
+                make_mutable(&mut func.dfg, block, &instructions_to_update);
+            }
         }
         self
     }
 }
 
-/// Returns the set of ArraySet instructions that can be made mutable
+/// Builds the set of ArraySet instructions that can be made mutable
 /// because their input value is unused elsewhere afterward.
-fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<InstructionId> {
+fn analyze_last_uses_new(
+    dfg: &DataFlowGraph,
+    block_id: BasicBlockId,
+    array_to_last_use: &mut HashMap<ValueId, InstructionId>,
+    instructions_that_can_be_made_mutable: &mut HashSet<InstructionId>,
+    arrays_from_load: &mut HashSet<ValueId>,
+) {
     let block = &dfg[block_id];
-    let mut array_to_last_use = HashMap::default();
-    let mut instructions_that_can_be_made_mutable = FxHashSet::default();
 
     for instruction_id in block.instructions() {
         match &dfg[*instruction_id] {
@@ -54,7 +68,12 @@ fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<I
                 if let Some(existing) = array_to_last_use.insert(array, *instruction_id) {
                     instructions_that_can_be_made_mutable.remove(&existing);
                 }
-                instructions_that_can_be_made_mutable.insert(*instruction_id);
+                // If the array we are setting does not come from a load we can safely mark it mutable.
+                // If the array comes from a load we may potentially being mutating an array at a reference
+                // that is loaded from by other values.
+                if !arrays_from_load.contains(&array) {
+                    instructions_that_can_be_made_mutable.insert(*instruction_id);
+                }
             }
             Instruction::Call { arguments, .. } => {
                 for argument in arguments {
@@ -68,18 +87,22 @@ fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<I
                     }
                 }
             }
+            Instruction::Load { .. } => {
+                let result = dfg.instruction_results(*instruction_id)[0];
+                if matches!(dfg.type_of_value(result), Array { .. } | Slice { .. }) {
+                    arrays_from_load.insert(result);
+                }
+            }
             _ => (),
         }
     }
-
-    instructions_that_can_be_made_mutable
 }
 
 /// Make each ArraySet instruction in `instructions_to_update` mutable.
 fn make_mutable(
     dfg: &mut DataFlowGraph,
     block_id: BasicBlockId,
-    instructions_to_update: FxHashSet<InstructionId>,
+    instructions_to_update: &HashSet<InstructionId>,
 ) {
     if instructions_to_update.is_empty() {
         return;
