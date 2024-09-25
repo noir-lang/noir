@@ -93,12 +93,12 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_module(&mut self) -> ParsedModule {
         let inner_doc_comments = self.parse_inner_doc_comments();
-        let items = self.parse_top_level_items();
+        let items = self.parse_items();
 
         ParsedModule { items, inner_doc_comments }
     }
 
-    pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {
+    pub(crate) fn parse_items(&mut self) -> Vec<Item> {
         let mut items = Vec::new();
 
         while let Some(item) = self.parse_item() {

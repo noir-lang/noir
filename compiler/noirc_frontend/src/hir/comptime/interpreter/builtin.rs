@@ -2434,7 +2434,7 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
 
-    let parser = Parser::parse_top_level_items;
+    let parser = Parser::parse_items;
     let top_level_statements =
         parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
 
