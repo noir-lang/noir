@@ -3,7 +3,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
     AcirField,
 };
-use acvm_blackbox_solver::{sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
+use acvm_blackbox_solver::{sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 use crate::pwg::{input_to_value, insert_value};
 use crate::OpcodeResolutionError;
@@ -94,7 +94,7 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
     let message = to_u32_array(initial_witness, inputs)?;
     let mut state = to_u32_array(initial_witness, hash_values)?;
 
-    sha256compression(&mut state, &message);
+    sha256_compression(&mut state, &message);
 
     for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
         insert_value(output_witness, F::from(value as u128), initial_witness)?;

@@ -615,7 +615,8 @@ impl<'f> PerFunctionContext<'f> {
 
     fn reduce_load_result_count(&mut self, value: ValueId) {
         if let Some(context) = self.load_results.get_mut(&value) {
-            context.uses = context.uses.saturating_sub(1);
+            // TODO this was saturating https://github.com/noir-lang/noir/issues/6124
+            context.uses = context.uses.wrapping_sub(1);
         }
     }
 
@@ -743,7 +744,8 @@ impl<'f> PerFunctionContext<'f> {
                 if all_loads_removed && !store_alias_used {
                     self.instructions_to_remove.insert(*store_instruction);
                     if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
-                        *counter = counter.saturating_sub(1);
+                        // TODO this was saturating https://github.com/noir-lang/noir/issues/6124
+                        *counter = counter.wrapping_sub(1);
                     }
                 } else if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
                     *counter += 1;
