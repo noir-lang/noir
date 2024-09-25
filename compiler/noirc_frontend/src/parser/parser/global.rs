@@ -17,6 +17,8 @@ impl<'a> Parser<'a> {
         comptime: bool,
         mutable: bool,
     ) -> LetStatement {
+        // TODO: error if mutable but not comptime
+
         let attributes = self.validate_secondary_attributes(attributes);
 
         let Some(ident) = self.eat_ident() else {
