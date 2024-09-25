@@ -1735,7 +1735,7 @@ fn numeric_generic_used_in_nested_type_fails() {
         a: Field,
         b: Bar<N>,
     }
-    struct Bar<let N: u32> {
+    pub struct Bar<let N: u32> {
         inner: N
     }
     "#;
@@ -3098,7 +3098,9 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
             struct Foo {}
         }
         use moo::Foo;
-        fn main() {}
+        fn main() {
+            let _ = Foo {};
+        }
     "#;
 
     let errors = get_program_errors(src);
