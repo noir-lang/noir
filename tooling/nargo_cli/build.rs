@@ -20,7 +20,7 @@ fn main() {
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
     let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
-        Ok(dir) => std::path::PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
+        Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
         Err(_) => std::env::current_dir().unwrap(),
     };
     let test_dir = root_dir.join("test_programs");
@@ -90,7 +90,7 @@ fn generate_test_case(
         r#"
 #[test]
 fn test_{test_name}() {{
-    let test_program_dir = std::path::PathBuf::from("{test_dir}");
+    let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
@@ -105,7 +105,9 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+    writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -138,7 +140,9 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
     let test_type = "execution_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+    writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -159,7 +163,9 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
     let test_type = "noir_test_success";
     let test_cases = read_test_cases(test_data_dir, "noir_test_success");
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+    writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -180,7 +186,9 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
     let test_type = "noir_test_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+        writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
         generate_test_case(
@@ -200,7 +208,9 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
     let test_type = "compile_success_empty";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+    writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -238,7 +248,9 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
     let test_type = "compile_success_contract";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+    writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -259,7 +271,9 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
     let test_type = "compile_success_no_bug";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+    writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
@@ -279,7 +293,9 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
-    writeln!(test_file, "mod {test_type} {{").unwrap();
+    writeln!(test_file, "mod {test_type} {{
+        use super::*;
+    ").unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
