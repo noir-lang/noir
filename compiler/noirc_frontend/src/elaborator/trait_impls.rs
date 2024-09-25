@@ -153,11 +153,12 @@ impl<'context> Elaborator<'context> {
         let override_meta = self.interner.function_meta(func_id);
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
-            ResolvedGeneric { type_var: trait_fn_generic, kind: trait_fn_kind, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, kind, .. },
+            ResolvedGeneric { type_var: trait_fn_generic, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
         ) in method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), kind.clone());
+            let trait_fn_kind = trait_fn_generic.kind();
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind.clone(), arg));
         }
 

@@ -524,8 +524,7 @@ impl<'a> ModCollector<'a> {
 
                             associated_types.push(ResolvedGeneric {
                                 name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(type_variable_id, TypeVariableKind::Numeric(Box::new(typ))),
-                                kind: Kind::Numeric(Box::new(typ)),
+                                type_var: TypeVariable::unbound(type_variable_id, Kind::Numeric(Box::new(typ))),
                                 span: name.span(),
                             });
                         }
@@ -545,8 +544,7 @@ impl<'a> ModCollector<'a> {
                             let type_variable_id = context.def_interner.next_type_variable_id();
                             associated_types.push(ResolvedGeneric {
                                 name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(type_variable_id, TypeVariableKind::Normal),
-                                kind: Kind::Normal,
+                                type_var: TypeVariable::unbound(type_variable_id, Kind::Normal),
                                 span: name.span(),
                             });
                         }

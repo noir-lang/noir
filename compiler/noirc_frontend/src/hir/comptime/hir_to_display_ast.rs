@@ -333,7 +333,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name, _kind) => {
+            Type::NamedGeneric(_var, name) => {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
@@ -373,7 +373,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, span),
-            Type::NamedGeneric(_var, name, _kind) => {
+            Type::NamedGeneric(_var, name) => {
                 let path = Path::from_single(name.as_ref().clone(), span);
                 UnresolvedTypeExpression::Variable(path)
             }

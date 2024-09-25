@@ -401,12 +401,11 @@ fn struct_def_add_generic(
         }
     }
 
-    let type_var_kind = TypeVariableKind::Normal;
+    let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
     let span = generic_location.span;
-    let kind = Kind::Normal;
-    let typ = Type::NamedGeneric(type_var.clone(), name.clone(), kind.clone());
-    let new_generic = ResolvedGeneric { name, type_var, span, kind };
+    let typ = Type::NamedGeneric(type_var.clone(), name.clone());
+    let new_generic = ResolvedGeneric { name, type_var, span };
     the_struct.generics.push(new_generic);
 
     Ok(Value::Type(typ))
@@ -424,7 +423,7 @@ fn struct_def_as_type(
     let struct_def = struct_def_rc.borrow();
 
     let generics = vecmap(&struct_def.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
+        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
     });
 
     drop(struct_def);
@@ -1208,7 +1207,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::Quoted(_)
         | Type::Error
         | Type::TraitAsType(..)
-        | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
+        | Type::NamedGeneric(_, _) => Ok(Value::Zeroed(return_type)),
     }
 }
 

@@ -48,7 +48,7 @@ use crate::locations::LocationIndices;
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::GenericTypeVars;
 use crate::Generics;
-use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind};
+use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId};
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
@@ -727,7 +727,7 @@ impl NodeInterner {
             crate_id: unresolved_trait.crate_id,
             location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
             generics,
-            self_type_typevar: TypeVariable::unbound(self.next_type_variable_id()),
+            self_type_typevar: TypeVariable::unbound(self.next_type_variable_id(), Kind::Normal),
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
@@ -2222,11 +2222,11 @@ impl NodeInterner {
         let trait_generics = the_trait.generics.clone();
 
         let self_type_var = the_trait.self_type_typevar.clone();
-        bindings.insert(self_type_var.id(), (self_type_var, Kind::Normal, impl_self_type));
+        bindings.insert(self_type_var.id(), (self_type_var.clone(), self_type_var.kind(), impl_self_type));
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
             let type_var = trait_generic.type_var.clone();
-            bindings.insert(type_var.id(), (type_var, trait_generic.kind.clone(), trait_impl_generic.clone()));
+            bindings.insert(type_var.id(), (type_var, trait_generic.kind(), trait_impl_generic.clone()));
         }
 
         // Now that the normal bindings are added, we still need to bind the associated types
@@ -2235,7 +2235,7 @@ impl NodeInterner {
 
         for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
             let type_variable = trait_type.type_var.clone();
-            bindings.insert(type_variable.id(), (type_variable, trait_type.kind.clone(), impl_type.typ.clone()));
+            bindings.insert(type_variable.id(), (type_variable, trait_type.kind(), impl_type.typ.clone()));
         }
 
         bindings
@@ -2356,22 +2356,26 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
         Type::Integer(_, _) => Some(FieldOrInt),
-        Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
-        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
+        Type::TypeVariable(var) => {
+            if var.is_integer() || var.is_integer_or_field() {
+                Some(FieldOrInt)
+            } else {
+                None
+            }
+        }
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _, _) => Some(Function),
-        Type::NamedGeneric(_, _, _) => Some(Generic),
+        Type::NamedGeneric(_, _) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_, _)
-        | Type::Forall(_, _)
+        Type::Forall(_, _)
         | Type::Constant(..)
         | Type::Error
         | Type::Struct(_, _)

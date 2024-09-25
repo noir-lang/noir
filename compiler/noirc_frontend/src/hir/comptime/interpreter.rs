@@ -38,7 +38,7 @@ use crate::{
     },
     macros_api::{HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
-    Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
+    Shared, Type, TypeBinding, TypeBindings,
 };
 
 use super::errors::{IResult, InterpreterError};
@@ -63,7 +63,7 @@ pub struct Interpreter<'local, 'interner> {
     /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
-    bound_generics: Vec<HashMap<TypeVariable, Type>>,
+    bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
 }
 
 #[allow(unused)]
@@ -336,8 +336,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn unbind_generics_from_previous_function(&mut self) {
         if let Some(bindings) = self.bound_generics.last() {
-            for var in bindings.keys() {
-                var.unbind(var.id());
+            for (var, (_, kind)) in bindings {
+                var.unbind(var.id(), kind.clone());
             }
         }
         // Push a new bindings list for the current function
@@ -349,8 +349,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, binding) in bindings {
-                var.force_bind(binding.clone(), &Kind::Normal);
+            for (var, (binding, kind)) in bindings {
+                var.force_bind(binding.clone(), kind);
             }
         }
     }
@@ -361,12 +361,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .last_mut()
             .expect("remember_bindings called with no bound_generics on the stack");
 
-        for (var, _kind, binding) in main_bindings.values() {
-            bound_generics.insert(var.clone(), binding.follow_bindings());
+        for (var, kind, binding) in main_bindings.values() {
+            bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
         }
 
-        for (var, _kind, binding) in impl_bindings.values() {
-            bound_generics.insert(var.clone(), binding.follow_bindings());
+        for (var, kind, binding) in impl_bindings.values() {
+            bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
         }
     }
 
@@ -753,15 +753,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::I64(value))
                 }
             }
-        } else if let Type::TypeVariable(variable) = &typ && variable.is_integer_or_field() {
-            Ok(Value::Field(value))
-        } else if let Type::TypeVariable(variable) = &typ && variable.is_integer() {
-            let value: u64 = value
-                .try_to_u64()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
-            Ok(Value::U64(value))
-
+        } else if let Type::TypeVariable(variable) = &typ {
+            if variable.is_integer_or_field() {
+                Ok(Value::Field(value))
+            } else if variable.is_integer() {
+                let value: u64 = value
+                    .try_to_u64()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
+                Ok(Value::U64(value))
+            } else {
+                Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+            }
         } else {
             Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
         }

@@ -8,7 +8,7 @@ use crate::{
     node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Type, TypeBindings, TypeVariable,
 };
-use crate::{ResolvedGeneric, TypeVariableKind};
+use crate::ResolvedGeneric;
 use fm::FileId;
 use noirc_errors::{Location, Span};
 

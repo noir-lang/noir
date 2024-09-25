@@ -280,7 +280,11 @@ impl Context<'_, '_> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
-            let type_var_kind = generic.type_variable_kind();
+
+            let type_var_kind = generic.kind().unwrap_or_else(|err| {
+                errors.push((err.into(), file_id));
+                Kind::Numeric(Box::new(Type::Error))
+            });
             let type_var = TypeVariable::unbound(id, type_var_kind);
             let ident = generic.ident();
             let span = ident.0.span();
@@ -288,12 +292,7 @@ impl Context<'_, '_> {
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            let kind = generic.kind().unwrap_or_else(|err| {
-                errors.push((err.into(), file_id));
-                Kind::Numeric(Box::new(Type::Error))
-            });
-
-            ResolvedGeneric { name, type_var, kind, span }
+            ResolvedGeneric { name, type_var, span }
         })
     }
 

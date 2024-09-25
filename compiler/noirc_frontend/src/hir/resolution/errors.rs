@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{ast::Ident, hir::comptime::InterpreterError, parser::ParserError, Type};
+use crate::{ast::{Ident, UnsupportedNumericGenericType}, hir::comptime::InterpreterError, parser::ParserError, Type};
 
 use super::import::PathResolutionError;
 
@@ -100,8 +100,6 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
-    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
-    UnsupportedNumericGenericType { ident: Ident, typ: Type },
     #[error("expected type, found numeric generic parameter")]
     NumericGenericUsedForType { name: String, span: Span },
     #[error("Invalid array length construction")]
@@ -130,6 +128,8 @@ pub enum ResolverError {
     MutatingComptimeInNonComptimeContext { name: String, span: Span },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, span: Span },
+    #[error("{0}")]
+    UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
 }
 
 impl ResolverError {
@@ -428,15 +428,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
             }
-            ResolverError::UnsupportedNumericGenericType { ident , typ } => {
-                let name = &ident.0.contents;
-
-                Diagnostic::simple_error(
-                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
-                    "Unsupported numeric generic type".to_string(),
-                    ident.0.span(),
-                )
-            }
             ResolverError::NumericGenericUsedForType { name, span } => {
                 Diagnostic::simple_error(
                     format!("expected type, found numeric generic parameter {name}"),
@@ -529,6 +520,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::UnsupportedNumericGenericType(err) => err.into(),
         }
     }
 }

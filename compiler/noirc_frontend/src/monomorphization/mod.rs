@@ -973,24 +973,24 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(binding, _, kind) => {
-                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+            HirType::NamedGeneric(binding, _) => {
+                if let TypeBinding::Bound(ref binding) = &*binding.borrow() {
                     return Self::convert_type(binding, location);
                 }
 
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                binding.bind(HirType::default_int_or_field_type(), kind);
+                binding.bind(HirType::default_int_or_field_type(), &binding.kind());
                 ast::Type::Field
             }
 
-            HirType::TypeVariable(binding) => {
+            HirType::TypeVariable(ref binding) => {
                 let type_var_kind = match &*binding.borrow() {
                     TypeBinding::Bound(ref binding) => {
                         return Self::convert_type(binding, location);
                     }
-                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind,
+                    TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
                 };
 
                 // Default any remaining unbound type variables.
@@ -1002,7 +1002,7 @@ impl<'interner> Monomorphizer<'interner> {
                 };
 
                 let monomorphized_default = Self::convert_type(&default, location)?;
-                binding.bind(default, &type_var_kind.kind());
+                binding.bind(default, &type_var_kind);
                 monomorphized_default
             }
 
@@ -1094,7 +1094,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
-            HirType::NamedGeneric(binding, _, _) => {
+            HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(ref binding) = &*binding.borrow() {
                     return Self::check_type(binding, location);
                 }
@@ -1102,12 +1102,12 @@ impl<'interner> Monomorphizer<'interner> {
                 Ok(())
             }
 
-            HirType::TypeVariable(binding) => {
+            HirType::TypeVariable(ref binding) => {
                 let type_var_kind = match &*binding.borrow() {
                     TypeBinding::Bound(binding) => {
                         return Self::check_type(binding, location);
                     }
-                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind,
+                    TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
                 };
 
                 // Default any remaining unbound type variables.
