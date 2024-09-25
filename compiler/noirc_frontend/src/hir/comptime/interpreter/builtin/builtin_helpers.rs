@@ -28,7 +28,6 @@ use crate::{
     },
     macros_api::{NodeInterner, StructId},
     node_interner::{FuncId, TraitId, TraitImplId},
-    parser::NoirParser,
     token::{SecondaryAttribute, Token, Tokens},
     QuotedType, Type,
 };
@@ -405,21 +404,21 @@ pub(super) fn lex(input: &str) -> Vec<Token> {
     tokens
 }
 
-pub(super) fn parse<T, F>(
+pub(super) fn parse<'a, T, F>(
     interner: &NodeInterner,
     (value, location): (Value, Location),
     parser: F,
     rule: &'static str,
 ) -> IResult<T>
 where
-    F: FnOnce(&mut Parser) -> T,
+    F: FnOnce(&mut Parser<'a>) -> T,
 {
     let tokens = get_quoted((value, location))?;
     let quoted = add_token_spans(tokens.clone(), location.span);
     parse_tokens(tokens, quoted, interner, location, parser, rule)
 }
 
-pub(super) fn parse_tokens<T, F>(
+pub(super) fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<Token>>,
     quoted: Tokens,
     interner: &NodeInterner,
@@ -428,7 +427,7 @@ pub(super) fn parse_tokens<T, F>(
     rule: &'static str,
 ) -> IResult<T>
 where
-    F: FnOnce(&mut Parser) -> T,
+    F: FnOnce(&mut Parser<'a>) -> T,
 {
     parse_result(Parser::for_tokens(quoted), parser).map_err(|mut errors| {
         let error = errors.swap_remove(0);

@@ -1,6 +1,6 @@
 use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
-use std::{fmt, iter::Map, vec::IntoIter};
+use std::fmt;
 
 use crate::{
     lexer::errors::LexerErrorKind,
@@ -1211,8 +1211,6 @@ impl Keyword {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tokens(pub Vec<SpannedToken>);
-
-type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
 
 #[cfg(test)]
 mod keywords {

@@ -645,14 +645,6 @@ impl Pattern {
         }
     }
 
-    pub(crate) fn into_ident(self) -> Ident {
-        match self {
-            Pattern::Identifier(ident) => ident,
-            Pattern::Mutable(pattern, _, _) => pattern.into_ident(),
-            other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
-        }
-    }
-
     pub(crate) fn try_as_expression(&self, interner: &NodeInterner) -> Option<Expression> {
         match self {
             Pattern::Identifier(ident) => Some(Expression {

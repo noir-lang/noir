@@ -1,12 +1,15 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Expression, Ident, ItemVisibility},
+    ast::{
+        Expression, Ident, ItemVisibility, LValue, Path, Pattern, Statement, TraitBound,
+        UnresolvedType,
+    },
     lexer::{Lexer, SpannedTokenResult},
     token::{Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
-use super::{Item, ItemKind, ParsedModule, ParserError};
+use super::{Item, ItemKind, ParsedModule, ParserError, TopLevelStatement};
 
 mod attributes;
 mod doc_comments;
@@ -95,10 +98,6 @@ impl<'a> Parser<'a> {
         ParsedModule { items, inner_doc_comments }
     }
 
-    pub(crate) fn parse_expression(&mut self) -> Expression {
-        todo!("Parser")
-    }
-
     fn parse_top_level_items(&mut self) -> Vec<Item> {
         let mut items = Vec::new();
 
@@ -133,6 +132,38 @@ impl<'a> Parser<'a> {
         }
 
         None
+    }
+
+    pub(crate) fn parse_expression(&mut self) -> Expression {
+        todo!("Parser")
+    }
+
+    pub(crate) fn parse_top_level_statements(&mut self) -> Vec<TopLevelStatement> {
+        todo!("Parser")
+    }
+
+    pub(crate) fn parse_path_no_turbofish(&mut self) -> Path {
+        todo!("Parser")
+    }
+
+    pub(crate) fn parse_pattern(&mut self) -> Pattern {
+        todo!("Parser")
+    }
+
+    pub(crate) fn parse_type(&mut self) -> UnresolvedType {
+        todo!("Parser")
+    }
+
+    pub(crate) fn parse_trait_bound(&mut self) -> TraitBound {
+        todo!("Parser")
+    }
+
+    pub(crate) fn parse_statement(&mut self) -> Statement {
+        todo!("Parser")
+    }
+
+    pub(crate) fn parse_lvalue(&mut self) -> LValue {
+        todo!("Parser")
     }
 
     fn next_token(&mut self) {

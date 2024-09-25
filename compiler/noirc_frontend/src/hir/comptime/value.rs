@@ -18,7 +18,7 @@ use crate::{
         StructId,
     },
     node_interner::{ExprId, FuncId, StmtId, TraitId, TraitImplId},
-    parser::{self, NoirParser, TopLevelStatement},
+    parser::{parse_result, Parser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
@@ -260,17 +260,17 @@ impl Value {
                 tokens_to_parse.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
                 tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
 
-                return todo!("Parser");
-                // return match parser::expression().parse(tokens_to_parse) {
-                //     Ok(expr) => Ok(expr),
-                //     Err(mut errors) => {
-                //         let error = errors.swap_remove(0);
-                //         let file = location.file;
-                //         let rule = "an expression";
-                //         let tokens = tokens_to_string(tokens, interner);
-                //         Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
-                //     }
-                // };
+                let parser = Parser::for_tokens(tokens_to_parse);
+                return match parse_result(parser, Parser::parse_expression) {
+                    Ok(expr) => Ok(expr),
+                    Err(mut errors) => {
+                        let error = errors.swap_remove(0);
+                        let file = location.file;
+                        let rule = "an expression";
+                        let tokens = tokens_to_string(tokens, interner);
+                        Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+                    }
+                };
             }
             Value::Expr(ExprValue::Expression(expr)) => expr,
             Value::Expr(ExprValue::Statement(statement)) => {
@@ -524,18 +524,17 @@ impl Value {
         location: Location,
         interner: &NodeInterner,
     ) -> IResult<Vec<TopLevelStatement>> {
-        todo!("Parser")
-        // let parser = parser::top_level_items();
-        // match self {
-        //     Value::Quoted(tokens) => {
-        //         parse_tokens(tokens, interner, parser, location, "top-level item")
-        //     }
-        //     _ => {
-        //         let typ = self.get_type().into_owned();
-        //         let value = self.display(interner).to_string();
-        //         Err(InterpreterError::CannotInlineMacro { value, typ, location })
-        //     }
-        // }
+        let parser = Parser::parse_top_level_statements;
+        match self {
+            Value::Quoted(tokens) => {
+                parse_tokens(tokens, interner, parser, location, "top-level item")
+            }
+            _ => {
+                let typ = self.get_type().into_owned();
+                let value = self.display(interner).to_string();
+                Err(InterpreterError::CannotInlineMacro { value, typ, location })
+            }
+        }
     }
 }
 
@@ -544,24 +543,26 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
-fn parse_tokens<T>(
+fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<Token>>,
     interner: &NodeInterner,
-    parser: impl NoirParser<T>,
+    f: F,
     location: Location,
     rule: &'static str,
-) -> IResult<T> {
-    todo!("Parser!!")
-    // let parser = parser.then_ignore(chumsky::primitive::end());
-    // match parser.parse(add_token_spans(tokens.clone(), location.span)) {
-    //     Ok(expr) => Ok(expr),
-    //     Err(mut errors) => {
-    //         let error = errors.swap_remove(0);
-    //         let file = location.file;
-    //         let tokens = tokens_to_string(tokens, interner);
-    //         Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
-    //     }
-    // }
+) -> IResult<T>
+where
+    F: FnOnce(&mut Parser<'a>) -> T,
+{
+    let parser = Parser::for_tokens(add_token_spans(tokens.clone(), location.span));
+    match parse_result(parser, f) {
+        Ok(expr) => Ok(expr),
+        Err(mut errors) => {
+            let error = errors.swap_remove(0);
+            let file = location.file;
+            let tokens = tokens_to_string(tokens, interner);
+            Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+        }
+    }
 }
 
 pub(crate) fn add_token_spans(tokens: Rc<Vec<Token>>, span: Span) -> Tokens {

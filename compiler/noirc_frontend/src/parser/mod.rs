@@ -15,14 +15,12 @@ use crate::ast::{
     Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
     NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl, UseTree,
 };
-use crate::token::{SecondaryAttribute, Token};
+use crate::token::SecondaryAttribute;
 
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
 pub use parser::{parse_program, parse_result, Parser};
-
-pub trait NoirParser<T> {}
 
 #[derive(Debug, Clone)]
 pub struct TopLevelStatement {
@@ -265,83 +263,6 @@ impl SortedModule {
 
     fn push_global(&mut self, global: LetStatement, doc_comments: Vec<String>) {
         self.globals.push(Documented::new(global, doc_comments));
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
-pub enum Precedence {
-    Lowest,
-    Or,
-    And,
-    Xor,
-    LessGreater,
-    Shift,
-    Sum,
-    Product,
-    Highest,
-}
-
-impl Precedence {
-    // Higher the number, the higher(more priority) the precedence
-    // XXX: Check the precedence is correct for operators
-    fn token_precedence(tok: &Token) -> Option<Precedence> {
-        let precedence = match tok {
-            Token::Equal => Precedence::Lowest,
-            Token::NotEqual => Precedence::Lowest,
-            Token::Pipe => Precedence::Or,
-            Token::Ampersand => Precedence::And,
-            Token::Caret => Precedence::Xor,
-            Token::Less => Precedence::LessGreater,
-            Token::LessEqual => Precedence::LessGreater,
-            Token::Greater => Precedence::LessGreater,
-            Token::GreaterEqual => Precedence::LessGreater,
-            Token::ShiftLeft => Precedence::Shift,
-            Token::ShiftRight => Precedence::Shift,
-            Token::Plus => Precedence::Sum,
-            Token::Minus => Precedence::Sum,
-            Token::Slash => Precedence::Product,
-            Token::Star => Precedence::Product,
-            Token::Percent => Precedence::Product,
-            _ => return None,
-        };
-
-        assert_ne!(precedence, Precedence::Highest, "expression_with_precedence in the parser currently relies on the highest precedence level being uninhabited");
-        Some(precedence)
-    }
-
-    /// Return the next higher precedence. E.g. `Sum.next() == Product`
-    fn next(self) -> Self {
-        use Precedence::*;
-        match self {
-            Lowest => Or,
-            Or => Xor,
-            Xor => And,
-            And => LessGreater,
-            LessGreater => Shift,
-            Shift => Sum,
-            Sum => Product,
-            Product => Highest,
-            Highest => Highest,
-        }
-    }
-
-    /// TypeExpressions only contain basic arithmetic operators and
-    /// notably exclude `>` due to parsing conflicts with generic type brackets.
-    fn next_type_precedence(self) -> Self {
-        use Precedence::*;
-        match self {
-            Lowest => Sum,
-            Sum => Product,
-            Product => Highest,
-            Highest => Highest,
-            other => unreachable!("Unexpected precedence level in type expression: {:?}", other),
-        }
-    }
-
-    /// The operators with the lowest precedence still useable in type expressions
-    /// are '+' and '-' with precedence Sum.
-    fn lowest_type_precedence() -> Self {
-        Precedence::Sum
     }
 }
 
