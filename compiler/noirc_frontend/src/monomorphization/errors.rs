@@ -5,6 +5,7 @@ use crate::{hir::comptime::InterpreterError, Type};
 #[derive(Debug)]
 pub enum MonomorphizationError {
     UnknownArrayLength { length: Type, location: Location },
+    UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
@@ -16,6 +17,7 @@ impl MonomorphizationError {
     fn location(&self) -> Location {
         match self {
             MonomorphizationError::UnknownArrayLength { location, .. }
+            | MonomorphizationError::UnknownConstant { location }
             | MonomorphizationError::InternalError { location, .. }
             | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
@@ -30,7 +32,7 @@ impl From<MonomorphizationError> for FileDiagnostic {
         let location = error.location();
         let call_stack = vec![location];
         let diagnostic = error.into_diagnostic();
-        diagnostic.in_file(location.file).with_call_stack(call_stack)
+        diagnostic.with_call_stack(call_stack).in_file(location.file)
     }
 }
 
@@ -39,6 +41,9 @@ impl MonomorphizationError {
         let message = match &self {
             MonomorphizationError::UnknownArrayLength { length, .. } => {
                 format!("Could not determine array length `{length}`")
+            }
+            MonomorphizationError::UnknownConstant { .. } => {
+                "Could not resolve constant".to_string()
             }
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();

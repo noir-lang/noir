@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::{Expression, MacroError, MacroProcessor};
+use crate::macros_api::Expression;
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
@@ -214,12 +214,6 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
     }
 }
 
-impl From<MacroError> for CompilationError {
-    fn from(value: MacroError) -> Self {
-        CompilationError::DefinitionError(DefCollectorErrorKind::MacroError(value))
-    }
-}
-
 impl From<ParserError> for CompilationError {
     fn from(value: ParserError) -> Self {
         CompilationError::ParseError(value)
@@ -272,7 +266,6 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         error_on_unused_items: bool,
-        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let crate_id = def_map.krate;
@@ -291,7 +284,6 @@ impl DefCollector {
                 context,
                 debug_comptime_in_file,
                 error_on_usage_tracker,
-                macro_processors,
             ));
 
             let dep_def_map =
@@ -329,7 +321,6 @@ impl DefCollector {
             crate_root,
             crate_id,
             context,
-            macro_processors,
         ));
 
         let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
@@ -381,6 +372,8 @@ impl DefCollector {
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
                     let file_id = current_def_map.file_id(module_id);
 
+                    let has_path_resolution_error = resolved_import.error.is_some();
+
                     if let Some(error) = resolved_import.error {
                         errors.push((
                             DefCollectorErrorKind::PathResolutionError(error).into(),
@@ -410,24 +403,29 @@ impl DefCollector {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), visibility, module_def_id, is_prelude);
 
-                        let module_id =
-                            ModuleId { krate: crate_id, local_id: resolved_import.module_scope };
-                        context.def_interner.usage_tracker.add_unused_item(
-                            module_id,
-                            name.clone(),
-                            UnusedItem::Import,
-                            visibility,
-                        );
-
-                        if visibility != ItemVisibility::Private {
-                            let local_id = resolved_import.module_scope;
-                            let defining_module = ModuleId { krate: crate_id, local_id };
-                            context.def_interner.register_name_for_auto_import(
-                                name.to_string(),
-                                module_def_id,
+                        // If we error on path resolution don't also say it's unused (in case it ends up being unused)
+                        if !has_path_resolution_error {
+                            let module_id = ModuleId {
+                                krate: crate_id,
+                                local_id: resolved_import.module_scope,
+                            };
+                            context.def_interner.usage_tracker.add_unused_item(
+                                module_id,
+                                name.clone(),
+                                UnusedItem::Import,
                                 visibility,
-                                Some(defining_module),
                             );
+
+                            if visibility != ItemVisibility::Private {
+                                let local_id = resolved_import.module_scope;
+                                let defining_module = ModuleId { krate: crate_id, local_id };
+                                context.def_interner.register_name_for_auto_import(
+                                    name.to_string(),
+                                    module_def_id,
+                                    visibility,
+                                    Some(defining_module),
+                                );
+                            }
                         }
 
                         let last_segment = collected_import.path.last_ident();
@@ -479,14 +477,6 @@ impl DefCollector {
 
         errors.append(&mut more_errors);
 
-        for macro_processor in macro_processors {
-            macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
-                |(macro_err, file_id)| {
-                    errors.push((macro_err.into(), file_id));
-                },
-            );
-        }
-
         if error_on_unused_items {
             Self::check_unused_items(context, crate_id, &mut errors);
         }
@@ -499,7 +489,7 @@ impl DefCollector {
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        let unused_imports = context.def_interner.usage_tracker.unused_items().iter();
+        let unused_imports = context.def_interner.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {

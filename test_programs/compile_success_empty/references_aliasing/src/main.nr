@@ -6,6 +6,7 @@ fn main() {
 
     regression_2445();
     single_alias_inside_loop();
+    assert(5 == struct_field_refs_across_blocks(MyStruct { a: 5, b: 10 })[0]);
 }
 
 fn increment(mut r: &mut Field) {
@@ -38,4 +39,21 @@ fn single_alias_inside_loop() {
 
     assert(var == 2);
     assert(**ref == 2);
+}
+
+struct MyStruct {
+    a: Field,
+    b: u32,
+}
+
+fn struct_field_refs_across_blocks(mut my_struct: MyStruct) -> [Field; 1] {
+    [compute_dummy_hash(my_struct.a, my_struct.b, 20)]
+}
+
+fn compute_dummy_hash(input: Field, rhs: u32, in_len: u32) -> Field {
+    let mut res = 0;
+    if rhs < in_len {
+        res += input;
+    }
+    res
 }

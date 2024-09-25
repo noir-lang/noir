@@ -1,12 +1,15 @@
 #![cfg(test)]
 
-#[cfg(test)]
+mod bound_checks;
+mod imports;
 mod name_shadowing;
+mod references;
+mod turbofish;
+mod unused_items;
 
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
-use core::panic;
 use std::collections::BTreeMap;
 
 use fm::FileId;
@@ -14,6 +17,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::ast::IntegerBitSize;
 use crate::hir::comptime::InterpreterError;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::errors::{DefCollectorErrorKind, DuplicateType};
@@ -97,7 +101,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 
         let debug_comptime_in_file = None;
         let error_on_unused_imports = true;
-        let macro_processors = &[];
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -107,7 +110,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             root_file_id,
             debug_comptime_in_file,
             error_on_unused_imports,
-            macro_processors,
         ));
     }
     (program, context, errors)
@@ -130,41 +132,41 @@ fn check_trait_implemented_for_all_t() {
     trait Default {
         fn default() -> Self;
     }
-    
+
     trait Eq {
         fn eq(self, other: Self) -> bool;
     }
-    
+
     trait IsDefault {
         fn is_default(self) -> bool;
     }
-    
+
     impl<T> IsDefault for T where T: Default + Eq {
         fn is_default(self) -> bool {
             self.eq(T::default())
         }
     }
-    
+
     struct Foo {
         a: u64,
     }
-    
+
     impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        fn eq(self, other: Foo) -> bool { self.a == other.a }
     }
-    
+
     impl Default for u64 {
         fn default() -> Self {
             0
         }
     }
-    
+
     impl Default for Foo {
         fn default() -> Self {
             Foo { a: Default::default() }
         }
     }
-    
+
     fn main(a: Foo) -> pub bool {
         a.is_default()
     }";
@@ -177,12 +179,12 @@ fn check_trait_implementation_duplicate_method() {
     trait Default {
         fn default(x: Field, y: Field) -> Field;
     }
-    
+
     struct Foo {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     impl Default for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
@@ -193,7 +195,7 @@ fn check_trait_implementation_duplicate_method() {
             x + 2 * y
         }
     }
-    
+
     fn main() {}";
 
     let errors = get_program_errors(src);
@@ -224,16 +226,16 @@ fn check_trait_wrong_method_return_type() {
     trait Default {
         fn default() -> Self;
     }
-    
+
     struct Foo {
     }
-    
+
     impl Default for Foo {
         fn default() -> Field {
             0
         }
     }
-    
+
     fn main() {
     }
     ";
@@ -264,18 +266,18 @@ fn check_trait_wrong_method_return_type2() {
     trait Default {
         fn default(x: Field, y: Field) -> Self;
     }
-    
+
     struct Foo {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     impl Default for Foo {
         fn default(x: Field, _y: Field) -> Field {
             x
         }
     }
-    
+
     fn main() {
     }";
     let errors = get_program_errors(src);
@@ -304,22 +306,22 @@ fn check_trait_missing_implementation() {
     let src = "
     trait Default {
         fn default(x: Field, y: Field) -> Self;
-    
+
         fn method2(x: Field) -> Field;
-    
+
     }
-    
+
     struct Foo {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     impl Default for Foo {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
-    
+
     fn main() {
     }
     ";
@@ -351,17 +353,17 @@ fn check_trait_not_in_scope() {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     // Default trait does not exist
     impl Default for Foo {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
-    
+
     fn main() {
     }
-    
+
     ";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
@@ -385,19 +387,19 @@ fn check_trait_wrong_method_name() {
     let src = "
     trait Default {
     }
-    
+
     struct Foo {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     // wrong trait name method should not compile
     impl Default for Foo {
         fn does_not_exist(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
-    
+
     fn main() {
     }";
     let compilation_errors = get_program_errors(src);
@@ -430,17 +432,17 @@ fn check_trait_wrong_parameter() {
     trait Default {
         fn default(x: Field) -> Self;
     }
-    
+
     struct Foo {
         bar: u32,
     }
-    
+
     impl Default for Foo {
         fn default(x: u32) -> Self {
             Foo {bar: x}
         }
     }
-    
+
     fn main() {
     }
     ";
@@ -473,18 +475,18 @@ fn check_trait_wrong_parameter2() {
     trait Default {
         fn default(x: Field, y: Field) -> Self;
     }
-    
+
     struct Foo {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     impl Default for Foo {
         fn default(x: Field, y: Foo) -> Self {
             Self { bar: x, array: [x, y.bar] }
         }
     }
-    
+
     fn main() {
     }";
 
@@ -514,10 +516,10 @@ fn check_trait_wrong_parameter2() {
 #[test]
 fn check_trait_wrong_parameter_type() {
     let src = "
-    trait Default {
+    pub trait Default {
         fn default(x: Field, y: NotAType) -> Field;
     }
-    
+
     fn main(x: Field, y: Field) {
         assert(y == x);
     }";
@@ -548,18 +550,18 @@ fn check_trait_wrong_parameters_count() {
     trait Default {
         fn default(x: Field, y: Field) -> Self;
     }
-    
+
     struct Foo {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     impl Default for Foo {
         fn default(x: Field) -> Self {
             Self { bar: x, array: [x, x] }
         }
     }
-    
+
     fn main() {
     }
     ";
@@ -628,16 +630,16 @@ fn check_impl_struct_not_trait() {
 
     struct Default {
         x: Field,
-        z: Field, 
+        z: Field,
     }
-    
+
     // Default is a struct not a trait
     impl Default for Foo {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
-    
+
     fn main() {}
     ";
     let errors = get_program_errors(src);
@@ -663,23 +665,23 @@ fn check_trait_duplicate_declaration() {
     trait Default {
         fn default(x: Field, y: Field) -> Self;
     }
-    
+
     struct Foo {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     impl Default for Foo {
         fn default(x: Field,y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
-    
-    
+
+
     trait Default {
         fn default(x: Field) -> Self;
     }
-    
+
     fn main() {
     }";
     let errors = get_program_errors(src);
@@ -711,7 +713,7 @@ fn check_trait_duplicate_implementation() {
     struct Foo {
         bar: Field,
     }
-    
+
     impl Default for Foo {
     }
     impl Default for Foo {
@@ -742,18 +744,18 @@ fn check_trait_duplicate_implementation_with_alias() {
     let src = "
     trait Default {
     }
-    
+
     struct MyStruct {
     }
-    
+
     type MyType = MyStruct;
-    
+
     impl Default for MyStruct {
     }
-    
+
     impl Default for MyType {
     }
-    
+
     fn main() {
     }
     ";
@@ -806,7 +808,7 @@ fn check_trait_as_type_as_fn_parameter() {
     }
 
     impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        fn eq(self, other: Foo) -> bool { self.a == other.a }
     }
 
     fn test_eq(x: impl Eq) -> bool {
@@ -835,11 +837,11 @@ fn check_trait_as_type_as_two_fn_parameters() {
     }
 
     impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        fn eq(self, other: Foo) -> bool { self.a == other.a }
     }
 
     impl Test for u64 {
-        fn test(self) -> bool { self == self } 
+        fn test(self) -> bool { self == self }
     }
 
     fn test_eq(x: impl Eq, y: impl Test) -> bool {
@@ -1296,8 +1298,8 @@ fn type_aliases_in_entry_point() {
 #[test]
 fn operators_in_global_used_in_type() {
     let src = r#"
-        global ONE = 1;
-        global COUNT = ONE + 2;
+        global ONE: u32 = 1;
+        global COUNT: u32 = ONE + 2;
         fn main() {
             let _array: [Field; COUNT] = [1, 2, 3];
         }
@@ -1337,7 +1339,7 @@ fn break_and_continue_outside_loop() {
 #[test]
 fn for_loop_over_array() {
     let src = r#"
-        fn hello<N>(_array: [u1; N]) {
+        fn hello<let N: u32>(_array: [u1; N]) {
             for _ in 0..N {}
         }
 
@@ -1347,12 +1349,7 @@ fn for_loop_over_array() {
         }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(get_program_errors(src).len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. })
-    ));
+    assert_eq!(errors.len(), 0);
 }
 
 // Regression for #4545
@@ -1429,7 +1426,7 @@ fn specify_function_types_with_turbofish() {
         fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
             (T::default(), U::default())
         }
-    
+
         fn main() {
             let _ = generic_func::<u64, Field>();
         }
@@ -1456,13 +1453,13 @@ fn specify_method_types_with_turbofish() {
         struct Foo<T> {
             inner: T
         }
-        
+
         impl<T> Foo<T> {
             fn generic_method<U>(_self: Self) -> U where U: Default {
                 U::default()
             }
         }
-        
+
         fn main() {
             let foo: Foo<Field> = Foo { inner: 1 };
             let _ = foo.generic_method::<Field>();
@@ -1525,13 +1522,13 @@ fn incorrect_turbofish_count_method_call() {
         struct Foo<T> {
             inner: T
         }
-        
+
         impl<T> Foo<T> {
             fn generic_method<U>(_self: Self) -> U where U: Default {
                 U::default()
             }
         }
-        
+
         fn main() {
             let foo: Foo<Field> = Foo { inner: 1 };
             let _ = foo.generic_method::<Field, u32>();
@@ -1565,11 +1562,11 @@ fn struct_numeric_generic_in_function() {
 #[test]
 fn struct_numeric_generic_in_struct() {
     let src = r#"
-    struct Foo {
+    pub struct Foo {
         inner: u64
     }
 
-    struct Bar<let N: Foo> { }
+    pub struct Bar<let N: Foo> { }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
@@ -1607,7 +1604,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
         let mut check: bool = true;
         check = N;
         check
-    }   
+    }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
@@ -1620,25 +1617,30 @@ fn numeric_generic_binary_operation_type_mismatch() {
 #[test]
 fn bool_generic_as_loop_bound() {
     let src = r#"
-    pub fn read<let N: bool>() {
-        let mut fields = [0; N];
-        for i in 0..N {
+    pub fn read<let N: bool>() { // error here
+        let mut fields = [0; N]; // error here
+        for i in 0..N {  // error here
             fields[i] = i + 1;
         }
         assert(fields[0] == 1);
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 3);
 
     assert!(matches!(
         errors[0].0,
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
     ));
 
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ, expr_typ, ..
-    }) = &errors[1].0
+    }) = &errors[2].0
     else {
         panic!("Got an error other than a type mismatch");
     };
@@ -1650,15 +1652,15 @@ fn bool_generic_as_loop_bound() {
 #[test]
 fn numeric_generic_in_function_signature() {
     let src = r#"
-    pub fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
+    pub fn foo<let N: u32>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
     assert_no_errors(src);
 }
 
 #[test]
-fn numeric_generic_as_struct_field_type() {
+fn numeric_generic_as_struct_field_type_fails() {
     let src = r#"
-    struct Foo<let N: u32> {
+    pub struct Foo<let N: u32> {
         a: Field,
         b: N,
     }
@@ -1667,25 +1669,23 @@ fn numeric_generic_as_struct_field_type() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
 
 #[test]
 fn normal_generic_as_array_length() {
     let src = r#"
-    struct Foo<N> {
+    pub struct Foo<N> {
         a: Field,
         b: [Field; N],
     }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error rather than
-    // the `UseExplicitNumericGeneric` once implicit numeric generics are removed.
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
 
@@ -1699,31 +1699,32 @@ fn numeric_generic_as_param_type() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 3);
+
     // Error from the parameter type
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // Error from the let statement annotated type
     assert!(matches!(
         errors[1].0,
-        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // Error from the return type
     assert!(matches!(
         errors[2].0,
-        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
 
 #[test]
-fn numeric_generic_used_in_nested_type_fail() {
+fn numeric_generic_used_in_nested_type_fails() {
     let src = r#"
-    struct Foo<let N: u32> {
+    pub struct Foo<let N: u32> {
         a: Field,
         b: Bar<N>,
     }
-    struct Bar<N> {
+    struct Bar<let N: u32> {
         inner: N
     }
     "#;
@@ -1731,24 +1732,27 @@ fn numeric_generic_used_in_nested_type_fail() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
 
 #[test]
 fn normal_generic_used_in_nested_array_length_fail() {
     let src = r#"
-    struct Foo<N> {
+    pub struct Foo<N> {
         a: Field,
         b: Bar<N>,
     }
-    struct Bar<let N: u32> {
+    pub struct Bar<let N: u32> {
         inner: [Field; N]
     }
     "#;
     let errors = get_program_errors(src);
-    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error once implicit numeric generics are removed.
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
 }
 
 #[test]
@@ -1756,13 +1760,13 @@ fn numeric_generic_used_in_nested_type_pass() {
     // The order of these structs should not be changed to make sure
     // that we are accurately resolving all struct generics before struct fields
     let src = r#"
-    struct NestedNumeric<let N: u32> {
+    pub struct NestedNumeric<let N: u32> {
         a: Field,
         b: InnerNumeric<N>
     }
-    struct InnerNumeric<let N: u32> {
+    pub struct InnerNumeric<let N: u32> {
         inner: [u64; N],
-    }    
+    }
     "#;
     assert_no_errors(src);
 }
@@ -1779,13 +1783,13 @@ fn numeric_generic_used_in_trait() {
         c: Field,
         d: T,
     }
-    
+
     impl<let N: u32, T> Deserialize<N, T> for MyType<T> {
         fn deserialize(fields: [Field; N], other: T) -> Self {
             MyType { a: fields[0], b: fields[1], c: fields[2], d: other }
         }
     }
-    
+
     trait Deserialize<let N: u32, T> {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
@@ -1806,17 +1810,17 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
         c: Field,
         d: T,
     }
-    
+
     // Make sure that `T` is placed before `N` as we want to test that the order of the generics is correctly maintained.
     // `N` is used first in the trait impl generics (`Deserialize<N> for MyType<T>`).
     // We want to make sure that the compiler correctly accounts for that `N` has a numeric kind
-    // while `T` has a normal kind. 
+    // while `T` has a normal kind.
     impl<T, let N: u32> Deserialize<N> for MyType<T> where T: Default {
         fn deserialize(fields: [Field; N]) -> Self {
             MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default() }
         }
     }
-    
+
     trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
@@ -1894,7 +1898,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 
     let src = r#"
@@ -1911,26 +1915,65 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 4);
     assert!(matches!(
         errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // N
+    assert!(matches!(
+        errors[3].0,
         CompilationError::ResolverError(ResolverError::VariableNotDeclared { .. }),
     ));
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/5156): Remove this test once we ban implicit numeric generics
 #[test]
-fn implicit_numeric_generics_elaborator() {
+fn numeric_generics_type_kind_mismatch() {
     let src = r#"
-    struct BoundedVec<T, MaxLen> {
+    fn foo<let N: u32>() -> u16 {
+        N as u16
+    }
+
+    global J: u16 = 10;
+
+    fn bar<let N: u16>() -> u16 {
+        foo::<J>()
+    }
+
+    global M: u16 = 3;
+    
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generics_value_kind_mismatch_u32_u64() {
+    let src = r#"
+    struct BoundedVec<T, let MaxLen: u32> {
         storage: [T; MaxLen],
+        // can't be compared to MaxLen: u32
+        // can't be used to index self.storage
         len: u64,
     }
-    
-    impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
-        // Test that we have an implicit numeric generic for "Len" as well as "MaxLen"
-        pub fn extend_from_bounded_vec<Len>(&mut self, _vec: BoundedVec<T, Len>) { 
+    impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
+        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) { 
             // We do this to avoid an unused variable warning on `self`
             let _ = self.len;
             for _ in 0..Len { }
@@ -1944,17 +1987,15 @@ fn implicit_numeric_generics_elaborator() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 4);
-
-    for error in errors.iter() {
-        if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) =
-            &errors[0].0
-        {
-            assert!(matches!(ident.0.contents.as_str(), "MaxLen" | "Len"));
-        } else {
-            panic!("Expected ResolverError::UseExplicitNumericGeneric but got {:?}", error);
-        }
-    }
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IntegerBitWidth {
+            bit_width_x: IntegerBitSize::SixtyFour,
+            bit_width_y: IntegerBitSize::ThirtyTwo,
+            ..
+        }),
+    ));
 }
 
 #[test]
@@ -1986,7 +2027,7 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
     // is a `DefCollectorErrorKind::ImplIsStricterThanTrait` error.
     let src = r#"
     trait Serialize<let N: u32> {
-        // We want to make sure we trigger the error when override a trait method 
+        // We want to make sure we trigger the error when override a trait method
         // which itself has no trait constraints.
         fn serialize(self) -> [Field; N];
     }
@@ -2091,14 +2132,14 @@ fn impl_stricter_than_trait_different_object_generics() {
     }
 
     impl<A> Bar<A> for () {
-        fn bar_good<B>() 
-        where 
-            OtherOption<Option<A>>: OtherTrait, 
+        fn bar_good<B>()
+        where
+            OtherOption<Option<A>>: OtherTrait,
             Option<A>: MyTrait { }
 
-        fn bar_bad<B>() 
-        where 
-            OtherOption<Option<A>>: OtherTrait, 
+        fn bar_bad<B>()
+        where
+            OtherOption<Option<A>>: OtherTrait,
             Option<B>: MyTrait { }
 
         fn array_good<B>() where [A; 8]: MyTrait { }
@@ -2300,174 +2341,6 @@ fn impl_not_found_for_inner_impl() {
         &errors[0].0,
         CompilationError::TypeError(TypeCheckError::NoMatchingImplFound { .. })
     ));
-}
-
-// Regression for #5388
-#[test]
-fn comptime_let() {
-    let src = r#"fn main() {
-        comptime let my_var = 2;
-        assert_eq(my_var, 2);
-    }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
-}
-
-#[test]
-fn overflowing_u8() {
-    let src = r#"
-        fn main() {
-            let _: u8 = 256;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `2⁸` cannot fit into `u8` which has range `0..=255`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-#[test]
-fn underflowing_u8() {
-    let src = r#"
-        fn main() {
-            let _: u8 = -1;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `-1` cannot fit into `u8` which has range `0..=255`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-#[test]
-fn overflowing_i8() {
-    let src = r#"
-        fn main() {
-            let _: i8 = 128;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `2⁷` cannot fit into `i8` which has range `-128..=127`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-#[test]
-fn underflowing_i8() {
-    let src = r#"
-        fn main() {
-            let _: i8 = -129;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `-129` cannot fit into `i8` which has range `-128..=127`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-#[test]
-fn turbofish_numeric_generic_nested_call() {
-    // Check for turbofish numeric generics used with function calls
-    let src = r#"
-    fn foo<let N: u32>() -> [u8; N] {
-        [0; N]
-    }
-
-    fn bar<let N: u32>() -> [u8; N] {
-        foo::<N>()
-    }
-
-    global M: u32 = 3;
-
-    fn main() {
-        let _ = bar::<M>();
-    }
-    "#;
-    assert_no_errors(src);
-
-    // Check for turbofish numeric generics used with method calls
-    let src = r#"
-    struct Foo<T> {
-        a: T
-    }
-
-    impl<T> Foo<T> {
-        fn static_method<let N: u32>() -> [u8; N] {
-            [0; N]
-        }
-
-        fn impl_method<let N: u32>(self) -> [T; N] {
-            [self.a; N]
-        }
-    }
-
-    fn bar<let N: u32>() -> [u8; N] {
-        let _ = Foo::static_method::<N>();
-        let x: Foo<u8> = Foo { a: 0 };
-        x.impl_method::<N>()
-    }
-
-    global M: u32 = 3;
-
-    fn main() {
-        let _ = bar::<M>();
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn use_super() {
-    let src = r#"
-    fn some_func() {}
-
-    mod foo {
-        use super::some_func;
-
-        pub fn bar() {
-            some_func();
-        }
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn use_super_in_path() {
-    let src = r#"
-    fn some_func() {}
-
-    mod foo {
-        pub fn func() {
-            super::some_func();
-        }
-    }
-    "#;
-    assert_no_errors(src);
 }
 
 #[test]
@@ -2721,7 +2594,7 @@ fn bit_not_on_untyped_integer() {
 #[test]
 fn duplicate_struct_field() {
     let src = r#"
-    struct Foo {
+    pub struct Foo {
         x: i32,
         x: i32,
     }
@@ -2742,8 +2615,8 @@ fn duplicate_struct_field() {
     assert_eq!(first_def.to_string(), "x");
     assert_eq!(second_def.to_string(), "x");
 
-    assert_eq!(first_def.span().start(), 26);
-    assert_eq!(second_def.span().start(), 42);
+    assert_eq!(first_def.span().start(), 30);
+    assert_eq!(second_def.span().start(), 46);
 }
 
 #[test]
@@ -2759,150 +2632,6 @@ fn trait_constraint_on_tuple_type() {
 
         fn main() {}"#;
     assert_no_errors(src);
-}
-
-#[test]
-fn turbofish_in_constructor_generics_mismatch() {
-    let src = r#"
-    struct Foo<T> {
-        x: T
-    }
-
-    fn main() {
-        let _ = Foo::<i32, i64> { x: 1 };
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::GenericCountMismatch { .. }),
-    ));
-}
-
-#[test]
-fn turbofish_in_constructor() {
-    let src = r#"
-    struct Foo<T> {
-        x: T
-    }
-
-    fn main() {
-        let x: Field = 0;
-        let _ = Foo::<i32> { x: x };
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
-        expected_typ, expr_typ, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(expected_typ, "i32");
-    assert_eq!(expr_typ, "Field");
-}
-
-#[test]
-fn turbofish_in_middle_of_variable_unsupported_yet() {
-    let src = r#"
-    struct Foo<T> {
-        x: T
-    }
-
-    impl <T> Foo<T> {
-        fn new(x: T) -> Self {
-            Foo { x }
-        }
-    }
-
-    fn main() {
-        let _ = Foo::<i32>::new(1);
-    }
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
-    ));
-}
-
-#[test]
-fn turbofish_in_struct_pattern() {
-    let src = r#"
-    struct Foo<T> {
-        x: T
-    }
-
-    fn main() {
-        let value: Field = 0;
-        let Foo::<Field> { x } = Foo { x: value };
-        let _ = x;
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
-    let src = r#"
-    struct Foo<T> {
-        x: T
-    }
-
-    fn main() {
-        let value: Field = 0;
-        let Foo::<i32> { x } = Foo { x: value };
-        let _ = x;
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }) = &errors[0].0
-    else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
-    };
-}
-
-#[test]
-fn turbofish_in_struct_pattern_generic_count_mismatch() {
-    let src = r#"
-    struct Foo<T> {
-        x: T
-    }
-
-    fn main() {
-        let value = 0;
-        let Foo::<i32, i64> { x } = Foo { x: value };
-        let _ = x;
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
-        item,
-        expected,
-        found,
-        ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(item, "struct Foo");
-    assert_eq!(*expected, 1);
-    assert_eq!(*found, 2);
 }
 
 #[test]
@@ -2996,11 +2725,11 @@ fn uses_self_type_inside_trait() {
 #[test]
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
-    trait Trait {
+    pub trait Trait {
         fn trait_func() -> bool;
     }
 
-    trait Foo where Self: Trait {
+    pub trait Foo where Self: Trait {
         fn foo(self) -> bool {
             self.trait_func()
         }
@@ -3216,249 +2945,146 @@ fn as_trait_path_syntax_no_impl() {
 }
 
 #[test]
-fn errors_on_unused_private_import() {
-    let src = r#"
-    mod foo {
-        pub fn bar() {}
-        pub fn baz() {}
-
-        trait Foo {
+fn arithmetic_generics_canonicalization_deduplication_regression() {
+    let source = r#"
+        struct ArrData<let N: u32> {
+            a: [Field; N],
+            b: [Field; N + N - 1],
         }
-    }
 
-    use foo::bar;
-    use foo::baz;
-    use foo::Foo;
+        fn main() {
+            let _f: ArrData<5> = ArrData {
+                a: [0; 5],
+                b: [0; 9],
+            };
+        }
+    "#;
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+}
 
-    impl Foo for Field {
-    }
+#[test]
+fn infer_globals_to_u32_from_type_use() {
+    let src = r#"
+        global ARRAY_LEN = 3;
+        global STR_LEN = 2;
+        global FMT_STR_LEN = 2;
 
-    fn main() {
-        baz();
-    }
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+            let _b: str<STR_LEN> = "hi";
+            let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn non_u32_in_array_length() {
+    let src = r#"
+        global ARRAY_LEN: u8 = 3;
+
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+        }
     "#;
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "bar");
-    assert_eq!(*item_type, "import");
-}
-
-#[test]
-fn errors_on_unused_pub_crate_import() {
-    let src = r#"
-    mod foo {
-        pub fn bar() {}
-        pub fn baz() {}
-
-        trait Foo {
-        }
-    }
-
-    pub(crate) use foo::bar;
-    use foo::baz;
-    use foo::Foo;
-
-    impl Foo for Field {
-    }
-
-    fn main() {
-        baz();
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "bar");
-    assert_eq!(*item_type, "import");
-}
-
-#[test]
-fn warns_on_use_of_private_exported_item() {
-    let src = r#"
-    mod foo {
-        mod bar {
-            pub fn baz() {}
-        }
-
-        use bar::baz;
-
-        pub fn qux() {
-            baz();
-        }
-    }
-
-    fn main() {
-        foo::baz();
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2); // An existing bug causes this error to be duplicated
 
     assert!(matches!(
-        &errors[0].0,
-        CompilationError::ResolverError(ResolverError::PathResolutionError(
-            PathResolutionError::Private(..),
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
+    ));
+}
+
+#[test]
+fn use_non_u32_generic_in_struct() {
+    let src = r#"
+        struct S<let N: u8> {}
+
+        fn main() {
+            let _: S<3> = S {};
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn use_numeric_generic_in_trait_method() {
+    let src = r#"
+        trait Foo  {
+            fn foo<let N: u32>(self, x: [u8; N]) -> Self;
+        }
+
+        struct Bar;
+
+        impl Foo for Bar {
+            fn foo<let N: u32>(self, _x: [u8; N]) -> Self {
+                self
+            }
+        }
+
+        fn main() {
+            let _ = Bar{}.foo([1,2,3]);
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    println!("{errors:?}");
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn errors_once_on_unused_import_that_is_not_accessible() {
+    // Tests that we don't get an "unused import" here given that the import is not accessible
+    let src = r#"
+        mod moo {
+            struct Foo {}
+        }
+        use moo::Foo;
+        fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
+            PathResolutionError::Private { .. }
         ))
     ));
 }
 
 #[test]
-fn can_use_pub_use_item() {
+fn trait_unconstrained_methods_typechecked_correctly() {
+    // This test checks that we properly track whether a method has been declared as unconstrained on the trait definition
+    // and preserves that through typechecking.
     let src = r#"
-    mod foo {
-        mod bar {
-            pub fn baz() {}
-        }
-
-        pub use bar::baz;
-    }
-
-    fn main() {
-        foo::baz();
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn warns_on_re_export_of_item_with_less_visibility() {
-    let src = r#"
-    mod foo {
-        mod bar {
-            pub(crate) fn baz() {}
-        }
-
-        pub use bar::baz;
-    }
-
-    fn main() {
-        foo::baz();
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        &errors[0].0,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::CannotReexportItemWithLessVisibility { .. }
-        )
-    ));
-}
-
-#[test]
-fn unquoted_integer_as_integer_token() {
-    let src = r#"
-    trait Serialize<let N: u32> {
-        fn serialize() {}
-    }
-
-    #[attr]
-    pub fn foobar() {}
-
-    comptime fn attr(_f: FunctionDefinition) -> Quoted {
-        let serialized_len = 1;
-        // We are testing that when we unquote $serialized_len, it's unquoted
-        // as the token `1` and not as something else that later won't be parsed correctly
-        // in the context of a generic argument.
-        quote {
-            impl Serialize<$serialized_len> for Field {
-                fn serialize() { }
+        trait Foo {
+            unconstrained fn identity(self) -> Self {
+                self
             }
+
+            unconstrained fn foo(self) -> u64;
         }
-    }
 
-    fn main() {}
-    "#;
-
-    assert_no_errors(src);
-}
-
-#[test]
-fn errors_on_unused_function() {
-    let src = r#"
-    contract some_contract {
-        // This function is unused, but it's a contract entrypoint
-        // so it should not produce a warning
-        fn foo() -> pub Field {
-            1
-        }
-    }
-
-
-    fn foo() {
-        bar();
-    }
-
-    fn bar() {}
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(*item_type, "function");
-}
-
-#[test]
-fn constrained_reference_to_unconstrained() {
-    let src = r#"
-    fn main(mut x: u32, y: pub u32) {
-        let x_ref = &mut x;
-        if x == 5  {
-            unsafe {
-                mut_ref_input(x_ref, y);        
+        impl Foo for Field {
+            unconstrained fn foo(self) -> u64 {
+                self as u64
             }
         }
 
-        assert(x == 10);
-    }
-
-    unconstrained fn mut_ref_input(x: &mut u32, y: u32) {
-        *x = y;
-    }
+        unconstrained fn main() {
+            assert_eq(2.foo() as Field, 2.identity());
+        }
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::ConstrainedReferenceToUnconstrained { .. }) =
-        &errors[0].0
-    else {
-        panic!("Expected an error about passing a constrained reference to unconstrained");
-    };
-}
-
-#[test]
-fn comptime_type_in_runtime_code() {
-    let source = "pub fn foo(_f: FunctionDefinition) {}";
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
-    ));
+    println!("{errors:?}");
+    assert_eq!(errors.len(), 0);
 }

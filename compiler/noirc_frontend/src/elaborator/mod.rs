@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::{FunctionBody, Parameters},
+        function::FunctionBody,
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
@@ -29,7 +29,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, ReferenceId,
         TraitId, TypeAliasId,
     },
-    token::CustomAtrribute,
+    token::CustomAttribute,
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -97,7 +97,7 @@ pub struct Elaborator<'context> {
 
     def_maps: &'context mut DefMaps,
 
-    file: FileId,
+    pub(crate) file: FileId,
 
     in_unsafe_block: bool,
     nested_loops: usize,
@@ -415,7 +415,6 @@ impl<'context> Elaborator<'context> {
             self.add_existing_variable_to_scope(name, parameter.clone(), true);
         }
 
-        self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
         let (hir_func, body_type) = match kind {
@@ -800,7 +799,7 @@ impl<'context> Elaborator<'context> {
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes: Vec<CustomAtrribute> = attributes.cloned().collect();
+        let attributes: Vec<CustomAttribute> = attributes.cloned().collect();
 
         let meta = FuncMeta {
             name: name_ident,
@@ -893,44 +892,6 @@ impl<'context> Elaborator<'context> {
             func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
-        }
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/5156): Remove implicit numeric generics
-    fn declare_numeric_generics(&mut self, params: &Parameters, return_type: &Type) {
-        if self.generics.is_empty() {
-            return;
-        }
-
-        for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
-            // Declare any generics to let users use numeric generics in scope.
-            // Don't issue a warning if these are unused
-            //
-            // We can fail to find the generic in self.generics if it is an implicit one created
-            // by the compiler. This can happen when, e.g. eliding array lengths using the slice
-            // syntax [T].
-            if let Some(ResolvedGeneric { name, span, kind, .. }) =
-                self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
-            {
-                let scope = self.scopes.get_mut_scope();
-                let value = scope.find(&name_to_find);
-                if value.is_some() {
-                    // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
-                    // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
-                    // to transition to the new syntax
-                    // e.g. this code would break with a duplicate definition error:
-                    // ```
-                    // fn foo<let N: u8>(arr: [Field; N]) { }
-                    // ```
-                    continue;
-                }
-                *kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                let ident = Ident::new(name.to_string(), *span);
-                let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-
-                self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-            }
         }
     }
 
@@ -1187,28 +1148,6 @@ impl<'context> Elaborator<'context> {
             let fields_len = fields.len();
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
-
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
-                // This is only necessary for resolving named types when implicit numeric generics are used.
-                let mut found_names = Vec::new();
-                struct_def.find_numeric_generics_in_fields(&mut found_names);
-                for generic in struct_def.generics.iter_mut() {
-                    for found_generic in found_names.iter() {
-                        if found_generic == generic.name.as_str() {
-                            if matches!(generic.kind, Kind::Normal) {
-                                let ident = Ident::new(generic.name.to_string(), generic.span);
-                                self.errors.push((
-                                    CompilationError::ResolverError(
-                                        ResolverError::UseExplicitNumericGeneric { ident },
-                                    ),
-                                    self.file,
-                                ));
-                                generic.kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                            }
-                            break;
-                        }
-                    }
-                }
             });
 
             for field_index in 0..fields_len {

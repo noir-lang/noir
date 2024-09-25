@@ -87,7 +87,7 @@ impl From<SsaReport> for FileDiagnostic {
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
                 let diagnostic =
                     Diagnostic::simple_warning(message, secondary_message, location.span);
-                diagnostic.in_file(file_id).with_call_stack(call_stack)
+                diagnostic.with_call_stack(call_stack).in_file(file_id)
             }
             SsaReport::Bug(bug) => {
                 let message = bug.to_string();
@@ -101,7 +101,7 @@ impl From<SsaReport> for FileDiagnostic {
                 let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
                 let diagnostic = Diagnostic::simple_bug(message, secondary_message, location.span);
-                diagnostic.in_file(file_id).with_call_stack(call_stack)
+                diagnostic.with_call_stack(call_stack).in_file(file_id)
             }
         }
     }
@@ -178,7 +178,7 @@ impl From<RuntimeError> for FileDiagnostic {
         let call_stack = vecmap(error.call_stack(), |location| *location);
         let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
         let diagnostic = error.into_diagnostic();
-        diagnostic.in_file(file_id).with_call_stack(call_stack)
+        diagnostic.with_call_stack(call_stack).in_file(file_id)
     }
 }
 

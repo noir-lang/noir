@@ -12,7 +12,7 @@ trait Deserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
-global AZTEC_ADDRESS_LENGTH = 1;
+global AZTEC_ADDRESS_LENGTH: u32 = 1;
 
 struct AztecAddress {
     inner : Field

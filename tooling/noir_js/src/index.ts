@@ -7,7 +7,6 @@ export {
   ecdsa_secp256k1_verify,
   keccak256,
   blake2s256,
-  sha256,
   xor,
   and,
 } from '@noir-lang/acvm_js';

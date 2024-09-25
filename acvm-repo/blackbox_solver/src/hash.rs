@@ -1,7 +1,6 @@
 use acir::BlackBoxFunc;
 use blake2::digest::generic_array::GenericArray;
 use blake2::{Blake2s256, Digest};
-use sha2::Sha256;
 use sha3::Keccak256;
 
 use crate::BlackBoxResolutionError;
@@ -12,11 +11,6 @@ fn generic_hash_256<D: Digest>(message: &[u8]) -> Result<[u8; 32], String> {
         D::digest(message).as_slice().try_into().map_err(|_| "digest should be 256 bits")?;
 
     Ok(output_bytes)
-}
-
-pub fn sha256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
-    generic_hash_256::<Sha256>(inputs)
-        .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::SHA256, err))
 }
 
 pub fn blake2s(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
@@ -33,7 +27,7 @@ pub fn keccak256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Keccak256, err))
 }
 
-pub fn sha256compression(state: &mut [u32; 8], msg_blocks: &[u32; 16]) {
+pub fn sha256_compression(state: &mut [u32; 8], msg_blocks: &[u32; 16]) {
     let mut blocks = [0_u8; 64];
     for (i, block) in msg_blocks.iter().enumerate() {
         let bytes = block.to_be_bytes();

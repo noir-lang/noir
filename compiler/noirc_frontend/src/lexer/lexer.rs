@@ -606,6 +606,11 @@ impl<'a> Lexer<'a> {
         };
         let comment = self.eat_while(None, |ch| ch != '\n');
 
+        if !comment.is_ascii() {
+            let span = Span::from(start..self.position);
+            return Err(LexerErrorKind::NonAsciiComment { span });
+        }
+
         if doc_style.is_none() && self.skip_comments {
             return self.next_token();
         }
@@ -651,6 +656,11 @@ impl<'a> Lexer<'a> {
         }
 
         if depth == 0 {
+            if !content.is_ascii() {
+                let span = Span::from(start..self.position);
+                return Err(LexerErrorKind::NonAsciiComment { span });
+            }
+
             if doc_style.is_none() && self.skip_comments {
                 return self.next_token();
             }
@@ -690,7 +700,7 @@ mod tests {
     use iter_extended::vecmap;
 
     use super::*;
-    use crate::token::{CustomAtrribute, FunctionAttribute, SecondaryAttribute, TestScope};
+    use crate::token::{CustomAttribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_double_char() {
@@ -818,7 +828,7 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAtrribute {
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
                 contents: "custom(hello)".to_string(),
                 span: Span::from(0..16),
                 contents_span: Span::from(2..15)
@@ -916,7 +926,7 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::InnerAttribute(SecondaryAttribute::Custom(CustomAtrribute {
+            &Token::InnerAttribute(SecondaryAttribute::Custom(CustomAttribute {
                 contents: "something".to_string(),
                 span: Span::from(0..13),
                 contents_span: Span::from(3..12),
@@ -1331,6 +1341,7 @@ mod tests {
 
                             Err(LexerErrorKind::InvalidIntegerLiteral { .. })
                             | Err(LexerErrorKind::UnexpectedCharacter { .. })
+                            | Err(LexerErrorKind::NonAsciiComment { .. })
                             | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
                                 expected_token_found = true;
                             }
@@ -1387,6 +1398,19 @@ mod tests {
             for token in Lexer::new(source) {
                 assert!(token.is_err(), "Expected Err, found {token:?}");
             }
+        }
+    }
+
+    #[test]
+    fn test_non_ascii_comments() {
+        let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
+
+        for source in cases {
+            let mut lexer = Lexer::new(source);
+            assert!(
+                lexer.any(|token| matches!(token, Err(LexerErrorKind::NonAsciiComment { .. }))),
+                "Expected NonAsciiComment error"
+            );
         }
     }
 }

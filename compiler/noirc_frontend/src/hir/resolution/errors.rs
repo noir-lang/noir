@@ -55,7 +55,7 @@ pub enum ResolverError {
     #[error("Test functions are not allowed to have any parameters")]
     TestFunctionHasParameters { span: Span },
     #[error("Only struct types can be used in constructor expressions")]
-    NonStructUsedInConstructor { typ: Type, span: Span },
+    NonStructUsedInConstructor { typ: String, span: Span },
     #[error("Only struct types can have generics")]
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
@@ -102,8 +102,6 @@ pub enum ResolverError {
     FoldAttributeOnUnconstrained { ident: Ident },
     #[error("The only supported types of numeric generics are integers, fields, and booleans")]
     UnsupportedNumericGenericType { ident: Ident, typ: Type },
-    #[error("Numeric generics should be explicit")]
-    UseExplicitNumericGeneric { ident: Ident },
     #[error("expected type, found numeric generic parameter")]
     NumericGenericUsedForType { name: String, span: Span },
     #[error("Invalid array length construction")]
@@ -130,6 +128,8 @@ pub enum ResolverError {
     ComptimeTypeInRuntimeCode { typ: String, span: Span },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, span: Span },
+    #[error("Failed to parse `{statement}` as an expression")]
+    InvalidInternedStatementInExpr { statement: String, span: Span },
 }
 
 impl ResolverError {
@@ -437,15 +437,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     ident.0.span(),
                 )
             }
-            ResolverError::UseExplicitNumericGeneric { ident } => {
-                let name = &ident.0.contents;
-
-                Diagnostic::simple_warning(
-                    String::from("Noir now supports explicit numeric generics. Support for implicit numeric generics will be removed in the following release."), 
-                format!("Numeric generic `{name}` should now be specified with `let {name}: <annotated type>`"), 
-                ident.0.span(),
-                )
-            }
             ResolverError::NumericGenericUsedForType { name, span } => {
                 Diagnostic::simple_error(
                     format!("expected type, found numeric generic parameter {name}"),
@@ -528,6 +519,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime variable `{name}` cannot be mutated in a non-comptime context"),
                     format!("`{name}` mutated here"),
+                    *span,
+                )
+            },
+            ResolverError::InvalidInternedStatementInExpr { statement, span } => {
+                Diagnostic::simple_error(
+                    format!("Failed to parse `{statement}` as an expression"),
+                    "The statement was used from a macro here".to_string(),
                     *span,
                 )
             },
