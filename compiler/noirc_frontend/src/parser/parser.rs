@@ -9,7 +9,7 @@ use crate::{
     token::{Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
-use super::{Item, ItemKind, ParsedModule, ParserError, TopLevelStatement};
+use super::{Item, ItemKind, ParsedModule, ParserError};
 
 mod attributes;
 mod doc_comments;
@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
         ParsedModule { items, inner_doc_comments }
     }
 
-    fn parse_top_level_items(&mut self) -> Vec<Item> {
+    pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {
         let mut items = Vec::new();
 
         while let Some(item) = self.parse_item() {
@@ -135,10 +135,6 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_expression(&mut self) -> Expression {
-        todo!("Parser")
-    }
-
-    pub(crate) fn parse_top_level_statements(&mut self) -> Vec<TopLevelStatement> {
         todo!("Parser")
     }
 

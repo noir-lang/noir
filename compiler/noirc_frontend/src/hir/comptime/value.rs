@@ -18,7 +18,7 @@ use crate::{
         StructId,
     },
     node_interner::{ExprId, FuncId, StmtId, TraitId, TraitImplId},
-    parser::{parse_result, Parser, TopLevelStatement},
+    parser::{parse_result, Item, Parser},
     token::{SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
@@ -523,8 +523,8 @@ impl Value {
         self,
         location: Location,
         interner: &NodeInterner,
-    ) -> IResult<Vec<TopLevelStatement>> {
-        let parser = Parser::parse_top_level_statements;
+    ) -> IResult<Vec<Item>> {
+        let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
                 parse_tokens(tokens, interner, parser, location, "top-level item")

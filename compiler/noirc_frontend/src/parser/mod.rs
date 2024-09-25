@@ -22,47 +22,6 @@ pub use errors::ParserErrorReason;
 use noirc_errors::Span;
 pub use parser::{parse_program, parse_result, Parser};
 
-#[derive(Debug, Clone)]
-pub struct TopLevelStatement {
-    pub kind: TopLevelStatementKind,
-    pub doc_comments: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub enum TopLevelStatementKind {
-    Function(NoirFunction),
-    Module(ModuleDeclaration),
-    Import(UseTree, ItemVisibility),
-    Struct(NoirStruct),
-    Trait(NoirTrait),
-    TraitImpl(NoirTraitImpl),
-    Impl(TypeImpl),
-    TypeAlias(NoirTypeAlias),
-    SubModule(ParsedSubModule),
-    Global(LetStatement),
-    InnerAttribute(SecondaryAttribute),
-    Error,
-}
-
-impl TopLevelStatementKind {
-    pub fn into_item_kind(self) -> Option<ItemKind> {
-        match self {
-            TopLevelStatementKind::Function(f) => Some(ItemKind::Function(f)),
-            TopLevelStatementKind::Module(m) => Some(ItemKind::ModuleDecl(m)),
-            TopLevelStatementKind::Import(i, visibility) => Some(ItemKind::Import(i, visibility)),
-            TopLevelStatementKind::Struct(s) => Some(ItemKind::Struct(s)),
-            TopLevelStatementKind::Trait(t) => Some(ItemKind::Trait(t)),
-            TopLevelStatementKind::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
-            TopLevelStatementKind::Impl(i) => Some(ItemKind::Impl(i)),
-            TopLevelStatementKind::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
-            TopLevelStatementKind::SubModule(s) => Some(ItemKind::Submodules(s)),
-            TopLevelStatementKind::Global(c) => Some(ItemKind::Global(c)),
-            TopLevelStatementKind::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
-            TopLevelStatementKind::Error => None,
-        }
-    }
-}
-
 #[derive(Clone, Default)]
 pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
@@ -183,6 +142,30 @@ pub enum ItemKind {
     InnerAttribute(SecondaryAttribute),
 }
 
+impl std::fmt::Display for ItemKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItemKind::Function(fun) => fun.fmt(f),
+            ItemKind::ModuleDecl(m) => m.fmt(f),
+            ItemKind::Import(tree, visibility) => {
+                if visibility == &ItemVisibility::Private {
+                    write!(f, "use {tree}")
+                } else {
+                    write!(f, "{visibility} use {tree}")
+                }
+            }
+            ItemKind::Trait(t) => t.fmt(f),
+            ItemKind::TraitImpl(i) => i.fmt(f),
+            ItemKind::Struct(s) => s.fmt(f),
+            ItemKind::Impl(i) => i.fmt(f),
+            ItemKind::TypeAlias(t) => t.fmt(f),
+            ItemKind::Submodules(s) => s.fmt(f),
+            ItemKind::Global(c) => c.fmt(f),
+            ItemKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+        }
+    }
+}
+
 /// A submodule defined via `mod name { contents }` in some larger file.
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
@@ -263,31 +246,6 @@ impl SortedModule {
 
     fn push_global(&mut self, global: LetStatement, doc_comments: Vec<String>) {
         self.globals.push(Documented::new(global, doc_comments));
-    }
-}
-
-impl std::fmt::Display for TopLevelStatementKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TopLevelStatementKind::Function(fun) => fun.fmt(f),
-            TopLevelStatementKind::Module(m) => m.fmt(f),
-            TopLevelStatementKind::Import(tree, visibility) => {
-                if visibility == &ItemVisibility::Private {
-                    write!(f, "use {tree}")
-                } else {
-                    write!(f, "{visibility} use {tree}")
-                }
-            }
-            TopLevelStatementKind::Trait(t) => t.fmt(f),
-            TopLevelStatementKind::TraitImpl(i) => i.fmt(f),
-            TopLevelStatementKind::Struct(s) => s.fmt(f),
-            TopLevelStatementKind::Impl(i) => i.fmt(f),
-            TopLevelStatementKind::TypeAlias(t) => t.fmt(f),
-            TopLevelStatementKind::SubModule(s) => s.fmt(f),
-            TopLevelStatementKind::Global(c) => c.fmt(f),
-            TopLevelStatementKind::InnerAttribute(a) => write!(f, "#![{}]", a),
-            TopLevelStatementKind::Error => write!(f, "error"),
-        }
     }
 }
 
