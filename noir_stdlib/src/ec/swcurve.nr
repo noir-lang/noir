@@ -1,5 +1,5 @@
 mod affine {
-    // Affine representation of Short Weierstraß curves
+    // Affine representation of Short Weierstrass curves
     // Points are represented by two-dimensional Cartesian coordinates.
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
     // for reasons of efficiency, cf. <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates>.
@@ -10,7 +10,7 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Short Weierstraß curve
+    pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
         a: Field,
         b: Field,
@@ -18,7 +18,7 @@ mod affine {
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         infty: bool // Indicator for point at infinity
@@ -187,14 +187,14 @@ mod affine {
 }
 
 mod curvegroup {
-    // CurveGroup representation of Weierstraß curves
+    // CurveGroup representation of Weierstrass curves
     // Points are represented by three-dimensional Jacobian coordinates.
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
     use crate::ec::swcurve::affine;
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Short Weierstraß curve
+    pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
         a: Field,
         b: Field,
@@ -202,7 +202,7 @@ mod curvegroup {
         gen: Point
     }
     // Point in three-dimensional Jacobian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         z: Field // z = 0 corresponds to point at infinity.

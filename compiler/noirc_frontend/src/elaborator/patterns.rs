@@ -3,17 +3,17 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::{UnresolvedType, ERROR_IDENT},
+    ast::{TypePath, UnresolvedType, ERROR_IDENT},
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirIdent, ImplKind},
+        expr::{HirIdent, HirMethodReference, ImplKind},
         stmt::HirPattern,
     },
-    macros_api::{HirExpression, Ident, Path, Pattern},
+    macros_api::{Expression, ExpressionKind, HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
     ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
@@ -188,6 +188,7 @@ impl<'context> Elaborator<'context> {
             Some(Type::Struct(struct_type, generics)) => (struct_type, generics),
             None => return error_identifier(self),
             Some(typ) => {
+                let typ = typ.to_string();
                 self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
                 return error_identifier(self);
             }
@@ -695,5 +696,44 @@ impl<'context> Elaborator<'context> {
         self.push_err(error);
         let id = DefinitionId::dummy_id();
         (HirIdent::non_trait_method(id, location), 0)
+    }
+
+    pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
+        let span = path.item.span();
+        let typ = self.resolve_type(path.typ);
+
+        let Some(method) = self.lookup_method(&typ, &path.item.0.contents, span, false) else {
+            let error = Expression::new(ExpressionKind::Error, span);
+            return self.elaborate_expression(error);
+        };
+
+        let func_id = method
+            .func_id(self.interner)
+            .expect("Expected trait function to be a DefinitionKind::Function");
+
+        let generics = self.resolve_type_args(path.turbofish, func_id, span).0;
+        let generics = (!generics.is_empty()).then_some(generics);
+
+        let location = Location::new(span, self.file);
+        let id = self.interner.function_definition_id(func_id);
+
+        let impl_kind = match method {
+            HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
+            HirMethodReference::TraitMethodId(method_id, generics) => {
+                let mut constraint =
+                    self.interner.get_trait(method_id.trait_id).as_constraint(span);
+                constraint.trait_generics = generics;
+                ImplKind::TraitMethod(method_id, constraint, false)
+            }
+        };
+
+        let ident = HirIdent { location, id, impl_kind };
+        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
+        self.interner.push_expr_location(id, location.span, location.file);
+
+        let typ = self.type_check_variable(ident, id, generics);
+        self.interner.push_expr_type(id, typ.clone());
+
+        (id, typ)
     }
 }

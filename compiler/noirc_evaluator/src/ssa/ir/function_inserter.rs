@@ -102,6 +102,14 @@ impl<'f> FunctionInserter<'f> {
         self.function.dfg[block].set_terminator(terminator);
     }
 
+    /// Maps the data bus in place, replacing any ValueId in the data bus with the
+    /// resolved version of that value id from this FunctionInserter's internal value mapping.
+    pub(crate) fn map_data_bus_in_place(&mut self) {
+        let data_bus = self.function.dfg.data_bus.clone();
+        let data_bus = data_bus.map_values(|value| self.resolve(value));
+        self.function.dfg.data_bus = data_bus;
+    }
+
     /// Push a new instruction to the given block and return its new InstructionId.
     /// If the instruction was simplified out of the program, None is returned.
     pub(crate) fn push_instruction(

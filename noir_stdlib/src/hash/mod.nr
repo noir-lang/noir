@@ -135,12 +135,12 @@ pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
-// Generic hashing support. 
+// Generic hashing support.
 // Partially ported and impacted by rust.
 
 // Hash trait shall be implemented per type.
 #[derive_via(derive_hash)]
-trait Hash {
+pub trait Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher;
 }
 
@@ -155,21 +155,21 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
 // TODO: consider making the types generic here ([u8], [Field], etc.)
-trait Hasher{
+pub trait Hasher {
     fn finish(self) -> Field;
-    
+
     fn write(&mut self, input: Field);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-trait BuildHasher<H> where H: Hasher{
+pub trait BuildHasher<H> where H: Hasher {
     fn build_hasher(self) -> H;
 }
 
-struct BuildHasherDefault<H>;
+pub struct BuildHasherDefault<H>;
 
 impl<H> BuildHasher<H> for BuildHasherDefault<H>
-where 
+where
     H: Hasher + Default {
     fn build_hasher(_self: Self) -> H {
         H::default()
@@ -177,7 +177,7 @@ where
 }
 
 impl<H> Default for BuildHasherDefault<H>
-where 
+where
     H: Hasher + Default {
     fn default() -> Self {
         BuildHasherDefault {}

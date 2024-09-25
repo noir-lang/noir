@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use crate::{notifications::on_did_open_text_document, test_utils};
 
 use lsp_types::{

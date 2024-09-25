@@ -120,7 +120,7 @@ pub(crate) fn collect_lenses_for_package(
             arguments: Some(
                 [
                     package_selection_args(workspace, package),
-                    vec!["--exact".into(), func_name.into()],
+                    vec!["--exact".into(), "--show-output".into(), func_name.into()],
                 ]
                 .concat(),
             ),

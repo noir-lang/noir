@@ -2,9 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         function::Function,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
+        instruction::{Instruction, InstructionId},
         types::Type,
         value::ValueId,
     },
@@ -107,7 +106,7 @@ impl Context {
     /// Find each dec_rc instruction and if the most recent inc_rc instruction for the same value
     /// is not possibly mutated, then we can remove them both. Returns each such pair.
     fn find_rcs_to_remove(&mut self, function: &Function) -> HashSet<InstructionId> {
-        let last_block = Self::find_last_block(function);
+        let last_block = function.find_last_block();
         let mut to_remove = HashSet::new();
 
         for instruction in function.dfg[last_block].instructions() {
@@ -122,20 +121,6 @@ impl Context {
         }
 
         to_remove
-    }
-
-    /// Finds the block of the function with the Return instruction
-    fn find_last_block(function: &Function) -> BasicBlockId {
-        for block in function.reachable_blocks() {
-            if matches!(
-                function.dfg[block].terminator(),
-                Some(TerminatorInstruction::Return { .. })
-            ) {
-                return block;
-            }
-        }
-
-        unreachable!("SSA Function {} has no reachable return instruction!", function.id())
     }
 
     /// Finds and pops the IncRc for the given array value if possible.

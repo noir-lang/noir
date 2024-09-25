@@ -5,12 +5,10 @@ use crate::{
     ast::TraitBound,
     hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
     parser::ParserError,
-    token::Token,
     Type,
 };
 use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
 use fm::FileId;
-use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -145,7 +143,7 @@ pub enum InterpreterError {
     },
     FailedToParseMacro {
         error: ParserError,
-        tokens: Rc<Vec<Token>>,
+        tokens: String,
         rule: &'static str,
         file: FileId,
     },
@@ -391,15 +389,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                let mut diagnostic =
-                    CustomDiagnostic::simple_error(primary, secondary, location.span);
+                let diagnostic = CustomDiagnostic::simple_error(primary, secondary, location.span);
 
-                // Only take at most 3 frames starting from the top of the stack to avoid producing too much output
-                for frame in call_stack.iter().rev().take(3) {
-                    diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
-                }
-
-                diagnostic
+                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");
@@ -494,10 +486,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
             InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
                 let message = format!("Failed to parse macro's token stream into {rule}");
-                let tokens = vecmap(tokens.iter(), ToString::to_string).join(" ");
 
-                // 10 is an aribtrary number of tokens here chosen to fit roughly onto one line
-                let token_stream = if tokens.len() > 10 {
+                // If it's less than 48 chars, the error message fits in a single line (less than 80 chars total)
+                let token_stream = if tokens.len() <= 48 && !tokens.contains('\n') {
                     format!("The resulting token stream was: {tokens}")
                 } else {
                     format!(

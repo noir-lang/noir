@@ -4,11 +4,12 @@ use crate::runtime::is_unconstrained;
 // 32 bytes.
 
 // Deprecated in favour of `sha256_var`
-#[foreign(sha256)]
 // docs:start:sha256
 pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:sha256
-{}
+{
+    crate::sha256::digest(input)
+}
 
 #[foreign(sha256_compression)]
 pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
@@ -104,7 +105,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             msg_byte_ptr = new_msg_byte_ptr;
         }
 
-        // If the block is filled, compress it. 
+        // If the block is filled, compress it.
         // An un-filled block is handled after this loop.
         if msg_byte_ptr == 64 {
             h = sha256_compression(msg_u8_to_u32(msg_block), h);
@@ -113,8 +114,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
     let modulo = N % BLOCK_SIZE;
     // Handle setup of the final msg block.
-    // This case is only hit if the msg is less than the block size, 
-    // or our message cannot be evenly split into blocks. 
+    // This case is only hit if the msg is less than the block size,
+    // or our message cannot be evenly split into blocks.
     if modulo != 0 {
         let msg_start = BLOCK_SIZE * num_blocks;
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
@@ -145,7 +146,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let zero = msg_block[0] - msg_block[0];
 
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
-    // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).    
+    // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
     msg_block[msg_byte_ptr] = 1 << 7;
     let last_block = msg_block;
     msg_byte_ptr = msg_byte_ptr + 1;
@@ -186,18 +187,18 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
     if !crate::runtime::is_unconstrained() {
         for i in 0..56 {
-            if i < msg_byte_ptr {
-                assert_eq(msg_block[i], last_block[i]);
-            } else {
-                assert_eq(msg_block[i], zero);
-            }
+            let predicate = (i < msg_byte_ptr) as u8;
+            let expected_byte = predicate * last_block[i];
+            assert_eq(msg_block[i], expected_byte);
         }
 
+        // We verify the message length was inserted correctly by reversing the byte decomposition.
         let len = 8 * message_size;
-        let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
+        let mut reconstructed_len: Field = 0;
         for i in 56..64 {
-            assert_eq(msg_block[i], len_bytes[i - 56]);
+            reconstructed_len = 256 * reconstructed_len + msg_block[i] as Field;
         }
+        assert_eq(reconstructed_len, len as Field);
     }
 
     hash_final_block(msg_block, h)
@@ -254,4 +255,3 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 
     out_h
 }
-
