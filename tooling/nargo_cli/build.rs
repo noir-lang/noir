@@ -20,7 +20,7 @@ fn main() {
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
     let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
-        Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
+        Ok(dir) => std::path::PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
         Err(_) => std::env::current_dir().unwrap(),
     };
     let test_dir = root_dir.join("test_programs");
@@ -90,7 +90,7 @@ fn generate_test_case(
         r#"
 #[test]
 fn test_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
+    let test_program_dir = std::path::PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
