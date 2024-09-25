@@ -59,17 +59,17 @@ impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        // TODO: cleanup
-        let dbg_this = match &typ.typ {
-            UnresolvedTypeData::Integer(..) => true,
-            UnresolvedTypeData::Named(..) => true,
-            UnresolvedTypeData::FieldElement => true,
-            UnresolvedTypeData::Expression(..) => true,
-            _ => false,
-        };
-        if dbg_this {
-            dbg!("resolve_type_inner", &typ, kind);
-        }
+        // // TODO: cleanup
+        // let dbg_this = match &typ.typ {
+        //     UnresolvedTypeData::Integer(..) => true,
+        //     UnresolvedTypeData::Named(..) => true,
+        //     UnresolvedTypeData::FieldElement => true,
+        //     UnresolvedTypeData::Expression(..) => true,
+        //     _ => false,
+        // };
+        // if dbg_this {
+        //     dbg!("resolve_type_inner", &typ, kind);
+        // }
 
         use crate::ast::UnresolvedTypeData::*;
 
@@ -243,7 +243,8 @@ impl<'context> Elaborator<'context> {
                 // TODO: cleanup
                 dbg!("resolve_named_type: WILDCARD_TYPE", &name);
 
-                return self.interner.next_type_variable();
+                // return self.interner.next_type_variable();
+                return self.interner.next_type_variable_with_kind(Kind::Any);
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
             if !args.is_empty() {
@@ -728,8 +729,9 @@ impl<'context> Elaborator<'context> {
         //
         match &typ.typ {
             UnresolvedTypeData::Unspecified => {
+                // // TODO: cleanup
                 dbg!("resolve_inferred_type: unspecified", &typ);
-                self.interner.next_type_variable()
+                self.interner.next_type_variable_with_kind(Kind::Any)
             }
             _ => {
                 // dbg!("resolve_inferred_type: specified", &typ);

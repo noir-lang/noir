@@ -90,7 +90,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, _kind, binding) in instantiation_bindings.values_mut() {
+        for (_, kind, binding) in instantiation_bindings.values_mut() {
+            *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
@@ -99,7 +100,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, _kind, binding) in impl_bindings.values_mut() {
+        for (_, kind, binding) in impl_bindings.values_mut() {
+            *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
