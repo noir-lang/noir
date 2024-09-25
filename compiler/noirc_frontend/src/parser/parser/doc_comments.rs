@@ -11,7 +11,6 @@ impl<'a> Parser<'a> {
                 Token::LineComment(comment, Some(DocStyle::Inner))
                 | Token::BlockComment(comment, Some(DocStyle::Inner)) => {
                     comments.push(comment);
-                    self.next_token();
                 }
                 _ => unreachable!(),
             }
@@ -28,7 +27,6 @@ impl<'a> Parser<'a> {
                 Token::LineComment(comment, Some(DocStyle::Outer))
                 | Token::BlockComment(comment, Some(DocStyle::Outer)) => {
                     comments.push(comment);
-                    self.next_token();
                 }
                 _ => unreachable!(),
             }

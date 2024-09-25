@@ -31,13 +31,7 @@ impl<'a> Parser<'a> {
 
         if !self.eat_left_brace() {
             // TODO: error
-            return self.empty_struct(
-                Ident::default(),
-                attributes,
-                visibility,
-                generics,
-                start_span,
-            );
+            return self.empty_struct(name, attributes, visibility, generics, start_span);
         }
 
         let mut fields = Vec::new();
@@ -170,5 +164,19 @@ mod tests {
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("y", field.name.to_string());
         assert!(matches!(field.typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parse_empty_struct_with_doc_comments() {
+        let src = "/// Hello\nstruct Foo {}";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        assert_eq!(item.doc_comments.len(), 1);
+        let ItemKind::Struct(noir_struct) = &item.kind else {
+            panic!("Expected struct");
+        };
+        assert_eq!("Foo", noir_struct.name.to_string());
     }
 }

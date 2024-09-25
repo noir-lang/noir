@@ -21,7 +21,6 @@ impl<'a> Parser<'a> {
             match token.into_token() {
                 Token::Attribute(attribute) => {
                     attributes.push(attribute.clone());
-                    self.next_token();
                 }
                 _ => unreachable!(),
             }

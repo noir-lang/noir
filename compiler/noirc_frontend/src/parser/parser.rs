@@ -259,7 +259,6 @@ impl<'a> Parser<'a> {
 
     fn eat(&mut self, token: Token) -> bool {
         if self.token.token() == &token {
-            // TODO: error
             self.next_token();
             true
         } else {
