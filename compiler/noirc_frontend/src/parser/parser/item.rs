@@ -45,13 +45,10 @@ impl<'a> Parser<'a> {
             return Some(ItemKind::Import(use_tree, visibility));
         }
 
-        let module_or_contract = if self.eat_keyword(Keyword::Mod) {
-            Some(false)
-        } else if self.eat_keyword(Keyword::Contract) {
-            Some(true)
-        } else {
-            None
-        };
+        if let Some(is_contract) = self.eat_mod_or_contract() {
+            // TODO: error if there's comptime or mutable
+            return Some(self.parse_module_or_contract(attributes, is_contract));
+        }
 
         if self.eat_keyword(Keyword::Struct) {
             // TODO: error if there's comptime or mutable
@@ -62,10 +59,16 @@ impl<'a> Parser<'a> {
             return Some(ItemKind::Global(self.parse_global(attributes, comptime, mutable)));
         }
 
-        if let Some(is_contract) = module_or_contract {
-            return Some(self.parse_module_or_contract(attributes, is_contract));
-        }
-
         None
+    }
+
+    fn eat_mod_or_contract(&mut self) -> Option<bool> {
+        if self.eat_keyword(Keyword::Mod) {
+            Some(false)
+        } else if self.eat_keyword(Keyword::Contract) {
+            Some(true)
+        } else {
+            None
+        }
     }
 }
