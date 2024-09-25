@@ -254,14 +254,14 @@ mod tests {
 
         let array_set_instructions = main.dfg[b5]
             .instructions()
-            .into_iter()
+            .iter()
             .filter(|instruction| matches!(&main.dfg[**instruction], Instruction::ArraySet { .. }))
             .collect::<Vec<_>>();
 
         assert_eq!(array_set_instructions.len(), 1);
         if let Instruction::ArraySet { mutable, .. } = &main.dfg[*array_set_instructions[0]] {
             // The single array set should not be marked mutable
-            assert_eq!(*mutable, false)
+            assert!(!mutable);
         }
     }
 }
