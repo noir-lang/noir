@@ -25,6 +25,7 @@ impl Ssa {
             let mut array_to_last_use = HashMap::default();
             let mut instructions_to_update = HashSet::default();
             let mut arrays_from_load = HashSet::default();
+
             for block in reachable_blocks.iter() {
                 analyze_last_uses(
                     &func.dfg,
@@ -52,7 +53,6 @@ fn analyze_last_uses(
     arrays_from_load: &mut HashSet<ValueId>,
 ) {
     let block = &dfg[block_id];
-    let block_params = block.parameters();
 
     for instruction_id in block.instructions() {
         match &dfg[*instruction_id] {
@@ -73,13 +73,15 @@ fn analyze_last_uses(
                 // If the array comes from a load we may potentially being mutating an array at a reference
                 // that is loaded from by other values.
                 // If we are in a return block we are not concerned about the array potentially being mutated again.
-                let is_return_block = matches!(
-                    dfg[block_id].unwrap_terminator(),
-                    TerminatorInstruction::Return { .. }
-                );
-                if (!arrays_from_load.contains(&array) || is_return_block)
-                    && !block_params.contains(&array)
-                {
+                let terminator = dfg[block_id].unwrap_terminator();
+                let is_return_block = matches!(terminator, TerminatorInstruction::Return { .. });
+                let mut array_in_terminator = false;
+                terminator.for_each_value(|value| {
+                    if value == array {
+                        array_in_terminator = true;
+                    }
+                });
+                if (!arrays_from_load.contains(&array) || is_return_block) && !array_in_terminator {
                     instructions_that_can_be_made_mutable.insert(*instruction_id);
                 }
             }
