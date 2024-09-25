@@ -2,7 +2,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{Instruction, InstructionId},
+        instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
         value::ValueId,
     },
@@ -71,7 +71,11 @@ fn analyze_last_uses_new(
                 // If the array we are setting does not come from a load we can safely mark it mutable.
                 // If the array comes from a load we may potentially being mutating an array at a reference
                 // that is loaded from by other values.
-                if !arrays_from_load.contains(&array) {
+                let is_return_block = matches!(
+                    dfg[block_id].unwrap_terminator(),
+                    TerminatorInstruction::Return { .. }
+                );
+                if !arrays_from_load.contains(&array) || is_return_block {
                     instructions_that_can_be_made_mutable.insert(*instruction_id);
                 }
             }
