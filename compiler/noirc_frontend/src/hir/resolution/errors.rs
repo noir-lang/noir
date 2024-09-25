@@ -130,6 +130,8 @@ pub enum ResolverError {
     MutatingComptimeInNonComptimeContext { name: String, span: Span },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, span: Span },
+    #[error("Type `{typ}` is more private than item `{item}`")]
+    TypeIsMorePrivateThenItem { typ: String, item: String, span: Span },
 }
 
 impl ResolverError {
@@ -526,6 +528,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Failed to parse `{statement}` as an expression"),
                     "The statement was used from a macro here".to_string(),
+                    *span,
+                )
+            },
+            ResolverError::TypeIsMorePrivateThenItem { typ, item, span } => {
+                Diagnostic::simple_warning(
+                    format!("Type `{typ}` is more private than item `{item}`"),
+                    String::new(),
                     *span,
                 )
             },
