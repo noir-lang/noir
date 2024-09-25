@@ -1,3 +1,4 @@
+mod display;
 mod errors;
 mod hir_to_display_ast;
 mod interpreter;

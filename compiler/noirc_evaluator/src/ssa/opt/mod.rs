@@ -6,7 +6,6 @@
 mod array_set;
 mod as_slice_length;
 mod assert_constant;
-mod bubble_up_constrains;
 mod constant_folding;
 mod defunctionalize;
 mod die;
