@@ -33,10 +33,17 @@ impl HirStatement {
             }
             HirStatement::Constrain(constrain) => {
                 let expr = constrain.0.to_display_ast(interner);
-                let message = constrain.2.map(|message| message.to_display_ast(interner));
+                let mut arguments = vec![expr];
+                if let Some(message) = constrain.2 {
+                    arguments.push(message.to_display_ast(interner));
+                }
 
                 // TODO: Find difference in usage between Assert & AssertEq
-                StatementKind::Constrain(ConstrainStatement(expr, message, ConstrainKind::Assert))
+                StatementKind::Constrain(ConstrainStatement {
+                    kind: ConstrainKind::Assert,
+                    arguments,
+                    span,
+                })
             }
             HirStatement::Assign(assign) => StatementKind::Assign(AssignStatement {
                 lvalue: assign.lvalue.to_display_ast(interner),

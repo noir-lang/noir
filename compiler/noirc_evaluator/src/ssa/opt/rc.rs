@@ -2,9 +2,8 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         function::Function,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
+        instruction::{Instruction, InstructionId},
         types::Type,
         value::ValueId,
     },
@@ -150,20 +149,6 @@ impl<'f> Context<'f> {
         }
 
         to_remove
-    }
-
-    /// Finds the block of the function with the Return instruction
-    fn find_last_block(function: &Function) -> BasicBlockId {
-        for block in function.reachable_blocks() {
-            if matches!(
-                function.dfg[block].terminator(),
-                Some(TerminatorInstruction::Return { .. })
-            ) {
-                return block;
-            }
-        }
-
-        unreachable!("SSA Function {} has no reachable return instruction!", function.id())
     }
 
     /// Finds and pops the IncRc for the given array value if possible.

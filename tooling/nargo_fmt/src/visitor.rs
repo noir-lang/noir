@@ -36,7 +36,7 @@ impl<'me> FmtVisitor<'me> {
 
     pub(crate) fn slice(&self, span: impl Into<Span>) -> &'me str {
         let span = span.into();
-        &self.source[span.start() as usize..span.end() as usize]
+        str_slice(self.source, span.start() as usize, span.end() as usize)
     }
 
     pub(crate) fn span_after(&self, span: impl Into<Span>, token: Token) -> Span {
@@ -188,7 +188,7 @@ impl<'me> FmtVisitor<'me> {
 
             match comment.token() {
                 Token::LineComment(_, _) | Token::BlockComment(_, _) => {
-                    let comment = &slice[span.start() as usize..span.end() as usize];
+                    let comment = str_slice(slice, span.start() as usize, span.end() as usize);
                     if result.ends_with('\n') {
                         result.push_str(&indent);
                     } else if !self.at_start() {
@@ -245,6 +245,19 @@ impl<'me> FmtVisitor<'me> {
             String::new()
         }
     }
+}
+
+pub(crate) fn str_slice(s: &str, start: usize, end: usize) -> &str {
+    &s[start..ceil_char_boundary(s, end)]
+}
+
+pub(crate) fn ceil_char_boundary(s: &str, byte_index: usize) -> usize {
+    for i in byte_index..s.len() {
+        if s.is_char_boundary(i) {
+            return i;
+        }
+    }
+    s.len()
 }
 
 #[derive(Clone, Copy, Debug, Default)]

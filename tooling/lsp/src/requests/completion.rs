@@ -17,10 +17,11 @@ use noirc_frontend::{
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern, Statement,
-        TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
+        Signedness, Statement, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UseTree,
+        UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
@@ -28,8 +29,8 @@ use noirc_frontend::{
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
     parser::{Item, ItemKind, ParsedSubModule},
-    token::CustomAttribute,
-    ParsedModule, StructType, Type, TypeBinding,
+    token::{CustomAttribute, Token, Tokens},
+    Kind, ParsedModule, StructType, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
 
@@ -362,6 +363,8 @@ impl<'a> NodeFinder<'a> {
                     self.local_variables_completion(&prefix);
                     self.builtin_functions_completion(&prefix, function_completion_kind);
                     self.builtin_values_completion(&prefix);
+                    self.builtin_types_completion(&prefix);
+                    self.type_parameters_completion(&prefix);
                     if let Some(self_type) = &self.self_type {
                         let self_prefix = true;
                         self.complete_type_fields_and_methods(
@@ -627,7 +630,15 @@ impl<'a> NodeFinder<'a> {
         };
 
         for (name, methods) in methods_by_name {
-            for func_id in methods.iter() {
+            for (func_id, method_type) in methods.iter() {
+                if function_kind == FunctionKind::Any {
+                    if let Some(method_type) = method_type {
+                        if method_type.unify(typ).is_err() {
+                            continue;
+                        }
+                    }
+                }
+
                 if name_matches(name, prefix) {
                     let completion_items = self.function_completion_items(
                         name,
@@ -1001,7 +1012,12 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.includes_span(item.span)
     }
 
-    fn visit_import(&mut self, use_tree: &UseTree, _visibility: ItemVisibility) -> bool {
+    fn visit_import(
+        &mut self,
+        use_tree: &UseTree,
+        _span: Span,
+        _visibility: ItemVisibility,
+    ) -> bool {
         let mut prefixes = Vec::new();
         self.find_in_use_tree(use_tree, &mut prefixes);
         false
@@ -1553,12 +1569,83 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
+    fn visit_type_path(&mut self, type_path: &TypePath, _: Span) -> bool {
+        if type_path.item.span().end() as usize != self.byte_index {
+            return true;
+        }
+
+        let typ = match &type_path.typ.typ {
+            UnresolvedTypeData::FieldElement => Some(Type::FieldElement),
+            UnresolvedTypeData::Integer(signedness, integer_bit_size) => {
+                Some(Type::Integer(*signedness, *integer_bit_size))
+            }
+            UnresolvedTypeData::Bool => Some(Type::Bool),
+            UnresolvedTypeData::String(UnresolvedTypeExpression::Constant(value, _)) => {
+                Some(Type::String(Box::new(Type::Constant(
+                    *value,
+                    Kind::Numeric(Box::new(Type::Integer(
+                        Signedness::Unsigned,
+                        IntegerBitSize::ThirtyTwo,
+                    ))),
+                ))))
+            }
+            UnresolvedTypeData::Quoted(quoted_type) => Some(Type::Quoted(*quoted_type)),
+            _ => None,
+        };
+
+        if let Some(typ) = typ {
+            let prefix = &type_path.item.0.contents;
+            self.complete_type_methods(
+                &typ,
+                prefix,
+                FunctionKind::Any,
+                FunctionCompletionKind::NameAndParameters,
+                false, // self_prefix
+            );
+        }
+
+        false
+    }
+
     fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, target: AttributeTarget) {
         if self.byte_index != attribute.contents_span.end() as usize {
             return;
         }
 
         self.suggest_attributes(&attribute.contents, target);
+    }
+
+    fn visit_quote(&mut self, tokens: &Tokens) {
+        let mut last_was_dollar = false;
+
+        for token in &tokens.0 {
+            let span = token.to_span();
+            if span.end() as usize > self.byte_index {
+                break;
+            }
+
+            let token = token.token();
+
+            if let Token::DollarSign = token {
+                if span.end() as usize == self.byte_index {
+                    self.local_variables_completion("");
+                    break;
+                }
+
+                last_was_dollar = true;
+                continue;
+            }
+
+            if span.end() as usize == self.byte_index {
+                let prefix = token.to_string();
+                if last_was_dollar {
+                    self.local_variables_completion(&prefix);
+                }
+                break;
+            }
+
+            last_was_dollar = false;
+        }
     }
 }
 

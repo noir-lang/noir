@@ -11,10 +11,9 @@ use crate::{
     hir_def::{function::Parameters, traits::TraitFunction},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
+        NodeInterner, NoirFunction, UnresolvedType,
     },
     node_interner::{FuncId, ReferenceId, TraitId},
-    token::Attributes,
     Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
 };
 
@@ -103,6 +102,7 @@ impl<'context> Elaborator<'context> {
                     this.resolve_trait_function(
                         trait_id,
                         name,
+                        *is_unconstrained,
                         generics,
                         parameters,
                         return_type,
@@ -164,6 +164,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         trait_id: TraitId,
         name: &Ident,
+        is_unconstrained: bool,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
@@ -175,25 +176,17 @@ impl<'context> Elaborator<'context> {
         self.scopes.start_function();
 
         let kind = FunctionKind::Normal;
-        let def = FunctionDefinition {
-            name: name.clone(),
-            attributes: Attributes::empty(),
-            is_unconstrained: false,
-            is_comptime: false,
-            visibility: ItemVisibility::Public, // Trait functions are always public
-            generics: generics.clone(),
-            parameters: vecmap(parameters, |(name, typ)| Param {
-                visibility: Visibility::Private,
-                pattern: Pattern::Identifier(name.clone()),
-                typ: typ.clone(),
-                span: name.span(),
-            }),
-            body: BlockExpression { statements: Vec::new() },
-            span: name.span(),
-            where_clause: where_clause.to_vec(),
-            return_type: return_type.clone(),
-            return_visibility: Visibility::Private,
-        };
+        let mut def = FunctionDefinition::normal(
+            name,
+            is_unconstrained,
+            generics,
+            parameters,
+            &BlockExpression { statements: Vec::new() },
+            where_clause,
+            return_type,
+        );
+        // Trait functions are always public
+        def.visibility = ItemVisibility::Public;
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, Some(trait_id));
