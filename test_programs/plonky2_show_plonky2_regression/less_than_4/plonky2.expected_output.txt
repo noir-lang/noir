@@ -382,7 +382,7 @@ v381 = add_virtual_bool_target_safe
 v382 = add_virtual_bool_target_safe
 v383 = add_virtual_bool_target_safe
 v384 = add_virtual_bool_target_safe
-# [/home/nickysn/code/repos/metacraft-labs/noir/test_programs/plonky2_show_plonky2_regression/less_than_4/src/main.nr]
+# [src/main.nr]
 # [8] assert(z[i][j] == (x1[i] < y1[j]));
 # lessthan begin (a = v0, b = v16, signed = false)
 (r13c1,r13c2,r13c3,r13c4,r13c5,r13c6,r13c7,r13c8) = split_le v0,8

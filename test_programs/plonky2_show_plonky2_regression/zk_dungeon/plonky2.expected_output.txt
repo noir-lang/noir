@@ -80,7 +80,7 @@ v79 = add_virtual_target
 v80 = add_virtual_target
 v81 = add_virtual_target
 v82 = add_virtual_target
-# [/home/nickysn/code/repos/metacraft-labs/noir/test_programs/plonky2_show_plonky2_regression/zk_dungeon/src/dungeon.nr]
+# [src/dungeon.nr]
 # [22] assert(path[0].x == 0);
 v1 = constant 0
 connect v67,v1

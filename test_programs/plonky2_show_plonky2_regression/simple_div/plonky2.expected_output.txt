@@ -1,7 +1,7 @@
 v0 = add_virtual_target
 v1 = add_virtual_target
 v2 = add_virtual_target
-# [/home/nickysn/code/repos/metacraft-labs/noir/test_programs/plonky2_show_plonky2_regression/simple_div/src/main.nr]
+# [src/main.nr]
 # [3] assert(x / y == z);
 # divmod begin (numerator = v0, denominator = v1)
 v3 = add_virtual_target
