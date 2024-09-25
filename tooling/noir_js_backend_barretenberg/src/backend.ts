@@ -135,7 +135,7 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
     numOfPublicInputs: number,
   ): Promise<{ proofAsFields: string[]; vkAsFields: string[]; vkHash: string }> {
     const proof = reconstructProofWithPublicInputsHonk(proofData);
-    return this.backend.generateRecursiveProofArtifacts(proof, numOfPublicInputs)
+    return this.backend.generateRecursiveProofArtifacts(proof, numOfPublicInputs);
   }
 
   async destroy(): Promise<void> {
