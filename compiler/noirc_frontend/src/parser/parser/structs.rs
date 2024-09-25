@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, ItemVisibility, NoirStruct, UnresolvedGenerics},
+    ast::{Documented, Ident, ItemVisibility, NoirStruct, StructField, UnresolvedGenerics},
     token::{Attribute, SecondaryAttribute},
 };
 
@@ -40,13 +40,39 @@ impl<'a> Parser<'a> {
             );
         }
 
-        // TODO: fields
+        let mut fields = Vec::new();
+
+        loop {
+            let doc_comments = self.parse_outer_doc_comments();
+
+            let Some(name) = self.eat_ident() else {
+                // TODO: error if there are doc comments
+                break;
+            };
+
+            if !self.eat_colon() {
+                // TODO: error
+            }
+
+            let typ = self.parse_type();
+
+            fields.push(Documented::new(StructField { name, typ }, doc_comments));
+
+            self.eat_commas();
+        }
 
         if !self.eat_right_brace() {
             // TODO: error
         }
 
-        self.empty_struct(name, attributes, visibility, generics, start_span)
+        NoirStruct {
+            name,
+            attributes,
+            visibility,
+            generics,
+            fields,
+            span: self.span_since(start_span),
+        }
     }
 
     fn empty_struct(
@@ -83,7 +109,7 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Struct(noir_struct) = &item.kind else {
-            panic!("Expected import");
+            panic!("Expected struct");
         };
         assert_eq!("Foo", noir_struct.name.to_string());
         assert!(noir_struct.fields.is_empty());
@@ -98,7 +124,7 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Struct(mut noir_struct) = item.kind else {
-            panic!("Expected import");
+            panic!("Expected struct");
         };
         assert_eq!("Foo", noir_struct.name.to_string());
         assert!(noir_struct.fields.is_empty());
@@ -119,5 +145,30 @@ mod tests {
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
         )
+    }
+
+    #[test]
+    fn parse_struct_with_fields() {
+        let src = "struct Foo { x: i32, y: Field }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Struct(mut noir_struct) = item.kind else {
+            panic!("Expected struct");
+        };
+        assert_eq!("Foo", noir_struct.name.to_string());
+        assert_eq!(noir_struct.fields.len(), 2);
+
+        let field = noir_struct.fields.remove(0).item;
+        assert_eq!("x", field.name.to_string());
+        assert!(matches!(
+            field.typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
+        ));
+
+        let field = noir_struct.fields.remove(0).item;
+        assert_eq!("y", field.name.to_string());
+        assert!(matches!(field.typ.typ, UnresolvedTypeData::FieldElement));
     }
 }
