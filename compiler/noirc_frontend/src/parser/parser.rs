@@ -1,18 +1,18 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{
-        Expression, Ident, ItemVisibility, LValue, Path, Pattern, Statement, TraitBound,
-        UnresolvedType,
-    },
+    ast::{Expression, Ident, LValue, Path, Pattern, Statement, TraitBound, UnresolvedType},
     lexer::{Lexer, SpannedTokenResult},
     token::{Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
-use super::{Item, ItemKind, ParsedModule, ParserError};
+use super::{ItemKind, ParsedModule, ParserError};
 
 mod attributes;
 mod doc_comments;
+mod item;
+mod item_visibility;
+mod module;
 mod use_tree;
 
 /// Entry function for the parser - also handles lexing internally.
@@ -96,68 +96,6 @@ impl<'a> Parser<'a> {
         let items = self.parse_items();
 
         ParsedModule { items, inner_doc_comments }
-    }
-
-    pub(crate) fn parse_items(&mut self) -> Vec<Item> {
-        let mut items = Vec::new();
-
-        while let Some(item) = self.parse_item() {
-            items.push(item);
-        }
-
-        items
-    }
-
-    fn parse_item(&mut self) -> Option<Item> {
-        let doc_comments = self.parse_outer_doc_comments();
-
-        let start_span = self.current_token_span;
-        let kind = self.parse_item_kind()?;
-        let span = self.span_since(start_span);
-
-        Some(Item { kind, span, doc_comments })
-    }
-
-    fn parse_item_kind(&mut self) -> Option<ItemKind> {
-        if let Some(kind) = self.parse_inner_attribute() {
-            return Some(kind);
-        }
-
-        let visibility = self.parse_item_visibility();
-
-        if self.eat_keyword(Keyword::Use) {
-            let use_tree = self.parse_use_tree();
-            return Some(ItemKind::Import(use_tree, visibility));
-        }
-
-        None
-    }
-
-    fn parse_item_visibility(&mut self) -> ItemVisibility {
-        if !self.eat_keyword(Keyword::Pub) {
-            return ItemVisibility::Private;
-        }
-
-        if self.eat(Token::LeftParen).is_none() {
-            // `pub`
-            return ItemVisibility::Public;
-        }
-
-        if !self.eat_keyword(Keyword::Crate) {
-            // TODO: error
-            // `pub(` or `pub()`
-            self.eat(Token::RightParen);
-            return ItemVisibility::Public;
-        }
-
-        if self.eat(Token::RightParen).is_some() {
-            // `pub(crate)`
-            ItemVisibility::PublicCrate
-        } else {
-            // `pub(crate`
-            // TODO: error
-            ItemVisibility::PublicCrate
-        }
     }
 
     pub(crate) fn parse_expression(&mut self) -> Expression {
@@ -245,7 +183,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_comma(&mut self) -> bool {
-        self.eat(Token::Comma).is_some()
+        self.eat(Token::Comma)
     }
 
     fn eat_commas(&mut self) -> bool {
@@ -260,7 +198,27 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_semicolon(&mut self) -> bool {
-        self.eat(Token::Semicolon).is_some()
+        self.eat(Token::Semicolon)
+    }
+
+    fn eat_double_colon(&mut self) -> bool {
+        self.eat(Token::DoubleColon)
+    }
+
+    fn eat_left_paren(&mut self) -> bool {
+        self.eat(Token::LeftParen)
+    }
+
+    fn eat_right_paren(&mut self) -> bool {
+        self.eat(Token::RightParen)
+    }
+
+    fn eat_left_brace(&mut self) -> bool {
+        self.eat(Token::LeftBrace)
+    }
+
+    fn eat_right_brace(&mut self) -> bool {
+        self.eat(Token::RightBrace)
     }
 
     fn eat_semicolons(&mut self) -> bool {
@@ -274,13 +232,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat(&mut self, token: Token) -> Option<()> {
+    fn eat(&mut self, token: Token) -> bool {
         if self.token.token() == &token {
             // TODO: error
             self.next_token();
-            Some(())
+            true
         } else {
-            None
+            false
         }
     }
 

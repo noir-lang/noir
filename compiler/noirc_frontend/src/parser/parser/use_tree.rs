@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind},
-    token::{Keyword, Token},
+    token::Keyword,
 };
 
 use super::Parser;
@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
 
         let kind = self.parse_path_kind();
         if kind != PathKind::Plain {
-            if self.eat(Token::DoubleColon).is_none() {
+            if !self.eat_double_colon() {
                 // TODO: error
             }
         }
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
         while let Some(ident) = self.eat_ident() {
             let span = ident.span();
             segments.push(PathSegment { ident, generics: None, span });
-            if self.eat(Token::DoubleColon).is_some() {
+            if self.eat_double_colon() {
                 trailing_double_colon = true;
             } else {
                 trailing_double_colon = false;
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
         }
 
         if trailing_double_colon {
-            if self.eat(Token::LeftBrace).is_some() {
+            if self.eat_left_brace() {
                 let mut use_trees = Vec::new();
                 loop {
                     let current_span = self.current_token_span;
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
 
                     self.eat_commas();
 
-                    if self.eat(Token::RightBrace).is_some() {
+                    if self.eat_right_brace() {
                         break;
                     }
                 }

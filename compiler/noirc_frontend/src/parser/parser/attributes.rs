@@ -1,3 +1,4 @@
+use crate::token::SecondaryAttribute;
 use crate::token::{Attribute, Token, TokenKind};
 
 use super::ItemKind;
@@ -27,5 +28,23 @@ impl<'a> Parser<'a> {
         }
 
         attributes
+    }
+
+    pub(super) fn validate_secondary_attributes(
+        &mut self,
+        attributes: Vec<Attribute>,
+    ) -> Vec<SecondaryAttribute> {
+        attributes
+            .into_iter()
+            .filter_map(|attribute| {
+                match attribute {
+                    Attribute::Function(..) => {
+                        // TODO: error
+                        None
+                    }
+                    Attribute::Secondary(attr) => Some(attr),
+                }
+            })
+            .collect()
     }
 }
