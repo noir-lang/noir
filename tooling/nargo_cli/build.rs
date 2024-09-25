@@ -681,7 +681,7 @@ fn plonky2_show_plonky2_regression_{test_name}() {{
     let plonky2_generated_output = format!("{{}}/plonky2.generated_output.txt", test_program_dir.display());
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.current_dir(test_program_dir);
     cmd.arg("prove");
     cmd.arg("--plonky2-print-file").arg(plonky2_generated_output.clone());
 
