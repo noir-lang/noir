@@ -66,7 +66,7 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::TypeAlias(alias) = &item.kind else {
-            panic!("Expected global");
+            panic!("Expected type alias");
         };
         assert_eq!("Foo", alias.name.to_string());
         assert_eq!(alias.generics.len(), 1);

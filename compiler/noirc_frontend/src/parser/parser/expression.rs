@@ -1,6 +1,6 @@
 use noirc_errors::Span;
 
-use crate::ast::{Expression, ExpressionKind};
+use crate::ast::{BlockExpression, Expression, ExpressionKind};
 
 use super::Parser;
 
@@ -17,5 +17,13 @@ impl<'a> Parser<'a> {
         };
 
         Expression { kind, span: self.span_since(start_span) }
+    }
+
+    pub(super) fn parse_block_expression(&mut self) -> BlockExpression {
+        self.eat_left_brace();
+        // TODO: parse statements
+        self.eat_right_brace();
+
+        BlockExpression { statements: Vec::new() }
     }
 }
