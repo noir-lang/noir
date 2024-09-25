@@ -3,15 +3,15 @@
 // ========
 // The following three elliptic curve representations are admissible:
 mod tecurve; // Twisted Edwards curves
-mod swcurve; // Elliptic curves in Short Weierstraß form
+mod swcurve; // Elliptic curves in Short Weierstrass form
 mod montcurve; // Montgomery curves
 mod consts; // Commonly used curve presets
 //
 // Note that Twisted Edwards and Montgomery curves are (birationally) equivalent, so that
-// they may be freely converted between one another, whereas Short Weierstraß curves are
+// they may be freely converted between one another, whereas Short Weierstrass curves are
 // more general. Diagramatically:
 //
-// tecurve == montcurve ⊂ swcurve
+// tecurve == montcurve `subset` swcurve
 //
 // Each module is further divided into two submodules, 'affine' and 'curvegroup', depending
 // on the preferred coordinate representation. Affine coordinates are none other than the usual
@@ -47,7 +47,7 @@ mod consts; // Commonly used curve presets
 // coordinates by calling the `into_group` (resp. `into_affine`) method on them. Finally,
 // Points may be freely mapped between their respective Twisted Edwards and Montgomery
 // representations by calling the `into_montcurve` or `into_tecurve` methods. For mappings
-// between Twisted Edwards/Montgomery curves and Short Weierstraß curves, see the Curve section
+// between Twisted Edwards/Montgomery curves and Short Weierstrass curves, see the Curve section
 // below, as the underlying mappings are those of curves rather than ambient spaces.
 // As a rule, Points in affine (or CurveGroup) coordinates are mapped to Points in affine
 // (resp. CurveGroup) coordinates.
@@ -91,21 +91,21 @@ mod consts; // Commonly used curve presets
 // Curve configurations may also be converted between different curve representations by calling the `into_swcurve`,
 // `into_montcurve` and `into_tecurve` methods subject to the relation between the curve representations mentioned
 // above. Note that it is possible to map Points from a Twisted Edwards/Montgomery curve to the corresponding
-// Short Weierstraß representation and back, and the methods to do so are exposed as `map_into_swcurve` and
+// Short Weierstrass representation and back, and the methods to do so are exposed as `map_into_swcurve` and
 // `map_from_swcurve`, which each take one argument, the point to be mapped.
 //
 // Curve maps
 // ==========
 // There are a few different ways of mapping Field elements to elliptic curves. Here we provide the simplified
 // Shallue-van de Woestijne-Ulas and Elligator 2 methods, the former being applicable to all curve types
-// provided above subject to the constraint that the coefficients of the corresponding Short Weierstraß curve satisfies
+// provided above subject to the constraint that the coefficients of the corresponding Short Weierstrass curve satisfies
 // a*b != 0 and the latter being applicable to Montgomery and Twisted Edwards curves subject to the constraint that
 // the coefficients of the corresponding Montgomery curve satisfy j*k != 0 and (j^2 - 4)/k^2 is non-square.
 //
 // The simplified Shallue-van de Woestijne-Ulas method is exposed as the method `swu_map` on the Curve configuration and
 // depends on two parameters, a Field element z != -1 for which g(x) - z is irreducible over Field and g(b/(z*a)) is
 // square, where g(x) = x^3 + a*x + b is the right-hand side of the defining equation of the corresponding Short
-// Weierstraß curve, and a Field element u to be mapped onto the curve. For example, in the case of bjj_affine above,
+// Weierstrass curve, and a Field element u to be mapped onto the curve. For example, in the case of bjj_affine above,
 // it may be determined using the scripts provided at <https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve> that z = 5.
 //
 // The Elligator 2 method is exposed as the method `elligator2_map` on the Curve configurations of Montgomery and

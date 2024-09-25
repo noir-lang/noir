@@ -40,12 +40,6 @@ pub enum BlackBoxFunc {
     /// - input: (witness, bit_size)
     RANGE,
 
-    /// Computes SHA256 of the inputs
-    /// - inputs are a byte array, i.e a vector of (witness, 8)
-    /// - output is a byte array of len 32, i.e an array of 32 (witness, 8),
-    ///   constrained to be the sha256 of the inputs.
-    SHA256,
-
     /// Computes the Blake2s hash of the inputs, as specified in
     /// https://tools.ietf.org/html/rfc7693
     /// - inputs are a byte array, i.e a vector of (witness, 8)
@@ -213,7 +207,6 @@ impl BlackBoxFunc {
     pub fn name(&self) -> &'static str {
         match self {
             BlackBoxFunc::AES128Encrypt => "aes128_encrypt",
-            BlackBoxFunc::SHA256 => "sha256",
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
             BlackBoxFunc::Blake3 => "blake3",
@@ -243,7 +236,6 @@ impl BlackBoxFunc {
     pub fn lookup(op_name: &str) -> Option<BlackBoxFunc> {
         match op_name {
             "aes128_encrypt" => Some(BlackBoxFunc::AES128Encrypt),
-            "sha256" => Some(BlackBoxFunc::SHA256),
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
             "blake3" => Some(BlackBoxFunc::Blake3),

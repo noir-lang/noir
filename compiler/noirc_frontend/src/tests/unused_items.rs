@@ -1,4 +1,7 @@
-use crate::hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError};
+use crate::{
+    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
+    tests::assert_no_errors,
+};
 
 use super::get_program_errors;
 
@@ -156,6 +159,17 @@ fn errors_on_unused_trait() {
 
     assert_eq!(ident.to_string(), "Foo");
     assert_eq!(*item_type, "trait");
+}
+
+#[test]
+fn silences_unused_variable_warning() {
+    let src = r#"
+    fn main() {
+        #[allow(unused_variables)]
+        let x = 1;
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
