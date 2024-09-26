@@ -98,6 +98,11 @@ impl<'a> Parser<'a> {
 
             let start_span = self.current_token_span;
             let pattern = self.parse_pattern();
+            if self.current_token_span == start_span {
+                // TODO: error
+                self.eat_right_paren();
+                break;
+            }
 
             if self.eat_colon() {
                 let visibility = self.parse_visibility();
@@ -341,5 +346,18 @@ mod tests {
         };
         assert_eq!(noir_function.def.return_visibility, Visibility::Public);
         assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+    }
+
+    #[test]
+    fn parse_function_unclosed_parentheses() {
+        let src = "fn foo(x: i32,";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty()); // TODO: there should be errors here
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Function(noir_function) = &item.kind else {
+            panic!("Expected function");
+        };
+        assert_eq!("foo", noir_function.def.name.to_string());
     }
 }

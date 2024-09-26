@@ -69,9 +69,17 @@ impl<'a> Parser<'a> {
         }
 
         let mut types = Vec::new();
-        let mut trailing_comma;
+        let mut trailing_comma = false;
         loop {
-            types.push(self.parse_type());
+            let start_span = self.current_token_span;
+            let typ = self.parse_type();
+            if self.current_token_span == start_span {
+                // TODO: error
+                self.eat_right_paren();
+                break;
+            }
+
+            types.push(typ);
 
             trailing_comma = self.eat_commas();
             // TODO: error if no comma between types
@@ -164,6 +172,18 @@ mod tests {
     fn parses_parenthesized_type() {
         let src = "(Field)";
         let typ = Parser::for_str(src).parse_type();
+        let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
+            panic!("Expected a parenthesized type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_unclosed_parentheses_type() {
+        let src = "(Field";
+        let mut parser = Parser::for_str(src);
+        assert!(parser.errors.is_empty()); // TODO: there should be an error here
+        let typ = parser.parse_type();
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };

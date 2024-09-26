@@ -180,4 +180,17 @@ mod tests {
         };
         assert_eq!("Foo", noir_struct.name.to_string());
     }
+
+    #[test]
+    fn parse_unclosed_struct() {
+        let src = "struct Foo {";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty()); // TODO: there should be an error here
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Struct(noir_struct) = &item.kind else {
+            panic!("Expected struct");
+        };
+        assert_eq!("Foo", noir_struct.name.to_string());
+    }
 }

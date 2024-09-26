@@ -64,7 +64,15 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            patterns.push(self.parse_pattern());
+            let start_span = self.current_token_span;
+            let pattern = self.parse_pattern();
+            if self.current_token_span == start_span {
+                // TODO: error
+                self.eat_right_paren();
+                break;
+            }
+
+            patterns.push(pattern);
 
             self.eat_commas();
             // TODO: error if no commas between patterns
@@ -155,6 +163,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_unclosed_tuple_pattern() {
+        let src = "(foo,";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_pattern();
+        assert!(parser.errors.is_empty()); // TODO: there should be an error here
+        let Pattern::Tuple(patterns, _) = typ else { panic!("Expected a tuple pattern") };
+        assert_eq!(patterns.len(), 1);
+    }
+
+    #[test]
     fn parses_struct_pattern_no_fields() {
         let src = "foo::Bar {}";
         let typ = Parser::for_str(src).parse_pattern();
@@ -180,5 +198,14 @@ mod tests {
         let (ident, pattern) = patterns.remove(0);
         assert_eq!(ident.to_string(), "y");
         assert_eq!(pattern.to_string(), "y");
+    }
+
+    #[test]
+    fn parses_unclosed_struct_pattern() {
+        let src = "foo::Bar { x";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_pattern();
+        let Pattern::Struct(path, _, _) = typ else { panic!("Expected a struct pattern") };
+        assert_eq!(path.to_string(), "foo::Bar");
     }
 }

@@ -43,9 +43,18 @@ impl<'a> Parser<'a> {
         }
 
         let mut exprs = Vec::new();
-        let mut trailing_comma;
+        let mut trailing_comma = false;
         loop {
-            exprs.push(self.parse_expression());
+            let expr = self.parse_expression();
+            if let ExpressionKind::Error = expr.kind {
+                // TODO: error
+                self.eat_right_paren();
+                if exprs.is_empty() {
+                    return Some(ExpressionKind::Error);
+                }
+                break;
+            }
+            exprs.push(expr);
 
             trailing_comma = self.eat_commas();
             // TODO: error if no comma between exprs
@@ -157,6 +166,13 @@ mod tests {
         };
         assert_eq!(field, 2_u128.into());
         assert!(!negative);
+    }
+
+    #[test]
+    fn parses_unclosed_parentheses() {
+        let src = "(";
+        let expr = Parser::for_str(src).parse_expression();
+        assert!(matches!(expr.kind, ExpressionKind::Error));
     }
 
     #[test]

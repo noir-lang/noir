@@ -282,10 +282,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn is_eof(&mut self) -> bool {
-        self.token.token() == &Token::EOF
-    }
-
     fn eat(&mut self, token: Token) -> bool {
         if self.token.token() == &token {
             self.next_token();
