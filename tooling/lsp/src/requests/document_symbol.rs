@@ -137,6 +137,10 @@ impl<'a> DocumentSymbolCollector<'a> {
 
 impl<'a> Visitor for DocumentSymbolCollector<'a> {
     fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
+        if noir_function.def.name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(location) = self.to_lsp_location(span) else {
             return false;
         };
