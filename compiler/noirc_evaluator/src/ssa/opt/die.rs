@@ -77,12 +77,6 @@ struct Context {
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 }
 
-// struct IncRc {
-//     id: InstructionId,
-//     array: ValueId,
-//     possibly_mutated: bool,
-// }
-
 impl Context {
     /// Steps backwards through the instruction of the given block, amassing a set of used values
     /// as it goes, and at the same time marking instructions for removal if they haven't appeared
