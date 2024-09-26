@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
 
         if self.eat_keyword(Keyword::Impl) {
             // TODO: error if there's comptime or mutable or unconstrained
-            return Some(ItemKind::Impl(self.parse_impl(start_span)));
+            return Some(ItemKind::Impl(self.parse_impl()));
         }
 
         if self.eat_keyword(Keyword::Global) {
