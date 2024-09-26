@@ -23,3 +23,10 @@ fn main() {
     let value: Field = Field::read(data);
     assert_eq(value, 10);
 }
+
+#[attr]
+pub fn foo() {}
+
+comptime fn attr(_: FunctionDefinition) -> Quoted {
+    quote { pub fn hello() {} }
+}

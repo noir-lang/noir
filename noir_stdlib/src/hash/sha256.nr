@@ -4,11 +4,12 @@ use crate::runtime::is_unconstrained;
 // 32 bytes.
 
 // Deprecated in favour of `sha256_var`
-#[foreign(sha256)]
 // docs:start:sha256
 pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:sha256
-{}
+{
+    crate::sha256::digest(input)
+}
 
 #[foreign(sha256_compression)]
 pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
@@ -107,7 +108,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             msg_byte_ptr = new_msg_byte_ptr;
         }
 
-        // If the block is filled, compress it. 
+        // If the block is filled, compress it.
         // An un-filled block is handled after this loop.
         if msg_byte_ptr == BLOCK_SIZE {
             h = sha256_compression(msg_u8_to_u32(msg_block), h);
@@ -116,8 +117,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
     let modulo = N % BLOCK_SIZE;
     // Handle setup of the final msg block.
-    // This case is only hit if the msg is less than the block size, 
-    // or our message cannot be evenly split into blocks. 
+    // This case is only hit if the msg is less than the block size,
+    // or our message cannot be evenly split into blocks.
     if modulo != 0 {
         let msg_start = BLOCK_SIZE * num_blocks;
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
@@ -148,7 +149,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let zero = msg_block[0] - msg_block[0];
 
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
-    // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).    
+    // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
     msg_block[msg_byte_ptr] = 1 << 7;
     let last_block = msg_block;
     msg_byte_ptr = msg_byte_ptr + 1;
