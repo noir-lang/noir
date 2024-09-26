@@ -1,0 +1,7 @@
+[package]
+name = "brillig_rc_regression_6123"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.34.0"
+
+[dependencies]

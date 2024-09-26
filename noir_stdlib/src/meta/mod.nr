@@ -36,7 +36,7 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a struct definition can
 // create us a quoted trait impl from it.
-type DeriveFunction = fn(StructDefinition) -> Quoted;
+pub type DeriveFunction = fn(StructDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
@@ -130,8 +130,13 @@ mod tests {
             // let _a: Quoted = quote { 1 };
             let _a: Quoted = quote_one();
 
-            // let _b: i32 = 1;
-            let _b: i32 = quote_one!();
+            // let _b: Field = 1;
+            let _b: Field = quote_one!();
+
+            // Since integers default to fields, if we
+            // want a different type we have to explicitly cast
+            // let _c: i32 = 1 as i32;
+            let _c: i32 = quote_one!() as i32;
         }
     }
     // docs:end:quote-example
@@ -238,11 +243,15 @@ mod tests {
     }
     // docs:end:big-derive-usage-example
 
+    impl DoNothing for Bar {
+        fn do_nothing(_: Self) {}
+    }
+
     // This function is just to remove unused warnings
     fn remove_unused_warnings() {
-        let _: Bar = crate::panic::panic(f"");
-        let _: MyStruct = crate::panic::panic(f"");
-        let _: MyOtherStruct = crate::panic::panic(f"");
+        let _: Bar = Bar { x: 1, y: [2, 3] };
+        let _: MyStruct = MyStruct { my_field: 1 };
+        let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
         let _ = derive_do_nothing(crate::panic::panic(f""));
         let _ = derive_do_nothing_alt(crate::panic::panic(f""));
         remove_unused_warnings();

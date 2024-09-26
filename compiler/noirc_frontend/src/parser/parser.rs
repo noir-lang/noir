@@ -23,7 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::path::as_trait_path;
+use self::path::{as_trait_path, type_path};
 use self::primitives::{
     interned_statement, interned_statement_expr, keyword, macro_quote_marker, mutable_reference,
     variable,
@@ -290,14 +290,21 @@ fn contract(
 fn type_alias_definition() -> impl NoirParser<TopLevelStatementKind> {
     use self::Keyword::Type;
 
-    let p = ignore_then_commit(keyword(Type), ident());
-    let p = then_commit(p, function::generics());
-    let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, parse_type());
-
-    p.map_with_span(|((name, generics), typ), span| {
-        TopLevelStatementKind::TypeAlias(NoirTypeAlias { name, generics, typ, span })
-    })
+    item_visibility()
+        .then_ignore(keyword(Type))
+        .then(ident())
+        .then(function::generics())
+        .then_ignore(just(Token::Assign))
+        .then(parse_type())
+        .map_with_span(|(((visibility, name), generics), typ), span| {
+            TopLevelStatementKind::TypeAlias(NoirTypeAlias {
+                name,
+                generics,
+                typ,
+                visibility,
+                span,
+            })
+        })
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -465,7 +472,6 @@ where
         choice((
             assertion::constrain(expr_parser.clone()),
             assertion::assertion(expr_parser.clone()),
-            assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
             if_statement(expr_no_constructors.clone(), statement.clone()),
@@ -551,8 +557,12 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let_statement(expr_parser)
-        .map(|((pattern, typ), expr)| StatementKind::new_let(pattern, typ, expr))
+    attributes().then(let_statement(expr_parser)).validate(
+        |(attributes, ((pattern, typ), expr)), span, emit| {
+            let attributes = attributes::validate_secondary_attributes(attributes, span, emit);
+            StatementKind::new_let(pattern, typ, expr, attributes)
+        },
+    )
 }
 
 pub fn pattern() -> impl NoirParser<Pattern> {
@@ -1150,6 +1160,7 @@ where
         variable(),
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        type_path(parse_type()),
         macro_quote_marker(),
         interned_expr(),
         interned_statement_expr(),
@@ -1628,17 +1639,13 @@ mod test {
             Case { source: "let", expect: "let $error = Error", errors: 3 },
             Case { source: "foo = one two three", expect: "foo = one", errors: 1 },
             Case { source: "constrain", expect: "constrain Error", errors: 2 },
-            Case { source: "assert", expect: "constrain Error", errors: 1 },
+            Case { source: "assert", expect: "assert()", errors: 1 },
             Case { source: "constrain x ==", expect: "constrain (x == Error)", errors: 2 },
-            Case { source: "assert(x ==)", expect: "constrain (x == Error)", errors: 1 },
-            Case { source: "assert(x == x, x)", expect: "constrain (x == x)", errors: 0 },
-            Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
-            Case {
-                source: "assert_eq(x, x, x, x)",
-                expect: "constrain (Error == Error)",
-                errors: 1,
-            },
-            Case { source: "assert_eq(x, x, x)", expect: "constrain (x == x)", errors: 0 },
+            Case { source: "assert(x ==)", expect: "assert((x == Error))", errors: 1 },
+            Case { source: "assert(x == x, x)", expect: "assert((x == x), x)", errors: 0 },
+            Case { source: "assert_eq(x,)", expect: "assert_eq(x)", errors: 0 },
+            Case { source: "assert_eq(x, x, x, x)", expect: "assert_eq(x, x, x, x)", errors: 0 },
+            Case { source: "assert_eq(x, x, x)", expect: "assert_eq(x, x, x)", errors: 0 },
         ];
 
         check_cases_with_errors(&cases[..], fresh_statement());

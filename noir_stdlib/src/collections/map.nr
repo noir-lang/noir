@@ -4,7 +4,7 @@ use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
 use crate::collections::bounded_vec::BoundedVec;
 
-// We use load factor α_max = 0.75. 
+// We use load factor alpha_max = 0.75. 
 // Upon exceeding it, assert will fail in order to inform the user 
 // about performance degradation, so that he can adjust the capacity.
 global MAX_LOAD_FACTOR_NUMERATOR = 3;
@@ -624,7 +624,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         (hash + (attempt + attempt * attempt) / 2) % N
     }
 
-    // Amount of elements in the table in relation to available slots exceeds α_max. 
+    // Amount of elements in the table in relation to available slots exceeds alpha_max. 
     // To avoid a comparatively more expensive division operation 
     // we conduct cross-multiplication instead.
     // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DEN0MINATOR 
