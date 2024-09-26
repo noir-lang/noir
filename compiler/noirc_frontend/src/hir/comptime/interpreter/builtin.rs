@@ -30,7 +30,6 @@ use crate::{
             InterpreterError, Value,
         },
         def_collector::dc_crate::CollectedItems,
-        def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
@@ -505,14 +504,7 @@ fn struct_def_module(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let struct_id = get_struct(self_argument)?;
-    let struct_module_id = struct_id.module_id();
-
-    // A struct's module is its own module. To get the module where its defined we need
-    // to look for its parent.
-    let module_data = interpreter.elaborator.get_module(struct_module_id);
-    let parent_local_id = module_data.parent.expect("Expected struct module parent to exist");
-    let parent = ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
-
+    let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
     Ok(Value::ModuleDefinition(parent))
 }
 

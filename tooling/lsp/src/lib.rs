@@ -62,6 +62,7 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
+mod attribute_reference_finder;
 mod modules;
 mod notifications;
 mod requests;

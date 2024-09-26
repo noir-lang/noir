@@ -243,11 +243,15 @@ mod tests {
     }
     // docs:end:big-derive-usage-example
 
+    impl DoNothing for Bar {
+        fn do_nothing(_: Self) {}
+    }
+
     // This function is just to remove unused warnings
     fn remove_unused_warnings() {
-        let _: Bar = crate::panic::panic(f"");
-        let _: MyStruct = crate::panic::panic(f"");
-        let _: MyOtherStruct = crate::panic::panic(f"");
+        let _: Bar = Bar { x: 1, y: [2, 3] };
+        let _: MyStruct = MyStruct { my_field: 1 };
+        let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
         let _ = derive_do_nothing(crate::panic::panic(f""));
         let _ = derive_do_nothing_alt(crate::panic::panic(f""));
         remove_unused_warnings();

@@ -95,7 +95,7 @@ pub struct Elaborator<'context> {
 
     pub(crate) interner: &'context mut NodeInterner,
 
-    def_maps: &'context mut DefMaps,
+    pub(crate) def_maps: &'context mut DefMaps,
 
     pub(crate) file: FileId,
 
@@ -759,6 +759,10 @@ impl<'context> Elaborator<'context> {
                 type_span,
             );
 
+            if is_entry_point {
+                self.mark_parameter_type_as_used(&typ);
+            }
+
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
@@ -835,6 +839,57 @@ impl<'context> Elaborator<'context> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+    }
+
+    fn mark_parameter_type_as_used(&mut self, typ: &Type) {
+        match typ {
+            Type::Array(_n, typ) => self.mark_parameter_type_as_used(typ),
+            Type::Slice(typ) => self.mark_parameter_type_as_used(typ),
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.mark_parameter_type_as_used(typ);
+                }
+            }
+            Type::Struct(struct_type, generics) => {
+                self.mark_struct_as_constructed(struct_type.clone());
+                for generic in generics {
+                    self.mark_parameter_type_as_used(generic);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
+            }
+            Type::MutableReference(typ) => {
+                self.mark_parameter_type_as_used(typ);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.mark_parameter_type_as_used(left);
+                self.mark_parameter_type_as_used(right);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Forall(..)
+            | Type::Error => (),
+        }
+
+        if let Type::Alias(alias_type, generics) = typ {
+            self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
+            return;
+        }
+
+        if let Type::Struct(struct_type, _generics) = typ {
+            self.mark_struct_as_constructed(struct_type.clone());
+        }
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
@@ -1163,15 +1218,9 @@ impl<'context> Elaborator<'context> {
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
-                    // Go to the struct's parent module
-                    let module_data = self.get_module(struct_module_id);
-                    let parent_local_id =
-                        module_data.parent.expect("Expected struct module parent to exist");
-                    let parent_module_id =
-                        ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
-                    let parent_module_data = self.get_module(parent_module_id);
-
                     // Find the struct in the parent module so we can know its visibility
+                    let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+                    let parent_module_data = self.get_module(parent_module_id);
                     let per_ns = parent_module_data.find_name(&struct_type.name);
                     if let Some((_, aliased_visibility, _)) = per_ns.types {
                         if aliased_visibility < visibility {
