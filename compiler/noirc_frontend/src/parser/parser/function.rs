@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
 
         let Some(name) = self.eat_ident() else {
             // TODO: error
-            return empty_fuction(
+            return empty_function(
                 attributes,
                 is_unconstrained,
                 is_comptime,
@@ -179,7 +179,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn empty_fuction(
+fn empty_function(
     attributes: Attributes,
     is_unconstrained: bool,
     is_comptime: bool,
