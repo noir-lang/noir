@@ -63,20 +63,9 @@ impl Field {
     pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_le_bytes
         // Compute the byte decomposition
-        let bytes = unsafe {
-            compute_byte_decomposition(self)
-        };
+        let bytes = self.to_le_radix(256);
 
         if !is_unconstrained() {
-            // Verify that the byte decomposition is correct
-            let mut y = 0;
-            let mut r = 1;
-            for i in 0..N {
-                y += (bytes[i] as Field)*r;
-                r *= 256;
-            }
-            assert_eq(self, y);
-
             // Ensure that the byte decomposition does not overflow the modulus
             let  p = modulus_le_bytes();
             assert(bytes.len() <= p.len());
@@ -235,15 +224,6 @@ fn lt_fallback(x: Field, y: Field) -> bool {
         }
     }
     x_is_lt
-}
-
-unconstrained fn compute_byte_decomposition<let N: u32>(mut x: Field) -> [u8; N] {
-    let mut a = [0; N];
-    for i in 0..N {
-        a[i] = x as u8;
-        x = (x-(a[i] as Field)) / 256;
-    }
-    a
 }
 
 mod tests {
