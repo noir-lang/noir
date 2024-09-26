@@ -863,7 +863,7 @@ impl FunctionDefinition {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self.attributes)?;
-        write!(f, "fn {} {}", self.signature(), self.body)
+        write!(f, "{} {}", self.signature(), self.body)
     }
 }
 
