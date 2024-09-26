@@ -11,23 +11,34 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_type(&mut self) -> UnresolvedType {
         let start_span = self.current_token_span;
 
-        // TODO: parse more types
+        let typ = self.parse_unresolved_type_data();
+        let span = if self.current_token_span == start_span {
+            start_span
+        } else {
+            self.span_since(start_span)
+        };
 
-        let typ = if self.eat_keyword(Keyword::Field) {
-            UnresolvedTypeData::FieldElement
-        } else if let Some(int_type) = self.eat_int_type() {
-            match UnresolvedTypeData::from_int_token(int_type) {
+        UnresolvedType { typ, span }
+    }
+
+    fn parse_unresolved_type_data(&mut self) -> UnresolvedTypeData {
+        if self.eat_keyword(Keyword::Field) {
+            return UnresolvedTypeData::FieldElement;
+        }
+
+        if let Some(int_type) = self.eat_int_type() {
+            return match UnresolvedTypeData::from_int_token(int_type) {
                 Ok(typ) => typ,
                 Err(_) => {
                     // TODO: error
                     UnresolvedTypeData::Error
                 }
-            }
-        } else {
-            return UnresolvedType { typ: UnresolvedTypeData::Error, span: start_span };
-        };
+            };
+        }
 
-        UnresolvedType { typ, span: self.span_since(start_span) }
+        // TODO: parse more types
+
+        UnresolvedTypeData::Error
     }
 
     pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {
