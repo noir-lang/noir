@@ -239,3 +239,26 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     assert_eq!(typ, "Foo");
     assert_eq!(item, "Bar");
 }
+
+#[test]
+fn errors_on_unused_global() {
+    let src = r#"
+    global foo = 1;
+    global bar = 1;
+
+    fn main() {
+        let _ = bar;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "foo");
+    assert_eq!(item.item_type(), "global");
+}
