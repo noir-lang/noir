@@ -190,12 +190,24 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_int(&mut self) -> Option<FieldElement> {
-        let is_int = matches!(self.token.token(), Token::Int(..));
-        if is_int {
+        if matches!(self.token.token(), Token::Int(..)) {
             let token = std::mem::take(&mut self.token);
             self.next_token();
             match token.into_token() {
                 Token::Int(int) => Some(int),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
+    fn eat_bool(&mut self) -> Option<bool> {
+        if matches!(self.token.token(), Token::Bool(..)) {
+            let token = std::mem::take(&mut self.token);
+            self.next_token();
+            match token.into_token() {
+                Token::Bool(bool) => Some(bool),
                 _ => unreachable!(),
             }
         } else {

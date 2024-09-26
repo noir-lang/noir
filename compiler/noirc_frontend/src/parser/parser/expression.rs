@@ -16,6 +16,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression_kind(&mut self) -> ExpressionKind {
+        if let Some(bool) = self.eat_bool() {
+            return ExpressionKind::Literal(Literal::Bool(bool));
+        }
+
         if let Some(int) = self.eat_int() {
             return ExpressionKind::integer(int);
         }
@@ -91,6 +95,17 @@ mod tests {
         ast::{ExpressionKind, Literal, StatementKind},
         parser::Parser,
     };
+
+    #[test]
+    fn parses_bool_literals() {
+        let src = "true";
+        let expr = Parser::for_str(src).parse_expression();
+        assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Bool(true))));
+
+        let src = "false";
+        let expr = Parser::for_str(src).parse_expression();
+        assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Bool(false))));
+    }
 
     #[test]
     fn parses_integer_literal() {
