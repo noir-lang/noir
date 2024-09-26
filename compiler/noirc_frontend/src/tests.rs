@@ -908,312 +908,312 @@ fn get_lambda_captures(
     }
 }
 
-// #[test]
-// fn resolve_empty_function() {
-//     let src = "
-//         fn main() {
-//
-//         }
-//     ";
-//     assert_no_errors(src);
-// }
-// #[test]
-// fn resolve_basic_function() {
-//     let src = r#"
-//         fn main(x : Field) {
-//             let y = x + x;
-//             assert(y == x);
-//         }
-//     "#;
-//     assert_no_errors(src);
-// }
-// #[test]
-// fn resolve_unused_var() {
-//     let src = r#"
-//         fn main(x : Field) {
-//             let y = x + x;
-//             assert(x == x);
-//         }
-//     "#;
-//
-//     let errors = get_program_errors(src);
-//     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-//     // It should be regarding the unused variable
-//     match &errors[0].0 {
-//         CompilationError::ResolverError(ResolverError::UnusedVariable { ident }) => {
-//             assert_eq!(&ident.0.contents, "y");
-//         }
-//         _ => unreachable!("we should only have an unused var error"),
-//     }
-// }
-//
-// #[test]
-// fn resolve_unresolved_var() {
-//     let src = r#"
-//         fn main(x : Field) {
-//             let y = x + x;
-//             assert(y == z);
-//         }
-//     "#;
-//     let errors = get_program_errors(src);
-//     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-//     // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
-//     match &errors[0].0 {
-//         CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, span: _ }) => {
-//             assert_eq!(name, "z");
-//         }
-//         _ => unimplemented!("we should only have an unresolved variable"),
-//     }
-// }
-//
-// #[test]
-// fn unresolved_path() {
-//     let src = "
-//         fn main(x : Field) {
-//             let _z = some::path::to::a::func(x);
-//         }
-//     ";
-//     let errors = get_program_errors(src);
-//     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-//     for (compilation_error, _file_id) in errors {
-//         match compilation_error {
-//             CompilationError::ResolverError(err) => {
-//                 match err {
-//                     ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
-//                         assert_eq!(name.to_string(), "some");
-//                     }
-//                     _ => unimplemented!("we should only have an unresolved function"),
-//                 };
-//             }
-//             _ => unimplemented!(),
-//         }
-//     }
-// }
-//
-// #[test]
-// fn resolve_literal_expr() {
-//     let src = r#"
-//         fn main(x : Field) {
-//             let y = 5;
-//             assert(y == x);
-//         }
-//     "#;
-//     assert_no_errors(src);
-// }
-//
-// #[test]
-// fn multiple_resolution_errors() {
-//     let src = r#"
-//         fn main(x : Field) {
-//            let y = foo::bar(x);
-//            let z = y + a;
-//         }
-//     "#;
-//
-//     let errors = get_program_errors(src);
-//     assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
-//
-//     // Errors are:
-//     // `a` is undeclared
-//     // `z` is unused
-//     // `foo::bar` does not exist
-//     for (compilation_error, _file_id) in errors {
-//         match compilation_error {
-//             CompilationError::ResolverError(err) => {
-//                 match err {
-//                     ResolverError::UnusedVariable { ident } => {
-//                         assert_eq!(&ident.0.contents, "z");
-//                     }
-//                     ResolverError::VariableNotDeclared { name, .. } => {
-//                         assert_eq!(name, "a");
-//                     }
-//                     ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
-//                         assert_eq!(name.to_string(), "foo");
-//                     }
-//                     _ => unimplemented!(),
-//                 };
-//             }
-//             _ => unimplemented!(),
-//         }
-//     }
-// }
-//
-// #[test]
-// fn resolve_prefix_expr() {
-//     let src = r#"
-//         fn main(x : Field) {
-//             let _y = -x;
-//         }
-//     "#;
-//     assert_no_errors(src);
-// }
-//
-// #[test]
-// fn resolve_for_expr() {
-//     let src = r#"
-//         fn main(x : u64) {
-//             for i in 1..20 {
-//                 let _z = x + i;
-//             };
-//         }
-//     "#;
-//     assert_no_errors(src);
-// }
-//
-// #[test]
-// fn resolve_call_expr() {
-//     let src = r#"
-//         fn main(x : Field) {
-//             let _z = foo(x);
-//         }
-//
-//         fn foo(x : Field) -> Field {
-//             x
-//         }
-//     "#;
-//     assert_no_errors(src);
-// }
-//
-// #[test]
-// fn resolve_shadowing() {
-//     let src = r#"
-//         fn main(x : Field) {
-//             let x = foo(x);
-//             let x = x;
-//             let (x, x) = (x, x);
-//             let _ = x;
-//         }
-//
-//         fn foo(x : Field) -> Field {
-//             x
-//         }
-//     "#;
-//     assert_no_errors(src);
-// }
-//
-// #[test]
-// fn resolve_basic_closure() {
-//     let src = r#"
-//         fn main(x : Field) -> pub Field {
-//             let closure = |y| y + x;
-//             closure(x)
-//         }
-//     "#;
-//     assert_no_errors(src);
-// }
-//
-// #[test]
-// fn resolve_simplified_closure() {
-//     // based on bug https://github.com/noir-lang/noir/issues/1088
-//
-//     let src = r#"fn do_closure(x: Field) -> Field {
-//         let y = x;
-//         let ret_capture = || {
-//           y
-//         };
-//         ret_capture()
-//       }
-//
-//       fn main(x: Field) {
-//           assert(do_closure(x) == 100);
-//       }
-//
-//       "#;
-//     let parsed_captures = get_program_captures(src);
-//     let expected_captures = vec![vec!["y".to_string()]];
-//     assert_eq!(expected_captures, parsed_captures);
-// }
-//
-// #[test]
-// fn resolve_complex_closures() {
-//     let src = r#"
-//         fn main(x: Field) -> pub Field {
-//             let closure_without_captures = |x: Field| -> Field { x + x };
-//             let a = closure_without_captures(1);
-//
-//             let closure_capturing_a_param = |y: Field| -> Field { y + x };
-//             let b = closure_capturing_a_param(2);
-//
-//             let closure_capturing_a_local_var = |y: Field| -> Field { y + b };
-//             let c = closure_capturing_a_local_var(3);
-//
-//             let closure_with_transitive_captures = |y: Field| -> Field {
-//                 let d = 5;
-//                 let nested_closure = |z: Field| -> Field {
-//                     let doubly_nested_closure = |w: Field| -> Field { w + x + b };
-//                     a + z + y + d + x + doubly_nested_closure(4) + x + y
-//                 };
-//                 let res = nested_closure(5);
-//                 res
-//             };
-//
-//             a + b + c + closure_with_transitive_captures(6)
-//         }
-//     "#;
-//     assert_no_errors(src);
-//
-//     let expected_captures = vec![
-//         vec![],
-//         vec!["x".to_string()],
-//         vec!["b".to_string()],
-//         vec!["x".to_string(), "b".to_string(), "a".to_string()],
-//         vec!["x".to_string(), "b".to_string(), "a".to_string(), "y".to_string(), "d".to_string()],
-//         vec!["x".to_string(), "b".to_string()],
-//     ];
-//
-//     let parsed_captures = get_program_captures(src);
-//
-//     assert_eq!(expected_captures, parsed_captures);
-// }
-//
-// #[test]
-// fn resolve_fmt_strings() {
-//     let src = r#"
-//         fn main() {
-//             let string = f"this is i: {i}";
-//             println(string);
-//
-//             println(f"I want to print {0}");
-//
-//             let new_val = 10;
-//             println(f"random_string{new_val}{new_val}");
-//         }
-//         fn println<T>(x : T) -> T {
-//             x
-//         }
-//     "#;
-//
-//     let errors = get_program_errors(src);
-//     assert!(errors.len() == 5, "Expected 5 errors, got: {:?}", errors);
-//
-//     for (err, _file_id) in errors {
-//         match &err {
-//             CompilationError::ResolverError(ResolverError::VariableNotDeclared {
-//                 name, ..
-//             }) => {
-//                 assert_eq!(name, "i");
-//             }
-//             CompilationError::ResolverError(ResolverError::NumericConstantInFormatString {
-//                 name,
-//                 ..
-//             }) => {
-//                 assert_eq!(name, "0");
-//             }
-//             CompilationError::TypeError(TypeCheckError::UnusedResultError {
-//                 expr_type: _,
-//                 expr_span,
-//             }) => {
-//                 let a = src.get(expr_span.start() as usize..expr_span.end() as usize).unwrap();
-//                 assert!(
-//                     a == "println(string)"
-//                         || a == "println(f\"I want to print {0}\")"
-//                         || a == "println(f\"random_string{new_val}{new_val}\")"
-//                 );
-//             }
-//             _ => unimplemented!(),
-//         };
-//     }
-// }
+#[test]
+fn resolve_empty_function() {
+    let src = "
+        fn main() {
+
+        }
+    ";
+    assert_no_errors(src);
+}
+#[test]
+fn resolve_basic_function() {
+    let src = r#"
+        fn main(x : Field) {
+            let y = x + x;
+            assert(y == x);
+        }
+    "#;
+    assert_no_errors(src);
+}
+#[test]
+fn resolve_unused_var() {
+    let src = r#"
+        fn main(x : Field) {
+            let y = x + x;
+            assert(x == x);
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+    // It should be regarding the unused variable
+    match &errors[0].0 {
+        CompilationError::ResolverError(ResolverError::UnusedVariable { ident }) => {
+            assert_eq!(&ident.0.contents, "y");
+        }
+        _ => unreachable!("we should only have an unused var error"),
+    }
+}
+
+#[test]
+fn resolve_unresolved_var() {
+    let src = r#"
+        fn main(x : Field) {
+            let y = x + x;
+            assert(y == z);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+    // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
+    match &errors[0].0 {
+        CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, span: _ }) => {
+            assert_eq!(name, "z");
+        }
+        _ => unimplemented!("we should only have an unresolved variable"),
+    }
+}
+
+#[test]
+fn unresolved_path() {
+    let src = "
+        fn main(x : Field) {
+            let _z = some::path::to::a::func(x);
+        }
+    ";
+    let errors = get_program_errors(src);
+    assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+    for (compilation_error, _file_id) in errors {
+        match compilation_error {
+            CompilationError::ResolverError(err) => {
+                match err {
+                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
+                        assert_eq!(name.to_string(), "some");
+                    }
+                    _ => unimplemented!("we should only have an unresolved function"),
+                };
+            }
+            _ => unimplemented!(),
+        }
+    }
+}
+
+#[test]
+fn resolve_literal_expr() {
+    let src = r#"
+        fn main(x : Field) {
+            let y = 5;
+            assert(y == x);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn multiple_resolution_errors() {
+    let src = r#"
+        fn main(x : Field) {
+           let y = foo::bar(x);
+           let z = y + a;
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
+
+    // Errors are:
+    // `a` is undeclared
+    // `z` is unused
+    // `foo::bar` does not exist
+    for (compilation_error, _file_id) in errors {
+        match compilation_error {
+            CompilationError::ResolverError(err) => {
+                match err {
+                    ResolverError::UnusedVariable { ident } => {
+                        assert_eq!(&ident.0.contents, "z");
+                    }
+                    ResolverError::VariableNotDeclared { name, .. } => {
+                        assert_eq!(name, "a");
+                    }
+                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
+                        assert_eq!(name.to_string(), "foo");
+                    }
+                    _ => unimplemented!(),
+                };
+            }
+            _ => unimplemented!(),
+        }
+    }
+}
+
+#[test]
+fn resolve_prefix_expr() {
+    let src = r#"
+        fn main(x : Field) {
+            let _y = -x;
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_for_expr() {
+    let src = r#"
+        fn main(x : u64) {
+            for i in 1..20 {
+                let _z = x + i;
+            };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_call_expr() {
+    let src = r#"
+        fn main(x : Field) {
+            let _z = foo(x);
+        }
+
+        fn foo(x : Field) -> Field {
+            x
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_shadowing() {
+    let src = r#"
+        fn main(x : Field) {
+            let x = foo(x);
+            let x = x;
+            let (x, x) = (x, x);
+            let _ = x;
+        }
+
+        fn foo(x : Field) -> Field {
+            x
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_basic_closure() {
+    let src = r#"
+        fn main(x : Field) -> pub Field {
+            let closure = |y| y + x;
+            closure(x)
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_simplified_closure() {
+    // based on bug https://github.com/noir-lang/noir/issues/1088
+
+    let src = r#"fn do_closure(x: Field) -> Field {
+        let y = x;
+        let ret_capture = || {
+          y
+        };
+        ret_capture()
+      }
+
+      fn main(x: Field) {
+          assert(do_closure(x) == 100);
+      }
+
+      "#;
+    let parsed_captures = get_program_captures(src);
+    let expected_captures = vec![vec!["y".to_string()]];
+    assert_eq!(expected_captures, parsed_captures);
+}
+
+#[test]
+fn resolve_complex_closures() {
+    let src = r#"
+        fn main(x: Field) -> pub Field {
+            let closure_without_captures = |x: Field| -> Field { x + x };
+            let a = closure_without_captures(1);
+
+            let closure_capturing_a_param = |y: Field| -> Field { y + x };
+            let b = closure_capturing_a_param(2);
+
+            let closure_capturing_a_local_var = |y: Field| -> Field { y + b };
+            let c = closure_capturing_a_local_var(3);
+
+            let closure_with_transitive_captures = |y: Field| -> Field {
+                let d = 5;
+                let nested_closure = |z: Field| -> Field {
+                    let doubly_nested_closure = |w: Field| -> Field { w + x + b };
+                    a + z + y + d + x + doubly_nested_closure(4) + x + y
+                };
+                let res = nested_closure(5);
+                res
+            };
+
+            a + b + c + closure_with_transitive_captures(6)
+        }
+    "#;
+    assert_no_errors(src);
+
+    let expected_captures = vec![
+        vec![],
+        vec!["x".to_string()],
+        vec!["b".to_string()],
+        vec!["x".to_string(), "b".to_string(), "a".to_string()],
+        vec!["x".to_string(), "b".to_string(), "a".to_string(), "y".to_string(), "d".to_string()],
+        vec!["x".to_string(), "b".to_string()],
+    ];
+
+    let parsed_captures = get_program_captures(src);
+
+    assert_eq!(expected_captures, parsed_captures);
+}
+
+#[test]
+fn resolve_fmt_strings() {
+    let src = r#"
+        fn main() {
+            let string = f"this is i: {i}";
+            println(string);
+
+            println(f"I want to print {0}");
+
+            let new_val = 10;
+            println(f"random_string{new_val}{new_val}");
+        }
+        fn println<T>(x : T) -> T {
+            x
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert!(errors.len() == 5, "Expected 5 errors, got: {:?}", errors);
+
+    for (err, _file_id) in errors {
+        match &err {
+            CompilationError::ResolverError(ResolverError::VariableNotDeclared {
+                name, ..
+            }) => {
+                assert_eq!(name, "i");
+            }
+            CompilationError::ResolverError(ResolverError::NumericConstantInFormatString {
+                name,
+                ..
+            }) => {
+                assert_eq!(name, "0");
+            }
+            CompilationError::TypeError(TypeCheckError::UnusedResultError {
+                expr_type: _,
+                expr_span,
+            }) => {
+                let a = src.get(expr_span.start() as usize..expr_span.end() as usize).unwrap();
+                assert!(
+                    a == "println(string)"
+                        || a == "println(f\"I want to print {0}\")"
+                        || a == "println(f\"random_string{new_val}{new_val}\")"
+                );
+            }
+            _ => unimplemented!(),
+        };
+    }
+}
 
 fn check_rewrite(src: &str, expected: &str) {
     let (_program, mut context, _errors) = get_program(src);

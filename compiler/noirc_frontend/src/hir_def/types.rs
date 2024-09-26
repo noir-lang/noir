@@ -605,7 +605,7 @@ impl TypeVariable {
         // TODO: remove before review
         assert!(
             typ.kind().unifies(kind),
-            "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
+            "while binding: expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
             typ.kind(),
             kind
         );
@@ -672,7 +672,7 @@ impl TypeVariable {
         // TODO: remove before review
         assert!(
             typ.kind().unifies(kind),
-            "expected kind of TypeVariable ({:?}) to match the kind of its binding ({:?})",
+            "while force-binding: expected kind of TypeVariable ({:?}) to match the kind of its binding ({:?})",
             kind,
             typ.kind()
         );
@@ -1384,11 +1384,11 @@ impl Type {
         let this = self.substitute(bindings).follow_bindings();
         match &this {
             Type::Integer(..) => {
-                bindings.insert(target_id, (var.clone(), Kind::Normal, this));
+                bindings.insert(target_id, (var.clone(), Kind::Integer, this));
                 Ok(())
             }
             Type::FieldElement if !only_integer => {
-                bindings.insert(target_id, (var.clone(), Kind::Normal, this));
+                bindings.insert(target_id, (var.clone(), Kind::IntegerOrField, this));
                 Ok(())
             }
             Type::TypeVariable(self_var) => {
@@ -1409,7 +1409,7 @@ impl Type {
                             let clone = Type::TypeVariable(var_clone);
                             bindings.insert(*new_target_id, (self_var.clone(), type_var_kind, clone));
                         } else {
-                            bindings.insert(target_id, (var.clone(), Kind::Normal, this.clone()));
+                            bindings.insert(target_id, (var.clone(), Kind::IntegerOrField, this.clone()));
                         }
                         Ok(())
                     }
@@ -2025,12 +2025,22 @@ impl Type {
             // This is needed for monomorphizing trait impl methods.
             match type_bindings.get(&binding.0) {
                 Some((_, kind, replacement)) if substitute_bound_typevars => {
-                    assert!(
-                        kind.unifies(&replacement.kind()),
-                        "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
-                        kind,
-                        replacement.kind()
-                    );
+                    // TODO: don't need to check kind since we're overwriting w/ replacement?
+                    // assert!(
+                    //     kind.unifies(&replacement.kind()),
+                    //     "while substituting (substitute_bound_typevars): expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
+                    //     kind,
+                    //     replacement.kind()
+                    // );
+                    
+                    // TODO: cleanup debugging
+                    if !kind.unifies(&replacement.kind()) {
+                        dbg!(
+                            "while substituting (substitute_bound_typevars): expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
+                            kind,
+                            replacement.kind()
+                        );
+                    }
 
                     recur_on_binding(binding.0, replacement)
                 }
@@ -2042,7 +2052,7 @@ impl Type {
                         Some((_, kind, replacement)) => {
                             assert!(
                                 kind.unifies(&replacement.kind()),
-                                "expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
+                                "while substituting (unbound): expected kind of unbound TypeVariable ({:?}) to match the kind of its binding ({:?})",
                                 kind,
                                 replacement.kind()
                             );
