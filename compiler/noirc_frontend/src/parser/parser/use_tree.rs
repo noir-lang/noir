@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind},
+    ast::{Ident, Path, PathKind, UseTree, UseTreeKind},
     token::Keyword,
 };
 
@@ -28,22 +28,7 @@ impl<'a> Parser<'a> {
         start_span: Span,
         kind: PathKind,
     ) -> UseTree {
-        let mut segments = Vec::new();
-        let mut trailing_double_colon = false;
-
-        while let Some(ident) = self.eat_ident() {
-            let span = ident.span();
-            segments.push(PathSegment { ident, generics: None, span });
-            if self.eat_double_colon() {
-                trailing_double_colon = true;
-            } else {
-                trailing_double_colon = false;
-                break;
-            }
-        }
-
-        let span = if segments.is_empty() { start_span } else { self.span_since(start_span) };
-        let prefix = Path { segments, kind, span };
+        let (prefix, mut trailing_double_colon) = self.parse_path_after_kind(kind, start_span);
 
         if prefix.segments.is_empty() && kind != PathKind::Plain {
             trailing_double_colon = true;
@@ -97,18 +82,6 @@ impl<'a> Parser<'a> {
             } else {
                 UseTree { prefix, kind: UseTreeKind::Path(ident, None) }
             }
-        }
-    }
-
-    pub(super) fn parse_path_kind(&mut self) -> PathKind {
-        if self.eat_keyword(Keyword::Crate) {
-            PathKind::Crate
-        } else if self.eat_keyword(Keyword::Dep) {
-            PathKind::Dep
-        } else if self.eat_keyword(Keyword::Super) {
-            PathKind::Super
-        } else {
-            PathKind::Plain
         }
     }
 }

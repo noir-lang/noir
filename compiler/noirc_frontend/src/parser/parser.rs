@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, LValue, Path, Statement, TraitBound},
+    ast::{Ident, LValue, Statement, TraitBound},
     lexer::{Lexer, SpannedTokenResult},
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
@@ -18,6 +18,7 @@ mod global;
 mod item;
 mod item_visibility;
 mod module;
+mod path;
 mod pattern;
 mod structs;
 mod type_alias;
@@ -103,10 +104,6 @@ impl<'a> Parser<'a> {
         let items = self.parse_items();
 
         ParsedModule { items, inner_doc_comments }
-    }
-
-    pub(crate) fn parse_path_no_turbofish(&mut self) -> Path {
-        todo!("Parser")
     }
 
     pub(crate) fn parse_trait_bound(&mut self) -> TraitBound {
