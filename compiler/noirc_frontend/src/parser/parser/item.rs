@@ -3,7 +3,7 @@ use crate::{
     token::Keyword,
 };
 
-use super::Parser;
+use super::{impls::Impl, Parser};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_items(&mut self) -> Vec<Item> {
@@ -64,7 +64,10 @@ impl<'a> Parser<'a> {
 
         if self.eat_keyword(Keyword::Impl) {
             // TODO: error if there's comptime or mutable or unconstrained
-            return Some(ItemKind::Impl(self.parse_impl()));
+            return Some(match self.parse_impl() {
+                Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
+                Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
+            });
         }
 
         if self.eat_keyword(Keyword::Global) {

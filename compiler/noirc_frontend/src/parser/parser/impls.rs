@@ -1,24 +1,61 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Documented, NoirFunction, TypeImpl},
+    ast::{
+        Documented, GenericTypeArgs, NoirFunction, NoirTraitImpl, Path, TypeImpl,
+        UnresolvedGeneric, UnresolvedTypeData,
+    },
     token::Keyword,
 };
 
 use super::Parser;
 
+pub(crate) enum Impl {
+    Impl(TypeImpl),
+    TraitImpl(NoirTraitImpl),
+}
+
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_impl(&mut self) -> TypeImpl {
+    pub(crate) fn parse_impl(&mut self) -> Impl {
         let generics = self.parse_generics();
 
         let type_span_start = self.current_token_span;
         let object_type = self.parse_type();
         let type_span = self.span_since(type_span_start);
 
+        if self.eat_keyword(Keyword::For) {
+            if let UnresolvedTypeData::Named(trait_name, _, _) = object_type.typ {
+                return Impl::TraitImpl(self.parse_trait_impl(generics, trait_name));
+            } else {
+                // TODO: error, but we continue parsing the type and assume this is going to be a regular impl
+                self.parse_type();
+            };
+        }
+
         let where_clause = self.parse_where_clause();
         let methods = self.parse_impl_body();
 
-        TypeImpl { object_type, type_span, generics, where_clause, methods }
+        Impl::Impl(TypeImpl { object_type, type_span, generics, where_clause, methods })
+    }
+
+    fn parse_trait_impl(
+        &mut self,
+        impl_generics: Vec<UnresolvedGeneric>,
+        trait_name: Path,
+    ) -> NoirTraitImpl {
+        // TODO: parse generics
+        // TODO: parse body
+        let trait_generics = GenericTypeArgs::default();
+        let object_type = self.parse_type();
+        let where_clause = self.parse_where_clause();
+        NoirTraitImpl {
+            impl_generics,
+            trait_name,
+            trait_generics,
+            object_type,
+            where_clause,
+            items: Vec::new(),
+        }
     }
 
     fn parse_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Span)> {
@@ -70,7 +107,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ItemVisibility, Pattern},
+        ast::{ItemVisibility, Pattern, UnresolvedTypeData},
         parser::{parser::parse_program, ItemKind},
     };
 
@@ -234,5 +271,37 @@ mod tests {
             panic!("Expected type impl");
         };
         assert_eq!(type_impl.object_type.to_string(), "Foo");
+    }
+
+    #[test]
+    fn parse_empty_trait_impl() {
+        let src = "impl Foo for Field {}";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::TraitImpl(trait_impl) = &item.kind else {
+            panic!("Expected trait impl");
+        };
+        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert!(trait_impl.items.is_empty());
+        assert!(trait_impl.impl_generics.is_empty());
+    }
+
+    #[test]
+    fn parse_empty_trait_impl_with_generics() {
+        let src = "impl <T> Foo for Field {}";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::TraitImpl(trait_impl) = &item.kind else {
+            panic!("Expected trait impl");
+        };
+        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert!(trait_impl.items.is_empty());
+        assert_eq!(trait_impl.impl_generics.len(), 1);
     }
 }
