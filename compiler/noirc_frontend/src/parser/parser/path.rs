@@ -1,10 +1,11 @@
-use crate::ast::{AsTraitPath, Path, PathKind, PathSegment, TypePath, UnresolvedType};
+use crate::ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, TypePath, UnresolvedType};
 use crate::macros_api::ExpressionKind;
 use crate::parser::{NoirParser, ParserError, ParserErrorReason};
 
 use crate::token::{Keyword, Token};
 
 use chumsky::prelude::*;
+use noirc_errors::Span;
 
 use super::keyword;
 use super::primitives::{ident, path_segment, path_segment_no_turbofish, turbofish};
@@ -78,10 +79,19 @@ pub(super) fn type_path<'a>(
 ) -> impl NoirParser<ExpressionKind> + 'a {
     primitive_type()
         .then_ignore(just(Token::DoubleColon))
-        .then(ident())
+        .then(ident().or_not())
         .then(turbofish(type_parser))
-        .map(|((typ, item), turbofish)| {
+        .validate(|((typ, item), turbofish), span, emit| {
             let turbofish = turbofish.unwrap_or_default();
+            let item = if let Some(item) = item {
+                item
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedIdentifierAfterColons,
+                    span,
+                ));
+                Ident::new(String::new(), Span::from(span.end()..span.end()))
+            };
             ExpressionKind::TypePath(TypePath { typ, item, turbofish })
         })
 }

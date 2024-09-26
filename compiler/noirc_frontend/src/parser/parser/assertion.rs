@@ -1,14 +1,11 @@
-use crate::ast::{Expression, ExpressionKind, StatementKind};
-use crate::parser::{
-    ignore_then_commit, labels::ParsingRuleLabel, parenthesized, ExprParser, NoirParser,
-    ParserError, ParserErrorReason,
-};
+use crate::ast::StatementKind;
+use crate::parser::{ignore_then_commit, then_commit, ParserError, ParserErrorReason};
+use crate::parser::{labels::ParsingRuleLabel, parenthesized, ExprParser, NoirParser};
 
-use crate::ast::{BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Recoverable};
+use crate::ast::{ConstrainKind, ConstrainStatement};
 use crate::token::{Keyword, Token};
 
 use chumsky::prelude::*;
-use noirc_errors::Spanned;
 
 use super::keyword;
 
@@ -20,7 +17,13 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None, ConstrainKind::Constrain)))
+    .map_with_span(|expr, span| {
+        StatementKind::Constrain(ConstrainStatement {
+            kind: ConstrainKind::Constrain,
+            arguments: vec![expr],
+            span,
+        })
+    })
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -31,42 +34,17 @@ pub(super) fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind>
 where
     P: ExprParser + 'a,
 {
-    let argument_parser =
-        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(1).at_most(2);
+    let keyword = choice((
+        keyword(Keyword::Assert).map(|_| ConstrainKind::Assert),
+        keyword(Keyword::AssertEq).map(|_| ConstrainKind::AssertEq),
+    ));
 
-    ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
+    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing();
+
+    then_commit(keyword, parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|expressions, span, _| {
-            let condition = expressions.first().unwrap_or(&Expression::error(span)).clone();
-            let message = expressions.get(1).cloned();
-            StatementKind::Constrain(ConstrainStatement(condition, message, ConstrainKind::Assert))
-        })
-}
-
-pub(super) fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
-where
-    P: ExprParser + 'a,
-{
-    let argument_parser =
-        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(2).at_most(3);
-
-    ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
-        .labelled(ParsingRuleLabel::Statement)
-        .validate(|exprs: Vec<Expression>, span, _| {
-            let predicate = Expression::new(
-                ExpressionKind::Infix(Box::new(InfixExpression {
-                    lhs: exprs.first().unwrap_or(&Expression::error(span)).clone(),
-                    rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
-                    operator: Spanned::from(span, BinaryOpKind::Equal),
-                })),
-                span,
-            );
-            let message = exprs.get(2).cloned();
-            StatementKind::Constrain(ConstrainStatement(
-                predicate,
-                message,
-                ConstrainKind::AssertEq,
-            ))
+        .map_with_span(|(kind, arguments), span| {
+            StatementKind::Constrain(ConstrainStatement { arguments, kind, span })
         })
 }
 
@@ -74,7 +52,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        ast::Literal,
+        ast::{BinaryOpKind, ExpressionKind, Literal},
         parser::parser::{
             expression,
             test_helpers::{parse_all, parse_all_failing, parse_with},
@@ -174,11 +152,11 @@ mod test {
 
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                let message = message.unwrap();
-                match message.kind {
+            StatementKind::Constrain(ConstrainStatement { arguments, .. }) => {
+                let message = arguments.last().unwrap();
+                match &message.kind {
                     ExpressionKind::Literal(Literal::Str(message_string)) => {
-                        assert_eq!(message_string, "assertion message".to_owned());
+                        assert_eq!(message_string, "assertion message");
                     }
                     _ => unreachable!(),
                 }
@@ -191,7 +169,7 @@ mod test {
     #[test]
     fn parse_assert_eq() {
         parse_all(
-            assertion_eq(expression()),
+            assertion(expression()),
             vec![
                 "assert_eq(x, y)",
                 "assert_eq(((x + y) == k) + z, y)",
@@ -201,14 +179,13 @@ mod test {
                 "assert_eq(x + x ^ x, y | m)",
             ],
         );
-        match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
-            .unwrap()
+        match parse_with(assertion(expression()), "assert_eq(x, y, \"assertion message\")").unwrap()
         {
-            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                let message = message.unwrap();
-                match message.kind {
+            StatementKind::Constrain(ConstrainStatement { arguments, .. }) => {
+                let message = arguments.last().unwrap();
+                match &message.kind {
                     ExpressionKind::Literal(Literal::Str(message_string)) => {
-                        assert_eq!(message_string, "assertion message".to_owned());
+                        assert_eq!(message_string, "assertion message");
                     }
                     _ => unreachable!(),
                 }

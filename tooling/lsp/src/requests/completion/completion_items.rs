@@ -51,6 +51,10 @@ impl<'a> NodeFinder<'a> {
                     AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
                     AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
+                    AttributeTarget::Let => {
+                        // No item can be suggested for a let statement attribute
+                        return Vec::new();
+                    }
                 }
             } else {
                 None

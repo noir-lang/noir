@@ -256,15 +256,6 @@ namespace Program {
             static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        struct Sha256 {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Sha256&, const Sha256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sha256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
         struct Blake2s {
             Program::HeapVector message;
             Program::HeapArray output;
@@ -462,7 +453,7 @@ namespace Program {
 
         struct ToRadix {
             Program::MemoryAddress input;
-            uint32_t radix;
+            Program::MemoryAddress radix;
             Program::HeapArray output;
             bool output_bits;
 
@@ -471,7 +462,7 @@ namespace Program {
             static ToRadix bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<AES128Encrypt, Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, MultiScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression, ToRadix> value;
+        std::variant<AES128Encrypt, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, MultiScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression, ToRadix> value;
 
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -827,15 +818,6 @@ namespace Program {
             static RANGE bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        struct SHA256 {
-            std::vector<Program::FunctionInput> inputs;
-            std::array<Program::Witness, 32> outputs;
-
-            friend bool operator==(const SHA256&, const SHA256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static SHA256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
         struct Blake2s {
             std::vector<Program::FunctionInput> inputs;
             std::array<Program::Witness, 32> outputs;
@@ -1040,7 +1022,7 @@ namespace Program {
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<AES128Encrypt, AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Keccak256, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
+        std::variant<AES128Encrypt, AND, XOR, RANGE, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Keccak256, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
 
         friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -2632,47 +2614,6 @@ Program::BlackBoxFuncCall::RANGE serde::Deserializable<Program::BlackBoxFuncCall
 
 namespace Program {
 
-    inline bool operator==(const BlackBoxFuncCall::SHA256 &lhs, const BlackBoxFuncCall::SHA256 &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.outputs == rhs.outputs)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::SHA256::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::SHA256>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::SHA256 BlackBoxFuncCall::SHA256::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::SHA256>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxFuncCall::SHA256>::serialize(const Program::BlackBoxFuncCall::SHA256 &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxFuncCall::SHA256 serde::Deserializable<Program::BlackBoxFuncCall::SHA256>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxFuncCall::SHA256 obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
     inline bool operator==(const BlackBoxFuncCall::Blake2s &lhs, const BlackBoxFuncCall::Blake2s &rhs) {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
@@ -3649,47 +3590,6 @@ Program::BlackBoxOp::AES128Encrypt serde::Deserializable<Program::BlackBoxOp::AE
     obj.iv = serde::Deserializable<decltype(obj.iv)>::deserialize(deserializer);
     obj.key = serde::Deserializable<decltype(obj.key)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const BlackBoxOp::Sha256 &lhs, const BlackBoxOp::Sha256 &rhs) {
-        if (!(lhs.message == rhs.message)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::Sha256::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Sha256>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Sha256 BlackBoxOp::Sha256::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Sha256>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxOp::Sha256>::serialize(const Program::BlackBoxOp::Sha256 &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxOp::Sha256 serde::Deserializable<Program::BlackBoxOp::Sha256>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxOp::Sha256 obj;
-    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
 
