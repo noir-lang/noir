@@ -35,10 +35,10 @@ struct Context {
     //
     // The type of the array being operated on is recorded.
     // If an array_set to that array type is encountered, that is also recorded.
-    inc_rcs: HashMap<Type, Vec<IncRc>>,
+    inc_rcs: HashMap<Type, Vec<RcInstruction>>,
 }
 
-pub(crate) struct IncRc {
+pub(crate) struct RcInstruction {
     pub(crate) id: InstructionId,
     pub(crate) array: ValueId,
     pub(crate) possibly_mutated: bool,
@@ -80,7 +80,7 @@ impl Context {
                 let typ = function.dfg.type_of_value(*value);
 
                 // We assume arrays aren't mutated until we find an array_set
-                let inc_rc = IncRc { id: *instruction, array: *value, possibly_mutated: false };
+                let inc_rc = RcInstruction { id: *instruction, array: *value, possibly_mutated: false };
                 self.inc_rcs.entry(typ).or_default().push(inc_rc);
             }
         }
@@ -128,8 +128,8 @@ impl Context {
 pub(crate) fn pop_rc_for(
     value: ValueId,
     function: &Function,
-    inc_rcs: &mut HashMap<Type, Vec<IncRc>>,
-) -> Option<IncRc> {
+    inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
+) -> Option<RcInstruction> {
     let typ = function.dfg.type_of_value(value);
 
     let rcs = inc_rcs.get_mut(&typ)?;

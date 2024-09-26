@@ -17,7 +17,7 @@ use crate::ssa::{
     ssa_gen::{Ssa, SSA_WORD_SIZE},
 };
 
-use super::rc::{pop_rc_for, IncRc};
+use super::rc::{pop_rc_for, RcInstruction};
 
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
@@ -119,7 +119,7 @@ impl Context {
         // We track per block whether an IncrementRc instruction has a paired DecrementRc instruction
         // with the same value but no array set in between.
         // If we see an inc/dec RC pair within a block we can safely remove both instructions.
-        let mut inc_rcs: HashMap<Type, Vec<IncRc>> = HashMap::default();
+        let mut inc_rcs: HashMap<Type, Vec<RcInstruction>> = HashMap::default();
         let mut inc_rcs_to_remove = HashSet::default();
 
         // Indexes of instructions that might be out of bounds.
@@ -187,7 +187,7 @@ impl Context {
         &self,
         instruction_id: InstructionId,
         function: &Function,
-        inc_rcs: &mut HashMap<Type, Vec<IncRc>>,
+        inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
         inc_rcs_to_remove: &mut HashSet<InstructionId>,
     ) {
         let instruction = &function.dfg[instruction_id];
@@ -206,7 +206,7 @@ impl Context {
                 let typ = function.dfg.type_of_value(*value);
 
                 // We assume arrays aren't mutated until we find an array_set
-                let inc_rc = IncRc { id: instruction_id, array: *value, possibly_mutated: false };
+                let inc_rc = RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
                 inc_rcs.entry(typ).or_default().push(inc_rc);
             }
             Instruction::ArraySet { array, .. } => {
