@@ -9,7 +9,7 @@ use crate::{
     token::{Attribute, Attributes, Keyword, Token},
 };
 
-use super::Parser;
+use super::{where_clause, Parser};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_function(
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
             (FunctionReturnType::Default(Span::default()), Visibility::Private)
         };
 
-        // TODO: parse where clause
+        let where_clause = self.parse_where_clause();
 
         let body = if let Token::LeftBrace = self.token.token() {
             self.parse_block_expression()
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             parameters,
             body,
             span: start_span,
-            where_clause: Vec::new(),
+            where_clause,
             return_type,
             return_visibility,
         }

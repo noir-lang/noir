@@ -24,6 +24,7 @@ mod structs;
 mod type_alias;
 mod types;
 mod use_tree;
+mod where_clause;
 
 /// Entry function for the parser - also handles lexing internally.
 ///
