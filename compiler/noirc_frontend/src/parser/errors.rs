@@ -15,6 +15,10 @@ use super::labels::ParsingRuleLabel;
 pub enum ParserErrorReason {
     #[error("Expected expression")]
     ExpectedExpression,
+    #[error("Unexpected ;")]
+    UnexpectedSemicolon,
+    #[error("Unexpected ,")]
+    UnexpectedComma,
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]

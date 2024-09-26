@@ -223,7 +223,7 @@ impl<'a> Parser<'a> {
     fn eat_commas(&mut self) -> bool {
         if self.eat_comma() {
             while self.eat_comma() {
-                // TODO: error
+                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_span);
             }
             true
         } else {
@@ -274,7 +274,7 @@ impl<'a> Parser<'a> {
     fn eat_semicolons(&mut self) -> bool {
         if self.eat_semicolon() {
             while self.eat_semicolon() {
-                // TODO: error
+                self.push_error(ParserErrorReason::UnexpectedSemicolon, self.previous_token_span);
             }
             true
         } else {
