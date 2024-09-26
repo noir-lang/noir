@@ -45,42 +45,16 @@ impl<'a> Parser<'a> {
 
         let Some(name) = self.eat_ident() else {
             // TODO: error
-            return FunctionDefinition {
-                name: Ident::default(),
+            return empty_fuction(
                 attributes,
                 is_unconstrained,
                 is_comptime,
                 visibility,
-                generics: Vec::new(),
-                parameters: Vec::new(),
-                body: empty_body(),
-                span: start_span,
-                where_clause: Vec::new(),
-                return_type: FunctionReturnType::Default(Span::default()),
-                return_visibility: Visibility::Private,
-            };
+                start_span,
+            );
         };
 
         let generics = self.parse_generics();
-
-        if !self.eat_left_paren() {
-            // TODO: error
-            return FunctionDefinition {
-                name,
-                attributes,
-                is_unconstrained,
-                is_comptime,
-                visibility,
-                generics,
-                parameters: Vec::new(),
-                body: empty_body(),
-                span: self.span_since(start_span),
-                where_clause: Vec::new(),
-                return_type: FunctionReturnType::Default(Span::default()),
-                return_visibility: Visibility::Private,
-            };
-        }
-
         let parameters = self.parse_function_parameters(allow_self);
 
         // TODO: parse return type
@@ -111,6 +85,10 @@ impl<'a> Parser<'a> {
 
     fn parse_function_parameters(&mut self, allow_self: bool) -> Vec<Param> {
         let mut parameters = Vec::new();
+
+        if !self.eat_left_paren() {
+            return parameters;
+        }
 
         if self.eat_right_paren() {
             return parameters;
@@ -211,6 +189,29 @@ impl<'a> Parser<'a> {
         }
 
         Attributes { function: primary, secondary }
+    }
+}
+
+fn empty_fuction(
+    attributes: Attributes,
+    is_unconstrained: bool,
+    is_comptime: bool,
+    visibility: ItemVisibility,
+    start_span: Span,
+) -> FunctionDefinition {
+    FunctionDefinition {
+        name: Ident::default(),
+        attributes,
+        is_unconstrained,
+        is_comptime,
+        visibility,
+        generics: Vec::new(),
+        parameters: Vec::new(),
+        body: empty_body(),
+        span: start_span,
+        where_clause: Vec::new(),
+        return_type: FunctionReturnType::Default(Span::default()),
+        return_visibility: Visibility::Private,
     }
 }
 
