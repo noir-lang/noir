@@ -77,12 +77,6 @@ struct Context {
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 }
 
-// struct IncRc {
-//     id: InstructionId,
-//     array: ValueId,
-//     possibly_mutated: bool,
-// }
-
 impl Context {
     /// Steps backwards through the instruction of the given block, amassing a set of used values
     /// as it goes, and at the same time marking instructions for removal if they haven't appeared
@@ -115,7 +109,7 @@ impl Context {
         // We can track IncrementRc instructions per block to determine whether they are useless.
         // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
         // them if their value is not used anywhere in the function. However, even when their value is used, their existence
-        // is extra pointless logic if there is no array set between the increment and the decrement of the reference counter.
+        // is pointless logic if there is no array set between the increment and the decrement of the reference counter.
         // We track per block whether an IncrementRc instruction has a paired DecrementRc instruction
         // with the same value but no array set in between.
         // If we see an inc/dec RC pair within a block we can safely remove both instructions.
