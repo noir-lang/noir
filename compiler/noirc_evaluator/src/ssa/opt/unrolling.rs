@@ -110,7 +110,6 @@ impl Function {
         Ok(())
     }
 
-
     pub(crate) fn try_to_unroll_loops(&mut self, errors: &mut Vec<RuntimeError>) {
         // Loop unrolling in brillig can lead to a code explosion currently. This can
         // also be true for ACIR, but we have no alternative to unrolling in ACIR.

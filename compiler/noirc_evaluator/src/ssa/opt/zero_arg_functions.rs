@@ -55,4 +55,3 @@ impl Ssa {
         Ok(self)
     }
 }
-
