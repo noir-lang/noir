@@ -535,6 +535,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
+        self.mark_struct_as_constructed(r#type.clone());
+
         let turbofish_span = last_segment.turbofish_span();
 
         let struct_generics = self.resolve_struct_turbofish_generics(
@@ -562,6 +564,12 @@ impl<'context> Elaborator<'context> {
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
+    }
+
+    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<StructType>) {
+        let struct_type = struct_type.borrow();
+        let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+        self.interner.usage_tracker.mark_as_used(parent_module_id, &struct_type.name);
     }
 
     /// Resolve all the fields of a struct constructor expression.
@@ -790,7 +798,7 @@ impl<'context> Elaborator<'context> {
             let parameter = DefinitionKind::Local(None);
             let typ = self.resolve_inferred_type(typ);
             arg_types.push(typ.clone());
-            (self.elaborate_pattern(pattern, typ.clone(), parameter), typ)
+            (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
         });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);

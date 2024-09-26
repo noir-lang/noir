@@ -576,18 +576,6 @@ impl AsmWriter {
         self.comment(format!("lessthan end (result = {})", BoolTargetDisplay { t: result }));
     }
 
-    pub fn comment_sha256_begin(&mut self, msg_len_in_bits: u64) {
-        self.comment(format!("sha256 begin (msg_len_in_bits = {})", msg_len_in_bits));
-    }
-
-    pub fn comment_sha256_end(&mut self, message: &Vec<BoolTarget>, digest: &Vec<BoolTarget>) {
-        self.comment(format!(
-            "sha256 end (message = {}, digest = {})",
-            VecBoolTargetDisplay { t: message },
-            VecBoolTargetDisplay { t: digest }
-        ));
-    }
-
     pub fn comment_update_call_stack(&mut self, call_stack: CallStack) {
         if call_stack != self.last_call_stack {
             if let Some(last_loc) = call_stack.last() {

@@ -290,14 +290,21 @@ fn contract(
 fn type_alias_definition() -> impl NoirParser<TopLevelStatementKind> {
     use self::Keyword::Type;
 
-    let p = ignore_then_commit(keyword(Type), ident());
-    let p = then_commit(p, function::generics());
-    let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, parse_type());
-
-    p.map_with_span(|((name, generics), typ), span| {
-        TopLevelStatementKind::TypeAlias(NoirTypeAlias { name, generics, typ, span })
-    })
+    item_visibility()
+        .then_ignore(keyword(Type))
+        .then(ident())
+        .then(function::generics())
+        .then_ignore(just(Token::Assign))
+        .then(parse_type())
+        .map_with_span(|(((visibility, name), generics), typ), span| {
+            TopLevelStatementKind::TypeAlias(NoirTypeAlias {
+                name,
+                generics,
+                typ,
+                visibility,
+                span,
+            })
+        })
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -550,8 +557,12 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let_statement(expr_parser)
-        .map(|((pattern, typ), expr)| StatementKind::new_let(pattern, typ, expr))
+    attributes().then(let_statement(expr_parser)).validate(
+        |(attributes, ((pattern, typ), expr)), span, emit| {
+            let attributes = attributes::validate_secondary_attributes(attributes, span, emit);
+            StatementKind::new_let(pattern, typ, expr, attributes)
+        },
+    )
 }
 
 pub fn pattern() -> impl NoirParser<Pattern> {

@@ -116,6 +116,15 @@ impl<'a> NodeFinder<'a> {
                     ));
                 }
             }
+            AttributeTarget::Let => {
+                if name_matches("allow", prefix) || name_matches("unused_variables", prefix) {
+                    self.completion_items.push(simple_completion_item(
+                        "allow(unused_variables)",
+                        CompletionItemKind::METHOD,
+                        None,
+                    ));
+                }
+            }
         }
     }
 }

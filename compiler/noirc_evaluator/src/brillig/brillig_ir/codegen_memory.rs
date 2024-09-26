@@ -9,7 +9,7 @@ use super::{
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
-    BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -20,9 +20,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         pointer_register: MemoryAddress,
         size: usize,
     ) {
-        let size_register = self.make_usize_constant_instruction(size.into());
-        self.codegen_allocate_mem(pointer_register, size_register.address);
-        self.deallocate_single_addr(size_register);
+        self.load_free_memory_pointer_instruction(pointer_register);
+        self.codegen_usize_op_in_place(
+            ReservedRegisters::free_memory_pointer(),
+            BrilligBinaryOp::Add,
+            size,
+        );
     }
 
     /// Allocates an array of size contained in size_register and stores the

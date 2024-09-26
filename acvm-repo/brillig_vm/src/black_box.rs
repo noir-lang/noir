@@ -3,7 +3,7 @@ use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::BigIntSolver;
 use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256,
-    keccakf1600, sha256, sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    keccakf1600, sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -63,12 +63,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write(outputs.size, ciphertext.len().into());
             memory.write_slice(memory.read_ref(outputs.pointer), &to_value_vec(&ciphertext));
 
-            Ok(())
-        }
-        BlackBoxOp::Sha256 { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, message));
-            let bytes = sha256(message.as_slice())?;
-            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Blake2s { message, output } => {
@@ -361,7 +355,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 state[i] = value.try_into().unwrap();
             }
 
-            sha256compression(&mut state, &message);
+            sha256_compression(&mut state, &message);
             let state = state.map(|x| x.into());
 
             memory.write_slice(memory.read_ref(output.pointer), &state);
@@ -369,9 +363,13 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::ToRadix { input, radix, output, output_bits } => {
             let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
+            let radix = memory
+                .read(*radix)
+                .expect_integer_with_bit_size(IntegerBitSize::U32)
+                .expect("ToRadix opcode's radix bit size does not match expected bit size 32");
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
-            let radix = BigUint::from(*radix);
+            let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
             let mut limbs: Vec<MemoryValue<F>> = Vec::with_capacity(output.size);
 
@@ -447,7 +445,6 @@ impl BrilligBigintSolver {
 fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
     match op {
         BlackBoxOp::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
-        BlackBoxOp::Sha256 { .. } => BlackBoxFunc::SHA256,
         BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
         BlackBoxOp::Blake3 { .. } => BlackBoxFunc::Blake3,
         BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
@@ -468,56 +465,5 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::ToRadix { .. } => unreachable!("ToRadix is not an ACIR BlackBoxFunc"),
         BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
         BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use acir::{
-        brillig::{BlackBoxOp, MemoryAddress},
-        FieldElement,
-    };
-    use acvm_blackbox_solver::StubbedBlackBoxSolver;
-
-    use crate::{
-        black_box::{evaluate_black_box, to_u8_vec, to_value_vec, BrilligBigintSolver},
-        HeapArray, HeapVector, Memory,
-    };
-
-    #[test]
-    fn sha256() {
-        let message: Vec<u8> = b"hello world".to_vec();
-        let message_length = message.len();
-
-        let mut memory: Memory<FieldElement> = Memory::default();
-        let message_pointer = 3;
-        let result_pointer = message_pointer + message_length;
-        memory.write(MemoryAddress(0), message_pointer.into());
-        memory.write(MemoryAddress(1), message_length.into());
-        memory.write(MemoryAddress(2), result_pointer.into());
-        memory.write_slice(MemoryAddress(message_pointer), to_value_vec(&message).as_slice());
-
-        let op = BlackBoxOp::Sha256 {
-            message: HeapVector { pointer: 0.into(), size: 1.into() },
-            output: HeapArray { pointer: 2.into(), size: 32 },
-        };
-
-        evaluate_black_box(
-            &op,
-            &StubbedBlackBoxSolver,
-            &mut memory,
-            &mut BrilligBigintSolver::default(),
-        )
-        .unwrap();
-
-        let result = memory.read_slice(MemoryAddress(result_pointer), 32);
-
-        assert_eq!(
-            to_u8_vec(result),
-            vec![
-                185, 77, 39, 185, 147, 77, 62, 8, 165, 46, 82, 215, 218, 125, 171, 250, 196, 132,
-                239, 227, 122, 83, 128, 238, 144, 136, 247, 172, 226, 239, 205, 233
-            ]
-        );
     }
 }

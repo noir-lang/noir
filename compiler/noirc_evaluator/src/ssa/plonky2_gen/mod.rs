@@ -2,7 +2,6 @@ pub mod asm_writer;
 mod circuit;
 mod config;
 mod div_generator;
-mod intrinsics;
 
 use super::{
     ir::{
@@ -12,7 +11,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
+use acvm::{AcirField, FieldElement};
 use asm_writer::AsmWriter;
 pub use circuit::Plonky2Circuit;
 use div_generator::add_div_mod;
@@ -25,7 +24,6 @@ use plonky2::{
 use std::collections::{BTreeMap, HashMap};
 
 use self::config::{P2Builder, P2Config, P2Field};
-use self::intrinsics::make_sha256_circuit;
 
 use crate::errors::{Plonky2GenError, RuntimeError};
 use crate::ssa::ir::{
@@ -513,44 +511,6 @@ impl Builder {
         P2Value::make_integer(type_a, target)
     }
 
-    fn perform_sha256(
-        &mut self,
-        argument: (P2Type, Vec<P2Target>),
-        destination: ValueId,
-    ) -> Result<(), Plonky2GenError> {
-        /*
-        * TODO(stanm)
-        match argument.0 {
-            P2Type::Integer(_) => {}
-            _ => {
-                let message = format!("wrong type of argument to perform_sha256: {:?}", argument.0);
-                return Err(Plonky2GenError::ICE { message });
-            }
-        };
-        */
-        let msg_len = u64::try_from(argument.1.len()).unwrap() * 8;
-        let sha256targets = make_sha256_circuit(&mut self.asm_writer, msg_len);
-        let mut j = 0;
-        for target in argument.1 {
-            let split_arg = self.asm_writer.split_le(target.get_target()?, 8);
-            for arg_bit in split_arg.iter().rev() {
-                self.asm_writer.connect(arg_bit.target, sha256targets.message[j].target);
-                j += 1;
-            }
-        }
-        j = 0;
-        let mut result = Vec::new();
-        while j < 256 {
-            result.push(P2Target::IntTarget(
-                self.asm_writer.le_sum(sha256targets.digest[j..j + 8].iter().rev()),
-            ));
-            j += 8;
-        }
-        let p2value = P2Value::make_array(P2Type::Integer(8, false), result);
-        self.set(destination, p2value);
-        Ok(())
-    }
-
     fn is_function_call_safe_to_ignore(&self, function_id: FunctionId) -> bool {
         let func_name = &self.function_names[&function_id];
         func_name == "print_unconstrained"
@@ -889,25 +849,12 @@ impl Builder {
                 self.set(destinations[0], new_array);
             }
 
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { func, arguments: _ } => {
                 let func = self.dfg[func].clone();
 
                 match func {
                     Value::Intrinsic(intrinsic) => match intrinsic {
                         Intrinsic::BlackBox(bb_func) => match bb_func {
-                            BlackBoxFunc::SHA256 => {
-                                let destinations: Vec<_> = self
-                                    .dfg
-                                    .instruction_results(instruction_id)
-                                    .iter()
-                                    .cloned()
-                                    .collect();
-                                assert!(destinations.len() == 1);
-
-                                assert!(arguments.len() == 1);
-                                let argument = self.get_array(arguments[0])?;
-                                let _ = self.perform_sha256(argument, destinations[0])?;
-                            }
                             _ => {
                                 let feature_name = format!("black box function {:?}", bb_func);
                                 return Err(Plonky2GenError::UnsupportedFeature {

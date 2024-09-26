@@ -821,6 +821,7 @@ impl Attribute {
             }
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             ["use_callers_scope"] => Attribute::Secondary(SecondaryAttribute::UseCallersScope),
+            ["allow", tag] => Attribute::Secondary(SecondaryAttribute::Allow(tag.to_string())),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
@@ -942,6 +943,9 @@ pub enum SecondaryAttribute {
     /// within the scope of the calling function/module rather than this one.
     /// This affects functions such as `Expression::resolve` or `Quoted::as_type`.
     UseCallersScope,
+
+    /// Allow chosen warnings to happen so they are silenced.
+    Allow(String),
 }
 
 impl SecondaryAttribute {
@@ -965,6 +969,14 @@ impl SecondaryAttribute {
             SecondaryAttribute::Abi(_) => Some("abi".to_string()),
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
+            SecondaryAttribute::Allow(_) => Some("allow".to_string()),
+        }
+    }
+
+    pub(crate) fn is_allow_unused_variables(&self) -> bool {
+        match self {
+            SecondaryAttribute::Allow(string) => string == "unused_variables",
+            _ => false,
         }
     }
 }
@@ -983,6 +995,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
             SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
             SecondaryAttribute::UseCallersScope => write!(f, "#[use_callers_scope]"),
+            SecondaryAttribute::Allow(ref k) => write!(f, "#[allow(#{k})]"),
         }
     }
 }
@@ -1039,7 +1052,9 @@ impl AsRef<str> for SecondaryAttribute {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
             SecondaryAttribute::Custom(attribute) => &attribute.contents,
-            SecondaryAttribute::Field(string) | SecondaryAttribute::Abi(string) => string,
+            SecondaryAttribute::Field(string)
+            | SecondaryAttribute::Abi(string)
+            | SecondaryAttribute::Allow(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
             SecondaryAttribute::Varargs => "",

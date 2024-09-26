@@ -112,9 +112,10 @@ impl ModuleData {
     pub fn declare_type_alias(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+        self.declare(name, visibility, id.into(), None)
     }
 
     pub fn declare_trait(

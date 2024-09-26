@@ -42,11 +42,15 @@ impl ModuleId {
     pub fn dummy_id() -> ModuleId {
         ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() }
     }
-}
 
-impl ModuleId {
     pub fn module(self, def_maps: &DefMaps) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
+    }
+
+    /// Returns this module's parent, if there's any.
+    pub fn parent(self, def_maps: &DefMaps) -> Option<ModuleId> {
+        let module_data = &def_maps[&self.krate].modules()[self.local_id.0];
+        module_data.parent.map(|local_id| ModuleId { krate: self.krate, local_id })
     }
 }
 

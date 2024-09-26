@@ -141,13 +141,14 @@ impl StatementKind {
         pattern: Pattern,
         r#type: UnresolvedType,
         expression: Expression,
+        attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
             r#type,
             expression,
             comptime: false,
-            attributes: vec![],
+            attributes,
         })
     }
 
@@ -814,6 +815,7 @@ impl ForRange {
                         Pattern::Identifier(array_ident.clone()),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         array,
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -858,6 +860,7 @@ impl ForRange {
                         Pattern::Identifier(identifier),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         Expression::new(loop_element, array_span),
+                        vec![],
                     ),
                     span: array_span,
                 };

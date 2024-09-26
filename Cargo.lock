@@ -2881,6 +2881,7 @@ version = "0.34.0"
 dependencies = [
  "acvm",
  "async-lsp",
+ "chumsky",
  "codespan-lsp",
  "convert_case 0.6.0",
  "fm",

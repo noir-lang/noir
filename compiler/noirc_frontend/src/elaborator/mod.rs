@@ -96,7 +96,7 @@ pub struct Elaborator<'context> {
 
     pub(crate) interner: &'context mut NodeInterner,
 
-    def_maps: &'context mut DefMaps,
+    pub(crate) def_maps: &'context mut DefMaps,
 
     pub(crate) file: FileId,
 
@@ -363,8 +363,12 @@ impl<'context> Elaborator<'context> {
             if let Kind::Numeric(typ) = &generic.kind {
                 let definition = DefinitionKind::GenericType(generic.type_var.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
-                let hir_ident =
-                    self.add_variable_decl_inner(ident, false, false, false, definition);
+                let hir_ident = self.add_variable_decl(
+                    ident, false, // mutable
+                    false, // allow_shadowing
+                    false, // warn_if_unused
+                    definition,
+                );
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());
             }
         }
@@ -768,11 +772,16 @@ impl<'context> Elaborator<'context> {
                 type_span,
             );
 
+            if is_entry_point {
+                self.mark_parameter_type_as_used(&typ);
+            }
+
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
+                true, // warn_if_unused
                 None,
             );
 
@@ -844,6 +853,57 @@ impl<'context> Elaborator<'context> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+    }
+
+    fn mark_parameter_type_as_used(&mut self, typ: &Type) {
+        match typ {
+            Type::Array(_n, typ) => self.mark_parameter_type_as_used(typ),
+            Type::Slice(typ) => self.mark_parameter_type_as_used(typ),
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.mark_parameter_type_as_used(typ);
+                }
+            }
+            Type::Struct(struct_type, generics) => {
+                self.mark_struct_as_constructed(struct_type.clone());
+                for generic in generics {
+                    self.mark_parameter_type_as_used(generic);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
+            }
+            Type::MutableReference(typ) => {
+                self.mark_parameter_type_as_used(typ);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.mark_parameter_type_as_used(left);
+                self.mark_parameter_type_as_used(right);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Forall(..)
+            | Type::Error => (),
+        }
+
+        if let Type::Alias(alias_type, generics) = typ {
+            self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
+            return;
+        }
+
+        if let Type::Struct(struct_type, _generics) = typ {
+            self.mark_struct_as_constructed(struct_type.clone());
+        }
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
@@ -1140,11 +1200,98 @@ impl<'context> Elaborator<'context> {
         self.file = alias.file_id;
         self.local_module = alias.module_id;
 
+        let name = &alias.type_alias_def.name;
+        let visibility = alias.type_alias_def.visibility;
+        let span = alias.type_alias_def.typ.span;
+
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
+
+        if visibility != ItemVisibility::Private {
+            self.check_aliased_type_is_not_more_private(name, visibility, &typ, span);
+        }
+
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
+    }
+
+    fn check_aliased_type_is_not_more_private(
+        &mut self,
+        name: &Ident,
+        visibility: ItemVisibility,
+        typ: &Type,
+        span: Span,
+    ) {
+        match typ {
+            Type::Struct(struct_type, generics) => {
+                let struct_type = struct_type.borrow();
+                let struct_module_id = struct_type.id.module_id();
+
+                // We only check this in types in the same crate. If it's in a different crate
+                // then it's either accessible (all good) or it's not, in which case a different
+                // error will happen somewhere else, but no need to error again here.
+                if struct_module_id.krate == self.crate_id {
+                    // Find the struct in the parent module so we can know its visibility
+                    let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+                    let parent_module_data = self.get_module(parent_module_id);
+                    let per_ns = parent_module_data.find_name(&struct_type.name);
+                    if let Some((_, aliased_visibility, _)) = per_ns.types {
+                        if aliased_visibility < visibility {
+                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                                typ: struct_type.name.to_string(),
+                                item: name.to_string(),
+                                span,
+                            });
+                        }
+                    }
+                }
+
+                for generic in generics {
+                    self.check_aliased_type_is_not_more_private(name, visibility, generic, span);
+                }
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.check_aliased_type_is_not_more_private(
+                    name,
+                    visibility,
+                    &alias_type.borrow().get_type(generics),
+                    span,
+                );
+            }
+            Type::Function(args, return_type, env, _) => {
+                for arg in args {
+                    self.check_aliased_type_is_not_more_private(name, visibility, arg, span);
+                }
+                self.check_aliased_type_is_not_more_private(name, visibility, return_type, span);
+                self.check_aliased_type_is_not_more_private(name, visibility, env, span);
+            }
+            Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
+                self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.check_aliased_type_is_not_more_private(name, visibility, left, span);
+                self.check_aliased_type_is_not_more_private(name, visibility, right, span);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::TypeVariable(..)
+            | Type::Forall(..)
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::NamedGeneric(..)
+            | Type::Error => (),
+        }
     }
 
     fn collect_struct_definitions(&mut self, structs: &BTreeMap<StructId, UnresolvedStruct>) {
@@ -1459,7 +1606,7 @@ impl<'context> Elaborator<'context> {
         func_span: Span,
     ) {
         //TODO(totel) ugly hack for result. Only for the prototype. Will be fixed later on
-        let result_hir_ident = self.add_variable_decl_inner(
+        let result_hir_ident = self.add_variable_decl(
             Ident(Spanned::from(func_span, String::from("result"))),
             false,
             true,

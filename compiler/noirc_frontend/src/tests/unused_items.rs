@@ -1,4 +1,7 @@
-use crate::hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError};
+use crate::{
+    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
+    tests::assert_no_errors,
+};
 
 use super::get_program_errors;
 
@@ -28,14 +31,13 @@ fn errors_on_unused_private_import() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
     else {
         panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "bar");
-    assert_eq!(*item_type, "import");
+    assert_eq!(item.item_type(), "import");
 }
 
 #[test]
@@ -64,14 +66,13 @@ fn errors_on_unused_pub_crate_import() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
     else {
         panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "bar");
-    assert_eq!(*item_type, "import");
+    assert_eq!(item.item_type(), "import");
 }
 
 #[test]
@@ -96,14 +97,13 @@ fn errors_on_unused_function() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
     else {
         panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "foo");
-    assert_eq!(*item_type, "function");
+    assert_eq!(item.item_type(), "function");
 }
 
 #[test]
@@ -120,14 +120,13 @@ fn errors_on_unused_struct() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
     else {
         panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "Foo");
-    assert_eq!(*item_type, "struct");
+    assert_eq!(item.item_type(), "struct");
 }
 
 #[test]
@@ -148,12 +147,95 @@ fn errors_on_unused_trait() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item_type }) =
-        &errors[0].0
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
     else {
         panic!("Expected an unused item error");
     };
 
     assert_eq!(ident.to_string(), "Foo");
-    assert_eq!(*item_type, "trait");
+    assert_eq!(item.item_type(), "trait");
+}
+
+#[test]
+fn silences_unused_variable_warning() {
+    let src = r#"
+    fn main() {
+        #[allow(unused_variables)]
+        let x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_unused_type_alias() {
+    let src = r#"
+    type Foo = Field;
+    type Bar = Field;
+    pub fn bar(_: Bar) {}
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(ident.to_string(), "Foo");
+    assert_eq!(item.item_type(), "type alias");
+}
+
+#[test]
+fn errors_if_type_alias_aliases_more_private_type() {
+    let src = r#"
+    struct Foo {}
+    pub type Bar = Foo;
+    pub fn no_unused_warnings(_b: Bar) {
+        let _ = Foo {};
+    }
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
+        typ, item, ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(typ, "Foo");
+    assert_eq!(item, "Bar");
+}
+
+#[test]
+fn errors_if_type_alias_aliases_more_private_type_in_generic() {
+    let src = r#"
+    pub struct Generic<T> { value: T }
+    struct Foo {}
+    pub type Bar = Generic<Foo>;
+    pub fn no_unused_warnings(_b: Bar) {
+        let _ = Foo {};
+        let _ = Generic { value: 1 };
+    }
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
+        typ, item, ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected an unused item error");
+    };
+
+    assert_eq!(typ, "Foo");
+    assert_eq!(item, "Bar");
 }
