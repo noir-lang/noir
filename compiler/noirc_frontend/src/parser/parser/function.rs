@@ -45,7 +45,8 @@ impl<'a> Parser<'a> {
         let attributes = self.validate_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
-            // TODO: error
+            self.push_error(ParserErrorReason::ExpectedIdentifierAfterFn, self.current_token_span);
+
             return empty_function(
                 attributes,
                 is_unconstrained,
@@ -92,6 +93,8 @@ impl<'a> Parser<'a> {
             return parameters;
         }
 
+        let mut trailing_comma = false;
+
         loop {
             if self.eat_right_paren() {
                 break;
@@ -100,9 +103,17 @@ impl<'a> Parser<'a> {
             let start_span = self.current_token_span;
             let pattern = self.parse_pattern();
             if self.current_token_span == start_span {
-                // TODO: error
-                self.eat_right_paren();
-                break;
+                // An error was already produced by parse_pattern().
+                // Let's try with the next token.
+                self.next_token();
+                if self.is_eof() {
+                    break;
+                }
+                continue;
+            }
+
+            if !trailing_comma && !parameters.is_empty() {
+                self.push_error(ParserErrorReason::MissingCommaSeparatingParameters, start_span);
             }
 
             if self.eat_colon() {
@@ -116,7 +127,11 @@ impl<'a> Parser<'a> {
                     span: self.span_since(start_span),
                 });
             } else {
-                // TODO: error
+                self.push_error(
+                    ParserErrorReason::MissingTypeForFunctionParameter,
+                    self.previous_token_span,
+                );
+
                 parameters.push(Param {
                     visibility: Visibility::Private,
                     pattern,
@@ -125,8 +140,7 @@ impl<'a> Parser<'a> {
                 });
             }
 
-            self.eat_commas();
-            // TODO: error if no commas between parameters
+            trailing_comma = self.eat_commas();
         }
 
         parameters
@@ -145,20 +159,21 @@ impl<'a> Parser<'a> {
             if self.eat_left_paren() {
                 if let Some(int) = self.eat_int() {
                     if !self.eat_right_paren() {
-                        // TODO: error
+                        self.push_error(
+                            ParserErrorReason::ExpectedRightParen,
+                            self.current_token_span,
+                        );
                     }
 
                     let id = int.to_u128() as u32;
                     return Visibility::CallData(id);
                 } else {
-                    // TODO: error
-                    if !self.eat_right_paren() {
-                        // TODO: error
-                    }
+                    self.push_error(ParserErrorReason::ExpectedInteger, self.current_token_span);
+                    self.eat_right_paren();
                     return Visibility::CallData(0);
                 }
             } else {
-                // TODO: error
+                self.push_error(ParserErrorReason::ExpectedLeftParen, self.current_token_span);
                 return Visibility::CallData(0);
             }
         }

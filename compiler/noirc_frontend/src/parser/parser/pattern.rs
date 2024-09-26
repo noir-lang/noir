@@ -1,5 +1,6 @@
 use crate::{
     ast::{Ident, Path, Pattern},
+    parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
 };
 
@@ -33,6 +34,8 @@ impl<'a> Parser<'a> {
 
         let mut path = self.parse_path();
         if path.is_empty() {
+            self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
+
             // TODO: error
             return Pattern::Identifier(Ident::default());
         }

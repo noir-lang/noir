@@ -15,12 +15,30 @@ use super::labels::ParsingRuleLabel;
 pub enum ParserErrorReason {
     #[error("Expected expression")]
     ExpectedExpression,
-    #[error("Unexpected ;")]
+    #[error("Expected pattern")]
+    ExpectedPattern,
+    #[error("Unexpected `;`")]
     UnexpectedSemicolon,
-    #[error("Unexpected ,")]
+    #[error("Unexpected `,`")]
     UnexpectedComma,
-    #[error("Expected a , separating these two expressions")]
+    #[error("Expected a `,` separating these two expressions")]
     MissingCommaSeparatingExpressions,
+    #[error("Expected a `,` separating these two parameters")]
+    MissingCommaSeparatingParameters,
+    #[error("Expected a `,` separating these two generic parameters")]
+    MissingCommaSeparatingGenerics,
+    #[error("Expected an identifier after `fn`")]
+    ExpectedIdentifierAfterFn,
+    #[error("Missing type for function parameter")]
+    MissingTypeForFunctionParameter,
+    #[error("Missing type for numeric generic")]
+    MissingTypeForNumericGeneric,
+    #[error("Expected `)`")]
+    ExpectedRightParen,
+    #[error("Expected `(`")]
+    ExpectedLeftParen,
+    #[error("Expected an integer")]
+    ExpectedInteger,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),

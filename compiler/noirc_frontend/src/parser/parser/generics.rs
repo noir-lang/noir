@@ -5,6 +5,7 @@ use crate::{
         IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
         UnresolvedTypeData,
     },
+    parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
 };
 
@@ -18,11 +19,26 @@ impl<'a> Parser<'a> {
             return generics;
         }
 
-        while let Some(generic) = self.parse_generic() {
+        if self.eat_greater() {
+            // TODO: error?
+            return generics;
+        }
+
+        let mut trailing_comma = false;
+
+        loop {
+            let start_span = self.current_token_span;
+            let Some(generic) = self.parse_generic() else {
+                break;
+            };
+
+            if !trailing_comma && !generics.is_empty() {
+                self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
+            }
+
             generics.push(generic);
 
-            self.eat_commas();
-            // TODO: error if no commas between generics
+            trailing_comma = self.eat_commas();
 
             if self.eat_greater() {
                 break;
@@ -45,7 +61,10 @@ impl<'a> Parser<'a> {
             };
 
             if !self.eat_colon() {
-                // TODO: error
+                self.push_error(
+                    ParserErrorReason::MissingTypeForNumericGeneric,
+                    self.current_token_span,
+                );
                 return Some(UnresolvedGeneric::Numeric { ident, typ: type_u32() });
             }
 

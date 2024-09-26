@@ -291,6 +291,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn is_eof(&self) -> bool {
+        self.token.token() == &Token::EOF
+    }
+
     fn span_since(&self, start_span: Span) -> Span {
         if self.current_token_span == start_span {
             start_span
