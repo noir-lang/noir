@@ -90,23 +90,13 @@ impl<'a> Parser<'a> {
             return parameters;
         }
 
-        if self.eat_right_paren() {
-            return parameters;
-        }
-
         loop {
-            let start_span = self.current_token_span;
-
-            let pattern = self.parse_pattern();
-
-            // Check if the parser advanced
-            if self.current_token_span == start_span {
-                if !self.eat_right_paren() {
-                    // TODO: error
-                }
-
+            if self.eat_right_paren() {
                 break;
             }
+
+            let start_span = self.current_token_span;
+            let pattern = self.parse_pattern();
 
             if self.eat_colon() {
                 let visibility = self.parse_visibility();
@@ -129,10 +119,6 @@ impl<'a> Parser<'a> {
             }
 
             self.eat_commas();
-
-            if self.eat_right_paren() {
-                break;
-            }
         }
 
         parameters
