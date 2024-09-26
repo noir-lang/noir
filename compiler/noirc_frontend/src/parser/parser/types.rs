@@ -52,7 +52,6 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedTypeData},
         parser::Parser,

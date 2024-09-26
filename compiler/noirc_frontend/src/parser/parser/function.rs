@@ -9,7 +9,7 @@ use crate::{
     token::{Attribute, Attributes, Keyword, Token},
 };
 
-use super::{where_clause, Parser};
+use super::Parser;
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_function(
