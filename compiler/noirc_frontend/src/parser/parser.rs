@@ -15,6 +15,7 @@ mod expression;
 mod function;
 mod generics;
 mod global;
+mod impls;
 mod item;
 mod item_visibility;
 mod module;
@@ -291,7 +292,11 @@ impl<'a> Parser<'a> {
     }
 
     fn span_since(&self, start_span: Span) -> Span {
-        let end_span = self.previous_token_span;
-        Span::from(start_span.start()..end_span.end())
+        if self.current_token_span == start_span {
+            start_span
+        } else {
+            let end_span = self.previous_token_span;
+            Span::from(start_span.start()..end_span.end())
+        }
     }
 }

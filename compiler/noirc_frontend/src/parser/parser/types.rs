@@ -12,11 +12,7 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
 
         let typ = self.parse_unresolved_type_data();
-        let span = if self.current_token_span == start_span {
-            start_span
-        } else {
-            self.span_since(start_span)
-        };
+        let span = self.span_since(start_span);
 
         UnresolvedType { typ, span }
     }

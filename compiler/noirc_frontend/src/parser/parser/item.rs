@@ -62,6 +62,11 @@ impl<'a> Parser<'a> {
             return Some(ItemKind::Struct(self.parse_struct(attributes, visibility, start_span)));
         }
 
+        if self.eat_keyword(Keyword::Impl) {
+            // TODO: error if there's comptime or mutable or unconstrained
+            return Some(ItemKind::Impl(self.parse_impl(start_span)));
+        }
+
         if self.eat_keyword(Keyword::Global) {
             // TODO: error if there's unconstrained
             return Some(ItemKind::Global(self.parse_global(attributes, comptime, mutable)));

@@ -6,11 +6,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_expression(&mut self) -> Expression {
         let start_span = self.current_token_span;
         let kind = self.parse_expression_kind();
-        let span = if start_span == self.current_token_span {
-            start_span
-        } else {
-            self.span_since(start_span)
-        };
+        let span = self.span_since(start_span);
 
         Expression { kind, span }
     }

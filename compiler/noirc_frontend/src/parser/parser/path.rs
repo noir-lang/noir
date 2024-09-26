@@ -58,11 +58,7 @@ impl<'a> Parser<'a> {
             // TODO: error
         }
 
-        let span = if segments.is_empty() && kind == PathKind::Plain {
-            start_span
-        } else {
-            self.span_since(start_span)
-        };
+        let span = self.span_since(start_span);
 
         (Path { segments, kind, span }, trailing_double_colon)
     }
