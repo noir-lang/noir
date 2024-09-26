@@ -80,7 +80,8 @@ impl Context {
                 let typ = function.dfg.type_of_value(*value);
 
                 // We assume arrays aren't mutated until we find an array_set
-                let inc_rc = RcInstruction { id: *instruction, array: *value, possibly_mutated: false };
+                let inc_rc =
+                    RcInstruction { id: *instruction, array: *value, possibly_mutated: false };
                 self.inc_rcs.entry(typ).or_default().push(inc_rc);
             }
         }
