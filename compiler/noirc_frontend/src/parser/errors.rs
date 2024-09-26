@@ -13,6 +13,8 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
+    #[error("Expected expression")]
+    ExpectedExpression,
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
@@ -33,6 +35,8 @@ pub enum ParserErrorReason {
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
     #[error("expected ( or < after function name")]
     ExpectedLeftParenOrLeftBracketAfterFunctionName,
+    #[error("Expected a , separating these two expressions")]
+    MissingCommaSeparatingExpressions,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
@@ -103,6 +107,12 @@ impl ParserError {
             reason: None,
             span,
         }
+    }
+
+    pub fn expected_token(token: Token, found: Token, span: Span) -> ParserError {
+        let mut error = ParserError::empty(found, span);
+        error.expected_tokens.insert(token);
+        error
     }
 
     pub fn expected_label(label: ParsingRuleLabel, found: Token, span: Span) -> ParserError {

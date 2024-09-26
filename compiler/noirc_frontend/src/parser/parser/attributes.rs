@@ -1,6 +1,6 @@
 use noirc_errors::Span;
 
-use crate::parser::{ParserError, ParserErrorReason};
+use crate::parser::ParserErrorReason;
 use crate::token::SecondaryAttribute;
 use crate::token::{Attribute, Token, TokenKind};
 
@@ -38,10 +38,7 @@ impl<'a> Parser<'a> {
             .into_iter()
             .filter_map(|(attribute, span)| match attribute {
                 Attribute::Function(..) => {
-                    self.errors.push(ParserError::with_reason(
-                        ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
-                        span,
-                    ));
+                    self.push_error(ParserErrorReason::NoFunctionAttributesAllowedOnStruct, span);
                     None
                 }
                 Attribute::Secondary(attr) => Some(attr),

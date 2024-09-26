@@ -1,4 +1,7 @@
-use crate::ast::{BlockExpression, Expression, ExpressionKind, Literal, Statement, StatementKind};
+use crate::{
+    ast::{BlockExpression, Expression, ExpressionKind, Literal, Statement, StatementKind},
+    parser::ParserErrorReason,
+};
 
 use super::Parser;
 
@@ -28,7 +31,7 @@ impl<'a> Parser<'a> {
             return ExpressionKind::Block(kind);
         }
 
-        // TODO: parse other expressions
+        self.push_error(ParserErrorReason::ExpectedExpression, self.current_token_span);
 
         ExpressionKind::Error
     }
@@ -45,19 +48,19 @@ impl<'a> Parser<'a> {
         let mut exprs = Vec::new();
         let mut trailing_comma = false;
         loop {
+            let start_span = self.current_token_span;
             let expr = self.parse_expression();
             if let ExpressionKind::Error = expr.kind {
-                // TODO: error
                 self.eat_right_paren();
-                if exprs.is_empty() {
-                    return Some(ExpressionKind::Error);
-                }
                 break;
             }
+            if !trailing_comma && !exprs.is_empty() {
+                self.push_error(ParserErrorReason::MissingCommaSeparatingExpressions, start_span);
+            }
+
             exprs.push(expr);
 
             trailing_comma = self.eat_commas();
-            // TODO: error if no comma between exprs
 
             if self.eat_right_paren() {
                 break;
@@ -98,7 +101,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{ExpressionKind, Literal, StatementKind},
-        parser::Parser,
+        parser::{Parser, ParserErrorReason},
     };
 
     #[test]
@@ -169,13 +172,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_unclosed_parentheses() {
-        let src = "(";
-        let expr = Parser::for_str(src).parse_expression();
-        assert!(matches!(expr.kind, ExpressionKind::Error));
-    }
-
-    #[test]
     fn parses_block_expression_with_a_single_expression() {
         let src = "{ 1 }";
         let expr = Parser::for_str(src).parse_expression();
@@ -194,5 +190,27 @@ mod tests {
         };
         assert_eq!(field, 1_u128.into());
         assert!(!negative);
+    }
+
+    #[test]
+    fn parses_unclosed_parentheses() {
+        let src = "(";
+        let mut parser = Parser::for_str(src);
+        let _ = parser.parse_expression();
+        assert_eq!(parser.errors.len(), 1);
+
+        let error = parser.errors[0].reason().unwrap();
+        assert!(matches!(error, ParserErrorReason::ExpectedExpression));
+    }
+
+    #[test]
+    fn parses_missing_comma() {
+        let src = "(1 2)";
+        let mut parser = Parser::for_str(src);
+        let _ = parser.parse_expression();
+        assert_eq!(parser.errors.len(), 1);
+
+        let error = parser.errors[0].reason().unwrap();
+        assert!(matches!(error, ParserErrorReason::MissingCommaSeparatingExpressions));
     }
 }

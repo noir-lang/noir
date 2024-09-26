@@ -7,7 +7,7 @@ use crate::{
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
-use super::{ParsedModule, ParserError};
+use super::{ParsedModule, ParserError, ParserErrorReason};
 
 mod attributes;
 mod doc_comments;
@@ -298,5 +298,9 @@ impl<'a> Parser<'a> {
             let end_span = self.previous_token_span;
             Span::from(start_span.start()..end_span.end())
         }
+    }
+
+    fn push_error(&mut self, reason: ParserErrorReason, span: Span) {
+        self.errors.push(ParserError::with_reason(reason, span));
     }
 }

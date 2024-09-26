@@ -6,7 +6,7 @@ use crate::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
         NoirFunction, Param, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    parser::{ParserError, ParserErrorReason},
+    parser::ParserErrorReason,
     token::{Attribute, Attributes, Keyword, Token},
 };
 
@@ -174,10 +174,7 @@ impl<'a> Parser<'a> {
             match attribute {
                 Attribute::Function(attr) => {
                     if primary.is_some() {
-                        self.errors.push(ParserError::with_reason(
-                            ParserErrorReason::MultipleFunctionAttributesFound,
-                            span,
-                        ));
+                        self.push_error(ParserErrorReason::MultipleFunctionAttributesFound, span);
                     }
                     primary = Some(attr);
                 }
