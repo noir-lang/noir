@@ -69,9 +69,9 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
             state = keccakf1600(state);
         }
     } else {
-        // `real_max_blocks` is guaranteed to at least be `1` 
+        // `real_max_blocks` is guaranteed to at least be `1`
         // We peel out the first block as to avoid a conditional inside of the loop.
-        // Otherwise, a dynamic predicate can cause a blowup in a constrained runtime. 
+        // Otherwise, a dynamic predicate can cause a blowup in a constrained runtime.
         for j in 0..LIMBS_PER_BLOCK {
             state[j] = sliced_buffer.get(j);
         }
@@ -99,7 +99,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
 }
 
 mod tests {
-    use crate::hash::keccak::keccak256;
+    use super::keccak256;
 
     #[test]
     fn smoke_test() {

@@ -98,12 +98,16 @@ impl<'context> Elaborator<'context> {
             }
         }
 
+        let warn_if_unused =
+            !let_stmt.attributes.iter().any(|attr| attr.is_allow_unused_variables());
+
         let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
             let_stmt.pattern,
             r#type.clone(),
             definition,
             &mut Vec::new(),
+            warn_if_unused,
             global_id,
         );
 
@@ -215,7 +219,12 @@ impl<'context> Elaborator<'context> {
         // TODO: For loop variables are currently mutable by default since we haven't
         //       yet implemented syntax for them to be optionally mutable.
         let kind = DefinitionKind::Local(None);
-        let identifier = self.add_variable_decl(identifier, false, true, kind);
+        let identifier = self.add_variable_decl(
+            identifier, false, // mutable
+            true,  // allow_shadowing
+            true,  // warn_if_unused
+            kind,
+        );
 
         // Check that start range and end range have the same types
         let range_span = start_span.merge(end_span);

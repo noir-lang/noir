@@ -30,7 +30,6 @@ use crate::{
             InterpreterError, Value,
         },
         def_collector::dc_crate::CollectedItems,
-        def_map::ModuleId,
     },
     hir_def::function::FunctionBody,
     macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
@@ -505,14 +504,7 @@ fn struct_def_module(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let struct_id = get_struct(self_argument)?;
-    let struct_module_id = struct_id.module_id();
-
-    // A struct's module is its own module. To get the module where its defined we need
-    // to look for its parent.
-    let module_data = interpreter.elaborator.get_module(struct_module_id);
-    let parent_local_id = module_data.parent.expect("Expected struct module parent to exist");
-    let parent = ModuleId { krate: struct_module_id.krate, local_id: parent_local_id };
-
+    let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
     Ok(Value::ModuleDefinition(parent))
 }
 
@@ -794,7 +786,7 @@ fn to_le_radix(
     };
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix(value, radix);
+    let decomposed_integer = compute_to_radix_le(value, radix);
     let decomposed_integer = vecmap(0..limb_count as usize, |i| match decomposed_integer.get(i) {
         Some(digit) => Value::U8(*digit),
         None => Value::U8(0),
@@ -805,7 +797,7 @@ fn to_le_radix(
     ))
 }
 
-fn compute_to_radix(field: FieldElement, radix: u32) -> Vec<u8> {
+fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -2338,6 +2330,7 @@ fn function_def_set_parameters(
                 parameter_type.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
+                true, // warn_if_unused
                 None,
             )
         });

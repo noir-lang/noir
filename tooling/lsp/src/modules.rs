@@ -18,15 +18,6 @@ pub(crate) fn get_parent_module(
     interner.reference_module(reference_id).copied()
 }
 
-pub(crate) fn get_parent_module_id(
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    module_id: ModuleId,
-) -> Option<ModuleId> {
-    let crate_def_map = &def_maps[&module_id.krate];
-    let module_data = &crate_def_map.modules()[module_id.local_id.0];
-    module_data.parent.map(|parent| ModuleId { krate: module_id.krate, local_id: parent })
-}
-
 pub(crate) fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
     match module_def_id {
         ModuleDefId::ModuleId(id) => ReferenceId::Module(id),
