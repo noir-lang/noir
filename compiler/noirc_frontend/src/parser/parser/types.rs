@@ -22,8 +22,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_unresolved_type_data(&mut self) -> UnresolvedTypeData {
-        if self.eat_left_paren() {
-            return self.parse_parentheses_type();
+        if let Some(typ) = self.parse_parentheses_type() {
+            return typ;
         }
 
         if self.eat_keyword(Keyword::Bool) {
@@ -63,9 +63,13 @@ impl<'a> Parser<'a> {
         UnresolvedTypeData::Error
     }
 
-    fn parse_parentheses_type(&mut self) -> UnresolvedTypeData {
+    fn parse_parentheses_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_left_paren() {
+            return None;
+        }
+
         if self.eat_right_paren() {
-            return UnresolvedTypeData::Unit;
+            return Some(UnresolvedTypeData::Unit);
         }
 
         let mut types = Vec::new();
@@ -81,11 +85,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if types.len() == 1 && !trailing_comma {
+        Some(if types.len() == 1 && !trailing_comma {
             UnresolvedTypeData::Parenthesized(Box::new(types.remove(0)))
         } else {
             UnresolvedTypeData::Tuple(types)
-        }
+        })
     }
 
     pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {

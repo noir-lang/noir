@@ -66,11 +66,7 @@ impl<'a> Parser<'a> {
 
         let where_clause = self.parse_where_clause();
 
-        let body = if let Token::LeftBrace = self.token.token() {
-            self.parse_block_expression()
-        } else {
-            empty_body()
-        };
+        let body = self.parse_block_expression().unwrap_or_else(|| empty_body());
 
         FunctionDefinition {
             name,
