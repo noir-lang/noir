@@ -1,3 +1,6 @@
+use noirc_errors::Span;
+
+use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::SecondaryAttribute;
 use crate::token::{Attribute, Token, TokenKind};
 
@@ -12,13 +15,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(super) fn parse_attributes(&mut self) -> Vec<Attribute> {
-        let mut attributes: Vec<Attribute> = Vec::new();
+    pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
+        let mut attributes = Vec::new();
 
         while let Some(token) = self.eat_kind(TokenKind::Attribute) {
             match token.into_token() {
                 Token::Attribute(attribute) => {
-                    attributes.push(attribute.clone());
+                    attributes.push((attribute, self.previous_token_span));
                 }
                 _ => unreachable!(),
             }
@@ -29,18 +32,19 @@ impl<'a> Parser<'a> {
 
     pub(super) fn validate_secondary_attributes(
         &mut self,
-        attributes: Vec<Attribute>,
+        attributes: Vec<(Attribute, Span)>,
     ) -> Vec<SecondaryAttribute> {
         attributes
             .into_iter()
-            .filter_map(|attribute| {
-                match attribute {
-                    Attribute::Function(..) => {
-                        // TODO: error
-                        None
-                    }
-                    Attribute::Secondary(attr) => Some(attr),
+            .filter_map(|(attribute, span)| match attribute {
+                Attribute::Function(..) => {
+                    self.errors.push(ParserError::with_reason(
+                        ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
+                        span,
+                    ));
+                    None
                 }
+                Attribute::Secondary(attr) => Some(attr),
             })
             .collect()
     }
@@ -69,10 +73,10 @@ mod tests {
         let mut attributes = Parser::for_str(src).parse_attributes();
         assert_eq!(attributes.len(), 2);
 
-        let attr = attributes.remove(0);
+        let (attr, _) = attributes.remove(0);
         assert!(matches!(attr, Attribute::Function(FunctionAttribute::Test(TestScope::None))));
 
-        let attr = attributes.remove(0);
+        let (attr, _) = attributes.remove(0);
         assert!(matches!(attr, Attribute::Secondary(SecondaryAttribute::Deprecated(None))));
     }
 }

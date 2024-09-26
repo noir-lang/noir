@@ -6,6 +6,7 @@ use crate::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
         NoirFunction, Param, UnresolvedType, UnresolvedTypeData, Visibility,
     },
+    parser::{ParserError, ParserErrorReason},
     token::{Attribute, Attributes, Keyword, Token},
 };
 
@@ -14,7 +15,7 @@ use super::Parser;
 impl<'a> Parser<'a> {
     pub(crate) fn parse_function(
         &mut self,
-        attributes: Vec<Attribute>,
+        attributes: Vec<(Attribute, Span)>,
         visibility: ItemVisibility,
         is_comptime: bool,
         is_unconstrained: bool,
@@ -34,7 +35,7 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_function_definition(
         &mut self,
-        attributes: Vec<Attribute>,
+        attributes: Vec<(Attribute, Span)>,
         visibility: ItemVisibility,
         is_comptime: bool,
         is_unconstrained: bool,
@@ -165,15 +166,18 @@ impl<'a> Parser<'a> {
         Visibility::Private
     }
 
-    fn validate_attributes(&mut self, attributes: Vec<Attribute>) -> Attributes {
+    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Span)>) -> Attributes {
         let mut primary = None;
         let mut secondary = Vec::new();
 
-        for attribute in attributes {
+        for (attribute, span) in attributes {
             match attribute {
                 Attribute::Function(attr) => {
                     if primary.is_some() {
-                        // TODO: err
+                        self.errors.push(ParserError::with_reason(
+                            ParserErrorReason::MultipleFunctionAttributesFound,
+                            span,
+                        ));
                     }
                     primary = Some(attr);
                 }
@@ -216,7 +220,7 @@ fn empty_body() -> BlockExpression {
 mod tests {
     use crate::{
         ast::{UnresolvedTypeData, Visibility},
-        parser::{parser::parse_program, ItemKind},
+        parser::{parser::parse_program, ItemKind, ParserErrorReason},
     };
 
     #[test]
@@ -359,5 +363,15 @@ mod tests {
             panic!("Expected function");
         };
         assert_eq!("foo", noir_function.def.name.to_string());
+    }
+
+    #[test]
+    fn parse_error_multiple_function_attributes_found() {
+        let src = "#[foreign(foo)] #[oracle(bar)] fn foo() {}";
+        let (_, errors) = parse_program(src);
+        assert_eq!(errors.len(), 1);
+
+        let reason = errors[0].reason().unwrap();
+        assert!(matches!(reason, ParserErrorReason::MultipleFunctionAttributesFound));
     }
 }

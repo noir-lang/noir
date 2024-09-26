@@ -13,7 +13,7 @@ use super::Parser;
 impl<'a> Parser<'a> {
     pub(crate) fn parse_global(
         &mut self,
-        attributes: Vec<Attribute>,
+        attributes: Vec<(Attribute, Span)>,
         comptime: bool,
         mutable: bool,
     ) -> LetStatement {

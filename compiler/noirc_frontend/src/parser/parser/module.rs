@@ -1,3 +1,5 @@
+use noirc_errors::Span;
+
 use crate::{
     ast::{Ident, ModuleDeclaration},
     parser::{ItemKind, ParsedSubModule},
@@ -9,7 +11,7 @@ use super::Parser;
 impl<'a> Parser<'a> {
     pub(super) fn parse_module_or_contract(
         &mut self,
-        attributes: Vec<Attribute>,
+        attributes: Vec<(Attribute, Span)>,
         is_contract: bool,
     ) -> ItemKind {
         let outer_attributes = self.validate_secondary_attributes(attributes);

@@ -10,7 +10,7 @@ use super::Parser;
 impl<'a> Parser<'a> {
     pub(crate) fn parse_struct(
         &mut self,
-        attributes: Vec<Attribute>,
+        attributes: Vec<(Attribute, Span)>,
         visibility: ItemVisibility,
         start_span: Span,
     ) -> NoirStruct {
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
-        parser::{parser::parse_program, ItemKind},
+        parser::{parser::parse_program, ItemKind, ParserErrorReason},
     };
 
     #[test]
@@ -192,5 +192,15 @@ mod tests {
             panic!("Expected struct");
         };
         assert_eq!("Foo", noir_struct.name.to_string());
+    }
+
+    #[test]
+    fn parse_error_no_function_attributes_allowed_on_struct() {
+        let src = "#[test] struct Foo {}";
+        let (_, errors) = parse_program(src);
+        assert_eq!(errors.len(), 1);
+
+        let reason = errors[0].reason().unwrap();
+        assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnStruct));
     }
 }
