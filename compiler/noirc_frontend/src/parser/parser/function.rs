@@ -57,10 +57,11 @@ impl<'a> Parser<'a> {
         let generics = self.parse_generics();
         let parameters = self.parse_function_parameters(allow_self);
 
-        let return_type = if self.eat(Token::Arrow) {
-            FunctionReturnType::Ty(self.parse_type())
+        let (return_type, return_visibility) = if self.eat(Token::Arrow) {
+            let visibility = self.parse_visibility();
+            (FunctionReturnType::Ty(self.parse_type()), visibility)
         } else {
-            FunctionReturnType::Default(Span::default())
+            (FunctionReturnType::Default(Span::default()), Visibility::Private)
         };
 
         // TODO: parse where clause
@@ -83,7 +84,7 @@ impl<'a> Parser<'a> {
             span: start_span,
             where_clause: Vec::new(),
             return_type,
-            return_visibility: Visibility::Private,
+            return_visibility,
         }
     }
 
@@ -328,6 +329,21 @@ mod tests {
         let ItemKind::Function(noir_function) = &item.kind else {
             panic!("Expected function");
         };
+        assert_eq!(noir_function.def.return_visibility, Visibility::Private);
+        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+    }
+
+    #[test]
+    fn parse_function_return_visibility() {
+        let src = "fn foo() -> pub Field {}";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Function(noir_function) = &item.kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.def.return_visibility, Visibility::Public);
         assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
     }
 }
