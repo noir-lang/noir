@@ -67,6 +67,7 @@ impl<'a> Parser<'a> {
             patterns.push(self.parse_pattern());
 
             self.eat_commas();
+            // TODO: error if no commas between patterns
         }
 
         Some(Pattern::Tuple(patterns, self.span_since(start_span)))
@@ -81,6 +82,20 @@ impl<'a> Parser<'a> {
             if self.eat_right_brace() {
                 break;
             }
+
+            let Some(ident) = self.eat_ident() else {
+                // TODO: error
+                break;
+            };
+
+            if self.eat_colon() {
+                patterns.push((ident, self.parse_pattern()));
+            } else {
+                patterns.push((ident.clone(), Pattern::Identifier(ident)));
+            }
+
+            self.eat_commas();
+            // TODO: error if no comma between patterns
         }
 
         Pattern::Struct(path, patterns, self.span_since(start_span))
@@ -156,5 +171,14 @@ mod tests {
             panic!("Expected a struct pattern")
         };
         assert_eq!(path.to_string(), "foo::Bar");
+        assert_eq!(patterns.len(), 2);
+
+        let (ident, pattern) = patterns.remove(0);
+        assert_eq!(ident.to_string(), "x");
+        assert_eq!(pattern.to_string(), "one");
+
+        let (ident, pattern) = patterns.remove(0);
+        assert_eq!(ident.to_string(), "y");
+        assert_eq!(pattern.to_string(), "y");
     }
 }

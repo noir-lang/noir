@@ -22,6 +22,8 @@ impl<'a> Parser<'a> {
             generics.push(generic);
 
             self.eat_commas();
+            // TODO: error if no commas between generics
+
             if self.eat_greater() {
                 break;
             }

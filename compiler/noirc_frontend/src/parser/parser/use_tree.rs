@@ -51,6 +51,7 @@ impl<'a> Parser<'a> {
                     use_trees.push(use_tree);
 
                     self.eat_commas();
+                    // TODO: error if no comma between use trees
 
                     if self.eat_right_brace() {
                         break;

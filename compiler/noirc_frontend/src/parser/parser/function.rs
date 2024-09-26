@@ -119,6 +119,7 @@ impl<'a> Parser<'a> {
             }
 
             self.eat_commas();
+            // TODO: error if no commas between parameters
         }
 
         parameters

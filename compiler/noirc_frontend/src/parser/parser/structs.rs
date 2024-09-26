@@ -53,6 +53,7 @@ impl<'a> Parser<'a> {
             fields.push(Documented::new(StructField { name, typ }, doc_comments));
 
             self.eat_commas();
+            // TODO: error if no comma between fields
         }
 
         if !self.eat_right_brace() {
