@@ -74,3 +74,41 @@ fn type_u32() -> UnresolvedType {
         span: Span::default(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        ast::{IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        parser::Parser,
+    };
+
+    #[test]
+    fn parses_no_generics() {
+        let src = "1";
+        let generics = Parser::for_str(src).parse_generics();
+        assert!(generics.is_empty());
+    }
+
+    #[test]
+    fn parses_generics() {
+        let src = "<A, let B: u32>";
+        let mut generics = Parser::for_str(src).parse_generics();
+        assert_eq!(generics.len(), 2);
+
+        let generic = generics.remove(0);
+        let UnresolvedGeneric::Variable(ident) = generic else {
+            panic!("Expected generic variable");
+        };
+        assert_eq!("A", ident.to_string());
+
+        let generic = generics.remove(0);
+        let UnresolvedGeneric::Numeric { ident, typ } = generic else {
+            panic!("Expected generic numeric");
+        };
+        assert_eq!("B", ident.to_string());
+        assert_eq!(
+            typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
+        )
+    }
+}

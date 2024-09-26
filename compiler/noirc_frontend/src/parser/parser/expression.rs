@@ -27,3 +27,22 @@ impl<'a> Parser<'a> {
         BlockExpression { statements: Vec::new() }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        ast::{ExpressionKind, Literal},
+        parser::Parser,
+    };
+
+    #[test]
+    fn parses_integer_literal() {
+        let src = "42";
+        let expr = Parser::for_str(src).parse_expression();
+        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+            panic!("Expected integer literal");
+        };
+        assert_eq!(field, 42_u128.into());
+        assert!(!negative);
+    }
+}

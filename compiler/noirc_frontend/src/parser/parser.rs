@@ -7,7 +7,7 @@ use crate::{
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
-use super::{ItemKind, ParsedModule, ParserError};
+use super::{ParsedModule, ParserError};
 
 mod attributes;
 mod doc_comments;
@@ -80,6 +80,10 @@ impl<'a> Parser<'a> {
     pub fn for_tokens(mut tokens: Tokens) -> Self {
         tokens.0.reverse();
         Self::new(TokenStream::Tokens(tokens))
+    }
+
+    pub fn for_str(str: &'a str) -> Self {
+        Self::for_lexer(Lexer::new(str))
     }
 
     fn new(tokens: TokenStream<'a>) -> Self {

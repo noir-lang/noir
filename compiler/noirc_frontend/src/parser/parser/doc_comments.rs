@@ -35,3 +35,26 @@ impl<'a> Parser<'a> {
         comments
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::Parser;
+
+    #[test]
+    fn parses_inner_doc_comments() {
+        let src = "//! Hello\n//! World";
+        let comments = Parser::for_str(src).parse_inner_doc_comments();
+        assert_eq!(comments.len(), 2);
+        assert_eq!(comments[0], " Hello");
+        assert_eq!(comments[1], " World");
+    }
+
+    #[test]
+    fn parses_outer_doc_comments() {
+        let src = "/// Hello\n/// World";
+        let comments = Parser::for_str(src).parse_outer_doc_comments();
+        assert_eq!(comments.len(), 2);
+        assert_eq!(comments[0], " Hello");
+        assert_eq!(comments[1], " World");
+    }
+}

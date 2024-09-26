@@ -1,15 +1,13 @@
 use crate::token::SecondaryAttribute;
 use crate::token::{Attribute, Token, TokenKind};
 
-use super::ItemKind;
-
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    pub(super) fn parse_inner_attribute(&mut self) -> Option<ItemKind> {
+    pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
         let token = self.eat_kind(TokenKind::InnerAttribute)?;
         match token.into_token() {
-            Token::InnerAttribute(attribute) => Some(ItemKind::InnerAttribute(attribute)),
+            Token::InnerAttribute(attribute) => Some(attribute),
             _ => unreachable!(),
         }
     }
@@ -45,5 +43,36 @@ impl<'a> Parser<'a> {
                 }
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        parser::Parser,
+        token::{Attribute, FunctionAttribute, SecondaryAttribute, TestScope},
+    };
+
+    #[test]
+    fn parses_inner_attribute() {
+        let src = "#![hello]";
+        let Some(SecondaryAttribute::Custom(custom)) = Parser::for_str(src).parse_inner_attribute()
+        else {
+            panic!("Expected inner custom attribute");
+        };
+        assert_eq!(custom.contents, "hello");
+    }
+
+    #[test]
+    fn parses_attributes() {
+        let src = "#[test] #[deprecated]";
+        let mut attributes = Parser::for_str(src).parse_attributes();
+        assert_eq!(attributes.len(), 2);
+
+        let attr = attributes.remove(0);
+        assert!(matches!(attr, Attribute::Function(FunctionAttribute::Test(TestScope::None))));
+
+        let attr = attributes.remove(0);
+        assert!(matches!(attr, Attribute::Secondary(SecondaryAttribute::Deprecated(None))));
     }
 }

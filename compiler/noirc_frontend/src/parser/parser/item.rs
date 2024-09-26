@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
 
     fn parse_item_kind(&mut self) -> Option<ItemKind> {
         if let Some(kind) = self.parse_inner_attribute() {
-            return Some(kind);
+            return Some(ItemKind::InnerAttribute(kind));
         }
 
         let attributes = self.parse_attributes();

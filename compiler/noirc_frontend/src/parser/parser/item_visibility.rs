@@ -29,3 +29,29 @@ impl<'a> Parser<'a> {
         ItemVisibility::PublicCrate
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{ast::ItemVisibility, parser::Parser};
+
+    #[test]
+    fn parses_private_visibility() {
+        let src = "(";
+        let visibility = Parser::for_str(src).parse_item_visibility();
+        assert_eq!(visibility, ItemVisibility::Private);
+    }
+
+    #[test]
+    fn parses_public_visibility() {
+        let src = "pub";
+        let visibility = Parser::for_str(src).parse_item_visibility();
+        assert_eq!(visibility, ItemVisibility::Public);
+    }
+
+    #[test]
+    fn parses_public_crate_visibility() {
+        let src = "pub(crate)";
+        let visibility = Parser::for_str(src).parse_item_visibility();
+        assert_eq!(visibility, ItemVisibility::PublicCrate);
+    }
+}

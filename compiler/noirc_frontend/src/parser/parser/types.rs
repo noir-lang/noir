@@ -38,3 +38,29 @@ impl<'a> Parser<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{
+        ast::{IntegerBitSize, Signedness, UnresolvedTypeData},
+        parser::Parser,
+    };
+
+    #[test]
+    fn parses_int_type() {
+        let src = "u32";
+        let typ = Parser::for_str(src).parse_type();
+        assert!(matches!(
+            typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
+        ));
+    }
+
+    #[test]
+    fn parses_field_type() {
+        let src = "Field";
+        let typ = Parser::for_str(src).parse_type();
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+}

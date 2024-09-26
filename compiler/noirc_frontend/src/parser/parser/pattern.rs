@@ -12,3 +12,17 @@ impl<'a> Parser<'a> {
         todo!("Parser")
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{ast::Pattern, parser::Parser};
+
+    #[test]
+    fn parses_identifier_pattern() {
+        let src = "foo";
+        let typ = Parser::for_str(src).parse_pattern();
+        let Pattern::Identifier(ident) = typ else { panic!("Expected an identifier pattern") };
+        assert_eq!(ident.to_string(), "foo");
+    }
+}
