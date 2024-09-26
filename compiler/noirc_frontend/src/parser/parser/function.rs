@@ -3,14 +3,15 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        NoirFunction, Param, UnresolvedType, UnresolvedTypeData, Visibility,
+        BlockExpression, FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident,
+        ItemVisibility, NoirFunction, Param, Path, Pattern, UnresolvedType, UnresolvedTypeData,
+        Visibility,
     },
     parser::ParserErrorReason,
     token::{Attribute, Attributes, Keyword, Token},
 };
 
-use super::Parser;
+use super::{pattern::PatternOrSelf, Parser};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_function(
@@ -101,7 +102,11 @@ impl<'a> Parser<'a> {
             }
 
             let start_span = self.current_token_span;
-            let pattern = self.parse_pattern();
+            let pattern_or_self = if allow_self && parameters.is_empty() {
+                self.parse_pattern_or_self()
+            } else {
+                PatternOrSelf::Pattern(self.parse_pattern())
+            };
             if self.current_token_span == start_span {
                 // An error was already produced by parse_pattern().
                 // Let's try with the next token.
@@ -116,28 +121,59 @@ impl<'a> Parser<'a> {
                 self.push_error(ParserErrorReason::MissingCommaSeparatingParameters, start_span);
             }
 
-            if self.eat_colon() {
-                let visibility = self.parse_visibility();
+            match pattern_or_self {
+                PatternOrSelf::Pattern(pattern) => {
+                    if self.eat_colon() {
+                        let visibility = self.parse_visibility();
 
-                let typ = self.parse_type();
-                parameters.push(Param {
-                    visibility,
-                    pattern,
-                    typ,
-                    span: self.span_since(start_span),
-                });
-            } else {
-                self.push_error(
-                    ParserErrorReason::MissingTypeForFunctionParameter,
-                    self.previous_token_span,
-                );
+                        let typ = self.parse_type();
+                        parameters.push(Param {
+                            visibility,
+                            pattern,
+                            typ,
+                            span: self.span_since(start_span),
+                        });
+                    } else {
+                        self.push_error(
+                            ParserErrorReason::MissingTypeForFunctionParameter,
+                            self.previous_token_span,
+                        );
 
-                parameters.push(Param {
-                    visibility: Visibility::Private,
-                    pattern,
-                    typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
-                    span: self.span_since(start_span),
-                });
+                        parameters.push(Param {
+                            visibility: Visibility::Private,
+                            pattern,
+                            typ: UnresolvedType {
+                                typ: UnresolvedTypeData::Error,
+                                span: Span::default(),
+                            },
+                            span: self.span_since(start_span),
+                        });
+                    }
+                }
+                PatternOrSelf::SelfPattern(self_pattern) => {
+                    let span = self.previous_token_span;
+                    let ident = Ident::new("self".to_string(), span);
+                    let path = Path::from_single("Self".to_owned(), span);
+                    let no_args = GenericTypeArgs::default();
+                    let mut self_type =
+                        UnresolvedTypeData::Named(path, no_args, true).with_span(span);
+                    let mut pattern = Pattern::Identifier(ident);
+
+                    if self_pattern.reference {
+                        self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
+                            .with_span(self.span_since(start_span));
+                    } else if self_pattern.mutable {
+                        pattern =
+                            Pattern::Mutable(Box::new(pattern), self.span_since(start_span), true);
+                    }
+
+                    parameters.push(Param {
+                        visibility: Visibility::Private,
+                        pattern,
+                        typ: self_type,
+                        span: self.span_since(start_span),
+                    });
+                }
             }
 
             trailing_comma = self.eat_commas();
@@ -368,7 +404,7 @@ mod tests {
     fn parse_function_unclosed_parentheses() {
         let src = "fn foo(x: i32,";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty()); // TODO: there should be errors here
+        assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Function(noir_function) = &item.kind else {

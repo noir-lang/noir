@@ -1,3 +1,5 @@
+use noirc_errors::Span;
+
 use crate::{
     ast::{Ident, Path, Pattern},
     parser::ParserErrorReason,
@@ -6,11 +8,43 @@ use crate::{
 
 use super::Parser;
 
+pub(crate) enum PatternOrSelf {
+    Pattern(Pattern),
+    SelfPattern(SelfPattern),
+}
+
+pub(crate) struct SelfPattern {
+    pub(crate) reference: bool,
+    pub(crate) mutable: bool,
+}
+
 impl<'a> Parser<'a> {
     pub(crate) fn parse_pattern(&mut self) -> Pattern {
         let start_span = self.current_token_span;
-
         let mutable = self.eat_keyword(Keyword::Mut);
+        self.parse_pattern_after_modifiers(mutable, start_span)
+    }
+
+    pub(crate) fn parse_pattern_or_self(&mut self) -> PatternOrSelf {
+        let start_span = self.current_token_span;
+
+        let reference = self.eat(Token::Ampersand);
+        let mutable = self.eat_keyword(Keyword::Mut);
+
+        if self.eat_self() {
+            // TODO: error if reference but not mutable
+            PatternOrSelf::SelfPattern(SelfPattern { reference, mutable })
+        } else {
+            // TODO: error if reference is true
+            PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(mutable, start_span))
+        }
+    }
+
+    pub(crate) fn parse_pattern_after_modifiers(
+        &mut self,
+        mutable: bool,
+        start_span: Span,
+    ) -> Pattern {
         let pattern = self.parse_pattern_no_mut();
         if mutable {
             Pattern::Mutable(
@@ -170,7 +204,7 @@ mod tests {
         let src = "(foo,";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_pattern();
-        assert!(parser.errors.is_empty()); // TODO: there should be an error here
+        assert_eq!(parser.errors.len(), 1);
         let Pattern::Tuple(patterns, _) = typ else { panic!("Expected a tuple pattern") };
         assert_eq!(patterns.len(), 1);
     }

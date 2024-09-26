@@ -176,6 +176,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_self(&mut self) -> bool {
+        match self.token.token() {
+            Token::Ident(ident) => {
+                if ident == "self" {
+                    self.next_token();
+                    return true;
+                }
+            }
+            _ => (),
+        }
+
+        false
+    }
+
     fn eat_int_type(&mut self) -> Option<IntType> {
         let is_int_type = matches!(self.token.token(), Token::IntType(..));
         if is_int_type {

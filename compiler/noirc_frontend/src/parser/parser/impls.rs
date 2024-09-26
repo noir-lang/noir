@@ -37,7 +37,6 @@ impl<'a> Parser<'a> {
             let visibility = self.parse_item_visibility();
             let is_comptime = self.eat_keyword(Keyword::Comptime);
             let attributes = Vec::new();
-            let allow_self = true;
 
             if self.eat_keyword(Keyword::Fn) {
                 let method = self.parse_function(
@@ -45,7 +44,7 @@ impl<'a> Parser<'a> {
                     visibility,
                     is_comptime,
                     is_unconstrained,
-                    allow_self,
+                    true, // allow_self
                     start_span,
                 );
                 methods.push((Documented::new(method, doc_comments), self.span_since(start_span)));
@@ -71,7 +70,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::ItemVisibility,
+        ast::{ItemVisibility, Pattern},
         parser::{parser::parse_program, ItemKind},
     };
 
@@ -130,6 +129,85 @@ mod tests {
         assert_eq!(method.def.name.to_string(), "bar");
         assert!(method.def.is_comptime);
         assert_eq!(method.def.visibility, ItemVisibility::Public);
+    }
+
+    #[test]
+    fn parse_impl_with_self_argument() {
+        let src = "impl Foo { fn foo(self) {} }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Impl(mut type_impl) = item.kind else {
+            panic!("Expected type impl");
+        };
+        assert_eq!(type_impl.methods.len(), 1);
+
+        let (method, _) = type_impl.methods.remove(0);
+        let mut method = method.item;
+        assert_eq!(method.def.name.to_string(), "foo");
+        assert_eq!(method.def.parameters.len(), 1);
+
+        let param = method.def.parameters.remove(0);
+        let Pattern::Identifier(name) = param.pattern else {
+            panic!("Expected identifier pattern");
+        };
+        assert_eq!(name.to_string(), "self");
+        assert_eq!(param.typ.to_string(), "Self");
+    }
+
+    #[test]
+    fn parse_impl_with_mut_self_argument() {
+        let src = "impl Foo { fn foo(mut self) {} }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Impl(mut type_impl) = item.kind else {
+            panic!("Expected type impl");
+        };
+        assert_eq!(type_impl.methods.len(), 1);
+
+        let (method, _) = type_impl.methods.remove(0);
+        let mut method = method.item;
+        assert_eq!(method.def.name.to_string(), "foo");
+        assert_eq!(method.def.parameters.len(), 1);
+
+        let param = method.def.parameters.remove(0);
+        let Pattern::Mutable(pattern, _, true) = param.pattern else {
+            panic!("Expected mutable pattern");
+        };
+        let pattern: &Pattern = &pattern;
+        let Pattern::Identifier(name) = pattern else {
+            panic!("Expected identifier pattern");
+        };
+        assert_eq!(name.to_string(), "self");
+        assert_eq!(param.typ.to_string(), "Self");
+    }
+
+    #[test]
+    fn parse_impl_with_reference_mut_self_argument() {
+        let src = "impl Foo { fn foo(&mut self) {} }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Impl(mut type_impl) = item.kind else {
+            panic!("Expected type impl");
+        };
+        assert_eq!(type_impl.methods.len(), 1);
+
+        let (method, _) = type_impl.methods.remove(0);
+        let mut method = method.item;
+        assert_eq!(method.def.name.to_string(), "foo");
+        assert_eq!(method.def.parameters.len(), 1);
+
+        let param = method.def.parameters.remove(0);
+        let Pattern::Identifier(name) = param.pattern else {
+            panic!("Expected identifier pattern");
+        };
+        assert_eq!(name.to_string(), "self");
+        assert_eq!(param.typ.to_string(), "&mut Self");
     }
 
     #[test]
