@@ -462,7 +462,9 @@ impl Path {
     }
 
     pub fn is_ident(&self) -> bool {
-        self.segments.len() == 1 && self.kind == PathKind::Plain
+        self.kind == PathKind::Plain
+            && self.segments.len() == 1
+            && self.segments.first().unwrap().generics.is_none()
     }
 
     pub fn as_ident(&self) -> Option<&Ident> {
@@ -477,6 +479,10 @@ impl Path {
             return None;
         }
         self.segments.first().cloned().map(|segment| segment.ident)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.segments.is_empty() && self.kind == PathKind::Plain
     }
 
     pub fn as_string(&self) -> String {
