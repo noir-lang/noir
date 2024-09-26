@@ -78,9 +78,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         let heap_array = self.codegen_brillig_array_to_heap_array(target_array);
 
+        let radix_var = self.make_constant_instruction(F::from(radix as u128), 32);
+
         self.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
-            radix,
+            radix: radix_var.address,
             output: heap_array,
             output_bits,
         });
@@ -91,5 +93,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             self.deallocate_single_addr(items_len);
         }
         self.deallocate_register(heap_array.pointer);
+        self.deallocate_register(radix_var.address);
     }
 }

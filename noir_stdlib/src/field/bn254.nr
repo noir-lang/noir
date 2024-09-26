@@ -4,7 +4,7 @@ use crate::runtime::is_unconstrained;
 global PLO: Field = 53438638232309528389504892708671455233;
 global PHI: Field = 64323764613183177041862057485226039389;
 
-global TWO_POW_128: Field = 0x100000000000000000000000000000000;
+pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
 // Decomposes a single field into two 16 byte fields.
 fn compute_decomposition(x: Field) -> (Field, Field) {

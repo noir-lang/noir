@@ -289,7 +289,7 @@ fn resolve_name_in_module(
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
-    usage_tracker.mark_as_used(current_mod_id, first_segment);
+    usage_tracker.mark_as_referenced(current_mod_id, first_segment);
 
     let mut warning: Option<PathResolutionError> = None;
     for (index, (last_segment, current_segment)) in
@@ -356,7 +356,7 @@ fn resolve_name_in_module(
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
-        usage_tracker.mark_as_used(current_mod_id, current_segment);
+        usage_tracker.mark_as_referenced(current_mod_id, current_segment);
 
         current_ns = found_ns;
     }

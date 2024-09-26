@@ -1471,6 +1471,7 @@ impl<F: AcirField> AcirContext<F> {
                 | BlackBoxFunc::AND
                 | BlackBoxFunc::XOR
                 | BlackBoxFunc::AES128Encrypt
+                | BlackBoxFunc::EmbeddedCurveAdd
         );
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
@@ -1942,6 +1943,15 @@ impl<F: AcirField> AcirContext<F> {
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
 
         Ok(())
+    }
+
+    /// Insert the MemoryInit for the Return Data array, using the provided witnesses
+    pub(crate) fn initialize_return_data(&mut self, block_id: BlockId, init: Vec<Witness>) {
+        self.acir_ir.push_opcode(Opcode::MemoryInit {
+            block_id,
+            init,
+            block_type: BlockType::ReturnData,
+        });
     }
 
     /// Initializes an array in memory with the given values `optional_values`.
