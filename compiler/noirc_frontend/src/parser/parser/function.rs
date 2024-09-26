@@ -57,7 +57,11 @@ impl<'a> Parser<'a> {
         let generics = self.parse_generics();
         let parameters = self.parse_function_parameters(allow_self);
 
-        // TODO: parse return type
+        let return_type = if self.eat(Token::Arrow) {
+            FunctionReturnType::Ty(self.parse_type())
+        } else {
+            FunctionReturnType::Default(Span::default())
+        };
 
         // TODO: parse where clause
 
@@ -78,7 +82,7 @@ impl<'a> Parser<'a> {
             body,
             span: start_span,
             where_clause: Vec::new(),
-            return_type: FunctionReturnType::Default(Span::default()),
+            return_type,
             return_visibility: Visibility::Private,
         }
     }
@@ -209,7 +213,7 @@ fn empty_body() -> BlockExpression {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::Visibility,
+        ast::{UnresolvedTypeData, Visibility},
         parser::{parser::parse_program, ItemKind},
     };
 
@@ -312,5 +316,18 @@ mod tests {
 
         let param = noir_function.def.parameters.remove(0);
         assert_eq!(param.visibility, Visibility::CallData(42));
+    }
+
+    #[test]
+    fn parse_function_return_type() {
+        let src = "fn foo() -> Field {}";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Function(noir_function) = &item.kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
     }
 }
