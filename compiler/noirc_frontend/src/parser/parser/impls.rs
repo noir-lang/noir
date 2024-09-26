@@ -2,8 +2,8 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        Documented, GenericTypeArgs, NoirFunction, NoirTraitImpl, Path, TypeImpl,
-        UnresolvedGeneric, UnresolvedTypeData,
+        Documented, GenericTypeArgs, ItemVisibility, NoirFunction, NoirTraitImpl, Path,
+        TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedTypeData,
     },
     token::Keyword,
 };
@@ -48,13 +48,15 @@ impl<'a> Parser<'a> {
         let trait_generics = GenericTypeArgs::default();
         let object_type = self.parse_type();
         let where_clause = self.parse_where_clause();
+        let items = self.parse_trait_impl_items();
+
         NoirTraitImpl {
             impl_generics,
             trait_name,
             trait_generics,
             object_type,
             where_clause,
-            items: Vec::new(),
+            items,
         }
     }
 
@@ -102,12 +104,61 @@ impl<'a> Parser<'a> {
 
         methods
     }
+
+    fn parse_trait_impl_items(&mut self) -> Vec<Documented<TraitImplItem>> {
+        let mut items = Vec::new();
+
+        if !self.eat_left_brace() {
+            // TODO: error
+            return items;
+        }
+
+        loop {
+            // TODO: maybe require visibility to always come first
+            let doc_comments = self.parse_outer_doc_comments();
+            let start_span = self.current_token_span;
+            let is_unconstrained = self.eat_keyword(Keyword::Unconstrained);
+            if self.parse_item_visibility() != ItemVisibility::Private {
+                // TODO: error
+            }
+            let is_comptime = self.eat_keyword(Keyword::Comptime);
+            let attributes = Vec::new();
+
+            if self.eat_keyword(Keyword::Fn) {
+                let noir_function = self.parse_function(
+                    attributes,
+                    ItemVisibility::Public,
+                    is_comptime,
+                    is_unconstrained,
+                    true, // allow_self
+                    start_span,
+                );
+                let item_kind = TraitImplItemKind::Function(noir_function);
+                let item = TraitImplItem { kind: item_kind, span: self.span_since(start_span) };
+                items.push(Documented::new(item, doc_comments));
+
+                if self.eat_right_brace() {
+                    break;
+                }
+            } else {
+                // TODO: error if visibility, unconstrained or comptime were found
+
+                if !self.eat_right_brace() {
+                    // TODO: error
+                }
+
+                break;
+            }
+        }
+
+        items
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ItemVisibility, Pattern, UnresolvedTypeData},
+        ast::{ItemVisibility, Pattern, TraitImplItemKind, UnresolvedTypeData},
         parser::{parser::parse_program, ItemKind},
     };
 
@@ -303,5 +354,26 @@ mod tests {
         assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
         assert!(trait_impl.items.is_empty());
         assert_eq!(trait_impl.impl_generics.len(), 1);
+    }
+
+    #[test]
+    fn parse_trait_impl_with_function() {
+        let src = "impl Foo for Field { fn foo() {} }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TraitImpl(mut trait_impl) = item.kind else {
+            panic!("Expected trait impl");
+        };
+        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(trait_impl.items.len(), 1);
+
+        let item = trait_impl.items.remove(0).item;
+        let TraitImplItemKind::Function(function) = item.kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(function.def.name.to_string(), "foo");
+        assert_eq!(function.def.visibility, ItemVisibility::Public);
     }
 }
