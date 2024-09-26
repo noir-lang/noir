@@ -145,7 +145,6 @@ impl ConstantAllocation {
             common_dominator
         };
         // If the value only contains constants, it's safe to hoist outside of any loop
-        // Now, if the common dominator is inside any loop, hoist the allocation outside of the loop.
         if func.dfg.is_constant(constant_id) {
             self.exit_loops(common_dominator)
         } else {
