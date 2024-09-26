@@ -241,7 +241,7 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
 }
 
 #[test]
-fn errors_on_unused_global() {
+fn warns_on_unused_global() {
     let src = r#"
     global foo = 1;
     global bar = 1;
@@ -256,7 +256,7 @@ fn errors_on_unused_global() {
 
     let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
     else {
-        panic!("Expected an unused item error");
+        panic!("Expected an unused item warning");
     };
 
     assert_eq!(ident.to_string(), "foo");
