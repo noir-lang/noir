@@ -730,7 +730,7 @@ impl<'context> Elaborator<'context> {
         match &typ.typ {
             UnresolvedTypeData::Unspecified => {
                 // // TODO: cleanup
-                dbg!("resolve_inferred_type: unspecified", &typ);
+                dbg!("resolve_inferred_type: unspecified");
                 self.interner.next_type_variable_with_kind(Kind::Any)
             }
             _ => {

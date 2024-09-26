@@ -194,7 +194,8 @@ impl Kind {
 
             // Kind::Integer unifies with Kind::IntegerOrField
             | (Kind::Integer | Kind::IntegerOrField, Kind::Integer | Kind::IntegerOrField) => true,
-            
+
+            // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
                 let mut bindings = TypeBindings::new();
                 let unifies = lhs.try_unify(rhs, &mut bindings).is_ok();
@@ -203,6 +204,8 @@ impl Kind {
                 }
                 unifies
             }
+
+            // everything unifies with itself
             (lhs, rhs) => lhs == rhs,
         }
     }
@@ -285,7 +288,7 @@ pub struct StructType {
 
 /// Corresponds to generic lists such as `<T, U>` in the source program.
 /// Used mainly for resolved types which no longer need information such
-/// as names or kinds (i.e. they have Kind::Normal).
+/// as names or kinds
 pub type GenericTypeVars = Vec<TypeVariable>;
 
 /// Corresponds to generic lists such as `<T, U>` with additional
@@ -305,7 +308,7 @@ impl ResolvedGeneric {
         Type::NamedGeneric(self.type_var, self.name)
     }
 
-    pub(crate) fn kind(&self) -> Kind {
+    pub fn kind(&self) -> Kind {
         self.type_var.kind()
     }
 
@@ -679,7 +682,7 @@ impl TypeVariable {
         }
     }
 
-    pub(crate) fn kind(&self) -> Kind {
+    pub fn kind(&self) -> Kind {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => binding.kind(),
             TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
@@ -688,7 +691,7 @@ impl TypeVariable {
 
     /// Check that if bound, it's an integer
     /// and if unbound, that it's a Kind::Integer
-    pub(crate) fn is_integer(&self) -> bool {
+    pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => matches!(binding, Type::Integer(..)),
             TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind, Kind::Integer),
@@ -697,7 +700,7 @@ impl TypeVariable {
 
     /// Check that if bound, it's an integer or field
     /// and if unbound, that it's a Kind::IntegerOrField
-    pub(crate) fn is_integer_or_field(&self) -> bool {
+    pub fn is_integer_or_field(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => matches!(binding, Type::Integer(..) | Type::FieldElement),
             TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind, Kind::IntegerOrField),
@@ -1474,7 +1477,7 @@ impl Type {
         if this.occurs(target_id) {
             Err(UnificationError)
         } else {
-            bindings.insert(target_id, (var.clone(), Kind::Normal, this.clone()));
+            bindings.insert(target_id, (var.clone(), this.kind(), this.clone()));
             Ok(())
         }
     }
@@ -1900,7 +1903,7 @@ impl Type {
                 for var in typevars {
                     bindings
                         .entry(var.id())
-                        .or_insert_with(|| (var.clone(), Kind::Normal, interner.next_type_variable_with_kind(var.kind())));
+                        .or_insert_with(|| (var.clone(), var.kind(), interner.next_type_variable_with_kind(var.kind())));
                 }
 
                 let instantiated = typ.force_substitute(&bindings);
@@ -1920,7 +1923,7 @@ impl Type {
                     .iter()
                     .map(|var| {
                         let new = interner.next_type_variable();
-                        (var.id(), (var.clone(), Kind::Normal, new))
+                        (var.id(), (var.clone(), var.kind(), new))
                     })
                     .collect();
 
@@ -1954,7 +1957,7 @@ impl Type {
                 let replacements = typevars
                     .iter()
                     .zip(bindings)
-                    .map(|(var, binding)| (var.id(), (var.clone(), Kind::Normal, binding)))
+                    .map(|(var, binding)| (var.id(), (var.clone(), var.kind(), binding)))
                     .collect();
 
                 let instantiated = typ.substitute(&replacements);

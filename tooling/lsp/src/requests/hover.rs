@@ -500,7 +500,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(generic);
                 }
             }
-            Type::TypeVariable(var, _) => {
+            Type::TypeVariable(var) => {
                 self.gather_type_variable_links(var);
             }
             Type::TraitAsType(trait_id, _, generics) => {
@@ -513,7 +513,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(&named_type.typ);
                 }
             }
-            Type::NamedGeneric(var, _, _) => {
+            Type::NamedGeneric(var, _) => {
                 self.gather_type_variable_links(var);
             }
             Type::Function(args, return_type, env, _) => {
