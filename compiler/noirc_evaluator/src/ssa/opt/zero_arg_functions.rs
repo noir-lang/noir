@@ -1,10 +1,10 @@
-use crate::ssa::{ssa_gen::Ssa, RuntimeError};
+use crate::ssa::{ir::function::RuntimeType, ssa_gen::Ssa, RuntimeError};
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn zero_arg_functions(mut self) -> Result<Ssa, RuntimeError> {
         for func in self.functions.values_mut() {
-            if func.parameters().is_empty() {
+            if func.runtime() == RuntimeType::Brillig && func.parameters().is_empty() {
                 // NOTE: these are run in the same order as in `optimize_into_acir`
                 func.remove_paired_rc();
                 func.replace_is_unconstrained_result();
