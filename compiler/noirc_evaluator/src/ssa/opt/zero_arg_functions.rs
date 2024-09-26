@@ -1,24 +1,10 @@
-use crate::ssa::{
-    ir::{
-        function::Function,
-        instruction::{Instruction, InstructionId, Intrinsic},
-        types::Type,
-        value::Value,
-    },
-    ssa_gen::Ssa,
-    RuntimeError,
-};
+use crate::ssa::{ssa_gen::Ssa, RuntimeError};
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn zero_arg_functions(mut self) -> Result<Ssa, RuntimeError> {
         for func in self.functions.values_mut() {
-            // // TODO cleanup
-            // dbg!((func.name(), func.parameters()));
-
-            // TODO UNUSED:
-            // bubble_up_constrains(&mut self) {
-            if func.parameters().len() == 0 {
+            if func.parameters().is_empty() {
                 // NOTE: these are run in the same order as in `optimize_into_acir`
                 func.remove_paired_rc();
                 func.replace_is_unconstrained_result();

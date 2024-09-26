@@ -27,7 +27,12 @@ impl Function {
     pub(crate) fn array_set_optimization(&mut self) {
         let mut reachable_blocks = self.reachable_blocks();
         let block = if !self.runtime().is_entry_point() {
-            assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
+            if reachable_blocks.len() != 1 {
+                return;
+            }
+            // TODO: skip blocks when this is false?
+            // assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization, but found {}", reachable_blocks.len());
+
             reachable_blocks.pop_first().unwrap()
         } else {
             // We only apply the array set optimization in the return block of Brillig functions
