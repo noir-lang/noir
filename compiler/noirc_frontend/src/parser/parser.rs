@@ -177,14 +177,11 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_self(&mut self) -> bool {
-        match self.token.token() {
-            Token::Ident(ident) => {
-                if ident == "self" {
-                    self.next_token();
-                    return true;
-                }
+        if let Token::Ident(ident) = self.token.token() {
+            if ident == "self" {
+                self.next_token();
+                return true;
             }
-            _ => (),
         }
 
         false
