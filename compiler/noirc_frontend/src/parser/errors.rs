@@ -19,6 +19,9 @@ pub enum ParserErrorReason {
     UnexpectedSemicolon,
     #[error("Unexpected ,")]
     UnexpectedComma,
+    #[error("Expected a , separating these two expressions")]
+    MissingCommaSeparatingExpressions,
+
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
@@ -39,8 +42,6 @@ pub enum ParserErrorReason {
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
     #[error("expected ( or < after function name")]
     ExpectedLeftParenOrLeftBracketAfterFunctionName,
-    #[error("Expected a , separating these two expressions")]
-    MissingCommaSeparatingExpressions,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
