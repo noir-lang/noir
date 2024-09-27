@@ -1,8 +1,11 @@
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
+        dom::DominatorTree,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
+        post_order::PostOrder,
         types::Type::{Array, Slice},
         value::ValueId,
     },
@@ -25,6 +28,7 @@ impl Ssa {
             let mut array_to_last_use = HashMap::default();
             let mut instructions_to_update = HashSet::default();
             let mut arrays_from_load = HashSet::default();
+            let mut single_array_sets_per_block = HashMap::default();
 
             for block in reachable_blocks.iter() {
                 analyze_last_uses(
@@ -33,8 +37,32 @@ impl Ssa {
                     &mut array_to_last_use,
                     &mut instructions_to_update,
                     &mut arrays_from_load,
+                    &mut single_array_sets_per_block,
                 );
             }
+
+            let cfg = ControlFlowGraph::with_function(func);
+            let post_order = PostOrder::with_function(func);
+            let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+            let single_array_set_blocks = single_array_sets_per_block
+                .keys()
+                .map(|(_, block_id)| *block_id)
+                .collect::<Vec<_>>();
+            let mut single_array_sets_can_be_mutable = true;
+            for block in single_array_set_blocks.iter() {
+                for inner_block in single_array_set_blocks.iter() {
+                    if *block != *inner_block && dom_tree.dominates(*block, *inner_block) {
+                        single_array_sets_can_be_mutable = false;
+                    }
+                }
+            }
+
+            if single_array_sets_can_be_mutable {
+                let array_sets_to_update =
+                    single_array_sets_per_block.values().copied().collect::<Vec<_>>();
+                instructions_to_update.extend(array_sets_to_update);
+            }
+            
             for block in reachable_blocks {
                 make_mutable(&mut func.dfg, block, &instructions_to_update);
             }
@@ -51,6 +79,7 @@ fn analyze_last_uses(
     array_to_last_use: &mut HashMap<ValueId, InstructionId>,
     instructions_that_can_be_made_mutable: &mut HashSet<InstructionId>,
     arrays_from_load: &mut HashSet<ValueId>,
+    single_array_sets_per_block: &mut HashMap<(ValueId, BasicBlockId), InstructionId>,
 ) {
     let block = &dfg[block_id];
 
@@ -84,6 +113,11 @@ fn analyze_last_uses(
                 });
                 if (!arrays_from_load.contains(&array) || is_return_block) && !array_in_terminator {
                     instructions_that_can_be_made_mutable.insert(*instruction_id);
+                }
+
+                // TODO: only track these when we have multiple blocks
+                if single_array_sets_per_block.get(&(array, block_id)).is_none() {
+                    single_array_sets_per_block.insert((array, block_id), *instruction_id);
                 }
             }
             Instruction::Call { arguments, .. } => {
