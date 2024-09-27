@@ -57,6 +57,16 @@ impl<'a> Parser<'a> {
             return ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
         }
 
+        if self.eat_keyword(Keyword::Unsafe) {
+            let start_span = self.span_since(self.previous_token_span);
+            if let Some(block) = self.parse_block_expression() {
+                return ExpressionKind::Unsafe(block, self.span_since(start_span));
+            } else {
+                // TODO: error (expected block after unsafe)
+                return self.parse_expression_kind();
+            };
+        }
+
         if let Some(kind) = self.parse_parentheses_expression() {
             return kind;
         }
@@ -375,6 +385,18 @@ mod tests {
         assert_eq!(block.statements[0].kind.to_string(), "let x = 1");
         assert_eq!(block.statements[1].kind.to_string(), "let y = 2");
         assert_eq!(block.statements[2].kind.to_string(), "3");
+    }
+
+    #[test]
+    fn parses_unsafe_expression() {
+        let src = "unsafe { 1 }";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Unsafe(block, _) = expr.kind else {
+            panic!("Expected unsafe expression");
+        };
+        assert_eq!(block.statements.len(), 1);
     }
 
     #[test]
