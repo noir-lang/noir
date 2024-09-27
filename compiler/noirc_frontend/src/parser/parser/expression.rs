@@ -13,22 +13,16 @@ use super::Parser;
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_expression(&mut self) -> Expression {
-        let start_span = self.current_token_span;
-        let kind = self.parse_term_kind();
-        let span = self.span_since(start_span);
-        Expression { kind, span }
+        self.parse_term()
     }
 
     fn parse_term(&mut self) -> Expression {
         let start_span = self.current_token_span;
-        let kind = self.parse_term_kind();
-        Expression { kind, span: self.span_since(start_span) }
-    }
-
-    fn parse_term_kind(&mut self) -> ExpressionKind {
         if let Some(operator) = self.parse_unary_op() {
             let rhs = self.parse_term();
-            return ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
+            let kind = ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
+            let span = self.span_since(start_span);
+            return Expression { kind, span };
         }
 
         self.parse_atom_or_unary_right()
@@ -52,7 +46,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_atom_or_unary_right(&mut self) -> ExpressionKind {
+    fn parse_atom_or_unary_right(&mut self) -> Expression {
         let start_span = self.current_token_span;
         let mut atom = self.parse_atom();
 
@@ -81,8 +75,11 @@ impl<'a> Parser<'a> {
                 } else if let Some(int) = self.eat_int() {
                     Ident::new(int.to_string(), self.previous_token_span)
                 } else {
-                    // TODO: error
-                    Ident::default()
+                    self.push_error(
+                        ParserErrorReason::ExpectedIdentifierAfterDot,
+                        self.current_token_span,
+                    );
+                    continue;
                 };
 
                 let generics = if self.eat_double_colon() {
@@ -126,7 +123,7 @@ impl<'a> Parser<'a> {
             break;
         }
 
-        atom.kind
+        atom
     }
 
     fn parse_atom(&mut self) -> Expression {
