@@ -116,7 +116,6 @@ impl Context {
         let mut rcs_with_possible_pairs: HashMap<Type, Vec<RcInstruction>> = HashMap::default();
         let mut rc_pairs_to_remove = HashSet::default();
         // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
-        // This is done to determine whether the array has ever been borrowed.
         // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
         let mut inc_rcs: HashMap<ValueId, HashSet<InstructionId>> = HashMap::default();
         let mut borrowed_arrays: HashSet<ValueId> = HashSet::default();
