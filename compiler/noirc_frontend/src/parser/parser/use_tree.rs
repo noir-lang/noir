@@ -28,7 +28,10 @@ impl<'a> Parser<'a> {
         start_span: Span,
         kind: PathKind,
     ) -> UseTree {
-        let (prefix, mut trailing_double_colon) = self.parse_path_after_kind(kind, start_span);
+        let (prefix, mut trailing_double_colon) = self.parse_path_after_kind(
+            kind, false, // allow turbofish
+            start_span,
+        );
 
         if prefix.segments.is_empty() && kind != PathKind::Plain {
             trailing_double_colon = true;

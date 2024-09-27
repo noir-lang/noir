@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Path, PathKind, PathSegment},
+    ast::{Path, PathKind, PathSegment, UnresolvedType},
     token::{Keyword, TokenKind},
 };
 
@@ -32,12 +32,13 @@ impl<'a> Parser<'a> {
             // TODO: error
         }
 
-        self.parse_path_after_kind(kind, start_span)
+        self.parse_path_after_kind(kind, allow_turbofish, start_span)
     }
 
     pub(super) fn parse_path_after_kind(
         &mut self,
         kind: PathKind,
+        allow_turbofish: bool,
         start_span: Span,
     ) -> (Path, bool) {
         let mut trailing_double_colon = false;
@@ -46,8 +47,23 @@ impl<'a> Parser<'a> {
         if self.token.kind() == TokenKind::Ident {
             while let Some(ident) = self.eat_ident() {
                 let span = ident.span();
-                segments.push(PathSegment { ident, generics: None, span });
-                if self.eat_double_colon() {
+
+                let mut has_double_colon = self.eat_double_colon();
+
+                let generics = if has_double_colon && allow_turbofish {
+                    if let Some(generics) = self.parse_path_generics() {
+                        has_double_colon = self.eat_double_colon();
+                        Some(generics)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                segments.push(PathSegment { ident, generics, span });
+
+                if has_double_colon {
                     trailing_double_colon = true;
                 } else {
                     trailing_double_colon = false;
@@ -61,6 +77,28 @@ impl<'a> Parser<'a> {
         let span = self.span_since(start_span);
 
         (Path { segments, kind, span }, trailing_double_colon)
+    }
+
+    fn parse_path_generics(&mut self) -> Option<Vec<UnresolvedType>> {
+        if !self.eat_less() {
+            return None;
+        }
+
+        let mut generics = Vec::new();
+        if self.eat_greater() {
+            // TODO: error
+        } else {
+            loop {
+                let typ = self.parse_type();
+                generics.push(typ);
+                self.eat_commas();
+
+                if self.eat_greater() {
+                    break;
+                }
+            }
+        }
+        Some(generics)
     }
 
     pub(super) fn parse_path_kind(&mut self) -> PathKind {
@@ -150,5 +188,20 @@ mod tests {
         assert_eq!(path.segments[0].ident.to_string(), "foo");
         assert!(path.segments[0].generics.is_none());
         assert_eq!(path.span.end() as usize, src.len());
+    }
+
+    #[test]
+    fn parses_with_turbofish() {
+        let src = "foo::<T, i32>::bar";
+        let mut path = Parser::for_str(src).parse_path();
+        assert_eq!(path.kind, PathKind::Plain);
+        assert_eq!(path.segments.len(), 2);
+        assert_eq!(path.segments[0].ident.to_string(), "foo");
+
+        let generics = path.segments.remove(0).generics;
+        assert_eq!(generics.unwrap().len(), 2);
+
+        let generics = path.segments.remove(0).generics;
+        assert!(generics.is_none());
     }
 }
