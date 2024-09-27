@@ -72,7 +72,7 @@ fn value(function: &Function, id: ValueId) -> String {
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         Value::Array { array, .. } => {
             let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
+            format!("{id}=[{}]", elements.join(", "))
         }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
