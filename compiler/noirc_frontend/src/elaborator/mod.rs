@@ -473,7 +473,7 @@ impl<'context> Elaborator<'context> {
         for typ in context.type_variables {
             if let Type::TypeVariable(variable) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(variable.kind().default_type().expect(msg), &variable.kind());
+                variable.bind(variable.kind().default_type().expect(msg));
             }
         }
 

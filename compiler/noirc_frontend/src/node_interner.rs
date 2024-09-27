@@ -1330,10 +1330,8 @@ impl NodeInterner {
         Type::type_variable(self.next_type_variable_id())
     }
 
-    // TODO: make closer to self.next_type_variable()
     pub fn next_type_variable_with_kind(&self, kind: Kind) -> Type {
-        let var = TypeVariable::unbound(self.next_type_variable_id(), kind);
-        Type::TypeVariable(var)
+        Type::type_variable_with_kind(self, kind)
     }
 
     pub fn store_instantiation_bindings(

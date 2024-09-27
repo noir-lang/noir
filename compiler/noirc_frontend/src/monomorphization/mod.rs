@@ -301,7 +301,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
-            the_trait.self_type_typevar.force_bind(self_type, &types::Kind::Normal);
+            the_trait.self_type_typevar.force_bind(self_type);
         }
 
         let meta = self.interner.function_meta(&f).clone();
@@ -934,7 +934,6 @@ impl<'interner> Monomorphizer<'interner> {
                 };
                 let location = self.interner.id_location(expr_id);
 
-                // TODO: possible to remove clones?
                 if !Kind::Numeric(numeric_typ.clone())
                     .unifies(&Kind::Numeric(Box::new(typ.clone())))
                 {
@@ -994,7 +993,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                binding.bind(HirType::default_int_or_field_type(), &binding.kind());
+                binding.bind(HirType::default_int_or_field_type());
                 ast::Type::Field
             }
 
@@ -1015,7 +1014,7 @@ impl<'interner> Monomorphizer<'interner> {
                 };
 
                 let monomorphized_default = Self::convert_type(&default, location)?;
-                binding.bind(default, &type_var_kind);
+                binding.bind(default);
                 monomorphized_default
             }
 
@@ -1935,8 +1934,8 @@ fn unwrap_struct_type(
 }
 
 pub fn perform_instantiation_bindings(bindings: &TypeBindings) {
-    for (var, kind, binding) in bindings.values() {
-        var.force_bind(binding.clone(), kind);
+    for (var, _kind, binding) in bindings.values() {
+        var.force_bind(binding.clone());
     }
 }
 

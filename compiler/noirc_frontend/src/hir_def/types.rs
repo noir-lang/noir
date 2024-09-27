@@ -609,7 +609,7 @@ impl TypeVariable {
     /// Panics if this TypeVariable is already Bound.
     /// Also Panics if the ID of this TypeVariable occurs within the given
     /// binding, as that would cause an infinitely recursive type.
-    pub fn bind(&self, typ: Type, kind: &Kind) {
+    pub fn bind(&self, typ: Type) {
         let id = match &*self.1.borrow() {
             TypeBinding::Bound(binding) => {
                 unreachable!("TypeVariable::bind, cannot bind bound var {} to {}", binding, typ)
@@ -662,7 +662,7 @@ impl TypeVariable {
     /// a logic error to use outside of monomorphization.
     ///
     /// Asserts that the given type is compatible with the given Kind
-    pub fn force_bind(&self, typ: Type, kind: &Kind) {
+    pub fn force_bind(&self, typ: Type) {
         if !typ.occurs(self.id()) {
             *self.1.borrow_mut() = TypeBinding::Bound(typ);
         }
@@ -875,7 +875,7 @@ impl Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 
-    pub fn type_variable_with_kind(interner: &mut NodeInterner, type_var_kind: Kind) -> Type {
+    pub fn type_variable_with_kind(interner: &NodeInterner, type_var_kind: Kind) -> Type {
         let id = interner.next_type_variable_id();
         let var = TypeVariable::unbound(id, type_var_kind);
         Type::TypeVariable(var)
@@ -886,12 +886,12 @@ impl Type {
         Type::TypeVariable(var)
     }
 
-    pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
+    pub fn polymorphic_integer_or_field(interner: &NodeInterner) -> Type {
         let type_var_kind = Kind::IntegerOrField;
         Self::type_variable_with_kind(interner, type_var_kind)
     }
 
-    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
+    pub fn polymorphic_integer(interner: &NodeInterner) -> Type {
         let type_var_kind = Kind::Integer;
         Self::type_variable_with_kind(interner, type_var_kind)
     }
@@ -1797,8 +1797,8 @@ impl Type {
     /// Apply the given type bindings, making them permanently visible for each
     /// clone of each type variable bound.
     pub fn apply_type_bindings(bindings: TypeBindings) {
-        for (type_variable, kind, binding) in bindings.values() {
-            type_variable.bind(binding.clone(), kind);
+        for (type_variable, _kind, binding) in bindings.values() {
+            type_variable.bind(binding.clone());
         }
     }
 

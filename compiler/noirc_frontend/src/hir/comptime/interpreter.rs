@@ -351,8 +351,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, (binding, kind)) in bindings {
-                var.force_bind(binding.clone(), kind);
+            for (var, (binding, _kind)) in bindings {
+                var.force_bind(binding.clone());
             }
         }
     }
