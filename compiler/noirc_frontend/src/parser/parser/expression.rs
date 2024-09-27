@@ -1,7 +1,10 @@
 use crate::{
-    ast::{ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal},
+    ast::{
+        ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, PrefixExpression,
+        UnaryOp,
+    },
     parser::ParserErrorReason,
-    token::Token,
+    token::{Keyword, Token},
 };
 
 use super::Parser;
@@ -45,8 +48,13 @@ impl<'a> Parser<'a> {
                 return ExpressionKind::Literal(Literal::Slice(array_literal));
             }
 
-            // TODO: parse this
-            return ExpressionKind::Error;
+            if !self.eat_keyword(Keyword::Mut) {
+                // TODO: error (expected `mut` after `&`)
+            }
+
+            let rhs = self.parse_expression();
+            let operator = UnaryOp::MutableReference;
+            return ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
         }
 
         if let Some(kind) = self.parse_parentheses_expression() {
@@ -204,7 +212,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ArrayLiteral, ExpressionKind, Literal, StatementKind},
+        ast::{ArrayLiteral, ExpressionKind, Literal, StatementKind, UnaryOp},
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
@@ -489,5 +497,22 @@ mod tests {
             panic!("Expected variable");
         };
         assert_eq!(path.to_string(), "foo::bar");
+    }
+
+    #[test]
+    fn parses_mutable_ref() {
+        let src = "&mut foo";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Prefix(prefix) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(prefix.operator, UnaryOp::MutableReference));
+
+        let ExpressionKind::Variable(path) = prefix.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
     }
 }
