@@ -43,6 +43,10 @@ pub enum ParserErrorReason {
     ExpectedLeftParen,
     #[error("Expected an integer")]
     ExpectedInteger,
+    #[error("Expected `crate` after `pub`")]
+    ExpectedCrateAfterPub,
+    #[error("Expected `)` after `pub(crate`")]
+    ExpectedParenAfterPubCrate,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
