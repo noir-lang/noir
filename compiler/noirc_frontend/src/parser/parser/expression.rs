@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
         statements.push(Statement { kind: StatementKind::Expression(expr), span });
 
         if !self.eat_right_brace() {
-            // TODO: error
+            // TODO: error (for later)
         }
 
         Some(BlockExpression { statements })

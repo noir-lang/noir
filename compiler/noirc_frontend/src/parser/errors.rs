@@ -47,6 +47,12 @@ pub enum ParserErrorReason {
     ExpectedCrateAfterPub,
     #[error("Expected `)` after `pub(crate`")]
     ExpectedParenAfterPubCrate,
+    #[error("Expected a function body (`{{ ... }}`), not `;`")]
+    ExpectedFunctionBody,
+    #[error("Expected the global to have a value")]
+    GlobalWithoutValue,
+    #[error("Expected `;` after a global declaration")]
+    ExpectedSemicolonAfterGlobal,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),

@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
         let body_start_span = self.current_token_span;
         let (body, body_span) = if self.eat_semicolons() {
             if !allow_optional_body {
-                // TODO: error
+                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_span);
             }
 
             (None, Span::from(body_start_span.end()..body_start_span.end()))
@@ -459,5 +459,17 @@ mod tests {
         let (_, errors) = parse_program(&src);
         let reason = get_single_error(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MultipleFunctionAttributesFound));
+    }
+
+    #[test]
+    fn parse_function_found_semicolon_instead_of_braces() {
+        let src = "
+        fn foo();
+                ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program(&src);
+        let reason = get_single_error(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::ExpectedFunctionBody));
     }
 }

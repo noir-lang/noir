@@ -5,6 +5,7 @@ use crate::{
         Expression, ExpressionKind, Ident, LetStatement, Pattern, UnresolvedType,
         UnresolvedTypeData,
     },
+    parser::ParserErrorReason,
     token::Attribute,
 };
 
@@ -17,7 +18,8 @@ impl<'a> Parser<'a> {
         comptime: bool,
         mutable: bool,
     ) -> LetStatement {
-        // TODO: error if mutable but not comptime
+        // Only comptime globals are allowed to be mutable, but we always parse the `mut`
+        // and throw the error in name resolution.
 
         let attributes = self.validate_secondary_attributes(attributes);
 
@@ -42,9 +44,16 @@ impl<'a> Parser<'a> {
         let expression = if self.eat_assign() {
             self.parse_expression()
         } else {
-            // TODO: error
+            self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.span());
             Expression { kind: ExpressionKind::Error, span: Span::default() }
         };
+
+        if !self.eat_semicolon() {
+            self.push_error(
+                ParserErrorReason::ExpectedSemicolonAfterGlobal,
+                self.current_token_span,
+            );
+        }
 
         LetStatement { pattern, r#type: typ, expression, attributes, comptime }
     }
@@ -62,7 +71,13 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 mod tests {
     use crate::{
         ast::{IntegerBitSize, Pattern, Signedness, UnresolvedTypeData},
-        parser::{parser::parse_program, ItemKind},
+        parser::{
+            parser::{
+                parse_program,
+                tests::{get_single_error, get_source_with_error_span},
+            },
+            ItemKind, ParserErrorReason,
+        },
     };
 
     #[test]
@@ -134,5 +149,29 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
+    }
+
+    #[test]
+    fn parse_global_no_value() {
+        let src = "
+        global foo;
+               ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program(&src);
+        let reason = get_single_error(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
+    }
+
+    #[test]
+    fn parse_global_no_semicolon() {
+        let src = "
+        global foo = 1
+                     ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program(&src);
+        let reason = get_single_error(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::ExpectedSemicolonAfterGlobal));
     }
 }

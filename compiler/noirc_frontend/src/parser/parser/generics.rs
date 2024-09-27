@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_greater() {
-            // TODO: error?
+            // TODO: error? (for later)
             return generics;
         }
 
@@ -69,8 +69,15 @@ impl<'a> Parser<'a> {
             }
 
             let typ = self.parse_type();
-
-            // TODO: error if typ isn't an integer type
+            if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
+                if matches!(signedness, Signedness::Signed)
+                    || matches!(bit_size, IntegerBitSize::SixtyFour)
+                {
+                    self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
+                }
+            } else {
+                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
+            }
 
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
@@ -142,7 +149,10 @@ fn type_u32() -> UnresolvedType {
 mod tests {
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
-        parser::Parser,
+        parser::{
+            parser::tests::{get_single_error, get_source_with_error_span},
+            Parser, ParserErrorReason,
+        },
     };
 
     #[test]
@@ -210,5 +220,31 @@ mod tests {
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "foo::Bar");
         assert_eq!(generics.named_args.len(), 0);
+    }
+
+    #[test]
+    fn parse_numeric_generic_error_if_not_integer() {
+        let src = "
+        <let N: bool>
+                ^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        parser.parse_generics();
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
+    }
+
+    #[test]
+    fn parse_numeric_generic_error_if_invalid_integer() {
+        let src = "
+        <let N: u64>
+                ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        parser.parse_generics();
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
     }
 }
