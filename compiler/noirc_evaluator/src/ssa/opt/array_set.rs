@@ -40,6 +40,8 @@ impl Ssa {
                     &mut single_array_sets_per_block,
                 );
             }
+            dbg!(arrays_from_load.clone());
+            dbg!(single_array_sets_per_block.clone());
 
             let cfg = ControlFlowGraph::with_function(func);
             let post_order = PostOrder::with_function(func);
@@ -47,7 +49,7 @@ impl Ssa {
             let single_array_set_blocks = single_array_sets_per_block
                 .keys()
                 .filter_map(|(array, block_id)| {
-                    if array_to_last_use.get(array).is_some() {
+                    if array_to_last_use.get(array).is_some() && !arrays_from_load.contains(array) {
                         Some(*block_id)
                     } else {
                         None
@@ -55,7 +57,7 @@ impl Ssa {
                 })
                 .collect::<Vec<_>>();
 
-            let mut single_array_sets_can_be_mutable = true;
+            let mut single_array_sets_can_be_mutable = !single_array_set_blocks.is_empty();
             for block in single_array_set_blocks.iter() {
                 for inner_block in single_array_set_blocks.iter() {
                     if *block != *inner_block && dom_tree.dominates(*block, *inner_block) {
