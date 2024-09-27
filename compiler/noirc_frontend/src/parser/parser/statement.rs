@@ -75,6 +75,11 @@ impl<'a> Parser<'a> {
         Some(match kind {
             ConstrainKind::Assert | ConstrainKind::AssertEq => {
                 let arguments = self.parse_arguments();
+                if arguments.is_none() {
+                    // TODO: error (expected arguments to assert/assert_eq)
+                }
+                let arguments = arguments.unwrap_or_default();
+
                 ConstrainStatement { kind, arguments, span: self.span_since(start_span) }
             }
             ConstrainKind::Constrain => {

@@ -9,52 +9,43 @@ use crate::{
 
 use super::Parser;
 
+// term -> atom_or_right_unary -> atom
+
 impl<'a> Parser<'a> {
     pub(crate) fn parse_expression(&mut self) -> Expression {
         let start_span = self.current_token_span;
-        let kind = self.parse_expression_kind();
+        let kind = self.parse_term();
         let span = self.span_since(start_span);
-
         Expression { kind, span }
     }
 
-    fn parse_expression_kind(&mut self) -> ExpressionKind {
-        if let Some(bool) = self.eat_bool() {
-            return ExpressionKind::Literal(Literal::Bool(bool));
-        }
-
-        if let Some(int) = self.eat_int() {
-            return ExpressionKind::integer(int);
-        }
-
-        if let Some(string) = self.eat_str() {
-            return ExpressionKind::Literal(Literal::Str(string));
-        }
-
-        if let Some((string, n)) = self.eat_raw_str() {
-            return ExpressionKind::Literal(Literal::RawStr(string, n));
-        }
-
-        if let Some(string) = self.eat_fmt_str() {
-            return ExpressionKind::Literal(Literal::FmtStr(string));
-        }
-
-        if let Some(kind) = self.parse_array_expression() {
-            return kind;
-        }
-
-        if self.eat(Token::Ampersand) {
-            if let Some(array_literal) = self.parse_array_literal(true) {
-                return ExpressionKind::Literal(Literal::Slice(array_literal));
-            }
-
-            if !self.eat_keyword(Keyword::Mut) {
-                // TODO: error (expected `mut` after `&`)
-            }
-
-            let rhs = self.parse_expression();
+    fn parse_term(&mut self) -> ExpressionKind {
+        if self.token.token() == &Token::Ampersand
+            && self.next_token.token() == &Token::Keyword(Keyword::Mut)
+        {
+            self.next_token();
+            self.next_token();
+            let start_span = self.current_token_span;
+            let term = self.parse_term();
+            let rhs = Expression { kind: term, span: self.span_since(start_span) };
             let operator = UnaryOp::MutableReference;
             return ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
+        }
+
+        self.parse_atom_or_unary_right()
+    }
+
+    fn parse_atom_or_unary_right(&mut self) -> ExpressionKind {
+        self.parse_atom()
+    }
+
+    fn parse_atom(&mut self) -> ExpressionKind {
+        if let Some(literal) = self.parse_literal() {
+            return literal;
+        }
+
+        if let Some(kind) = self.parse_parentheses_expression() {
+            return kind;
         }
 
         if self.eat_keyword(Keyword::Unsafe) {
@@ -62,21 +53,8 @@ impl<'a> Parser<'a> {
             if let Some(block) = self.parse_block_expression() {
                 return ExpressionKind::Unsafe(block, self.span_since(start_span));
             } else {
-                // TODO: error (expected block after unsafe)
-                return self.parse_expression_kind();
+                return ExpressionKind::Error;
             };
-        }
-
-        if let Some(tokens) = self.eat_quote() {
-            return ExpressionKind::Quote(tokens);
-        }
-
-        if let Some(kind) = self.parse_parentheses_expression() {
-            return kind;
-        }
-
-        if let Some(kind) = self.parse_block_expression() {
-            return ExpressionKind::Block(kind);
         }
 
         let (path, trailing_double_colon) = self.parse_path_impl(false); // do not allow turbofish
@@ -85,6 +63,68 @@ impl<'a> Parser<'a> {
         }
 
         ExpressionKind::Error
+    }
+
+    fn parse_literal(&mut self) -> Option<ExpressionKind> {
+        if let Some(bool) = self.eat_bool() {
+            return Some(ExpressionKind::Literal(Literal::Bool(bool)));
+        }
+
+        if let Some(int) = self.eat_int() {
+            return Some(ExpressionKind::integer(int));
+        }
+
+        if let Some(string) = self.eat_str() {
+            return Some(ExpressionKind::Literal(Literal::Str(string)));
+        }
+
+        if let Some((string, n)) = self.eat_raw_str() {
+            return Some(ExpressionKind::Literal(Literal::RawStr(string, n)));
+        }
+
+        if let Some(string) = self.eat_fmt_str() {
+            return Some(ExpressionKind::Literal(Literal::FmtStr(string)));
+        }
+
+        if let Some(tokens) = self.eat_quote() {
+            return Some(ExpressionKind::Quote(tokens));
+        }
+
+        if let Some(kind) = self.parse_array_expression() {
+            return Some(kind);
+        }
+
+        // Check if it's `&[`
+        if self.token.token() == &Token::Ampersand && self.next_token.token() == &Token::LeftBracket
+        {
+            self.next_token();
+
+            return Some(ExpressionKind::Literal(Literal::Slice(
+                self.parse_array_literal(true).unwrap(),
+            )));
+        }
+
+        if let Some(kind) = self.parse_block_expression() {
+            return Some(ExpressionKind::Block(kind));
+        }
+
+        // TODO: parse these too
+        // if_expr(expr_no_constructors, statement.clone()),
+        // if allow_constructors {
+        //     constructor(expr_parser.clone()).boxed()
+        // } else {
+        //     nothing().boxed()
+        // },
+        // lambdas::lambda(expr_parser.clone()),
+        // comptime_expr(statement.clone()),
+        // unquote(expr_parser.clone()),
+        // as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        // type_path(parse_type()),
+        // macro_quote_marker(),
+        // interned_expr(),
+        // interned_statement_expr(),
+
+        None
     }
 
     fn parse_array_expression(&mut self) -> Option<ExpressionKind> {
@@ -553,4 +593,17 @@ mod tests {
         };
         assert_eq!(tokens.0.len(), 1);
     }
+
+    // #[test]
+    // fn parses_call() {
+    //     let src = "foo(1, 2)";
+    //     let mut parser = Parser::for_str(src);
+    //     let expr = parser.parse_expression();
+    //     assert!(parser.errors.is_empty());
+    //     let ExpressionKind::Call(call) = expr.kind else {
+    //         panic!("Expected call expression");
+    //     };
+    //     assert_eq!(call.func.to_string(), "foo");
+    //     assert_eq!(call.arguments.len(), 2);
+    // }
 }

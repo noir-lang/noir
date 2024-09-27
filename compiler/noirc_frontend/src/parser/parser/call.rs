@@ -3,14 +3,13 @@ use crate::{ast::Expression, parser::ParserErrorReason};
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_arguments(&mut self) -> Vec<Expression> {
+    pub(crate) fn parse_arguments(&mut self) -> Option<Vec<Expression>> {
         if !self.eat_left_paren() {
-            // TODO: error
-            return Vec::new();
+            return None;
         }
 
         if self.eat_right_paren() {
-            return Vec::new();
+            return Some(Vec::new());
         }
 
         let mut arguments = Vec::new();
@@ -32,6 +31,6 @@ impl<'a> Parser<'a> {
             trailing_comma = self.eat_comma();
         }
 
-        arguments
+        Some(arguments)
     }
 }

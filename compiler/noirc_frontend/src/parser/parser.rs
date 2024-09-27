@@ -76,7 +76,12 @@ impl<'a> TokenStream<'a> {
 pub struct Parser<'a> {
     errors: Vec<ParserError>,
     tokens: TokenStream<'a>,
+
+    // We always have one look-ahead token to see if we get `&mut` or just `&`
+    // (`&` and `mut` are two separate tokens)
     token: SpannedToken,
+    next_token: SpannedToken,
+
     current_token_span: Span,
     previous_token_span: Span,
 }
@@ -99,11 +104,12 @@ impl<'a> Parser<'a> {
         let mut parser = Self {
             errors: Vec::new(),
             tokens,
-            token: SpannedToken::new(Token::EOF, Default::default()),
+            token: SpannedToken::default(),
+            next_token: SpannedToken::default(),
             current_token_span: Default::default(),
             previous_token_span: Default::default(),
         };
-        parser.next_token();
+        parser.read_two_first_tokens();
         parser
     }
 
@@ -119,23 +125,30 @@ impl<'a> Parser<'a> {
     }
 
     fn next_token(&mut self) {
-        loop {
-            self.previous_token_span = self.current_token_span;
+        self.previous_token_span = self.current_token_span;
+        let token = self.read_token_internal();
+        let next_token = std::mem::take(&mut self.next_token);
+        self.token = next_token;
+        self.next_token = token;
+        self.current_token_span = self.token.to_span();
+    }
 
+    fn read_two_first_tokens(&mut self) {
+        self.token = self.read_token_internal();
+        self.current_token_span = self.token.to_span();
+        self.next_token = self.read_token_internal();
+    }
+
+    fn read_token_internal(&mut self) -> SpannedToken {
+        loop {
             let token = self.tokens.next();
             if let Some(token) = token {
                 match token {
-                    Ok(token) => {
-                        self.current_token_span = token.to_span();
-                        self.token = token;
-                        break;
-                    }
+                    Ok(token) => return token,
                     Err(lexer_error) => self.errors.push(lexer_error.into()),
                 }
             } else {
-                self.token = SpannedToken::new(Token::EOF, Default::default());
-                self.current_token_span = Default::default();
-                break;
+                return SpannedToken::default();
             }
         }
     }
