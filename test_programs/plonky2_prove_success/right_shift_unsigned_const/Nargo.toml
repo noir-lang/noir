@@ -1,0 +1,8 @@
+[package]
+name = "right_shift_unsigned_const"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.22.0"
+version = "1.0.0"
+
+[dependencies]
