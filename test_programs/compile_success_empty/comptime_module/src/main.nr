@@ -103,7 +103,7 @@ fn main() {
 
 // docs:start:as_module_example
 mod baz {
-    mod qux {}
+    pub mod qux {}
 }
 
 #[test]
