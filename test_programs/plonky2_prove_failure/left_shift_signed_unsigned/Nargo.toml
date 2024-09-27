@@ -1,0 +1,8 @@
+[package]
+name = "left_shift_signed_unsigned"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.22.0"
+version = "1.0.0"
+
+[dependencies]
