@@ -139,15 +139,16 @@ impl<'a> ModCollector<'a> {
     fn collect_globals(
         &mut self,
         context: &mut Context,
-        globals: Vec<Documented<LetStatement>>,
+        globals: Vec<(Documented<LetStatement>, ItemVisibility)>,
         crate_id: CrateId,
     ) -> Vec<(CompilationError, fm::FileId)> {
         let mut errors = vec![];
-        for global in globals {
+        for (global, visibility) in globals {
             let (global, error) = collect_global(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
                 global,
+                visibility,
                 self.file_id,
                 self.module_id,
                 crate_id,
@@ -515,7 +516,7 @@ impl<'a> ModCollector<'a> {
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [trait_id.0.local_id.0]
-                            .declare_global(name.clone(), global_id)
+                            .declare_global(name.clone(), ItemVisibility::Public, global_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedConst,
@@ -1160,6 +1161,7 @@ pub(crate) fn collect_global(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,
     global: Documented<LetStatement>,
+    visibility: ItemVisibility,
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
@@ -1180,7 +1182,15 @@ pub(crate) fn collect_global(
     );
 
     // Add the statement to the scope so its path can be looked up later
-    let result = def_map.modules[module_id.0].declare_global(name, global_id);
+    let result = def_map.modules[module_id.0].declare_global(name.clone(), visibility, global_id);
+
+    let parent_module_id = ModuleId { krate: crate_id, local_id: module_id };
+    interner.usage_tracker.add_unused_item(
+        parent_module_id,
+        name,
+        UnusedItem::Global(global_id),
+        visibility,
+    );
 
     let error = result.err().map(|(first_def, second_def)| {
         let err =

@@ -1376,7 +1376,9 @@ fn ban_mutable_globals() {
     // Mutable globals are only allowed in a comptime context
     let src = r#"
         mut global FOO: Field = 0;
-        fn main() {}
+        fn main() {
+            let _ = FOO; // silence FOO never used warning
+        }
     "#;
     assert_eq!(get_program_errors(src).len(), 1);
 }

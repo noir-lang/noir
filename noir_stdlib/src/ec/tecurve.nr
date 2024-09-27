@@ -27,6 +27,7 @@ mod affine {
 
     impl Point {
         // Point constructor
+        #[deprecated = "It's recommmended to use the external noir-edwards library (https://github.com/noir-lang/noir-edwards)"]
         pub fn new(x: Field, y: Field) -> Self {
             Self { x, y }
         }

@@ -96,8 +96,13 @@ impl ModuleData {
         self.definitions.remove_definition(name);
     }
 
-    pub fn declare_global(&mut self, name: Ident, id: GlobalId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+    pub fn declare_global(
+        &mut self,
+        name: Ident,
+        visibility: ItemVisibility,
+        id: GlobalId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, visibility, id.into(), None)
     }
 
     pub fn declare_struct(
