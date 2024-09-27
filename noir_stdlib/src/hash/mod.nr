@@ -102,9 +102,9 @@ fn __derive_generators<let N: u32, let M: u32>(
 ) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
-    // Same as from_field but:
-    // does not assert the limbs are 128 bits
-    // does not assert the decomposition does not overflow the EmbeddedCurveScalar
+// Same as from_field but:
+// does not assert the limbs are 128 bits
+// does not assert the decomposition does not overflow the EmbeddedCurveScalar
 fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     let (xlo, xhi) = unsafe {
         crate::field::bn254::decompose_hint(scalar)
