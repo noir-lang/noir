@@ -82,14 +82,18 @@ mod tests {
     #[test]
     fn parses_no_where_clause() {
         let src = "{";
-        let constraints = Parser::for_str(src).parse_where_clause();
+        let mut parser = Parser::for_str(src);
+        let constraints = parser.parse_where_clause();
+        assert!(parser.errors.is_empty());
         assert!(constraints.is_empty());
     }
 
     #[test]
     fn parses_one_where_clause_with_two_constraints() {
         let src = "where Foo: Bar<T> + Baz";
-        let mut constraints = Parser::for_str(src).parse_where_clause();
+        let mut parser = Parser::for_str(src);
+        let mut constraints = parser.parse_where_clause();
+        assert!(parser.errors.is_empty());
         assert_eq!(constraints.len(), 2);
 
         let constraint = constraints.remove(0);
@@ -105,7 +109,9 @@ mod tests {
     #[test]
     fn parses_two_where_clauses() {
         let src = "where Foo: Bar<T>, i32: Qux";
-        let mut constraints = Parser::for_str(src).parse_where_clause();
+        let mut parser = Parser::for_str(src);
+        let mut constraints = parser.parse_where_clause();
+        assert!(parser.errors.is_empty());
         assert_eq!(constraints.len(), 2);
 
         let constraint = constraints.remove(0);

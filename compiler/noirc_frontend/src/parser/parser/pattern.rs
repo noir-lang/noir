@@ -168,7 +168,9 @@ mod tests {
     #[test]
     fn parses_identifier_pattern() {
         let src = "foo";
-        let typ = Parser::for_str(src).parse_pattern();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_pattern();
+        assert!(parser.errors.is_empty());
         let Pattern::Identifier(ident) = typ else { panic!("Expected an identifier pattern") };
         assert_eq!(ident.to_string(), "foo");
     }
@@ -176,7 +178,9 @@ mod tests {
     #[test]
     fn parses_mutable_pattern() {
         let src = "mut foo";
-        let typ = Parser::for_str(src).parse_pattern();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_pattern();
+        assert!(parser.errors.is_empty());
         let Pattern::Mutable(pattern, _, _) = typ else { panic!("Expected a mutable pattern") };
         let pattern: &Pattern = &pattern;
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
@@ -186,7 +190,9 @@ mod tests {
     #[test]
     fn parses_tuple_pattern() {
         let src = "(foo, bar)";
-        let typ = Parser::for_str(src).parse_pattern();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_pattern();
+        assert!(parser.errors.is_empty());
         let Pattern::Tuple(mut patterns, _) = typ else { panic!("Expected a tuple pattern") };
         assert_eq!(patterns.len(), 2);
 
@@ -212,7 +218,9 @@ mod tests {
     #[test]
     fn parses_struct_pattern_no_fields() {
         let src = "foo::Bar {}";
-        let typ = Parser::for_str(src).parse_pattern();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_pattern();
+        assert!(parser.errors.is_empty());
         let Pattern::Struct(path, patterns, _) = typ else { panic!("Expected a struct pattern") };
         assert_eq!(path.to_string(), "foo::Bar");
         assert!(patterns.is_empty());
@@ -221,7 +229,9 @@ mod tests {
     #[test]
     fn parses_struct_pattern() {
         let src = "foo::Bar { x: one, y }";
-        let typ = Parser::for_str(src).parse_pattern();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_pattern();
+        assert!(parser.errors.is_empty());
         let Pattern::Struct(path, mut patterns, _) = typ else {
             panic!("Expected a struct pattern")
         };
@@ -242,6 +252,7 @@ mod tests {
         let src = "foo::Bar { x";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_pattern();
+        assert!(parser.errors.is_empty());
         let Pattern::Struct(path, _, _) = typ else { panic!("Expected a struct pattern") };
         assert_eq!(path.to_string(), "foo::Bar");
     }

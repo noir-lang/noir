@@ -155,7 +155,9 @@ mod tests {
     #[test]
     fn parses_generics() {
         let src = "<A, let B: u32>";
-        let mut generics = Parser::for_str(src).parse_generics();
+        let mut parser = Parser::for_str(src);
+        let mut generics = parser.parse_generics();
+        assert!(parser.errors.is_empty());
         assert_eq!(generics.len(), 2);
 
         let generic = generics.remove(0);
@@ -178,14 +180,18 @@ mod tests {
     #[test]
     fn parses_no_generic_type_args() {
         let src = "1";
-        let generics = Parser::for_str(src).parse_generic_type_args();
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generic_type_args();
+        assert!(parser.errors.is_empty());
         assert!(generics.is_empty());
     }
 
     #[test]
     fn parses_generic_type_args() {
         let src = "<i32, X = Field>";
-        let generics = Parser::for_str(src).parse_generic_type_args();
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generic_type_args();
+        assert!(parser.errors.is_empty());
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "i32");
@@ -197,7 +203,9 @@ mod tests {
     #[test]
     fn parses_generic_type_arg_that_is_a_path() {
         let src = "<foo::Bar>";
-        let generics = Parser::for_str(src).parse_generic_type_args();
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generic_type_args();
+        assert!(parser.errors.is_empty());
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "foo::Bar");

@@ -57,17 +57,20 @@ mod tests {
     #[test]
     fn parses_inner_attribute() {
         let src = "#![hello]";
-        let Some(SecondaryAttribute::Custom(custom)) = Parser::for_str(src).parse_inner_attribute()
-        else {
+        let mut parser = Parser::for_str(src);
+        let Some(SecondaryAttribute::Custom(custom)) = parser.parse_inner_attribute() else {
             panic!("Expected inner custom attribute");
         };
+        assert!(parser.errors.is_empty());
         assert_eq!(custom.contents, "hello");
     }
 
     #[test]
     fn parses_attributes() {
         let src = "#[test] #[deprecated]";
-        let mut attributes = Parser::for_str(src).parse_attributes();
+        let mut parser = Parser::for_str(src);
+        let mut attributes = parser.parse_attributes();
+        assert!(parser.errors.is_empty());
         assert_eq!(attributes.len(), 2);
 
         let (attr, _) = attributes.remove(0);

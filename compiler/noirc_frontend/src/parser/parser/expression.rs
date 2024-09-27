@@ -107,7 +107,9 @@ mod tests {
     #[test]
     fn parses_bool_literals() {
         let src = "true";
-        let expr = Parser::for_str(src).parse_expression();
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
         assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Bool(true))));
 
         let src = "false";
@@ -118,7 +120,9 @@ mod tests {
     #[test]
     fn parses_integer_literal() {
         let src = "42";
-        let expr = Parser::for_str(src).parse_expression();
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
             panic!("Expected integer literal");
         };
@@ -129,7 +133,9 @@ mod tests {
     #[test]
     fn parses_parenthesized_expression() {
         let src = "(42)";
-        let expr = Parser::for_str(src).parse_expression();
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
         let ExpressionKind::Parenthesized(expr) = expr.kind else {
             panic!("Expected parenthesized expression");
         };
@@ -150,7 +156,9 @@ mod tests {
     #[test]
     fn parses_tuple_expression() {
         let src = "(1, 2)";
-        let expr = Parser::for_str(src).parse_expression();
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
         let ExpressionKind::Tuple(mut exprs) = expr.kind else {
             panic!("Expected tuple expression");
         };
@@ -174,7 +182,9 @@ mod tests {
     #[test]
     fn parses_block_expression_with_a_single_expression() {
         let src = "{ 1 }";
-        let expr = Parser::for_str(src).parse_expression();
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
         let ExpressionKind::Block(mut block) = expr.kind else {
             panic!("Expected block expression");
         };

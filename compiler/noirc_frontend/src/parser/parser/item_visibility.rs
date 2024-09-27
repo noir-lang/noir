@@ -37,21 +37,27 @@ mod tests {
     #[test]
     fn parses_private_visibility() {
         let src = "(";
-        let visibility = Parser::for_str(src).parse_item_visibility();
+        let mut parser = Parser::for_str(src);
+        let visibility = parser.parse_item_visibility();
+        assert!(parser.errors.is_empty());
         assert_eq!(visibility, ItemVisibility::Private);
     }
 
     #[test]
     fn parses_public_visibility() {
         let src = "pub";
-        let visibility = Parser::for_str(src).parse_item_visibility();
+        let mut parser = Parser::for_str(src);
+        let visibility = parser.parse_item_visibility();
+        assert!(parser.errors.is_empty());
         assert_eq!(visibility, ItemVisibility::Public);
     }
 
     #[test]
     fn parses_public_crate_visibility() {
         let src = "pub(crate)";
-        let visibility = Parser::for_str(src).parse_item_visibility();
+        let mut parser = Parser::for_str(src);
+        let visibility = parser.parse_item_visibility();
+        assert!(parser.errors.is_empty());
         assert_eq!(visibility, ItemVisibility::PublicCrate);
     }
 }

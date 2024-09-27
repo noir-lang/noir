@@ -138,7 +138,9 @@ mod tests {
     #[test]
     fn parses_plain_one_segment() {
         let src = "foo";
-        let path = Parser::for_str(src).parse_path();
+        let mut parser = Parser::for_str(src);
+        let path = parser.parse_path();
+        assert!(parser.errors.is_empty());
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 1);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -148,7 +150,9 @@ mod tests {
     #[test]
     fn parses_plain_two_segments() {
         let src = "foo::bar";
-        let path = Parser::for_str(src).parse_path();
+        let mut parser = Parser::for_str(src);
+        let path = parser.parse_path();
+        assert!(parser.errors.is_empty());
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -160,7 +164,9 @@ mod tests {
     #[test]
     fn parses_crate_two_segments() {
         let src = "crate::foo::bar";
-        let path = Parser::for_str(src).parse_path();
+        let mut parser = Parser::for_str(src);
+        let path = parser.parse_path();
+        assert!(parser.errors.is_empty());
         assert_eq!(path.kind, PathKind::Crate);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -172,7 +178,9 @@ mod tests {
     #[test]
     fn parses_super_two_segments() {
         let src = "super::foo::bar";
-        let path = Parser::for_str(src).parse_path();
+        let mut parser = Parser::for_str(src);
+        let path = parser.parse_path();
+        assert!(parser.errors.is_empty());
         assert_eq!(path.kind, PathKind::Super);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -184,7 +192,9 @@ mod tests {
     #[test]
     fn parses_dep_two_segments() {
         let src = "dep::foo::bar";
-        let path = Parser::for_str(src).parse_path();
+        let mut parser = Parser::for_str(src);
+        let path = parser.parse_path();
+        assert!(parser.errors.is_empty());
         assert_eq!(path.kind, PathKind::Dep);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -209,7 +219,9 @@ mod tests {
     #[test]
     fn parses_with_turbofish() {
         let src = "foo::<T, i32>::bar";
-        let mut path = Parser::for_str(src).parse_path();
+        let mut parser = Parser::for_str(src);
+        let mut path = parser.parse_path();
+        assert!(parser.errors.is_empty());
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");

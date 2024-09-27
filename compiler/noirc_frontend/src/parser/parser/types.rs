@@ -154,21 +154,27 @@ mod tests {
     #[test]
     fn parses_unit_type() {
         let src = "()";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         assert!(matches!(typ.typ, UnresolvedTypeData::Unit));
     }
 
     #[test]
     fn parses_bool_type() {
         let src = "bool";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
     }
 
     #[test]
     fn parses_int_type() {
         let src = "u32";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         assert!(matches!(
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
@@ -178,14 +184,18 @@ mod tests {
     #[test]
     fn parses_field_type() {
         let src = "Field";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
     }
 
     #[test]
     fn parses_tuple_type() {
         let src = "(Field, bool)";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         let UnresolvedTypeData::Tuple(mut types) = typ.typ else { panic!("Expected a tuple type") };
         assert_eq!(types.len(), 2);
 
@@ -199,7 +209,9 @@ mod tests {
     #[test]
     fn parses_tuple_type_one_element() {
         let src = "(Field,)";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         let UnresolvedTypeData::Tuple(mut types) = typ.typ else { panic!("Expected a tuple type") };
         assert_eq!(types.len(), 1);
 
@@ -210,7 +222,9 @@ mod tests {
     #[test]
     fn parses_parenthesized_type() {
         let src = "(Field)";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
@@ -221,8 +235,8 @@ mod tests {
     fn parses_unclosed_parentheses_type() {
         let src = "(Field";
         let mut parser = Parser::for_str(src);
-        assert!(parser.errors.is_empty()); // TODO: there should be an error here
         let typ = parser.parse_type();
+        assert!(parser.errors.is_empty()); // TODO: there should be an error here
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
@@ -232,7 +246,9 @@ mod tests {
     #[test]
     fn parses_mutable_reference_type() {
         let src = "&mut Field";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         let UnresolvedTypeData::MutableReference(typ) = typ.typ else {
             panic!("Expected a mutable reference type")
         };
@@ -242,7 +258,9 @@ mod tests {
     #[test]
     fn parses_named_type_no_generics() {
         let src = "foo::Bar";
-        let typ = Parser::for_str(src).parse_type();
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
         let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
             panic!("Expected a named type")
         };
