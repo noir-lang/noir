@@ -2,9 +2,9 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        Documented, GenericTypeArgs, Ident, ItemVisibility, NoirFunction, NoirTraitImpl, Path,
-        TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
-        UnresolvedTypeData,
+        Documented, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility,
+        NoirFunction, NoirTraitImpl, Path, TraitImplItem, TraitImplItemKind, TypeImpl,
+        UnresolvedGeneric, UnresolvedType, UnresolvedTypeData,
     },
     token::Keyword,
 };
@@ -149,6 +149,10 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        if let Some(kind) = self.parse_trait_impl_constant() {
+            return Some(kind);
+        }
+
         None
     }
 
@@ -197,6 +201,37 @@ impl<'a> Parser<'a> {
         self.eat_semicolons();
 
         Some(TraitImplItemKind::Type { name, alias })
+    }
+
+    fn parse_trait_impl_constant(&mut self) -> Option<TraitImplItemKind> {
+        if !self.eat_keyword(Keyword::Let) {
+            return None;
+        }
+
+        let name = match self.eat_ident() {
+            Some(name) => name,
+            None => {
+                // TODO: error
+                Ident::default()
+            }
+        };
+
+        let typ = if self.eat_colon() {
+            self.parse_type()
+        } else {
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
+        };
+
+        let expr = if self.eat_assign() {
+            self.parse_expression()
+        } else {
+            // TODO: error
+            Expression { kind: ExpressionKind::Error, span: Span::default() }
+        };
+
+        self.eat_semicolons();
+
+        Some(TraitImplItemKind::Constant(name, typ, expr))
     }
 }
 
@@ -455,5 +490,27 @@ mod tests {
         };
         assert_eq!(name.to_string(), "Foo");
         assert_eq!(alias.to_string(), "i32");
+    }
+
+    #[test]
+    fn parse_trait_impl_with_let() {
+        let src = "impl Foo for Field { let x: Field = 1; }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TraitImpl(mut trait_impl) = item.kind else {
+            panic!("Expected trait impl");
+        };
+        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(trait_impl.items.len(), 1);
+
+        let item = trait_impl.items.remove(0).item;
+        let TraitImplItemKind::Constant(name, typ, expr) = item.kind else {
+            panic!("Expected constant");
+        };
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(expr.to_string(), "1");
     }
 }
