@@ -46,8 +46,15 @@ impl Ssa {
             let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
             let single_array_set_blocks = single_array_sets_per_block
                 .keys()
-                .map(|(_, block_id)| *block_id)
+                .filter_map(|(array, block_id)| {
+                    if array_to_last_use.get(array).is_some() {
+                        Some(*block_id)
+                    } else {
+                        None
+                    }
+                })
                 .collect::<Vec<_>>();
+
             let mut single_array_sets_can_be_mutable = true;
             for block in single_array_set_blocks.iter() {
                 for inner_block in single_array_set_blocks.iter() {
@@ -62,7 +69,7 @@ impl Ssa {
                     single_array_sets_per_block.values().copied().collect::<Vec<_>>();
                 instructions_to_update.extend(array_sets_to_update);
             }
-            
+
             for block in reachable_blocks {
                 make_mutable(&mut func.dfg, block, &instructions_to_update);
             }
