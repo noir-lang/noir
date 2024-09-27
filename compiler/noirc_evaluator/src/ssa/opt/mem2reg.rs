@@ -288,6 +288,8 @@ impl<'f> PerFunctionContext<'f> {
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
             .collect::<BTreeSet<_>>();
 
+        // Must collect here as we are immutably borrowing `self` to fetch the reference parameters
+        let mut values_to_reduce_counts = Vec::new();
         for (allocation, instruction) in &references.last_stores {
             if let Some(expression) = references.expressions.get(allocation) {
                 if let Some(aliases) = references.aliases.get(expression) {
@@ -297,12 +299,14 @@ impl<'f> PerFunctionContext<'f> {
                     // If `allocation_aliases_parameter` is known to be false
                     if allocation_aliases_parameter == Some(false) {
                         self.instructions_to_remove.insert(*instruction);
-                        if let Some(context) = self.load_results.get_mut(allocation) {
-                            context.uses -= 1;
-                        }
+                        values_to_reduce_counts.push(*allocation);
                     }
                 }
             }
+        }
+
+        for value in values_to_reduce_counts {
+            self.reduce_load_result_count(value);
         }
     }
 
@@ -406,12 +410,8 @@ impl<'f> PerFunctionContext<'f> {
                     else {
                         panic!("Should have a store instruction here");
                     };
-                    if let Some(context) = self.load_results.get_mut(&address) {
-                        context.uses -= 1;
-                    }
-                    if let Some(context) = self.load_results.get_mut(&value) {
-                        context.uses -= 1;
-                    }
+                    self.reduce_load_result_count(address);
+                    self.reduce_load_result_count(value);
                 }
 
                 let known_value = references.get_known_value(value);
@@ -419,12 +419,8 @@ impl<'f> PerFunctionContext<'f> {
                     let known_value_is_address = known_value == address;
                     if known_value_is_address {
                         self.instructions_to_remove.insert(instruction);
-                        if let Some(context) = self.load_results.get_mut(&address) {
-                            context.uses -= 1;
-                        }
-                        if let Some(context) = self.load_results.get_mut(&value) {
-                            context.uses -= 1;
-                        }
+                        self.reduce_load_result_count(address);
+                        self.reduce_load_result_count(value);
                     } else {
                         references.last_stores.insert(address, instruction);
                     }
@@ -617,6 +613,13 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
+    fn reduce_load_result_count(&mut self, value: ValueId) {
+        if let Some(context) = self.load_results.get_mut(&value) {
+            // TODO this was saturating https://github.com/noir-lang/noir/issues/6124
+            context.uses = context.uses.wrapping_sub(1);
+        }
+    }
+
     fn recursively_add_values(&self, value: ValueId, set: &mut HashSet<ValueId>) {
         set.insert(value);
         if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
@@ -741,7 +744,8 @@ impl<'f> PerFunctionContext<'f> {
                 if all_loads_removed && !store_alias_used {
                     self.instructions_to_remove.insert(*store_instruction);
                     if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
-                        *counter -= 1;
+                        // TODO this was saturating https://github.com/noir-lang/noir/issues/6124
+                        *counter = counter.wrapping_sub(1);
                     }
                 } else if let Some((_, counter)) = remaining_last_stores.get_mut(store_address) {
                     *counter += 1;

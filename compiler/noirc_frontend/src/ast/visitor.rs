@@ -32,6 +32,7 @@ pub enum AttributeTarget {
     Struct,
     Trait,
     Function,
+    Let,
 }
 
 /// Implements the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) for Noir's AST.
@@ -271,7 +272,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_import(&mut self, _: &UseTree, _visibility: ItemVisibility) -> bool {
+    fn visit_import(&mut self, _: &UseTree, _: Span, _visibility: ItemVisibility) -> bool {
         true
     }
 
@@ -499,14 +500,14 @@ impl Item {
                 noir_trait_impl.accept(self.span, visitor);
             }
             ItemKind::Impl(type_impl) => type_impl.accept(self.span, visitor),
-            ItemKind::Global(let_statement) => {
+            ItemKind::Global(let_statement, _visibility) => {
                 if visitor.visit_global(let_statement, self.span) {
                     let_statement.accept(visitor);
                 }
             }
             ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
             ItemKind::Import(use_tree, visibility) => {
-                if visitor.visit_import(use_tree, *visibility) {
+                if visitor.visit_import(use_tree, self.span, *visibility) {
                     use_tree.accept(visitor);
                 }
             }
@@ -1097,6 +1098,10 @@ impl Statement {
 
 impl LetStatement {
     pub fn accept(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Let, visitor);
+        }
+
         if visitor.visit_let_statement(self) {
             self.accept_children(visitor);
         }
@@ -1117,11 +1122,7 @@ impl ConstrainStatement {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.0.accept(visitor);
-
-        if let Some(exp) = &self.1 {
-            exp.accept(visitor);
-        }
+        visit_expressions(&self.arguments, visitor);
     }
 }
 

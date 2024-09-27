@@ -1,4 +1,4 @@
 #!/bin/bash
 set -eu
 
-npx playwright install && npx playwright install-deps
+npx -y playwright@1.42 install --with-deps

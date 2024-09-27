@@ -4,6 +4,7 @@ use std::{hash::Hasher, rc::Rc};
 use acvm::FieldElement;
 use noirc_errors::Location;
 
+use crate::hir::comptime::display::tokens_to_string;
 use crate::lexer::Lexer;
 use crate::{
     ast::{
@@ -403,6 +404,7 @@ pub(super) fn lex(input: &str) -> Vec<Token> {
 }
 
 pub(super) fn parse<T>(
+    interner: &NodeInterner,
     (value, location): (Value, Location),
     parser: impl NoirParser<T>,
     rule: &'static str,
@@ -410,18 +412,20 @@ pub(super) fn parse<T>(
     let parser = parser.then_ignore(chumsky::primitive::end());
     let tokens = get_quoted((value, location))?;
     let quoted = add_token_spans(tokens.clone(), location.span);
-    parse_tokens(tokens, quoted, location, parser, rule)
+    parse_tokens(tokens, quoted, interner, location, parser, rule)
 }
 
 pub(super) fn parse_tokens<T>(
     tokens: Rc<Vec<Token>>,
     quoted: Tokens,
+    interner: &NodeInterner,
     location: Location,
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
     parser.parse(quoted).map_err(|mut errors| {
         let error = errors.swap_remove(0);
+        let tokens = tokens_to_string(tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })
 }

@@ -160,6 +160,17 @@ impl Function {
         let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
         Signature { params, returns }
     }
+
+    /// Finds the block of the function with the Return instruction
+    pub(crate) fn find_last_block(&self) -> BasicBlockId {
+        for block in self.reachable_blocks() {
+            if matches!(self.dfg[block].terminator(), Some(TerminatorInstruction::Return { .. })) {
+                return block;
+            }
+        }
+
+        unreachable!("SSA Function {} has no reachable return instruction!", self.id())
+    }
 }
 
 impl std::fmt::Display for RuntimeType {

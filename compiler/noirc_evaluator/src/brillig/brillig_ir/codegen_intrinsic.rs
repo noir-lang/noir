@@ -68,11 +68,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         source_field: SingleAddrVariable,
         target_array: BrilligArray,
-        radix: u32,
+        radix: SingleAddrVariable,
         big_endian: bool,
         output_bits: bool, // If true will generate bit limbs, if false will generate byte limbs
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
+        assert!(radix.bit_size == 32);
 
         self.codegen_initialize_array(target_array);
 
@@ -80,7 +81,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
-            radix,
+            radix: radix.address,
             output: heap_array,
             output_bits,
         });
