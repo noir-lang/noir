@@ -67,6 +67,10 @@ impl<'a> Parser<'a> {
             };
         }
 
+        if let Some(tokens) = self.eat_quote() {
+            return ExpressionKind::Quote(tokens);
+        }
+
         if let Some(kind) = self.parse_parentheses_expression() {
             return kind;
         }
@@ -536,5 +540,17 @@ mod tests {
             panic!("Expected variable");
         };
         assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_quote() {
+        let src = "quote { 1 }";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Quote(tokens) = expr.kind else {
+            panic!("Expected quote expression");
+        };
+        assert_eq!(tokens.0.len(), 1);
     }
 }

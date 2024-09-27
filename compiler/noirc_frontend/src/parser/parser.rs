@@ -264,6 +264,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_quote(&mut self) -> Option<Tokens> {
+        if matches!(self.token.token(), Token::Quote(..)) {
+            let token = std::mem::take(&mut self.token);
+            self.next_token();
+            match token.into_token() {
+                Token::Quote(tokens) => Some(tokens),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma)
     }
