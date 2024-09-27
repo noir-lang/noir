@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, PrefixExpression,
-        UnaryOp,
+        ArrayLiteral, BlockExpression, CallExpression, Expression, ExpressionKind, Literal,
+        PrefixExpression, UnaryOp,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -53,10 +53,40 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_atom_or_unary_right(&mut self) -> ExpressionKind {
-        self.parse_atom()
+        let start_span = self.current_token_span;
+        let mut atom = self.parse_atom();
+
+        loop {
+            let is_macro_call =
+                self.token.token() == &Token::Bang && self.next_token.token() == &Token::LeftParen;
+            if is_macro_call {
+                // Next `self.parse_arguments` will return `Some(...)`
+                self.next_token();
+            }
+
+            if let Some(arguments) = self.parse_arguments() {
+                let kind = ExpressionKind::Call(Box::new(CallExpression {
+                    func: Box::new(atom),
+                    arguments,
+                    is_macro_call,
+                }));
+                let span = self.span_since(start_span);
+                atom = Expression { kind, span };
+            } else {
+                break;
+            }
+        }
+
+        atom.kind
     }
 
-    fn parse_atom(&mut self) -> ExpressionKind {
+    fn parse_atom(&mut self) -> Expression {
+        let start_span = self.current_token_span;
+        let kind = self.parse_atom_kind();
+        Expression { kind, span: self.span_since(start_span) }
+    }
+
+    fn parse_atom_kind(&mut self) -> ExpressionKind {
         if let Some(literal) = self.parse_literal() {
             return literal;
         }
@@ -662,16 +692,31 @@ mod tests {
         assert_eq!(tokens.0.len(), 1);
     }
 
-    // #[test]
-    // fn parses_call() {
-    //     let src = "foo(1, 2)";
-    //     let mut parser = Parser::for_str(src);
-    //     let expr = parser.parse_expression();
-    //     assert!(parser.errors.is_empty());
-    //     let ExpressionKind::Call(call) = expr.kind else {
-    //         panic!("Expected call expression");
-    //     };
-    //     assert_eq!(call.func.to_string(), "foo");
-    //     assert_eq!(call.arguments.len(), 2);
-    // }
+    #[test]
+    fn parses_call() {
+        let src = "foo(1, 2)";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Call(call) = expr.kind else {
+            panic!("Expected call expression");
+        };
+        assert_eq!(call.func.to_string(), "foo");
+        assert_eq!(call.arguments.len(), 2);
+        assert!(!call.is_macro_call);
+    }
+
+    #[test]
+    fn parses_macro_call() {
+        let src = "foo!(1, 2)";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Call(call) = expr.kind else {
+            panic!("Expected call expression");
+        };
+        assert_eq!(call.func.to_string(), "foo");
+        assert_eq!(call.arguments.len(), 2);
+        assert!(call.is_macro_call);
+    }
 }
