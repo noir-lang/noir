@@ -128,6 +128,8 @@ fn analyze_last_uses(
                 // TODO: only track these when we have multiple blocks
                 if single_array_sets_per_block.get(&(array, block_id)).is_none() {
                     single_array_sets_per_block.insert((array, block_id), *instruction_id);
+                } else {
+                    single_array_sets_per_block.remove(&(array, block_id));
                 }
             }
             Instruction::Call { arguments, .. } => {
