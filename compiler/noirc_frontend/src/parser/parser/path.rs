@@ -2,6 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Ident, Path, PathKind, PathSegment, UnresolvedType},
+    parser::ParserErrorReason,
     token::{Keyword, TokenKind},
 };
 
@@ -101,13 +102,25 @@ impl<'a> Parser<'a> {
         }
 
         let mut generics = Vec::new();
+        let mut trailing_comma = false;
+
         if self.eat_greater() {
             // TODO: error
         } else {
             loop {
+                let star_span = self.current_token_span;
                 let typ = self.parse_type();
+                if self.current_token_span == star_span {
+                    self.eat_greater();
+                    break;
+                }
+
+                if !trailing_comma && !generics.is_empty() {
+                    self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, star_span);
+                }
+
                 generics.push(typ);
-                self.eat_commas();
+                trailing_comma = self.eat_commas();
 
                 if self.eat_greater() {
                     break;
