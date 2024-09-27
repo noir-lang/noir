@@ -66,6 +66,10 @@ impl<'a> DocumentSymbolCollector<'a> {
     }
 
     fn collect_in_type(&mut self, name: &Ident, typ: Option<&UnresolvedType>) {
+        if name.0.contents.is_empty() {
+            return;
+        }
+
         let Some(name_location) = self.to_lsp_location(name.span()) else {
             return;
         };
@@ -99,6 +103,10 @@ impl<'a> DocumentSymbolCollector<'a> {
         typ: &UnresolvedType,
         default_value: Option<&Expression>,
     ) {
+        if name.0.contents.is_empty() {
+            return;
+        }
+
         let Some(name_location) = self.to_lsp_location(name.span()) else {
             return;
         };
@@ -221,6 +229,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_noir_trait(&mut self, noir_trait: &NoirTrait, span: Span) -> bool {
+        if noir_trait.name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(location) = self.to_lsp_location(span) else {
             return false;
         };
@@ -263,6 +275,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         _where_clause: &[noirc_frontend::ast::UnresolvedTraitConstraint],
         body: &Option<noirc_frontend::ast::BlockExpression>,
     ) -> bool {
+        if name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(name_location) = self.to_lsp_location(name.span()) else {
             return false;
         };
@@ -316,6 +332,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         typ: &UnresolvedType,
         default_value: &Option<Expression>,
     ) -> bool {
+        if name.0.contents.is_empty() {
+            return false;
+        }
+
         self.collect_in_constant(name, typ, default_value.as_ref());
         false
     }
@@ -408,6 +428,9 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         };
 
         let name = type_impl.object_type.typ.to_string();
+        if name.is_empty() {
+            return false;
+        }
 
         let Some(name_location) = self.to_lsp_location(type_impl.object_type.span) else {
             return false;
@@ -439,6 +462,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
+        if parsed_sub_module.name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(name_location) = self.to_lsp_location(parsed_sub_module.name.span()) else {
             return false;
         };
@@ -473,6 +500,11 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_global(&mut self, global: &LetStatement, span: Span) -> bool {
+        let name = global.pattern.to_string();
+        if name.is_empty() {
+            return false;
+        }
+
         let Some(name_location) = self.to_lsp_location(global.pattern.span()) else {
             return false;
         };
@@ -483,7 +515,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
 
         #[allow(deprecated)]
         self.symbols.push(DocumentSymbol {
-            name: global.pattern.to_string(),
+            name,
             detail: None,
             kind: SymbolKind::CONSTANT,
             tags: None,
