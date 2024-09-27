@@ -1,7 +1,7 @@
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, Expression, ExpressionKind, Ident, Literal,
-        MemberAccessExpression, PrefixExpression, UnaryOp,
+        MemberAccessExpression, MethodCallExpression, PrefixExpression, UnaryOp,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -84,12 +84,34 @@ impl<'a> Parser<'a> {
                     // TODO: error
                     Ident::default()
                 };
-                let kind = ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
-                    lhs: atom,
-                    rhs: field_name,
-                }));
-                let span = self.span_since(start_span);
-                atom = Expression { kind, span };
+
+                // TODO: parse generics
+
+                let is_macro_call = self.token.token() == &Token::Bang
+                    && self.next_token.token() == &Token::LeftParen;
+                if is_macro_call {
+                    // Next `self.parse_arguments` will return `Some(...)`
+                    self.next_token();
+                }
+
+                if let Some(arguments) = self.parse_arguments() {
+                    let kind = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                        object: atom,
+                        method_name: field_name,
+                        generics: None,
+                        arguments,
+                        is_macro_call,
+                    }));
+                    let span = self.span_since(start_span);
+                    atom = Expression { kind, span };
+                } else {
+                    let kind = ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                        lhs: atom,
+                        rhs: field_name,
+                    }));
+                    let span = self.span_since(start_span);
+                    atom = Expression { kind, span };
+                }
                 continue;
             }
 
@@ -750,5 +772,37 @@ mod tests {
         };
         assert_eq!(member_access.lhs.to_string(), "foo");
         assert_eq!(member_access.rhs.to_string(), "bar");
+    }
+
+    #[test]
+    fn parses_method_call() {
+        let src = "foo.bar(1, 2)";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::MethodCall(method_call) = expr.kind else {
+            panic!("Expected method call expression");
+        };
+        assert_eq!(method_call.object.to_string(), "foo");
+        assert_eq!(method_call.method_name.to_string(), "bar");
+        assert!(!method_call.is_macro_call);
+        assert_eq!(method_call.arguments.len(), 2);
+        assert!(method_call.generics.is_none());
+    }
+
+    #[test]
+    fn parses_method_macro_call() {
+        let src = "foo.bar!(1, 2)";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::MethodCall(method_call) = expr.kind else {
+            panic!("Expected method call expression");
+        };
+        assert_eq!(method_call.object.to_string(), "foo");
+        assert_eq!(method_call.method_name.to_string(), "bar");
+        assert!(method_call.is_macro_call);
+        assert_eq!(method_call.arguments.len(), 2);
+        assert!(method_call.generics.is_none());
     }
 }
