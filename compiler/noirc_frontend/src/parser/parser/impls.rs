@@ -6,6 +6,7 @@ use crate::{
         NoirFunction, NoirTraitImpl, Path, TraitImplItem, TraitImplItemKind, TypeImpl,
         UnresolvedGeneric, UnresolvedType, UnresolvedTypeData,
     },
+    parser::ParserErrorReason,
     token::Keyword,
 };
 
@@ -159,7 +160,10 @@ impl<'a> Parser<'a> {
     fn parse_trait_impl_function(&mut self) -> Option<TraitImplItemKind> {
         let modifiers = self.parse_modifiers();
         if modifiers.visibility != ItemVisibility::Private {
-            // TODO: error
+            self.push_error(
+                ParserErrorReason::TraitImplVisibilityIgnored,
+                modifiers.visibility_span,
+            );
         }
         let attributes = Vec::new();
 
