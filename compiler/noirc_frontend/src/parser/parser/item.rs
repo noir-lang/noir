@@ -69,6 +69,11 @@ impl<'a> Parser<'a> {
             });
         }
 
+        if self.eat_keyword(Keyword::Trait) {
+            // TODO: error if there's comptime or mutable or unconstrained
+            return Some(ItemKind::Trait(self.parse_trait(attributes, visibility, start_span)));
+        }
+
         if self.eat_keyword(Keyword::Global) {
             // TODO: error if there's unconstrained
             return Some(ItemKind::Global(self.parse_global(attributes, comptime, mutable)));
@@ -89,6 +94,8 @@ impl<'a> Parser<'a> {
                 false, // allow_self
             )));
         }
+
+        // TODO: error
 
         None
     }
