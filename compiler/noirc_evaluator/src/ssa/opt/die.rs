@@ -926,7 +926,6 @@ mod test {
         //       return v2
         //   }
         let ssa = ssa.dead_instruction_elimination();
-        println!("{}", ssa);
         let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
