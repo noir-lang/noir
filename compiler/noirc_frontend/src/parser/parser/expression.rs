@@ -14,25 +14,42 @@ use super::Parser;
 impl<'a> Parser<'a> {
     pub(crate) fn parse_expression(&mut self) -> Expression {
         let start_span = self.current_token_span;
-        let kind = self.parse_term();
+        let kind = self.parse_term_kind();
         let span = self.span_since(start_span);
         Expression { kind, span }
     }
 
-    fn parse_term(&mut self) -> ExpressionKind {
+    fn parse_term(&mut self) -> Expression {
+        let start_span = self.current_token_span;
+        let kind = self.parse_term_kind();
+        Expression { kind, span: self.span_since(start_span) }
+    }
+
+    fn parse_term_kind(&mut self) -> ExpressionKind {
+        if let Some(operator) = self.parse_unary_op() {
+            let rhs = self.parse_term();
+            return ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
+        }
+
+        self.parse_atom_or_unary_right()
+    }
+
+    fn parse_unary_op(&mut self) -> Option<UnaryOp> {
         if self.token.token() == &Token::Ampersand
             && self.next_token.token() == &Token::Keyword(Keyword::Mut)
         {
             self.next_token();
             self.next_token();
-            let start_span = self.current_token_span;
-            let term = self.parse_term();
-            let rhs = Expression { kind: term, span: self.span_since(start_span) };
-            let operator = UnaryOp::MutableReference;
-            return ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
+            Some(UnaryOp::MutableReference)
+        } else if self.eat(Token::Minus) {
+            Some(UnaryOp::Minus)
+        } else if self.eat(Token::Bang) {
+            Some(UnaryOp::Not)
+        } else if self.eat(Token::Star) {
+            Some(UnaryOp::Dereference { implicitly_added: false })
+        } else {
+            None
         }
-
-        self.parse_atom_or_unary_right()
     }
 
     fn parse_atom_or_unary_right(&mut self) -> ExpressionKind {
@@ -575,6 +592,57 @@ mod tests {
             panic!("Expected prefix expression");
         };
         assert!(matches!(prefix.operator, UnaryOp::MutableReference));
+
+        let ExpressionKind::Variable(path) = prefix.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_minus() {
+        let src = "-foo";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Prefix(prefix) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(prefix.operator, UnaryOp::Minus));
+
+        let ExpressionKind::Variable(path) = prefix.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_not() {
+        let src = "!foo";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Prefix(prefix) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(prefix.operator, UnaryOp::Not));
+
+        let ExpressionKind::Variable(path) = prefix.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_dereference() {
+        let src = "*foo";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Prefix(prefix) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(prefix.operator, UnaryOp::Dereference { implicitly_added: false }));
 
         let ExpressionKind::Variable(path) = prefix.rhs.kind else {
             panic!("Expected variable");
