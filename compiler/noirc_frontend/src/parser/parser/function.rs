@@ -298,7 +298,13 @@ fn empty_body() -> BlockExpression {
 mod tests {
     use crate::{
         ast::{UnresolvedTypeData, Visibility},
-        parser::{parser::parse_program, ItemKind, ParserErrorReason},
+        parser::{
+            parser::{
+                parse_program,
+                tests::{get_single_error, get_source_with_error_span},
+            },
+            ItemKind, ParserErrorReason,
+        },
     };
 
     #[test]
@@ -445,11 +451,13 @@ mod tests {
 
     #[test]
     fn parse_error_multiple_function_attributes_found() {
-        let src = "#[foreign(foo)] #[oracle(bar)] fn foo() {}";
-        let (_, errors) = parse_program(src);
-        assert_eq!(errors.len(), 1);
-
-        let reason = errors[0].reason().unwrap();
+        let src = "
+        #[foreign(foo)] #[oracle(bar)] fn foo() {}
+                        ^^^^^^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program(&src);
+        let reason = get_single_error(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MultipleFunctionAttributesFound));
     }
 }

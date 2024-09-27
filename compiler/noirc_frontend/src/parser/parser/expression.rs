@@ -101,7 +101,10 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{ExpressionKind, Literal, StatementKind},
-        parser::{Parser, ParserErrorReason},
+        parser::{
+            parser::tests::{get_single_error, get_source_with_error_span},
+            Parser, ParserErrorReason,
+        },
     };
 
     #[test]
@@ -204,23 +207,27 @@ mod tests {
 
     #[test]
     fn parses_unclosed_parentheses() {
-        let src = "(";
-        let mut parser = Parser::for_str(src);
-        let _ = parser.parse_expression();
-        assert_eq!(parser.errors.len(), 1);
-
-        let error = parser.errors[0].reason().unwrap();
-        assert!(matches!(error, ParserErrorReason::ExpectedExpression));
+        let src = "
+        (
+        ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        parser.parse_expression();
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ExpectedExpression));
     }
 
     #[test]
     fn parses_missing_comma() {
-        let src = "(1 2)";
-        let mut parser = Parser::for_str(src);
-        let _ = parser.parse_expression();
-        assert_eq!(parser.errors.len(), 1);
-
-        let error = parser.errors[0].reason().unwrap();
-        assert!(matches!(error, ParserErrorReason::MissingCommaSeparatingExpressions));
+        let src = "
+        (1 2)
+           ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        parser.parse_expression();
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingCommaSeparatingExpressions));
     }
 }

@@ -23,6 +23,7 @@ mod module;
 mod path;
 mod pattern;
 mod structs;
+mod tests;
 mod traits;
 mod type_alias;
 mod types;
