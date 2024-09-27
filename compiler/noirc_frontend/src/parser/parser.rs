@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, LValue, Statement, TraitBound},
+    ast::{Ident, LValue, Statement},
     lexer::{Lexer, SpannedTokenResult},
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
@@ -106,10 +106,6 @@ impl<'a> Parser<'a> {
         let items = self.parse_items();
 
         ParsedModule { items, inner_doc_comments }
-    }
-
-    pub(crate) fn parse_trait_bound(&mut self) -> TraitBound {
-        todo!("Parser")
     }
 
     pub(crate) fn parse_statement(&mut self) -> Statement {
@@ -246,6 +242,17 @@ impl<'a> Parser<'a> {
         self.eat(Token::Semicolon)
     }
 
+    fn eat_semicolons(&mut self) -> bool {
+        if self.eat_semicolon() {
+            while self.eat_semicolon() {
+                self.push_error(ParserErrorReason::UnexpectedSemicolon, self.previous_token_span);
+            }
+            true
+        } else {
+            false
+        }
+    }
+
     fn eat_colon(&mut self) -> bool {
         self.eat(Token::Colon)
     }
@@ -282,15 +289,8 @@ impl<'a> Parser<'a> {
         self.eat(Token::Assign)
     }
 
-    fn eat_semicolons(&mut self) -> bool {
-        if self.eat_semicolon() {
-            while self.eat_semicolon() {
-                self.push_error(ParserErrorReason::UnexpectedSemicolon, self.previous_token_span);
-            }
-            true
-        } else {
-            false
-        }
+    fn eat_plus(&mut self) -> bool {
+        self.eat(Token::Plus)
     }
 
     fn eat(&mut self, token: Token) -> bool {
