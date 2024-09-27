@@ -115,7 +115,9 @@ impl Context {
         // If we see an inc/dec RC pair within a block we can safely remove both instructions.
         let mut rcs_with_possible_pairs: HashMap<Type, Vec<RcInstruction>> = HashMap::default();
         let mut rc_pairs_to_remove = HashSet::default();
-
+        // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
+        // This is done to determine whether the array has ever been borrowed.
+        // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
         let mut inc_rcs: HashMap<ValueId, HashSet<InstructionId>> = HashMap::default();
         let mut borrowed_arrays: HashSet<ValueId> = HashSet::default();
 
@@ -192,7 +194,7 @@ impl Context {
         function: &Function,
         rcs_with_possible_pairs: &mut HashMap<Type, Vec<RcInstruction>>,
         inc_rcs_to_remove: &mut HashSet<InstructionId>,
-        not_borrowed_rcs: &mut HashMap<ValueId, HashSet<InstructionId>>,
+        inc_rcs: &mut HashMap<ValueId, HashSet<InstructionId>>,
         borrowed_arrays: &mut HashSet<ValueId>,
     ) {
         let instruction = &function.dfg[instruction_id];
@@ -207,7 +209,7 @@ impl Context {
                     }
                 }
 
-                not_borrowed_rcs.entry(*value).or_default().insert(instruction_id);
+                inc_rcs.entry(*value).or_default().insert(instruction_id);
             }
             Instruction::DecrementRc { value } => {
                 let typ = function.dfg.type_of_value(*value);
@@ -228,6 +230,8 @@ impl Context {
                 borrowed_arrays.insert(*array);
             }
             Instruction::Store { value, .. } => {
+                // We are very conservative and say that any store of an array value means it has the potential
+                // to be mutated. This is due to the tracking of mutable borrows still being per block.
                 let typ = function.dfg.type_of_value(*value);
                 if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
                     borrowed_arrays.insert(*value);
@@ -593,6 +597,8 @@ fn apply_side_effects(
 mod test {
     use std::sync::Arc;
 
+    use im::vector;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
@@ -799,5 +805,133 @@ mod test {
         let main = ssa.main();
 
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+    }
+
+    #[test]
+    fn keep_inc_rc_on_borrowed_array_store() {
+        // acir(inline) fn main f0 {
+        //     b0():
+        //       inc_rc [u32 0, u32 0]
+        //       v2 = allocate
+        //       store [u32 0, u32 0] at v2
+        //       jmp b1()
+        //     b1():
+        //       v3 = load v2
+        //       v5 = array_set v3, index u32 0, value u32 1
+        //       return v5
+        //   }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
+        let array = builder.array_constant(vector![zero, zero], array_type.clone());
+        builder.increment_array_reference_count(array);
+        let v2 = builder.insert_allocate(array_type.clone());
+        builder.insert_store(v2, array);
+
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![]);
+        builder.switch_to_block(b1);
+
+        let v3 = builder.insert_load(v2, array_type);
+        let one = builder.numeric_constant(1u128, Type::unsigned(32));
+        let v5 = builder.insert_array_set(v3, zero, one);
+        builder.terminate_with_return(vec![v5]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        assert_eq!(main.dfg[b1].instructions().len(), 2);
+
+        // We expect the output to be unchanged
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        assert_eq!(main.dfg[b1].instructions().len(), 2);
+    }
+
+    #[test]
+    fn keep_inc_rc_on_borrowed_array_set() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: [u32; 2]):
+        //       inc_rc v0
+        //       v3 = array_set v0, index u32 0, value u32 1
+        //       return v3
+        //   }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
+        let v0 = builder.add_parameter(array_type.clone());
+        builder.increment_array_reference_count(v0);
+        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        let one = builder.numeric_constant(1u128, Type::unsigned(32));
+        let v3 = builder.insert_array_set(v0, zero, one);
+        builder.terminate_with_return(vec![v3]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 2);
+
+        // We expect the output to be unchanged
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 2);
+    }
+
+    #[test]
+    fn remove_inc_rcs_that_are_never_mutably_borrowed() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: [Field; 2]):
+        //       inc_rc v0
+        //       inc_rc v0
+        //       inc_rc v0
+        //       v2 = array_get v0, index u32 0
+        //       return v2
+        //   }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
+        builder.increment_array_reference_count(v0);
+        builder.increment_array_reference_count(v0);
+        builder.increment_array_reference_count(v0);
+
+        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        let v1 = builder.insert_array_get(v0, zero, Type::field());
+        // builder.decrement_array_reference_count(v0);
+        builder.terminate_with_return(vec![v1]);
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+
+        // Expected output:
+        //
+        // acir(inline) fn main f0 {
+        //     b0(v0: [Field; 2]):
+        //       v2 = array_get v0, index u32 0
+        //       return v2
+        //   }
+        let ssa = ssa.dead_instruction_elimination();
+        println!("{}", ssa);
+        let main = ssa.main();
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 1);
+        assert!(matches!(&main.dfg[instructions[0]], Instruction::ArrayGet { .. }));
     }
 }
