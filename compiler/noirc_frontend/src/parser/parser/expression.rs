@@ -1,5 +1,8 @@
 use crate::{
-    ast::{BlockExpression, Expression, ExpressionKind, Literal, Statement, StatementKind},
+    ast::{
+        ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, Statement,
+        StatementKind,
+    },
     parser::ParserErrorReason,
 };
 
@@ -35,6 +38,10 @@ impl<'a> Parser<'a> {
             return ExpressionKind::Literal(Literal::FmtStr(string));
         }
 
+        if let Some(kind) = self.parse_array_expression() {
+            return kind;
+        }
+
         if let Some(kind) = self.parse_parentheses_expression() {
             return kind;
         }
@@ -43,9 +50,66 @@ impl<'a> Parser<'a> {
             return ExpressionKind::Block(kind);
         }
 
-        self.push_error(ParserErrorReason::ExpectedExpression, self.current_token_span);
-
         ExpressionKind::Error
+    }
+
+    fn parse_array_expression(&mut self) -> Option<ExpressionKind> {
+        if !self.eat_left_bracket() {
+            return None;
+        }
+
+        if self.eat_right_bracket() {
+            return Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(
+                Vec::new(),
+            ))));
+        }
+
+        let start_span = self.current_token_span;
+        let first_expr = self.parse_expression();
+        if self.current_token_span == start_span {
+            return Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(
+                Vec::new(),
+            ))));
+        }
+
+        if self.eat_semicolon() {
+            let length = self.parse_expression();
+            if !self.eat_right_bracket() {
+                self.push_error(
+                    ParserErrorReason::ExpectedBracketAfterArray,
+                    self.current_token_span,
+                );
+            }
+            return Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
+                repeated_element: Box::new(first_expr),
+                length: Box::new(length),
+            })));
+        }
+
+        let mut exprs = vec![first_expr];
+        let mut trailing_comma = self.eat_comma();
+        loop {
+            if self.eat_right_bracket() {
+                break;
+            }
+
+            let start_span = self.current_token_span;
+            let expr = self.parse_expression();
+            if self.current_token_span == start_span {
+                self.eat_right_brace();
+                break;
+            }
+
+            if !trailing_comma {
+                self.push_error(ParserErrorReason::MissingCommaSeparatingExpressions, start_span);
+            }
+
+            exprs.push(expr);
+
+            trailing_comma = self.eat_commas();
+        }
+
+        Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))))
     }
 
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
@@ -63,6 +127,7 @@ impl<'a> Parser<'a> {
             let start_span = self.current_token_span;
             let expr = self.parse_expression();
             if let ExpressionKind::Error = expr.kind {
+                self.push_error(ParserErrorReason::ExpectedExpression, start_span);
                 self.eat_right_paren();
                 break;
             }
@@ -112,7 +177,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ExpressionKind, Literal, StatementKind},
+        ast::{ArrayLiteral, ExpressionKind, Literal, StatementKind},
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
@@ -280,5 +345,64 @@ mod tests {
         parser.parse_expression();
         let reason = get_single_error(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingCommaSeparatingExpressions));
+    }
+
+    #[test]
+    fn parses_empty_array_expression() {
+        let src = "[]";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
+        else {
+            panic!("Expected array literal");
+        };
+        assert!(exprs.is_empty());
+    }
+
+    #[test]
+    fn parses_array_expression_with_one_element() {
+        let src = "[1]";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
+        else {
+            panic!("Expected array literal");
+        };
+        assert_eq!(exprs.len(), 1);
+        assert_eq!(exprs[0].to_string(), "1");
+    }
+
+    #[test]
+    fn parses_array_expression_with_two_elements() {
+        let src = "[1, 3]";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
+        else {
+            panic!("Expected array literal");
+        };
+        assert_eq!(exprs.len(), 2);
+        assert_eq!(exprs[0].to_string(), "1");
+        assert_eq!(exprs[1].to_string(), "3");
+    }
+
+    #[test]
+    fn parses_repeated_array_expression() {
+        let src = "[1; 10]";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
+            repeated_element,
+            length,
+        })) = expr.kind
+        else {
+            panic!("Expected array literal");
+        };
+        assert_eq!(repeated_element.to_string(), "1");
+        assert_eq!(length.to_string(), "10");
     }
 }
