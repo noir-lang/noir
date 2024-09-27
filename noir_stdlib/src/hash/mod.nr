@@ -1,9 +1,9 @@
-mod poseidon;
-mod mimc;
-mod poseidon2;
-mod keccak;
-mod sha256;
-mod sha512;
+pub mod poseidon;
+pub mod mimc;
+pub mod poseidon2;
+pub mod keccak;
+pub mod sha256;
+pub mod sha512;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -96,10 +96,7 @@ pub fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M]
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<let N: u32, let M: u32>(
-    domain_separator_bytes: [u8; M],
-    starting_index: u32
-) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
 // Same as from_field but:

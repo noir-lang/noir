@@ -1,17 +1,17 @@
-mod ctstring;
-mod expr;
-mod format_string;
-mod function_def;
-mod module;
-mod op;
-mod struct_def;
-mod trait_constraint;
-mod trait_def;
-mod trait_impl;
-mod typ;
-mod typed_expr;
-mod quoted;
-mod unresolved_type;
+pub mod ctstring;
+pub mod expr;
+pub mod format_string;
+pub mod function_def;
+pub mod module;
+pub mod op;
+pub mod struct_def;
+pub mod trait_constraint;
+pub mod trait_def;
+pub mod trait_impl;
+pub mod typ;
+pub mod typed_expr;
+pub mod quoted;
+pub mod unresolved_type;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
