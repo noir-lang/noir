@@ -912,7 +912,6 @@ mod test {
         builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish();
-        println!("{}", ssa);
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
