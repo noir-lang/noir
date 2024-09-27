@@ -31,6 +31,8 @@ pub enum ParserErrorReason {
     MissingCommaSeparatingTraitBounds,
     #[error("Expected a `+` separating these two trait bounds")]
     MissingPlusSeparatingTraitBounds,
+    #[error("Expected a `,` separating these two arguments")]
+    MissingCommaSeparatingArguments,
     #[error("Expected an identifier after `fn`")]
     ExpectedIdentifierAfterFn,
     #[error("Missing type for function parameter")]

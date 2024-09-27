@@ -10,6 +10,7 @@ use crate::{
 use super::{ParsedModule, ParserError, ParserErrorReason};
 
 mod attributes;
+mod call;
 mod doc_comments;
 mod expression;
 mod function;

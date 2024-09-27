@@ -1,7 +1,10 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Expression, ExpressionKind, LetStatement, Statement, StatementKind},
+    ast::{
+        ConstrainKind, ConstrainStatement, Expression, ExpressionKind, LetStatement, Statement,
+        StatementKind,
+    },
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
@@ -37,6 +40,10 @@ impl<'a> Parser<'a> {
             return StatementKind::Let(let_statement);
         }
 
+        if let Some(constrain) = self.parse_constrain_statement() {
+            return StatementKind::Constrain(constrain);
+        }
+
         StatementKind::Expression(self.parse_expression())
     }
 
@@ -57,12 +64,39 @@ impl<'a> Parser<'a> {
 
         Some(LetStatement { pattern, r#type, expression, attributes, comptime: false })
     }
+
+    fn parse_constrain_statement(&mut self) -> Option<ConstrainStatement> {
+        let start_span = self.current_token_span;
+        let Some(kind) = self.parse_constrain_kind() else {
+            return None;
+        };
+
+        Some(match kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => {
+                let arguments = self.parse_arguments();
+                ConstrainStatement { kind, arguments, span: self.span_since(start_span) }
+            }
+            ConstrainKind::Constrain => todo!(),
+        })
+    }
+
+    fn parse_constrain_kind(&mut self) -> Option<ConstrainKind> {
+        if self.eat_keyword(Keyword::Assert) {
+            Some(ConstrainKind::Assert)
+        } else if self.eat_keyword(Keyword::AssertEq) {
+            Some(ConstrainKind::AssertEq)
+        } else if self.eat_keyword(Keyword::Constrain) {
+            Some(ConstrainKind::Constrain)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{StatementKind, UnresolvedTypeData},
+        ast::{ConstrainKind, StatementKind, UnresolvedTypeData},
         parser::Parser,
     };
 
@@ -93,7 +127,6 @@ mod tests {
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
-
         assert_eq!(let_statement.pattern.to_string(), "x");
         assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
         assert_eq!(let_statement.expression.to_string(), "1");
@@ -109,10 +142,35 @@ mod tests {
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
-
         assert_eq!(let_statement.pattern.to_string(), "x");
         assert_eq!(let_statement.r#type.to_string(), "Field");
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
+    }
+
+    #[test]
+    fn parses_assert() {
+        let src = "assert(true, \"good\")";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Constrain(constrain) = statement.kind else {
+            panic!("Expected constrain statement");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::Assert);
+        assert_eq!(constrain.arguments.len(), 2);
+    }
+
+    #[test]
+    fn parses_assert_eq() {
+        let src = "assert_eq(1, 2, \"bad\")";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Constrain(constrain) = statement.kind else {
+            panic!("Expected constrain statement");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::AssertEq);
+        assert_eq!(constrain.arguments.len(), 3);
     }
 }
