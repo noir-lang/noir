@@ -46,7 +46,7 @@ impl Ssa {
             let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
             let single_array_sets_per_block = single_array_sets_per_block
                 .iter()
-                .filter(|((array, block_id), _)| {
+                .filter(|((array, _), _)| {
                     array_to_last_use.get(array).is_some() && !arrays_from_load.contains(array)
                 })
                 .collect::<HashMap<_, _>>();
