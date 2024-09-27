@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, LValue, Statement},
+    ast::{Ident, LValue},
     lexer::{Lexer, SpannedTokenResult},
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
@@ -22,6 +22,7 @@ mod modifiers;
 mod module;
 mod path;
 mod pattern;
+mod statement;
 mod structs;
 mod tests;
 mod traits;
@@ -110,10 +111,6 @@ impl<'a> Parser<'a> {
         let items = self.parse_items();
 
         ParsedModule { items, inner_doc_comments }
-    }
-
-    pub(crate) fn parse_statement(&mut self) -> Statement {
-        todo!("Parser")
     }
 
     pub(crate) fn parse_lvalue(&mut self) -> LValue {

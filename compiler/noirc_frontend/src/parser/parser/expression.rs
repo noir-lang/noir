@@ -1,8 +1,5 @@
 use crate::{
-    ast::{
-        ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, Statement,
-        StatementKind,
-    },
+    ast::{ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal},
     parser::ParserErrorReason,
     token::Token,
 };
@@ -179,9 +176,8 @@ impl<'a> Parser<'a> {
             return Some(BlockExpression { statements });
         }
 
-        let expr = self.parse_expression();
-        let span = expr.span;
-        statements.push(Statement { kind: StatementKind::Expression(expr), span });
+        let statement = self.parse_statement();
+        statements.push(statement);
 
         if !self.eat_right_brace() {
             // TODO: error (for later)
