@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData},
+    ast::{Ident, UnresolvedType, UnresolvedTypeData},
     token::{Keyword, Token},
 };
 
@@ -22,41 +22,72 @@ impl<'a> Parser<'a> {
             return typ;
         }
 
-        if self.eat_keyword(Keyword::Bool) {
-            return UnresolvedTypeData::Bool;
+        if let Some(typ) = self.parse_bool_type() {
+            return typ;
         }
 
-        if self.eat_keyword(Keyword::Field) {
-            return UnresolvedTypeData::FieldElement;
+        if let Some(typ) = self.parse_field_type() {
+            return typ;
         }
 
-        if let Some(int_type) = self.eat_int_type() {
-            return match UnresolvedTypeData::from_int_token(int_type) {
-                Ok(typ) => typ,
-                Err(_) => {
-                    // TODO: error
-                    UnresolvedTypeData::Error
-                }
-            };
+        if let Some(typ) = self.parse_int_type() {
+            return typ;
         }
 
-        if self.eat(Token::Ampersand) {
-            if !self.eat_keyword(Keyword::Mut) {
-                // TODO: error
-            }
-            return UnresolvedTypeData::MutableReference(Box::new(self.parse_type()));
-        };
+        if let Some(typ) = self.parses_mutable_reference_type() {
+            return typ;
+        }
 
         let path = self.parse_path_no_turbofish();
         if !path.is_empty() {
-            // TODO: parse generics
-            let generics = GenericTypeArgs::default();
+            let generics = self.parse_generic_type_args();
             return UnresolvedTypeData::Named(path, generics, false);
         }
 
         // TODO: parse more types
 
         UnresolvedTypeData::Error
+    }
+
+    fn parse_bool_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat_keyword(Keyword::Bool) {
+            return Some(UnresolvedTypeData::Bool);
+        }
+
+        None
+    }
+
+    fn parse_field_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat_keyword(Keyword::Field) {
+            return Some(UnresolvedTypeData::FieldElement);
+        }
+
+        None
+    }
+
+    fn parse_int_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(int_type) = self.eat_int_type() {
+            return Some(match UnresolvedTypeData::from_int_token(int_type) {
+                Ok(typ) => typ,
+                Err(_) => {
+                    // TODO: error
+                    UnresolvedTypeData::Error
+                }
+            });
+        }
+
+        None
+    }
+
+    fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat(Token::Ampersand) {
+            if !self.eat_keyword(Keyword::Mut) {
+                // TODO: error
+            }
+            return Some(UnresolvedTypeData::MutableReference(Box::new(self.parse_type())));
+        };
+
+        None
     }
 
     fn parse_parentheses_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -94,6 +125,14 @@ impl<'a> Parser<'a> {
         } else {
             UnresolvedTypeData::Tuple(types)
         })
+    }
+
+    pub(super) fn parse_path_type_after_ident(&mut self, ident: Ident) -> UnresolvedType {
+        let start_span = ident.span();
+        let path = self.parse_path_no_turbofish_after_ident(ident);
+        let generics = self.parse_generic_type_args();
+        let typ = UnresolvedTypeData::Named(path, generics, false);
+        UnresolvedType { typ, span: self.span_since(start_span) }
     }
 
     pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {

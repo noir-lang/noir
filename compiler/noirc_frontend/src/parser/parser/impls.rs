@@ -24,8 +24,12 @@ impl<'a> Parser<'a> {
         let type_span = self.span_since(type_span_start);
 
         if self.eat_keyword(Keyword::For) {
-            if let UnresolvedTypeData::Named(trait_name, _, _) = object_type.typ {
-                return Impl::TraitImpl(self.parse_trait_impl(generics, trait_name));
+            if let UnresolvedTypeData::Named(trait_name, trait_generics, _) = object_type.typ {
+                return Impl::TraitImpl(self.parse_trait_impl(
+                    generics,
+                    trait_generics,
+                    trait_name,
+                ));
             } else {
                 // TODO: error, but we continue parsing the type and assume this is going to be a regular impl
                 self.parse_type();
@@ -36,28 +40,6 @@ impl<'a> Parser<'a> {
         let methods = self.parse_impl_body();
 
         Impl::Impl(TypeImpl { object_type, type_span, generics, where_clause, methods })
-    }
-
-    fn parse_trait_impl(
-        &mut self,
-        impl_generics: Vec<UnresolvedGeneric>,
-        trait_name: Path,
-    ) -> NoirTraitImpl {
-        // TODO: parse generics
-        // TODO: parse body
-        let trait_generics = GenericTypeArgs::default();
-        let object_type = self.parse_type();
-        let where_clause = self.parse_where_clause();
-        let items = self.parse_trait_impl_items();
-
-        NoirTraitImpl {
-            impl_generics,
-            trait_name,
-            trait_generics,
-            object_type,
-            where_clause,
-            items,
-        }
     }
 
     fn parse_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Span)> {
@@ -92,6 +74,7 @@ impl<'a> Parser<'a> {
                     break;
                 }
             } else {
+                // TODO: parse Type and Constant
                 // TODO: error if visibility, unconstrained or comptime were found
 
                 if !self.eat_right_brace() {
@@ -103,6 +86,26 @@ impl<'a> Parser<'a> {
         }
 
         methods
+    }
+
+    fn parse_trait_impl(
+        &mut self,
+        impl_generics: Vec<UnresolvedGeneric>,
+        trait_generics: GenericTypeArgs,
+        trait_name: Path,
+    ) -> NoirTraitImpl {
+        let object_type = self.parse_type();
+        let where_clause = self.parse_where_clause();
+        let items = self.parse_trait_impl_items();
+
+        NoirTraitImpl {
+            impl_generics,
+            trait_name,
+            trait_generics,
+            object_type,
+            where_clause,
+            items,
+        }
     }
 
     fn parse_trait_impl_items(&mut self) -> Vec<Documented<TraitImplItem>> {
@@ -375,5 +378,19 @@ mod tests {
         };
         assert_eq!(function.def.name.to_string(), "foo");
         assert_eq!(function.def.visibility, ItemVisibility::Public);
+    }
+
+    #[test]
+    fn parse_trait_impl_with_generic_type_args() {
+        let src = "impl Foo<i32, X = Field> for Field { }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TraitImpl(trait_impl) = item.kind else {
+            panic!("Expected trait impl");
+        };
+        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+        assert!(!trait_impl.trait_generics.is_empty());
     }
 }

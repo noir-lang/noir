@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Path, PathKind, PathSegment, UnresolvedType},
+    ast::{Ident, Path, PathKind, PathSegment, UnresolvedType},
     token::{Keyword, TokenKind},
 };
 
@@ -77,6 +77,22 @@ impl<'a> Parser<'a> {
         let span = self.span_since(start_span);
 
         (Path { segments, kind, span }, trailing_double_colon)
+    }
+
+    pub(super) fn parse_path_no_turbofish_after_ident(&mut self, ident: Ident) -> Path {
+        let start_span = ident.span();
+        let mut segments = vec![PathSegment::from(ident)];
+
+        while self.eat_double_colon() {
+            if let Some(ident) = self.eat_ident() {
+                segments.push(PathSegment::from(ident));
+            } else {
+                // TODO: error (trailing double colon in path)
+                break;
+            }
+        }
+
+        Path { segments, kind: PathKind::Plain, span: self.span_since(start_span) }
     }
 
     fn parse_path_generics(&mut self) -> Option<Vec<UnresolvedType>> {

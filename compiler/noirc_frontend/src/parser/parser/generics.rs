@@ -2,8 +2,8 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UnresolvedTypeData,
+        GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedType, UnresolvedTypeData,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
@@ -87,6 +87,48 @@ impl<'a> Parser<'a> {
 
         None
     }
+
+    pub(super) fn parse_generic_type_args(&mut self) -> GenericTypeArgs {
+        let mut generic_type_args = GenericTypeArgs::default();
+        if !self.eat_less() {
+            return generic_type_args;
+        }
+
+        let mut trailing_comma = false;
+        loop {
+            let start_span = self.current_token_span;
+            if let Some(ident) = self.eat_ident() {
+                if !trailing_comma && !generic_type_args.is_empty() {
+                    self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
+                }
+
+                if self.eat_assign() {
+                    let typ = self.parse_type();
+                    generic_type_args.named_args.push((ident, typ));
+                } else {
+                    let typ = self.parse_path_type_after_ident(ident);
+                    generic_type_args.ordered_args.push(typ);
+                }
+            } else {
+                let typ = self.parse_type();
+                if self.current_token_span == start_span {
+                    self.eat_greater();
+                    break;
+                }
+
+                if !trailing_comma && !generic_type_args.is_empty() {
+                    println!("1");
+                    self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
+                }
+
+                generic_type_args.ordered_args.push(typ);
+            }
+
+            trailing_comma = self.eat_commas();
+        }
+
+        generic_type_args
+    }
 }
 
 fn type_u32() -> UnresolvedType {
@@ -131,5 +173,34 @@ mod tests {
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
         )
+    }
+
+    #[test]
+    fn parses_no_generic_type_args() {
+        let src = "1";
+        let generics = Parser::for_str(src).parse_generic_type_args();
+        assert!(generics.is_empty());
+    }
+
+    #[test]
+    fn parses_generic_type_args() {
+        let src = "<i32, X = Field>";
+        let generics = Parser::for_str(src).parse_generic_type_args();
+        assert!(!generics.is_empty());
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].to_string(), "i32");
+        assert_eq!(generics.named_args.len(), 1);
+        assert_eq!(generics.named_args[0].0.to_string(), "X");
+        assert_eq!(generics.named_args[0].1.to_string(), "Field");
+    }
+
+    #[test]
+    fn parses_generic_type_arg_that_is_a_path() {
+        let src = "<foo::Bar>";
+        let generics = Parser::for_str(src).parse_generic_type_args();
+        assert!(!generics.is_empty());
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].to_string(), "foo::Bar");
+        assert_eq!(generics.named_args.len(), 0);
     }
 }
