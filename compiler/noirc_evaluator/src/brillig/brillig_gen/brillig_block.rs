@@ -553,14 +553,7 @@ impl<'block> BrilligBlock<'block> {
                     let results = dfg.instruction_results(instruction_id);
 
                     let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
-
-                    let radix: u32 = dfg
-                        .get_numeric_constant(arguments[1])
-                        .expect("Radix should be known")
-                        .try_to_u64()
-                        .expect("Radix should fit in u64")
-                        .try_into()
-                        .expect("Radix should be u32");
+                    let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
 
                     let target_array = self
                         .variables
@@ -595,13 +588,17 @@ impl<'block> BrilligBlock<'block> {
                         )
                         .extract_array();
 
+                    let two = self.brillig_context.make_usize_constant_instruction(2_usize.into());
+
                     self.brillig_context.codegen_to_radix(
                         source,
                         target_array,
-                        2,
+                        two,
                         matches!(endianness, Endian::Big),
                         true,
                     );
+
+                    self.brillig_context.deallocate_single_addr(two);
                 }
 
                 // `Intrinsic::AsWitness` is used to provide hints to acir-gen on optimal expression splitting.

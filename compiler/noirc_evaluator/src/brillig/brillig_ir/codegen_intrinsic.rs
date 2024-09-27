@@ -68,21 +68,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         source_field: SingleAddrVariable,
         target_array: BrilligArray,
-        radix: u32,
+        radix: SingleAddrVariable,
         big_endian: bool,
         output_bits: bool, // If true will generate bit limbs, if false will generate byte limbs
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
+        assert!(radix.bit_size == 32);
 
         self.codegen_initialize_array(target_array);
 
         let heap_array = self.codegen_brillig_array_to_heap_array(target_array);
 
-        let radix_var = self.make_constant_instruction(F::from(radix as u128), 32);
-
         self.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
-            radix: radix_var.address,
+            radix: radix.address,
             output: heap_array,
             output_bits,
         });
@@ -93,6 +92,5 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             self.deallocate_single_addr(items_len);
         }
         self.deallocate_register(heap_array.pointer);
-        self.deallocate_register(radix_var.address);
     }
 }
