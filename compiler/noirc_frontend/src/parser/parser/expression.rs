@@ -172,15 +172,23 @@ impl<'a> Parser<'a> {
 
         let mut statements = Vec::new();
 
-        if self.eat_right_brace() {
-            return Some(BlockExpression { statements });
-        }
+        loop {
+            if self.eat_right_brace() {
+                break;
+            }
 
-        let statement = self.parse_statement();
-        statements.push(statement);
+            let start_span = self.current_token_span;
+            let statement = self.parse_statement();
+            if self.current_token_span == start_span {
+                // TODO: error?
+                self.eat_right_brace();
+                break;
+            }
 
-        if !self.eat_right_brace() {
-            // TODO: error (for later)
+            statements.push(statement);
+
+            // TODO: error if missing semicolon and statement requires one and is not the last one in the block
+            self.eat_semicolons();
         }
 
         Some(BlockExpression { statements })
@@ -332,6 +340,27 @@ mod tests {
         };
         assert_eq!(field, 1_u128.into());
         assert!(!negative);
+    }
+
+    #[test]
+    fn parses_block_expression_with_multiple_statements() {
+        let src = "
+        {
+            let x = 1;
+            let y = 2;
+            3
+        }
+        ";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Block(block) = expr.kind else {
+            panic!("Expected block expression");
+        };
+        assert_eq!(block.statements.len(), 3);
+        assert_eq!(block.statements[0].kind.to_string(), "let x = 1");
+        assert_eq!(block.statements[1].kind.to_string(), "let y = 2");
+        assert_eq!(block.statements[2].kind.to_string(), "3");
     }
 
     #[test]
