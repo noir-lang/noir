@@ -2,8 +2,9 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        Documented, GenericTypeArgs, ItemVisibility, NoirFunction, NoirTraitImpl, Path,
-        TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedTypeData,
+        Documented, GenericTypeArgs, Ident, ItemVisibility, NoirFunction, NoirTraitImpl, Path,
+        TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
+        UnresolvedTypeData,
     },
     token::Keyword,
 };
@@ -118,43 +119,89 @@ impl<'a> Parser<'a> {
 
         loop {
             // TODO: maybe require visibility to always come first
-            let doc_comments = self.parse_outer_doc_comments();
             let start_span = self.current_token_span;
-            let is_unconstrained = self.eat_keyword(Keyword::Unconstrained);
-            if self.parse_item_visibility() != ItemVisibility::Private {
-                // TODO: error
-            }
-            let is_comptime = self.eat_keyword(Keyword::Comptime);
-            let attributes = Vec::new();
+            let doc_comments = self.parse_outer_doc_comments();
 
-            if self.eat_keyword(Keyword::Fn) {
-                let noir_function = self.parse_function(
-                    attributes,
-                    ItemVisibility::Public,
-                    is_comptime,
-                    is_unconstrained,
-                    true, // allow_self
-                    start_span,
-                );
-                let item_kind = TraitImplItemKind::Function(noir_function);
-                let item = TraitImplItem { kind: item_kind, span: self.span_since(start_span) };
+            if let Some(kind) = self.parse_trait_impl_item_kind(start_span) {
+                let item = TraitImplItem { kind, span: self.span_since(start_span) };
                 items.push(Documented::new(item, doc_comments));
 
                 if self.eat_right_brace() {
                     break;
                 }
             } else {
-                // TODO: error if visibility, unconstrained or comptime were found
-
-                if !self.eat_right_brace() {
-                    // TODO: error
+                // TODO: error
+                if self.is_eof() || self.eat_right_brace() {
+                    break;
+                } else {
+                    // Keep going
+                    self.next_token();
                 }
-
-                break;
             }
         }
 
         items
+    }
+
+    fn parse_trait_impl_item_kind(&mut self, start_span: Span) -> Option<TraitImplItemKind> {
+        if let Some(kind) = self.parse_trait_impl_type() {
+            return Some(kind);
+        }
+
+        if let Some(kind) = self.parse_trait_impl_function(start_span) {
+            return Some(kind);
+        }
+
+        None
+    }
+
+    fn parse_trait_impl_function(&mut self, start_span: Span) -> Option<TraitImplItemKind> {
+        let is_unconstrained = self.eat_keyword(Keyword::Unconstrained);
+        if self.parse_item_visibility() != ItemVisibility::Private {
+            // TODO: error
+        }
+        let is_comptime = self.eat_keyword(Keyword::Comptime);
+        let attributes = Vec::new();
+
+        if !self.eat_keyword(Keyword::Fn) {
+            // TODO: error if unconstrained, visibility or comptime
+            return None;
+        }
+
+        let noir_function = self.parse_function(
+            attributes,
+            ItemVisibility::Public,
+            is_comptime,
+            is_unconstrained,
+            true, // allow_self
+            start_span,
+        );
+        Some(TraitImplItemKind::Function(noir_function))
+    }
+
+    fn parse_trait_impl_type(&mut self) -> Option<TraitImplItemKind> {
+        if !self.eat_keyword(Keyword::Type) {
+            return None;
+        }
+
+        let Some(name) = self.eat_ident() else {
+            // TODO: error
+            self.eat_semicolons();
+            return Some(TraitImplItemKind::Type {
+                name: Ident::default(),
+                alias: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
+            });
+        };
+
+        let alias = if self.eat_assign() {
+            self.parse_type()
+        } else {
+            UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() }
+        };
+
+        self.eat_semicolons();
+
+        Some(TraitImplItemKind::Type { name, alias })
     }
 }
 
@@ -392,5 +439,26 @@ mod tests {
         };
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
         assert!(!trait_impl.trait_generics.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_impl_with_type() {
+        let src = "impl Foo for Field { type Foo = i32; }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TraitImpl(mut trait_impl) = item.kind else {
+            panic!("Expected trait impl");
+        };
+        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(trait_impl.items.len(), 1);
+
+        let item = trait_impl.items.remove(0).item;
+        let TraitImplItemKind::Type { name, alias } = item.kind else {
+            panic!("Expected type");
+        };
+        assert_eq!(name.to_string(), "Foo");
+        assert_eq!(alias.to_string(), "i32");
     }
 }
