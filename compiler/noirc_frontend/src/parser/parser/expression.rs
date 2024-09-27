@@ -45,7 +45,8 @@ impl<'a> Parser<'a> {
                 return ExpressionKind::Literal(Literal::Slice(array_literal));
             }
 
-            todo!()
+            // TODO: parse this
+            return ExpressionKind::Error;
         }
 
         if let Some(kind) = self.parse_parentheses_expression() {
@@ -54,6 +55,11 @@ impl<'a> Parser<'a> {
 
         if let Some(kind) = self.parse_block_expression() {
             return ExpressionKind::Block(kind);
+        }
+
+        let (path, trailing_double_colon) = self.parse_path_impl(false); // do not allow turbofish
+        if !path.is_empty() {
+            return ExpressionKind::Variable(path);
         }
 
         ExpressionKind::Error
@@ -459,5 +465,29 @@ mod tests {
             panic!("Expected slice literal");
         };
         assert!(exprs.is_empty());
+    }
+
+    #[test]
+    fn parses_variable_ident() {
+        let src = "foo";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Variable(path) = expr.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_variable_path() {
+        let src = "foo::bar";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Variable(path) = expr.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo::bar");
     }
 }
