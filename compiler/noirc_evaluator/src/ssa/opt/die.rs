@@ -231,7 +231,7 @@ impl Context {
             }
             Instruction::Store { value, .. } => {
                 // We are very conservative and say that any store of an array value means it has the potential
-                // to be mutated. This is due to the tracking of mutable borrows still being per block.
+                // to be mutated. This is done due to the tracking of mutable borrows still being per block.
                 let typ = function.dfg.type_of_value(*value);
                 if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
                     borrowed_arrays.insert(*value);
