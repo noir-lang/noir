@@ -29,6 +29,10 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generics();
 
+        if self.eat_semicolons() {
+            return self.empty_struct(name, attributes, visibility, generics, start_span);
+        }
+
         if !self.eat_left_brace() {
             // TODO: error
             return self.empty_struct(name, attributes, visibility, generics, start_span);
@@ -105,6 +109,21 @@ mod tests {
     #[test]
     fn parse_empty_struct() {
         let src = "struct Foo {}";
+        let (module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Struct(noir_struct) = &item.kind else {
+            panic!("Expected struct");
+        };
+        assert_eq!("Foo", noir_struct.name.to_string());
+        assert!(noir_struct.fields.is_empty());
+        assert!(noir_struct.generics.is_empty());
+    }
+
+    #[test]
+    fn parse_empty_struct_followed_by_semicolon() {
+        let src = "struct Foo;";
         let (module, errors) = parse_program(src);
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
