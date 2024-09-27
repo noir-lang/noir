@@ -118,13 +118,27 @@ impl<'a> Parser<'a> {
                 }
             } else {
                 let typ = self.parse_type();
-                if self.current_token_span == start_span {
+                let typ = if self.current_token_span == start_span {
+                    if let Ok(type_expr) = self.parse_type_expression() {
+                        let span = type_expr.span();
+                        Some(UnresolvedType {
+                            typ: UnresolvedTypeData::Expression(type_expr),
+                            span,
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(typ)
+                };
+
+                let Some(typ) = typ else {
+                    // TODO: error? (not sure if this is `<>` so test that)
                     self.eat_greater();
                     break;
-                }
+                };
 
                 if !trailing_comma && !generic_type_args.is_empty() {
-                    println!("1");
                     self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
                 }
 
@@ -220,6 +234,17 @@ mod tests {
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "foo::Bar");
         assert_eq!(generics.named_args.len(), 0);
+    }
+
+    #[test]
+    fn parses_generic_type_arg_that_is_an_int() {
+        let src = "<1>";
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generic_type_args();
+        assert!(parser.errors.is_empty());
+        assert!(!generics.is_empty());
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].to_string(), "1");
     }
 
     #[test]

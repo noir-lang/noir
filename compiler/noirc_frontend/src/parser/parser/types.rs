@@ -103,17 +103,21 @@ impl<'a> Parser<'a> {
         let typ = self.parse_type();
 
         if self.eat_semicolon() {
-            if let Some(expr) = self.parse_type_expression() {
-                if !self.eat_right_bracket() {
-                    self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
+            match self.parse_type_expression() {
+                Ok(expr) => {
+                    if !self.eat_right_bracket() {
+                        self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
+                    }
+                    Some(UnresolvedTypeData::Array(expr, Box::new(typ)))
                 }
-                Some(UnresolvedTypeData::Array(expr, Box::new(typ)))
-            } else {
-                if !self.eat_right_bracket() {
-                    self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
-                }
+                Err(error) => {
+                    self.errors.push(error);
+                    if !self.eat_right_bracket() {
+                        self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
+                    }
 
-                Some(UnresolvedTypeData::Slice(Box::new(typ)))
+                    Some(UnresolvedTypeData::Slice(Box::new(typ)))
+                }
             }
         } else {
             if !self.eat_right_bracket() {

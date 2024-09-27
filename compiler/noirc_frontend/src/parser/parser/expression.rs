@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
         loop {
             let start_span = self.current_token_span;
             let Some(ident) = self.eat_ident() else {
-                if !self.eat_left_brace() {
+                if !self.eat_right_brace() {
                     // TODO: error
                 }
                 break;
@@ -192,7 +192,7 @@ impl<'a> Parser<'a> {
 
             trailing_comma = self.eat_commas();
 
-            if self.eat_left_brace() {
+            if self.eat_right_brace() {
                 break;
             }
         }
@@ -905,6 +905,7 @@ mod tests {
         let src = "Foo { x: 1, y, z: 2 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
