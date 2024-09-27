@@ -40,8 +40,6 @@ impl Ssa {
                     &mut single_array_sets_per_block,
                 );
             }
-            dbg!(arrays_from_load.clone());
-            dbg!(single_array_sets_per_block.clone());
 
             let cfg = ControlFlowGraph::with_function(func);
             let post_order = PostOrder::with_function(func);
