@@ -1,7 +1,9 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Documented, Ident, ItemVisibility, NoirTrait, TraitItem},
+    ast::{
+        Documented, Ident, ItemVisibility, NoirTrait, TraitItem, UnresolvedType, UnresolvedTypeData,
+    },
     token::{Attribute, Keyword, SecondaryAttribute},
 };
 
@@ -72,6 +74,10 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        if let Some(kind) = self.parse_trait_constant() {
+            return Some(kind);
+        }
+
         None
     }
 
@@ -80,15 +86,44 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let name = self.eat_ident();
-        if name.is_none() {
-            // TODO: error
-        }
+        let name = match self.eat_ident() {
+            Some(name) => name,
+            None => {
+                // TODO: error
+                Ident::default()
+            }
+        };
 
         self.eat_semicolons();
 
-        let name = name.unwrap_or_default();
         Some(TraitItem::Type { name })
+    }
+
+    fn parse_trait_constant(&mut self) -> Option<TraitItem> {
+        if !self.eat_keyword(Keyword::Let) {
+            return None;
+        }
+
+        let name = match self.eat_ident() {
+            Some(name) => name,
+            None => {
+                // TODO: error
+                Ident::default()
+            }
+        };
+
+        let typ = if self.eat_colon() {
+            self.parse_type()
+        } else {
+            // TODO: error
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
+        };
+
+        let default_value = if self.eat_assign() { Some(self.parse_expression()) } else { None };
+
+        self.eat_semicolons();
+
+        Some(TraitItem::Constant { name, typ, default_value })
     }
 }
 
@@ -180,5 +215,26 @@ mod tests {
             panic!("Expected type");
         };
         assert_eq!(name.to_string(), "Elem");
+    }
+
+    #[test]
+    fn parse_trait_with_constant() {
+        let src = "trait Foo { let x: Field = 1; }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Trait(mut noir_trait) = item.kind else {
+            panic!("Expected trait");
+        };
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Constant { name, typ, default_value } = item else {
+            panic!("Expected constant");
+        };
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(default_value.unwrap().to_string(), "1");
     }
 }
