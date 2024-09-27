@@ -4,6 +4,7 @@ use crate::{
         StatementKind,
     },
     parser::ParserErrorReason,
+    token::Token,
 };
 
 use super::Parser;
@@ -42,6 +43,14 @@ impl<'a> Parser<'a> {
             return kind;
         }
 
+        if self.eat(Token::Ampersand) {
+            if let Some(array_literal) = self.parse_array_literal(true) {
+                return ExpressionKind::Literal(Literal::Slice(array_literal));
+            }
+
+            todo!()
+        }
+
         if let Some(kind) = self.parse_parentheses_expression() {
             return kind;
         }
@@ -54,36 +63,44 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_array_expression(&mut self) -> Option<ExpressionKind> {
+        self.parse_array_literal(false)
+            .map(|array_literal| ExpressionKind::Literal(Literal::Array(array_literal)))
+    }
+
+    fn parse_array_literal(&mut self, is_slice: bool) -> Option<ArrayLiteral> {
         if !self.eat_left_bracket() {
             return None;
         }
 
         if self.eat_right_bracket() {
-            return Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(
-                Vec::new(),
-            ))));
+            return Some(ArrayLiteral::Standard(Vec::new()));
         }
 
         let start_span = self.current_token_span;
         let first_expr = self.parse_expression();
         if self.current_token_span == start_span {
-            return Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(
-                Vec::new(),
-            ))));
+            return Some(ArrayLiteral::Standard(Vec::new()));
         }
 
         if self.eat_semicolon() {
             let length = self.parse_expression();
             if !self.eat_right_bracket() {
-                self.push_error(
-                    ParserErrorReason::ExpectedBracketAfterArray,
-                    self.current_token_span,
-                );
+                if is_slice {
+                    self.push_error(
+                        ParserErrorReason::ExpectedBracketAfterSlice,
+                        self.current_token_span,
+                    );
+                } else {
+                    self.push_error(
+                        ParserErrorReason::ExpectedBracketAfterArray,
+                        self.current_token_span,
+                    );
+                }
             }
-            return Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
+            return Some(ArrayLiteral::Repeated {
                 repeated_element: Box::new(first_expr),
                 length: Box::new(length),
-            })));
+            });
         }
 
         let mut exprs = vec![first_expr];
@@ -109,7 +126,7 @@ impl<'a> Parser<'a> {
             trailing_comma = self.eat_commas();
         }
 
-        Some(ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))))
+        Some(ArrayLiteral::Standard(exprs))
     }
 
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
@@ -404,5 +421,18 @@ mod tests {
         };
         assert_eq!(repeated_element.to_string(), "1");
         assert_eq!(length.to_string(), "10");
+    }
+
+    #[test]
+    fn parses_empty_slice_expression() {
+        let src = "&[]";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr.kind
+        else {
+            panic!("Expected slice literal");
+        };
+        assert!(exprs.is_empty());
     }
 }
