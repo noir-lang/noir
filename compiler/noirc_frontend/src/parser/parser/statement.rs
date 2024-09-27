@@ -1,11 +1,85 @@
-use crate::ast::{Statement, StatementKind};
+use noirc_errors::Span;
+
+use crate::{
+    ast::{Expression, ExpressionKind, LetStatement, Statement, StatementKind},
+    token::{Attribute, Keyword},
+};
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_statement(&mut self) -> Statement {
-        let expr = self.parse_expression();
-        let span = expr.span;
-        Statement { kind: StatementKind::Expression(expr), span }
+        let attributes = self.parse_attributes();
+
+        let start_span = self.current_token_span;
+        let kind = self.parse_statement_kind(attributes);
+        let span = self.span_since(start_span);
+        Statement { kind, span }
+    }
+
+    fn parse_statement_kind(&mut self, attributes: Vec<(Attribute, Span)>) -> StatementKind {
+        if let Some(let_statement) = self.parse_let_statement(attributes) {
+            return StatementKind::Let(let_statement);
+        }
+
+        StatementKind::Expression(self.parse_expression())
+    }
+
+    fn parse_let_statement(&mut self, attributes: Vec<(Attribute, Span)>) -> Option<LetStatement> {
+        if !self.eat_keyword(Keyword::Let) {
+            return None;
+        }
+
+        let attributes = self.validate_secondary_attributes(attributes);
+        let pattern = self.parse_pattern();
+        let r#type = self.parse_optional_type_annotation();
+        let expression = if self.eat_assign() {
+            self.parse_expression()
+        } else {
+            // TODO: error
+            Expression { kind: ExpressionKind::Error, span: self.current_token_span }
+        };
+
+        Some(LetStatement { pattern, r#type, expression, attributes, comptime: false })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        ast::{StatementKind, UnresolvedTypeData},
+        parser::Parser,
+    };
+
+    #[test]
+    fn parses_let_statement_no_type() {
+        let src = "let x = 1;";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+
+        assert_eq!(let_statement.pattern.to_string(), "x");
+        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert_eq!(let_statement.expression.to_string(), "1");
+        assert!(!let_statement.comptime);
+    }
+
+    #[test]
+    fn parses_let_statement_with_type() {
+        let src = "let x: Field = 1;";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+
+        assert_eq!(let_statement.pattern.to_string(), "x");
+        assert_eq!(let_statement.r#type.to_string(), "Field");
+        assert_eq!(let_statement.expression.to_string(), "1");
+        assert!(!let_statement.comptime);
     }
 }
