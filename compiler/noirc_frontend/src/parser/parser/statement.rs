@@ -5,6 +5,7 @@ use crate::{
         ConstrainKind, ConstrainStatement, Expression, ExpressionKind, LetStatement, Statement,
         StatementKind,
     },
+    parser::ParserErrorReason,
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
@@ -76,7 +77,16 @@ impl<'a> Parser<'a> {
                 let arguments = self.parse_arguments();
                 ConstrainStatement { kind, arguments, span: self.span_since(start_span) }
             }
-            ConstrainKind::Constrain => todo!(),
+            ConstrainKind::Constrain => {
+                self.push_error(ParserErrorReason::ConstrainDeprecated, self.previous_token_span);
+
+                let expression = self.parse_expression();
+                ConstrainStatement {
+                    kind,
+                    arguments: vec![expression],
+                    span: self.span_since(start_span),
+                }
+            }
         })
     }
 
@@ -97,7 +107,10 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{ConstrainKind, StatementKind, UnresolvedTypeData},
-        parser::Parser,
+        parser::{
+            parser::tests::{get_single_error, get_source_with_error_span},
+            Parser, ParserErrorReason,
+        },
     };
 
     #[test]
@@ -172,5 +185,24 @@ mod tests {
         };
         assert_eq!(constrain.kind, ConstrainKind::AssertEq);
         assert_eq!(constrain.arguments.len(), 3);
+    }
+
+    #[test]
+    fn parses_constrain() {
+        let src = "
+        constrain 1
+        ^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement();
+        let StatementKind::Constrain(constrain) = statement.kind else {
+            panic!("Expected constrain statement");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::Constrain);
+        assert_eq!(constrain.arguments.len(), 1);
+
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
     }
 }
