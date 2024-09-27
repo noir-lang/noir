@@ -18,6 +18,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement_kind(&mut self, attributes: Vec<(Attribute, Span)>) -> StatementKind {
+        if self.eat_keyword(Keyword::Break) {
+            return StatementKind::Break;
+        }
+
+        if self.eat_keyword(Keyword::Continue) {
+            return StatementKind::Continue;
+        }
+
         if let Some(let_statement) = self.parse_let_statement(attributes) {
             return StatementKind::Let(let_statement);
         }
@@ -50,6 +58,24 @@ mod tests {
         ast::{StatementKind, UnresolvedTypeData},
         parser::Parser,
     };
+
+    #[test]
+    fn parses_break() {
+        let src = "break";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        assert!(matches!(statement.kind, StatementKind::Break));
+    }
+
+    #[test]
+    fn parses_continue() {
+        let src = "continue";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        assert!(matches!(statement.kind, StatementKind::Continue));
+    }
 
     #[test]
     fn parses_let_statement_no_type() {
