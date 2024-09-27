@@ -368,6 +368,10 @@ impl<'a> Parser<'a> {
         self.eat(Token::Plus)
     }
 
+    fn eat_dot(&mut self) -> bool {
+        self.eat(Token::Dot)
+    }
+
     fn eat(&mut self, token: Token) -> bool {
         if self.token.token() == &token {
             self.next_token();

@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, Expression, ExpressionKind, Literal,
-        PrefixExpression, UnaryOp,
+        ArrayLiteral, BlockExpression, CallExpression, Expression, ExpressionKind, Ident, Literal,
+        MemberAccessExpression, PrefixExpression, UnaryOp,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -72,9 +72,28 @@ impl<'a> Parser<'a> {
                 }));
                 let span = self.span_since(start_span);
                 atom = Expression { kind, span };
-            } else {
-                break;
+                continue;
             }
+
+            if self.eat_dot() {
+                let field_name = if let Some(ident) = self.eat_ident() {
+                    ident
+                } else if let Some(int) = self.eat_int() {
+                    Ident::new(int.to_string(), self.previous_token_span)
+                } else {
+                    // TODO: error
+                    Ident::default()
+                };
+                let kind = ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                    lhs: atom,
+                    rhs: field_name,
+                }));
+                let span = self.span_since(start_span);
+                atom = Expression { kind, span };
+                continue;
+            }
+
+            break;
         }
 
         atom.kind
@@ -718,5 +737,18 @@ mod tests {
         assert_eq!(call.func.to_string(), "foo");
         assert_eq!(call.arguments.len(), 2);
         assert!(call.is_macro_call);
+    }
+
+    #[test]
+    fn parses_member_access() {
+        let src = "foo.bar";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::MemberAccess(member_access) = expr.kind else {
+            panic!("Expected member access expression");
+        };
+        assert_eq!(member_access.lhs.to_string(), "foo");
+        assert_eq!(member_access.rhs.to_string(), "bar");
     }
 }
