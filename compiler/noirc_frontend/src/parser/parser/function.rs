@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
     ) -> FunctionDefinitionWithOptionalBody {
         let Some(name) = self.eat_ident() else {
             self.push_error(ParserErrorReason::ExpectedIdentifierAfterFn, self.current_token_span);
-            return empty_function();
+            return empty_function(self.previous_token_span);
         };
 
         let generics = self.parse_generics();
@@ -91,7 +91,12 @@ impl<'a> Parser<'a> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type()), visibility)
         } else {
-            (FunctionReturnType::Default(Span::default()), Visibility::Private)
+            (
+                FunctionReturnType::Default(Span::from(
+                    self.previous_token_span.end()..self.previous_token_span.end(),
+                )),
+                Visibility::Private,
+            )
         };
 
         let where_clause = self.parse_where_clause();
@@ -102,7 +107,7 @@ impl<'a> Parser<'a> {
                 // TODO: error
             }
 
-            (None, body_start_span)
+            (None, Span::from(body_start_span.end()..body_start_span.end()))
         } else {
             (
                 Some(self.parse_block_expression().unwrap_or_else(empty_body)),
@@ -272,13 +277,13 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn empty_function() -> FunctionDefinitionWithOptionalBody {
+fn empty_function(span: Span) -> FunctionDefinitionWithOptionalBody {
     FunctionDefinitionWithOptionalBody {
         name: Ident::default(),
         generics: Vec::new(),
         parameters: Vec::new(),
         body: None,
-        span: Span::default(),
+        span: Span::from(span.end()..span.end()),
         where_clause: Vec::new(),
         return_type: FunctionReturnType::Default(Span::default()),
         return_visibility: Visibility::Private,
