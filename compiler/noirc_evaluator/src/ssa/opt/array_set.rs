@@ -44,15 +44,16 @@ impl Ssa {
             let cfg = ControlFlowGraph::with_function(func);
             let post_order = PostOrder::with_function(func);
             let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+            let single_array_sets_per_block = single_array_sets_per_block
+                .iter()
+                .filter(|((array, block_id), _)| {
+                    array_to_last_use.get(array).is_some() && !arrays_from_load.contains(array)
+                })
+                .collect::<HashMap<_, _>>();
+
             let single_array_set_blocks = single_array_sets_per_block
                 .keys()
-                .filter_map(|(array, block_id)| {
-                    if array_to_last_use.get(array).is_some() && !arrays_from_load.contains(array) {
-                        Some(*block_id)
-                    } else {
-                        None
-                    }
-                })
+                .map(|(_, block_id)| *block_id)
                 .collect::<Vec<_>>();
 
             let mut single_array_sets_can_be_mutable = !single_array_set_blocks.is_empty();
