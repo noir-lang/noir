@@ -26,6 +26,7 @@ mod structs;
 mod tests;
 mod traits;
 mod type_alias;
+mod type_expression;
 mod types;
 mod use_tree;
 mod where_clause;
@@ -278,6 +279,14 @@ impl<'a> Parser<'a> {
 
     fn eat_right_brace(&mut self) -> bool {
         self.eat(Token::RightBrace)
+    }
+
+    fn eat_left_bracket(&mut self) -> bool {
+        self.eat(Token::LeftBracket)
+    }
+
+    fn eat_right_bracket(&mut self) -> bool {
+        self.eat(Token::RightBracket)
     }
 
     fn eat_less(&mut self) -> bool {

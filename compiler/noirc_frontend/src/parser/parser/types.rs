@@ -2,6 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Ident, UnresolvedType, UnresolvedTypeData},
+    parser::ParserErrorReason,
     token::{Keyword, Token},
 };
 
@@ -31,6 +32,10 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(typ) = self.parse_int_type() {
+            return typ;
+        }
+
+        if let Some(typ) = self.parse_array_or_slice_type() {
             return typ;
         }
 
@@ -88,6 +93,35 @@ impl<'a> Parser<'a> {
         };
 
         None
+    }
+
+    fn parse_array_or_slice_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_left_bracket() {
+            return None;
+        }
+
+        let typ = self.parse_type();
+
+        if self.eat_semicolon() {
+            if let Some(expr) = self.parse_type_expression() {
+                if !self.eat_right_bracket() {
+                    self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
+                }
+                Some(UnresolvedTypeData::Array(expr, Box::new(typ)))
+            } else {
+                if !self.eat_right_bracket() {
+                    self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
+                }
+
+                Some(UnresolvedTypeData::Slice(Box::new(typ)))
+            }
+        } else {
+            if !self.eat_right_bracket() {
+                self.push_error(ParserErrorReason::ExpectedBracketAfterSliceType, typ.span);
+            }
+
+            Some(UnresolvedTypeData::Slice(Box::new(typ)))
+        }
     }
 
     fn parse_parentheses_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -148,7 +182,10 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedTypeData},
-        parser::Parser,
+        parser::{
+            parser::tests::{get_single_error, get_source_with_error_span},
+            Parser, ParserErrorReason,
+        },
     };
 
     #[test]
@@ -266,5 +303,41 @@ mod tests {
         };
         assert_eq!(path.to_string(), "foo::Bar");
         assert!(generics.is_empty());
+    }
+
+    #[test]
+    fn parses_slice_type() {
+        let src = "[Field]";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn errors_if_missing_right_bracket_after_slice_type() {
+        let src = "
+        [Field
+         ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        parser.parse_type();
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ExpectedBracketAfterSliceType));
+    }
+
+    #[test]
+    fn parses_array_type() {
+        let src = "[Field; 10]";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
+            panic!("Expected an array type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(expr.to_string(), "10");
     }
 }

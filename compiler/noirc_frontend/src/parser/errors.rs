@@ -53,6 +53,10 @@ pub enum ParserErrorReason {
     GlobalWithoutValue,
     #[error("Expected `;` after a global declaration")]
     ExpectedSemicolonAfterGlobal,
+    #[error("Expected `]` after slice type")]
+    ExpectedBracketAfterSliceType,
+    #[error("Expected `]` after array type")]
+    ExpectedBracketAfterArrayType,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
