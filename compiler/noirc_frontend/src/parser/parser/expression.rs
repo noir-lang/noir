@@ -1,7 +1,8 @@
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, Expression, ExpressionKind, Ident, Literal,
-        MemberAccessExpression, MethodCallExpression, PrefixExpression, UnaryOp,
+        ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
+        ExpressionKind, Ident, Literal, MemberAccessExpression, MethodCallExpression, Path,
+        PrefixExpression, UnaryOp, UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -152,10 +153,55 @@ impl<'a> Parser<'a> {
 
         let path = self.parse_path();
         if !path.is_empty() {
+            if self.eat_left_brace() {
+                return self.parse_constructor(path);
+            }
+
             return ExpressionKind::Variable(path);
         }
 
         ExpressionKind::Error
+    }
+
+    fn parse_constructor(&mut self, path: Path) -> ExpressionKind {
+        let mut fields = Vec::new();
+        let mut trailing_comma = false;
+
+        loop {
+            let start_span = self.current_token_span;
+            let Some(ident) = self.eat_ident() else {
+                if !self.eat_left_brace() {
+                    // TODO: error
+                }
+                break;
+            };
+
+            if !trailing_comma && !fields.is_empty() {
+                self.push_error(
+                    ParserErrorReason::MissingCommaSeparatingConstructorFields,
+                    start_span,
+                );
+            }
+
+            if self.eat_colon() {
+                let expression = self.parse_expression();
+                fields.push((ident, expression));
+            } else {
+                fields.push((ident.clone(), ident.into()));
+            }
+
+            trailing_comma = self.eat_commas();
+
+            if self.eat_left_brace() {
+                break;
+            }
+        }
+
+        ExpressionKind::Constructor(Box::new(ConstructorExpression {
+            typ: UnresolvedType::from_path(path),
+            fields,
+            struct_type: None,
+        }))
     }
 
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
@@ -839,5 +885,43 @@ mod tests {
         assert!(method_call.is_macro_call);
         assert_eq!(method_call.arguments.len(), 2);
         assert!(method_call.generics.is_none());
+    }
+
+    #[test]
+    fn parses_empty_constructor() {
+        let src = "Foo {}";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Constructor(constructor) = expr.kind else {
+            panic!("Expected constructor");
+        };
+        assert_eq!(constructor.typ.to_string(), "Foo");
+        assert!(constructor.fields.is_empty());
+    }
+
+    #[test]
+    fn parses_constructor_with_fields() {
+        let src = "Foo { x: 1, y, z: 2 }";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Constructor(mut constructor) = expr.kind else {
+            panic!("Expected constructor");
+        };
+        assert_eq!(constructor.typ.to_string(), "Foo");
+        assert_eq!(constructor.fields.len(), 3);
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(expr.to_string(), "1");
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "y");
+        assert_eq!(expr.to_string(), "y");
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "z");
+        assert_eq!(expr.to_string(), "2");
     }
 }
