@@ -17,9 +17,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_item(&mut self) -> Option<Item> {
-        let doc_comments = self.parse_outer_doc_comments();
-
         let start_span = self.current_token_span;
+        let doc_comments = self.parse_outer_doc_comments();
         let kind = self.parse_item_kind()?;
         let span = self.span_since(start_span);
 
@@ -88,7 +87,6 @@ impl<'a> Parser<'a> {
                 comptime,
                 unconstrained,
                 false, // allow_self
-                start_span,
             )));
         }
 

@@ -21,7 +21,6 @@ impl<'a> Parser<'a> {
         is_comptime: bool,
         is_unconstrained: bool,
         allow_self: bool,
-        start_span: Span,
     ) -> NoirFunction {
         self.parse_function_definition(
             attributes,
@@ -29,7 +28,6 @@ impl<'a> Parser<'a> {
             is_comptime,
             is_unconstrained,
             allow_self,
-            start_span,
         )
         .into()
     }
@@ -41,20 +39,13 @@ impl<'a> Parser<'a> {
         is_comptime: bool,
         is_unconstrained: bool,
         allow_self: bool,
-        start_span: Span,
     ) -> FunctionDefinition {
         let attributes = self.validate_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
             self.push_error(ParserErrorReason::ExpectedIdentifierAfterFn, self.current_token_span);
 
-            return empty_function(
-                attributes,
-                is_unconstrained,
-                is_comptime,
-                visibility,
-                start_span,
-            );
+            return empty_function(attributes, is_unconstrained, is_comptime, visibility);
         };
 
         let generics = self.parse_generics();
@@ -69,7 +60,9 @@ impl<'a> Parser<'a> {
 
         let where_clause = self.parse_where_clause();
 
+        let body_start_span = self.current_token_span;
         let body = self.parse_block_expression().unwrap_or_else(empty_body);
+        let body_span = self.span_since(body_start_span);
 
         FunctionDefinition {
             name,
@@ -80,7 +73,7 @@ impl<'a> Parser<'a> {
             generics,
             parameters,
             body,
-            span: start_span,
+            span: body_span,
             where_clause,
             return_type,
             return_visibility,
@@ -242,7 +235,6 @@ fn empty_function(
     is_unconstrained: bool,
     is_comptime: bool,
     visibility: ItemVisibility,
-    start_span: Span,
 ) -> FunctionDefinition {
     FunctionDefinition {
         name: Ident::default(),
@@ -253,7 +245,7 @@ fn empty_function(
         generics: Vec::new(),
         parameters: Vec::new(),
         body: empty_body(),
-        span: start_span,
+        span: Span::default(),
         where_clause: Vec::new(),
         return_type: FunctionReturnType::Default(Span::default()),
         return_visibility: Visibility::Private,

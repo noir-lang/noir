@@ -67,7 +67,6 @@ impl<'a> Parser<'a> {
                     is_comptime,
                     is_unconstrained,
                     true, // allow_self
-                    start_span,
                 );
                 methods.push((Documented::new(method, doc_comments), self.span_since(start_span)));
 
@@ -122,7 +121,7 @@ impl<'a> Parser<'a> {
             let start_span = self.current_token_span;
             let doc_comments = self.parse_outer_doc_comments();
 
-            if let Some(kind) = self.parse_trait_impl_item_kind(start_span) {
+            if let Some(kind) = self.parse_trait_impl_item_kind() {
                 let item = TraitImplItem { kind, span: self.span_since(start_span) };
                 items.push(Documented::new(item, doc_comments));
 
@@ -143,19 +142,19 @@ impl<'a> Parser<'a> {
         items
     }
 
-    fn parse_trait_impl_item_kind(&mut self, start_span: Span) -> Option<TraitImplItemKind> {
+    fn parse_trait_impl_item_kind(&mut self) -> Option<TraitImplItemKind> {
         if let Some(kind) = self.parse_trait_impl_type() {
             return Some(kind);
         }
 
-        if let Some(kind) = self.parse_trait_impl_function(start_span) {
+        if let Some(kind) = self.parse_trait_impl_function() {
             return Some(kind);
         }
 
         None
     }
 
-    fn parse_trait_impl_function(&mut self, start_span: Span) -> Option<TraitImplItemKind> {
+    fn parse_trait_impl_function(&mut self) -> Option<TraitImplItemKind> {
         let is_unconstrained = self.eat_keyword(Keyword::Unconstrained);
         if self.parse_item_visibility() != ItemVisibility::Private {
             // TODO: error
@@ -174,7 +173,6 @@ impl<'a> Parser<'a> {
             is_comptime,
             is_unconstrained,
             true, // allow_self
-            start_span,
         );
         Some(TraitImplItemKind::Function(noir_function))
     }
