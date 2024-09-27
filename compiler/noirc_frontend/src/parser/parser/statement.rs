@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Expression, ExpressionKind, LetStatement, Statement, StatementKind},
-    token::{Attribute, Keyword},
+    token::{Attribute, Keyword, Token, TokenKind},
 };
 
 use super::Parser;
@@ -18,6 +18,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement_kind(&mut self, attributes: Vec<(Attribute, Span)>) -> StatementKind {
+        if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
+            match token.into_token() {
+                Token::InternedStatement(statement) => return StatementKind::Interned(statement),
+                _ => unreachable!(),
+            }
+        }
+
         if self.eat_keyword(Keyword::Break) {
             return StatementKind::Break;
         }
