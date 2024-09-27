@@ -909,7 +909,6 @@ mod test {
 
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let v1 = builder.insert_array_get(v0, zero, Type::field());
-        // builder.decrement_array_reference_count(v0);
         builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish();
