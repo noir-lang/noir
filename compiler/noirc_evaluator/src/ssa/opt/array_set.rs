@@ -99,6 +99,8 @@ fn analyze_last_uses(
                 if let Some(existing) = array_to_last_use.insert(array, *instruction_id) {
                     instructions_that_can_be_made_mutable.remove(&existing);
                 }
+
+                single_array_sets_per_block.remove(&(array, block_id));
             }
             Instruction::ArraySet { array, .. } => {
                 let array = dfg.resolve(*array);
@@ -137,6 +139,8 @@ fn analyze_last_uses(
                         {
                             instructions_that_can_be_made_mutable.remove(&existing);
                         }
+
+                        single_array_sets_per_block.remove(&(argument, block_id));
                     }
                 }
             }
