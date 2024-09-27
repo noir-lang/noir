@@ -14,8 +14,7 @@ use crate::{
         NodeInterner, NoirFunction, UnresolvedType,
     },
     node_interner::{FuncId, ReferenceId, TraitId},
-    token::Attributes,
-    Kind, ResolvedGeneric, Type, TypeBindings,
+    ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;

@@ -7,13 +7,13 @@ use noirc_abi::{
     Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
 };
 use noirc_frontend::ast::{Signedness, Visibility};
+use noirc_frontend::TypeBinding;
 use noirc_frontend::{
     hir::Context,
     hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern, types::Type},
     macros_api::{HirExpression, HirLiteral},
     node_interner::{FuncId, NodeInterner},
 };
-use noirc_frontend::TypeBinding;
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
@@ -107,7 +107,6 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::TraitAsType(..)
-        | Type::TypeVariable(_)
         | Type::NamedGeneric(..)
         | Type::Forall(..)
         | Type::Quoted(_)
