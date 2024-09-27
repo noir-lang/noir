@@ -209,3 +209,13 @@ fn main() {
 ```
 
 In this example, the module `some_module` re-exports two public names defined in `foo`.
+
+### Visibility
+
+By default, like functions, modules are private to the module (or crate) the exist in. You can use `pub`
+to make the module public or `pub(crate)` to make it public to just its crate:
+
+```rust
+// This module is now public and can be seen by other crates.
+pub mod foo;
+```

@@ -33,3 +33,7 @@ mod a {
         #![inner]
     }
 }
+
+pub(crate) mod one { }
+
+pub mod two { }

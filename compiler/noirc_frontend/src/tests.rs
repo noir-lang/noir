@@ -6,6 +6,7 @@ mod name_shadowing;
 mod references;
 mod turbofish;
 mod unused_items;
+mod visibility;
 
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
@@ -3093,29 +3094,6 @@ fn use_numeric_generic_in_trait_method() {
 }
 
 #[test]
-fn errors_once_on_unused_import_that_is_not_accessible() {
-    // Tests that we don't get an "unused import" here given that the import is not accessible
-    let src = r#"
-        mod moo {
-            struct Foo {}
-        }
-        use moo::Foo;
-        fn main() {
-            let _ = Foo {};
-        }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-            PathResolutionError::Private { .. }
-        ))
-    ));
-}
-
-#[test]
 fn trait_unconstrained_methods_typechecked_correctly() {
     // This test checks that we properly track whether a method has been declared as unconstrained on the trait definition
     // and preserves that through typechecking.
@@ -3142,61 +3120,4 @@ fn trait_unconstrained_methods_typechecked_correctly() {
     let errors = get_program_errors(src);
     println!("{errors:?}");
     assert_eq!(errors.len(), 0);
-}
-
-#[test]
-fn errors_if_type_alias_aliases_more_private_type() {
-    let src = r#"
-    struct Foo {}
-    pub type Bar = Foo;
-
-    pub fn no_unused_warnings(_b: Bar) {
-        let _ = Foo {};
-    }
-
-    fn main() {}
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-        typ, item, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(typ, "Foo");
-    assert_eq!(item, "Bar");
-}
-
-#[test]
-fn errors_if_type_alias_aliases_more_private_type_in_generic() {
-    let src = r#"
-    pub struct Generic<T> { value: T }
-
-    struct Foo {}
-    pub type Bar = Generic<Foo>;
-
-    pub fn no_unused_warnings(_b: Bar) {
-        let _ = Foo {};
-        let _ = Generic { value: 1 };
-    }
-
-    fn main() {}
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-        typ, item, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(typ, "Foo");
-    assert_eq!(item, "Bar");
 }
