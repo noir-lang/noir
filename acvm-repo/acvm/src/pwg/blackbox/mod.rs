@@ -3,7 +3,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
     AcirField,
 };
-use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
+use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600};
 
 use self::{
     aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
@@ -84,9 +84,6 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),
-        BlackBoxFuncCall::SHA256 { inputs, outputs } => {
-            solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, sha256)
-        }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
         }

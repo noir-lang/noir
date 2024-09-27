@@ -1,9 +1,9 @@
-mod poseidon;
-mod mimc;
-mod poseidon2;
-mod keccak;
-mod sha256;
-mod sha512;
+pub mod poseidon;
+pub mod mimc;
+pub mod poseidon2;
+pub mod keccak;
+pub mod sha256;
+pub mod sha512;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -36,7 +36,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     __pedersen_hash_with_separator(input, separator)
 }
 
-fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+pub fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let value = __pedersen_commitment_with_separator(input, separator);
     if (value[0] == 0) & (value[1] == 0) {
         EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
@@ -88,7 +88,7 @@ fn __pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32)
 fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 #[field(bn254)]
-fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
+pub fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
     __derive_generators(domain_separator_bytes, starting_index)
@@ -96,16 +96,13 @@ fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], st
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<let N: u32, let M: u32>(
-    domain_separator_bytes: [u8; M],
-    starting_index: u32
-) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
-    // Same as from_field but:
-    // does not assert the limbs are 128 bits
-    // does not assert the decomposition does not overflow the EmbeddedCurveScalar
-    fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
+// Same as from_field but:
+// does not assert the limbs are 128 bits
+// does not assert the decomposition does not overflow the EmbeddedCurveScalar
+fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     let (xlo, xhi) = unsafe {
         crate::field::bn254::decompose_hint(scalar)
     };
@@ -135,7 +132,7 @@ pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
-// Generic hashing support. 
+// Generic hashing support.
 // Partially ported and impacted by rust.
 
 // Hash trait shall be implemented per type.
@@ -157,7 +154,7 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
 // TODO: consider making the types generic here ([u8], [Field], etc.)
 pub trait Hasher {
     fn finish(self) -> Field;
-    
+
     fn write(&mut self, input: Field);
 }
 
@@ -169,7 +166,7 @@ pub trait BuildHasher<H> where H: Hasher {
 pub struct BuildHasherDefault<H>;
 
 impl<H> BuildHasher<H> for BuildHasherDefault<H>
-where 
+where
     H: Hasher + Default {
     fn build_hasher(_self: Self) -> H {
         H::default()
@@ -177,7 +174,7 @@ where
 }
 
 impl<H> Default for BuildHasherDefault<H>
-where 
+where
     H: Hasher + Default {
     fn default() -> Self {
         BuildHasherDefault {}
@@ -419,4 +416,3 @@ fn assert_pedersen() {
     }
     );
 }
-

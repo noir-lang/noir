@@ -96,8 +96,13 @@ impl ModuleData {
         self.definitions.remove_definition(name);
     }
 
-    pub fn declare_global(&mut self, name: Ident, id: GlobalId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+    pub fn declare_global(
+        &mut self,
+        name: Ident,
+        visibility: ItemVisibility,
+        id: GlobalId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, visibility, id.into(), None)
     }
 
     pub fn declare_struct(
@@ -112,9 +117,10 @@ impl ModuleData {
     pub fn declare_type_alias(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+        self.declare(name, visibility, id.into(), None)
     }
 
     pub fn declare_trait(
@@ -129,9 +135,10 @@ impl ModuleData {
     pub fn declare_child_module(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         child_id: ModuleId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, child_id.into(), None)
+        self.declare(name, visibility, child_id.into(), None)
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {

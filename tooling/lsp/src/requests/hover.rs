@@ -1,7 +1,7 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::FileMap;
+use fm::{FileMap, PathString};
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::Visibility,
@@ -15,7 +15,10 @@ use noirc_frontend::{
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
-use crate::{modules::module_full_path, LspState};
+use crate::{
+    attribute_reference_finder::AttributeReferenceFinder, modules::module_full_path, utils,
+    LspState,
+};
 
 use super::{process_request, to_lsp_location, ProcessRequestCallbackArgs};
 
@@ -23,18 +26,41 @@ pub(crate) fn on_hover_request(
     state: &mut LspState,
     params: HoverParams,
 ) -> impl Future<Output = Result<Option<Hover>, ResponseError>> {
+    let uri = params.text_document_position_params.text_document.uri.clone();
+    let position = params.text_document_position_params.position;
     let result = process_request(state, params.text_document_position_params, |args| {
-        args.interner.reference_at_location(args.location).and_then(|reference| {
-            let location = args.interner.reference_location(reference);
-            let lsp_location = to_lsp_location(args.files, location.file, location.span);
-            format_reference(reference, &args).map(|formatted| Hover {
-                range: lsp_location.map(|location| location.range),
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: formatted,
-                }),
+        let path = PathString::from_path(uri.to_file_path().unwrap());
+        args.files
+            .get_file_id(&path)
+            .and_then(|file_id| {
+                utils::position_to_byte_index(args.files, file_id, &position).and_then(
+                    |byte_index| {
+                        let file = args.files.get_file(file_id).unwrap();
+                        let source = file.source();
+                        let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+
+                        let mut finder = AttributeReferenceFinder::new(
+                            file_id,
+                            byte_index,
+                            args.crate_id,
+                            args.def_maps,
+                        );
+                        finder.find(&parsed_module)
+                    },
+                )
             })
-        })
+            .or_else(|| args.interner.reference_at_location(args.location))
+            .and_then(|reference| {
+                let location = args.interner.reference_location(reference);
+                let lsp_location = to_lsp_location(args.files, location.file, location.span);
+                format_reference(reference, &args).map(|formatted| Hover {
+                    range: lsp_location.map(|location| location.range),
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: formatted,
+                    }),
+                })
+            })
     });
 
     future::ready(result)
@@ -915,6 +941,17 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 0, character: 5 },
             "    crate one",
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_attribute_function() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 54, character: 2 },
+            "    two\n    fn attr(_: FunctionDefinition) -> Quoted",
         )
         .await;
     }

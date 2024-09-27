@@ -5,7 +5,7 @@ use crate::ssa::ir::types::Type;
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, InsertInstructionResult},
-    function::{Function, RuntimeType},
+    function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
@@ -46,14 +46,7 @@ impl<'f> FunctionInserter<'f> {
                     if let Some(fetched_value) =
                         self.const_arrays.get(&(new_array.clone(), typ.clone()))
                     {
-                        // Arrays in ACIR are immutable, but in Brillig arrays are copy-on-write
-                        // so for function's with a Brillig runtime we make sure to check that value
-                        // in our constants array map matches the resolved array value id.
-                        if matches!(self.function.runtime(), RuntimeType::Acir(_)) {
-                            return *fetched_value;
-                        } else if *fetched_value == value {
-                            return value;
-                        }
+                        return *fetched_value;
                     };
 
                     let new_array_clone = new_array.clone();

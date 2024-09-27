@@ -149,8 +149,8 @@ mod completion_tests {
     async fn test_use_second_segment() {
         let src = r#"
             mod foo {
-                mod bar {}
-                mod baz {}
+                pub mod bar {}
+                pub mod baz {}
             }
             use foo::>|<
         "#;
@@ -163,8 +163,8 @@ mod completion_tests {
     async fn test_use_second_segment_after_typing() {
         let src = r#"
             mod foo {
-                mod bar {}
-                mod brave {}
+                pub mod bar {}
+                pub mod brave {}
             }
             use foo::ba>|<
         "#;
@@ -239,7 +239,7 @@ mod completion_tests {
     async fn test_use_in_tree_after_letter() {
         let src = r#"
             mod foo {
-                mod bar {}
+                pub mod bar {}
             }
             use foo::{b>|<}
         "#;
@@ -251,8 +251,8 @@ mod completion_tests {
     async fn test_use_in_tree_after_colons() {
         let src = r#"
             mod foo {
-                mod bar {
-                    mod baz {}
+                pub mod bar {
+                    pub mod baz {}
                 }
             }
             use foo::{bar::>|<}
@@ -265,8 +265,8 @@ mod completion_tests {
     async fn test_use_in_tree_after_colons_after_another_segment() {
         let src = r#"
             mod foo {
-                mod bar {}
-                mod qux {}
+                pub mod bar {}
+                pub mod qux {}
             }
             use foo::{bar, q>|<}
         "#;
@@ -350,7 +350,7 @@ mod completion_tests {
     async fn test_complete_path_after_colons_shows_submodule() {
         let src = r#"
           mod foo {
-            mod bar {}
+            pub mod bar {}
           }
 
           fn main() {
@@ -364,7 +364,7 @@ mod completion_tests {
     async fn test_complete_path_after_colons_and_letter_shows_submodule() {
         let src = r#"
           mod foo {
-            mod qux {}
+            pub mod qux {}
           }
 
           fn main() {
@@ -1809,8 +1809,8 @@ mod completion_tests {
     async fn test_suggests_pub_use() {
         let src = r#"
             mod bar {
-                mod baz {
-                    mod coco {}
+                pub mod baz {
+                    pub mod coco {}
                 }
 
                 pub use baz::coco;
@@ -1827,8 +1827,8 @@ mod completion_tests {
     async fn test_auto_import_suggests_pub_use_for_module() {
         let src = r#"
             mod bar {
-                mod baz {
-                    mod coco {}
+                pub mod baz {
+                    pub mod coco {}
                 }
 
                 pub use baz::coco as foobar;
@@ -1938,6 +1938,26 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item("deprecated", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_built_in_let_attribute() {
+        let src = r#"
+            fn foo() {
+                #[allo>|<]
+                let x = 1;
+            }
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item(
+                "allow(unused_variables)",
+                CompletionItemKind::METHOD,
+                None,
+            )],
         )
         .await;
     }

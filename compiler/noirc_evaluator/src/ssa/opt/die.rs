@@ -1,7 +1,6 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
-use std::collections::HashSet;
-
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use im::Vector;
 use noirc_errors::Location;
 
@@ -17,6 +16,8 @@ use crate::ssa::{
     },
     ssa_gen::{Ssa, SSA_WORD_SIZE},
 };
+
+use super::rc::{pop_rc_for, RcInstruction};
 
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
@@ -105,6 +106,16 @@ impl Context {
 
         let instructions_len = block.instructions().len();
 
+        // We can track IncrementRc instructions per block to determine whether they are useless.
+        // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
+        // them if their value is not used anywhere in the function. However, even when their value is used, their existence
+        // is pointless logic if there is no array set between the increment and the decrement of the reference counter.
+        // We track per block whether an IncrementRc instruction has a paired DecrementRc instruction
+        // with the same value but no array set in between.
+        // If we see an inc/dec RC pair within a block we can safely remove both instructions.
+        let mut inc_rcs: HashMap<Type, Vec<RcInstruction>> = HashMap::default();
+        let mut inc_rcs_to_remove = HashSet::default();
+
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
         let mut possible_index_out_of_bounds_indexes = Vec::new();
@@ -131,6 +142,17 @@ impl Context {
                     });
                 }
             }
+
+            self.track_inc_rcs_to_remove(
+                *instruction_id,
+                function,
+                &mut inc_rcs,
+                &mut inc_rcs_to_remove,
+            );
+        }
+
+        for id in inc_rcs_to_remove {
+            self.instructions_to_remove.insert(id);
         }
 
         // If there are some instructions that might trigger an out of bounds error,
@@ -153,6 +175,45 @@ impl Context {
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
 
         false
+    }
+
+    fn track_inc_rcs_to_remove(
+        &self,
+        instruction_id: InstructionId,
+        function: &Function,
+        inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
+        inc_rcs_to_remove: &mut HashSet<InstructionId>,
+    ) {
+        let instruction = &function.dfg[instruction_id];
+        // DIE loops over a block in reverse order, so we insert an RC instruction for possible removal
+        // when we see a DecrementRc and check whether it was possibly mutated when we see an IncrementRc.
+        match instruction {
+            Instruction::IncrementRc { value } => {
+                if let Some(inc_rc) = pop_rc_for(*value, function, inc_rcs) {
+                    if !inc_rc.possibly_mutated {
+                        inc_rcs_to_remove.insert(inc_rc.id);
+                        inc_rcs_to_remove.insert(instruction_id);
+                    }
+                }
+            }
+            Instruction::DecrementRc { value } => {
+                let typ = function.dfg.type_of_value(*value);
+
+                // We assume arrays aren't mutated until we find an array_set
+                let inc_rc =
+                    RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
+                inc_rcs.entry(typ).or_default().push(inc_rc);
+            }
+            Instruction::ArraySet { array, .. } => {
+                let typ = function.dfg.type_of_value(*array);
+                if let Some(inc_rcs) = inc_rcs.get_mut(&typ) {
+                    for inc_rc in inc_rcs {
+                        inc_rc.possibly_mutated = true;
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Returns true if an instruction can be removed.
@@ -509,10 +570,12 @@ fn apply_side_effects(
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            instruction::{BinaryOp, Intrinsic},
+            instruction::{BinaryOp, Instruction, Intrinsic},
             map::Id,
             types::Type,
         },
@@ -641,5 +704,79 @@ mod test {
         let main = ssa.main();
 
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+    }
+
+    #[test]
+    fn remove_useless_paired_rcs_even_when_used() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: [Field; 2]):
+        //       inc_rc v0
+        //       v2 = array_get v0, index u32 0
+        //       dec_rc v0
+        //       return v2
+        //   }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
+        builder.increment_array_reference_count(v0);
+        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        let v1 = builder.insert_array_get(v0, zero, Type::field());
+        builder.decrement_array_reference_count(v0);
+        builder.terminate_with_return(vec![v1]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+
+        // Expected output:
+        //
+        // acir(inline) fn main f0 {
+        //     b0(v0: [Field; 2]):
+        //       v2 = array_get v0, index u32 0
+        //       return v2
+        //   }
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 1);
+        assert!(matches!(&main.dfg[instructions[0]], Instruction::ArrayGet { .. }));
+    }
+
+    #[test]
+    fn keep_paired_rcs_with_array_set() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: [Field; 2]):
+        //       inc_rc v0
+        //       v2 = array_set v0, index u32 0, value u32 0
+        //       dec_rc v0
+        //       return v2
+        //   }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
+        builder.increment_array_reference_count(v0);
+        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        let v1 = builder.insert_array_set(v0, zero, zero);
+        builder.decrement_array_reference_count(v0);
+        builder.terminate_with_return(vec![v1]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+
+        // We expect the output to be unchanged
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
     }
 }

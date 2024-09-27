@@ -26,6 +26,7 @@ impl<'context> Elaborator<'context> {
         pattern: Pattern,
         expected_type: Type,
         definition_kind: DefinitionKind,
+        warn_if_unused: bool,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -33,6 +34,7 @@ impl<'context> Elaborator<'context> {
             definition_kind,
             None,
             &mut Vec::new(),
+            warn_if_unused,
             None,
         )
     }
@@ -45,6 +47,7 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
         global_id: Option<GlobalId>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -53,10 +56,12 @@ impl<'context> Elaborator<'context> {
             definition_kind,
             None,
             created_ids,
+            warn_if_unused,
             global_id,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -64,6 +69,7 @@ impl<'context> Elaborator<'context> {
         definition: DefinitionKind,
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
         global_id: Option<GlobalId>,
     ) -> HirPattern {
         match pattern {
@@ -80,7 +86,13 @@ impl<'context> Elaborator<'context> {
                     let location = Location::new(name.span(), self.file);
                     HirIdent::non_trait_method(id, location)
                 } else {
-                    self.add_variable_decl(name, mutable.is_some(), true, definition)
+                    self.add_variable_decl(
+                        name,
+                        mutable.is_some(),
+                        true, // allow_shadowing
+                        warn_if_unused,
+                        definition,
+                    )
                 };
                 self.interner.push_definition_type(ident.id, expected_type);
                 new_definitions.push(ident.clone());
@@ -97,6 +109,7 @@ impl<'context> Elaborator<'context> {
                     definition,
                     Some(span),
                     new_definitions,
+                    warn_if_unused,
                     global_id,
                 );
                 let location = Location::new(span, self.file);
@@ -128,6 +141,7 @@ impl<'context> Elaborator<'context> {
                         definition.clone(),
                         mutable,
                         new_definitions,
+                        warn_if_unused,
                         global_id,
                     )
                 });
@@ -151,6 +165,7 @@ impl<'context> Elaborator<'context> {
                     definition,
                     mutable,
                     new_definitions,
+                    warn_if_unused,
                     global_id,
                 )
             }
@@ -180,7 +195,7 @@ impl<'context> Elaborator<'context> {
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
             // multiple times.
             let name = ERROR_IDENT.into();
-            let identifier = this.add_variable_decl(name, false, true, definition.clone());
+            let identifier = this.add_variable_decl(name, false, true, true, definition.clone());
             HirPattern::Identifier(identifier)
         };
 
@@ -263,6 +278,7 @@ impl<'context> Elaborator<'context> {
                 definition.clone(),
                 mutable,
                 new_definitions,
+                true, // warn_if_unused
                 None,
             );
 
@@ -295,16 +311,6 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn add_variable_decl(
-        &mut self,
-        name: Ident,
-        mutable: bool,
-        allow_shadowing: bool,
-        definition: DefinitionKind,
-    ) -> HirIdent {
-        self.add_variable_decl_inner(name, mutable, allow_shadowing, true, definition)
-    }
-
-    pub fn add_variable_decl_inner(
         &mut self,
         name: Ident,
         mutable: bool,
