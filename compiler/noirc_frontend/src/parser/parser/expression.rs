@@ -23,6 +23,18 @@ impl<'a> Parser<'a> {
             return ExpressionKind::integer(int);
         }
 
+        if let Some(string) = self.eat_str() {
+            return ExpressionKind::Literal(Literal::Str(string));
+        }
+
+        if let Some((string, n)) = self.eat_raw_str() {
+            return ExpressionKind::Literal(Literal::RawStr(string, n));
+        }
+
+        if let Some(string) = self.eat_fmt_str() {
+            return ExpressionKind::Literal(Literal::FmtStr(string));
+        }
+
         if let Some(kind) = self.parse_parentheses_expression() {
             return kind;
         }
@@ -152,8 +164,47 @@ mod tests {
     #[test]
     fn parses_unit() {
         let src = "()";
-        let expr = Parser::for_str(src).parse_expression();
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
         assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Unit)));
+    }
+
+    #[test]
+    fn parses_str() {
+        let src = "\"hello\"";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::Str(string)) = expr.kind else {
+            panic!("Expected string literal");
+        };
+        assert_eq!(string, "hello");
+    }
+
+    #[test]
+    fn parses_raw_str() {
+        let src = "r#\"hello\"#";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::RawStr(string, n)) = expr.kind else {
+            panic!("Expected raw string literal");
+        };
+        assert_eq!(string, "hello");
+        assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn parses_fmt_str() {
+        let src = "f\"hello\"";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::FmtStr(string)) = expr.kind else {
+            panic!("Expected format string literal");
+        };
+        assert_eq!(string, "hello");
     }
 
     #[test]
@@ -219,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_missing_comma() {
+    fn parses_missing_comma_in_tuple() {
         let src = "
         (1 2)
            ^

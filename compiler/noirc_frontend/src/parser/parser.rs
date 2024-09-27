@@ -227,6 +227,45 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_str(&mut self) -> Option<String> {
+        if matches!(self.token.token(), Token::Str(..)) {
+            let token = std::mem::take(&mut self.token);
+            self.next_token();
+            match token.into_token() {
+                Token::Str(string) => Some(string),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
+    fn eat_raw_str(&mut self) -> Option<(String, u8)> {
+        if matches!(self.token.token(), Token::RawStr(..)) {
+            let token = std::mem::take(&mut self.token);
+            self.next_token();
+            match token.into_token() {
+                Token::RawStr(string, n) => Some((string, n)),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
+    fn eat_fmt_str(&mut self) -> Option<String> {
+        if matches!(self.token.token(), Token::FmtStr(..)) {
+            let token = std::mem::take(&mut self.token);
+            self.next_token();
+            match token.into_token() {
+                Token::FmtStr(string) => Some(string),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma)
     }
