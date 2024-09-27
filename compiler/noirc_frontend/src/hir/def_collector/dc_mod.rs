@@ -524,7 +524,10 @@ impl<'a> ModCollector<'a> {
 
                             associated_types.push(ResolvedGeneric {
                                 name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(type_variable_id, Kind::Numeric(Box::new(typ))),
+                                type_var: TypeVariable::unbound(
+                                    type_variable_id,
+                                    Kind::Numeric(Box::new(typ)),
+                                ),
                                 span: name.span(),
                             });
                         }

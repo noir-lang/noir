@@ -1737,7 +1737,17 @@ impl NodeInterner {
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
-            .map(|typevar| (typevar.id(), (typevar, Kind::Normal, self.next_type_variable())))
+            .map(|typevar| {
+                let typevar_kind = typevar.kind();
+                (
+                    typevar.id(),
+                    (
+                        typevar,
+                        typevar_kind.clone(),
+                        self.next_type_variable_with_kind(typevar_kind),
+                    ),
+                )
+            })
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);
@@ -2228,11 +2238,17 @@ impl NodeInterner {
         let trait_generics = the_trait.generics.clone();
 
         let self_type_var = the_trait.self_type_typevar.clone();
-        bindings.insert(self_type_var.id(), (self_type_var.clone(), self_type_var.kind(), impl_self_type));
+        bindings.insert(
+            self_type_var.id(),
+            (self_type_var.clone(), self_type_var.kind(), impl_self_type),
+        );
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
             let type_var = trait_generic.type_var.clone();
-            bindings.insert(type_var.id(), (type_var, trait_generic.kind(), trait_impl_generic.clone()));
+            bindings.insert(
+                type_var.id(),
+                (type_var, trait_generic.kind(), trait_impl_generic.clone()),
+            );
         }
 
         // Now that the normal bindings are added, we still need to bind the associated types
@@ -2241,7 +2257,10 @@ impl NodeInterner {
 
         for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
             let type_variable = trait_type.type_var.clone();
-            bindings.insert(type_variable.id(), (type_variable, trait_type.kind(), impl_type.typ.clone()));
+            bindings.insert(
+                type_variable.id(),
+                (type_variable, trait_type.kind(), impl_type.typ.clone()),
+            );
         }
 
         bindings

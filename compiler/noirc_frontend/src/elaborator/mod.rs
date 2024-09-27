@@ -511,6 +511,7 @@ impl<'context> Elaborator<'context> {
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> Type {
         let new_generic_id = self.interner.next_type_variable_id();
+
         let new_generic = TypeVariable::unbound(new_generic_id, Kind::Normal);
         generics.push(new_generic.clone());
 
@@ -536,13 +537,7 @@ impl<'context> Elaborator<'context> {
                     self.push_err(error);
                     is_error = true;
                     let id = self.interner.next_type_variable_id();
-                    let kind = match generic.kind() {
-                        Ok(kind) => kind,
-                        Err(error) => {
-                            self.push_err(error);
-                            Kind::Normal
-                        }
-                    };
+                    let kind = self.resolve_generic_kind(generic);
                     (TypeVariable::unbound(id, kind), Rc::new("(error)".into()))
                 }
             };
@@ -579,7 +574,8 @@ impl<'context> Elaborator<'context> {
         match generic {
             UnresolvedGeneric::Variable(_) | UnresolvedGeneric::Numeric { .. } => {
                 let id = self.interner.next_type_variable_id();
-                let typevar = TypeVariable::unbound(id, generic.kind()?);
+                let kind = self.resolve_generic_kind(generic);
+                let typevar = TypeVariable::unbound(id, kind);
                 let ident = generic.ident();
                 let name = Rc::new(ident.0.contents.clone());
                 Ok((typevar, name))
@@ -588,9 +584,7 @@ impl<'context> Elaborator<'context> {
             // previous macro call being inserted into a generics list.
             UnresolvedGeneric::Resolved(id, span) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(type_variable, name) => {
-                        Ok((type_variable.clone(), name))
-                    }
+                    Type::NamedGeneric(type_variable, name) => Ok((type_variable.clone(), name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
                         span: *span,
                         typ: other.clone(),
@@ -607,15 +601,19 @@ impl<'context> Elaborator<'context> {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
             let typ = if unresolved_typ.is_type_expression() {
-                self.resolve_type_inner(unresolved_typ.clone(), &Kind::Numeric(Box::new(Type::default_int_type())))
+                self.resolve_type_inner(
+                    unresolved_typ.clone(),
+                    &Kind::Numeric(Box::new(Type::default_int_type())),
+                )
             } else {
                 self.resolve_type(unresolved_typ.clone())
             };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                let unsupported_typ_err = ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
-                    ident: ident.clone(),
-                    typ: unresolved_typ.typ.clone(),
-                });
+                let unsupported_typ_err =
+                    ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
+                        ident: ident.clone(),
+                        typ: unresolved_typ.typ.clone(),
+                    });
                 self.push_err(unsupported_typ_err);
             }
             Kind::Numeric(Box::new(typ))
@@ -750,7 +748,7 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
-                _ => self.resolve_type_inner(typ, &Kind::Normal),
+                _ => self.resolve_type_inner(typ, &Kind::Any),
             };
 
             self.check_if_type_is_valid_for_program_input(

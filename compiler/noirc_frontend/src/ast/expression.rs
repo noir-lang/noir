@@ -80,7 +80,7 @@ pub enum UnresolvedGeneric {
 #[error("The only supported types of numeric generics are integers, fields, and booleans")]
 pub struct UnsupportedNumericGenericType {
     pub ident: Ident,
-    pub typ: UnresolvedTypeData
+    pub typ: UnresolvedTypeData,
 }
 
 impl UnresolvedGeneric {

@@ -82,8 +82,7 @@ impl<'context> Elaborator<'context> {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
                     let self_typevar = the_trait.self_type_typevar.clone();
-                    let self_type =
-                        Type::TypeVariable(self_typevar.clone());
+                    let self_type = Type::TypeVariable(self_typevar.clone());
                     let name_span = the_trait.name.span();
 
                     this.add_existing_generic(
@@ -292,7 +291,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
-            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind.clone(), arg));
+            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);

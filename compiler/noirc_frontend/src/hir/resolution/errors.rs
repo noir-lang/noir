@@ -2,7 +2,12 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{ast::{Ident, UnsupportedNumericGenericType}, hir::comptime::InterpreterError, parser::ParserError, Type};
+use crate::{
+    ast::{Ident, UnsupportedNumericGenericType},
+    hir::comptime::InterpreterError,
+    parser::ParserError,
+    Type,
+};
 
 use super::import::PathResolutionError;
 

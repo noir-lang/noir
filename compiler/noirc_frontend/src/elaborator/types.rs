@@ -59,18 +59,6 @@ impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        // // TODO: cleanup
-        // let dbg_this = match &typ.typ {
-        //     UnresolvedTypeData::Integer(..) => true,
-        //     UnresolvedTypeData::Named(..) => true,
-        //     UnresolvedTypeData::FieldElement => true,
-        //     UnresolvedTypeData::Expression(..) => true,
-        //     _ => false,
-        // };
-        // if dbg_this {
-        //     dbg!("resolve_type_inner", &typ, kind);
-        // }
-
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
@@ -184,9 +172,7 @@ impl<'context> Elaborator<'context> {
         if !kind.unifies(&resolved_type.kind()) {
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.to_string(),
-                expr_kind: resolved_type
-                    .kind()
-                    .to_string(),
+                expr_kind: resolved_type.kind().to_string(),
                 expr_span: span,
             });
             self.errors.push((expected_typ_err, self.file));
@@ -240,10 +226,6 @@ impl<'context> Elaborator<'context> {
                     return self_type;
                 }
             } else if name == WILDCARD_TYPE {
-                // TODO: cleanup
-                dbg!("resolve_named_type: WILDCARD_TYPE", &name);
-
-                // return self.interner.next_type_variable();
                 return self.interner.next_type_variable_with_kind(Kind::Any);
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
@@ -720,23 +702,11 @@ impl<'context> Elaborator<'context> {
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
-        // TODO: cleanup
-        //
-        // match &typ.typ {
-        //     UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
-        //     _ => self.resolve_type(typ),
-        // }
-        //
         match &typ.typ {
             UnresolvedTypeData::Unspecified => {
-                // // TODO: cleanup
-                dbg!("resolve_inferred_type: unspecified");
                 self.interner.next_type_variable_with_kind(Kind::Any)
             }
-            _ => {
-                // dbg!("resolve_inferred_type: specified", &typ);
-                self.resolve_type(typ)
-            }
+            _ => self.resolve_type(typ),
         }
     }
 
@@ -829,15 +799,14 @@ impl<'context> Elaborator<'context> {
                     return self.bind_function_type(typ.clone(), args, span);
                 }
 
-                // TODO: cleanup
-                dbg!("bind_function_type", &binding);
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
                 let expected =
                     Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
-                if let Err(error) = binding.try_bind(expected, &Kind::Normal, span) {
+                let expected_kind = expected.kind();
+                if let Err(error) = binding.try_bind(expected, &expected_kind, span) {
                     self.push_err(error);
                 }
                 ret
@@ -857,9 +826,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
         match from.follow_bindings() {
-            Type::Integer(..)
-            | Type::FieldElement
-            | Type::Bool => (),
+            Type::Integer(..) | Type::FieldElement | Type::Bool => (),
 
             Type::TypeVariable(var) if var.is_integer() || var.is_integer_or_field() => (),
 
@@ -1223,7 +1190,11 @@ impl<'context> Elaborator<'context> {
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
                 the_trait.self_type_typevar.id(),
-                (the_trait.self_type_typevar.clone(), Kind::Normal, object_type.clone()),
+                (
+                    the_trait.self_type_typevar.clone(),
+                    the_trait.self_type_typevar.kind(),
+                    object_type.clone(),
+                ),
             );
             self.interner.select_impl_for_expression(
                 expr_id,
@@ -1601,8 +1572,14 @@ impl<'context> Elaborator<'context> {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
             }
             ImplSearchErrorKind::Nested(constraints) => {
-                if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
+                // TODO cleanup
+                // if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
+                if let Some(error) =
+                    NoMatchingImplFoundError::new(self.interner, constraints.clone(), span)
                 {
+                    // TODO cleanup
+                    dbg!("ImplSearchErrorKind::Nested", &constraints);
+
                     self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
             }
@@ -1788,7 +1765,10 @@ impl<'context> Elaborator<'context> {
         for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
             // Avoid binding t = t
             if !arg.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.clone()),
+                );
             }
         }
 
@@ -1807,7 +1787,10 @@ impl<'context> Elaborator<'context> {
 
             // Avoid binding t = t
             if !arg.typ.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.typ.clone()));
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.typ.clone()),
+                );
             }
         }
 

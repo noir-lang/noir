@@ -2083,7 +2083,7 @@ fn fmtstr_quoted_contents(
 
 // fn fresh_type_variable() -> Type
 fn fresh_type_variable(interner: &NodeInterner) -> IResult<Value> {
-    Ok(Value::Type(interner.next_type_variable()))
+    Ok(Value::Type(interner.next_type_variable_with_kind(Kind::Any)))
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)

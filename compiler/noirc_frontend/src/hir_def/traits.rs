@@ -3,12 +3,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{Ident, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::ResolvedGeneric;
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Type, TypeBindings, TypeVariable,
 };
-use crate::ResolvedGeneric;
 use fm::FileId;
 use noirc_errors::{Location, Span};
 

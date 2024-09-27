@@ -11,7 +11,7 @@ use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::ParserError;
-use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, Type, TypeVariable};
+use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
 use def_map::{Contract, CrateDefMap};
 use fm::{FileId, FileManager};
@@ -283,7 +283,8 @@ impl Context<'_, '_> {
 
             let type_var_kind = generic.kind().unwrap_or_else(|err| {
                 errors.push((err.into(), file_id));
-                Kind::Numeric(Box::new(Type::Error))
+                // When there's an error, unify with any other kinds
+                Kind::Any
             });
             let type_var = TypeVariable::unbound(id, type_var_kind);
             let ident = generic.ident();

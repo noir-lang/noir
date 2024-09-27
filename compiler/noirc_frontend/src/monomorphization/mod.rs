@@ -934,15 +934,21 @@ impl<'interner> Monomorphizer<'interner> {
                 };
                 let location = self.interner.id_location(expr_id);
 
-                // TODO: check that numeric_typ matches typ
                 // TODO: possible to remove clones?
-                if !Kind::Numeric(numeric_typ.clone()).unifies(&Kind::Numeric(Box::new(typ.clone()))) {
+                if !Kind::Numeric(numeric_typ.clone())
+                    .unifies(&Kind::Numeric(Box::new(typ.clone())))
+                {
                     let message = "ICE: Generic's kind does not match expected type";
                     return Err(MonomorphizationError::InternalError { location, message });
                 }
 
                 let typ = Self::convert_type(&typ, ident.location)?;
-                ast::Expression::Literal(ast::Literal::Integer((value as u128).into(), false, typ, location))
+                ast::Expression::Literal(ast::Literal::Integer(
+                    (value as u128).into(),
+                    false,
+                    typ,
+                    location,
+                ))
             }
         };
 
@@ -1788,8 +1794,7 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            // TODO remove "??"
-            (self.next_local_id(), false, "_??".into(), parameter_type.clone())
+            (self.next_local_id(), false, "_".into(), parameter_type.clone())
         });
 
         let body = self.zeroed_value_of_type(ret_type, location);

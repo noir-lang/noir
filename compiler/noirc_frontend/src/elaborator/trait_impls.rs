@@ -159,7 +159,10 @@ impl<'context> Elaborator<'context> {
         {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
-            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind.clone(), arg));
+            bindings.insert(
+                trait_fn_generic.id(),
+                (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
+            );
         }
 
         let mut substituted_method_ids = HashSet::default();
