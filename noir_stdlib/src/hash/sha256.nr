@@ -8,7 +8,7 @@ use crate::runtime::is_unconstrained;
 pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:sha256
 {
-    crate::sha256::digest(input)
+    digest(input)
 }
 
 #[foreign(sha256_compression)]

@@ -6,6 +6,7 @@ use crate::default::Default;
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
+#[deprecated = "It's recommmended to use the external MiMC library (https://github.com/noir-lang/mimc)"]
 fn mimc<let N: u32>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Field {
     //round 0
     let mut t = x + k;
@@ -116,6 +117,7 @@ global MIMC_BN254_CONSTANTS: [Field; MIMC_BN254_ROUNDS] = [
 
 //mimc implementation with hardcoded parameters for BN254 curve.
 #[field(bn254)]
+#[deprecated = "It's recommmended to use the external MiMC library (https://github.com/noir-lang/mimc)"]
 pub fn mimc_bn254<let N: u32>(array: [Field; N]) -> Field {
     let exponent = 7;
     let mut r = 0;

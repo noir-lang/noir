@@ -220,6 +220,7 @@ fn implementation() -> impl NoirParser<TopLevelStatementKind> {
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatementKind> {
     let p = attributes::attributes()
+        .then(item_visibility())
         .then(maybe_comp_time())
         .then(spanned(keyword(Keyword::Mut)).or_not())
         .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
@@ -229,7 +230,9 @@ fn global_declaration() -> impl NoirParser<TopLevelStatementKind> {
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
     p.validate(
-        |(((((attributes, comptime), mutable), mut pattern), r#type), expression), span, emit| {
+        |((((((attributes, visibility), comptime), mutable), mut pattern), r#type), expression),
+         span,
+         emit| {
             let global_attributes =
                 attributes::validate_secondary_attributes(attributes, span, emit);
 
@@ -239,10 +242,19 @@ fn global_declaration() -> impl NoirParser<TopLevelStatementKind> {
                 let span = mut_span.merge(pattern.span());
                 pattern = Pattern::Mutable(Box::new(pattern), span, false);
             }
-            LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
+            (
+                LetStatement {
+                    pattern,
+                    r#type,
+                    comptime,
+                    expression,
+                    attributes: global_attributes,
+                },
+                visibility,
+            )
         },
     )
-    .map(TopLevelStatementKind::Global)
+    .map(|(let_statement, visibility)| TopLevelStatementKind::Global(let_statement, visibility))
 }
 
 /// submodule: 'mod' ident '{' module '}'

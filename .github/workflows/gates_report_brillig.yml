@@ -74,7 +74,7 @@ jobs:
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
-        uses: noir-lang/noir-gates-diff@3fb844067b25d1b59727ea600b614503b33503f4
+        uses: noir-lang/noir-gates-diff@d88f7523b013b9edd3f31c5cfddaef87a3fe1b48
         with:
           report: gates_report_brillig.json
           header: |
