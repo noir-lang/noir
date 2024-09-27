@@ -95,12 +95,25 @@ impl Field {
     // docs:start:to_be_bytes
     pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_be_bytes
-        let le_bytes: [u8; N] = self.to_le_bytes();
-        let mut be_bytes = [0; N];
-        for i in 0..N {
-            be_bytes[i] = le_bytes[N - 1 - i];
+        // Compute the byte decomposition
+        let bytes = self.to_be_radix(256);
+
+        if !is_unconstrained() {
+            // Ensure that the byte decomposition does not overflow the modulus
+            let  p = modulus_le_bytes();
+            assert(bytes.len() <= p.len());
+            let mut ok = bytes.len() != p.len();
+            for i in 0..N {
+                if !ok {
+                    if (bytes[i] != p[i]) {
+                        assert(bytes[i] < p[i]);
+                        ok = true;
+                    }
+                }
+            }
+            assert(ok);
         }
-        be_bytes
+        bytes
     }
 
     // docs:start:to_le_radix
