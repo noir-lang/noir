@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
         Path { segments, kind: PathKind::Plain, span: self.span_since(start_span) }
     }
 
-    fn parse_path_generics(&mut self) -> Option<Vec<UnresolvedType>> {
+    pub(super) fn parse_path_generics(&mut self) -> Option<Vec<UnresolvedType>> {
         if !self.eat_less() {
             return None;
         }

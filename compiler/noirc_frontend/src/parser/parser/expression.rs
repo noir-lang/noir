@@ -85,7 +85,15 @@ impl<'a> Parser<'a> {
                     Ident::default()
                 };
 
-                // TODO: parse generics
+                let generics = if self.eat_double_colon() {
+                    let generics = self.parse_path_generics();
+                    if generics.is_none() {
+                        // TODO: error (found `::` but not `::<...>`)
+                    }
+                    generics
+                } else {
+                    None
+                };
 
                 let is_macro_call = self.token.token() == &Token::Bang
                     && self.next_token.token() == &Token::LeftParen;
@@ -98,7 +106,7 @@ impl<'a> Parser<'a> {
                     let kind = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                         object: atom,
                         method_name: field_name,
-                        generics: None,
+                        generics,
                         arguments,
                         is_macro_call,
                     }));
@@ -145,7 +153,7 @@ impl<'a> Parser<'a> {
             };
         }
 
-        let (path, trailing_double_colon) = self.parse_path_impl(false); // do not allow turbofish
+        let path = self.parse_path();
         if !path.is_empty() {
             return ExpressionKind::Variable(path);
         }
@@ -748,6 +756,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_call_with_turbofish() {
+        let src = "foo::<T>(1, 2)";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Call(call) = expr.kind else {
+            panic!("Expected call expression");
+        };
+        assert_eq!(call.func.to_string(), "foo::<T>");
+        assert_eq!(call.arguments.len(), 2);
+        assert!(!call.is_macro_call);
+    }
+
+    #[test]
     fn parses_macro_call() {
         let src = "foo!(1, 2)";
         let mut parser = Parser::for_str(src);
@@ -788,6 +810,22 @@ mod tests {
         assert!(!method_call.is_macro_call);
         assert_eq!(method_call.arguments.len(), 2);
         assert!(method_call.generics.is_none());
+    }
+
+    #[test]
+    fn parses_method_call_with_turbofish() {
+        let src = "foo.bar::<T, U>(1, 2)";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::MethodCall(method_call) = expr.kind else {
+            panic!("Expected method call expression");
+        };
+        assert_eq!(method_call.object.to_string(), "foo");
+        assert_eq!(method_call.method_name.to_string(), "bar");
+        assert!(!method_call.is_macro_call);
+        assert_eq!(method_call.arguments.len(), 2);
+        assert_eq!(method_call.generics.unwrap().len(), 2);
     }
 
     #[test]
