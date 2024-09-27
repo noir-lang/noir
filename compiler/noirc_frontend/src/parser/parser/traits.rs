@@ -132,9 +132,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_trait_function(&mut self) -> Option<TraitItem> {
-        let is_unconstrained = self.eat_keyword(Keyword::Unconstrained);
-        let visibility = self.parse_item_visibility();
-        let is_comptime = self.eat_keyword(Keyword::Comptime);
+        let modifiers = self.parse_modifiers();
 
         if !self.eat_keyword(Keyword::Fn) {
             // TODO: error if unconstrained, visibility or comptime
@@ -160,9 +158,9 @@ impl<'a> Parser<'a> {
             .collect();
 
         Some(TraitItem::Function {
-            is_unconstrained,
-            visibility,
-            is_comptime,
+            is_unconstrained: modifiers.unconstrained.is_some(),
+            visibility: modifiers.visibility,
+            is_comptime: modifiers.comptime.is_some(),
             name: function.name,
             generics: function.generics,
             parameters,
@@ -178,7 +176,7 @@ fn empty_trait(
     visibility: ItemVisibility,
     span: Span,
 ) -> NoirTrait {
-    return NoirTrait {
+    NoirTrait {
         name: Ident::default(),
         generics: Vec::new(),
         where_clause: Vec::new(),
@@ -186,7 +184,7 @@ fn empty_trait(
         items: Vec::new(),
         attributes,
         visibility,
-    };
+    }
 }
 
 #[cfg(test)]

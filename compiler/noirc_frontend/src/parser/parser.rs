@@ -18,6 +18,7 @@ mod global;
 mod impls;
 mod item;
 mod item_visibility;
+mod modifiers;
 mod module;
 mod path;
 mod pattern;

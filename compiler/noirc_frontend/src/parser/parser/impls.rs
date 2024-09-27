@@ -55,17 +55,15 @@ impl<'a> Parser<'a> {
             // TODO: maybe require visibility to always come first
             let doc_comments = self.parse_outer_doc_comments();
             let start_span = self.current_token_span;
-            let is_unconstrained = self.eat_keyword(Keyword::Unconstrained);
-            let visibility = self.parse_item_visibility();
-            let is_comptime = self.eat_keyword(Keyword::Comptime);
+            let modifiers = self.parse_modifiers();
             let attributes = Vec::new();
 
             if self.eat_keyword(Keyword::Fn) {
                 let method = self.parse_function(
                     attributes,
-                    visibility,
-                    is_comptime,
-                    is_unconstrained,
+                    modifiers.visibility,
+                    modifiers.comptime.is_some(),
+                    modifiers.unconstrained.is_some(),
                     true, // allow_self
                 );
                 methods.push((Documented::new(method, doc_comments), self.span_since(start_span)));
@@ -155,11 +153,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_trait_impl_function(&mut self) -> Option<TraitImplItemKind> {
-        let is_unconstrained = self.eat_keyword(Keyword::Unconstrained);
-        if self.parse_item_visibility() != ItemVisibility::Private {
+        let modifiers = self.parse_modifiers();
+        if modifiers.visibility != ItemVisibility::Private {
             // TODO: error
         }
-        let is_comptime = self.eat_keyword(Keyword::Comptime);
         let attributes = Vec::new();
 
         if !self.eat_keyword(Keyword::Fn) {
@@ -170,8 +167,8 @@ impl<'a> Parser<'a> {
         let noir_function = self.parse_function(
             attributes,
             ItemVisibility::Public,
-            is_comptime,
-            is_unconstrained,
+            modifiers.comptime.is_some(),
+            modifiers.unconstrained.is_some(),
             true, // allow_self
         );
         Some(TraitImplItemKind::Function(noir_function))
