@@ -100,7 +100,7 @@ impl Field {
 
         if !is_unconstrained() {
             // Ensure that the byte decomposition does not overflow the modulus
-            let  p = modulus_le_bytes();
+            let  p = modulus_be_bytes();
             assert(bytes.len() <= p.len());
             let mut ok = bytes.len() != p.len();
             for i in 0..N {
@@ -165,7 +165,8 @@ impl Field {
     }
 }
 
-/// Convert a big endian byte array to a field element by modding
+/// Convert a little endian byte array to a field element.
+/// If the provided byte array overflows the field modulus then the Field will silently wrap around.
 pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
     let mut v = 1;
     let mut result = 0;
