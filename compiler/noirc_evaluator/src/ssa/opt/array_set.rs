@@ -4,6 +4,7 @@ use crate::ssa::{
         cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
         dom::DominatorTree,
+        function::RuntimeType,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type::{Array, Slice},
@@ -41,34 +42,36 @@ impl Ssa {
                 );
             }
 
-            let cfg = ControlFlowGraph::with_function(func);
-            let post_order = PostOrder::with_function(func);
-            let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-            let single_array_sets_per_block = single_array_sets_per_block
-                .iter()
-                .filter(|((array, _), _)| {
-                    array_to_last_use.get(array).is_some() && !arrays_from_load.contains(array)
-                })
-                .collect::<HashMap<_, _>>();
+            if matches!(func.runtime(), RuntimeType::Brillig) {
+                let cfg = ControlFlowGraph::with_function(func);
+                let post_order = PostOrder::with_function(func);
+                let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+                let single_array_sets_per_block = single_array_sets_per_block
+                    .iter()
+                    .filter(|((array, _), _)| {
+                        array_to_last_use.get(array).is_some() && !arrays_from_load.contains(array)
+                    })
+                    .collect::<HashMap<_, _>>();
 
-            let single_array_set_blocks = single_array_sets_per_block
-                .keys()
-                .map(|(_, block_id)| *block_id)
-                .collect::<Vec<_>>();
+                let single_array_set_blocks = single_array_sets_per_block
+                    .keys()
+                    .map(|(_, block_id)| *block_id)
+                    .collect::<Vec<_>>();
 
-            let mut single_array_sets_can_be_mutable = !single_array_set_blocks.is_empty();
-            for block in single_array_set_blocks.iter() {
-                for inner_block in single_array_set_blocks.iter() {
-                    if *block != *inner_block && dom_tree.dominates(*block, *inner_block) {
-                        single_array_sets_can_be_mutable = false;
+                let mut single_array_sets_can_be_mutable = !single_array_set_blocks.is_empty();
+                for block in single_array_set_blocks.iter() {
+                    for inner_block in single_array_set_blocks.iter() {
+                        if *block != *inner_block && dom_tree.dominates(*block, *inner_block) {
+                            single_array_sets_can_be_mutable = false;
+                        }
                     }
                 }
-            }
 
-            if single_array_sets_can_be_mutable {
-                let array_sets_to_update =
-                    single_array_sets_per_block.values().copied().collect::<Vec<_>>();
-                instructions_to_update.extend(array_sets_to_update);
+                if single_array_sets_can_be_mutable {
+                    let array_sets_to_update =
+                        single_array_sets_per_block.values().copied().collect::<Vec<_>>();
+                    instructions_to_update.extend(array_sets_to_update);
+                }
             }
 
             for block in reachable_blocks {
