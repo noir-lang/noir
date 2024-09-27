@@ -4,14 +4,25 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         BlockExpression, FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident,
-        ItemVisibility, NoirFunction, Param, Path, Pattern, UnresolvedType, UnresolvedTypeData,
-        Visibility,
+        ItemVisibility, NoirFunction, Param, Path, Pattern, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     parser::ParserErrorReason,
     token::{Attribute, Attributes, Keyword, Token},
 };
 
 use super::{pattern::PatternOrSelf, Parser};
+
+pub(crate) struct FunctionDefinitionWithOptionalBody {
+    pub(crate) name: Ident,
+    pub(crate) generics: UnresolvedGenerics,
+    pub(crate) parameters: Vec<Param>,
+    pub(crate) body: Option<BlockExpression>,
+    pub(crate) span: Span,
+    pub(crate) where_clause: Vec<UnresolvedTraitConstraint>,
+    pub(crate) return_type: FunctionReturnType,
+    pub(crate) return_visibility: Visibility,
+}
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_function(
@@ -42,10 +53,35 @@ impl<'a> Parser<'a> {
     ) -> FunctionDefinition {
         let attributes = self.validate_attributes(attributes);
 
+        let func = self.parse_function_definition_with_optional_body(
+            false, // allow optional body
+            allow_self,
+        );
+
+        FunctionDefinition {
+            name: func.name,
+            attributes,
+            is_unconstrained,
+            is_comptime,
+            visibility,
+            generics: func.generics,
+            parameters: func.parameters,
+            body: func.body.unwrap_or_else(empty_body),
+            span: func.span,
+            where_clause: func.where_clause,
+            return_type: func.return_type,
+            return_visibility: func.return_visibility,
+        }
+    }
+
+    pub(super) fn parse_function_definition_with_optional_body(
+        &mut self,
+        allow_optional_body: bool,
+        allow_self: bool,
+    ) -> FunctionDefinitionWithOptionalBody {
         let Some(name) = self.eat_ident() else {
             self.push_error(ParserErrorReason::ExpectedIdentifierAfterFn, self.current_token_span);
-
-            return empty_function(attributes, is_unconstrained, is_comptime, visibility);
+            return empty_function();
         };
 
         let generics = self.parse_generics();
@@ -61,15 +97,21 @@ impl<'a> Parser<'a> {
         let where_clause = self.parse_where_clause();
 
         let body_start_span = self.current_token_span;
-        let body = self.parse_block_expression().unwrap_or_else(empty_body);
-        let body_span = self.span_since(body_start_span);
+        let (body, body_span) = if self.eat_semicolons() {
+            if !allow_optional_body {
+                // TODO: error
+            }
 
-        FunctionDefinition {
+            (None, body_start_span)
+        } else {
+            (
+                Some(self.parse_block_expression().unwrap_or_else(empty_body)),
+                self.span_since(body_start_span),
+            )
+        };
+
+        FunctionDefinitionWithOptionalBody {
             name,
-            attributes,
-            is_unconstrained,
-            is_comptime,
-            visibility,
             generics,
             parameters,
             body,
@@ -230,21 +272,12 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn empty_function(
-    attributes: Attributes,
-    is_unconstrained: bool,
-    is_comptime: bool,
-    visibility: ItemVisibility,
-) -> FunctionDefinition {
-    FunctionDefinition {
+fn empty_function() -> FunctionDefinitionWithOptionalBody {
+    FunctionDefinitionWithOptionalBody {
         name: Ident::default(),
-        attributes,
-        is_unconstrained,
-        is_comptime,
-        visibility,
         generics: Vec::new(),
         parameters: Vec::new(),
-        body: empty_body(),
+        body: None,
         span: Span::default(),
         where_clause: Vec::new(),
         return_type: FunctionReturnType::Default(Span::default()),
