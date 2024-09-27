@@ -85,3 +85,29 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     assert_eq!(typ, "Foo");
     assert_eq!(item, "Bar");
 }
+
+#[test]
+fn errors_if_trying_to_access_public_function_inside_private_module() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+    }
+    fn main() {
+        foo::bar::baz()
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2); // There's a bug that duplicates this error
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "bar");
+}
