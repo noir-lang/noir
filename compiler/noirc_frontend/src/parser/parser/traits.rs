@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Documented, Ident, ItemVisibility, NoirTrait, TraitItem},
-    token::{Attribute, SecondaryAttribute},
+    token::{Attribute, Keyword, SecondaryAttribute},
 };
 
 use super::Parser;
@@ -44,9 +44,51 @@ impl<'a> Parser<'a> {
             return items;
         }
 
-        self.eat_right_brace();
+        loop {
+            let doc_comments = self.parse_outer_doc_comments();
+
+            if let Some(item) = self.parse_trait_item() {
+                items.push(Documented::new(item, doc_comments));
+
+                if self.eat_right_brace() {
+                    break;
+                }
+            } else {
+                // TODO: error
+                if self.is_eof() || self.eat_right_brace() {
+                    break;
+                } else {
+                    // Keep going
+                    self.next_token();
+                }
+            }
+        }
 
         items
+    }
+
+    fn parse_trait_item(&mut self) -> Option<TraitItem> {
+        if let Some(kind) = self.parse_trait_type() {
+            return Some(kind);
+        }
+
+        None
+    }
+
+    fn parse_trait_type(&mut self) -> Option<TraitItem> {
+        if !self.eat_keyword(Keyword::Type) {
+            return None;
+        }
+
+        let name = self.eat_ident();
+        if name.is_none() {
+            // TODO: error
+        }
+
+        self.eat_semicolons();
+
+        let name = name.unwrap_or_default();
+        Some(TraitItem::Type { name })
     }
 }
 
@@ -68,7 +110,10 @@ fn empty_trait(
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{parser::parse_program, ItemKind};
+    use crate::{
+        ast::TraitItem,
+        parser::{parser::parse_program, ItemKind},
+    };
 
     #[test]
     fn parse_empty_trait() {
@@ -116,5 +161,24 @@ mod tests {
         assert_eq!(noir_trait.generics.len(), 2);
         assert_eq!(noir_trait.where_clause.len(), 1);
         assert!(noir_trait.items.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_type() {
+        let src = "trait Foo { type Elem; }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Trait(mut noir_trait) = item.kind else {
+            panic!("Expected trait");
+        };
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Type { name } = item else {
+            panic!("Expected type");
+        };
+        assert_eq!(name.to_string(), "Elem");
     }
 }
