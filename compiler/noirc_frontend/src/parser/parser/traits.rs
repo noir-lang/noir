@@ -124,7 +124,8 @@ impl<'a> Parser<'a> {
             UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
         };
 
-        let default_value = if self.eat_assign() { Some(self.parse_expression()) } else { None };
+        let default_value =
+            if self.eat_assign() { Some(self.parse_expression_or_error()) } else { None };
 
         self.eat_semicolons();
 

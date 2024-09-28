@@ -678,7 +678,8 @@ fn quoted_as_expr(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let result = parse(interner, argument.clone(), Parser::parse_expression, "an expression");
+    let result =
+        parse(interner, argument.clone(), Parser::parse_expression_or_error, "an expression");
     if let Ok(expr) = result {
         return option(return_type, Some(Value::expression(expr.kind)));
     }

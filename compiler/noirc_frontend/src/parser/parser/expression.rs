@@ -15,23 +15,52 @@ use super::Parser;
 // term -> atom_or_right_unary -> atom
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_expression(&mut self) -> Expression {
-        self.parse_term(true) // allow constructors
+    pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
+        self.parse_expression_or_error_impl(true) // allow constructors
+    }
+
+    pub(crate) fn parse_expression(&mut self) -> Option<Expression> {
+        self.parse_expression_impl(true) // allow constructors
     }
 
     /// When parsing `if` conditions we don't allow constructors.
     /// For example `if foo { 1 }` shouldn't have `foo { 1 }` as the condition, but `foo` instead.
-    pub(crate) fn parse_expression_no_constructors(&mut self) -> Expression {
-        self.parse_term(false) // allow constructors
+    pub(crate) fn parse_expression_no_constructors_or_error(&mut self) -> Expression {
+        self.parse_expression_or_error_impl(false) // allow constructors
     }
 
-    fn parse_term(&mut self, allow_constructos: bool) -> Expression {
+    pub(crate) fn parse_expression_or_error_impl(&mut self, allow_constructos: bool) -> Expression {
+        if let Some(expr) = self.parse_expression_impl(allow_constructos) {
+            expr
+        } else {
+            self.push_error(
+                ParserErrorReason::ExpectedExpressionAfterThis,
+                self.previous_token_span,
+            );
+            Expression {
+                kind: ExpressionKind::Error,
+                span: Span::from(self.previous_token_span.end()..self.previous_token_span.end()),
+            }
+        }
+    }
+
+    fn parse_expression_impl(&mut self, allow_constructos: bool) -> Option<Expression> {
+        self.parse_term(allow_constructos)
+    }
+
+    fn parse_term(&mut self, allow_constructos: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         if let Some(operator) = self.parse_unary_op() {
-            let rhs = self.parse_term(allow_constructos);
+            let Some(rhs) = self.parse_term(allow_constructos) else {
+                self.push_error(
+                    ParserErrorReason::ExpectedExpressionAfterThis,
+                    self.previous_token_span,
+                );
+                return None;
+            };
             let kind = ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
             let span = self.span_since(start_span);
-            return Expression { kind, span };
+            return Some(Expression { kind, span });
         }
 
         self.parse_atom_or_unary_right(allow_constructos)
@@ -55,9 +84,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_atom_or_unary_right(&mut self, allow_constructos: bool) -> Expression {
+    fn parse_atom_or_unary_right(&mut self, allow_constructos: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
-        let mut atom = self.parse_atom(allow_constructos);
+        let mut atom = self.parse_atom(allow_constructos)?;
 
         loop {
             let is_macro_call =
@@ -141,37 +170,37 @@ impl<'a> Parser<'a> {
             break;
         }
 
-        atom
+        Some(atom)
     }
 
-    fn parse_atom(&mut self, allow_constructos: bool) -> Expression {
+    fn parse_atom(&mut self, allow_constructos: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
-        let kind = self.parse_atom_kind(allow_constructos);
-        Expression { kind, span: self.span_since(start_span) }
+        let kind = self.parse_atom_kind(allow_constructos)?;
+        Some(Expression { kind, span: self.span_since(start_span) })
     }
 
-    fn parse_atom_kind(&mut self, allow_constructos: bool) -> ExpressionKind {
+    fn parse_atom_kind(&mut self, allow_constructos: bool) -> Option<ExpressionKind> {
         if let Some(literal) = self.parse_literal() {
-            return literal;
+            return Some(literal);
         }
 
         if let Some(kind) = self.parse_parentheses_expression() {
-            return kind;
+            return Some(kind);
         }
 
         if let Some(kind) = self.parse_unsafe_expr() {
-            return kind;
+            return Some(kind);
         }
 
         if let Some(kind) = self.parse_path_expr(allow_constructos) {
-            return kind;
+            return Some(kind);
         }
 
         if let Some(kind) = self.parse_if_expr() {
-            return kind;
+            return Some(kind);
         }
 
-        ExpressionKind::Error
+        None
     }
 
     fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
@@ -221,7 +250,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.eat_colon() {
-                let expression = self.parse_expression();
+                let expression = self.parse_expression_or_error();
                 fields.push((ident, expression));
             } else {
                 fields.push((ident.clone(), ident.into()));
@@ -246,7 +275,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let condition = self.parse_expression_no_constructors();
+        let condition = self.parse_expression_no_constructors_or_error();
 
         let start_span = self.current_token_span;
         let Some(consequence) = self.parse_block_expression() else {
@@ -362,13 +391,13 @@ impl<'a> Parser<'a> {
         }
 
         let start_span = self.current_token_span;
-        let first_expr = self.parse_expression();
+        let first_expr = self.parse_expression_or_error();
         if self.current_token_span == start_span {
             return Some(ArrayLiteral::Standard(Vec::new()));
         }
 
         if self.eat_semicolon() {
-            let length = self.parse_expression();
+            let length = self.parse_expression_or_error();
             if !self.eat_right_bracket() {
                 if is_slice {
                     self.push_error(
@@ -396,11 +425,10 @@ impl<'a> Parser<'a> {
             }
 
             let start_span = self.current_token_span;
-            let expr = self.parse_expression();
-            if self.current_token_span == start_span {
+            let Some(expr) = self.parse_expression() else {
                 self.eat_right_brace();
                 break;
-            }
+            };
 
             if !trailing_comma {
                 self.push_error(ParserErrorReason::MissingCommaSeparatingExpressions, start_span);
@@ -427,12 +455,14 @@ impl<'a> Parser<'a> {
         let mut trailing_comma = false;
         loop {
             let start_span = self.current_token_span;
-            let expr = self.parse_expression();
-            if let ExpressionKind::Error = expr.kind {
-                self.push_error(ParserErrorReason::ExpectedExpression, start_span);
+            let Some(expr) = self.parse_expression() else {
+                self.push_error(
+                    ParserErrorReason::ExpectedExpressionAfterThis,
+                    self.previous_token_span,
+                );
                 self.eat_right_paren();
                 break;
-            }
+            };
             if !trailing_comma && !exprs.is_empty() {
                 self.push_error(ParserErrorReason::MissingCommaSeparatingExpressions, start_span);
             }
@@ -497,12 +527,12 @@ mod tests {
     fn parses_bool_literals() {
         let src = "true";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Bool(true))));
 
         let src = "false";
-        let expr = Parser::for_str(src).parse_expression();
+        let expr = Parser::for_str(src).parse_expression_or_error();
         assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Bool(false))));
     }
 
@@ -510,7 +540,7 @@ mod tests {
     fn parses_integer_literal() {
         let src = "42";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
             panic!("Expected integer literal");
@@ -523,7 +553,7 @@ mod tests {
     fn parses_parenthesized_expression() {
         let src = "(42)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Parenthesized(expr) = expr.kind else {
             panic!("Expected parenthesized expression");
@@ -539,7 +569,7 @@ mod tests {
     fn parses_unit() {
         let src = "()";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Unit)));
     }
@@ -548,7 +578,7 @@ mod tests {
     fn parses_str() {
         let src = "\"hello\"";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Str(string)) = expr.kind else {
             panic!("Expected string literal");
@@ -560,7 +590,7 @@ mod tests {
     fn parses_raw_str() {
         let src = "r#\"hello\"#";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::RawStr(string, n)) = expr.kind else {
             panic!("Expected raw string literal");
@@ -573,7 +603,7 @@ mod tests {
     fn parses_fmt_str() {
         let src = "f\"hello\"";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::FmtStr(string)) = expr.kind else {
             panic!("Expected format string literal");
@@ -585,7 +615,7 @@ mod tests {
     fn parses_tuple_expression() {
         let src = "(1, 2)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Tuple(mut exprs) = expr.kind else {
             panic!("Expected tuple expression");
@@ -611,7 +641,7 @@ mod tests {
     fn parses_block_expression_with_a_single_expression() {
         let src = "{ 1 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Block(mut block) = expr.kind else {
             panic!("Expected block expression");
@@ -640,7 +670,7 @@ mod tests {
         }
         ";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Block(block) = expr.kind else {
             panic!("Expected block expression");
@@ -655,7 +685,7 @@ mod tests {
     fn parses_unsafe_expression() {
         let src = "unsafe { 1 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");
@@ -673,7 +703,7 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
         let reason = get_single_error(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedExpression));
+        assert!(matches!(reason, ParserErrorReason::ExpectedExpressionAfterThis));
     }
 
     #[test]
@@ -693,7 +723,7 @@ mod tests {
     fn parses_empty_array_expression() {
         let src = "[]";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -706,7 +736,7 @@ mod tests {
     fn parses_array_expression_with_one_element() {
         let src = "[1]";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -720,7 +750,7 @@ mod tests {
     fn parses_array_expression_with_two_elements() {
         let src = "[1, 3]";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -735,7 +765,7 @@ mod tests {
     fn parses_repeated_array_expression() {
         let src = "[1; 10]";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
             repeated_element,
@@ -752,7 +782,7 @@ mod tests {
     fn parses_empty_slice_expression() {
         let src = "&[]";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -765,7 +795,7 @@ mod tests {
     fn parses_variable_ident() {
         let src = "foo";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Variable(path) = expr.kind else {
             panic!("Expected variable");
@@ -777,7 +807,7 @@ mod tests {
     fn parses_variable_path() {
         let src = "foo::bar";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Variable(path) = expr.kind else {
             panic!("Expected variable");
@@ -789,7 +819,7 @@ mod tests {
     fn parses_mutable_ref() {
         let src = "&mut foo";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -806,7 +836,7 @@ mod tests {
     fn parses_minus() {
         let src = "-foo";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -823,7 +853,7 @@ mod tests {
     fn parses_not() {
         let src = "!foo";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -840,7 +870,7 @@ mod tests {
     fn parses_dereference() {
         let src = "*foo";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -857,7 +887,7 @@ mod tests {
     fn parses_quote() {
         let src = "quote { 1 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Quote(tokens) = expr.kind else {
             panic!("Expected quote expression");
@@ -869,7 +899,7 @@ mod tests {
     fn parses_call() {
         let src = "foo(1, 2)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -883,7 +913,7 @@ mod tests {
     fn parses_call_with_turbofish() {
         let src = "foo::<T>(1, 2)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -897,7 +927,7 @@ mod tests {
     fn parses_macro_call() {
         let src = "foo!(1, 2)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -911,7 +941,7 @@ mod tests {
     fn parses_member_access() {
         let src = "foo.bar";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::MemberAccess(member_access) = expr.kind else {
             panic!("Expected member access expression");
@@ -924,7 +954,7 @@ mod tests {
     fn parses_method_call() {
         let src = "foo.bar(1, 2)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::MethodCall(method_call) = expr.kind else {
             panic!("Expected method call expression");
@@ -940,7 +970,7 @@ mod tests {
     fn parses_method_call_with_turbofish() {
         let src = "foo.bar::<T, U>(1, 2)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::MethodCall(method_call) = expr.kind else {
             panic!("Expected method call expression");
@@ -956,7 +986,7 @@ mod tests {
     fn parses_method_macro_call() {
         let src = "foo.bar!(1, 2)";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::MethodCall(method_call) = expr.kind else {
             panic!("Expected method call expression");
@@ -972,7 +1002,7 @@ mod tests {
     fn parses_empty_constructor() {
         let src = "Foo {}";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Constructor(constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -985,7 +1015,7 @@ mod tests {
     fn parses_constructor_with_fields() {
         let src = "Foo { x: 1, y, z: 2 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
@@ -1011,7 +1041,7 @@ mod tests {
     fn parses_parses_if_true() {
         let src = "if true { 1 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1029,7 +1059,7 @@ mod tests {
     fn parses_parses_if_var() {
         let src = "if foo { 1 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1041,7 +1071,7 @@ mod tests {
     fn parses_parses_if_else() {
         let src = "if true { 1 } else { 2 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1054,7 +1084,7 @@ mod tests {
     fn parses_parses_if_else_if() {
         let src = "if true { 1 } else if false { 2 } else { 3 }";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1069,7 +1099,7 @@ mod tests {
     fn parses_cast() {
         let src = "1 as u8";
         let mut parser = Parser::for_str(src);
-        let expr = parser.parse_expression();
+        let expr = parser.parse_expression_or_error();
         assert!(parser.errors.is_empty());
         let ExpressionKind::Cast(cast_expr) = expr.kind else {
             panic!("Expected cast");

@@ -16,11 +16,10 @@ impl<'a> Parser<'a> {
         let mut trailing_comma = false;
         loop {
             let start_span = self.current_token_span;
-            let expr = self.parse_expression();
-            if start_span == self.current_token_span {
+            let Some(expr) = self.parse_expression() else {
                 self.eat_right_paren();
                 break;
-            }
+            };
 
             if !trailing_comma && !arguments.is_empty() {
                 self.push_error(ParserErrorReason::MissingCommaSeparatingArguments, start_span);

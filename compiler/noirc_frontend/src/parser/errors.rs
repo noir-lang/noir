@@ -13,8 +13,6 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
-    #[error("Expected expression")]
-    ExpectedExpression,
     #[error("Expected pattern")]
     ExpectedPattern,
     #[error("Unexpected `;`")]
@@ -73,6 +71,8 @@ pub enum ParserErrorReason {
     ExpectedLeftBraceOfIfAfterElse,
     #[error("Expected type after this")]
     ExpectedTypeAfterThis,
+    #[error("Expected expression after this")]
+    ExpectedExpressionAfterThis,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),

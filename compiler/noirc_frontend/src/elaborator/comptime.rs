@@ -263,7 +263,7 @@ impl<'context> Elaborator<'context> {
         }
 
         let parser = Parser::for_tokens(tokens);
-        let expression = parse_result(parser, Parser::parse_expression)
+        let expression = parse_result(parser, Parser::parse_expression_or_error)
             .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
 
         let (mut func, mut arguments) = match expression.kind {

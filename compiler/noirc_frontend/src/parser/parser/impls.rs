@@ -227,7 +227,7 @@ impl<'a> Parser<'a> {
         };
 
         let expr = if self.eat_assign() {
-            self.parse_expression()
+            self.parse_expression_or_error()
         } else {
             // TODO: error
             Expression { kind: ExpressionKind::Error, span: Span::default() }

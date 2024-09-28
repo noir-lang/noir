@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
         let typ = self.parse_optional_type_annotation();
 
         let expression = if self.eat_assign() {
-            self.parse_expression()
+            self.parse_expression_or_error()
         } else {
             self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.span());
             Expression { kind: ExpressionKind::Error, span: Span::default() }

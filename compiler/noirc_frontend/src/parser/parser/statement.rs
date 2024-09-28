@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
             return self.parse_comptime_statement(attributes).unwrap();
         }
 
-        StatementKind::Expression(self.parse_expression())
+        StatementKind::Expression(self.parse_expression_or_error())
     }
 
     fn parse_comptime_statement(
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
         let pattern = self.parse_pattern();
         let r#type = self.parse_optional_type_annotation();
         let expression = if self.eat_assign() {
-            self.parse_expression()
+            self.parse_expression_or_error()
         } else {
             // TODO: error
             Expression { kind: ExpressionKind::Error, span: self.current_token_span }
@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
             ConstrainKind::Constrain => {
                 self.push_error(ParserErrorReason::ConstrainDeprecated, self.previous_token_span);
 
-                let expression = self.parse_expression();
+                let expression = self.parse_expression_or_error();
                 ConstrainStatement {
                     kind,
                     arguments: vec![expression],

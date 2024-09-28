@@ -261,7 +261,7 @@ impl Value {
                 tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
 
                 let parser = Parser::for_tokens(tokens_to_parse);
-                return match parse_result(parser, Parser::parse_expression) {
+                return match parse_result(parser, Parser::parse_expression_or_error) {
                     Ok(expr) => Ok(expr),
                     Err(mut errors) => {
                         let error = errors.swap_remove(0);
