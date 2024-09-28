@@ -49,40 +49,61 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_generic(&mut self) -> Option<UnresolvedGeneric> {
-        // Check `T`
+        if let Some(generic) = self.parse_variable_generic() {
+            return Some(generic);
+        }
+
+        if let Some(generic) = self.parse_numeric_generic() {
+            return Some(generic);
+        }
+
+        if let Some(generic) = self.parse_resolved_generic() {
+            return Some(generic);
+        }
+
+        None
+    }
+
+    fn parse_variable_generic(&mut self) -> Option<UnresolvedGeneric> {
         if let Some(ident) = self.eat_ident() {
             return Some(UnresolvedGeneric::Variable(ident));
         }
 
-        // Check `let N: u32`
-        if self.eat_keyword(Keyword::Let) {
-            let Some(ident) = self.eat_ident() else {
-                return None;
-            };
+        None
+    }
 
-            if !self.eat_colon() {
-                self.push_error(
-                    ParserErrorReason::MissingTypeForNumericGeneric,
-                    self.current_token_span,
-                );
-                return Some(UnresolvedGeneric::Numeric { ident, typ: type_u32() });
-            }
-
-            let typ = self.parse_type();
-            if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
-                if matches!(signedness, Signedness::Signed)
-                    || matches!(bit_size, IntegerBitSize::SixtyFour)
-                {
-                    self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
-                }
-            } else {
-                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
-            }
-
-            return Some(UnresolvedGeneric::Numeric { ident, typ });
+    fn parse_numeric_generic(&mut self) -> Option<UnresolvedGeneric> {
+        if !self.eat_keyword(Keyword::Let) {
+            return None;
         }
 
-        // Check resolved generics
+        let Some(ident) = self.eat_ident() else {
+            return None;
+        };
+
+        if !self.eat_colon() {
+            self.push_error(
+                ParserErrorReason::MissingTypeForNumericGeneric,
+                self.current_token_span,
+            );
+            return Some(UnresolvedGeneric::Numeric { ident, typ: type_u32() });
+        }
+
+        let typ = self.parse_type();
+        if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
+            if matches!(signedness, Signedness::Signed)
+                || matches!(bit_size, IntegerBitSize::SixtyFour)
+            {
+                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
+            }
+        } else {
+            self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
+        }
+
+        Some(UnresolvedGeneric::Numeric { ident, typ })
+    }
+
+    fn parse_resolved_generic(&mut self) -> Option<UnresolvedGeneric> {
         if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
             match token.into_token() {
                 Token::QuotedType(id) => {
