@@ -390,9 +390,8 @@ impl<'a> Parser<'a> {
             return Some(ArrayLiteral::Standard(Vec::new()));
         }
 
-        let start_span = self.current_token_span;
         let first_expr = self.parse_expression_or_error();
-        if self.current_token_span == start_span {
+        if first_expr.kind == ExpressionKind::Error {
             return Some(ArrayLiteral::Standard(Vec::new()));
         }
 
@@ -495,13 +494,11 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            let start_span = self.current_token_span;
-            let statement = self.parse_statement();
-            if self.current_token_span == start_span {
+            let Some(statement) = self.parse_statement() else {
                 // TODO: error?
                 self.eat_right_brace();
                 break;
-            }
+            };
 
             statements.push(statement);
 

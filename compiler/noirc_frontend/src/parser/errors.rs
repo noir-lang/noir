@@ -73,6 +73,8 @@ pub enum ParserErrorReason {
     ExpectedTypeAfterThis,
     #[error("Expected expression after this")]
     ExpectedExpressionAfterThis,
+    #[error("Expected statement after this")]
+    ExpectedStatementAfterThis,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),

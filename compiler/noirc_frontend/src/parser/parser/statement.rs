@@ -12,45 +12,66 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_statement(&mut self) -> Statement {
+    pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
+        if let Some(statement) = self.parse_statement() {
+            statement
+        } else {
+            self.push_error(
+                ParserErrorReason::ExpectedStatementAfterThis,
+                self.previous_token_span,
+            );
+            Statement {
+                kind: StatementKind::Error,
+                span: Span::from(self.previous_token_span.end()..self.previous_token_span.end()),
+            }
+        }
+    }
+
+    pub(crate) fn parse_statement(&mut self) -> Option<Statement> {
         let attributes = self.parse_attributes();
 
         let start_span = self.current_token_span;
-        let kind = self.parse_statement_kind(attributes);
+        let kind = self.parse_statement_kind(attributes)?;
         let span = self.span_since(start_span);
-        Statement { kind, span }
+        Some(Statement { kind, span })
     }
 
-    fn parse_statement_kind(&mut self, attributes: Vec<(Attribute, Span)>) -> StatementKind {
+    fn parse_statement_kind(
+        &mut self,
+        attributes: Vec<(Attribute, Span)>,
+    ) -> Option<StatementKind> {
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
-                Token::InternedStatement(statement) => return StatementKind::Interned(statement),
+                Token::InternedStatement(statement) => {
+                    return Some(StatementKind::Interned(statement))
+                }
                 _ => unreachable!(),
             }
         }
 
         if self.eat_keyword(Keyword::Break) {
-            return StatementKind::Break;
+            return Some(StatementKind::Break);
         }
 
         if self.eat_keyword(Keyword::Continue) {
-            return StatementKind::Continue;
+            return Some(StatementKind::Continue);
         }
 
         if self.token.token() == &Token::Keyword(Keyword::Let) {
-            let let_statement = self.parse_let_statement(attributes).unwrap();
-            return StatementKind::Let(let_statement);
+            let let_statement = self.parse_let_statement(attributes)?;
+            return Some(StatementKind::Let(let_statement));
         }
 
         if let Some(constrain) = self.parse_constrain_statement() {
-            return StatementKind::Constrain(constrain);
+            return Some(StatementKind::Constrain(constrain));
         }
 
         if self.token.token() == &Token::Keyword(Keyword::Comptime) {
-            return self.parse_comptime_statement(attributes).unwrap();
+            return self.parse_comptime_statement(attributes);
         }
 
-        StatementKind::Expression(self.parse_expression_or_error())
+        let expression = self.parse_expression()?;
+        Some(StatementKind::Expression(expression))
     }
 
     fn parse_comptime_statement(
@@ -158,7 +179,7 @@ mod tests {
     fn parses_break() {
         let src = "break";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         assert!(matches!(statement.kind, StatementKind::Break));
     }
@@ -167,7 +188,7 @@ mod tests {
     fn parses_continue() {
         let src = "continue";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         assert!(matches!(statement.kind, StatementKind::Continue));
     }
@@ -176,7 +197,7 @@ mod tests {
     fn parses_let_statement_no_type() {
         let src = "let x = 1;";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
@@ -191,7 +212,7 @@ mod tests {
     fn parses_let_statement_with_type() {
         let src = "let x: Field = 1;";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
@@ -206,7 +227,7 @@ mod tests {
     fn parses_assert() {
         let src = "assert(true, \"good\")";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Constrain(constrain) = statement.kind else {
             panic!("Expected constrain statement");
@@ -219,7 +240,7 @@ mod tests {
     fn parses_assert_eq() {
         let src = "assert_eq(1, 2, \"bad\")";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Constrain(constrain) = statement.kind else {
             panic!("Expected constrain statement");
@@ -236,7 +257,7 @@ mod tests {
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         let StatementKind::Constrain(constrain) = statement.kind else {
             panic!("Expected constrain statement");
         };
@@ -251,7 +272,7 @@ mod tests {
     fn parses_comptime_block() {
         let src = "comptime { 1 }";
         let mut parser = Parser::for_str(&src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime statement");
@@ -269,7 +290,7 @@ mod tests {
     fn parses_comptime_let() {
         let src = "comptime let x = 1;";
         let mut parser = Parser::for_str(&src);
-        let statement = parser.parse_statement();
+        let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime statement");
