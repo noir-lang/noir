@@ -79,13 +79,11 @@ pub struct Parser<'a> {
     errors: Vec<ParserError>,
     tokens: TokenStream<'a>,
 
-    // We always have two look-ahead tokens for these cases:
+    // We always have one look-ahead token for these cases:
     // - check if we get `&` or `&mut`
     // - check if we get `>` or `>>`
-    // - check if we get `>>` or `>>=`
     token: SpannedToken,
     next_token: SpannedToken,
-    next_next_token: SpannedToken,
     current_token_span: Span,
     previous_token_span: Span,
 }
@@ -110,11 +108,10 @@ impl<'a> Parser<'a> {
             tokens,
             token: SpannedToken::default(),
             next_token: SpannedToken::default(),
-            next_next_token: SpannedToken::default(),
             current_token_span: Default::default(),
             previous_token_span: Default::default(),
         };
-        parser.read_three_first_tokens();
+        parser.read_two_first_tokens();
         parser
     }
 
@@ -133,18 +130,15 @@ impl<'a> Parser<'a> {
         self.previous_token_span = self.current_token_span;
         let token = self.read_token_internal();
         let next_token = std::mem::take(&mut self.next_token);
-        let next_next_token = std::mem::take(&mut self.next_next_token);
         self.token = next_token;
-        self.next_token = next_next_token;
-        self.next_next_token = token;
+        self.next_token = token;
         self.current_token_span = self.token.to_span();
     }
 
-    fn read_three_first_tokens(&mut self) {
+    fn read_two_first_tokens(&mut self) {
         self.token = self.read_token_internal();
         self.current_token_span = self.token.to_span();
         self.next_token = self.read_token_internal();
-        self.next_next_token = self.read_token_internal();
     }
 
     fn read_token_internal(&mut self) -> SpannedToken {

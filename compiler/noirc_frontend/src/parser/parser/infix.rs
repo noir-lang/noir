@@ -165,7 +165,6 @@ impl<'a> Parser<'a> {
                 // parse two greater-than tokens as a single right-shift here.
                 if self.token.token() == &Token::Greater
                     && self.next_token.token() == &Token::Greater
-                    && self.next_next_token.token() != &Token::Assign
                 {
                     self.next_token();
                     self.next_token();
