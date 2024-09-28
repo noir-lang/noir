@@ -13,12 +13,13 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_type_expression(
         &mut self,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
-        self.parse_add_or_subtract_type_expression()
+        match self.parse_add_or_subtract_type_expression() {
+            Some(type_expr) => Ok(type_expr),
+            None => self.expected_type_expression_after_this(),
+        }
     }
 
-    fn parse_add_or_subtract_type_expression(
-        &mut self,
-    ) -> Result<UnresolvedTypeExpression, ParserError> {
+    fn parse_add_or_subtract_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_multiply_or_divide_or_modulo_type_expression()?;
 
@@ -32,7 +33,7 @@ impl<'a> Parser<'a> {
             };
 
             match self.parse_multiply_or_divide_or_modulo_type_expression() {
-                Ok(rhs) => {
+                Some(rhs) => {
                     let span = self.span_since(start_span);
                     lhs = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
@@ -41,19 +42,18 @@ impl<'a> Parser<'a> {
                         span,
                     );
                 }
-                Err(err) => {
-                    self.errors.push(err);
-                    break;
+                None => {
+                    self.push_expected_expression_after_this_error();
                 }
             }
         }
 
-        Ok(lhs)
+        Some(lhs)
     }
 
     fn parse_multiply_or_divide_or_modulo_type_expression(
         &mut self,
-    ) -> Result<UnresolvedTypeExpression, ParserError> {
+    ) -> Option<UnresolvedTypeExpression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_term_type_expression()?;
 
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
             };
 
             match self.parse_term_type_expression() {
-                Ok(rhs) => {
+                Some(rhs) => {
                     let span = self.span_since(start_span);
                     lhs = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
@@ -78,56 +78,57 @@ impl<'a> Parser<'a> {
                         span,
                     );
                 }
-                Err(err) => {
-                    self.errors.push(err);
+                None => {
+                    self.push_expected_expression_after_this_error();
                     break;
                 }
             }
         }
 
-        Ok(lhs)
+        Some(lhs)
     }
 
-    fn parse_term_type_expression(&mut self) -> Result<UnresolvedTypeExpression, ParserError> {
-        let result = self.parses_variable_type_expression();
-        if let Ok(type_expr) = result {
-            return Ok(type_expr);
+    fn parse_term_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
+        if let Some(type_expr) = self.parse_constant_type_expression() {
+            return Some(type_expr);
         }
 
-        let result = self.parse_constant_type_expression();
-        if let Ok(type_expr) = result {
-            return Ok(type_expr);
+        if let Some(type_expr) = self.parses_variable_type_expression() {
+            return Some(type_expr);
         }
 
-        result
+        None
     }
 
-    fn parse_constant_type_expression(&mut self) -> Result<UnresolvedTypeExpression, ParserError> {
+    fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let Some(int) = self.eat_int() else {
-            return self.expected_type_expression_after_this();
+            return None;
         };
 
-        let Some(int) = int.try_to_u32() else {
+        let int = if let Some(int) = int.try_to_u32() {
+            int
+        } else {
             let err_expr = Expression {
                 kind: ExpressionKind::Literal(Literal::Integer(int, false)),
                 span: self.previous_token_span,
             };
-            return Err(ParserError::with_reason(
+            self.push_error(
                 ParserErrorReason::InvalidTypeExpression(err_expr),
                 self.previous_token_span,
-            ));
+            );
+            0
         };
 
-        Ok(UnresolvedTypeExpression::Constant(int, self.previous_token_span))
+        Some(UnresolvedTypeExpression::Constant(int, self.previous_token_span))
     }
 
-    fn parses_variable_type_expression(&mut self) -> Result<UnresolvedTypeExpression, ParserError> {
+    fn parses_variable_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let path = self.parse_path();
         if path.is_empty() {
-            return self.expected_type_expression_after_this();
+            None
+        } else {
+            Some(UnresolvedTypeExpression::Variable(path))
         }
-
-        Ok(UnresolvedTypeExpression::Variable(path))
     }
 
     fn expected_type_expression_after_this(
