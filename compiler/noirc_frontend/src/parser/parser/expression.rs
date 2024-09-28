@@ -2,8 +2,7 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal,
-        MemberAccessExpression, MethodCallExpression, Path, PrefixExpression, UnaryOp,
-        UnresolvedType,
+        MemberAccessExpression, MethodCallExpression, Path, UnaryOp, UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
@@ -52,7 +51,7 @@ impl<'a> Parser<'a> {
                 );
                 return None;
             };
-            let kind = ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }));
+            let kind = ExpressionKind::prefix(operator, rhs);
             let span = self.span_since(start_span);
             return Some(Expression { kind, span });
         }
@@ -213,8 +212,11 @@ impl<'a> Parser<'a> {
         // TODO: parse these too
         // comptime_expr(statement.clone()),
         // unquote(expr_parser.clone()),
-        // as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         // type_path(parse_type()),
+
+        if let Some(as_trait_path) = self.parse_as_trait_path() {
+            return Some(ExpressionKind::AsTraitPath(as_trait_path));
+        }
 
         if let Some(kind) = self.parse_resolved_expr() {
             return Some(kind);
@@ -598,6 +600,19 @@ mod tests {
         };
         assert_eq!(field, 42_u128.into());
         assert!(!negative);
+    }
+
+    #[test]
+    fn parses_negative_integer_literal() {
+        let src = "-42";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+            panic!("Expected integer literal");
+        };
+        assert_eq!(field, 42_u128.into());
+        assert!(negative);
     }
 
     #[test]
@@ -1261,5 +1276,20 @@ mod tests {
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
         assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_as_trait_path() {
+        let src = "<Field as foo::Bar>::baz";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::AsTraitPath(as_trait_path) = expr.kind else {
+            panic!("Expected as_trait_path")
+        };
+        assert_eq!(as_trait_path.typ.typ.to_string(), "Field");
+        assert_eq!(as_trait_path.trait_path.to_string(), "foo::Bar");
+        assert!(as_trait_path.trait_generics.is_empty());
+        assert_eq!(as_trait_path.impl_item.to_string(), "baz");
     }
 }
