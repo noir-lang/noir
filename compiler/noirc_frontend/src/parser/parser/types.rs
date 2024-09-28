@@ -77,6 +77,10 @@ impl<'a> Parser<'a> {
             return Some(typ);
         }
 
+        if let Some(typ) = self.parse_trait_as_type() {
+            return Some(typ);
+        }
+
         if let Some(typ) = self.parse_resolved_type() {
             return Some(typ);
         }
@@ -259,6 +263,17 @@ impl<'a> Parser<'a> {
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
+    }
+
+    fn parse_trait_as_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_keyword(Keyword::Impl) {
+            return None;
+        }
+
+        let path = self.parse_path_no_turbofish();
+        let generics = self.parse_generic_type_args();
+
+        Some(UnresolvedTypeData::TraitAsType(path, generics))
     }
 
     fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -642,5 +657,18 @@ mod tests {
             panic!("Expected a function type")
         };
         assert!(unconstrained);
+    }
+
+    #[test]
+    fn parses_trait_as_type_no_generics() {
+        let src = "impl foo::Bar";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::TraitAsType(path, generics) = typ.typ else {
+            panic!("Expected trait as type")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert!(generics.is_empty());
     }
 }
