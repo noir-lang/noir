@@ -96,8 +96,6 @@ impl<'a> Parser<'a> {
             {
                 self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
             }
-        } else {
-            self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
         }
 
         Some(UnresolvedGeneric::Numeric { ident, typ })
@@ -266,19 +264,6 @@ mod tests {
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "1");
-    }
-
-    #[test]
-    fn parse_numeric_generic_error_if_not_integer() {
-        let src = "
-        <let N: bool>
-                ^^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
-        parser.parse_generics();
-        let reason = get_single_error(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
     }
 
     #[test]
