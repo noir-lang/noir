@@ -3,7 +3,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::ParserErrorReason,
-    token::{Keyword, Token},
+    token::{Keyword, Token, TokenKind},
     QuotedType,
 };
 
@@ -65,6 +65,14 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(typ) = self.parse_comptime_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_resolved_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_interned_type() {
             return Some(typ);
         }
 
@@ -170,6 +178,32 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::CtString) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::CtString));
         }
+        None
+    }
+
+    fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
+            match token.into_token() {
+                Token::QuotedType(id) => {
+                    return Some(UnresolvedTypeData::Resolved(id));
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        None
+    }
+
+    fn parse_interned_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(token) = self.eat_kind(TokenKind::InternedUnresolvedTypeData) {
+            match token.into_token() {
+                Token::InternedUnresolvedTypeData(id) => {
+                    return Some(UnresolvedTypeData::Interned(id));
+                }
+                _ => unreachable!(),
+            }
+        }
+
         None
     }
 
