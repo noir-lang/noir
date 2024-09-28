@@ -1,9 +1,10 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, UnresolvedType, UnresolvedTypeData},
+    ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::ParserErrorReason,
     token::{Keyword, Token},
+    QuotedType,
 };
 
 use super::Parser;
@@ -19,19 +20,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_unresolved_type_data(&mut self) -> UnresolvedTypeData {
+        if let Some(typ) = self.parse_primitive_type() {
+            return typ;
+        }
+
         if let Some(typ) = self.parse_parentheses_type() {
-            return typ;
-        }
-
-        if let Some(typ) = self.parse_bool_type() {
-            return typ;
-        }
-
-        if let Some(typ) = self.parse_field_type() {
-            return typ;
-        }
-
-        if let Some(typ) = self.parse_int_type() {
             return typ;
         }
 
@@ -52,6 +45,30 @@ impl<'a> Parser<'a> {
         // TODO: parse more types
 
         UnresolvedTypeData::Error
+    }
+
+    fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(typ) = self.parse_field_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_int_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_bool_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_str_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_comptime_type() {
+            return Some(typ);
+        }
+
+        None
     }
 
     fn parse_bool_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -81,6 +98,78 @@ impl<'a> Parser<'a> {
             });
         }
 
+        None
+    }
+
+    fn parse_str_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_keyword(Keyword::String) {
+            return None;
+        }
+
+        if !self.eat_less() {
+            self.push_error(ParserErrorReason::ExpectedStringTypeLength, self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(0, self.current_token_span);
+            return Some(UnresolvedTypeData::String(expr));
+        }
+
+        let expr = match self.parse_type_expression() {
+            Ok(expr) => expr,
+            Err(error) => {
+                self.errors.push(error);
+                UnresolvedTypeExpression::Constant(0, self.current_token_span)
+            }
+        };
+
+        if !self.eat_greater() {
+            self.push_error(
+                ParserErrorReason::ExpectedGreaterAfterStringTypeLength,
+                self.current_token_span,
+            );
+        }
+
+        Some(UnresolvedTypeData::String(expr))
+    }
+
+    fn parse_comptime_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat_keyword(Keyword::Expr) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Expr));
+        }
+        if self.eat_keyword(Keyword::Quoted) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Quoted));
+        }
+        if self.eat_keyword(Keyword::TopLevelItem) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TopLevelItem));
+        }
+        if self.eat_keyword(Keyword::TypeType) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Type));
+        }
+        if self.eat_keyword(Keyword::TypedExpr) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
+        }
+        if self.eat_keyword(Keyword::StructDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
+        }
+        if self.eat_keyword(Keyword::TraitConstraint) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));
+        }
+        if self.eat_keyword(Keyword::TraitDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TraitDefinition));
+        }
+        if self.eat_keyword(Keyword::TraitImpl) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TraitImpl));
+        }
+        if self.eat_keyword(Keyword::UnresolvedType) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::UnresolvedType));
+        }
+        if self.eat_keyword(Keyword::FunctionDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::FunctionDefinition));
+        }
+        if self.eat_keyword(Keyword::Module) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Module));
+        }
+        if self.eat_keyword(Keyword::CtString) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::CtString));
+        }
         None
     }
 
@@ -184,12 +273,15 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use strum::IntoEnumIterator;
+
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedTypeData},
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
         },
+        QuotedType,
     };
 
     #[test]
@@ -229,6 +321,30 @@ mod tests {
         let typ = parser.parse_type();
         assert!(parser.errors.is_empty());
         assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_str_type() {
+        let src = "str<10>";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::String(expr) = typ.typ else { panic!("Expected a string type") };
+        assert_eq!(expr.to_string(), "10");
+    }
+
+    #[test]
+    fn parses_comptime_types() {
+        for quoted_type in QuotedType::iter() {
+            let src = quoted_type.to_string();
+            let mut parser = Parser::for_str(&src);
+            let typ = parser.parse_type();
+            assert!(parser.errors.is_empty());
+            let UnresolvedTypeData::Quoted(parsed_qouted_type) = typ.typ else {
+                panic!("Expected a quoted type for {}", quoted_type.to_string())
+            };
+            assert_eq!(parsed_qouted_type, quoted_type);
+        }
     }
 
     #[test]

@@ -65,6 +65,10 @@ pub enum ParserErrorReason {
     ExpectedBracketAfterArray,
     #[error("Expected `]` after slice")]
     ExpectedBracketAfterSlice,
+    #[error("Expected `>` after str type length")]
+    ExpectedGreaterAfterStringTypeLength,
+    #[error("Expected str type length after `str`")]
+    ExpectedStringTypeLength,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
