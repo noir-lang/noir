@@ -20,6 +20,7 @@ mod impls;
 mod infix;
 mod item;
 mod item_visibility;
+mod lambda;
 mod modifiers;
 mod module;
 mod path;
@@ -371,6 +372,10 @@ impl<'a> Parser<'a> {
 
     fn eat_dot(&mut self) -> bool {
         self.eat(Token::Dot)
+    }
+
+    fn eat_pipe(&mut self) -> bool {
+        self.eat(Token::Pipe)
     }
 
     fn eat(&mut self, token: Token) -> bool {

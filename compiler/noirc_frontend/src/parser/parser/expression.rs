@@ -211,8 +211,11 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        if let Some(kind) = self.parse_lambda() {
+            return Some(kind);
+        }
+
         // TODO: parse these too
-        // lambdas::lambda(expr_parser.clone()),
         // comptime_expr(statement.clone()),
         // unquote(expr_parser.clone()),
         // as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
@@ -566,7 +569,10 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        ast::{ArrayLiteral, BinaryOpKind, ExpressionKind, Literal, StatementKind, UnaryOp},
+        ast::{
+            ArrayLiteral, BinaryOpKind, ExpressionKind, Literal, StatementKind, UnaryOp,
+            UnresolvedTypeData,
+        },
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
@@ -1212,5 +1218,53 @@ mod tests {
         assert_eq!(infix_expr.lhs.to_string(), "(1 + (2 * 3))");
         assert_eq!(infix_expr.operator.contents, BinaryOpKind::Add);
         assert_eq!(infix_expr.rhs.to_string(), "4");
+    }
+
+    #[test]
+    fn parses_empty_lambda() {
+        let src = "|| 1";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Lambda(lambda) = expr.kind else {
+            panic!("Expected lambda");
+        };
+        assert!(lambda.parameters.is_empty());
+        assert_eq!(lambda.body.to_string(), "1");
+        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::Unspecified));
+    }
+
+    #[test]
+    fn parses_lambda_with_arguments() {
+        let src = "|x, y: Field| 1";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Lambda(mut lambda) = expr.kind else {
+            panic!("Expected lambda");
+        };
+        assert_eq!(lambda.parameters.len(), 2);
+
+        let (pattern, typ) = lambda.parameters.remove(0);
+        assert_eq!(pattern.to_string(), "x");
+        assert!(matches!(typ.typ, UnresolvedTypeData::Unspecified));
+
+        let (pattern, typ) = lambda.parameters.remove(0);
+        assert_eq!(pattern.to_string(), "y");
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_lambda_with_return_type() {
+        let src = "|| -> Field 1";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Lambda(lambda) = expr.kind else {
+            panic!("Expected lambda");
+        };
+        assert!(lambda.parameters.is_empty());
+        assert_eq!(lambda.body.to_string(), "1");
+        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::FieldElement));
     }
 }
