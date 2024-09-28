@@ -17,6 +17,7 @@ mod function;
 mod generics;
 mod global;
 mod impls;
+mod infix;
 mod item;
 mod item_visibility;
 mod modifiers;

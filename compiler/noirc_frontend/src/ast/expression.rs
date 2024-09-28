@@ -299,7 +299,7 @@ impl Expression {
 
 pub type BinaryOp = Spanned<BinaryOpKind>;
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, strum_macros::EnumIter)]
 pub enum BinaryOpKind {
     Add,
     Subtract,

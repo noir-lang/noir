@@ -13,8 +13,6 @@ use crate::{
 
 use super::Parser;
 
-// term -> atom_or_right_unary -> atom
-
 impl<'a> Parser<'a> {
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(true) // allow constructors
@@ -30,14 +28,14 @@ impl<'a> Parser<'a> {
         self.parse_expression_or_error_impl(false) // allow constructors
     }
 
-    pub(crate) fn parse_expression_or_error_impl(&mut self, allow_constructos: bool) -> Expression {
-        if let Some(expr) = self.parse_expression_impl(allow_constructos) {
+    pub(crate) fn parse_expression_or_error_impl(
+        &mut self,
+        allow_constructors: bool,
+    ) -> Expression {
+        if let Some(expr) = self.parse_expression_impl(allow_constructors) {
             expr
         } else {
-            self.push_error(
-                ParserErrorReason::ExpectedExpressionAfterThis,
-                self.previous_token_span,
-            );
+            self.push_expected_expression_after_this_error();
             Expression {
                 kind: ExpressionKind::Error,
                 span: Span::from(self.previous_token_span.end()..self.previous_token_span.end()),
@@ -45,14 +43,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_expression_impl(&mut self, allow_constructos: bool) -> Option<Expression> {
-        self.parse_term(allow_constructos)
+    fn parse_expression_impl(&mut self, allow_constructors: bool) -> Option<Expression> {
+        self.parse_equal_or_not_equal(allow_constructors)
     }
 
-    fn parse_term(&mut self, allow_constructos: bool) -> Option<Expression> {
+    pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         if let Some(operator) = self.parse_unary_op() {
-            let Some(rhs) = self.parse_term(allow_constructos) else {
+            let Some(rhs) = self.parse_term(allow_constructors) else {
                 self.push_error(
                     ParserErrorReason::ExpectedExpressionAfterThis,
                     self.previous_token_span,
@@ -64,7 +62,7 @@ impl<'a> Parser<'a> {
             return Some(Expression { kind, span });
         }
 
-        self.parse_atom_or_unary_right(allow_constructos)
+        self.parse_atom_or_unary_right(allow_constructors)
     }
 
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
@@ -85,9 +83,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_atom_or_unary_right(&mut self, allow_constructos: bool) -> Option<Expression> {
+    fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
-        let mut atom = self.parse_atom(allow_constructos)?;
+        let mut atom = self.parse_atom(allow_constructors)?;
 
         loop {
             let is_macro_call =
@@ -186,13 +184,13 @@ impl<'a> Parser<'a> {
         Some(atom)
     }
 
-    fn parse_atom(&mut self, allow_constructos: bool) -> Option<Expression> {
+    fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
-        let kind = self.parse_atom_kind(allow_constructos)?;
+        let kind = self.parse_atom_kind(allow_constructors)?;
         Some(Expression { kind, span: self.span_since(start_span) })
     }
 
-    fn parse_atom_kind(&mut self, allow_constructos: bool) -> Option<ExpressionKind> {
+    fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         if let Some(literal) = self.parse_literal() {
             return Some(literal);
         }
@@ -205,7 +203,7 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
-        if let Some(kind) = self.parse_path_expr(allow_constructos) {
+        if let Some(kind) = self.parse_path_expr(allow_constructors) {
             return Some(kind);
         }
 
@@ -229,13 +227,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_path_expr(&mut self, allow_constructos: bool) -> Option<ExpressionKind> {
+    fn parse_path_expr(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         let path = self.parse_path();
         if path.is_empty() {
             return None;
         }
 
-        if allow_constructos && self.eat_left_brace() {
+        if allow_constructors && self.eat_left_brace() {
             return Some(self.parse_constructor(path));
         }
 
@@ -521,12 +519,18 @@ impl<'a> Parser<'a> {
 
         Some(BlockExpression { statements })
     }
+
+    pub(super) fn push_expected_expression_after_this_error(&mut self) {
+        self.push_error(ParserErrorReason::ExpectedExpressionAfterThis, self.previous_token_span);
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use strum::IntoEnumIterator;
+
     use crate::{
-        ast::{ArrayLiteral, ExpressionKind, Literal, StatementKind, UnaryOp},
+        ast::{ArrayLiteral, BinaryOpKind, ExpressionKind, Literal, StatementKind, UnaryOp},
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
@@ -1142,5 +1146,35 @@ mod tests {
         };
         assert_eq!(index_expr.collection.to_string(), "1");
         assert_eq!(index_expr.index.to_string(), "2");
+    }
+
+    #[test]
+    fn parses_operators() {
+        for operator in BinaryOpKind::iter() {
+            let src = format!("1 {operator} 2");
+            let mut parser = Parser::for_str(&src);
+            let expr = parser.parse_expression_or_error();
+            assert!(parser.errors.is_empty(), "Expected no errors for {operator}");
+            let ExpressionKind::Infix(infix_expr) = expr.kind else {
+                panic!("Expected infix for {operator}");
+            };
+            assert_eq!(infix_expr.lhs.to_string(), "1");
+            assert_eq!(infix_expr.operator.contents, operator);
+            assert_eq!(infix_expr.rhs.to_string(), "2");
+        }
+    }
+
+    #[test]
+    fn parses_operator_precedence() {
+        let src = "1 + 2 * 3 + 4";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Infix(infix_expr) = expr.kind else {
+            panic!("Expected infix");
+        };
+        assert_eq!(infix_expr.lhs.to_string(), "(1 + (2 * 3))");
+        assert_eq!(infix_expr.operator.contents, BinaryOpKind::Add);
+        assert_eq!(infix_expr.rhs.to_string(), "4");
     }
 }
