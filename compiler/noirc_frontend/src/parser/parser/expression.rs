@@ -4,7 +4,7 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IfExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, Path, PrefixExpression, UnaryOp, UnresolvedType,
+        MethodCallExpression, Path, PrefixExpression, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -131,6 +131,13 @@ impl<'a> Parser<'a> {
 
             if self.eat_keyword(Keyword::As) {
                 let typ = self.parse_type();
+                if let UnresolvedTypeData::Error = typ.typ {
+                    self.push_error(
+                        ParserErrorReason::ExpectedTypeAfterAs,
+                        self.previous_token_span,
+                    );
+                }
+
                 let kind =
                     ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
                 let span = self.span_since(start_span);
@@ -1076,5 +1083,18 @@ mod tests {
         };
         assert_eq!(cast_expr.lhs.to_string(), "1");
         assert_eq!(cast_expr.r#type.to_string(), "u8");
+    }
+
+    #[test]
+    fn parses_cast_missing_type() {
+        let src = "
+        1 as
+          ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        parser.parse_expression();
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ExpectedTypeAfterAs));
     }
 }

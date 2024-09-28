@@ -71,6 +71,8 @@ pub enum ParserErrorReason {
     ExpectedStringTypeLength,
     #[error("Expected `{{` or `if` after `else`")]
     ExpectedLeftBraceOfIfAfterElse,
+    #[error("Expected type after `as`")]
+    ExpectedTypeAfterAs,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
