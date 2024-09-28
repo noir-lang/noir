@@ -400,6 +400,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn span_at_previous_token_end(&self) -> Span {
+        Span::from(self.previous_token_span.end()..self.previous_token_span.end())
+    }
+
     fn push_error(&mut self, reason: ParserErrorReason, span: Span) {
         self.errors.push(ParserError::with_reason(reason, span));
     }

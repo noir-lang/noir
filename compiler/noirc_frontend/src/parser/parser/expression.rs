@@ -1,5 +1,3 @@
-use noirc_errors::Span;
-
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
@@ -36,10 +34,7 @@ impl<'a> Parser<'a> {
             expr
         } else {
             self.push_expected_expression_after_this_error();
-            Expression {
-                kind: ExpressionKind::Error,
-                span: Span::from(self.previous_token_span.end()..self.previous_token_span.end()),
-            }
+            Expression { kind: ExpressionKind::Error, span: self.span_at_previous_token_end() }
         }
     }
 
@@ -349,7 +344,7 @@ impl<'a> Parser<'a> {
                 ParserErrorReason::ExpectedLeftBraceAfterIfCondition,
                 self.current_token_span,
             );
-            let span = Span::from(self.previous_token_span.end()..self.previous_token_span.end());
+            let span = self.span_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
                 condition,
                 consequence: Expression { kind: ExpressionKind::Error, span },

@@ -1,7 +1,5 @@
-use noirc_errors::Span;
-
 use crate::{
-    ast::{ExpressionKind, Lambda, Pattern, UnresolvedType, UnresolvedTypeData},
+    ast::{ExpressionKind, Lambda, Pattern, UnresolvedType},
     parser::ParserErrorReason,
     token::Token,
 };
@@ -18,9 +16,7 @@ impl<'a> Parser<'a> {
         let return_type = if self.eat(Token::Arrow) {
             self.parse_type_or_error()
         } else {
-            UnresolvedTypeData::Unspecified.with_span(Span::from(
-                self.previous_token_span.end()..self.previous_token_span.end(),
-            ))
+            self.unspecified_type_at_previous_token_end()
         };
         let body = self.parse_expression_or_error();
 
@@ -52,13 +48,7 @@ impl<'a> Parser<'a> {
                 self.push_error(ParserErrorReason::MissingCommaSeparatingParameters, start_span);
             }
 
-            let typ = if self.eat_colon() {
-                self.parse_type_or_error()
-            } else {
-                UnresolvedTypeData::Unspecified.with_span(Span::from(
-                    self.previous_token_span.end()..self.previous_token_span.end(),
-                ))
-            };
+            let typ = self.parse_optional_type_annotation();
             parameters.push((pattern, typ));
 
             trailing_comma = self.eat_commas();

@@ -220,11 +220,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let typ = if self.eat_colon() {
-            self.parse_type_or_error()
-        } else {
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
-        };
+        let typ = self.parse_optional_type_annotation();
 
         let expr = if self.eat_assign() {
             self.parse_expression_or_error()

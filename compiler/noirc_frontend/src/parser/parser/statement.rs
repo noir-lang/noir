@@ -21,10 +21,7 @@ impl<'a> Parser<'a> {
                 ParserErrorReason::ExpectedStatementAfterThis,
                 self.previous_token_span,
             );
-            Statement {
-                kind: StatementKind::Error,
-                span: Span::from(self.previous_token_span.end()..self.previous_token_span.end()),
-            }
+            Statement { kind: StatementKind::Error, span: self.span_at_previous_token_end() }
         }
     }
 

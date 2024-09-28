@@ -1,5 +1,3 @@
-use noirc_errors::Span;
-
 use crate::{
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::ParserErrorReason,
@@ -15,10 +13,7 @@ impl<'a> Parser<'a> {
             typ
         } else {
             self.push_error(ParserErrorReason::ExpectedTypeAfterThis, self.previous_token_span);
-            UnresolvedType {
-                typ: UnresolvedTypeData::Error,
-                span: Span::from(self.previous_token_span.end()..self.previous_token_span.end()),
-            }
+            self.unspecified_type_at_previous_token_end()
         }
     }
 
@@ -310,8 +305,12 @@ impl<'a> Parser<'a> {
         if self.eat_colon() {
             self.parse_type_or_error()
         } else {
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
+            self.unspecified_type_at_previous_token_end()
         }
+    }
+
+    pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
+        UnresolvedTypeData::Unspecified.with_span(self.span_at_previous_token_end())
     }
 }
 

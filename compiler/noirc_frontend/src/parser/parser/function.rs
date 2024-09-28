@@ -91,12 +91,7 @@ impl<'a> Parser<'a> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
-            (
-                FunctionReturnType::Default(Span::from(
-                    self.previous_token_span.end()..self.previous_token_span.end(),
-                )),
-                Visibility::Private,
-            )
+            (FunctionReturnType::Default(self.span_at_previous_token_end()), Visibility::Private)
         };
 
         let where_clause = self.parse_where_clause();
