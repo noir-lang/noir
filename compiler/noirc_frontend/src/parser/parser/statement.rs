@@ -37,7 +37,8 @@ impl<'a> Parser<'a> {
             return StatementKind::Continue;
         }
 
-        if let Some(let_statement) = self.parse_let_statement(attributes) {
+        if self.token.token() == &Token::Keyword(Keyword::Let) {
+            let let_statement = self.parse_let_statement(attributes).unwrap();
             return StatementKind::Let(let_statement);
         }
 
@@ -45,7 +46,34 @@ impl<'a> Parser<'a> {
             return StatementKind::Constrain(constrain);
         }
 
+        if self.token.token() == &Token::Keyword(Keyword::Comptime) {
+            return self.parse_comptime_statement(attributes).unwrap();
+        }
+
         StatementKind::Expression(self.parse_expression())
+    }
+
+    fn parse_comptime_statement(
+        &mut self,
+        attributes: Vec<(Attribute, Span)>,
+    ) -> Option<StatementKind> {
+        if !self.eat_keyword(Keyword::Comptime) {
+            return None;
+        }
+
+        let start_span = self.current_token_span;
+        if let Some(block) = self.parse_block_expression() {
+            let span = self.span_since(start_span);
+            return Some(StatementKind::Comptime(Box::new(Statement {
+                kind: StatementKind::Expression(Expression::new(
+                    ExpressionKind::Block(block),
+                    span,
+                )),
+                span,
+            })));
+        }
+
+        None
     }
 
     fn parse_let_statement(&mut self, attributes: Vec<(Attribute, Span)>) -> Option<LetStatement> {
@@ -110,8 +138,10 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use acvm::acir::native_types::Expression;
+
     use crate::{
-        ast::{ConstrainKind, StatementKind, UnresolvedTypeData},
+        ast::{ConstrainKind, ExpressionKind, StatementKind, UnresolvedTypeData},
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
@@ -209,5 +239,23 @@ mod tests {
 
         let reason = get_single_error(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
+    }
+
+    #[test]
+    fn parses_comptime_block() {
+        let src = "comptime { 1 }";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Comptime(statement) = statement.kind else {
+            panic!("Expected comptime statement");
+        };
+        let StatementKind::Expression(expr) = statement.kind else {
+            panic!("Expected expression statement");
+        };
+        let ExpressionKind::Block(block) = expr.kind else {
+            panic!("Expected block expression");
+        };
+        assert_eq!(block.statements.len(), 1);
     }
 }
