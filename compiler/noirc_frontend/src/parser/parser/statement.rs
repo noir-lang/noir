@@ -158,6 +158,15 @@ impl<'a> Parser<'a> {
             })));
         }
 
+        if let Some(for_loop) = self.parse_for() {
+            return Some(StatementKind::Comptime(Box::new(Statement {
+                kind: StatementKind::For(for_loop),
+                span: self.span_since(start_span),
+            })));
+        }
+
+        // TODO: error (found comptime but not a valid statement)
+
         None
     }
 
@@ -380,5 +389,21 @@ mod tests {
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
         assert!(matches!(for_loop.range, ForRange::Range(..)));
+    }
+
+    #[test]
+    fn parses_comptime_for() {
+        let src = "comptime for i in x { }";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Comptime(statement) = statement.kind else {
+            panic!("Expected comptime");
+        };
+        let StatementKind::For(for_loop) = statement.kind else {
+            panic!("Expected for loop");
+        };
+        assert_eq!(for_loop.identifier.to_string(), "i");
+        assert!(matches!(for_loop.range, ForRange::Array(..)));
     }
 }
