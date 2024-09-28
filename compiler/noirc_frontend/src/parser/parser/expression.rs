@@ -8,7 +8,7 @@ use crate::{
         UnresolvedType,
     },
     parser::ParserErrorReason,
-    token::{Keyword, Token},
+    token::{Keyword, Token, TokenKind},
 };
 
 use super::Parser;
@@ -211,6 +211,58 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        // TODO: parse these too
+        // lambdas::lambda(expr_parser.clone()),
+        // comptime_expr(statement.clone()),
+        // unquote(expr_parser.clone()),
+        // as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        // type_path(parse_type()),
+
+        if let Some(kind) = self.parse_resolved_expr() {
+            return Some(kind);
+        }
+
+        if let Some(kind) = self.parse_interned_expr() {
+            return Some(kind);
+        }
+
+        if let Some(kind) = self.parse_interned_statement_expr() {
+            return Some(kind);
+        }
+
+        None
+    }
+
+    fn parse_resolved_expr(&mut self) -> Option<ExpressionKind> {
+        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
+            match token.into_token() {
+                Token::UnquoteMarker(expr_id) => return Some(ExpressionKind::Resolved(expr_id)),
+                _ => unreachable!(""),
+            }
+        }
+
+        None
+    }
+
+    fn parse_interned_expr(&mut self) -> Option<ExpressionKind> {
+        if let Some(token) = self.eat_kind(TokenKind::InternedExpr) {
+            match token.into_token() {
+                Token::InternedExpr(id) => return Some(ExpressionKind::Interned(id)),
+                _ => unreachable!(""),
+            }
+        }
+
+        None
+    }
+
+    fn parse_interned_statement_expr(&mut self) -> Option<ExpressionKind> {
+        if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
+            match token.into_token() {
+                Token::InternedStatement(id) => return Some(ExpressionKind::InternedStatement(id)),
+                _ => unreachable!(""),
+            }
+        }
+
         None
     }
 
@@ -367,22 +419,6 @@ impl<'a> Parser<'a> {
         if let Some(kind) = self.parse_block_expression() {
             return Some(ExpressionKind::Block(kind));
         }
-
-        // TODO: parse these too
-        // if_expr(expr_no_constructors, statement.clone()),
-        // if allow_constructors {
-        //     constructor(expr_parser.clone()).boxed()
-        // } else {
-        //     nothing().boxed()
-        // },
-        // lambdas::lambda(expr_parser.clone()),
-        // comptime_expr(statement.clone()),
-        // unquote(expr_parser.clone()),
-        // as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
-        // type_path(parse_type()),
-        // macro_quote_marker(),
-        // interned_expr(),
-        // interned_statement_expr(),
 
         None
     }
