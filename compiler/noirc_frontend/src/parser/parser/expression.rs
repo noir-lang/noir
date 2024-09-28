@@ -2,9 +2,9 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, Ident, IfExpression, Literal, MemberAccessExpression, MethodCallExpression,
-        Path, PrefixExpression, UnaryOp, UnresolvedType,
+        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
+        Expression, ExpressionKind, Ident, IfExpression, Literal, MemberAccessExpression,
+        MethodCallExpression, Path, PrefixExpression, UnaryOp, UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -126,6 +126,15 @@ impl<'a> Parser<'a> {
                     let span = self.span_since(start_span);
                     atom = Expression { kind, span };
                 }
+                continue;
+            }
+
+            if self.eat_keyword(Keyword::As) {
+                let typ = self.parse_type();
+                let kind =
+                    ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
+                let span = self.span_since(start_span);
+                atom = Expression { kind, span };
                 continue;
             }
 
@@ -1054,5 +1063,18 @@ mod tests {
         let ExpressionKind::If(..) = if_expr.alternative.unwrap().kind else {
             panic!("Expected if");
         };
+    }
+
+    #[test]
+    fn parses_cast() {
+        let src = "1 as u8";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Cast(cast_expr) = expr.kind else {
+            panic!("Expected cast");
+        };
+        assert_eq!(cast_expr.lhs.to_string(), "1");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
     }
 }
