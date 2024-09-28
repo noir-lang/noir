@@ -214,7 +214,7 @@ impl<'a> Parser<'a> {
             }
             typ
         } else {
-            self.unspecified_type_at_previous_token_end()
+            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
         };
 
         if !self.eat_left_paren() {
@@ -254,7 +254,8 @@ impl<'a> Parser<'a> {
         let ret = if self.eat(Token::Arrow) {
             self.parse_type_or_error()
         } else {
-            self.unspecified_type_at_previous_token_end()
+            // TODO: error (expected `->` after function type arguments)
+            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
@@ -580,7 +581,7 @@ mod tests {
 
     #[test]
     fn parses_empty_function_type() {
-        let src = "fn()";
+        let src = "fn() -> Field";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_type_or_error();
         assert!(parser.errors.is_empty());
@@ -588,26 +589,23 @@ mod tests {
             panic!("Expected a function type")
         };
         assert!(args.is_empty());
-        assert!(matches!(ret.typ, UnresolvedTypeData::Unspecified));
-        assert!(matches!(env.typ, UnresolvedTypeData::Unspecified));
+        assert_eq!(ret.typ.to_string(), "Field");
+        assert!(matches!(env.typ, UnresolvedTypeData::Unit));
         assert!(!unconstrained);
     }
 
     #[test]
     fn parses_function_type_with_arguments() {
-        let src = "fn(Field, bool)";
+        let src = "fn(Field, bool) -> Field";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_type_or_error();
         assert!(parser.errors.is_empty());
-        let UnresolvedTypeData::Function(args, ret, env, unconstrained) = typ.typ else {
+        let UnresolvedTypeData::Function(args, _ret, _env, _unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
         assert_eq!(args.len(), 2);
         assert_eq!(args[0].typ.to_string(), "Field");
         assert_eq!(args[1].typ.to_string(), "bool");
-        assert!(matches!(ret.typ, UnresolvedTypeData::Unspecified));
-        assert!(matches!(env.typ, UnresolvedTypeData::Unspecified));
-        assert!(!unconstrained);
     }
 
     #[test]
@@ -624,7 +622,7 @@ mod tests {
 
     #[test]
     fn parses_function_type_with_env() {
-        let src = "fn[Field]()";
+        let src = "fn[Field]() -> Field";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_type_or_error();
         assert!(parser.errors.is_empty());
@@ -636,7 +634,7 @@ mod tests {
 
     #[test]
     fn parses_unconstrained_function_type() {
-        let src = "unconstrained fn()";
+        let src = "unconstrained fn() -> Field";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_type_or_error();
         assert!(parser.errors.is_empty());
