@@ -1,9 +1,10 @@
-use noirc_errors::Span;
+use noirc_errors::{Span, Spanned};
 
 use crate::{
     ast::{
-        AssignStatement, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, Ident, LValue, LetStatement, Statement, StatementKind,
+        AssignStatement, BinaryOp, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
+        ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement,
+        Statement, StatementKind,
     },
     parser::ParserErrorReason,
     token::{Attribute, Keyword, Token, TokenKind},
@@ -40,6 +41,8 @@ impl<'a> Parser<'a> {
         &mut self,
         attributes: Vec<(Attribute, Span)>,
     ) -> Option<StatementKind> {
+        let start_span = self.current_token_span;
+
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(statement) => {
@@ -78,6 +81,26 @@ impl<'a> Parser<'a> {
 
         if self.eat_assign() {
             if let Some(lvalue) = LValue::from_expression(expression.clone()) {
+                let expression = self.parse_expression_or_error();
+                return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+            } else {
+                // TODO: error (invalid l-value)
+            }
+        }
+
+        if let Some(operator) = self.next_is_op_assign() {
+            if let Some(lvalue) = LValue::from_expression(expression.clone()) {
+                // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
+                // which is currently enforced by the restricted syntax of LValues.
+                let infix = InfixExpression {
+                    lhs: expression,
+                    operator,
+                    rhs: self.parse_expression_or_error(),
+                };
+                let expression = Expression::new(
+                    ExpressionKind::Infix(Box::new(infix)),
+                    self.span_since(start_span),
+                );
                 return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
             } else {
                 // TODO: error (invalid l-value)
@@ -85,6 +108,38 @@ impl<'a> Parser<'a> {
         }
 
         Some(StatementKind::Expression(expression))
+    }
+
+    fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
+        let start_span = self.current_token_span;
+        let operator = if self.next_token.token() == &Token::Assign {
+            match self.token.token() {
+                Token::Plus => Some(BinaryOpKind::Add),
+                Token::Minus => Some(BinaryOpKind::Subtract),
+                Token::Star => Some(BinaryOpKind::Multiply),
+                Token::Slash => Some(BinaryOpKind::Divide),
+                Token::Percent => Some(BinaryOpKind::Modulo),
+                Token::Ampersand => Some(BinaryOpKind::And),
+                Token::Caret => Some(BinaryOpKind::Xor),
+                Token::ShiftLeft => Some(BinaryOpKind::ShiftLeft),
+                Token::Pipe => Some(BinaryOpKind::Or),
+                _ => None,
+            }
+        } else if self.token.token() == &Token::Greater
+            && self.next_token.token() == &Token::GreaterEqual
+        {
+            Some(BinaryOpKind::ShiftRight)
+        } else {
+            None
+        };
+
+        if let Some(operator) = operator {
+            self.next_token();
+            self.next_token();
+            Some(Spanned::from(self.span_since(start_span), operator))
+        } else {
+            None
+        }
     }
 
     fn parse_for(&mut self) -> Option<ForLoopStatement> {
@@ -429,5 +484,30 @@ mod tests {
             panic!("Expected ident");
         };
         assert_eq!(ident.to_string(), "x");
+        assert_eq!(assign.expression.to_string(), "1");
+    }
+
+    #[test]
+    fn parses_op_assignment() {
+        let src = "x += 1";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        assert_eq!(assign.to_string(), "x = (x + 1)");
+    }
+
+    #[test]
+    fn parses_op_assignment_with_shift_right() {
+        let src = "x >>= 1";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        assert_eq!(assign.to_string(), "x = (x >> 1)");
     }
 }

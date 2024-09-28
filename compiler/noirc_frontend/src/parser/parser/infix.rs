@@ -129,7 +129,9 @@ impl<'a> Parser<'a> {
                 BinaryOpKind::Less
             } else if self.eat(Token::LessEqual) {
                 BinaryOpKind::LessEqual
-            } else if self.eat(Token::Greater) {
+            } else
+            // Make sure to skip the `>>=` case, as `>>=` is lexed as `> >=`.
+            if self.next_token.token() != &Token::GreaterEqual && self.eat(Token::Greater) {
                 BinaryOpKind::Greater
             } else if self.eat(Token::GreaterEqual) {
                 BinaryOpKind::GreaterEqual
