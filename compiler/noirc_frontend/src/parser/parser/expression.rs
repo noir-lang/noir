@@ -3,8 +3,9 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, Path, PrefixExpression, UnaryOp, UnresolvedType,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal,
+        MemberAccessExpression, MethodCallExpression, Path, PrefixExpression, UnaryOp,
+        UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -162,6 +163,18 @@ impl<'a> Parser<'a> {
                 let typ = self.parse_type_or_error();
                 let kind =
                     ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
+                let span = self.span_since(start_span);
+                atom = Expression { kind, span };
+                continue;
+            }
+
+            if self.eat_left_bracket() {
+                let index = self.parse_expression_or_error();
+                if !self.eat_right_bracket() {
+                    // TODO: error
+                }
+                let kind =
+                    ExpressionKind::Index(Box::new(IndexExpression { collection: atom, index }));
                 let span = self.span_since(start_span);
                 atom = Expression { kind, span };
                 continue;
@@ -1116,5 +1129,18 @@ mod tests {
         parser.parse_expression();
         let reason = get_single_error(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedTypeAfterThis));
+    }
+
+    #[test]
+    fn parses_index() {
+        let src = "1[2]";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Index(index_expr) = expr.kind else {
+            panic!("Expected index");
+        };
+        assert_eq!(index_expr.collection.to_string(), "1");
+        assert_eq!(index_expr.index.to_string(), "2");
     }
 }
