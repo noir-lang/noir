@@ -719,37 +719,35 @@ impl LValue {
         Expression::new(kind, span)
     }
 
-    pub fn from_expression(expr: Expression) -> LValue {
+    pub fn from_expression(expr: Expression) -> Option<LValue> {
         LValue::from_expression_kind(expr.kind, expr.span)
     }
 
-    pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> LValue {
+    pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> Option<LValue> {
         match expr {
-            ExpressionKind::Variable(path) => LValue::Ident(path.as_ident().unwrap().clone()),
-            ExpressionKind::MemberAccess(member_access) => LValue::MemberAccess {
-                object: Box::new(LValue::from_expression(member_access.lhs)),
+            ExpressionKind::Variable(path) => Some(LValue::Ident(path.as_ident().unwrap().clone())),
+            ExpressionKind::MemberAccess(member_access) => Some(LValue::MemberAccess {
+                object: Box::new(LValue::from_expression(member_access.lhs)?),
                 field_name: member_access.rhs,
                 span,
-            },
-            ExpressionKind::Index(index) => LValue::Index {
-                array: Box::new(LValue::from_expression(index.collection)),
+            }),
+            ExpressionKind::Index(index) => Some(LValue::Index {
+                array: Box::new(LValue::from_expression(index.collection)?),
                 index: index.index,
                 span,
-            },
+            }),
             ExpressionKind::Prefix(prefix) => {
                 if matches!(
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    LValue::Dereference(Box::new(LValue::from_expression(prefix.rhs)), span)
+                    Some(LValue::Dereference(Box::new(LValue::from_expression(prefix.rhs)?), span))
                 } else {
-                    panic!("Called LValue::from_expression with an invalid prefix operator")
+                    None
                 }
             }
-            ExpressionKind::Interned(id) => LValue::Interned(id, span),
-            _ => {
-                panic!("Called LValue::from_expression with an invalid expression")
-            }
+            ExpressionKind::Interned(id) => Some(LValue::Interned(id, span)),
+            _ => None,
         }
     }
 

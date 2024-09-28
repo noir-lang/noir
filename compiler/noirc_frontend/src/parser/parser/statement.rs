@@ -2,8 +2,8 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        ConstrainKind, ConstrainStatement, Expression, ExpressionKind, ForLoopStatement, ForRange,
-        Ident, LetStatement, Statement, StatementKind,
+        AssignStatement, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
+        ForLoopStatement, ForRange, Ident, LValue, LetStatement, Statement, StatementKind,
     },
     parser::ParserErrorReason,
     token::{Attribute, Keyword, Token, TokenKind},
@@ -75,6 +75,15 @@ impl<'a> Parser<'a> {
         }
 
         let expression = self.parse_expression()?;
+
+        if self.eat_assign() {
+            if let Some(lvalue) = LValue::from_expression(expression.clone()) {
+                return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+            } else {
+                // TODO: error (invalid l-value)
+            }
+        }
+
         Some(StatementKind::Expression(expression))
     }
 
@@ -233,7 +242,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ConstrainKind, ExpressionKind, ForRange, StatementKind, UnresolvedTypeData},
+        ast::{ConstrainKind, ExpressionKind, ForRange, LValue, StatementKind, UnresolvedTypeData},
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
@@ -405,5 +414,20 @@ mod tests {
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
         assert!(matches!(for_loop.range, ForRange::Array(..)));
+    }
+
+    #[test]
+    fn parses_assignment() {
+        let src = "x = 1";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        let LValue::Ident(ident) = assign.lvalue else {
+            panic!("Expected ident");
+        };
+        assert_eq!(ident.to_string(), "x");
     }
 }
