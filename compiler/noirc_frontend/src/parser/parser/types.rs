@@ -73,6 +73,10 @@ impl<'a> Parser<'a> {
             return Some(typ);
         }
 
+        if let Some(typ) = self.parse_function_type() {
+            return Some(typ);
+        }
+
         if let Some(typ) = self.parse_resolved_type() {
             return Some(typ);
         }
@@ -184,6 +188,76 @@ impl<'a> Parser<'a> {
             return Some(UnresolvedTypeData::Quoted(QuotedType::CtString));
         }
         None
+    }
+
+    fn parse_function_type(&mut self) -> Option<UnresolvedTypeData> {
+        let unconstrained = self.eat_keyword(Keyword::Unconstrained);
+
+        if !self.eat_keyword(Keyword::Fn) {
+            if unconstrained {
+                // TODO: error (expected `fn` after `unconstrained`)
+                return Some(UnresolvedTypeData::Function(
+                    Vec::new(),
+                    Box::new(self.unspecified_type_at_previous_token_end()),
+                    Box::new(self.unspecified_type_at_previous_token_end()),
+                    unconstrained,
+                ));
+            }
+
+            return None;
+        }
+
+        let env = if self.eat_left_bracket() {
+            let typ = self.parse_type_or_error();
+            if !self.eat_right_bracket() {
+                // TODO: error (expected `[` after `fn` env)
+            }
+            typ
+        } else {
+            self.unspecified_type_at_previous_token_end()
+        };
+
+        if !self.eat_left_paren() {
+            // TODO: error (expected `(` after `fn`)
+            return Some(UnresolvedTypeData::Function(
+                Vec::new(),
+                Box::new(self.unspecified_type_at_previous_token_end()),
+                Box::new(self.unspecified_type_at_previous_token_end()),
+                unconstrained,
+            ));
+        }
+
+        let mut args = Vec::new();
+        let mut trailing_comma = false;
+
+        loop {
+            if self.eat_right_paren() {
+                break;
+            }
+
+            let start_span = self.current_token_span;
+            let typ = self.parse_type_or_error();
+            if let UnresolvedTypeData::Unspecified = typ.typ {
+                self.eat_right_paren();
+                break;
+            }
+
+            if !trailing_comma && !args.is_empty() {
+                self.push_error(ParserErrorReason::MissingCommaSeparatingParameters, start_span);
+            }
+
+            args.push(typ);
+
+            trailing_comma = self.eat_commas();
+        }
+
+        let ret = if self.eat(Token::Arrow) {
+            self.parse_type_or_error()
+        } else {
+            self.unspecified_type_at_previous_token_end()
+        };
+
+        Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
     }
 
     fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -502,5 +576,73 @@ mod tests {
         };
         assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
         assert_eq!(expr.to_string(), "10");
+    }
+
+    #[test]
+    fn parses_empty_function_type() {
+        let src = "fn()";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Function(args, ret, env, unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert!(args.is_empty());
+        assert!(matches!(ret.typ, UnresolvedTypeData::Unspecified));
+        assert!(matches!(env.typ, UnresolvedTypeData::Unspecified));
+        assert!(!unconstrained);
+    }
+
+    #[test]
+    fn parses_function_type_with_arguments() {
+        let src = "fn(Field, bool)";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Function(args, ret, env, unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0].typ.to_string(), "Field");
+        assert_eq!(args[1].typ.to_string(), "bool");
+        assert!(matches!(ret.typ, UnresolvedTypeData::Unspecified));
+        assert!(matches!(env.typ, UnresolvedTypeData::Unspecified));
+        assert!(!unconstrained);
+    }
+
+    #[test]
+    fn parses_function_type_with_return_type() {
+        let src = "fn() -> Field";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(ret.typ.to_string(), "Field");
+    }
+
+    #[test]
+    fn parses_function_type_with_env() {
+        let src = "fn[Field]()";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Function(_args, _ret, env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(env.typ.to_string(), "Field");
+    }
+
+    #[test]
+    fn parses_unconstrained_function_type() {
+        let src = "unconstrained fn()";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Function(_args, _ret, _env, unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert!(unconstrained);
     }
 }
