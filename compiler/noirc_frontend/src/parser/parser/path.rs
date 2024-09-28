@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, Path, PathKind, PathSegment, UnresolvedType},
+    ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType},
     parser::ParserErrorReason,
     token::{Keyword, TokenKind},
 };
@@ -139,6 +139,33 @@ impl<'a> Parser<'a> {
         } else {
             PathKind::Plain
         }
+    }
+
+    pub(super) fn parse_as_trait_path(&mut self) -> Option<AsTraitPath> {
+        if !self.eat_less() {
+            return None;
+        }
+
+        let typ = self.parse_type_or_error();
+        if !self.eat_keyword(Keyword::As) {
+            // TODO: error (expected `as`)
+        }
+        let trait_path = self.parse_path_no_turbofish();
+        let trait_generics = self.parse_generic_type_args();
+        if !self.eat_greater() {
+            // TODO: error (expected `>`)
+        }
+        if !self.eat_double_colon() {
+            // TODO: error (expected `::`)
+        }
+        let impl_item = if let Some(ident) = self.eat_ident() {
+            ident
+        } else {
+            // TODO: error (expected identifier)
+            Ident::new(String::new(), self.span_at_previous_token_end())
+        };
+
+        Some(AsTraitPath { typ, trait_path, trait_generics, impl_item })
     }
 }
 

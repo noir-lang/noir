@@ -81,6 +81,10 @@ impl<'a> Parser<'a> {
             return Some(typ);
         }
 
+        if let Some(typ) = self.parse_as_trait_path_type() {
+            return Some(typ);
+        }
+
         if let Some(typ) = self.parse_resolved_type() {
             return Some(typ);
         }
@@ -271,9 +275,19 @@ impl<'a> Parser<'a> {
         }
 
         let path = self.parse_path_no_turbofish();
+        if path.is_empty() {
+            // TODO: error (expected path after impl)
+            return None;
+        }
+
         let generics = self.parse_generic_type_args();
 
         Some(UnresolvedTypeData::TraitAsType(path, generics))
+    }
+
+    fn parse_as_trait_path_type(&mut self) -> Option<UnresolvedTypeData> {
+        let as_trait_path = self.parse_as_trait_path()?;
+        Some(UnresolvedTypeData::AsTraitPath(Box::new(as_trait_path)))
     }
 
     fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -670,5 +684,20 @@ mod tests {
         };
         assert_eq!(path.to_string(), "foo::Bar");
         assert!(generics.is_empty());
+    }
+
+    #[test]
+    fn parses_as_trait_path() {
+        let src = "<Field as foo::Bar>::baz";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::AsTraitPath(as_trait_path) = typ.typ else {
+            panic!("Expected as_trait_path")
+        };
+        assert_eq!(as_trait_path.typ.typ.to_string(), "Field");
+        assert_eq!(as_trait_path.trait_path.to_string(), "foo::Bar");
+        assert!(as_trait_path.trait_generics.is_empty());
+        assert_eq!(as_trait_path.impl_item.to_string(), "baz");
     }
 }
