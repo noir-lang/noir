@@ -62,6 +62,7 @@ impl<'a> Parser<'a> {
         }
 
         let start_span = self.current_token_span;
+
         if let Some(block) = self.parse_block_expression() {
             let span = self.span_since(start_span);
             return Some(StatementKind::Comptime(Box::new(Statement {
@@ -70,6 +71,13 @@ impl<'a> Parser<'a> {
                     span,
                 )),
                 span,
+            })));
+        }
+
+        if let Some(let_statement) = self.parse_let_statement(attributes) {
+            return Some(StatementKind::Comptime(Box::new(Statement {
+                kind: StatementKind::Let(let_statement),
+                span: self.span_since(start_span),
             })));
         }
 
@@ -138,8 +146,6 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use acvm::acir::native_types::Expression;
-
     use crate::{
         ast::{ConstrainKind, ExpressionKind, StatementKind, UnresolvedTypeData},
         parser::{
@@ -257,5 +263,19 @@ mod tests {
             panic!("Expected block expression");
         };
         assert_eq!(block.statements.len(), 1);
+    }
+
+    #[test]
+    fn parses_comptime_let() {
+        let src = "comptime let x = 1;";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Comptime(statement) = statement.kind else {
+            panic!("Expected comptime statement");
+        };
+        let StatementKind::Let(..) = statement.kind else {
+            panic!("Expected let statement");
+        };
     }
 }
