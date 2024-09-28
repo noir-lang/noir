@@ -118,7 +118,7 @@ impl<'a> Parser<'a> {
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type()
+            self.parse_type_or_error()
         } else {
             // TODO: error
             UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }

@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
         let generics = self.parse_generics();
 
         let type_span_start = self.current_token_span;
-        let object_type = self.parse_type();
+        let object_type = self.parse_type_or_error();
         let type_span = self.span_since(type_span_start);
 
         if self.eat_keyword(Keyword::For) {
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
         trait_generics: GenericTypeArgs,
         trait_name: Path,
     ) -> NoirTraitImpl {
-        let object_type = self.parse_type();
+        let object_type = self.parse_type_or_error();
         let where_clause = self.parse_where_clause();
         let items = self.parse_trait_impl_items();
 
@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
         };
 
         let alias = if self.eat_assign() {
-            self.parse_type()
+            self.parse_type_or_error()
         } else {
             UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() }
         };
@@ -221,7 +221,7 @@ impl<'a> Parser<'a> {
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type()
+            self.parse_type_or_error()
         } else {
             UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
         };

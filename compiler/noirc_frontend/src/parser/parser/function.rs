@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
 
         let (return_type, return_visibility) = if self.eat(Token::Arrow) {
             let visibility = self.parse_visibility();
-            (FunctionReturnType::Ty(self.parse_type()), visibility)
+            (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
             (
                 FunctionReturnType::Default(Span::from(
@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
                     if self.eat_colon() {
                         let visibility = self.parse_visibility();
 
-                        let typ = self.parse_type();
+                        let typ = self.parse_type_or_error();
                         parameters.push(Param {
                             visibility,
                             pattern,

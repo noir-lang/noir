@@ -748,7 +748,8 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(interpreter.elaborator.interner, argument, Parser::parse_type, "a type")?;
+    let typ =
+        parse(interpreter.elaborator.interner, argument, Parser::parse_type_or_error, "a type")?;
     let typ = interpreter
         .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))

@@ -17,10 +17,9 @@ impl<'a> Parser<'a> {
         let mut trailing_comma = false;
         loop {
             let start_span = self.current_token_span;
-            let typ = self.parse_type();
-            if self.current_token_span == start_span {
+            let Some(typ) = self.parse_type() else {
                 break;
-            }
+            };
 
             if !trailing_comma && !constraints.is_empty() {
                 self.push_error(ParserErrorReason::MissingCommaSeparatingTraitBounds, start_span);

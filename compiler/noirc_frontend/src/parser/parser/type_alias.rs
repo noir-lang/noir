@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
             };
         }
 
-        let typ = self.parse_type();
+        let typ = self.parse_type_or_error();
 
         NoirTypeAlias { name, generics, typ, span: self.span_since(start_span) }
     }

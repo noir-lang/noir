@@ -4,7 +4,7 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IfExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, Path, PrefixExpression, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        MethodCallExpression, Path, PrefixExpression, UnaryOp, UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token},
@@ -130,14 +130,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.eat_keyword(Keyword::As) {
-                let typ = self.parse_type();
-                if let UnresolvedTypeData::Error = typ.typ {
-                    self.push_error(
-                        ParserErrorReason::ExpectedTypeAfterAs,
-                        self.previous_token_span,
-                    );
-                }
-
+                let typ = self.parse_type_or_error();
                 let kind =
                     ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
                 let span = self.span_since(start_span);
@@ -1095,6 +1088,6 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
         let reason = get_single_error(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedTypeAfterAs));
+        assert!(matches!(reason, ParserErrorReason::ExpectedTypeAfterThis));
     }
 }

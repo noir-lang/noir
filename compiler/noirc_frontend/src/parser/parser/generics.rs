@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
             return Some(UnresolvedGeneric::Numeric { ident, typ: type_u32() });
         }
 
-        let typ = self.parse_type();
+        let typ = self.parse_type_or_error();
         if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
             if matches!(signedness, Signedness::Signed)
                 || matches!(bit_size, IntegerBitSize::SixtyFour)
@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
                 }
 
                 if self.eat_assign() {
-                    let typ = self.parse_type();
+                    let typ = self.parse_type_or_error();
                     generic_type_args.named_args.push((ident, typ));
                 } else {
                     let typ = self.parse_path_type_after_ident(ident);
@@ -137,7 +137,7 @@ impl<'a> Parser<'a> {
                 }
             } else {
                 let typ = self.parse_type();
-                let typ = if self.current_token_span == start_span {
+                let typ = typ.or_else(|| {
                     if let Ok(type_expr) = self.parse_type_expression() {
                         let span = type_expr.span();
                         Some(UnresolvedType {
@@ -147,9 +147,7 @@ impl<'a> Parser<'a> {
                     } else {
                         None
                     }
-                } else {
-                    Some(typ)
-                };
+                });
 
                 let Some(typ) = typ else {
                     // TODO: error? (not sure if this is `<>` so test that)

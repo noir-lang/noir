@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
                 // TODO: error
             }
 
-            let typ = self.parse_type();
+            let typ = self.parse_type_or_error();
 
             fields.push(Documented::new(StructField { name, typ }, doc_comments));
 

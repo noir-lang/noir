@@ -109,11 +109,10 @@ impl<'a> Parser<'a> {
         } else {
             loop {
                 let star_span = self.current_token_span;
-                let typ = self.parse_type();
-                if self.current_token_span == star_span {
+                let Some(typ) = self.parse_type() else {
                     self.eat_greater();
                     break;
-                }
+                };
 
                 if !trailing_comma && !generics.is_empty() {
                     self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, star_span);
