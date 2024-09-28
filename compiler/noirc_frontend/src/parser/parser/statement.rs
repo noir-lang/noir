@@ -2,8 +2,8 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        ConstrainKind, ConstrainStatement, Expression, ExpressionKind, LetStatement, Statement,
-        StatementKind,
+        ConstrainKind, ConstrainStatement, Expression, ExpressionKind, ForLoopStatement, ForRange,
+        Ident, LetStatement, Statement, StatementKind,
     },
     parser::ParserErrorReason,
     token::{Attribute, Keyword, Token, TokenKind},
@@ -70,8 +70,64 @@ impl<'a> Parser<'a> {
             return self.parse_comptime_statement(attributes);
         }
 
+        if let Some(for_loop) = self.parse_for() {
+            return Some(StatementKind::For(for_loop));
+        }
+
         let expression = self.parse_expression()?;
         Some(StatementKind::Expression(expression))
+    }
+
+    fn parse_for(&mut self) -> Option<ForLoopStatement> {
+        let start_span = self.current_token_span;
+
+        if !self.eat_keyword(Keyword::For) {
+            return None;
+        }
+
+        let Some(identifier) = self.eat_ident() else {
+            // TODO: error (expected for identifier)
+            let identifier = Ident::default();
+            return Some(self.empty_for_loop(identifier, start_span));
+        };
+
+        if !self.eat_keyword(Keyword::In) {
+            // TODO: error (expected `in` after for identifier)
+            return Some(self.empty_for_loop(identifier, start_span));
+        }
+
+        let expr = self.parse_expression_no_constructors_or_error();
+
+        let range = if self.eat(Token::DoubleDot) {
+            ForRange::Range(expr, self.parse_expression_no_constructors_or_error())
+        } else {
+            ForRange::Array(expr)
+        };
+
+        let block_start_span = self.current_token_span;
+        let block = if let Some(block) = self.parse_block_expression() {
+            Expression {
+                kind: ExpressionKind::Block(block),
+                span: self.span_since(block_start_span),
+            }
+        } else {
+            // TODO: error (expected for body)
+            Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
+        };
+
+        Some(ForLoopStatement { identifier, range, block, span: self.span_since(start_span) })
+    }
+
+    fn empty_for_loop(&mut self, identifier: Ident, start_span: Span) -> ForLoopStatement {
+        ForLoopStatement {
+            identifier,
+            range: ForRange::Array(Expression {
+                kind: ExpressionKind::Error,
+                span: Span::default(),
+            }),
+            block: Expression { kind: ExpressionKind::Error, span: Span::default() },
+            span: self.span_since(start_span),
+        }
     }
 
     fn parse_comptime_statement(
@@ -168,7 +224,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ConstrainKind, ExpressionKind, StatementKind, UnresolvedTypeData},
+        ast::{ConstrainKind, ExpressionKind, ForRange, StatementKind, UnresolvedTypeData},
         parser::{
             parser::tests::{get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
@@ -298,5 +354,31 @@ mod tests {
         let StatementKind::Let(..) = statement.kind else {
             panic!("Expected let statement");
         };
+    }
+
+    #[test]
+    fn parses_for_array() {
+        let src = "for i in x { }";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::For(for_loop) = statement.kind else {
+            panic!("Expected for loop");
+        };
+        assert_eq!(for_loop.identifier.to_string(), "i");
+        assert!(matches!(for_loop.range, ForRange::Array(..)));
+    }
+
+    #[test]
+    fn parses_for_range() {
+        let src = "for i in 0..10 { }";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::For(for_loop) = statement.kind else {
+            panic!("Expected for loop");
+        };
+        assert_eq!(for_loop.identifier.to_string(), "i");
+        assert!(matches!(for_loop.range, ForRange::Range(..)));
     }
 }
