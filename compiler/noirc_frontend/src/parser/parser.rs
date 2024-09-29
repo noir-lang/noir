@@ -122,8 +122,14 @@ impl<'a> Parser<'a> {
         ParsedModule { items, inner_doc_comments }
     }
 
-    pub(crate) fn parse_lvalue(&mut self) -> LValue {
-        todo!("Parser")
+    pub(crate) fn parse_lvalue_or_error(&mut self) -> LValue {
+        let expr = self.parse_expression_or_error();
+        if let Some(lvalue) = LValue::from_expression(expr) {
+            lvalue
+        } else {
+            // TODO: error (invalid l-value)
+            LValue::Ident(Ident::default())
+        }
     }
 
     fn next_token(&mut self) {

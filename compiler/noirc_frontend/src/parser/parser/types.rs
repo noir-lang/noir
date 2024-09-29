@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
     QuotedType,
@@ -430,14 +430,6 @@ impl<'a> Parser<'a> {
         } else {
             UnresolvedTypeData::Tuple(types)
         })
-    }
-
-    pub(super) fn parse_path_type_after_ident(&mut self, ident: Ident) -> UnresolvedType {
-        let start_span = ident.span();
-        let path = self.parse_path_no_turbofish_after_ident(ident);
-        let generics = self.parse_generic_type_args();
-        let typ = UnresolvedTypeData::Named(path, generics, false);
-        UnresolvedType { typ, span: self.span_since(start_span) }
     }
 
     pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {

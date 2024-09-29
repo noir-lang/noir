@@ -123,18 +123,20 @@ impl<'a> Parser<'a> {
         let mut trailing_comma = false;
         loop {
             let start_span = self.current_token_span;
-            if let Some(ident) = self.eat_ident() {
+
+            if matches!(self.token.token(), Token::Ident(..))
+                && self.next_token.token() == &Token::Assign
+            {
+                let ident = self.eat_ident().unwrap();
+
                 if !trailing_comma && !generic_type_args.is_empty() {
                     self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
                 }
 
-                if self.eat_assign() {
-                    let typ = self.parse_type_or_error();
-                    generic_type_args.named_args.push((ident, typ));
-                } else {
-                    let typ = self.parse_path_type_after_ident(ident);
-                    generic_type_args.ordered_args.push(typ);
-                }
+                self.eat_assign();
+
+                let typ = self.parse_type_or_error();
+                generic_type_args.named_args.push((ident, typ));
             } else {
                 let typ = self.parse_type();
                 let typ = typ.or_else(|| {

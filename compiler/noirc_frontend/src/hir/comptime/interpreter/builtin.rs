@@ -690,7 +690,7 @@ fn quoted_as_expr(
         return option(return_type, Some(Value::statement(stmt.kind)));
     }
 
-    let result = parse(interner, argument, Parser::parse_lvalue, "an expression");
+    let result = parse(interner, argument, Parser::parse_lvalue_or_error, "an expression");
     if let Ok(lvalue) = result {
         return option(return_type, Some(Value::lvalue(lvalue)));
     }
