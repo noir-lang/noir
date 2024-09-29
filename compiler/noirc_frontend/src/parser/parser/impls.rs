@@ -397,6 +397,31 @@ mod tests {
     }
 
     #[test]
+    fn parse_impl_with_self_argument_followed_by_type() {
+        let src = "impl Foo { fn foo(self: Foo) {} }";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Impl(mut type_impl) = item.kind else {
+            panic!("Expected type impl");
+        };
+        assert_eq!(type_impl.methods.len(), 1);
+
+        let (method, _) = type_impl.methods.remove(0);
+        let mut method = method.item;
+        assert_eq!(method.def.name.to_string(), "foo");
+        assert_eq!(method.def.parameters.len(), 1);
+
+        let param = method.def.parameters.remove(0);
+        let Pattern::Identifier(name) = param.pattern else {
+            panic!("Expected identifier pattern");
+        };
+        assert_eq!(name.to_string(), "self");
+        assert_eq!(param.typ.to_string(), "Foo");
+    }
+
+    #[test]
     fn parse_empty_impl_missing_right_brace() {
         let src = "impl Foo {";
         let (module, errors) = parse_program(src);
