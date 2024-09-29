@@ -89,11 +89,40 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_term_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
+        let start_span = self.current_token_span;
+        if self.eat(Token::Minus) {
+            return match self.parse_term_type_expression() {
+                Some(rhs) => {
+                    let lhs = UnresolvedTypeExpression::Constant(0, start_span);
+                    let op = BinaryTypeOperator::Subtraction;
+                    let span = self.span_since(start_span);
+                    Some(UnresolvedTypeExpression::BinaryOperation(
+                        Box::new(lhs),
+                        op,
+                        Box::new(rhs),
+                        span,
+                    ))
+                }
+                None => {
+                    self.push_expected_expression_after_this_error();
+                    None
+                }
+            };
+        }
+
+        self.parse_atom_type_expression()
+    }
+
+    fn parse_atom_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         if let Some(type_expr) = self.parse_constant_type_expression() {
             return Some(type_expr);
         }
 
-        if let Some(type_expr) = self.parses_variable_type_expression() {
+        if let Some(type_expr) = self.parse_variable_type_expression() {
+            return Some(type_expr);
+        }
+
+        if let Some(type_expr) = self.parse_parenthesized_type_expression() {
             return Some(type_expr);
         }
 
@@ -122,13 +151,33 @@ impl<'a> Parser<'a> {
         Some(UnresolvedTypeExpression::Constant(int, self.previous_token_span))
     }
 
-    fn parses_variable_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
+    fn parse_variable_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let path = self.parse_path();
         if path.is_empty() {
             None
         } else {
             Some(UnresolvedTypeExpression::Variable(path))
         }
+    }
+
+    fn parse_parenthesized_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
+        if !self.eat_left_paren() {
+            return None;
+        }
+
+        return match self.parse_type_expression() {
+            Ok(type_expr) => {
+                if !self.eat_right_paren() {
+                    // TODO: error (expected `)`)
+                }
+                Some(type_expr)
+            }
+            Err(error) => {
+                self.errors.push(error);
+                self.eat_right_paren();
+                None
+            }
+        };
     }
 
     fn expected_type_expression_after_this(
@@ -181,5 +230,26 @@ mod tests {
         assert_eq!(lhs.to_string(), "(1 + (2 * 3))");
         assert_eq!(operator, BinaryTypeOperator::Addition);
         assert_eq!(rhs.to_string(), "4");
+    }
+
+    #[test]
+    fn parses_parenthesized_type_expression() {
+        let src = "(N)";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_type_expression().unwrap();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeExpression::Variable(path) = expr else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "N");
+    }
+
+    #[test]
+    fn parses_minus_type_expression() {
+        let src = "-N";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_type_expression().unwrap();
+        assert!(parser.errors.is_empty());
+        assert_eq!(expr.to_string(), "(0 - N)");
     }
 }
