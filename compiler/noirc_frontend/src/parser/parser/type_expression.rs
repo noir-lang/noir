@@ -170,12 +170,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_variable_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        let path = self.parse_path();
-        if path.is_empty() {
-            None
-        } else {
-            Some(UnresolvedTypeExpression::Variable(path))
-        }
+        let path = self.parse_path()?;
+        Some(UnresolvedTypeExpression::Variable(path))
     }
 
     fn parse_parenthesized_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
@@ -275,8 +271,7 @@ impl<'a> Parser<'a> {
     fn parse_atom_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let start_span = self.current_token_span;
 
-        let path = self.parse_path();
-        if !path.is_empty() {
+        if let Some(path) = self.parse_path() {
             let generics = self.parse_generic_type_args();
             let typ = UnresolvedTypeData::Named(path, generics, false);
             let span = self.span_since(start_span);

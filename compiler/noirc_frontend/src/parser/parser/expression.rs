@@ -293,10 +293,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_path_expr(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
-        let path = self.parse_path();
-        if path.is_empty() {
+        let Some(path) = self.parse_path() else {
             return None;
-        }
+        };
 
         if allow_constructors && self.eat_left_brace() {
             return Some(self.parse_constructor(path));
@@ -412,8 +411,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let path = self.parse_path();
-        if !path.is_empty() {
+        if let Some(path) = self.parse_path() {
             let expr = Expression {
                 kind: ExpressionKind::Variable(path),
                 span: self.span_since(start_span),

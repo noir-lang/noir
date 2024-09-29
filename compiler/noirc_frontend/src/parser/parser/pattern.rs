@@ -66,13 +66,12 @@ impl<'a> Parser<'a> {
             return pattern;
         }
 
-        let mut path = self.parse_path();
-        if path.is_empty() {
+        let Some(mut path) = self.parse_path() else {
             self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
 
             // TODO: error
             return Pattern::Identifier(Ident::default());
-        }
+        };
 
         if self.eat_left_brace() {
             return self.parse_struct_pattern(path);

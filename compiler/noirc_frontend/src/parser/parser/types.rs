@@ -53,8 +53,7 @@ impl<'a> Parser<'a> {
             return Some(typ);
         }
 
-        let path = self.parse_path_no_turbofish();
-        if !path.is_empty() {
+        if let Some(path) = self.parse_path_no_turbofish() {
             let generics = self.parse_generic_type_args();
             return Some(UnresolvedTypeData::Named(path, generics, false));
         }
@@ -309,11 +308,10 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let path = self.parse_path_no_turbofish();
-        if path.is_empty() {
+        let Some(path) = self.parse_path_no_turbofish() else {
             // TODO: error (expected path after impl)
             return None;
-        }
+        };
 
         let generics = self.parse_generic_type_args();
 

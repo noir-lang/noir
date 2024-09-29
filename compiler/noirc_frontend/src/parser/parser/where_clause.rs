@@ -68,7 +68,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_trait_bound(&mut self) -> TraitBound {
-        let trait_path = self.parse_path_no_turbofish();
+        let trait_path = self.parse_path_no_turbofish_or_error();
         let trait_generics = self.parse_generic_type_args();
         TraitBound { trait_path, trait_generics, trait_id: None }
     }

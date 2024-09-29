@@ -707,9 +707,13 @@ fn quoted_as_module(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let path =
-        parse(interpreter.elaborator.interner, argument, Parser::parse_path_no_turbofish, "a path")
-            .ok();
+    let path = parse(
+        interpreter.elaborator.interner,
+        argument,
+        Parser::parse_path_no_turbofish_or_error,
+        "a path",
+    )
+    .ok();
     let option_value = path.and_then(|path| {
         let module = interpreter
             .elaborate_in_function(interpreter.current_function, |elaborator| {
