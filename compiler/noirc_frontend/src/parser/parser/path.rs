@@ -52,7 +52,9 @@ impl<'a> Parser<'a> {
                 let mut has_double_colon = self.eat_double_colon();
 
                 let generics = if has_double_colon && allow_turbofish {
-                    if let Some(generics) = self.parse_path_generics() {
+                    if let Some(generics) = self
+                        .parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
+                    {
                         has_double_colon = self.eat_double_colon();
                         Some(generics)
                     } else {
@@ -96,14 +98,17 @@ impl<'a> Parser<'a> {
         Path { segments, kind: PathKind::Plain, span: self.span_since(start_span) }
     }
 
-    pub(super) fn parse_path_generics(&mut self) -> Option<Vec<UnresolvedType>> {
+    pub(super) fn parse_path_generics(
+        &mut self,
+        on_named_arg_error: ParserErrorReason,
+    ) -> Option<Vec<UnresolvedType>> {
         if self.token.token() != &Token::Less {
             return None;
         };
 
         let generics = self.parse_generic_type_args();
         for (name, _typ) in &generics.named_args {
-            self.push_error(ParserErrorReason::AssociatedTypesNotAllowedInPaths, name.span());
+            self.push_error(on_named_arg_error.clone(), name.span());
         }
 
         Some(generics.ordered_args)

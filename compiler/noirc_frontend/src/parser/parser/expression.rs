@@ -114,7 +114,9 @@ impl<'a> Parser<'a> {
                 };
 
                 let generics = if self.eat_double_colon() {
-                    let generics = self.parse_path_generics();
+                    let generics = self.parse_path_generics(
+                        ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls,
+                    );
                     if generics.is_none() {
                         // TODO: error (found `::` but not `::<...>`)
                     }
