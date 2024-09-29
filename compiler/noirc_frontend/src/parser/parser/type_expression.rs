@@ -161,23 +161,26 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_parenthesized_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        if !self.eat_left_paren() {
-            return None;
-        }
-
-        return match self.parse_type_expression() {
-            Ok(type_expr) => {
-                if !self.eat_right_paren() {
-                    // TODO: error (expected `)`)
+        // Make sure not to parse `()` as a parenthesized expression
+        if self.token.token() == &Token::LeftParen && self.next_token.token() != &Token::RightParen
+        {
+            self.next_token();
+            match self.parse_type_expression() {
+                Ok(type_expr) => {
+                    if !self.eat_right_paren() {
+                        // TODO: error (expected `)`)
+                    }
+                    Some(type_expr)
                 }
-                Some(type_expr)
+                Err(error) => {
+                    self.errors.push(error);
+                    self.eat_right_paren();
+                    None
+                }
             }
-            Err(error) => {
-                self.errors.push(error);
-                self.eat_right_paren();
-                None
-            }
-        };
+        } else {
+            None
+        }
     }
 
     fn expected_type_expression_after_this(
