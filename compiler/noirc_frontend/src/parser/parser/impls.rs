@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
                 modifiers.visibility_span,
             );
         }
-        let attributes = Vec::new();
+        let attributes = self.parse_attributes();
 
         if !self.eat_keyword(Keyword::Fn) {
             // TODO: error if unconstrained, visibility or comptime
