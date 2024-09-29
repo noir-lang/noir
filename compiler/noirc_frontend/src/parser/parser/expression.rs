@@ -1,8 +1,8 @@
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal,
-        MemberAccessExpression, MethodCallExpression, Path, UnaryOp, UnresolvedType,
+        Expression, ExpressionKind, GenericTypeArgs, Ident, IfExpression, IndexExpression, Literal,
+        MemberAccessExpression, MethodCallExpression, Path, TypePath, UnaryOp, UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
@@ -214,9 +214,12 @@ impl<'a> Parser<'a> {
         }
 
         // TODO: parse these too
-        // comptime_expr(statement.clone()),
         // unquote(expr_parser.clone()),
         // type_path(parse_type()),
+
+        if let Some(kind) = self.parse_type_path_expr() {
+            return Some(kind);
+        }
 
         if let Some(as_trait_path) = self.parse_as_trait_path() {
             return Some(ExpressionKind::AsTraitPath(as_trait_path));
@@ -394,6 +397,40 @@ impl<'a> Parser<'a> {
         };
 
         Some(ExpressionKind::Comptime(block, self.span_since(start_span)))
+    }
+
+    fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
+        let start_span = self.current_token_span;
+        let Some(typ) = self.parse_primitive_type() else {
+            return None;
+        };
+        let typ = UnresolvedType { typ, span: self.span_since(start_span) };
+
+        if !self.eat_double_colon() {
+            // TODO: error (expected `::` after type)
+        }
+
+        let item = if let Some(ident) = self.eat_ident() {
+            ident
+        } else {
+            self.push_error(
+                ParserErrorReason::ExpectedIdentifierAfterColons,
+                self.current_token_span,
+            );
+            Ident::new(String::new(), self.span_at_previous_token_end())
+        };
+
+        let turbofish = if self.eat_double_colon() {
+            let generics = self.parse_generic_type_args();
+            if generics.is_empty() {
+                // TODO: error
+            }
+            generics
+        } else {
+            GenericTypeArgs::default()
+        };
+
+        Some(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
     }
 
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
@@ -1322,5 +1359,33 @@ mod tests {
             panic!("Expected comptime block");
         };
         assert_eq!(block.statements.len(), 1);
+    }
+
+    #[test]
+    fn parses_type_path() {
+        let src = "Field::foo";
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "Field");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_empty());
+    }
+
+    #[test]
+    fn parses_type_path_with_generics() {
+        let src = "Field::foo::<T>";
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "Field");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(!type_path.turbofish.is_empty());
     }
 }

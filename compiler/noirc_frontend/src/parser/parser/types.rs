@@ -41,18 +41,28 @@ impl<'a> Parser<'a> {
             return Some(typ);
         }
 
+        if let Some(typ) = self.parse_function_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_trait_as_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_as_trait_path_type() {
+            return Some(typ);
+        }
+
         let path = self.parse_path_no_turbofish();
         if !path.is_empty() {
             let generics = self.parse_generic_type_args();
             return Some(UnresolvedTypeData::Named(path, generics, false));
         }
 
-        // TODO: parse more types
-
         None
     }
 
-    fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
+    pub(super) fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
         if let Some(typ) = self.parse_field_type() {
             return Some(typ);
         }
@@ -74,18 +84,6 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(typ) = self.parse_comptime_type() {
-            return Some(typ);
-        }
-
-        if let Some(typ) = self.parse_function_type() {
-            return Some(typ);
-        }
-
-        if let Some(typ) = self.parse_trait_as_type() {
-            return Some(typ);
-        }
-
-        if let Some(typ) = self.parse_as_trait_path_type() {
             return Some(typ);
         }
 
