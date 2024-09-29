@@ -10,22 +10,18 @@ use super::Parser;
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_path(&mut self) -> Path {
-        let (path, trailing_double_colon) = self.parse_path_impl(true);
-        if trailing_double_colon {
-            // TODO: error
-        }
-        path
+        self.parse_path_impl(
+            true, // allow turbofish
+        )
     }
 
     pub(crate) fn parse_path_no_turbofish(&mut self) -> Path {
-        let (path, trailing_double_colon) = self.parse_path_impl(false);
-        if trailing_double_colon {
-            // TODO: error
-        }
-        path
+        self.parse_path_impl(
+            false, // allow turbofish
+        )
     }
 
-    pub(super) fn parse_path_impl(&mut self, allow_turbofish: bool) -> (Path, bool) {
+    pub(super) fn parse_path_impl(&mut self, allow_turbofish: bool) -> Path {
         let start_span = self.current_token_span;
 
         let kind = self.parse_path_kind();
@@ -41,35 +37,32 @@ impl<'a> Parser<'a> {
         kind: PathKind,
         allow_turbofish: bool,
         start_span: Span,
-    ) -> (Path, bool) {
-        let mut trailing_double_colon = false;
+    ) -> Path {
         let mut segments = Vec::new();
 
         if self.token.kind() == TokenKind::Ident {
-            while let Some(ident) = self.eat_ident() {
+            loop {
+                let ident = self.eat_ident().unwrap();
                 let span = ident.span();
 
-                let mut has_double_colon = self.eat_double_colon();
-
-                let generics = if has_double_colon && allow_turbofish {
-                    if let Some(generics) = self
-                        .parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
-                    {
-                        has_double_colon = self.eat_double_colon();
-                        Some(generics)
-                    } else {
-                        None
-                    }
+                let generics = if allow_turbofish
+                    && self.token.token() == &Token::DoubleColon
+                    && self.next_token.token() == &Token::Less
+                {
+                    self.next_token();
+                    self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
                 } else {
                     None
                 };
 
                 segments.push(PathSegment { ident, generics, span });
 
-                if has_double_colon {
-                    trailing_double_colon = true;
+                if self.token.token() == &Token::DoubleColon
+                    && matches!(self.next_token.token(), Token::Ident(..))
+                {
+                    // Skip the double colons
+                    self.next_token();
                 } else {
-                    trailing_double_colon = false;
                     break;
                 }
             }
@@ -77,9 +70,7 @@ impl<'a> Parser<'a> {
             // TODO: error
         }
 
-        let span = self.span_since(start_span);
-
-        (Path { segments, kind, span }, trailing_double_colon)
+        Path { segments, kind, span: self.span_since(start_span) }
     }
 
     pub(super) fn parse_path_generics(
@@ -174,6 +165,7 @@ mod tests {
         let src = "crate::foo::bar";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path();
+        dbg!(path.to_string());
         assert!(parser.errors.is_empty());
         assert_eq!(path.kind, PathKind::Crate);
         assert_eq!(path.segments.len(), 2);
@@ -216,12 +208,12 @@ mod tests {
         let src = "foo::";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path();
+        assert_eq!(path.span.end() as usize, src.len() - 2);
         assert_eq!(parser.errors.len(), 0); // TODO: this should be 1
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 1);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
         assert!(path.segments[0].generics.is_none());
-        assert_eq!(path.span.end() as usize, src.len());
     }
 
     #[test]
@@ -239,5 +231,25 @@ mod tests {
 
         let generics = path.segments.remove(0).generics;
         assert!(generics.is_none());
+    }
+
+    #[test]
+    fn parses_path_stops_before_trailing_double_colon() {
+        let src = "foo::bar::";
+        let mut parser = Parser::for_str(src);
+        let path = parser.parse_path();
+        assert_eq!(path.span.end() as usize, src.len() - 2);
+        assert!(parser.errors.is_empty());
+        assert_eq!(path.to_string(), "foo::bar");
+    }
+
+    #[test]
+    fn parses_path_with_turbofish_stops_before_trailing_double_colon() {
+        let src = "foo::bar::<1>::";
+        let mut parser = Parser::for_str(src);
+        let path = parser.parse_path();
+        assert_eq!(path.span.end() as usize, src.len() - 2);
+        assert!(parser.errors.is_empty());
+        assert_eq!(path.to_string(), "foo::bar::<1>");
     }
 }
