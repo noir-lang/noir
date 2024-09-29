@@ -556,18 +556,4 @@ mod tests {
         assert_eq!(typ.to_string(), "Field");
         assert_eq!(expr.to_string(), "1");
     }
-
-    #[test]
-    fn parse_trait_impl_with_generic_arithmetic() {
-        let src = "impl <N> Foo<N - 1> for Field {}";
-        let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        assert_eq!(item.span.end() as usize, src.len());
-        let ItemKind::TraitImpl(trait_impl) = item.kind else {
-            panic!("Expected trait impl");
-        };
-        dbg!(trait_impl.trait_generics);
-    }
 }

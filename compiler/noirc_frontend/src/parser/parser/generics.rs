@@ -3,7 +3,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedType, UnresolvedTypeData,
+        UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
@@ -138,18 +138,23 @@ impl<'a> Parser<'a> {
                 let typ = self.parse_type_or_error();
                 generic_type_args.named_args.push((ident, typ));
             } else {
-                let typ = self.parse_type();
-                let typ = typ.or_else(|| {
-                    if let Ok(type_expr) = self.parse_type_expression() {
-                        let span = type_expr.span();
+                let typ = if let Ok(type_expr) = self.parse_type_expression() {
+                    let span = type_expr.span();
+                    if let UnresolvedTypeExpression::Variable(path) = type_expr {
+                        let generics = self.parse_generic_type_args();
+                        Some(UnresolvedType {
+                            typ: UnresolvedTypeData::Named(path, generics, false),
+                            span,
+                        })
+                    } else {
                         Some(UnresolvedType {
                             typ: UnresolvedTypeData::Expression(type_expr),
                             span,
                         })
-                    } else {
-                        None
                     }
-                });
+                } else {
+                    self.parse_type()
+                };
 
                 let Some(typ) = typ else {
                     // TODO: error? (not sure if this is `<>` so test that)
@@ -277,5 +282,21 @@ mod tests {
         parser.parse_generics();
         let reason = get_single_error(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
+    }
+
+    #[test]
+    fn parse_arithmetic_generic_on_variable() {
+        let src = "<N - 1>";
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generic_type_args();
+        assert_eq!(generics.ordered_args[0].to_string(), "(N - 1)");
+    }
+
+    #[test]
+    fn parse_var_with_turbofish_in_generic() {
+        let src = "<N<1>>";
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generic_type_args();
+        assert_eq!(generics.ordered_args[0].to_string(), "N<1>");
     }
 }
