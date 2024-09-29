@@ -56,8 +56,8 @@ impl<'a> Parser<'a> {
             // TODO: maybe require visibility to always come first
             let doc_comments = self.parse_outer_doc_comments();
             let start_span = self.current_token_span;
+            let attributes = self.parse_attributes();
             let modifiers = self.parse_modifiers();
-            let attributes = Vec::new();
 
             if self.eat_keyword(Keyword::Fn) {
                 let method = self.parse_function(
@@ -73,7 +73,6 @@ impl<'a> Parser<'a> {
                     break;
                 }
             } else {
-                // TODO: parse Type and Constant
                 // TODO: error if visibility, unconstrained or comptime were found
 
                 if !self.eat_right_brace() {
@@ -297,6 +296,25 @@ mod tests {
         assert_eq!(method.def.name.to_string(), "bar");
         assert!(method.def.is_comptime);
         assert_eq!(method.def.visibility, ItemVisibility::Public);
+    }
+
+    #[test]
+    fn parse_impl_with_attribute_on_method() {
+        let src = "
+        impl Foo {
+            #[something]
+            fn foo(self) {}
+        }
+        ";
+        let (mut module, errors) = parse_program(src);
+        assert!(errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Impl(type_impl) = item.kind else {
+            panic!("Expected type impl");
+        };
+        let attributes = type_impl.methods[0].0.item.attributes();
+        assert_eq!(attributes.secondary.len(), 1);
     }
 
     #[test]
