@@ -19,6 +19,7 @@ impl<'a> Parser<'a> {
         let generics = self.parse_generics();
 
         if !self.eat_assign() {
+            let span = self.span_since(start_span);
             self.eat_semicolons();
 
             // TODO: error
@@ -26,13 +27,17 @@ impl<'a> Parser<'a> {
                 name,
                 generics,
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
-                span: self.span_since(start_span),
+                span,
             };
         }
 
         let typ = self.parse_type_or_error();
+        let span = self.span_since(start_span);
+        if !self.eat_semicolons() {
+            // TODO: error? (missing semicolon after type alias declaration)
+        }
 
-        NoirTypeAlias { name, generics, typ, span: self.span_since(start_span) }
+        NoirTypeAlias { name, generics, typ, span }
     }
 }
 
