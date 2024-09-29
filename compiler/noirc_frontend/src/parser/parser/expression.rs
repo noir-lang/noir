@@ -1,8 +1,12 @@
+use iter_extended::vecmap;
+use noirc_errors::Span;
+
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, GenericTypeArgs, Ident, IfExpression, IndexExpression, Literal,
-        MemberAccessExpression, MethodCallExpression, Path, TypePath, UnaryOp, UnresolvedType,
+        MemberAccessExpression, MethodCallExpression, Path, Statement, TypePath, UnaryOp,
+        UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
@@ -626,7 +630,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let mut statements = Vec::new();
+        let mut statements: Vec<(Statement, (Option<Token>, Span))> = Vec::new();
 
         loop {
             if self.eat_right_brace() {
@@ -639,13 +643,36 @@ impl<'a> Parser<'a> {
                 break;
             };
 
-            statements.push(statement);
+            let (token, span) = if self.token.token() == &Token::Semicolon {
+                let token = self.token.clone();
+                self.next_token();
+                let span = token.to_span();
+                (Some(token.into_token()), span)
+            } else {
+                (None, self.previous_token_span)
+            };
+
+            statements.push((statement, (token, span)));
 
             // TODO: error if missing semicolon and statement requires one and is not the last one in the block
             self.eat_semicolons();
         }
 
+        let statements = self.check_statements_require_semicolon(statements);
+
         Some(BlockExpression { statements })
+    }
+
+    fn check_statements_require_semicolon(
+        &mut self,
+        statements: Vec<(Statement, (Option<Token>, Span))>,
+    ) -> Vec<Statement> {
+        let last = statements.len().saturating_sub(1);
+        let iter = statements.into_iter().enumerate();
+        vecmap(iter, |(i, (statement, (semicolon, span)))| {
+            statement
+                .add_semicolon(semicolon, span, i == last, &mut |error| self.errors.push(error))
+        })
     }
 
     pub(super) fn push_expected_expression_after_this_error(&mut self) {
@@ -673,6 +700,7 @@ mod tests {
         let src = "true";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Bool(true))));
 
@@ -686,6 +714,7 @@ mod tests {
         let src = "42";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
             panic!("Expected integer literal");
@@ -699,6 +728,7 @@ mod tests {
         let src = "-42";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
             panic!("Expected integer literal");
@@ -712,6 +742,7 @@ mod tests {
         let src = "(42)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Parenthesized(expr) = expr.kind else {
             panic!("Expected parenthesized expression");
@@ -728,6 +759,7 @@ mod tests {
         let src = "()";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         assert!(matches!(expr.kind, ExpressionKind::Literal(Literal::Unit)));
     }
@@ -737,6 +769,7 @@ mod tests {
         let src = "\"hello\"";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Str(string)) = expr.kind else {
             panic!("Expected string literal");
@@ -749,6 +782,7 @@ mod tests {
         let src = "r#\"hello\"#";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::RawStr(string, n)) = expr.kind else {
             panic!("Expected raw string literal");
@@ -762,6 +796,7 @@ mod tests {
         let src = "f\"hello\"";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::FmtStr(string)) = expr.kind else {
             panic!("Expected format string literal");
@@ -774,6 +809,7 @@ mod tests {
         let src = "(1, 2)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Tuple(mut exprs) = expr.kind else {
             panic!("Expected tuple expression");
@@ -800,6 +836,7 @@ mod tests {
         let src = "{ 1 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Block(mut block) = expr.kind else {
             panic!("Expected block expression");
@@ -825,10 +862,10 @@ mod tests {
             let x = 1;
             let y = 2;
             3
-        }
-        ";
+        }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Block(block) = expr.kind else {
             panic!("Expected block expression");
@@ -840,10 +877,37 @@ mod tests {
     }
 
     #[test]
+    fn parses_block_expression_adds_semicolons() {
+        let src = "
+        {
+            1
+            2
+            3
+        }";
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
+        assert_eq!(parser.errors.len(), 2);
+        assert!(matches!(
+            parser.errors[0].reason(),
+            Some(ParserErrorReason::MissingSeparatingSemi)
+        ));
+        assert!(matches!(
+            parser.errors[1].reason(),
+            Some(ParserErrorReason::MissingSeparatingSemi)
+        ));
+        let ExpressionKind::Block(block) = expr.kind else {
+            panic!("Expected block expression");
+        };
+        assert_eq!(block.statements.len(), 3);
+    }
+
+    #[test]
     fn parses_unsafe_expression() {
         let src = "unsafe { 1 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");
@@ -882,6 +946,7 @@ mod tests {
         let src = "[]";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -895,6 +960,7 @@ mod tests {
         let src = "[1]";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -909,6 +975,7 @@ mod tests {
         let src = "[1, 3]";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -924,6 +991,7 @@ mod tests {
         let src = "[1; 10]";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
             repeated_element,
@@ -941,6 +1009,7 @@ mod tests {
         let src = "&[]";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -954,6 +1023,7 @@ mod tests {
         let src = "foo";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Variable(path) = expr.kind else {
             panic!("Expected variable");
@@ -966,6 +1036,7 @@ mod tests {
         let src = "foo::bar";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Variable(path) = expr.kind else {
             panic!("Expected variable");
@@ -979,6 +1050,7 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
     }
 
@@ -987,6 +1059,7 @@ mod tests {
         let src = "&mut foo";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -1004,6 +1077,7 @@ mod tests {
         let src = "-foo";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -1021,6 +1095,7 @@ mod tests {
         let src = "!foo";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -1038,6 +1113,7 @@ mod tests {
         let src = "*foo";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
@@ -1055,6 +1131,7 @@ mod tests {
         let src = "quote { 1 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Quote(tokens) = expr.kind else {
             panic!("Expected quote expression");
@@ -1067,6 +1144,7 @@ mod tests {
         let src = "foo(1, 2)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -1081,6 +1159,7 @@ mod tests {
         let src = "foo::<T>(1, 2)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -1095,6 +1174,7 @@ mod tests {
         let src = "foo!(1, 2)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -1109,6 +1189,7 @@ mod tests {
         let src = "foo.bar";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::MemberAccess(member_access) = expr.kind else {
             panic!("Expected member access expression");
@@ -1122,6 +1203,7 @@ mod tests {
         let src = "foo.bar(1, 2)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::MethodCall(method_call) = expr.kind else {
             panic!("Expected method call expression");
@@ -1138,6 +1220,7 @@ mod tests {
         let src = "foo.bar::<T, U>(1, 2)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::MethodCall(method_call) = expr.kind else {
             panic!("Expected method call expression");
@@ -1154,6 +1237,7 @@ mod tests {
         let src = "foo.bar!(1, 2)";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::MethodCall(method_call) = expr.kind else {
             panic!("Expected method call expression");
@@ -1170,6 +1254,7 @@ mod tests {
         let src = "Foo {}";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Constructor(constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1209,6 +1294,7 @@ mod tests {
         let src = "if true { 1 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1227,6 +1313,7 @@ mod tests {
         let src = "if foo { 1 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1239,6 +1326,7 @@ mod tests {
         let src = "if true { 1 } else { 2 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1252,6 +1340,7 @@ mod tests {
         let src = "if true { 1 } else if false { 2 } else { 3 }";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::If(if_expr) = expr.kind else {
             panic!("Expected if");
@@ -1267,6 +1356,7 @@ mod tests {
         let src = "1 as u8";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Cast(cast_expr) = expr.kind else {
             panic!("Expected cast");
@@ -1293,6 +1383,7 @@ mod tests {
         let src = "1[2]";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Index(index_expr) = expr.kind else {
             panic!("Expected index");
@@ -1307,6 +1398,7 @@ mod tests {
             let src = format!("1 {operator} 2");
             let mut parser = Parser::for_str(&src);
             let expr = parser.parse_expression_or_error();
+            assert_eq!(expr.span.end() as usize, src.len());
             assert!(parser.errors.is_empty(), "Expected no errors for {operator}");
             let ExpressionKind::Infix(infix_expr) = expr.kind else {
                 panic!("Expected infix for {operator}");
@@ -1322,6 +1414,7 @@ mod tests {
         let src = "1 + 2 * 3 + 4";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Infix(infix_expr) = expr.kind else {
             panic!("Expected infix");
@@ -1336,6 +1429,7 @@ mod tests {
         let src = "|| 1";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Lambda(lambda) = expr.kind else {
             panic!("Expected lambda");
@@ -1350,6 +1444,7 @@ mod tests {
         let src = "|x, y: Field| 1";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Lambda(mut lambda) = expr.kind else {
             panic!("Expected lambda");
@@ -1370,6 +1465,7 @@ mod tests {
         let src = "|| -> Field 1";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Lambda(lambda) = expr.kind else {
             panic!("Expected lambda");
@@ -1384,6 +1480,7 @@ mod tests {
         let src = "<Field as foo::Bar>::baz";
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::AsTraitPath(as_trait_path) = expr.kind else {
             panic!("Expected as_trait_path")
@@ -1399,6 +1496,7 @@ mod tests {
         let src = "comptime { 1 }";
         let mut parser = Parser::for_str(&src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Comptime(block, _) = expr.kind else {
             panic!("Expected comptime block");
@@ -1411,6 +1509,7 @@ mod tests {
         let src = "Field::foo";
         let mut parser = Parser::for_str(&src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::TypePath(type_path) = expr.kind else {
             panic!("Expected type_path");
@@ -1425,6 +1524,7 @@ mod tests {
         let src = "Field::foo::<T>";
         let mut parser = Parser::for_str(&src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::TypePath(type_path) = expr.kind else {
             panic!("Expected type_path");
@@ -1439,6 +1539,7 @@ mod tests {
         let src = "$foo::bar";
         let mut parser = Parser::for_str(&src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Unquote(expr) = expr.kind else {
             panic!("Expected unquote");
@@ -1454,6 +1555,7 @@ mod tests {
         let src = "$(1 + 2)";
         let mut parser = Parser::for_str(&src);
         let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Unquote(expr) = expr.kind else {
             panic!("Expected unquote");
