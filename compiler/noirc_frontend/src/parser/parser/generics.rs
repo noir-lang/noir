@@ -3,7 +3,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+        UnresolvedType, UnresolvedTypeData,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
@@ -138,24 +138,7 @@ impl<'a> Parser<'a> {
                 let typ = self.parse_type_or_error();
                 generic_type_args.named_args.push((ident, typ));
             } else {
-                let typ = if let Ok(type_expr) = self.parse_type_expression() {
-                    let span = type_expr.span();
-                    if let UnresolvedTypeExpression::Variable(path) = type_expr {
-                        let generics = self.parse_generic_type_args();
-                        Some(UnresolvedType {
-                            typ: UnresolvedTypeData::Named(path, generics, false),
-                            span,
-                        })
-                    } else {
-                        Some(UnresolvedType {
-                            typ: UnresolvedTypeData::Expression(type_expr),
-                            span,
-                        })
-                    }
-                } else {
-                    self.parse_type()
-                };
-
+                let typ = self.parse_type_or_type_expression();
                 let Some(typ) = typ else {
                     // TODO: error? (not sure if this is `<>` so test that)
                     self.eat_greater();

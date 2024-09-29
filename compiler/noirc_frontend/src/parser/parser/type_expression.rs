@@ -1,5 +1,8 @@
 use crate::{
-    ast::{Expression, ExpressionKind, Literal, UnresolvedTypeExpression},
+    ast::{
+        Expression, ExpressionKind, Literal, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression,
+    },
     parser::{ParserError, ParserErrorReason},
     token::Token,
     BinaryTypeOperator,
@@ -10,6 +13,18 @@ use acvm::acir::AcirField;
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    pub(crate) fn parse_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
+        if let Some(typ) = self.parse_type() {
+            return Some(typ);
+        }
+
+        let start_span = self.current_token_span;
+        let type_expr = self.parse_type_expression().ok()?;
+        let typ = UnresolvedTypeData::Expression(type_expr);
+        let span = self.span_since(start_span);
+        Some(UnresolvedType { typ, span })
+    }
+
     pub(crate) fn parse_type_expression(
         &mut self,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
