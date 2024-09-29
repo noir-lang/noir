@@ -972,6 +972,15 @@ mod tests {
     }
 
     #[test]
+    fn parses_variable_path_with_turbofish() {
+        let src = "foo::<9>";
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
+        assert!(parser.errors.is_empty());
+    }
+
+    #[test]
     fn parses_mutable_ref() {
         let src = "&mut foo";
         let mut parser = Parser::for_str(src);

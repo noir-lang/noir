@@ -3,7 +3,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType},
     parser::ParserErrorReason,
-    token::{Keyword, TokenKind},
+    token::{Keyword, Token, TokenKind},
 };
 
 use super::Parser;
@@ -97,36 +97,16 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn parse_path_generics(&mut self) -> Option<Vec<UnresolvedType>> {
-        if !self.eat_less() {
+        if self.token.token() != &Token::Less {
             return None;
+        };
+
+        let generics = self.parse_generic_type_args();
+        for (name, _typ) in &generics.named_args {
+            self.push_error(ParserErrorReason::AssociatedTypesNotAllowedInPaths, name.span());
         }
 
-        let mut generics = Vec::new();
-        let mut trailing_comma = false;
-
-        if self.eat_greater() {
-            // TODO: error
-        } else {
-            loop {
-                let star_span = self.current_token_span;
-                let Some(typ) = self.parse_type() else {
-                    self.eat_greater();
-                    break;
-                };
-
-                if !trailing_comma && !generics.is_empty() {
-                    self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, star_span);
-                }
-
-                generics.push(typ);
-                trailing_comma = self.eat_commas();
-
-                if self.eat_greater() {
-                    break;
-                }
-            }
-        }
-        Some(generics)
+        Some(generics.ordered_args)
     }
 
     pub(super) fn parse_path_kind(&mut self) -> PathKind {
