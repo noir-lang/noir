@@ -213,9 +213,9 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
-        // TODO: parse these too
-        // unquote(expr_parser.clone()),
-        // type_path(parse_type()),
+        if let Some(kind) = self.parse_unquote_expr() {
+            return Some(kind);
+        }
 
         if let Some(kind) = self.parse_type_path_expr() {
             return Some(kind);
@@ -397,6 +397,40 @@ impl<'a> Parser<'a> {
         };
 
         Some(ExpressionKind::Comptime(block, self.span_since(start_span)))
+    }
+
+    fn parse_unquote_expr(&mut self) -> Option<ExpressionKind> {
+        let start_span = self.current_token_span;
+
+        if !self.eat(Token::DollarSign) {
+            return None;
+        }
+
+        let path = self.parse_path();
+        if !path.is_empty() {
+            let expr = Expression {
+                kind: ExpressionKind::Variable(path),
+                span: self.span_since(start_span),
+            };
+            return Some(ExpressionKind::Unquote(Box::new(expr)));
+        }
+
+        let span_at_left_paren = self.current_token_span;
+        if self.eat_left_paren() {
+            let expr = self.parse_expression_or_error();
+            if !self.eat_right_paren() {
+                // TODO: error (missing `)` after quoted expression)
+            }
+            let expr = Expression {
+                kind: ExpressionKind::Parenthesized(Box::new(expr)),
+                span: self.span_since(span_at_left_paren),
+            };
+            return Some(ExpressionKind::Unquote(Box::new(expr)));
+        }
+
+        // TODO: error (found $ but nothing to unquote)
+
+        None
     }
 
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
@@ -1387,5 +1421,32 @@ mod tests {
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(!type_path.turbofish.is_empty());
+    }
+
+    #[test]
+    fn parses_unquote_var() {
+        let src = "$foo::bar";
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Unquote(expr) = expr.kind else {
+            panic!("Expected unquote");
+        };
+        let ExpressionKind::Variable(path) = expr.kind else {
+            panic!("Expected unquote");
+        };
+        assert_eq!(path.to_string(), "foo::bar");
+    }
+
+    #[test]
+    fn parses_unquote_expr() {
+        let src = "$(1 + 2)";
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Unquote(expr) = expr.kind else {
+            panic!("Expected unquote");
+        };
+        assert_eq!(expr.kind.to_string(), "((1 + 2))")
     }
 }
