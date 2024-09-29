@@ -69,6 +69,10 @@ impl<'a> Parser<'a> {
             return Some(typ);
         }
 
+        if let Some(typ) = self.parse_fmtstr_type() {
+            return Some(typ);
+        }
+
         if let Some(typ) = self.parse_comptime_type() {
             return Some(typ);
         }
@@ -153,6 +157,39 @@ impl<'a> Parser<'a> {
         }
 
         Some(UnresolvedTypeData::String(expr))
+    }
+
+    fn parse_fmtstr_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_keyword(Keyword::FormatString) {
+            return None;
+        }
+
+        if !self.eat_less() {
+            self.push_error(ParserErrorReason::ExpectedStringTypeLength, self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(0, self.current_token_span);
+            let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
+            return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
+        }
+
+        let expr = match self.parse_type_expression() {
+            Ok(expr) => expr,
+            Err(error) => {
+                self.errors.push(error);
+                UnresolvedTypeExpression::Constant(0, self.current_token_span)
+            }
+        };
+
+        if !self.eat_commas() {
+            // TODO: error (expected comma after fmtstr type expression)
+        }
+
+        let typ = self.parse_type_or_error();
+
+        if !self.eat_greater() {
+            // TODO: error (expected closing `>`)
+        }
+
+        Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)))
     }
 
     fn parse_comptime_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -478,6 +515,19 @@ mod tests {
         assert!(parser.errors.is_empty());
         let UnresolvedTypeData::String(expr) = typ.typ else { panic!("Expected a string type") };
         assert_eq!(expr.to_string(), "10");
+    }
+
+    #[test]
+    fn parses_fmtstr_type() {
+        let src = "fmtstr<10, T>";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::FormatString(expr, typ) = typ.typ else {
+            panic!("Expected a format string type")
+        };
+        assert_eq!(expr.to_string(), "10");
+        assert_eq!(typ.to_string(), "T");
     }
 
     #[test]
