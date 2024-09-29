@@ -505,6 +505,17 @@ mod tests {
     }
 
     #[test]
+    fn parses_assignment_with_parentheses() {
+        let src = "(x)[0] = 1";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Assign(..) = statement.kind else {
+            panic!("Expected assign");
+        };
+    }
+
+    #[test]
     fn parses_op_assignment() {
         let src = "x += 1";
         let mut parser = Parser::for_str(&src);

@@ -746,6 +746,7 @@ impl LValue {
                     None
                 }
             }
+            ExpressionKind::Parenthesized(expr) => LValue::from_expression(*expr),
             ExpressionKind::Interned(id) => Some(LValue::Interned(id, span)),
             _ => None,
         }
