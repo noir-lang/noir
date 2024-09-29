@@ -98,6 +98,8 @@ impl<'a> Parser<'a> {
         }
 
         // TODO: error
+        // We'll try parsing an item on the next token
+        self.next_token();
 
         None
     }
