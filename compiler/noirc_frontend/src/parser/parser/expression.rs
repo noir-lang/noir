@@ -209,6 +209,10 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        if let Some(kind) = self.parse_comptime_expr() {
+            return Some(kind);
+        }
+
         // TODO: parse these too
         // comptime_expr(statement.clone()),
         // unquote(expr_parser.clone()),
@@ -375,6 +379,21 @@ impl<'a> Parser<'a> {
         };
 
         Some(ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative })))
+    }
+
+    fn parse_comptime_expr(&mut self) -> Option<ExpressionKind> {
+        let start_span = self.current_token_span;
+
+        if !self.eat_keyword(Keyword::Comptime) {
+            return None;
+        }
+
+        let Some(block) = self.parse_block_expression() else {
+            // TODO: error (expected `{` after comptime)
+            return None;
+        };
+
+        Some(ExpressionKind::Comptime(block, self.span_since(start_span)))
     }
 
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
@@ -1291,5 +1310,17 @@ mod tests {
         assert_eq!(as_trait_path.trait_path.to_string(), "foo::Bar");
         assert!(as_trait_path.trait_generics.is_empty());
         assert_eq!(as_trait_path.impl_item.to_string(), "baz");
+    }
+
+    #[test]
+    fn parses_comptime_expression() {
+        let src = "comptime { 1 }";
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
+        let ExpressionKind::Comptime(block, _) = expr.kind else {
+            panic!("Expected comptime block");
+        };
+        assert_eq!(block.statements.len(), 1);
     }
 }
