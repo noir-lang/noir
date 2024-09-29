@@ -57,6 +57,12 @@ impl<'a> Parser<'a> {
             return Some(StatementKind::Continue);
         }
 
+        if self.eat_keyword(Keyword::Return) {
+            self.parse_expression();
+            self.push_error(ParserErrorReason::EarlyReturn, self.span_since(start_span));
+            return Some(StatementKind::Error);
+        }
+
         if self.token.token() == &Token::Keyword(Keyword::Let) {
             let let_statement = self.parse_let_statement(attributes)?;
             return Some(StatementKind::Let(let_statement));
@@ -552,5 +558,20 @@ mod tests {
             panic!("Expected block");
         };
         assert_eq!(block.statements.len(), 2);
+    }
+
+    #[test]
+    fn errors_on_return_statement() {
+        // This shouldn't be parsed as a call
+        let src = "
+        return 1
+        ^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(matches!(statement.kind, StatementKind::Error));
+        let reason = get_single_error(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::EarlyReturn));
     }
 }
