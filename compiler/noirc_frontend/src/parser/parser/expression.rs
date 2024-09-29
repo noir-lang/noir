@@ -346,7 +346,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
+    pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::If) {
             return None;
         }

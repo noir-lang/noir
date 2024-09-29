@@ -74,6 +74,20 @@ impl<'a> Parser<'a> {
             return Some(StatementKind::For(for_loop));
         }
 
+        if let Some(kind) = self.parse_if_expr() {
+            return Some(StatementKind::Expression(Expression {
+                kind,
+                span: self.span_since(start_span),
+            }));
+        }
+
+        if let Some(block) = self.parse_block_expression() {
+            return Some(StatementKind::Expression(Expression {
+                kind: ExpressionKind::Block(block),
+                span: self.span_since(start_span),
+            }));
+        }
+
         let expression = self.parse_expression()?;
 
         if self.eat_assign() {
@@ -506,5 +520,37 @@ mod tests {
             panic!("Expected assign");
         };
         assert_eq!(assign.to_string(), "x = (x >> 1)");
+    }
+
+    #[test]
+    fn parses_if_statement_followed_by_tuple() {
+        // This shouldn't be parsed as a call
+        let src = "{ if 1 { 2 } (3, 4) }";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Expression(expr) = statement.kind else {
+            panic!("Expected expr");
+        };
+        let ExpressionKind::Block(block) = expr.kind else {
+            panic!("Expected block");
+        };
+        assert_eq!(block.statements.len(), 2);
+    }
+
+    #[test]
+    fn parses_block_followed_by_tuple() {
+        // This shouldn't be parsed as a call
+        let src = "{ { 2 } (3, 4) }";
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
+        let StatementKind::Expression(expr) = statement.kind else {
+            panic!("Expected expr");
+        };
+        let ExpressionKind::Block(block) = expr.kind else {
+            panic!("Expected block");
+        };
+        assert_eq!(block.statements.len(), 2);
     }
 }
