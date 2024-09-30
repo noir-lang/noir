@@ -1743,14 +1743,8 @@ impl NodeInterner {
             .into_iter()
             .map(|typevar| {
                 let typevar_kind = typevar.kind();
-                (
-                    typevar.id(),
-                    (
-                        typevar,
-                        typevar_kind.clone(),
-                        self.next_type_variable_with_kind(typevar_kind),
-                    ),
-                )
+                let substitution = (typevar, typevar_kind.clone(), self.next_type_variable_with_kind(typevar_kind));
+                (typevar.id(), substitution)
             })
             .collect();
 
