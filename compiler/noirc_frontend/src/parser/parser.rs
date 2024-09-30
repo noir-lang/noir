@@ -81,7 +81,7 @@ impl<'a> TokenStream<'a> {
 }
 
 pub struct Parser<'a> {
-    errors: Vec<ParserError>,
+    pub(crate) errors: Vec<ParserError>,
     tokens: TokenStream<'a>,
 
     // We always have one look-ahead token for these cases:
