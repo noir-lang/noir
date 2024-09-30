@@ -71,8 +71,6 @@ pub enum DefCollectorErrorKind {
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
-    #[error("macro error : {0:?}")]
-    MacroError(MacroError),
     #[error("The only supported types of numeric generics are integers, fields, and booleans")]
     UnsupportedNumericGenericType { ident: Ident, typ: UnresolvedTypeData },
     #[error("impl has stricter requirements than trait")]
@@ -84,14 +82,6 @@ pub enum DefCollectorErrorKind {
         trait_method_name: String,
         trait_method_span: Span,
     },
-}
-
-/// An error struct that macro processors can return.
-#[derive(Debug, Clone)]
-pub struct MacroError {
-    pub primary_message: String,
-    pub secondary_message: Option<String>,
-    pub span: Option<Span>,
 }
 
 impl DefCollectorErrorKind {
@@ -276,9 +266,6 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 "Either the type or the trait must be from the same crate as the trait implementation".into(),
                 *span,
             ),
-            DefCollectorErrorKind::MacroError(macro_error) => {
-                Diagnostic::simple_error(macro_error.primary_message.clone(), macro_error.secondary_message.clone().unwrap_or_default(), macro_error.span.unwrap_or_default())
-            },
             DefCollectorErrorKind::UnsupportedNumericGenericType { ident, typ } => {
                 let name = &ident.0.contents;
 
