@@ -456,7 +456,7 @@ mod tests {
             panic!("Expected type impl");
         };
         assert_eq!(type_impl.object_type.to_string(), "Foo");
-        assert_eq!(type_impl.methods.len(), 1)
+        assert_eq!(type_impl.methods.len(), 1);
     }
 
     #[test]

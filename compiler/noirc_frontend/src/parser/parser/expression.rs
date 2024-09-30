@@ -1030,7 +1030,7 @@ mod tests {
     #[test]
     fn parses_variable_path_with_turbofish() {
         let src = "foo::<9>";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert_eq!(expr.span.end() as usize, src.len());
@@ -1477,7 +1477,7 @@ mod tests {
     #[test]
     fn parses_comptime_expression() {
         let src = "comptime { 1 }";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
@@ -1490,7 +1490,7 @@ mod tests {
     #[test]
     fn parses_type_path() {
         let src = "Field::foo";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
@@ -1505,7 +1505,7 @@ mod tests {
     #[test]
     fn parses_type_path_with_generics() {
         let src = "Field::foo::<T>";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
@@ -1520,7 +1520,7 @@ mod tests {
     #[test]
     fn parses_unquote_var() {
         let src = "$foo::bar";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
@@ -1536,13 +1536,13 @@ mod tests {
     #[test]
     fn parses_unquote_expr() {
         let src = "$(1 + 2)";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert!(parser.errors.is_empty());
         let ExpressionKind::Unquote(expr) = expr.kind else {
             panic!("Expected unquote");
         };
-        assert_eq!(expr.kind.to_string(), "((1 + 2))")
+        assert_eq!(expr.kind.to_string(), "((1 + 2))");
     }
 }

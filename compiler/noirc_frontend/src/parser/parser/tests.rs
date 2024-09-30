@@ -20,11 +20,8 @@ pub(super) fn get_source_with_error_span(src: &str) -> (String, Span) {
     (src, span)
 }
 
-pub(super) fn get_single_error<'a>(
-    errors: &[ParserError],
-    expected_span: Span,
-) -> &ParserErrorReason {
+pub(super) fn get_single_error(errors: &[ParserError], expected_span: Span) -> &ParserErrorReason {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].span(), expected_span);
-    &errors[0].reason().unwrap()
+    errors[0].reason().unwrap()
 }

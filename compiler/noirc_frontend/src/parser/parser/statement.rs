@@ -460,7 +460,7 @@ mod tests {
     #[test]
     fn parses_comptime_block() {
         let src = "comptime { 1 }";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Comptime(statement) = statement.kind else {
@@ -478,7 +478,7 @@ mod tests {
     #[test]
     fn parses_comptime_let() {
         let src = "comptime let x = 1;";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Comptime(statement) = statement.kind else {
@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn parses_for_array() {
         let src = "for i in x { }";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::For(for_loop) = statement.kind else {
@@ -505,7 +505,7 @@ mod tests {
     #[test]
     fn parses_for_range() {
         let src = "for i in 0..10 { }";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::For(for_loop) = statement.kind else {
@@ -518,7 +518,7 @@ mod tests {
     #[test]
     fn parses_comptime_for() {
         let src = "comptime for i in x { }";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Comptime(statement) = statement.kind else {
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn parses_assignment() {
         let src = "x = 1";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Assign(assign) = statement.kind else {
@@ -550,7 +550,7 @@ mod tests {
     #[test]
     fn parses_assignment_with_parentheses() {
         let src = "(x)[0] = 1";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Assign(..) = statement.kind else {
@@ -561,7 +561,7 @@ mod tests {
     #[test]
     fn parses_op_assignment() {
         let src = "x += 1";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Assign(assign) = statement.kind else {
@@ -573,7 +573,7 @@ mod tests {
     #[test]
     fn parses_op_assignment_with_shift_right() {
         let src = "x >>= 1";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Assign(assign) = statement.kind else {
@@ -586,7 +586,7 @@ mod tests {
     fn parses_if_statement_followed_by_tuple() {
         // This shouldn't be parsed as a call
         let src = "{ if 1 { 2 } (3, 4) }";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Expression(expr) = statement.kind else {
@@ -602,7 +602,7 @@ mod tests {
     fn parses_block_followed_by_tuple() {
         // This shouldn't be parsed as a call
         let src = "{ { 2 } (3, 4) }";
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         assert!(parser.errors.is_empty());
         let StatementKind::Expression(expr) = statement.kind else {

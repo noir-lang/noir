@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        )
+        );
     }
 
     #[test]

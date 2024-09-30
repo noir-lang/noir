@@ -532,7 +532,7 @@ mod tests {
             let typ = parser.parse_type_or_error();
             assert!(parser.errors.is_empty());
             let UnresolvedTypeData::Quoted(parsed_qouted_type) = typ.typ else {
-                panic!("Expected a quoted type for {}", quoted_type.to_string())
+                panic!("Expected a quoted type for {}", quoted_type)
             };
             assert_eq!(parsed_qouted_type, quoted_type);
         }
