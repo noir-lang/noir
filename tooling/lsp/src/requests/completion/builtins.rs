@@ -87,7 +87,7 @@ impl<'a> NodeFinder<'a> {
 
     pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
         match target {
-            AttributeTarget::Module => (),
+            AttributeTarget::Module | AttributeTarget::Trait => (),
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
             }
@@ -116,6 +116,15 @@ impl<'a> NodeFinder<'a> {
                     ));
                 }
             }
+            AttributeTarget::Let => {
+                if name_matches("allow", prefix) || name_matches("unused_variables", prefix) {
+                    self.completion_items.push(simple_completion_item(
+                        "allow(unused_variables)",
+                        CompletionItemKind::METHOD,
+                        None,
+                    ));
+                }
+            }
         }
     }
 }
@@ -128,6 +137,7 @@ pub(super) fn builtin_integer_types() -> [&'static str; 8] {
 pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
     match keyword {
         Keyword::Bool => Some("bool"),
+        Keyword::CtString => Some("CtString"),
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
@@ -212,6 +222,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Continue
         | Keyword::Contract
         | Keyword::Crate
+        | Keyword::CtString
         | Keyword::Dep
         | Keyword::Else
         | Keyword::Expr

@@ -25,6 +25,7 @@
         "bindgen",
         "bitand",
         "bitmask",
+        "bitsize",
         "blackbox",
         "boilerplate",
         "boilerplates",
@@ -55,6 +56,7 @@
         "cranelift",
         "critesjosh",
         "csat",
+        "ctstring",
         "curvegroup",
         "databus",
         "debouncer",
@@ -211,6 +213,7 @@
         "udiv",
         "umap",
         "underconstrained",
+        "underflowing",
         "uninstantiated",
         "unnormalized",
         "unoptimized",
@@ -224,8 +227,7 @@
         "wasmer",
         "Weierstraß",
         "zkhash",
-        "zshell",
-        "Linea"
+        "zshell"
     ],
     "ignorePaths": [
         "./**/node_modules/**",

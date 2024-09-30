@@ -38,9 +38,18 @@ impl<'context> Elaborator<'context> {
         })
     }
 
-    pub(super) fn module_id(&self) -> ModuleId {
+    pub fn module_id(&self) -> ModuleId {
         assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
         ModuleId { krate: self.crate_id, local_id: self.local_module }
+    }
+
+    pub fn replace_module(&mut self, new_module: ModuleId) -> ModuleId {
+        assert_ne!(new_module.local_id, LocalModuleId::dummy_id(), "local_module is unset");
+        let current_module = self.module_id();
+
+        self.crate_id = new_module.krate;
+        self.local_module = new_module.local_id;
+        current_module
     }
 
     pub(super) fn resolve_path_or_error(

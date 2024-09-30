@@ -1,16 +1,16 @@
 // Tests a performance regression found in aztec-packages with brillig cow optimization
 
-global MAX_NOTE_HASHES_PER_TX: u64 = 64;
-global MAX_NULLIFIERS_PER_TX: u64 = 64;
-global MAX_L2_TO_L1_MSGS_PER_TX: u64 = 2;
-global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 16;
-global MAX_NEW_CONTRACTS_PER_TX: u64 = 1;
-global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
-global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
-global NUM_FIELDS_PER_SHA256 = 2;
+global MAX_NOTE_HASHES_PER_TX: u32 = 64;
+global MAX_NULLIFIERS_PER_TX: u32 = 64;
+global MAX_L2_TO_L1_MSGS_PER_TX: u32 = 2;
+global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u32 = 16;
+global MAX_NEW_CONTRACTS_PER_TX: u32 = 1;
+global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u32 = 1;
+global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u32 = 1;
+global NUM_FIELDS_PER_SHA256: u32 = 2;
 global TX_EFFECT_HASH_INPUT_SIZE = 169;
-global TX_EFFECT_HASH_LOG_FIELDS = 4;
-global TX_EFFECT_HASH_FULL_FIELDS = 165;
+global TX_EFFECT_HASH_LOG_FIELDS: u32 = 4;
+global TX_EFFECT_HASH_FULL_FIELDS: u32 = 165;
 
 struct PublicDataUpdateRequest {
     leaf_slot : Field,

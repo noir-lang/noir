@@ -3,7 +3,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
     AcirField,
 };
-use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
+use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600};
 
 use self::{
     aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
@@ -42,11 +42,11 @@ fn first_missing_assignment<F>(
     inputs: &[FunctionInput<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if let ConstantOrWitnessEnum::Witness(witness) = input.input {
-            if witness_assignments.contains_key(&witness) {
+        if let ConstantOrWitnessEnum::Witness(ref witness) = input.input_ref() {
+            if witness_assignments.contains_key(witness) {
                 None
             } else {
-                Some(witness)
+                Some(*witness)
             }
         } else {
             None
@@ -84,9 +84,6 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),
-        BlackBoxFuncCall::SHA256 { inputs, outputs } => {
-            solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, sha256)
-        }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
         }
@@ -108,7 +105,7 @@ pub(crate) fn solve<F: AcirField>(
             for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
                 let num_bits = input.num_bits() as usize;
                 assert_eq!(num_bits, 64);
-                let witness_assignment = input_to_value(initial_witness, *input)?;
+                let witness_assignment = input_to_value(initial_witness, *input, false)?;
                 let lane = witness_assignment.try_to_u64();
                 *it = lane.unwrap();
             }

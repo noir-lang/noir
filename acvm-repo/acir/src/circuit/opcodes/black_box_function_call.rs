@@ -1,6 +1,8 @@
 use crate::native_types::Witness;
-use crate::BlackBoxFunc;
+use crate::{AcirField, BlackBoxFunc};
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use thiserror::Error;
 
 // Note: Some functions will not use all of the witness
 // So we need to supply how many bits of the witness is needed
@@ -13,8 +15,8 @@ pub enum ConstantOrWitnessEnum<F> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionInput<F> {
-    pub input: ConstantOrWitnessEnum<F>,
-    pub num_bits: u32,
+    input: ConstantOrWitnessEnum<F>,
+    num_bits: u32,
 }
 
 impl<F> FunctionInput<F> {
@@ -25,6 +27,14 @@ impl<F> FunctionInput<F> {
         }
     }
 
+    pub fn input(self) -> ConstantOrWitnessEnum<F> {
+        self.input
+    }
+
+    pub fn input_ref(&self) -> &ConstantOrWitnessEnum<F> {
+        &self.input
+    }
+
     pub fn num_bits(&self) -> u32 {
         self.num_bits
     }
@@ -32,9 +42,25 @@ impl<F> FunctionInput<F> {
     pub fn witness(witness: Witness, num_bits: u32) -> FunctionInput<F> {
         FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits }
     }
+}
 
-    pub fn constant(value: F, num_bits: u32) -> FunctionInput<F> {
-        FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits }
+#[derive(Clone, PartialEq, Eq, Debug, Error)]
+#[error("FunctionInput value has too many bits: value: {value}, {value_num_bits} >= {max_bits}")]
+pub struct InvalidInputBitSize {
+    pub value: String,
+    pub value_num_bits: u32,
+    pub max_bits: u32,
+}
+
+impl<F: AcirField> FunctionInput<F> {
+    pub fn constant(value: F, max_bits: u32) -> Result<FunctionInput<F>, InvalidInputBitSize> {
+        if value.num_bits() <= max_bits {
+            Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
+        } else {
+            let value_num_bits = value.num_bits();
+            let value = format!("{}", value);
+            Err(InvalidInputBitSize { value, value_num_bits, max_bits })
+        }
     }
 }
 
@@ -67,10 +93,6 @@ pub enum BlackBoxFuncCall<F> {
     },
     RANGE {
         input: FunctionInput<F>,
-    },
-    SHA256 {
-        inputs: Vec<FunctionInput<F>>,
-        outputs: Box<[Witness; 32]>,
     },
     Blake2s {
         inputs: Vec<FunctionInput<F>>,
@@ -225,7 +247,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::AND { .. } => BlackBoxFunc::AND,
             BlackBoxFuncCall::XOR { .. } => BlackBoxFunc::XOR,
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
-            BlackBoxFuncCall::SHA256 { .. } => BlackBoxFunc::SHA256,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
             BlackBoxFuncCall::Blake3 { .. } => BlackBoxFunc::Blake3,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
@@ -256,7 +277,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
             BlackBoxFuncCall::AES128Encrypt { inputs, .. }
-            | BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
@@ -365,8 +385,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
 
     pub fn get_outputs_vec(&self) -> Vec<Witness> {
         match self {
-            BlackBoxFuncCall::SHA256 { outputs, .. }
-            | BlackBoxFuncCall::Blake2s { outputs, .. }
+            BlackBoxFuncCall::Blake2s { outputs, .. }
             | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. } => outputs.to_vec(),
 

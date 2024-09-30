@@ -60,4 +60,5 @@ Returns a slice of the individual tokens that form this token stream.
 
 ```rust
 impl Eq for Quoted
+impl Hash for Quoted
 ```

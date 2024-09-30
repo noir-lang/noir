@@ -1,14 +1,16 @@
-use std::rc::Rc;
+use std::hash::Hash;
+use std::{hash::Hasher, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
 
+use crate::hir::comptime::display::tokens_to_string;
+use crate::lexer::Lexer;
 use crate::{
     ast::{
-        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Signedness, StatementKind,
-        UnresolvedTypeData,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
+        StatementKind, UnresolvedTypeData,
     },
-    elaborator::Elaborator,
     hir::{
         comptime::{
             errors::IResult,
@@ -25,7 +27,7 @@ use crate::{
     macros_api::{NodeInterner, StructId},
     node_interner::{FuncId, TraitId, TraitImplId},
     parser::NoirParser,
-    token::{Token, Tokens},
+    token::{SecondaryAttribute, Token, Tokens},
     QuotedType, Type,
 };
 
@@ -125,6 +127,13 @@ pub(crate) fn get_str(
     }
 }
 
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+    match value {
+        Value::CtString(string) => Ok(string),
+        value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
+    }
+}
+
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
     (value, location): (Value, Location),
@@ -190,6 +199,9 @@ pub(crate) fn get_expr(
             }
             ExprValue::LValue(LValue::Interned(id, _)) => {
                 Ok(ExprValue::LValue(interner.get_lvalue(id, location.span).clone()))
+            }
+            ExprValue::Pattern(Pattern::Interned(id, _)) => {
+                Ok(ExprValue::Pattern(interner.get_pattern(id).clone()))
             }
             _ => Ok(expr),
         },
@@ -382,25 +394,38 @@ pub(super) fn check_function_not_yet_resolved(
     }
 }
 
+pub(super) fn lex(input: &str) -> Vec<Token> {
+    let (tokens, _) = Lexer::lex(input);
+    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
+    if let Some(Token::EOF) = tokens.last() {
+        tokens.pop();
+    }
+    tokens
+}
+
 pub(super) fn parse<T>(
+    interner: &NodeInterner,
     (value, location): (Value, Location),
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
+    let parser = parser.then_ignore(chumsky::primitive::end());
     let tokens = get_quoted((value, location))?;
     let quoted = add_token_spans(tokens.clone(), location.span);
-    parse_tokens(tokens, quoted, location, parser, rule)
+    parse_tokens(tokens, quoted, interner, location, parser, rule)
 }
 
 pub(super) fn parse_tokens<T>(
     tokens: Rc<Vec<Token>>,
     quoted: Tokens,
+    interner: &NodeInterner,
     location: Location,
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
     parser.parse(quoted).map_err(|mut errors| {
         let error = errors.swap_remove(0);
+        let tokens = tokens_to_string(tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })
 }
@@ -446,25 +471,47 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     Value::Slice(statements, typ)
 }
 
-pub(super) fn has_named_attribute<'a>(
-    name: &'a str,
-    attributes: impl Iterator<Item = &'a String>,
-    location: Location,
-) -> bool {
+pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
     for attribute in attributes {
-        let parse_result = Elaborator::parse_attribute(attribute, location);
-        let Ok(Some((function, _arguments))) = parse_result else {
-            continue;
-        };
-
-        let ExpressionKind::Variable(path) = function.kind else {
-            continue;
-        };
-
-        if path.last_name() == name {
-            return true;
+        if let Some(attribute_name) = attribute.name() {
+            if name == attribute_name {
+                return true;
+            }
         }
     }
 
     false
+}
+
+pub(super) fn quote_ident(ident: &Ident) -> Value {
+    Value::Quoted(ident_to_tokens(ident))
+}
+
+pub(super) fn ident_to_tokens(ident: &Ident) -> Rc<Vec<Token>> {
+    Rc::new(vec![Token::Ident(ident.0.contents.clone())])
+}
+
+pub(super) fn hash_item<T: Hash>(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    get_item: impl FnOnce((Value, Location)) -> IResult<T>,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let item = get_item(argument)?;
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    item.hash(&mut hasher);
+    let hash = hasher.finish();
+    Ok(Value::Field((hash as u128).into()))
+}
+
+pub(super) fn eq_item<T: Eq>(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    mut get_item: impl FnMut((Value, Location)) -> IResult<T>,
+) -> IResult<Value> {
+    let (self_arg, other_arg) = check_two_arguments(arguments, location)?;
+    let self_arg = get_item(self_arg)?;
+    let other_arg = get_item(other_arg)?;
+    Ok(Value::Bool(self_arg == other_arg))
 }

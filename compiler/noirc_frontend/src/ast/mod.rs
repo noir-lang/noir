@@ -4,6 +4,7 @@
 //!
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
 //! where it is converted into the Hir (defined in the hir_def module).
+mod docs;
 mod expression;
 mod function;
 mod statement;
@@ -18,6 +19,7 @@ pub use visitor::Visitor;
 pub use expression::*;
 pub use function::*;
 
+pub use docs::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
@@ -342,6 +344,19 @@ impl UnresolvedType {
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
     }
+
+    pub fn from_path(mut path: Path) -> Self {
+        let span = path.span;
+        let last_segment = path.segments.last_mut().unwrap();
+        let generics = last_segment.generics.take();
+        let generic_type_args = if let Some(generics) = generics {
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new() }
+        } else {
+            GenericTypeArgs::default()
+        };
+        let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
+        UnresolvedType { typ, span }
+    }
 }
 
 impl UnresolvedTypeData {
@@ -445,6 +460,7 @@ impl UnresolvedTypeExpression {
             ExpressionKind::AsTraitPath(path) => {
                 Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
             }
+            ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
         }
     }
