@@ -2484,10 +2484,12 @@ fn module_structs(
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
     let struct_ids = module_data
-        .type_definitions()
+        .definitions()
+        .definitions()
+        .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::TypeId(id) = module_def_id {
-                Some(Value::StructDefinition(id))
+                Some(Value::StructDefinition(*id))
             } else {
                 None
             }

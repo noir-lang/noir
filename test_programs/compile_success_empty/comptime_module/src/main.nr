@@ -6,6 +6,8 @@ mod foo {
     pub fn z() {}
 
     pub struct Struct1 {}
+    pub struct Struct2 {}
+    pub struct Struct3 {}
 }
 
 contract bar {}
@@ -85,7 +87,11 @@ fn main() {
         assert_eq(bar.functions().len(), 0);
 
         // Check Module::structs
-        assert_eq(foo.structs().len(), 1);
+        let foo_structs = foo.structs();
+        assert_eq(foo_structs.len(), 3);
+        assert_eq(foo_structs[0].name(), quote { Struct1 });
+        assert_eq(foo_structs[1].name(), quote { Struct2 });
+        assert_eq(foo_structs[2].name(), quote { Struct3 });
         assert_eq(bar.structs().len(), 0);
 
         // Check Module::name
