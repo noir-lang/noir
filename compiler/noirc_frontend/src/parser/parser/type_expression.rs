@@ -310,9 +310,7 @@ impl<'a> Parser<'a> {
 
         let typ_span = typ.span;
         if let UnresolvedTypeData::Expression(type_expr) = typ.typ {
-            if !self.eat_right_paren() {
-                // TODO: error (expected `)`)
-            }
+            self.eat_or_error(Token::RightParen);
             return Some(UnresolvedType {
                 typ: UnresolvedTypeData::Expression(type_expr),
                 span: typ_span,

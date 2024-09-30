@@ -20,7 +20,6 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_greater() {
-            // TODO: error? (for later)
             return generics;
         }
 

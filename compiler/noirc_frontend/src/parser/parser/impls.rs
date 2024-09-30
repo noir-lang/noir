@@ -218,7 +218,7 @@ impl<'a> Parser<'a> {
         let name = match self.eat_ident() {
             Some(name) => name,
             None => {
-                // TODO: error
+                self.expected_identifier();
                 Ident::default()
             }
         };

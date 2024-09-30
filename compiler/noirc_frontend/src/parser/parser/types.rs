@@ -235,7 +235,7 @@ impl<'a> Parser<'a> {
 
         if !self.eat_keyword(Keyword::Fn) {
             if unconstrained {
-                // TODO: error (expected `fn` after `unconstrained`)
+                self.expected_token(Token::Keyword(Keyword::Fn));
                 return Some(UnresolvedTypeData::Function(
                     Vec::new(),
                     Box::new(self.unspecified_type_at_previous_token_end()),
@@ -405,7 +405,7 @@ impl<'a> Parser<'a> {
             let start_span = self.current_token_span;
 
             let Some(typ) = self.parse_type() else {
-                // TODO: error
+                // TODO: error if this is the first type
                 self.eat_right_paren();
                 break;
             };

@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
         let typ = self.parse_type_or_error();
         let span = self.span_since(start_span);
         if !self.eat_semicolons() {
-            // TODO: error? (missing semicolon after type alias declaration)
+            self.expected_token(Token::Semicolon);
         }
 
         NoirTypeAlias { name, generics, typ, span }

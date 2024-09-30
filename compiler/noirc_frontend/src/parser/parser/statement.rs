@@ -113,9 +113,7 @@ impl<'a> Parser<'a> {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
                     let lvalue = LValue::Interned(lvalue, self.span_since(start_span));
-                    if !self.eat_assign() {
-                        // TODO: error
-                    }
+                    self.eat_or_error(Token::Assign);
                     let expression = self.parse_expression_or_error();
                     return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
                 }
