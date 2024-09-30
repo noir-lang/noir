@@ -42,13 +42,13 @@ impl<'a> Parser<'a> {
 
         if self.eat_self() {
             if reference && !mutable {
-                // TODO: error
+                // TODO: error (found `&` but expected `&mut`)
             }
 
             Some(PatternOrSelf::SelfPattern(SelfPattern { reference, mutable }))
         } else {
             if reference {
-                // TODO: error
+                // TODO: error? (reference pattern but not `self`)
             }
 
             Some(PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(mutable, start_span)?))
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
         }
 
         if !path.is_ident() {
-            // TODO: error
+            // TODO: error (found something like foo::bar::baz for a pattern)
             let ident = path.segments.pop().unwrap().ident;
             return Some(Pattern::Identifier(ident));
         }

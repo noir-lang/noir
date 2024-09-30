@@ -454,7 +454,7 @@ impl<'a> Parser<'a> {
         let turbofish = if self.eat_double_colon() {
             let generics = self.parse_generic_type_args();
             if generics.is_empty() {
-                // TODO: error
+                // TODO: error? (found `::` but not `::<...>`)
             }
             generics
         } else {

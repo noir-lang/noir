@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
         }
 
         if constraints.is_empty() {
-            // TODO: error
+            // TODO: error? (`where` but no constrains)
         }
 
         constraints

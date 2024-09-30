@@ -117,8 +117,11 @@ impl<'a> Parser<'a> {
         if let Some(int_type) = self.eat_int_type() {
             return Some(match UnresolvedTypeData::from_int_token(int_type) {
                 Ok(typ) => typ,
-                Err(_) => {
-                    // TODO: error
+                Err(err) => {
+                    self.push_error(
+                        ParserErrorReason::InvalidBitSize(err.0),
+                        self.previous_token_span,
+                    );
                     UnresolvedTypeData::Error
                 }
             });

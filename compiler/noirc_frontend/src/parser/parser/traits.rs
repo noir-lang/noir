@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
                 if let Pattern::Identifier(ident) = param.pattern {
                     Some((ident, param.typ))
                 } else {
-                    // TODO: error
+                    // TODO: error (expected a pattern identifier)
                     None
                 }
             })
