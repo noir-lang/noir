@@ -129,9 +129,8 @@ impl<'a> Parser<'a> {
                 BinaryOpKind::Less
             } else if self.eat(Token::LessEqual) {
                 BinaryOpKind::LessEqual
-            } else
-            // Make sure to skip the `>>=` case, as `>>=` is lexed as `> >=`.
-            if self.next_token.token() != &Token::GreaterEqual && self.eat(Token::Greater) {
+            } else if self.next_token.token() != &Token::GreaterEqual && self.eat(Token::Greater) {
+                // Make sure to skip the `>>=` case, as `>>=` is lexed as `> >=`.
                 BinaryOpKind::Greater
             } else if self.eat(Token::GreaterEqual) {
                 BinaryOpKind::GreaterEqual
@@ -159,13 +158,12 @@ impl<'a> Parser<'a> {
             let operator =
                 if self.next_token.token() != &Token::Assign && self.eat(Token::ShiftLeft) {
                     BinaryOpKind::ShiftLeft
-                } else
-                // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
-                // to parse nested generic types. For normal expressions however, it means we have to manually
-                // parse two greater-than tokens as a single right-shift here.
-                if self.token.token() == &Token::Greater
+                } else if self.token.token() == &Token::Greater
                     && self.next_token.token() == &Token::Greater
                 {
+                    // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
+                    // to parse nested generic types. For normal expressions however, it means we have to manually
+                    // parse two greater-than tokens as a single right-shift here.
                     self.next_token();
                     self.next_token();
                     BinaryOpKind::ShiftRight

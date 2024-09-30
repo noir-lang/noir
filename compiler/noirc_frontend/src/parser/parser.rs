@@ -418,13 +418,13 @@ impl<'a> Parser<'a> {
 
     fn eat_keyword_or_error(&mut self, keyword: Keyword) {
         if !self.eat_keyword(keyword) {
-            self.expected_token(Token::Keyword(keyword))
+            self.expected_token(Token::Keyword(keyword));
         }
     }
 
     fn eat_or_error(&mut self, token: Token) {
         if !self.eat(token.clone()) {
-            self.expected_token(token)
+            self.expected_token(token);
         }
     }
 
@@ -454,7 +454,7 @@ impl<'a> Parser<'a> {
             token,
             self.token.token().clone(),
             self.current_token_span,
-        ))
+        ));
     }
 
     fn expected_one_of_tokens(&mut self, tokens: &[Token]) {
@@ -462,7 +462,7 @@ impl<'a> Parser<'a> {
             tokens,
             self.token.token().clone(),
             self.current_token_span,
-        ))
+        ));
     }
 
     fn expected_label(&mut self, label: ParsingRuleLabel) {
@@ -470,7 +470,7 @@ impl<'a> Parser<'a> {
             label,
             self.token.token().clone(),
             self.current_token_span,
-        ))
+        ));
     }
 
     fn expected_token_separating_items(&mut self, token: &str, items: &str, span: Span) {

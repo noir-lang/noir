@@ -136,15 +136,13 @@ impl<'a> Parser<'a> {
                 if self.eat_right_brace() {
                     break;
                 }
+            } else if self.is_eof() || self.eat_right_brace() {
+                break;
             } else {
-                if self.is_eof() || self.eat_right_brace() {
-                    break;
-                } else {
-                    self.expected_label(ParsingRuleLabel::TraitImplItem);
+                self.expected_label(ParsingRuleLabel::TraitImplItem);
 
-                    // Keep going
-                    self.next_token();
-                }
+                // Keep going
+                self.next_token();
             }
         }
 
