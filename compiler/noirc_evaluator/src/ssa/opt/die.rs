@@ -157,11 +157,8 @@ impl Context {
             );
         }
 
-        for inc_rc_value in inc_rcs.keys() {
-            if !borrowed_arrays.contains(inc_rc_value) {
-                self.instructions_to_remove.extend(&inc_rcs[inc_rc_value]);
-            }
-        }
+        let unborrowed_arrays = inc_rcs.keys().filter(|id| !borrowed_arrays.contains(id));
+        self.instructions_to_remove.extend(unborrowed_arrays);
 
         self.instructions_to_remove.extend(rc_pairs_to_remove);
 
