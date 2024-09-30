@@ -819,9 +819,10 @@ mod test {
     fn keep_inc_rc_on_borrowed_array_store() {
         // acir(inline) fn main f0 {
         //     b0():
-        //       inc_rc [u32 0, u32 0]
         //       v2 = allocate
+        //       inc_rc [u32 0, u32 0]
         //       store [u32 0, u32 0] at v2
+        //       inc_rc [u32 0, u32 0]
         //       jmp b1()
         //     b1():
         //       v3 = load v2
@@ -835,9 +836,10 @@ mod test {
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
         let array = builder.array_constant(vector![zero, zero], array_type.clone());
-        builder.increment_array_reference_count(array);
         let v2 = builder.insert_allocate(array_type.clone());
+        builder.increment_array_reference_count(array);
         builder.insert_store(v2, array);
+        builder.increment_array_reference_count(array);
 
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![]);
@@ -852,14 +854,14 @@ mod test {
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
     }
 
@@ -914,6 +916,7 @@ mod test {
         //       inc_rc v0
         //       inc_rc v0
         //       v2 = array_get v0, index u32 0
+        //       inc_rc v0
         //       return v2
         //   }
         let main_id = Id::test_new(0);
@@ -926,14 +929,15 @@ mod test {
         builder.increment_array_reference_count(v0);
 
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let v1 = builder.insert_array_get(v0, zero, Type::field());
-        builder.terminate_with_return(vec![v1]);
+        let v2 = builder.insert_array_get(v0, zero, Type::field());
+        builder.increment_array_reference_count(v0);
+        builder.terminate_with_return(vec![v2]);
 
         let ssa = builder.finish();
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
 
         // Expected output:
         //
