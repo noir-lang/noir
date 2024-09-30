@@ -261,7 +261,11 @@ impl<'a> Parser<'a> {
             })));
         }
 
-        // TODO: error (found comptime but not a valid statement)
+        self.expected_one_of_tokens(&[
+            Token::LeftBrace,
+            Token::Keyword(Keyword::Let),
+            Token::Keyword(Keyword::For),
+        ]);
 
         None
     }
@@ -318,7 +322,7 @@ impl<'a> Parser<'a> {
             ConstrainKind::Assert | ConstrainKind::AssertEq => {
                 let arguments = self.parse_arguments();
                 if arguments.is_none() {
-                    // TODO: error (expected arguments to assert/assert_eq)
+                    self.expected_token(Token::LeftParen);
                 }
                 let arguments = arguments.unwrap_or_default();
 

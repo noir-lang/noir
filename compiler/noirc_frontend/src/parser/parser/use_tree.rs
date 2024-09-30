@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
                 if let Some(alias) = self.eat_ident() {
                     UseTree { prefix, kind: UseTreeKind::Path(ident, Some(alias)) }
                 } else {
-                    // TODO: error
+                    self.expected_identifier();
                     UseTree { prefix, kind: UseTreeKind::Path(ident, None) }
                 }
             } else {

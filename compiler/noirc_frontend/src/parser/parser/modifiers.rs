@@ -4,6 +4,7 @@ use crate::{ast::ItemVisibility, token::Keyword};
 
 use super::Parser;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct Modifiers {
     pub(crate) visibility: ItemVisibility,
     pub(crate) visibility_span: Span,
@@ -13,7 +14,7 @@ pub(crate) struct Modifiers {
 }
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_modifiers(&mut self) -> Modifiers {
+    pub(crate) fn parse_modifiers(&mut self, allow_mutable: bool) -> Modifiers {
         let unconstrained = self.parse_modifier(Keyword::Unconstrained);
 
         let start_span = self.current_token_span;
@@ -21,7 +22,7 @@ impl<'a> Parser<'a> {
         let visibility_span = self.span_since(start_span);
 
         let comptime = self.parse_modifier(Keyword::Comptime);
-        let mutable = self.parse_modifier(Keyword::Mut);
+        let mutable = if allow_mutable { self.parse_modifier(Keyword::Mut) } else { None };
 
         Modifiers { visibility, visibility_span, unconstrained, comptime, mutable }
     }

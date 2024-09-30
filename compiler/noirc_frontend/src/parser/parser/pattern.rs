@@ -41,10 +41,16 @@ impl<'a> Parser<'a> {
         let mutable = self.eat_keyword(Keyword::Mut);
 
         if self.eat_self() {
-            // TODO: error if reference but not mutable
+            if reference && !mutable {
+                // TODO: error
+            }
+
             Some(PatternOrSelf::SelfPattern(SelfPattern { reference, mutable }))
         } else {
-            // TODO: error if reference is true
+            if reference {
+                // TODO: error
+            }
+
             Some(PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(mutable, start_span)?))
         }
     }

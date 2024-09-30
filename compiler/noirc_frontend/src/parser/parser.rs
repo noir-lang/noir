@@ -1,8 +1,9 @@
 use acvm::FieldElement;
+use modifiers::Modifiers;
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, LValue},
+    ast::{Ident, ItemVisibility, LValue},
     lexer::{Lexer, SpannedTokenResult},
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
@@ -149,7 +150,7 @@ impl<'a> Parser<'a> {
         if let Some(lvalue) = LValue::from_expression(expr) {
             lvalue
         } else {
-            // TODO: error (invalid l-value)
+            self.expected_label(ParsingRuleLabel::LValue);
             LValue::Ident(Ident::default())
         }
     }
@@ -456,6 +457,14 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    fn expected_one_of_tokens(&mut self, tokens: &[Token]) {
+        self.errors.push(ParserError::expected_one_of_tokens(
+            tokens,
+            self.token.token().clone(),
+            self.current_token_span,
+        ))
+    }
+
     fn expected_label(&mut self, label: ParsingRuleLabel) {
         self.errors.push(ParserError::expected_label(
             label,
@@ -472,6 +481,59 @@ impl<'a> Parser<'a> {
             },
             span,
         );
+    }
+
+    fn modifiers_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
+        self.visibility_not_followed_by_an_item(modifiers);
+        self.unconstrained_not_followed_by_an_item(modifiers);
+        self.comptime_not_followed_by_an_item(modifiers);
+    }
+
+    fn visibility_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
+        if modifiers.visibility != ItemVisibility::Private {
+            self.push_error(
+                ParserErrorReason::VisibilityNotFollowedByAnItem {
+                    visibility: modifiers.visibility,
+                },
+                modifiers.visibility_span,
+            );
+        }
+    }
+
+    fn unconstrained_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
+        if let Some(span) = modifiers.unconstrained {
+            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, span);
+        }
+    }
+
+    fn comptime_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
+        if let Some(span) = modifiers.comptime {
+            self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, span);
+        }
+    }
+
+    fn comptime_mutable_and_unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
+        self.mutable_not_applicable(modifiers);
+        self.comptime_not_applicable(modifiers);
+        self.unconstrained_not_applicable(modifiers);
+    }
+
+    fn mutable_not_applicable(&mut self, modifiers: Modifiers) {
+        if let Some(span) = modifiers.mutable {
+            self.push_error(ParserErrorReason::MutableNotApplicable, span);
+        }
+    }
+
+    fn comptime_not_applicable(&mut self, modifiers: Modifiers) {
+        if let Some(span) = modifiers.comptime {
+            self.push_error(ParserErrorReason::ComptimeNotApplicable, span);
+        }
+    }
+
+    fn unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
+        if let Some(span) = modifiers.unconstrained {
+            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, span);
+        }
     }
 
     fn push_error(&mut self, reason: ParserErrorReason, span: Span) {

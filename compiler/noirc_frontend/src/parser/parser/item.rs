@@ -62,16 +62,20 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
         let attributes = self.parse_attributes();
 
-        let modifiers = self.parse_modifiers();
+        let modifiers = self.parse_modifiers(
+            true, // allow mut
+        );
 
         if self.eat_keyword(Keyword::Use) {
-            // TODO: error if there's comptime, mutable or unconstrained
+            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+
             let use_tree = self.parse_use_tree();
             return Some(ItemKind::Import(use_tree, modifiers.visibility));
         }
 
         if let Some(is_contract) = self.eat_mod_or_contract() {
-            // TODO: error if there's comptime, mutable or unconstrained
+            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+
             return Some(self.parse_module_or_contract(
                 attributes,
                 is_contract,
@@ -80,7 +84,8 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_keyword(Keyword::Struct) {
-            // TODO: error if there's comptime or mutable or unconstrained
+            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+
             return Some(ItemKind::Struct(self.parse_struct(
                 attributes,
                 modifiers.visibility,
@@ -89,7 +94,8 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_keyword(Keyword::Impl) {
-            // TODO: error if there's comptime or mutable or unconstrained
+            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+
             return Some(match self.parse_impl() {
                 Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
                 Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
@@ -97,7 +103,8 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_keyword(Keyword::Trait) {
-            // TODO: error if there's comptime or mutable or unconstrained
+            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+
             return Some(ItemKind::Trait(self.parse_trait(
                 attributes,
                 modifiers.visibility,
@@ -106,7 +113,8 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_keyword(Keyword::Global) {
-            // TODO: error if there's unconstrained
+            self.unconstrained_not_applicable(modifiers);
+
             return Some(ItemKind::Global(
                 self.parse_global(
                     attributes,
@@ -118,14 +126,16 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_keyword(Keyword::Type) {
-            // TODO: error if there's comptime or mutable or unconstrained
+            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+
             return Some(ItemKind::TypeAlias(
                 self.parse_type_alias(modifiers.visibility, start_span),
             ));
         }
 
         if self.eat_keyword(Keyword::Fn) {
-            // TODO: error if there's mutable
+            self.mutable_not_applicable(modifiers);
+
             return Some(ItemKind::Function(self.parse_function(
                 attributes,
                 modifiers.visibility,

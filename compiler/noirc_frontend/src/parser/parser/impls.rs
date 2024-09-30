@@ -6,7 +6,7 @@ use crate::{
         NoirFunction, NoirTraitImpl, Path, TraitImplItem, TraitImplItemKind, TypeImpl,
         UnresolvedGeneric, UnresolvedType, UnresolvedTypeData,
     },
-    parser::ParserErrorReason,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token},
 };
 
@@ -33,7 +33,12 @@ impl<'a> Parser<'a> {
                     trait_name,
                 ));
             } else {
-                // TODO: error, but we continue parsing the type and assume this is going to be a regular impl
+                self.push_error(
+                    ParserErrorReason::ExpectedTrait { found: object_type.typ.to_string() },
+                    self.current_token_span,
+                );
+
+                // Error, but we continue parsing the type and assume this is going to be a regular type impl
                 self.parse_type();
             };
         }
@@ -65,7 +70,9 @@ impl<'a> Parser<'a> {
             let doc_comments = self.parse_outer_doc_comments();
             let start_span = self.current_token_span;
             let attributes = self.parse_attributes();
-            let modifiers = self.parse_modifiers();
+            let modifiers = self.parse_modifiers(
+                false, // allow mutable
+            );
 
             if self.eat_keyword(Keyword::Fn) {
                 let method = self.parse_function(
@@ -79,10 +86,10 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            // TODO: error if visibility, unconstrained or comptime were found
+            self.modifiers_not_followed_by_an_item(modifiers);
 
             if self.token.token() != &Token::RightBrace {
-                // TODO: error
+                self.expected_token(Token::Keyword(Keyword::Fn));
                 self.next_token();
             }
         }
@@ -131,10 +138,11 @@ impl<'a> Parser<'a> {
                     break;
                 }
             } else {
-                // TODO: error
                 if self.is_eof() || self.eat_right_brace() {
                     break;
                 } else {
+                    self.expected_label(ParsingRuleLabel::TraitImplItem);
+
                     // Keep going
                     self.next_token();
                 }
@@ -161,7 +169,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_trait_impl_function(&mut self) -> Option<TraitImplItemKind> {
-        let modifiers = self.parse_modifiers();
+        let modifiers = self.parse_modifiers(
+            false, // allow mut
+        );
         if modifiers.visibility != ItemVisibility::Private {
             self.push_error(
                 ParserErrorReason::TraitImplVisibilityIgnored,
@@ -171,7 +181,7 @@ impl<'a> Parser<'a> {
         let attributes = self.parse_attributes();
 
         if !self.eat_keyword(Keyword::Fn) {
-            // TODO: error if unconstrained, visibility or comptime
+            self.modifiers_not_followed_by_an_item(modifiers);
             return None;
         }
 

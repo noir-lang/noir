@@ -3,7 +3,7 @@ use crate::{
         Expression, ExpressionKind, GenericTypeArgs, Literal, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression,
     },
-    parser::{ParserError, ParserErrorReason},
+    parser::{labels::ParsingRuleLabel, ParserError, ParserErrorReason},
     token::Token,
     BinaryTypeOperator,
 };
@@ -304,11 +304,11 @@ impl<'a> Parser<'a> {
         }
 
         let Some(typ) = self.parse_type_or_type_expression() else {
-            // TODO: error
+            self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
             return None;
         };
 
-        let typ_span = typ.span;
+        let mut typ_span = typ.span;
         if let UnresolvedTypeData::Expression(type_expr) = typ.typ {
             self.eat_or_error(Token::RightParen);
             return Some(UnresolvedType {
@@ -327,13 +327,14 @@ impl<'a> Parser<'a> {
         let mut types = vec![typ];
         loop {
             if !self.eat_commas() {
-                // TODO: error (missing comma separating tuple types)
+                self.expected_token_separating_items(",", "tuple items", typ_span);
             }
 
             let Some(typ) = self.parse_type() else {
                 self.eat_or_error(Token::RightParen);
                 break;
             };
+            typ_span = typ.span;
             types.push(typ);
 
             if self.eat_right_paren() {

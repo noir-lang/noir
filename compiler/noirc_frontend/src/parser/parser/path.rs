@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType},
-    parser::ParserErrorReason,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
 };
 
@@ -14,7 +14,8 @@ impl<'a> Parser<'a> {
         if let Some(path) = self.parse_path() {
             path
         } else {
-            // TODO: error (expected path)
+            self.expected_label(ParsingRuleLabel::Path);
+
             Path {
                 segments: Vec::new(),
                 kind: PathKind::Plain,
@@ -34,7 +35,8 @@ impl<'a> Parser<'a> {
         if let Some(path) = self.parse_path_no_turbofish() {
             path
         } else {
-            // TODO: error (expected path)
+            self.expected_label(ParsingRuleLabel::Path);
+
             Path {
                 segments: Vec::new(),
                 kind: PathKind::Plain,

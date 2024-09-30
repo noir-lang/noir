@@ -7,7 +7,7 @@ use crate::{
         Expression, ExpressionKind, GenericTypeArgs, Ident, IfExpression, IndexExpression, Literal,
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
-    parser::ParserErrorReason,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
 };
 
@@ -629,7 +629,7 @@ impl<'a> Parser<'a> {
             }
 
             let Some((statement, (token, span))) = self.parse_statement() else {
-                // TODO: error?
+                self.expected_label(ParsingRuleLabel::Statement);
                 self.eat_right_brace();
                 break;
             };

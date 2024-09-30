@@ -1,6 +1,6 @@
 use crate::{
     ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    parser::ParserErrorReason,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
     QuotedType,
 };
@@ -306,7 +306,7 @@ impl<'a> Parser<'a> {
         }
 
         let Some(path) = self.parse_path_no_turbofish() else {
-            // TODO: error (expected path after impl)
+            self.expected_label(ParsingRuleLabel::Path);
             return None;
         };
 
@@ -405,7 +405,10 @@ impl<'a> Parser<'a> {
             let start_span = self.current_token_span;
 
             let Some(typ) = self.parse_type() else {
-                // TODO: error if this is the first type
+                if types.is_empty() {
+                    self.expected_label(ParsingRuleLabel::Type);
+                }
+
                 self.eat_right_paren();
                 break;
             };

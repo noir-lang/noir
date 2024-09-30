@@ -1,4 +1,4 @@
-use crate::ast::{Expression, IntegerBitSize};
+use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
@@ -21,6 +21,20 @@ pub enum ParserErrorReason {
     ExpectedTokenSeparatingTwoItems { token: String, items: String },
     #[error("Invalid left-hand side of assignment")]
     InvalidLeftHandSideOfAssignment,
+    #[error("Expected trait, found {found}")]
+    ExpectedTrait { found: String },
+    #[error("Visibility `{visibility}` is not followed by an item")]
+    VisibilityNotFollowedByAnItem { visibility: ItemVisibility },
+    #[error("`unconstrained` is not followed by an item")]
+    UnconstrainedNotFollowedByAnItem,
+    #[error("`comptime` is not followed by an item")]
+    ComptimeNotFollowedByAnItem,
+    #[error("`mut` cannot be applied to this item")]
+    MutableNotApplicable,
+    #[error("`comptime` cannot be applied to this item")]
+    ComptimeNotApplicable,
+    #[error("`unconstrained` cannot be applied to this item")]
+    UnconstrainedNotApplicable,
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
@@ -154,6 +168,14 @@ impl ParserError {
     pub fn expected_token(token: Token, found: Token, span: Span) -> ParserError {
         let mut error = ParserError::empty(found, span);
         error.expected_tokens.insert(token);
+        error
+    }
+
+    pub fn expected_one_of_tokens(tokens: &[Token], found: Token, span: Span) -> ParserError {
+        let mut error = ParserError::empty(found, span);
+        for token in tokens {
+            error.expected_tokens.insert(token.clone());
+        }
         error
     }
 

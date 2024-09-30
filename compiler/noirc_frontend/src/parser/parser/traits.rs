@@ -5,6 +5,7 @@ use crate::{
         Documented, Ident, ItemVisibility, NoirTrait, Pattern, TraitItem, UnresolvedType,
         UnresolvedTypeData,
     },
+    parser::labels::ParsingRuleLabel,
     token::{Attribute, Keyword, SecondaryAttribute, Token},
 };
 
@@ -65,7 +66,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.token.token() != &Token::RightBrace {
-                // TODO: error
+                self.expected_label(ParsingRuleLabel::TraitItem);
                 self.next_token();
             }
         }
@@ -136,10 +137,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_trait_function(&mut self) -> Option<TraitItem> {
-        let modifiers = self.parse_modifiers();
+        let modifiers = self.parse_modifiers(
+            false, // allow mut
+        );
 
         if !self.eat_keyword(Keyword::Fn) {
-            // TODO: error if unconstrained, visibility or comptime
+            self.modifiers_not_followed_by_an_item(modifiers);
             return None;
         }
 
