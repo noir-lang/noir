@@ -15,7 +15,7 @@ use noirc_errors::{
 
 pub use noirc_errors::Location;
 
-use noirc_frontend::graph::CrateName;
+use noirc_driver::CrateName;
 use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
 

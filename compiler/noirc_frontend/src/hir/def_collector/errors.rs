@@ -71,8 +71,6 @@ pub enum DefCollectorErrorKind {
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
-    #[error("macro error : {0:?}")]
-    MacroError(MacroError),
     #[error("impl has stricter requirements than trait")]
     ImplIsStricterThanTrait {
         constraint_typ: crate::Type,
@@ -84,14 +82,6 @@ pub enum DefCollectorErrorKind {
     },
     #[error("{0}")]
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
-}
-
-/// An error struct that macro processors can return.
-#[derive(Debug, Clone)]
-pub struct MacroError {
-    pub primary_message: String,
-    pub secondary_message: Option<String>,
-    pub span: Option<Span>,
 }
 
 impl DefCollectorErrorKind {
@@ -289,9 +279,6 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 "Either the type or the trait must be from the same crate as the trait implementation".into(),
                 *span,
             ),
-            DefCollectorErrorKind::MacroError(macro_error) => {
-                Diagnostic::simple_error(macro_error.primary_message.clone(), macro_error.secondary_message.clone().unwrap_or_default(), macro_error.span.unwrap_or_default())
-            },
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_span, trait_method_name, trait_method_span } => {
                 let constraint = format!("{}{}", constraint_name, constraint_generics);
 
