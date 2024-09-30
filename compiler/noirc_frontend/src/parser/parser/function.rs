@@ -185,32 +185,29 @@ impl<'a> Parser<'a> {
                     }
                 }
                 PatternOrSelf::SelfPattern(self_pattern) => {
-                    let span = self.previous_token_span;
-                    let ident = Ident::new("self".to_string(), span);
-                    let path = Path::from_single("Self".to_owned(), span);
+                    let ident_span = self.previous_token_span;
+                    let ident = Ident::new("self".to_string(), ident_span);
+                    let path = Path::from_single("Self".to_owned(), ident_span);
                     let no_args = GenericTypeArgs::default();
-                    let mut self_type_span = span;
                     let mut self_type = if self.eat_colon() {
-                        let typ = self.parse_type_or_error();
-                        self_type_span = typ.span;
-                        typ
+                        self.parse_type_or_error()
                     } else {
-                        UnresolvedTypeData::Named(path, no_args, true).with_span(span)
+                        UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span)
                     };
                     let mut pattern = Pattern::Identifier(ident);
 
                     if self_pattern.reference {
                         self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
-                            .with_span(self_type_span);
+                            .with_span(ident_span);
                     } else if self_pattern.mutable {
-                        pattern = Pattern::Mutable(Box::new(pattern), span, true);
+                        pattern = Pattern::Mutable(Box::new(pattern), ident_span, true);
                     }
 
                     parameters.push(Param {
                         visibility: Visibility::Private,
                         pattern,
                         typ: self_type,
-                        span,
+                        span: self.span_since(ident_span),
                     });
                 }
             }

@@ -10,6 +10,8 @@ impl MyType {
     fn method(mut self) {}
 
     fn method(&mut self) {}
+
+    fn method(self: Self) {}
 }
 
 impl MyType {
