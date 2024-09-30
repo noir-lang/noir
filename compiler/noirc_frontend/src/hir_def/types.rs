@@ -185,15 +185,14 @@ impl Kind {
     pub(crate) fn unifies(&self, other: &Kind) -> bool {
         match (self, other) {
             // Kind::Any unifies with everything
-            (Kind::Any, _)
-            | (_, Kind::Any)
+            (Kind::Any, _) | (_, Kind::Any) => true
 
             // Kind::Normal unifies with Kind::Integer and Kind::IntegerOrField
-            | (Kind::Normal, Kind::Integer | Kind::IntegerOrField)
-            | (Kind::Integer | Kind::IntegerOrField, Kind::Normal)
+            (Kind::Normal, Kind::Integer | Kind::IntegerOrField)
+            | (Kind::Integer | Kind::IntegerOrField, Kind::Normal) => true
 
             // Kind::Integer unifies with Kind::IntegerOrField
-            | (Kind::Integer | Kind::IntegerOrField, Kind::Integer | Kind::IntegerOrField) => true,
+            (Kind::Integer | Kind::IntegerOrField, Kind::Integer | Kind::IntegerOrField) => true,
 
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
