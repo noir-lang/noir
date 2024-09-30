@@ -332,7 +332,10 @@ impl<'a> Parser<'a> {
                 // TODO: error (missing comma separating tuple types)
             }
 
-            let typ = self.parse_type_or_error();
+            let Some(typ) = self.parse_type() else {
+                self.eat_or_error(Token::RightParen);
+                break;
+            };
             types.push(typ);
 
             if self.eat_right_paren() {
@@ -560,6 +563,21 @@ mod tests {
         };
         let UnresolvedTypeData::Bool = types[1].typ else {
             panic!("Expected bool type");
+        };
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_tuple_type_single_element() {
+        let src = "(Field,)";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_type_expression().unwrap();
+        assert!(parser.errors.is_empty());
+        let UnresolvedTypeData::Tuple(types) = typ.typ else {
+            panic!("Expected tuple type");
+        };
+        assert_eq!(types.len(), 1);
+        let UnresolvedTypeData::FieldElement = types[0].typ else {
+            panic!("Expected field type");
         };
     }
 
