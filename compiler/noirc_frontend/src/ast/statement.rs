@@ -294,6 +294,7 @@ pub trait Recoverable {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
+    pub visibility: ItemVisibility,
     pub ident: Ident,
     pub outer_attributes: Vec<SecondaryAttribute>,
 }

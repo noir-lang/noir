@@ -381,6 +381,7 @@ impl<'a> ModCollector<'a> {
             let trait_id = match self.push_child_module(
                 context,
                 &name,
+                ItemVisibility::Public,
                 Location::new(name.span(), self.file_id),
                 Vec::new(),
                 Vec::new(),
@@ -612,6 +613,7 @@ impl<'a> ModCollector<'a> {
             match self.push_child_module(
                 context,
                 &submodule.name,
+                submodule.visibility,
                 Location::new(submodule.name.span(), file_id),
                 submodule.outer_attributes.clone(),
                 submodule.contents.inner_attributes.clone(),
@@ -711,6 +713,7 @@ impl<'a> ModCollector<'a> {
         match self.push_child_module(
             context,
             &mod_decl.ident,
+            mod_decl.visibility,
             Location::new(Span::empty(0), child_file_id),
             mod_decl.outer_attributes.clone(),
             ast.inner_attributes.clone(),
@@ -761,6 +764,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
+        visibility: ItemVisibility,
         mod_location: Location,
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
@@ -772,6 +776,7 @@ impl<'a> ModCollector<'a> {
             &mut self.def_collector.def_map,
             self.module_id,
             mod_name,
+            visibility,
             mod_location,
             outer_attributes,
             inner_attributes,
@@ -806,6 +811,7 @@ fn push_child_module(
     def_map: &mut CrateDefMap,
     parent: LocalModuleId,
     mod_name: &Ident,
+    visibility: ItemVisibility,
     mod_location: Location,
     outer_attributes: Vec<SecondaryAttribute>,
     inner_attributes: Vec<SecondaryAttribute>,
@@ -840,7 +846,7 @@ fn push_child_module(
     // the struct name.
     if add_to_parent_scope {
         if let Err((first_def, second_def)) =
-            modules[parent.0].declare_child_module(mod_name.to_owned(), mod_id)
+            modules[parent.0].declare_child_module(mod_name.to_owned(), visibility, mod_id)
         {
             let err = DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::Module,
@@ -952,6 +958,7 @@ pub fn collect_struct(
         def_map,
         module_id,
         &name,
+        ItemVisibility::Public,
         location,
         Vec::new(),
         Vec::new(),
