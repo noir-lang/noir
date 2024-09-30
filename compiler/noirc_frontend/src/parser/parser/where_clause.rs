@@ -1,7 +1,6 @@
 use crate::{
     ast::{TraitBound, UnresolvedTraitConstraint},
-    parser::ParserErrorReason,
-    token::Keyword,
+    token::{Keyword, Token},
 };
 
 use super::Parser;
@@ -22,16 +21,14 @@ impl<'a> Parser<'a> {
             };
 
             if !trailing_comma && !constraints.is_empty() {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingTraitBounds, start_span);
+                self.expected_token_separating_items(",", "trait bounds", start_span);
             }
 
-            if self.eat_colon() {
-                let trait_bounds = self.parse_trait_bounds();
-                for trait_bound in trait_bounds {
-                    constraints.push(UnresolvedTraitConstraint { typ: typ.clone(), trait_bound });
-                }
-            } else {
-                // TODO: error
+            self.eat_or_error(Token::Colon);
+
+            let trait_bounds = self.parse_trait_bounds();
+            for trait_bound in trait_bounds {
+                constraints.push(UnresolvedTraitConstraint { typ: typ.clone(), trait_bound });
             }
 
             trailing_comma = self.eat_commas();
@@ -56,7 +53,7 @@ impl<'a> Parser<'a> {
             }
 
             if !trailing_plus && !bounds.is_empty() {
-                self.push_error(ParserErrorReason::MissingPlusSeparatingTraitBounds, start_span);
+                self.expected_token_separating_items("+", "trait bounds", start_span);
             }
 
             bounds.push(bound);

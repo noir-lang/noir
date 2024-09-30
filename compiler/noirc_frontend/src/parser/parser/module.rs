@@ -3,7 +3,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{Ident, ModuleDeclaration},
     parser::{ItemKind, ParsedSubModule},
-    token::Attribute,
+    token::{Attribute, Token},
 };
 
 use super::Parser;
@@ -16,25 +16,30 @@ impl<'a> Parser<'a> {
     ) -> ItemKind {
         let outer_attributes = self.validate_secondary_attributes(attributes);
 
-        if let Some(ident) = self.eat_ident() {
-            if self.eat_left_brace() {
-                let contents = self.parse_module();
-                if !self.eat_right_brace() {
-                    // TODO: error
-                }
-                ItemKind::Submodules(ParsedSubModule {
-                    name: ident,
-                    contents,
-                    outer_attributes,
-                    is_contract,
-                })
-            } else {
-                self.eat_semicolons();
-                ItemKind::ModuleDecl(ModuleDeclaration { ident, outer_attributes })
-            }
+        let Some(ident) = self.eat_ident() else {
+            self.expected_identifier();
+            return ItemKind::ModuleDecl(ModuleDeclaration {
+                ident: Ident::default(),
+                outer_attributes,
+            });
+        };
+
+        if self.eat_left_brace() {
+            let contents = self.parse_module(
+                true, // nested
+            );
+            self.eat_or_error(Token::RightBrace);
+            ItemKind::Submodules(ParsedSubModule {
+                name: ident,
+                contents,
+                outer_attributes,
+                is_contract,
+            })
         } else {
-            // TODO: error
-            ItemKind::ModuleDecl(ModuleDeclaration { ident: Ident::default(), outer_attributes })
+            if !self.eat_semicolons() {
+                self.expected_token(Token::Semicolon);
+            }
+            ItemKind::ModuleDecl(ModuleDeclaration { ident, outer_attributes })
         }
     }
 }
@@ -61,6 +66,7 @@ mod tests {
     fn parse_submodule() {
         let src = "mod foo { mod bar; }";
         let (module, errors) = parse_program(src);
+        dbg!(&errors);
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -76,6 +82,7 @@ mod tests {
     fn parse_contract() {
         let src = "contract foo {}";
         let (module, errors) = parse_program(src);
+        dbg!(&errors);
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];

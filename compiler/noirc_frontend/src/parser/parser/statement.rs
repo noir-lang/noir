@@ -101,7 +101,10 @@ impl<'a> Parser<'a> {
                 let expression = self.parse_expression_or_error();
                 return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
             } else {
-                // TODO: error (invalid l-value)
+                self.push_error(
+                    ParserErrorReason::InvalidLeftHandSideOfAssignment,
+                    expression.span,
+                );
             }
         }
 
@@ -120,7 +123,10 @@ impl<'a> Parser<'a> {
                 );
                 return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
             } else {
-                // TODO: error (invalid l-value)
+                self.push_error(
+                    ParserErrorReason::InvalidLeftHandSideOfAssignment,
+                    expression.span,
+                );
             }
         }
 
@@ -167,13 +173,13 @@ impl<'a> Parser<'a> {
         }
 
         let Some(identifier) = self.eat_ident() else {
-            // TODO: error (expected for identifier)
+            self.expected_identifier();
             let identifier = Ident::default();
             return Some(self.empty_for_loop(identifier, start_span));
         };
 
         if !self.eat_keyword(Keyword::In) {
-            // TODO: error (expected `in` after for identifier)
+            self.expected_token(Token::Keyword(Keyword::In));
             return Some(self.empty_for_loop(identifier, start_span));
         }
 
@@ -192,7 +198,7 @@ impl<'a> Parser<'a> {
                 span: self.span_since(block_start_span),
             }
         } else {
-            // TODO: error (expected for body)
+            self.expected_token(Token::LeftBrace);
             Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
         };
 
@@ -262,7 +268,7 @@ impl<'a> Parser<'a> {
         let expression = if self.eat_assign() {
             self.parse_expression_or_error()
         } else {
-            // TODO: error
+            self.expected_token(Token::Assign);
             Expression { kind: ExpressionKind::Error, span: self.current_token_span }
         };
 

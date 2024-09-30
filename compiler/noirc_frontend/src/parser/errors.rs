@@ -19,22 +19,15 @@ pub enum ParserErrorReason {
     UnexpectedSemicolon,
     #[error("Unexpected `,`")]
     UnexpectedComma,
-    #[error("Expected a `,` separating these two expressions")]
-    MissingCommaSeparatingExpressions,
-    #[error("Expected a `,` separating these two parameters")]
-    MissingCommaSeparatingParameters,
-    #[error("Expected a `,` separating these two generic parameters")]
-    MissingCommaSeparatingGenerics,
-    #[error("Expected a `,` separating these two trait bounds")]
-    MissingCommaSeparatingTraitBounds,
-    #[error("Expected a `+` separating these two trait bounds")]
-    MissingPlusSeparatingTraitBounds,
-    #[error("Expected a `,` separating these two arguments")]
-    MissingCommaSeparatingArguments,
-    #[error("Expected a `,` separating these two constructor fields")]
-    MissingCommaSeparatingConstructorFields,
-    #[error("Expected an identifier after `fn`")]
-    ExpectedIdentifierAfterFn,
+    #[error("Expected a `{token}` separating these two {items}")]
+    ExpectedTokenSeparatingTwoItems { token: String, items: String },
+    #[error("Expected an identifier, found {found}")]
+    ExpectedIdentifier { found: Token },
+    #[error("Expected a item, found {found}")]
+    ExpectedItem { found: Token },
+    #[error("Invalid left-hand side of assignment")]
+    InvalidLeftHandSideOfAssignment,
+
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
     #[error("Missing type for numeric generic")]
@@ -65,8 +58,6 @@ pub enum ParserErrorReason {
     ExpectedBracketAfterSlice,
     #[error("Expected `>` after str type length")]
     ExpectedGreaterAfterStringTypeLength,
-    #[error("Expected str type length after `str`")]
-    ExpectedStringTypeLength,
     #[error("Expected `{{` or `if` after `else`")]
     ExpectedLeftBraceOfIfAfterElse,
     #[error("Expected a type after this")]
@@ -82,10 +73,6 @@ pub enum ParserErrorReason {
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
-    #[error("expected an identifier after .")]
-    ExpectedIdentifierAfterDot,
-    #[error("expected an identifier after ::")]
-    ExpectedIdentifierAfterColons,
     #[error("expected {{ or -> after function parameters")]
     ExpectedLeftBraceOrArrowAfterFunctionParameters,
     #[error("expected {{ after if condition")]

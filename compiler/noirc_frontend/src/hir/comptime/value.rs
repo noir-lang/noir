@@ -524,7 +524,7 @@ impl Value {
         location: Location,
         interner: &NodeInterner,
     ) -> IResult<Vec<Item>> {
-        let parser = Parser::parse_items;
+        let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
                 parse_tokens(tokens, interner, parser, location, "top-level item")

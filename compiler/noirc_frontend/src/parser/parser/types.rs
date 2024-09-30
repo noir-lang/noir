@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
         }
 
         if !self.eat_less() {
-            self.push_error(ParserErrorReason::ExpectedStringTypeLength, self.current_token_span);
+            self.expected_token(Token::Less);
             let expr = UnresolvedTypeExpression::Constant(0, self.current_token_span);
             return Some(UnresolvedTypeData::String(expr));
         }
@@ -162,7 +162,7 @@ impl<'a> Parser<'a> {
         }
 
         if !self.eat_less() {
-            self.push_error(ParserErrorReason::ExpectedStringTypeLength, self.current_token_span);
+            self.expected_token(Token::Less);
             let expr = UnresolvedTypeExpression::Constant(0, self.current_token_span);
             let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
@@ -177,14 +177,12 @@ impl<'a> Parser<'a> {
         };
 
         if !self.eat_commas() {
-            // TODO: error (expected comma after fmtstr type expression)
+            self.expected_token(Token::Comma);
         }
 
         let typ = self.parse_type_or_error();
 
-        if !self.eat_greater() {
-            // TODO: error (expected closing `>`)
-        }
+        self.eat_or_error(Token::Greater);
 
         Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)))
     }
@@ -251,16 +249,15 @@ impl<'a> Parser<'a> {
 
         let env = if self.eat_left_bracket() {
             let typ = self.parse_type_or_error();
-            if !self.eat_right_bracket() {
-                // TODO: error (expected `[` after `fn` env)
-            }
+            self.eat_or_error(Token::RightBracket);
             typ
         } else {
             UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
         };
 
         if !self.eat_left_paren() {
-            // TODO: error (expected `(` after `fn`)
+            self.expected_token(Token::LeftParen);
+
             return Some(UnresolvedTypeData::Function(
                 Vec::new(),
                 Box::new(self.unspecified_type_at_previous_token_end()),
@@ -285,7 +282,7 @@ impl<'a> Parser<'a> {
             }
 
             if !trailing_comma && !args.is_empty() {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingParameters, start_span);
+                self.expected_token_separating_items(",", "parameters", start_span);
             }
 
             args.push(typ);
@@ -296,7 +293,7 @@ impl<'a> Parser<'a> {
         let ret = if self.eat(Token::Arrow) {
             self.parse_type_or_error()
         } else {
-            // TODO: error (expected `->` after function type arguments)
+            self.expected_token(Token::Arrow);
             UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
         };
 
@@ -351,9 +348,7 @@ impl<'a> Parser<'a> {
 
     fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat(Token::Ampersand) {
-            if !self.eat_keyword(Keyword::Mut) {
-                // TODO: error
-            }
+            self.eat_keyword_or_error(Keyword::Mut);
             return Some(UnresolvedTypeData::MutableReference(Box::new(
                 self.parse_type_or_error(),
             )));
@@ -407,16 +402,21 @@ impl<'a> Parser<'a> {
         let mut types = Vec::new();
         let mut trailing_comma = false;
         loop {
+            let start_span = self.current_token_span;
+
             let Some(typ) = self.parse_type() else {
                 // TODO: error
                 self.eat_right_paren();
                 break;
             };
 
+            if !trailing_comma && !types.is_empty() {
+                self.expected_token_separating_items(",", "tuple elements", start_span);
+            }
+
             types.push(typ);
 
             trailing_comma = self.eat_commas();
-            // TODO: error if no comma between types
 
             if self.eat_right_paren() {
                 break;

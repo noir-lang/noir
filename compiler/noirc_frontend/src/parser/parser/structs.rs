@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Documented, Ident, ItemVisibility, NoirStruct, StructField, UnresolvedGenerics},
-    token::{Attribute, SecondaryAttribute},
+    token::{Attribute, SecondaryAttribute, Token},
 };
 
 use super::Parser;
@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
         let attributes = self.validate_secondary_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
-            // TODO: error
+            self.expected_identifier();
             return self.empty_struct(
                 Ident::default(),
                 attributes,
@@ -34,35 +34,36 @@ impl<'a> Parser<'a> {
         }
 
         if !self.eat_left_brace() {
-            // TODO: error
+            self.expected_token(Token::LeftBrace);
             return self.empty_struct(name, attributes, visibility, generics, start_span);
         }
 
         let mut fields = Vec::new();
+        let mut trailing_comma = false;
 
         loop {
             let doc_comments = self.parse_outer_doc_comments();
 
+            let start_span = self.current_token_span;
             let Some(name) = self.eat_ident() else {
                 // TODO: error if there are doc comments
                 break;
             };
 
-            if !self.eat_colon() {
-                // TODO: error
-            }
+            self.eat_or_error(Token::Colon);
 
             let typ = self.parse_type_or_error();
 
+            if !trailing_comma && !fields.is_empty() {
+                self.expected_token_separating_items(",", "struct fields", start_span);
+            }
+
             fields.push(Documented::new(StructField { name, typ }, doc_comments));
 
-            self.eat_commas();
-            // TODO: error if no comma between fields
+            trailing_comma = self.eat_commas();
         }
 
-        if !self.eat_right_brace() {
-            // TODO: error
-        }
+        self.eat_or_error(Token::RightBrace);
 
         NoirStruct {
             name,
@@ -210,7 +211,7 @@ mod tests {
     fn parse_unclosed_struct() {
         let src = "struct Foo {";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty()); // TODO: there should be an error here
+        assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Struct(noir_struct) = &item.kind else {

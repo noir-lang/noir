@@ -110,10 +110,7 @@ impl<'a> Parser<'a> {
                 } else if let Some(int) = self.eat_int() {
                     Ident::new(int.to_string(), self.previous_token_span)
                 } else {
-                    self.push_error(
-                        ParserErrorReason::ExpectedIdentifierAfterDot,
-                        self.current_token_span,
-                    );
+                    self.expected_identifier();
                     continue;
                 };
 
@@ -168,9 +165,7 @@ impl<'a> Parser<'a> {
 
             if self.eat_left_bracket() {
                 let index = self.parse_expression_or_error();
-                if !self.eat_right_bracket() {
-                    // TODO: error
-                }
+                self.eat_or_error(Token::RightBracket);
                 let kind =
                     ExpressionKind::Index(Box::new(IndexExpression { collection: atom, index }));
                 let span = self.span_since(start_span);
@@ -311,17 +306,12 @@ impl<'a> Parser<'a> {
         loop {
             let start_span = self.current_token_span;
             let Some(ident) = self.eat_ident() else {
-                if !self.eat_right_brace() {
-                    // TODO: error
-                }
+                self.eat_or_error(Token::RightBrace);
                 break;
             };
 
             if !trailing_comma && !fields.is_empty() {
-                self.push_error(
-                    ParserErrorReason::MissingCommaSeparatingConstructorFields,
-                    start_span,
-                );
+                self.expected_token_separating_items(",", "constructor fields", start_span);
             }
 
             if self.eat_colon() {
@@ -397,7 +387,7 @@ impl<'a> Parser<'a> {
         }
 
         let Some(block) = self.parse_block_expression() else {
-            // TODO: error (expected `{` after comptime)
+            self.expected_token(Token::LeftBrace);
             return None;
         };
 
@@ -422,9 +412,7 @@ impl<'a> Parser<'a> {
         let span_at_left_paren = self.current_token_span;
         if self.eat_left_paren() {
             let expr = self.parse_expression_or_error();
-            if !self.eat_right_paren() {
-                // TODO: error (missing `)` after quoted expression)
-            }
+            self.eat_or_error(Token::RightParen);
             let expr = Expression {
                 kind: ExpressionKind::Parenthesized(Box::new(expr)),
                 span: self.span_since(span_at_left_paren),
@@ -444,17 +432,12 @@ impl<'a> Parser<'a> {
         };
         let typ = UnresolvedType { typ, span: self.span_since(start_span) };
 
-        if !self.eat_double_colon() {
-            // TODO: error (expected `::` after type)
-        }
+        self.eat_or_error(Token::DoubleColon);
 
         let item = if let Some(ident) = self.eat_ident() {
             ident
         } else {
-            self.push_error(
-                ParserErrorReason::ExpectedIdentifierAfterColons,
-                self.current_token_span,
-            );
+            self.expected_identifier();
             Ident::new(String::new(), self.span_at_previous_token_end())
         };
 
@@ -571,7 +554,7 @@ impl<'a> Parser<'a> {
             };
 
             if !trailing_comma {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingExpressions, start_span);
+                self.expected_token_separating_items(",", "expressions", start_span);
             }
 
             exprs.push(expr);
@@ -604,7 +587,7 @@ impl<'a> Parser<'a> {
                 break;
             };
             if !trailing_comma && !exprs.is_empty() {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingExpressions, start_span);
+                self.expected_token_separating_items(",", "expressions", start_span);
             }
 
             exprs.push(expr);
@@ -651,9 +634,6 @@ impl<'a> Parser<'a> {
             };
 
             statements.push((statement, (token, span)));
-
-            // TODO: error if missing semicolon and statement requires one and is not the last one in the block
-            self.eat_semicolons();
         }
 
         let statements = self.check_statements_require_semicolon(statements);
@@ -936,7 +916,11 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
         let reason = get_single_error(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingCommaSeparatingExpressions));
+        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
+            panic!("Expected a different error");
+        };
+        assert_eq!(token, ",");
+        assert_eq!(items, "expressions");
     }
 
     #[test]

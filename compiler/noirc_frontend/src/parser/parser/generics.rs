@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
             };
 
             if !trailing_comma && !generics.is_empty() {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
+                self.expected_token_separating_items(",", "generic parameters", start_span);
             }
 
             generics.push(generic);
@@ -130,7 +130,7 @@ impl<'a> Parser<'a> {
                 let ident = self.eat_ident().unwrap();
 
                 if !trailing_comma && !generic_type_args.is_empty() {
-                    self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
+                    self.expected_token_separating_items(",", "generic parameters", start_span);
                 }
 
                 self.eat_assign();
@@ -146,7 +146,7 @@ impl<'a> Parser<'a> {
                 };
 
                 if !trailing_comma && !generic_type_args.is_empty() {
-                    self.push_error(ParserErrorReason::MissingCommaSeparatingGenerics, start_span);
+                    self.expected_token_separating_items(",", "generic parameters", start_span);
                 }
 
                 generic_type_args.ordered_args.push(typ);

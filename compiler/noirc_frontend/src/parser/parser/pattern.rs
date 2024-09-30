@@ -68,8 +68,6 @@ impl<'a> Parser<'a> {
 
         let Some(mut path) = self.parse_path() else {
             self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
-
-            // TODO: error
             return Pattern::Identifier(Ident::default());
         };
 
@@ -95,6 +93,7 @@ impl<'a> Parser<'a> {
         }
 
         let mut patterns = Vec::new();
+        let mut trailing_comma = false;
         loop {
             if self.eat_right_paren() {
                 break;
@@ -108,10 +107,13 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+            if !trailing_comma && !patterns.is_empty() {
+                self.expected_token_separating_items(",", "tuple elements", start_span);
+            }
+
             patterns.push(pattern);
 
-            self.eat_commas();
-            // TODO: error if no commas between patterns
+            trailing_comma = self.eat_commas();
         }
 
         Some(Pattern::Tuple(patterns, self.span_since(start_span)))
@@ -121,16 +123,24 @@ impl<'a> Parser<'a> {
         let start_span = path.span();
 
         let mut patterns = Vec::new();
+        let mut trailing_comma = false;
 
         loop {
             if self.eat_right_brace() {
                 break;
             }
 
+            let start_span = self.current_token_span;
+
             let Some(ident) = self.eat_ident() else {
-                // TODO: error
+                self.expected_identifier();
+                self.eat_right_brace();
                 break;
             };
+
+            if !trailing_comma && !patterns.is_empty() {
+                self.expected_token_separating_items(",", "struct fields", start_span);
+            }
 
             if self.eat_colon() {
                 patterns.push((ident, self.parse_pattern()));
@@ -138,8 +148,7 @@ impl<'a> Parser<'a> {
                 patterns.push((ident.clone(), Pattern::Identifier(ident)));
             }
 
-            self.eat_commas();
-            // TODO: error if no comma between patterns
+            trailing_comma = self.eat_commas();
         }
 
         Pattern::Struct(path, patterns, self.span_since(start_span))
@@ -251,7 +260,7 @@ mod tests {
         let src = "foo::Bar { x";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_pattern();
-        assert!(parser.errors.is_empty());
+        assert_eq!(parser.errors.len(), 1);
         let Pattern::Struct(path, _, _) = typ else { panic!("Expected a struct pattern") };
         assert_eq!(path.to_string(), "foo::Bar");
     }

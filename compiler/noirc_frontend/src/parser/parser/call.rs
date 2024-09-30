@@ -1,4 +1,4 @@
-use crate::{ast::Expression, parser::ParserErrorReason};
+use crate::ast::Expression;
 
 use super::Parser;
 
@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
             };
 
             if !trailing_comma && !arguments.is_empty() {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingArguments, start_span);
+                self.expected_token_separating_items(",", "arguments", start_span);
             }
 
             arguments.push(expr);

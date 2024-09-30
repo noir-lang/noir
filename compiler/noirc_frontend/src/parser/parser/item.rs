@@ -1,16 +1,48 @@
 use crate::{
-    parser::{Item, ItemKind},
-    token::Keyword,
+    parser::{Item, ItemKind, ParserErrorReason},
+    token::{Keyword, Token},
 };
 
 use super::{impls::Impl, Parser};
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_items(&mut self) -> Vec<Item> {
+    pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {
+        self.parse_items(
+            false, // nested
+        )
+    }
+
+    pub(crate) fn parse_items(&mut self, nested: bool) -> Vec<Item> {
         let mut items = Vec::new();
 
-        while let Some(item) = self.parse_item() {
-            items.push(item);
+        loop {
+            if nested && self.token.token() == &Token::RightBrace {
+                break;
+            }
+
+            if self.is_eof() {
+                break;
+            }
+
+            if let Some(item) = self.parse_item() {
+                items.push(item);
+                continue;
+            }
+
+            let is_error_token = match self.token.token() {
+                Token::RightBrace => !nested,
+                Token::EOF => false,
+                _ => true,
+            };
+
+            if is_error_token {
+                self.push_error(
+                    ParserErrorReason::ExpectedItem { found: self.token.token().clone() },
+                    self.current_token_span,
+                );
+                // We'll try parsing an item on the next token
+                self.next_token();
+            }
         }
 
         items
@@ -96,10 +128,6 @@ impl<'a> Parser<'a> {
                 false, // allow_self
             )));
         }
-
-        // TODO: error
-        // We'll try parsing an item on the next token
-        self.next_token();
 
         None
     }

@@ -7,7 +7,7 @@ use crate::{
         UnresolvedGeneric, UnresolvedType, UnresolvedTypeData,
     },
     parser::ParserErrorReason,
-    token::Keyword,
+    token::{Keyword, Token},
 };
 
 use super::Parser;
@@ -48,12 +48,20 @@ impl<'a> Parser<'a> {
         let mut methods = Vec::new();
 
         if !self.eat_left_brace() {
-            // TODO: error
+            self.expected_token(Token::LeftBrace);
             return methods;
         }
 
         loop {
-            // TODO: maybe require visibility to always come first
+            if self.eat_right_brace() {
+                break;
+            }
+
+            if self.is_eof() {
+                // TODO: error
+                break;
+            }
+
             let doc_comments = self.parse_outer_doc_comments();
             let start_span = self.current_token_span;
             let attributes = self.parse_attributes();
@@ -68,18 +76,14 @@ impl<'a> Parser<'a> {
                     true, // allow_self
                 );
                 methods.push((Documented::new(method, doc_comments), self.span_since(start_span)));
+                continue;
+            }
 
-                if self.eat_right_brace() {
-                    break;
-                }
-            } else {
-                // TODO: error if visibility, unconstrained or comptime were found
+            // TODO: error if visibility, unconstrained or comptime were found
 
-                if !self.eat_right_brace() {
-                    // TODO: error
-                }
-
-                break;
+            if self.token.token() != &Token::RightBrace {
+                // TODO: error
+                self.next_token();
             }
         }
 
@@ -110,7 +114,7 @@ impl<'a> Parser<'a> {
         let mut items = Vec::new();
 
         if !self.eat_left_brace() {
-            // TODO: error
+            self.expected_token(Token::LeftBrace);
             return items;
         }
 
@@ -187,7 +191,7 @@ impl<'a> Parser<'a> {
         }
 
         let Some(name) = self.eat_ident() else {
-            // TODO: error
+            self.expected_identifier();
             self.eat_semicolons();
             return Some(TraitImplItemKind::Type {
                 name: Ident::default(),
@@ -224,7 +228,7 @@ impl<'a> Parser<'a> {
         let expr = if self.eat_assign() {
             self.parse_expression_or_error()
         } else {
-            // TODO: error
+            self.expected_token(Token::Assign);
             Expression { kind: ExpressionKind::Error, span: Span::default() }
         };
 
@@ -425,7 +429,7 @@ mod tests {
     fn parse_empty_impl_missing_right_brace() {
         let src = "impl Foo {";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty()); // TODO: there should be an error here
+        assert_eq!(errors.len(), 0); // TODO: this should be 1
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Impl(type_impl) = &item.kind else {
@@ -436,15 +440,16 @@ mod tests {
 
     #[test]
     fn parse_empty_impl_incorrect_body() {
-        let src = "impl Foo { hello";
+        let src = "impl Foo { hello fn foo() {} }";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty()); // TODO: there should be errors here
+        assert_eq!(errors.len(), 0); // TODO: this should be 1
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Impl(type_impl) = &item.kind else {
             panic!("Expected type impl");
         };
         assert_eq!(type_impl.object_type.to_string(), "Foo");
+        assert_eq!(type_impl.methods.len(), 1)
     }
 
     #[test]

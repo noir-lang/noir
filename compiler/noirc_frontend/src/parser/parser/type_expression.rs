@@ -181,9 +181,7 @@ impl<'a> Parser<'a> {
             self.next_token();
             match self.parse_type_expression() {
                 Ok(type_expr) => {
-                    if !self.eat_right_paren() {
-                        // TODO: error (expected `)`)
-                    }
+                    self.eat_or_error(Token::RightParen);
                     Some(type_expr)
                 }
                 Err(error) => {

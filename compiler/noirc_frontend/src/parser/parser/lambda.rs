@@ -1,6 +1,5 @@
 use crate::{
     ast::{ExpressionKind, Lambda, Pattern, UnresolvedType},
-    parser::ParserErrorReason,
     token::Token,
 };
 
@@ -45,7 +44,7 @@ impl<'a> Parser<'a> {
             }
 
             if !trailing_comma && !parameters.is_empty() {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingParameters, start_span);
+                self.expected_token_separating_items(",", "parameters", start_span);
             }
 
             let typ = self.parse_optional_type_annotation();

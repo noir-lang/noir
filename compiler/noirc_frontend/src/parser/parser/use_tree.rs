@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Ident, Path, PathKind, UseTree, UseTreeKind},
-    token::Keyword,
+    token::{Keyword, Token},
 };
 
 use super::Parser;
@@ -12,13 +12,13 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
 
         let kind = self.parse_path_kind();
-        if kind != PathKind::Plain && !self.eat_double_colon() {
-            // TODO: error
+        if kind != PathKind::Plain {
+            self.eat_or_error(Token::DoubleColon);
         }
 
         let use_tree = self.parse_use_tree_without_kind(start_span, kind);
         if !self.eat_semicolons() {
-            // TODO: error
+            self.expected_token(Token::Semicolon);
         }
         use_tree
     }
@@ -47,21 +47,25 @@ impl<'a> Parser<'a> {
         if trailing_double_colon {
             if self.eat_left_brace() {
                 let mut use_trees = Vec::new();
+                let mut trailing_comma = false;
                 loop {
-                    let current_span = self.current_token_span;
+                    let start_span = self.current_token_span;
 
                     let use_tree =
                         self.parse_use_tree_without_kind(self.current_token_span, PathKind::Plain);
 
                     // If we didn't advance at all, we are done
-                    if current_span == self.current_token_span {
+                    if start_span == self.current_token_span {
                         break;
+                    }
+
+                    if !trailing_comma && !use_trees.is_empty() {
+                        self.expected_token_separating_items(",", "use trees", start_span);
                     }
 
                     use_trees.push(use_tree);
 
-                    self.eat_commas();
-                    // TODO: error if no comma between use trees
+                    trailing_comma = self.eat_commas();
 
                     if self.eat_right_brace() {
                         break;
@@ -69,7 +73,7 @@ impl<'a> Parser<'a> {
                 }
                 UseTree { prefix, kind: UseTreeKind::List(use_trees) }
             } else {
-                // TODO: error
+                self.expected_token(Token::LeftBrace);
                 self.parse_path_use_tree_end(prefix)
             }
         } else {
@@ -172,7 +176,7 @@ mod tests {
 
     #[test]
     fn parse_with_crate_prefix() {
-        let src = "use crate::foo";
+        let src = "use crate::foo;";
         let (mut module, errors) = parse_program(src);
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
@@ -192,7 +196,7 @@ mod tests {
 
     #[test]
     fn parse_with_dep_prefix() {
-        let src = "use dep::foo";
+        let src = "use dep::foo;";
         let (mut module, errors) = parse_program(src);
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
@@ -212,7 +216,7 @@ mod tests {
 
     #[test]
     fn parse_with_super_prefix() {
-        let src = "use super::foo";
+        let src = "use super::foo;";
         let (mut module, errors) = parse_program(src);
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);

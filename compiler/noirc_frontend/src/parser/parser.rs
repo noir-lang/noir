@@ -44,7 +44,7 @@ mod where_clause;
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let lexer = Lexer::new(source_program);
     let mut parser = Parser::for_lexer(lexer);
-    let program = parser.parse_module();
+    let program = parser.parse_program();
     let errors = parser.errors;
     (program, errors)
 }
@@ -115,9 +115,15 @@ impl<'a> Parser<'a> {
         parser
     }
 
-    pub(crate) fn parse_module(&mut self) -> ParsedModule {
+    pub(crate) fn parse_program(&mut self) -> ParsedModule {
+        self.parse_module(
+            false, // nested
+        )
+    }
+
+    pub(crate) fn parse_module(&mut self, nested: bool) -> ParsedModule {
         let inner_doc_comments = self.parse_inner_doc_comments();
-        let items = self.parse_items();
+        let items = self.parse_items(nested);
 
         ParsedModule { items, inner_doc_comments }
     }
@@ -393,6 +399,18 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_keyword_or_error(&mut self, keyword: Keyword) {
+        if !self.eat_keyword(keyword) {
+            self.expected_token(Token::Keyword(keyword))
+        }
+    }
+
+    fn eat_or_error(&mut self, token: Token) {
+        if !self.eat(token.clone()) {
+            self.expected_token(token)
+        }
+    }
+
     fn is_eof(&self) -> bool {
         self.token.token() == &Token::EOF
     }
@@ -408,6 +426,31 @@ impl<'a> Parser<'a> {
 
     fn span_at_previous_token_end(&self) -> Span {
         Span::from(self.previous_token_span.end()..self.previous_token_span.end())
+    }
+
+    fn expected_identifier(&mut self) {
+        self.push_error(
+            ParserErrorReason::ExpectedIdentifier { found: self.token.token().clone() },
+            self.current_token_span,
+        );
+    }
+
+    fn expected_token(&mut self, token: Token) {
+        self.errors.push(ParserError::expected_token(
+            token,
+            self.token.token().clone(),
+            self.current_token_span,
+        ))
+    }
+
+    fn expected_token_separating_items(&mut self, token: &str, items: &str, span: Span) {
+        self.push_error(
+            ParserErrorReason::ExpectedTokenSeparatingTwoItems {
+                token: token.to_string(),
+                items: items.to_string(),
+            },
+            span,
+        );
     }
 
     fn push_error(&mut self, reason: ParserErrorReason, span: Span) {

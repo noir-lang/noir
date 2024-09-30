@@ -1,13 +1,16 @@
 use noirc_errors::Span;
 
-use crate::ast::{Ident, NoirTypeAlias, UnresolvedType, UnresolvedTypeData};
+use crate::{
+    ast::{Ident, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
+    token::Token,
+};
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_type_alias(&mut self, start_span: Span) -> NoirTypeAlias {
         let Some(name) = self.eat_ident() else {
-            // TODO: error
+            self.expected_identifier();
             return NoirTypeAlias {
                 name: Ident::default(),
                 generics: Vec::new(),
@@ -19,10 +22,11 @@ impl<'a> Parser<'a> {
         let generics = self.parse_generics();
 
         if !self.eat_assign() {
+            self.expected_token(Token::Assign);
+
             let span = self.span_since(start_span);
             self.eat_semicolons();
 
-            // TODO: error
             return NoirTypeAlias {
                 name,
                 generics,

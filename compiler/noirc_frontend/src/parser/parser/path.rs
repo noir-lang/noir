@@ -52,8 +52,8 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
 
         let kind = self.parse_path_kind();
-        if kind != PathKind::Plain && !self.eat_double_colon() {
-            // TODO: error (missing `::` after crate/dep/super)
+        if kind != PathKind::Plain {
+            self.eat_or_error(Token::DoubleColon);
         }
 
         self.parse_path_after_kind(kind, allow_turbofish, start_span)
@@ -93,8 +93,6 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-        } else {
-            // TODO: error
         }
 
         if segments.is_empty() && kind == PathKind::Plain {
@@ -138,21 +136,15 @@ impl<'a> Parser<'a> {
         }
 
         let typ = self.parse_type_or_error();
-        if !self.eat_keyword(Keyword::As) {
-            // TODO: error (expected `as`)
-        }
+        self.eat_keyword_or_error(Keyword::As);
         let trait_path = self.parse_path_no_turbofish_or_error();
         let trait_generics = self.parse_generic_type_args();
-        if !self.eat_greater() {
-            // TODO: error (expected `>`)
-        }
-        if !self.eat_double_colon() {
-            // TODO: error (expected `::`)
-        }
+        self.eat_or_error(Token::Greater);
+        self.eat_or_error(Token::DoubleColon);
         let impl_item = if let Some(ident) = self.eat_ident() {
             ident
         } else {
-            // TODO: error (expected identifier)
+            self.expected_identifier();
             Ident::new(String::new(), self.span_at_previous_token_end())
         };
 

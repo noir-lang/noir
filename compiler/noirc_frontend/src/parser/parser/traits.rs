@@ -5,7 +5,7 @@ use crate::{
         Documented, Ident, ItemVisibility, NoirTrait, Pattern, TraitItem, UnresolvedType,
         UnresolvedTypeData,
     },
-    token::{Attribute, Keyword, SecondaryAttribute},
+    token::{Attribute, Keyword, SecondaryAttribute, Token},
 };
 
 use super::Parser;
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
         let attributes = self.validate_secondary_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
-            // TODO: error
+            self.expected_identifier();
             return empty_trait(attributes, visibility, self.span_since(start_span));
         };
 
@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
         let mut items = Vec::new();
 
         if !self.eat_left_brace() {
-            // TODO: error
+            self.expected_token(Token::LeftBrace);
             return items;
         }
 
@@ -94,7 +94,7 @@ impl<'a> Parser<'a> {
         let name = match self.eat_ident() {
             Some(name) => name,
             None => {
-                // TODO: error
+                self.expected_identifier();
                 Ident::default()
             }
         };
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
         let name = match self.eat_ident() {
             Some(name) => name,
             None => {
-                // TODO: error
+                self.expected_identifier();
                 Ident::default()
             }
         };
@@ -120,7 +120,7 @@ impl<'a> Parser<'a> {
         let typ = if self.eat_colon() {
             self.parse_type_or_error()
         } else {
-            // TODO: error
+            self.expected_token(Token::Colon);
             UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
         };
 

@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
         allow_self: bool,
     ) -> FunctionDefinitionWithOptionalBody {
         let Some(name) = self.eat_ident() else {
-            self.push_error(ParserErrorReason::ExpectedIdentifierAfterFn, self.current_token_span);
+            self.expected_identifier();
             return empty_function(self.previous_token_span);
         };
 
@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
             }
 
             if !trailing_comma && !parameters.is_empty() {
-                self.push_error(ParserErrorReason::MissingCommaSeparatingParameters, start_span);
+                self.expected_token_separating_items(",", "parameters", start_span);
             }
 
             match pattern_or_self {
