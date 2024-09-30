@@ -97,17 +97,14 @@ impl<'a> Parser<'a> {
         let where_clause = self.parse_where_clause();
 
         let body_start_span = self.current_token_span;
-        let (body, body_span) = if self.eat_semicolons() {
+        let body = if self.eat_semicolons() {
             if !allow_optional_body {
                 self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_span);
             }
 
-            (None, Span::from(body_start_span.end()..body_start_span.end()))
+            None
         } else {
-            (
-                Some(self.parse_block_expression().unwrap_or_else(empty_body)),
-                self.span_since(body_start_span),
-            )
+            Some(self.parse_block_expression().unwrap_or_else(empty_body))
         };
 
         FunctionDefinitionWithOptionalBody {
@@ -115,7 +112,7 @@ impl<'a> Parser<'a> {
             generics,
             parameters,
             body,
-            span: body_span,
+            span: self.span_since(body_start_span),
             where_clause,
             return_type,
             return_visibility,
