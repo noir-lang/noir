@@ -106,19 +106,7 @@ impl Context {
 
         let instructions_len = block.instructions().len();
 
-        // We can track IncrementRc instructions per block to determine whether they are useless.
-        // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
-        // them if their value is not used anywhere in the function. However, even when their value is used, their existence
-        // is pointless logic if there is no array set between the increment and the decrement of the reference counter.
-        // We track per block whether an IncrementRc instruction has a paired DecrementRc instruction
-        // with the same value but no array set in between.
-        // If we see an inc/dec RC pair within a block we can safely remove both instructions.
-        let mut rcs_with_possible_pairs: HashMap<Type, Vec<RcInstruction>> = HashMap::default();
-        let mut rc_pairs_to_remove = HashSet::default();
-        // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
-        // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
-        let mut inc_rcs: HashMap<ValueId, HashSet<InstructionId>> = HashMap::default();
-        let mut borrowed_arrays: HashSet<ValueId> = HashSet::default();
+        let mut rc_tracker = RcTracker::default();
 
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
@@ -147,32 +135,11 @@ impl Context {
                 }
             }
 
-            self.track_inc_rcs_to_remove(
-                *instruction_id,
-                function,
-                &mut rcs_with_possible_pairs,
-                &mut rc_pairs_to_remove,
-                &mut inc_rcs,
-                &mut borrowed_arrays,
-            );
+            rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
 
-        let non_mutated_arrays =
-            inc_rcs
-                .keys()
-                .filter_map(|value| {
-                    if !borrowed_arrays.contains(value) {
-                        Some(&inc_rcs[value])
-                    } else {
-                        None
-                    }
-                })
-                .flatten()
-                .copied()
-                .collect::<Vec<_>>();
-
-        self.instructions_to_remove.extend(non_mutated_arrays);
-        self.instructions_to_remove.extend(rc_pairs_to_remove);
+        self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays());
+        self.instructions_to_remove.extend(rc_tracker.rc_pairs_to_remove);
 
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
@@ -194,59 +161,6 @@ impl Context {
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
 
         false
-    }
-
-    fn track_inc_rcs_to_remove(
-        &self,
-        instruction_id: InstructionId,
-        function: &Function,
-        rcs_with_possible_pairs: &mut HashMap<Type, Vec<RcInstruction>>,
-        inc_rcs_to_remove: &mut HashSet<InstructionId>,
-        inc_rcs: &mut HashMap<ValueId, HashSet<InstructionId>>,
-        borrowed_arrays: &mut HashSet<ValueId>,
-    ) {
-        let instruction = &function.dfg[instruction_id];
-        // DIE loops over a block in reverse order, so we insert an RC instruction for possible removal
-        // when we see a DecrementRc and check whether it was possibly mutated when we see an IncrementRc.
-        match instruction {
-            Instruction::IncrementRc { value } => {
-                if let Some(inc_rc) = pop_rc_for(*value, function, rcs_with_possible_pairs) {
-                    if !inc_rc.possibly_mutated {
-                        inc_rcs_to_remove.insert(inc_rc.id);
-                        inc_rcs_to_remove.insert(instruction_id);
-                    }
-                }
-
-                inc_rcs.entry(*value).or_default().insert(instruction_id);
-            }
-            Instruction::DecrementRc { value } => {
-                let typ = function.dfg.type_of_value(*value);
-
-                // We assume arrays aren't mutated until we find an array_set
-                let dec_rc =
-                    RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
-                rcs_with_possible_pairs.entry(typ).or_default().push(dec_rc);
-            }
-            Instruction::ArraySet { array, .. } => {
-                let typ = function.dfg.type_of_value(*array);
-                if let Some(dec_rcs) = rcs_with_possible_pairs.get_mut(&typ) {
-                    for dec_rc in dec_rcs {
-                        dec_rc.possibly_mutated = true;
-                    }
-                }
-
-                borrowed_arrays.insert(*array);
-            }
-            Instruction::Store { value, .. } => {
-                // We are very conservative and say that any store of an array value means it has the potential
-                // to be mutated. This is done due to the tracking of mutable borrows still being per block.
-                let typ = function.dfg.type_of_value(*value);
-                if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
-                    borrowed_arrays.insert(*value);
-                }
-            }
-            _ => {}
-        }
     }
 
     /// Returns true if an instruction can be removed.
@@ -601,6 +515,103 @@ fn apply_side_effects(
     (lhs, rhs)
 }
 
+#[derive(Default)]
+struct RcTracker {
+    // We can track IncrementRc instructions per block to determine whether they are useless.
+    // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
+    // them if their value is not used anywhere in the function. However, even when their value is used, their existence
+    // is pointless logic if there is no array set between the increment and the decrement of the reference counter.
+    // We track per block whether an IncrementRc instruction has a paired DecrementRc instruction
+    // with the same value but no array set in between.
+    // If we see an inc/dec RC pair within a block we can safely remove both instructions.
+    rcs_with_possible_pairs: HashMap<Type, Vec<RcInstruction>>,
+    rc_pairs_to_remove: HashSet<InstructionId>,
+    // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
+    // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
+    inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
+    mut_borrowed_arrays: HashSet<ValueId>,
+    // The SSA often creates patterns where after simplifications we end up with repeat
+    // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
+    // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
+    // `None` if the previous instruction was anything other than an IncrementRc
+    previous_inc_rc: Option<ValueId>,
+}
+
+impl RcTracker {
+    fn track_inc_rcs_to_remove(&mut self, instruction_id: InstructionId, function: &Function) {
+        let instruction = &function.dfg[instruction_id];
+
+        if let Instruction::IncrementRc { value } = instruction {
+            if let Some(previous_value) = self.previous_inc_rc {
+                if previous_value == *value {
+                    self.rc_pairs_to_remove.insert(instruction_id);
+                }
+            }
+            self.previous_inc_rc = Some(*value);
+        } else {
+            self.previous_inc_rc = None;
+        }
+
+        // DIE loops over a block in reverse order, so we insert an RC instruction for possible removal
+        // when we see a DecrementRc and check whether it was possibly mutated when we see an IncrementRc.
+        match instruction {
+            Instruction::IncrementRc { value } => {
+                if let Some(inc_rc) =
+                    pop_rc_for(*value, function, &mut self.rcs_with_possible_pairs)
+                {
+                    if !inc_rc.possibly_mutated {
+                        self.rc_pairs_to_remove.insert(inc_rc.id);
+                        self.rc_pairs_to_remove.insert(instruction_id);
+                    }
+                }
+
+                self.inc_rcs.entry(*value).or_default().insert(instruction_id);
+            }
+            Instruction::DecrementRc { value } => {
+                let typ = function.dfg.type_of_value(*value);
+
+                // We assume arrays aren't mutated until we find an array_set
+                let dec_rc =
+                    RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
+                self.rcs_with_possible_pairs.entry(typ).or_default().push(dec_rc);
+            }
+            Instruction::ArraySet { array, .. } => {
+                let typ = function.dfg.type_of_value(*array);
+                if let Some(dec_rcs) = self.rcs_with_possible_pairs.get_mut(&typ) {
+                    for dec_rc in dec_rcs {
+                        dec_rc.possibly_mutated = true;
+                    }
+                }
+
+                self.mut_borrowed_arrays.insert(*array);
+            }
+            Instruction::Store { value, .. } => {
+                // We are very conservative and say that any store of an array value means it has the potential
+                // to be mutated. This is done due to the tracking of mutable borrows still being per block.
+                let typ = function.dfg.type_of_value(*value);
+                if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
+                    self.mut_borrowed_arrays.insert(*value);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn get_non_mutated_arrays(&self) -> HashSet<InstructionId> {
+        self.inc_rcs
+            .keys()
+            .filter_map(|value| {
+                if !self.mut_borrowed_arrays.contains(value) {
+                    Some(&self.inc_rcs[value])
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .copied()
+            .collect()
+    }
+}
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
@@ -902,10 +913,27 @@ mod test {
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 6);
 
         // We expect the output to be unchanged
+        // Expected output:
+        //
+        // acir(inline) fn main f0 {
+        //     b0(v0: [u32; 2]):
+        //       inc_rc v0
+        //       v3 = array_set v0, index u32 0, value u32 1
+        //       inc_rc v0
+        //       v4 = array_get v3, index u32 1
+        //       return v4
+        //   }
         let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 6);
+        let instructions = main.dfg[main.entry_block()].instructions();
+        // We expect only the repeated inc_rc instructions to be collapsed into a single inc_rc.
+        assert_eq!(instructions.len(), 4);
+
+        assert!(matches!(&main.dfg[instructions[0]], Instruction::IncrementRc { .. }));
+        assert!(matches!(&main.dfg[instructions[1]], Instruction::ArraySet { .. }));
+        assert!(matches!(&main.dfg[instructions[2]], Instruction::IncrementRc { .. }));
+        assert!(matches!(&main.dfg[instructions[3]], Instruction::ArrayGet { .. }));
     }
 
     #[test]
