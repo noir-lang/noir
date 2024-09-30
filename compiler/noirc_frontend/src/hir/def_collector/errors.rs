@@ -106,7 +106,7 @@ impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
         let typ = &error.typ;
 
         Diagnostic::simple_error(
-            format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
+            format!("{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."),
             "Unsupported numeric generic type".to_string(),
             error.ident.0.span(),
         )
