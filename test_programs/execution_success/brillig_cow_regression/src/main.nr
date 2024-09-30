@@ -1,16 +1,16 @@
 // Tests a performance regression found in aztec-packages with brillig cow optimization
 
-global MAX_NOTE_HASHES_PER_TX: u64 = 64;
-global MAX_NULLIFIERS_PER_TX: u64 = 64;
-global MAX_L2_TO_L1_MSGS_PER_TX: u64 = 2;
-global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 16;
-global MAX_NEW_CONTRACTS_PER_TX: u64 = 1;
-global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
-global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
-global NUM_FIELDS_PER_SHA256 = 2;
+global MAX_NOTE_HASHES_PER_TX: u32 = 64;
+global MAX_NULLIFIERS_PER_TX: u32 = 64;
+global MAX_L2_TO_L1_MSGS_PER_TX: u32 = 2;
+global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u32 = 16;
+global MAX_NEW_CONTRACTS_PER_TX: u32 = 1;
+global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u32 = 1;
+global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u32 = 1;
+global NUM_FIELDS_PER_SHA256: u32 = 2;
 global TX_EFFECT_HASH_INPUT_SIZE = 169;
-global TX_EFFECT_HASH_LOG_FIELDS = 4;
-global TX_EFFECT_HASH_FULL_FIELDS = 165;
+global TX_EFFECT_HASH_LOG_FIELDS: u32 = 4;
+global TX_EFFECT_HASH_FULL_FIELDS: u32 = 165;
 
 struct PublicDataUpdateRequest {
     leaf_slot : Field,
@@ -160,14 +160,14 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
 
     let mut hash_input_flattened = [0; TX_EFFECT_HASH_FULL_FIELDS * 32 + TX_EFFECT_HASH_LOG_FIELDS * 16];
     for offset in 0..TX_EFFECT_HASH_FULL_FIELDS {
-        let input_as_bytes = tx_effects_hash_inputs[offset].to_be_bytes(32);
+        let input_as_bytes: [u8; 32] = tx_effects_hash_inputs[offset].to_be_bytes();
         for byte_index in 0..32 {
             hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
         }
     }
 
     for log_field_index in 0..TX_EFFECT_HASH_LOG_FIELDS {
-        let input_as_bytes = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes(16);
+        let input_as_bytes: [u8; 16] = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0..16 {
             hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
         }

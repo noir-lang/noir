@@ -20,6 +20,7 @@ pub mod monomorphization;
 pub mod node_interner;
 pub mod parser;
 pub mod resolve_locations;
+pub mod usage_tracker;
 
 pub mod hir;
 pub mod hir_def;
@@ -44,7 +45,6 @@ pub mod macros_api {
     pub use noirc_errors::Span;
 
     pub use crate::graph::CrateId;
-    pub use crate::hir::def_collector::errors::MacroError;
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
     pub use crate::node_interner::{NodeInterner, StructId};
@@ -52,7 +52,7 @@ pub mod macros_api {
     pub use crate::token::SecondaryAttribute;
 
     pub use crate::ast::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind,
+        BlockExpression, CallExpression, CastExpression, Documented, Expression, ExpressionKind,
         FunctionReturnType, Ident, IndexExpression, ItemVisibility, LetStatement, Literal,
         MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern,
         Statement, UnresolvedType, UnresolvedTypeData, Visibility,
@@ -63,24 +63,4 @@ pub mod macros_api {
     };
     pub use crate::hir::{def_map::ModuleDefId, Context as HirContext};
     pub use crate::{StructType, Type};
-
-    /// Methods to process the AST before and after type checking
-    pub trait MacroProcessor {
-        /// Function to manipulate the AST before type checking has been completed.
-        fn process_untyped_ast(
-            &self,
-            ast: SortedModule,
-            crate_id: &CrateId,
-            file_id: FileId,
-            context: &HirContext,
-        ) -> Result<SortedModule, (MacroError, FileId)>;
-
-        /// Function to manipulate the AST after type checking has been completed.
-        /// The AST after type checking has been done is called the HIR.
-        fn process_typed_ast(
-            &self,
-            crate_id: &CrateId,
-            context: &mut HirContext,
-        ) -> Result<(), (MacroError, FileId)>;
-    }
 }

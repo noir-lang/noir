@@ -315,7 +315,7 @@ fn regression_2370() {
 }
 
 fn regression_4418(x: Field) {
-    let mut crash = x.to_be_bytes(32);
+    let mut crash: [u8; 32] = x.to_be_bytes();
 
     if x != 0 {
         crash[0] = 10;

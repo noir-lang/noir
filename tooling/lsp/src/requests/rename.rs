@@ -38,7 +38,7 @@ pub(crate) fn on_rename_request(
         let rename_changes = find_all_references_in_workspace(
             args.location,
             args.interner,
-            args.interners,
+            args.package_cache,
             args.files,
             true,
             false,

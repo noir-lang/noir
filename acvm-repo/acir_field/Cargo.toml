@@ -2,7 +2,7 @@
 name = "acir_field"
 description = "The field implementation being used by ACIR."
 # x-release-please-start-version
-version = "0.49.0"
+version = "0.50.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -24,7 +24,7 @@ ark-bn254.workspace = true
 ark-bls12-381 = { workspace = true, optional = true }
 ark-ff.workspace = true
 
-cfg-if = "1.0.0"
+cfg-if.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

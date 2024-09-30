@@ -16,26 +16,26 @@ pub(crate) struct Poseidon2<'a> {
     config: &'a Poseidon2Config,
 }
 
-struct Poseidon2Config {
-    t: u32,
-    rounds_f: u32,
-    rounds_p: u32,
-    internal_matrix_diagonal: [FieldElement; 4],
-    round_constant: [[FieldElement; 4]; 64],
+pub struct Poseidon2Config {
+    pub t: u32,
+    pub rounds_f: u32,
+    pub rounds_p: u32,
+    pub internal_matrix_diagonal: [FieldElement; 4],
+    pub round_constant: [[FieldElement; 4]; 64],
 }
 
-fn field_from_hex(hex: &str) -> FieldElement {
+pub fn field_from_hex(hex: &str) -> FieldElement {
     FieldElement::from_be_bytes_reduce(&hex::decode(hex).expect("Should be passed only valid hex"))
 }
 
 lazy_static! {
-    static ref INTERNAL_MATRIX_DIAGONAL: [FieldElement; 4] = [
+    pub static ref INTERNAL_MATRIX_DIAGONAL: [FieldElement; 4] = [
         field_from_hex("10dc6e9c006ea38b04b1e03b4bd9490c0d03f98929ca1d7fb56821fd19d3b6e7"),
         field_from_hex("0c28145b6a44df3e0149b3d0a30b3bb599df9756d4dd9b84a86b38cfb45a740b"),
         field_from_hex("00544b8338791518b2c7645a50392798b21f75bb60e3596170067d00141cac15"),
         field_from_hex("222c01175718386f2e2e82eb122789e352e105a3b8fa852613bc534433ee428b"),
     ];
-    static ref ROUND_CONSTANT: [[FieldElement; 4]; 64] = [
+    pub static ref ROUND_CONSTANT: [[FieldElement; 4]; 64] = [
         [
             field_from_hex("19b849f69450b06848da1d39bd5e4a4302bb86744edc26238b0878e269ed23e5"),
             field_from_hex("265ddfe127dd51bd7239347b758f0a1320eb2cc7450acc1dad47f80c8dcf34d6"),
@@ -421,7 +421,7 @@ lazy_static! {
             field_from_hex("176563472456aaa746b694c60e1823611ef39039b2edc7ff391e6f2293d2c404"),
         ],
     ];
-    static ref POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
+    pub static ref POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
         t: 4,
         rounds_f: 8,
         rounds_p: 56,
@@ -543,6 +543,75 @@ impl<'a> Poseidon2<'a> {
     }
 }
 
+/// Performs a poseidon hash with a sponge construction equivalent to the one in poseidon2.nr
+pub fn poseidon_hash(inputs: &[FieldElement]) -> Result<FieldElement, BlackBoxResolutionError> {
+    let two_pow_64 = 18446744073709551616_u128.into();
+    let iv = FieldElement::from(inputs.len()) * two_pow_64;
+    let mut sponge = Poseidon2Sponge::new(iv, 3);
+    for input in inputs.iter() {
+        sponge.absorb(*input)?;
+    }
+    sponge.squeeze()
+}
+
+pub struct Poseidon2Sponge<'a> {
+    rate: usize,
+    poseidon: Poseidon2<'a>,
+    squeezed: bool,
+    cache: Vec<FieldElement>,
+    state: Vec<FieldElement>,
+}
+
+impl<'a> Poseidon2Sponge<'a> {
+    pub fn new(iv: FieldElement, rate: usize) -> Poseidon2Sponge<'a> {
+        let mut result = Poseidon2Sponge {
+            cache: Vec::with_capacity(rate),
+            state: vec![FieldElement::zero(); rate + 1],
+            squeezed: false,
+            rate,
+            poseidon: Poseidon2::new(),
+        };
+        result.state[rate] = iv;
+        result
+    }
+
+    fn perform_duplex(&mut self) -> Result<(), BlackBoxResolutionError> {
+        // zero-pad the cache
+        for _ in self.cache.len()..self.rate {
+            self.cache.push(FieldElement::zero());
+        }
+        // add the cache into sponge state
+        for i in 0..self.rate {
+            self.state[i] += self.cache[i];
+        }
+        self.state = self.poseidon.permutation(&self.state, 4)?;
+        Ok(())
+    }
+
+    pub fn absorb(&mut self, input: FieldElement) -> Result<(), BlackBoxResolutionError> {
+        assert!(!self.squeezed);
+        if self.cache.len() == self.rate {
+            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
+            self.perform_duplex()?;
+            self.cache = vec![input];
+        } else {
+            // If we're absorbing, and the cache is not full, add the input into the cache
+            self.cache.push(input);
+        }
+        Ok(())
+    }
+
+    pub fn squeeze(&mut self) -> Result<FieldElement, BlackBoxResolutionError> {
+        assert!(!self.squeezed);
+        // If we're in absorb mode, apply sponge permutation to compress the cache.
+        self.perform_duplex()?;
+        self.squeezed = true;
+
+        // Pop one item off the top of the permutation and return it.
+        Ok(self.state[0])
+    }
+}
+
 #[cfg(test)]
 mod test {
     use acir::AcirField;
@@ -561,5 +630,20 @@ mod test {
             field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
         ];
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn hash_smoke_test() {
+        let fields = [
+            FieldElement::from(1u128),
+            FieldElement::from(2u128),
+            FieldElement::from(3u128),
+            FieldElement::from(4u128),
+        ];
+        let result = super::poseidon_hash(&fields).expect("should hash successfully");
+        assert_eq!(
+            result,
+            field_from_hex("130bf204a32cac1f0ace56c78b731aa3809f06df2731ebcf6b3464a15788b1b9"),
+        );
     }
 }

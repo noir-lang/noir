@@ -9,9 +9,7 @@ use nargo::{
     prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{
-    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
     graph::CrateName,
     hir::{FunctionNameMatch, ParsedFiles},
@@ -65,7 +63,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
@@ -80,23 +78,28 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    let test_reports: Vec<Vec<(String, TestStatus)>> = workspace
-        .into_iter()
-        .par_bridge()
-        .map(|package| {
-            run_tests::<Bn254BlackBoxSolver>(
-                &workspace_file_manager,
-                &parsed_files,
-                package,
-                pattern,
-                args.show_output,
-                args.oracle_resolver.as_deref(),
-                Some(workspace.root_dir.clone()),
-                Some(package.name.to_string()),
-                &args.compile_options,
-            )
-        })
-        .collect::<Result<_, _>>()?;
+    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // Default is 2MB.
+    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    let test_reports: Vec<Vec<(String, TestStatus)>> = pool.install(|| {
+        workspace
+            .into_iter()
+            .par_bridge()
+            .map(|package| {
+                run_tests::<Bn254BlackBoxSolver>(
+                    &workspace_file_manager,
+                    &parsed_files,
+                    package,
+                    pattern,
+                    args.show_output,
+                    args.oracle_resolver.as_deref(),
+                    Some(workspace.root_dir.clone()),
+                    Some(package.name.to_string()),
+                    &args.compile_options,
+                )
+            })
+            .collect::<Result<_, _>>()
+    })?;
     let test_report: Vec<(String, TestStatus)> = test_reports.into_iter().flatten().collect();
 
     if test_report.is_empty() {
@@ -206,10 +209,10 @@ fn get_tests_in_package(
     parsed_files: &ParsedFiles,
     package: &Package,
     fn_name: FunctionNameMatch,
-    compile_options: &CompileOptions,
+    options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    check_crate_and_report_errors(&mut context, crate_id, options)?;
 
     Ok(context
         .get_all_test_functions_in_crate_matching(&crate_id, fn_name)

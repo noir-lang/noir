@@ -153,7 +153,7 @@ will implement `Foo` only for types that also implement `Bar`. This is often use
 For example, here is the implementation for array equality:
 
 ```rust
-impl<T, N> Eq for [T; N] where T: Eq {
+impl<T, let N: u32> Eq for [T; let N: u32] where T: Eq {
     // Test if two arrays have the same elements.
     // Because both arrays must have length N, we know their lengths already match.
     fn eq(self, other: Self) -> bool {
@@ -222,6 +222,66 @@ fn main() {
     let my_struct = MyStruct { array };
 
     assert_eq(as_array(my_struct), array);
+}
+```
+
+### Associated Types and Constants
+
+Traits also support associated types and constraints which can be thought of as additional generics that are referred to by name.
+
+Here's an example of a trait with an associated type `Foo` and a constant `Bar`:
+
+```rust
+trait MyTrait {
+    type Foo;
+
+    let Bar: u32;
+}
+```
+
+Now when we're implementing `MyTrait` we also have to provide values for `Foo` and `Bar`:
+
+```rust
+impl MyTrait for Field {
+    type Foo = i32;
+
+    let Bar: u32 = 11;
+}
+```
+
+Since associated constants can also be used in a type position, its values are limited to only other
+expression kinds allowed in numeric generics.
+
+Note that currently all associated types and constants must be explicitly specified in a trait constraint.
+If we leave out any, we'll get an error that we're missing one:
+
+```rust
+// Error! Constraint is missing associated constant for `Bar`
+fn foo<T>(x: T) where T: MyTrait<Foo = i32> {
+    ...
+}
+```
+
+Because all associated types and constants must be explicitly specified, they are essentially named generics,
+although this is set to change in the future. Future versions of Noir will allow users to elide associated types
+in trait constraints similar to Rust. When this is done, you may still refer to their value with the `<Type as Trait>::AssociatedType`
+syntax:
+
+```rust
+// Only valid in future versions of Noir:
+fn foo<T>(x: T) where T: MyTrait {
+    let _: <T as MyTrait>::Foo = ...;
+}
+```
+
+The type as trait syntax is possible in Noir today but is less useful when each type must be explicitly specified anyway:
+
+```rust
+fn foo<T, F, let B: u32>(x: T) where T: MyTrait<Foo = F, Bar = B> {
+    // Works, but could just use F directly
+    let _: <T as MyTrait<Foo = F, Bar = B>>::Foo = ...;
+
+    let _: F = ...;
 }
 ```
 
@@ -403,3 +463,13 @@ impl Default for Wrapper {
 Since we have an impl for our own type, the behavior of this code will not change even if `some_library` is updated
 to provide its own `impl Default for Foo`. The downside of this pattern is that it requires extra wrapping and
 unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
+
+### Visibility
+
+By default, like functions, traits are private to the module the exist in. You can use `pub`
+to make the trait public or `pub(crate)` to make it public to just its crate:
+
+```rust
+// This trait is now public
+pub trait Trait {}
+```

@@ -10,14 +10,15 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     self,
     ast::{
-        BlockExpression, Expression, ExpressionKind, Ident, LetStatement, NoirFunction, Pattern,
-        Statement, StatementKind, TraitImplItem, TraitItem, UnresolvedTypeData,
+        CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
+        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
+        UnresolvedTypeData, Visitor,
     },
     hir_def::stmt::HirPattern,
     macros_api::NodeInterner,
     node_interner::ReferenceId,
-    parser::{Item, ItemKind},
-    ParsedModule, Type, TypeBinding, TypeVariable, TypeVariableKind,
+    parser::{Item, ParsedSubModule},
+    Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use crate::{utils, LspState};
@@ -47,7 +48,7 @@ pub(crate) fn on_inlay_hint_request(
 
             let mut collector =
                 InlayHintCollector::new(args.files, file_id, args.interner, span, options);
-            collector.collect_in_parsed_module(&parsed_moduled);
+            parsed_moduled.accept(&mut collector);
             collector.inlay_hints
         })
     });
@@ -72,264 +73,6 @@ impl<'a> InlayHintCollector<'a> {
         options: InlayHintsOptions,
     ) -> InlayHintCollector<'a> {
         InlayHintCollector { files, file_id, interner, span, options, inlay_hints: Vec::new() }
-    }
-    fn collect_in_parsed_module(&mut self, parsed_module: &ParsedModule) {
-        for item in &parsed_module.items {
-            self.collect_in_item(item);
-        }
-    }
-
-    fn collect_in_item(&mut self, item: &Item) {
-        if !self.intersects_span(item.span) {
-            return;
-        }
-
-        match &item.kind {
-            ItemKind::Function(noir_function) => {
-                self.collect_in_noir_function(noir_function, item.span);
-            }
-            ItemKind::Trait(noir_trait) => {
-                for item in &noir_trait.items {
-                    self.collect_in_trait_item(item);
-                }
-            }
-            ItemKind::TraitImpl(noir_trait_impl) => {
-                for trait_impl_item in &noir_trait_impl.items {
-                    self.collect_in_trait_impl_item(trait_impl_item, item.span);
-                }
-
-                self.show_closing_brace_hint(item.span, || {
-                    format!(
-                        " impl {} for {}",
-                        noir_trait_impl.trait_name, noir_trait_impl.object_type
-                    )
-                });
-            }
-            ItemKind::Impl(type_impl) => {
-                for (noir_function, span) in &type_impl.methods {
-                    self.collect_in_noir_function(noir_function, *span);
-                }
-
-                self.show_closing_brace_hint(item.span, || {
-                    format!(" impl {}", type_impl.object_type)
-                });
-            }
-            ItemKind::Global(let_statement) => self.collect_in_let_statement(let_statement),
-            ItemKind::Submodules(parsed_submodule) => {
-                self.collect_in_parsed_module(&parsed_submodule.contents);
-
-                self.show_closing_brace_hint(item.span, || {
-                    if parsed_submodule.is_contract {
-                        format!(" contract {}", parsed_submodule.name)
-                    } else {
-                        format!(" mod {}", parsed_submodule.name)
-                    }
-                });
-            }
-            ItemKind::ModuleDecl(_) => (),
-            ItemKind::Import(_) => (),
-            ItemKind::Struct(_) => (),
-            ItemKind::TypeAlias(_) => (),
-        }
-    }
-
-    fn collect_in_trait_item(&mut self, item: &TraitItem) {
-        match item {
-            TraitItem::Function { body, .. } => {
-                if let Some(body) = body {
-                    self.collect_in_block_expression(body);
-                }
-            }
-            TraitItem::Constant { name: _, typ: _, default_value } => {
-                if let Some(default_value) = default_value {
-                    self.collect_in_expression(default_value);
-                }
-            }
-            TraitItem::Type { .. } => (),
-        }
-    }
-
-    fn collect_in_trait_impl_item(&mut self, item: &TraitImplItem, span: Span) {
-        match item {
-            TraitImplItem::Function(noir_function) => {
-                self.collect_in_noir_function(noir_function, span);
-            }
-            TraitImplItem::Constant(_name, _typ, default_value) => {
-                self.collect_in_expression(default_value);
-            }
-            TraitImplItem::Type { .. } => (),
-        }
-    }
-
-    fn collect_in_noir_function(&mut self, noir_function: &NoirFunction, span: Span) {
-        self.collect_in_block_expression(&noir_function.def.body);
-
-        self.show_closing_brace_hint(span, || format!(" fn {}", noir_function.def.name));
-    }
-
-    fn collect_in_let_statement(&mut self, let_statement: &LetStatement) {
-        // Only show inlay hints for let variables that don't have an explicit type annotation
-        if let UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
-            self.collect_in_pattern(&let_statement.pattern);
-        };
-
-        self.collect_in_expression(&let_statement.expression);
-    }
-
-    fn collect_in_block_expression(&mut self, block_expression: &BlockExpression) {
-        for statement in &block_expression.statements {
-            self.collect_in_statement(statement);
-        }
-    }
-
-    fn collect_in_statement(&mut self, statement: &Statement) {
-        if !self.intersects_span(statement.span) {
-            return;
-        }
-
-        match &statement.kind {
-            StatementKind::Let(let_statement) => self.collect_in_let_statement(let_statement),
-            StatementKind::Constrain(constrain_statement) => {
-                self.collect_in_expression(&constrain_statement.0);
-            }
-            StatementKind::Expression(expression) => self.collect_in_expression(expression),
-            StatementKind::Assign(assign_statement) => {
-                self.collect_in_expression(&assign_statement.expression);
-            }
-            StatementKind::For(for_loop_statement) => {
-                self.collect_in_ident(&for_loop_statement.identifier, false);
-                self.collect_in_expression(&for_loop_statement.block);
-            }
-            StatementKind::Comptime(statement) => self.collect_in_statement(statement),
-            StatementKind::Semi(expression) => self.collect_in_expression(expression),
-            StatementKind::Break => (),
-            StatementKind::Continue => (),
-            StatementKind::Error => (),
-        }
-    }
-
-    fn collect_in_expression(&mut self, expression: &Expression) {
-        if !self.intersects_span(expression.span) {
-            return;
-        }
-
-        match &expression.kind {
-            ExpressionKind::Block(block_expression) => {
-                self.collect_in_block_expression(block_expression);
-            }
-            ExpressionKind::Prefix(prefix_expression) => {
-                self.collect_in_expression(&prefix_expression.rhs);
-            }
-            ExpressionKind::Index(index_expression) => {
-                self.collect_in_expression(&index_expression.collection);
-                self.collect_in_expression(&index_expression.index);
-            }
-            ExpressionKind::Call(call_expression) => {
-                self.collect_call_parameter_names(
-                    get_expression_name(&call_expression.func),
-                    call_expression.func.span,
-                    &call_expression.arguments,
-                );
-
-                self.collect_in_expression(&call_expression.func);
-                for arg in &call_expression.arguments {
-                    self.collect_in_expression(arg);
-                }
-            }
-            ExpressionKind::MethodCall(method_call_expression) => {
-                self.collect_call_parameter_names(
-                    Some(method_call_expression.method_name.to_string()),
-                    method_call_expression.method_name.span(),
-                    &method_call_expression.arguments,
-                );
-
-                self.collect_in_expression(&method_call_expression.object);
-                for arg in &method_call_expression.arguments {
-                    self.collect_in_expression(arg);
-                }
-            }
-            ExpressionKind::Constructor(constructor_expression) => {
-                for (_name, expr) in &constructor_expression.fields {
-                    self.collect_in_expression(expr);
-                }
-            }
-            ExpressionKind::MemberAccess(member_access_expression) => {
-                self.collect_in_expression(&member_access_expression.lhs);
-            }
-            ExpressionKind::Cast(cast_expression) => {
-                self.collect_in_expression(&cast_expression.lhs);
-            }
-            ExpressionKind::Infix(infix_expression) => {
-                self.collect_in_expression(&infix_expression.lhs);
-                self.collect_in_expression(&infix_expression.rhs);
-            }
-            ExpressionKind::If(if_expression) => {
-                self.collect_in_expression(&if_expression.condition);
-                self.collect_in_expression(&if_expression.consequence);
-                if let Some(alternative) = &if_expression.alternative {
-                    self.collect_in_expression(alternative);
-                }
-            }
-            ExpressionKind::Tuple(expressions) => {
-                for expression in expressions {
-                    self.collect_in_expression(expression);
-                }
-            }
-            ExpressionKind::Lambda(lambda) => {
-                for (pattern, typ) in &lambda.parameters {
-                    if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
-                        self.collect_in_pattern(pattern);
-                    }
-                }
-
-                self.collect_in_expression(&lambda.body);
-            }
-            ExpressionKind::Parenthesized(parenthesized) => {
-                self.collect_in_expression(parenthesized);
-            }
-            ExpressionKind::Unquote(expression) => {
-                self.collect_in_expression(expression);
-            }
-            ExpressionKind::Comptime(block_expression, _span) => {
-                self.collect_in_block_expression(block_expression);
-            }
-            ExpressionKind::Unsafe(block_expression, _span) => {
-                self.collect_in_block_expression(block_expression);
-            }
-            ExpressionKind::AsTraitPath(path) => {
-                self.collect_in_ident(&path.impl_item, true);
-            }
-            ExpressionKind::Literal(..)
-            | ExpressionKind::Variable(..)
-            | ExpressionKind::Quote(..)
-            | ExpressionKind::Resolved(..)
-            | ExpressionKind::Error => (),
-        }
-    }
-
-    fn collect_in_pattern(&mut self, pattern: &Pattern) {
-        if !self.options.type_hints.enabled {
-            return;
-        }
-
-        match pattern {
-            Pattern::Identifier(ident) => {
-                self.collect_in_ident(ident, true);
-            }
-            Pattern::Mutable(pattern, _span, _is_synthesized) => {
-                self.collect_in_pattern(pattern);
-            }
-            Pattern::Tuple(patterns, _span) => {
-                for pattern in patterns {
-                    self.collect_in_pattern(pattern);
-                }
-            }
-            Pattern::Struct(_path, patterns, _span) => {
-                for (_ident, pattern) in patterns {
-                    self.collect_in_pattern(pattern);
-                }
-            }
-        }
     }
 
     fn collect_in_ident(&mut self, ident: &Ident, editable: bool) {
@@ -525,6 +268,112 @@ impl<'a> InlayHintCollector<'a> {
     }
 }
 
+impl<'a> Visitor for InlayHintCollector<'a> {
+    fn visit_item(&mut self, item: &Item) -> bool {
+        self.intersects_span(item.span)
+    }
+
+    fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
+        self.show_closing_brace_hint(span, || {
+            format!(" impl {} for {}", noir_trait_impl.trait_name, noir_trait_impl.object_type)
+        });
+
+        true
+    }
+
+    fn visit_type_impl(&mut self, type_impl: &TypeImpl, span: Span) -> bool {
+        self.show_closing_brace_hint(span, || format!(" impl {}", type_impl.object_type));
+
+        true
+    }
+
+    fn visit_parsed_submodule(&mut self, parsed_submodule: &ParsedSubModule, span: Span) -> bool {
+        self.show_closing_brace_hint(span, || {
+            if parsed_submodule.is_contract {
+                format!(" contract {}", parsed_submodule.name)
+            } else {
+                format!(" mod {}", parsed_submodule.name)
+            }
+        });
+
+        true
+    }
+
+    fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
+        self.show_closing_brace_hint(span, || format!(" fn {}", noir_function.def.name));
+
+        true
+    }
+
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        self.intersects_span(statement.span)
+    }
+
+    fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
+        // Only show inlay hints for let variables that don't have an explicit type annotation
+        if let UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
+            let_statement.pattern.accept(self);
+        };
+
+        let_statement.expression.accept(self);
+
+        false
+    }
+
+    fn visit_for_loop_statement(&mut self, for_loop_statement: &ForLoopStatement) -> bool {
+        self.collect_in_ident(&for_loop_statement.identifier, false);
+        true
+    }
+
+    fn visit_expression(&mut self, expression: &Expression) -> bool {
+        self.intersects_span(expression.span)
+    }
+
+    fn visit_call_expression(&mut self, call_expression: &CallExpression, _: Span) -> bool {
+        self.collect_call_parameter_names(
+            get_expression_name(&call_expression.func),
+            call_expression.func.span,
+            &call_expression.arguments,
+        );
+
+        true
+    }
+
+    fn visit_method_call_expression(
+        &mut self,
+        method_call_expression: &MethodCallExpression,
+        _: Span,
+    ) -> bool {
+        self.collect_call_parameter_names(
+            Some(method_call_expression.method_name.to_string()),
+            method_call_expression.method_name.span(),
+            &method_call_expression.arguments,
+        );
+
+        true
+    }
+
+    fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
+        for (pattern, typ) in &lambda.parameters {
+            if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
+                pattern.accept(self);
+            }
+        }
+
+        lambda.body.accept(self);
+
+        false
+    }
+
+    fn visit_pattern(&mut self, _: &Pattern) -> bool {
+        self.options.type_hints.enabled
+    }
+
+    fn visit_identifier_pattern(&mut self, ident: &Ident) {
+        self.collect_in_ident(ident, true);
+    }
+}
+
 fn string_part(str: impl Into<String>) -> InlayHintLabelPart {
     InlayHintLabelPart { value: str.into(), location: None, tooltip: None, command: None }
 }
@@ -628,14 +477,6 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 push_type_variable_parts(binding, parts, files);
             }
         }
-        Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
-            if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                // TypeVariableKind::Constant(n) binds to Type::Constant(n) by default, so just show that.
-                parts.push(string_part(n.to_string()));
-            } else {
-                push_type_variable_parts(binding, parts, files);
-            }
-        }
 
         Type::FieldElement
         | Type::Integer(..)
@@ -681,6 +522,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         ExpressionKind::Cast(cast) => get_expression_name(&cast.lhs),
         ExpressionKind::Parenthesized(expr) => get_expression_name(expr),
         ExpressionKind::AsTraitPath(path) => Some(path.impl_item.to_string()),
+        ExpressionKind::TypePath(path) => Some(path.item.to_string()),
         ExpressionKind::Constructor(..)
         | ExpressionKind::Infix(..)
         | ExpressionKind::Index(..)
@@ -692,6 +534,8 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Unquote(..)
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
+        | ExpressionKind::Interned(..)
+        | ExpressionKind::InternedStatement(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,

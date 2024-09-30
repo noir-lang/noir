@@ -1,4 +1,4 @@
-mod affine {
+pub mod affine {
     // Affine coordinate representation of Twisted Edwards curves
     // Points are represented by two-dimensional Cartesian coordinates.
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
@@ -12,7 +12,7 @@ mod affine {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Twisted Edwards curve
+    pub struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
         a: Field,
         d: Field,
@@ -20,13 +20,14 @@ mod affine {
         gen: Point
     }
     // Point in Cartesian coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field
     }
 
     impl Point {
         // Point constructor
+        #[deprecated = "It's recommmended to use the external noir-edwards library (https://github.com/noir-lang/noir-edwards)"]
         pub fn new(x: Field, y: Field) -> Self {
             Self { x, y }
         }
@@ -70,7 +71,7 @@ mod affine {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-             let Self {x: x1, y: y1} = self;
+            let Self {x: x1, y: y1} = self;
             let Self {x: x2, y: y2} = p;
 
             (x1 == x2) & (y1 == y2)
@@ -166,17 +167,17 @@ mod affine {
             MCurve::new(j, k, gen_montcurve)
         }
 
-        // Conversion to equivalent Short Weierstraß curve
+        // Conversion to equivalent Short Weierstrass curve
         pub fn into_swcurve(self) -> SWCurve {
             self.into_montcurve().into_swcurve()
         }
 
-        // Point mapping into equivalent Short Weierstraß curve
+        // Point mapping into equivalent Short Weierstrass curve
         pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             self.into_montcurve().map_into_swcurve(p.into_montcurve())
         }
 
-        // Point mapping from equivalent Short Weierstraß curve
+        // Point mapping from equivalent Short Weierstrass curve
         fn map_from_swcurve(self, p: SWPoint) -> Point {
             self.into_montcurve().map_from_swcurve(p).into_tecurve()
         }
@@ -192,10 +193,10 @@ mod affine {
         }
     }
 }
-mod curvegroup {
+pub mod curvegroup {
     // CurveGroup coordinate representation of Twisted Edwards curves
     // Points are represented by four-dimensional projective coordinates, viz. extended Twisted Edwards coordinates.
-    // See §3 of <https://eprint.iacr.org/2008/522.pdf> for details.
+    // See section 3 of <https://eprint.iacr.org/2008/522.pdf> for details.
     use crate::ec::tecurve::affine;
     use crate::ec::montcurve::curvegroup::Curve as MCurve;
     use crate::ec::montcurve::curvegroup::Point as MPoint;
@@ -204,7 +205,7 @@ mod curvegroup {
     use crate::cmp::Eq;
 
     // Curve specification
-    struct Curve { // Twisted Edwards curve
+    pub struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
         a: Field,
         d: Field,
@@ -212,7 +213,7 @@ mod curvegroup {
         gen: Point
     }
     // Point in extended twisted Edwards coordinates
-    struct Point {
+    pub struct Point {
         x: Field,
         y: Field,
         t: Field,
@@ -261,7 +262,7 @@ mod curvegroup {
             let Self {x: x1, y: y1, t: _t1, z: z1} = self;
             let Self {x: x2, y: y2, t: _t2, z:z2} = p;
 
-            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
+            (x1 * z2 == x2 * z1) & (y1 * z2 == y2 * z1)
         }
     }
 
@@ -317,7 +318,7 @@ mod curvegroup {
             Point::new(x, y, t, z)
         }
 
-        // Point doubling, cf. §3.3
+        // Point doubling, cf. section 3.3
         pub fn double(self, p: Point) -> Point {
             let Point{x, y, t: _t, z} = p;
 
@@ -354,11 +355,9 @@ mod curvegroup {
 
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
-            let N_BITS = crate::field::modulus_num_bits();
-
             // TODO: temporary workaround until issue 1354 is solved
             let mut n_as_bits: [u1; 254] = [0; 254];
-            let tmp = n.to_le_bits(N_BITS as u32);
+            let tmp: [u1; 254] = n.to_le_bits();
             for i in 0..254 {
                 n_as_bits[i] = tmp[i];
             }
@@ -387,17 +386,17 @@ mod curvegroup {
             self.into_affine().into_montcurve().into_group()
         }
 
-        // Conversion to equivalent Short Weierstraß curve
+        // Conversion to equivalent Short Weierstrass curve
         fn into_swcurve(self) -> SWCurve {
             self.into_montcurve().into_swcurve()
         }
 
-        // Point mapping into equivalent short Weierstraß curve
+        // Point mapping into equivalent short Weierstrass curve
         pub fn map_into_swcurve(self, p: Point) -> SWPoint {
             self.into_montcurve().map_into_swcurve(p.into_montcurve())
         }
 
-        // Point mapping from equivalent short Weierstraß curve
+        // Point mapping from equivalent short Weierstrass curve
         fn map_from_swcurve(self, p: SWPoint) -> Point {
             self.into_montcurve().map_from_swcurve(p).into_tecurve()
         }

@@ -159,9 +159,9 @@ impl Context {
             *side_effects_enabled_var,
         );
 
-        // If we just inserted an `Instruction::EnableSideEffects`, we need to update `side_effects_enabled_var`
+        // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
-        if let Instruction::EnableSideEffects { condition } = instruction {
+        if let Instruction::EnableSideEffectsIf { condition } = instruction {
             *side_effects_enabled_var = condition;
         };
     }
@@ -311,7 +311,7 @@ impl Context {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -509,7 +509,7 @@ mod test {
         let one = builder.field_constant(1u128);
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
 
-        let array_type = Type::Array(Rc::new(vec![Type::field()]), 1);
+        let array_type = Type::Array(Arc::new(vec![Type::field()]), 1);
         let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
         builder.terminate_with_return(vec![arr]);
 
@@ -601,7 +601,7 @@ mod test {
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
-        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 4));
+        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 4));
         let v1 = builder.add_parameter(Type::unsigned(32));
         let v2 = builder.add_parameter(Type::unsigned(1));
         let v3 = builder.add_parameter(Type::unsigned(1));
@@ -737,7 +737,7 @@ mod test {
         let zero = builder.field_constant(0u128);
         let one = builder.field_constant(1u128);
 
-        let typ = Type::Array(Rc::new(vec![Type::field()]), 2);
+        let typ = Type::Array(Arc::new(vec![Type::field()]), 2);
         let array = builder.array_constant(vec![zero, one].into(), typ);
 
         let _v2 = builder.insert_array_get(array, v1, Type::field());
@@ -787,7 +787,7 @@ mod test {
 
         let v0 = builder.add_parameter(Type::bool());
         let v1 = builder.add_parameter(Type::bool());
-        let v2 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 2));
+        let v2 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
 
         let zero = builder.numeric_constant(0u128, Type::length_type());
         let one = builder.numeric_constant(1u128, Type::length_type());

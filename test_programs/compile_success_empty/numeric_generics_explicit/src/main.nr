@@ -28,7 +28,7 @@ fn main() {
 }
 
 // Used in the signature of a function
-fn id<let I: Field>(x: [Field; I]) -> [Field; I] {
+fn id<let I: u32>(x: [Field; I]) -> [Field; I] {
     x
 }
 

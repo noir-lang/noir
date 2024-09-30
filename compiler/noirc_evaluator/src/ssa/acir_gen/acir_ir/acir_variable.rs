@@ -2,7 +2,7 @@ use super::big_int::BigIntContext;
 use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalError, RuntimeError, SsaReport};
+use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
@@ -10,7 +10,6 @@ use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockId, BlockType, MemOp};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
-use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
     acir::AcirField,
@@ -127,6 +126,8 @@ pub(crate) struct AcirContext<F: AcirField> {
     big_int_ctx: BigIntContext,
 
     expression_width: ExpressionWidth,
+
+    pub(crate) warnings: Vec<SsaReport>,
 }
 
 impl<F: AcirField> AcirContext<F> {
@@ -492,7 +493,7 @@ impl<F: AcirField> AcirContext<F> {
             self.sub_var(sum, mul)
         } else {
             // Implement OR in terms of AND
-            // (NOT a) NAND (NOT b) => a OR b
+            // (NOT a) AND (NOT b) => NOT (a OR b)
             let a = self.not_var(lhs, typ.clone())?;
             let b = self.not_var(rhs, typ.clone())?;
             let a_and_b = self.and_var(a, b, typ.clone())?;
@@ -518,6 +519,12 @@ impl<F: AcirField> AcirContext<F> {
             // Constraint is always true - assertion is unnecessary.
             self.mark_variables_equivalent(lhs, rhs)?;
             return Ok(());
+        }
+        if diff_expr.is_const() {
+            // Constraint is always false
+            self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed {
+                call_stack: self.get_call_stack(),
+            }));
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
@@ -1413,7 +1420,7 @@ impl<F: AcirField> AcirContext<F> {
             }
             BlackBoxFunc::AES128Encrypt => {
                 let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
-                let input_size = match inputs.first().expect(invalid_input) {
+                let input_size: usize = match inputs.first().expect(invalid_input) {
                     AcirValue::Array(values) => Ok::<usize, RuntimeError>(values.len()),
                     AcirValue::DynamicArray(dyn_array) => Ok::<usize, RuntimeError>(dyn_array.len),
                     _ => {
@@ -1426,10 +1433,46 @@ impl<F: AcirField> AcirContext<F> {
                 output_count = input_size + (16 - input_size % 16);
                 (vec![], vec![F::from(output_count as u128)])
             }
+            BlackBoxFunc::RecursiveAggregation => {
+                let proof_type_var = match inputs.pop() {
+                    Some(domain_var) => domain_var.into_var()?,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "verify proof".to_string(),
+                            arg: "proof type".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                let proof_type_constant = match self.vars[&proof_type_var].as_constant() {
+                    Some(proof_type_constant) => proof_type_constant,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "proof type".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                (vec![*proof_type_constant], Vec::new())
+            }
             _ => (vec![], vec![]),
         };
-        // Allow constant inputs only for MSM for now
-        let allow_constant_inputs = name.eq(&BlackBoxFunc::MultiScalarMul);
+        // Allow constant inputs for most blackbox
+        // EmbeddedCurveAdd needs to be fixed first in bb
+        // Poseidon2Permutation requires witness input
+        let allow_constant_inputs = matches!(
+            name,
+            BlackBoxFunc::MultiScalarMul
+                | BlackBoxFunc::Keccakf1600
+                | BlackBoxFunc::Blake2s
+                | BlackBoxFunc::Blake3
+                | BlackBoxFunc::AND
+                | BlackBoxFunc::XOR
+                | BlackBoxFunc::AES128Encrypt
+                | BlackBoxFunc::EmbeddedCurveAdd
+        );
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
         // Call Black box with `FunctionInput`
@@ -1468,7 +1511,18 @@ impl<F: AcirField> AcirContext<F> {
                 let num_bits = typ.bit_size::<F>();
                 match self.vars[&input].as_constant() {
                     Some(constant) if allow_constant_inputs => {
-                        single_val_witnesses.push(FunctionInput::constant(*constant, num_bits));
+                        single_val_witnesses.push(
+                            FunctionInput::constant(*constant, num_bits).map_err(
+                                |invalid_input_bit_size| {
+                                    RuntimeError::InvalidBlackBoxInputBitSize {
+                                        value: invalid_input_bit_size.value,
+                                        num_bits: invalid_input_bit_size.value_num_bits,
+                                        max_num_bits: invalid_input_bit_size.max_bits,
+                                        call_stack: self.get_call_stack(),
+                                    }
+                                },
+                            )?,
+                        );
                     }
                     _ => {
                         let witness_var = self.get_or_create_witness_var(input)?;
@@ -1493,24 +1547,14 @@ impl<F: AcirField> AcirContext<F> {
         endian: Endian,
         input_var: AcirVar,
         radix_var: AcirVar,
-        limb_count_var: AcirVar,
+        limb_count: u32,
         result_element_type: AcirType,
-    ) -> Result<Vec<AcirValue>, RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
             Some(radix) => radix.to_u128() as u32,
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
-                    call_stack: self.get_call_stack(),
-                }));
-            }
-        };
-
-        let limb_count = match self.vars[&limb_count_var].as_constant() {
-            Some(limb_count) => limb_count.to_u128() as u32,
-            None => {
-                return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                    name: "limb_size".to_string(),
                     call_stack: self.get_call_stack(),
                 }));
             }
@@ -1532,10 +1576,7 @@ impl<F: AcirField> AcirContext<F> {
 
         // `Intrinsic::ToRadix` returns slices which are represented
         // by tuples with the structure (length, slice contents)
-        Ok(vec![
-            AcirValue::Var(self.add_constant(limb_vars.len()), AcirType::field()),
-            AcirValue::Array(limb_vars.into()),
-        ])
+        Ok(AcirValue::Array(limb_vars.into()))
     }
 
     /// Returns `AcirVar`s constrained to be the bit decomposition of the provided input
@@ -1543,11 +1584,11 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         endian: Endian,
         input_var: AcirVar,
-        limb_count_var: AcirVar,
+        limb_count: u32,
         result_element_type: AcirType,
-    ) -> Result<Vec<AcirValue>, RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError> {
         let two_var = self.add_constant(2_u128);
-        self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
+        self.radix_decompose(endian, input_var, two_var, limb_count, result_element_type)
     }
 
     /// Recursive helper to flatten a single AcirValue into the result vector.
@@ -1904,6 +1945,15 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
+    /// Insert the MemoryInit for the Return Data array, using the provided witnesses
+    pub(crate) fn initialize_return_data(&mut self, block_id: BlockId, init: Vec<Witness>) {
+        self.acir_ir.push_opcode(Opcode::MemoryInit {
+            block_id,
+            init,
+            block_type: BlockType::ReturnData,
+        });
+    }
+
     /// Initializes an array in memory with the given values `optional_values`.
     /// If `optional_values` is empty, then the array is initialized with zeros.
     pub(crate) fn initialize_array(
@@ -1921,6 +1971,9 @@ impl<F: AcirField> AcirContext<F> {
             }
             Some(optional_value) => {
                 let mut values = Vec::new();
+                if let AcirValue::DynamicArray(_) = optional_value {
+                    unreachable!("Dynamic array should already be initialized");
+                }
                 self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }
@@ -1950,8 +2003,16 @@ impl<F: AcirField> AcirContext<F> {
                     self.initialize_array_inner(witnesses, value)?;
                 }
             }
-            AcirValue::DynamicArray(_) => {
-                unreachable!("Dynamic array should already be initialized");
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                let dynamic_array_values = try_vecmap(0..len, |i| {
+                    let index_var = self.add_constant(i);
+
+                    let read = self.read_from_memory(block_id, &index_var)?;
+                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+                for value in dynamic_array_values {
+                    self.initialize_array_inner(witnesses, value)?;
+                }
             }
         }
         Ok(())
@@ -2105,7 +2166,11 @@ fn execute_brillig<F: AcirField>(
     }
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    let mut vm = VM::new(calldata, code, Vec::new(), &blackbox_solver::StubbedBlackBoxSolver);
+    //
+    // We pass a stubbed solver here as a concrete solver implies a field choice which conflicts with this function
+    // being generic.
+    let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+    let mut vm = VM::new(calldata, code, Vec::new(), &solver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

@@ -7,20 +7,13 @@ use crate::{
     ast::{
         FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
     },
-    hir::{
-        def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTraitImpl},
-        type_check::TypeCheckError,
-    },
-    hir_def::{
-        function::Parameters,
-        traits::{TraitConstant, TraitFunction, TraitType},
-    },
+    hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
+    hir_def::{function::Parameters, traits::TraitFunction},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
+        NodeInterner, NoirFunction, UnresolvedType,
     },
-    node_interner::{FuncId, TraitId},
-    token::Attributes,
+    node_interner::{FuncId, ReferenceId, TraitId},
     Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
 };
 
@@ -30,18 +23,19 @@ impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.recover_generics(|this| {
+                this.current_trait = Some(*trait_id);
+
                 let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
                     &unresolved_trait.trait_def.generics,
                     &resolved_generics,
                 );
 
-                // Resolve order
-                // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
-                let _ = this.resolve_trait_types(unresolved_trait);
-                // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
-                let _ = this.resolve_trait_constants(unresolved_trait);
-                // 3. Trait Methods
+                // Each associated type in this trait is also an implicit generic
+                for associated_type in &this.interner.get_trait(*trait_id).associated_types {
+                    this.generics.push(associated_type.clone());
+                }
+
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
@@ -57,19 +51,8 @@ impl<'context> Elaborator<'context> {
                 self.interner.try_add_prefix_operator_trait(*trait_id);
             }
         }
-    }
 
-    fn resolve_trait_types(&mut self, _unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
-        // TODO
-        vec![]
-    }
-
-    fn resolve_trait_constants(
-        &mut self,
-        _unresolved_trait: &UnresolvedTrait,
-    ) -> Vec<TraitConstant> {
-        // TODO
-        vec![]
+        self.current_trait = None;
     }
 
     fn resolve_trait_methods(
@@ -90,7 +73,10 @@ impl<'context> Elaborator<'context> {
                 return_type,
                 where_clause,
                 body: _,
-            } = item
+                is_unconstrained,
+                visibility: _,
+                is_comptime: _,
+            } = &item.item
             {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
@@ -116,12 +102,18 @@ impl<'context> Elaborator<'context> {
                     this.resolve_trait_function(
                         trait_id,
                         name,
+                        *is_unconstrained,
                         generics,
                         parameters,
                         return_type,
                         where_clause,
                         func_id,
                     );
+
+                    if !item.doc_comments.is_empty() {
+                        let id = ReferenceId::Function(func_id);
+                        this.interner.set_doc_comments(id, item.doc_comments.clone());
+                    }
 
                     let func_meta = this.interner.function_meta(&func_id);
 
@@ -145,9 +137,12 @@ impl<'context> Elaborator<'context> {
                     };
 
                     let no_environment = Box::new(Type::Unit);
-                    // TODO: unconstrained
-                    let function_type =
-                        Type::Function(arguments, Box::new(return_type), no_environment, false);
+                    let function_type = Type::Function(
+                        arguments,
+                        Box::new(return_type),
+                        no_environment,
+                        *is_unconstrained,
+                    );
 
                     functions.push(TraitFunction {
                         name: name.clone(),
@@ -169,6 +164,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         trait_id: TraitId,
         name: &Ident,
+        is_unconstrained: bool,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
@@ -180,25 +176,17 @@ impl<'context> Elaborator<'context> {
         self.scopes.start_function();
 
         let kind = FunctionKind::Normal;
-        let def = FunctionDefinition {
-            name: name.clone(),
-            attributes: Attributes::empty(),
-            is_unconstrained: false,
-            is_comptime: false,
-            visibility: ItemVisibility::Public, // Trait functions are always public
-            generics: generics.clone(),
-            parameters: vecmap(parameters, |(name, typ)| Param {
-                visibility: Visibility::Private,
-                pattern: Pattern::Identifier(name.clone()),
-                typ: typ.clone(),
-                span: name.span(),
-            }),
-            body: BlockExpression { statements: Vec::new() },
-            span: name.span(),
-            where_clause: where_clause.to_vec(),
-            return_type: return_type.clone(),
-            return_visibility: Visibility::Private,
-        };
+        let mut def = FunctionDefinition::normal(
+            name,
+            is_unconstrained,
+            generics,
+            parameters,
+            &BlockExpression { statements: Vec::new() },
+            where_clause,
+            return_type,
+        );
+        // Trait functions are always public
+        def.visibility = ItemVisibility::Public;
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, Some(trait_id));
@@ -206,31 +194,6 @@ impl<'context> Elaborator<'context> {
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);
-    }
-
-    pub fn resolve_trait_impl_generics(
-        &mut self,
-        trait_impl: &UnresolvedTraitImpl,
-        trait_id: TraitId,
-    ) -> Option<Vec<Type>> {
-        let trait_def = self.interner.get_trait(trait_id);
-        let resolved_generics = trait_def.generics.clone();
-        if resolved_generics.len() != trait_impl.trait_generics.len() {
-            self.push_err(CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
-                item: trait_def.name.to_string(),
-                expected: resolved_generics.len(),
-                found: trait_impl.trait_generics.len(),
-                span: trait_impl.trait_path.span(),
-            }));
-
-            return None;
-        }
-
-        let generics = trait_impl.trait_generics.iter().zip(resolved_generics.iter());
-        let mapped = generics.map(|(generic, resolved_generic)| {
-            self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
-        });
-        Some(mapped.collect())
     }
 }
 
@@ -259,28 +222,23 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     function: FuncId,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
+    let modifiers = interner.function_modifiers(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
 
     let definition_type = meta.typ.as_monotype();
 
-    let impl_ =
+    let impl_id =
         meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
 
     // If the trait implementation is not defined in the interner then there was a previous
     // error in resolving the trait path and there is likely no trait for this impl.
-    let Some(impl_) = interner.try_get_trait_implementation(impl_) else {
+    let Some(impl_) = interner.try_get_trait_implementation(impl_id) else {
         return errors;
     };
 
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
-
-    let mut bindings = TypeBindings::new();
-    bindings.insert(
-        trait_info.self_type_typevar_id,
-        (trait_info.self_type_typevar.clone(), impl_.typ.clone()),
-    );
 
     if trait_info.generics.len() != impl_.trait_generics.len() {
         let expected = trait_info.generics.len();
@@ -291,15 +249,26 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     }
 
     // Substitute each generic on the trait with the corresponding generic on the impl
-    for (generic, arg) in trait_info.generics.iter().zip(&impl_.trait_generics) {
-        bindings.insert(generic.type_var.id(), (generic.type_var.clone(), arg.clone()));
-    }
+    let mut bindings = interner.trait_to_impl_bindings(
+        impl_.trait_id,
+        impl_id,
+        &impl_.trait_generics,
+        impl_.typ.clone(),
+    );
 
     // If this is None, the trait does not have the corresponding function.
     // This error should have been caught in name resolution already so we don't
     // issue an error for it here.
     if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
         let trait_fn_meta = interner.function_meta(trait_fn_id);
+        let trait_fn_modifiers = interner.function_modifiers(trait_fn_id);
+
+        if modifiers.is_unconstrained != trait_fn_modifiers.is_unconstrained {
+            let expected = trait_fn_modifiers.is_unconstrained;
+            let span = meta.name.location.span;
+            let item = method_name.to_string();
+            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, span });
+        }
 
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
@@ -312,10 +281,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, kind, .. },
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), Kind::Normal);
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), kind.clone());
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 

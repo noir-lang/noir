@@ -1,11 +1,14 @@
+use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{Ident, NoirFunction};
+use crate::hir::type_check::generics::TraitGenerics;
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
-    Generics, Type, TypeBindings, TypeVariable, TypeVariableId,
+    Generics, Type, TypeBindings, TypeVariable,
 };
+use crate::{ResolvedGeneric, TypeVariableKind};
 use fm::FileId;
 use noirc_errors::{Location, Span};
 
@@ -23,15 +26,20 @@ pub struct TraitFunction {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstant {
     pub name: Ident,
-    pub ty: Type,
+    pub typ: Type,
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TraitType {
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct NamedType {
     pub name: Ident,
-    pub ty: Type,
-    pub span: Span,
+    pub typ: Type,
+}
+
+impl std::fmt::Display for NamedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} = {}", self.name, self.typ)
+    }
 }
 
 /// Represents a trait in the type system. Each instance of this struct
@@ -53,8 +61,7 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
-    pub constants: Vec<TraitConstant>,
-    pub types: Vec<TraitType>,
+    pub associated_types: Generics,
 
     pub name: Ident,
     pub generics: Generics,
@@ -64,7 +71,6 @@ pub struct Trait {
     /// to this TypeVariable. Then when we check if the types of trait impl elements
     /// match the definition in the trait, we bind this TypeVariable to whatever
     /// the correct Self type is for that particular impl block.
-    pub self_type_typevar_id: TypeVariableId,
     pub self_type_typevar: TypeVariable,
 }
 
@@ -73,7 +79,15 @@ pub struct TraitImpl {
     pub ident: Ident,
     pub typ: Type,
     pub trait_id: TraitId,
+
+    /// Any ordered type arguments on the trait this impl is for.
+    /// E.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
+    ///
+    /// Note that named arguments (associated types) are stored separately
+    /// in the NodeInterner. This is because they're required to resolve types
+    /// before the impl as a whole is finished resolving.
     pub trait_generics: Vec<Type>,
+
     pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
@@ -88,20 +102,20 @@ pub struct TraitImpl {
 pub struct TraitConstraint {
     pub typ: Type,
     pub trait_id: TraitId,
-    pub trait_generics: Vec<Type>,
+    pub trait_generics: TraitGenerics,
     pub span: Span,
 }
 
 impl TraitConstraint {
-    pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>, span: Span) -> Self {
-        Self { typ, trait_id, trait_generics, span }
-    }
-
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
 
-        for typ in &mut self.trait_generics {
+        for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
+        }
+
+        for named in &mut self.trait_generics.named {
+            named.typ = named.typ.substitute(type_bindings);
         }
     }
 }
@@ -130,6 +144,35 @@ impl Trait {
             }
         }
         None
+    }
+
+    pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {
+        self.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
+    }
+
+    /// Returns both the ordered generics of this type, and its named, associated types.
+    /// These types are all as-is and are not instantiated.
+    pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
+        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
+        let named = vecmap(&self.associated_types, |generic| generic.clone().as_named_generic());
+        (ordered, named)
+    }
+
+    /// Returns a TraitConstraint for this trait using Self as the object
+    /// type and the uninstantiated generics for any trait generics.
+    pub fn as_constraint(&self, span: Span) -> TraitConstraint {
+        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
+        let named = vecmap(&self.associated_types, |generic| {
+            let name = Ident::new(generic.name.to_string(), span);
+            NamedType { name, typ: generic.clone().as_named_generic() }
+        });
+
+        TraitConstraint {
+            typ: Type::TypeVariable(self.self_type_typevar.clone(), TypeVariableKind::Normal),
+            trait_generics: TraitGenerics { ordered, named },
+            trait_id: self.id,
+            span,
+        }
     }
 }
 

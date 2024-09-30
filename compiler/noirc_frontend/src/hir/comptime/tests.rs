@@ -23,7 +23,13 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let module_id = LocalModuleId(Index::unsafe_zeroed());
     let mut modules = noirc_arena::Arena::default();
     let location = Location::new(Default::default(), file);
-    let root = LocalModuleId(modules.insert(ModuleData::new(None, location, false)));
+    let root = LocalModuleId(modules.insert(ModuleData::new(
+        None,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false,
+    )));
     assert_eq!(root, module_id);
 
     let file_manager = FileManager::new(&PathBuf::new());
@@ -40,12 +46,12 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context, &[]);
+    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
     let mut elaborator =
-        Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None, false);
+        Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None);
     assert_eq!(elaborator.errors.len(), 0);
 
     let mut interpreter = elaborator.setup_interpreter();

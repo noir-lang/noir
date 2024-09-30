@@ -11,7 +11,7 @@
 use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
-use crate::node_interner::ExprId;
+use crate::node_interner::{ExprId, ImplSearchErrorKind};
 use crate::{
     debug::DebugInstrumenter,
     hir_def::{
@@ -133,7 +133,7 @@ pub fn monomorphize_debug(
         let impl_bindings = perform_impl_bindings(interner, trait_method, next_fn_id, location)
             .map_err(MonomorphizationError::InterpreterError)?;
 
-        monomorphizer.function(next_fn_id, new_id)?;
+        monomorphizer.function(next_fn_id, new_id, location)?;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(bindings);
     }
@@ -278,7 +278,10 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<FunctionSignature, MonomorphizationError> {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
-        self.function(main_id, new_main_id)?;
+
+        let location = self.interner.function_meta(&main_id).location;
+        self.function(main_id, new_main_id, location)?;
+
         self.return_location =
             self.interner.function(&main_id).block(self.interner).statements().last().and_then(
                 |x| match self.interner.statement(x) {
@@ -294,6 +297,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         f: node_interner::FuncId,
         id: FuncId,
+        location: Location,
     ) -> Result<(), MonomorphizationError> {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
@@ -301,6 +305,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let meta = self.interner.function_meta(&f).clone();
+
         let mut func_sig = meta.function_signature();
         // Follow the bindings of the function signature for entry points
         // which are not `main` such as foldable functions.
@@ -311,6 +316,10 @@ impl<'interner> Monomorphizer<'interner> {
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
+
+        if modifiers.is_comptime {
+            return Err(MonomorphizationError::ComptimeFnInRuntimeCode { name, location });
+        }
 
         let body_expr_id = self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);
@@ -569,7 +578,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let length = length.evaluate_to_u32().ok_or_else(|| {
             let location = self.interner.expr_location(&array);
-            MonomorphizationError::UnknownArrayLength { location }
+            MonomorphizationError::UnknownArrayLength { location, length }
         })?;
 
         let contents = try_vecmap(0..length, |_| self.expr(repeated_element))?;
@@ -845,6 +854,14 @@ impl<'interner> Monomorphizer<'interner> {
             return self.resolve_trait_method_expr(expr_id, typ, method);
         }
 
+        // Ensure all instantiation bindings are bound.
+        // This ensures even unused type variables like `fn foo<T>() {}` have concrete types
+        if let Some(bindings) = self.interner.try_get_instantiation_bindings(expr_id) {
+            for (_, binding) in bindings.values() {
+                Self::check_type(binding, ident.location)?;
+            }
+        }
+
         let definition = self.interner.definition(ident.id);
         let ident = match &definition.kind {
             DefinitionKind::Function(func_id) => {
@@ -936,7 +953,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
                 let length = match length.evaluate_to_u32() {
                     Some(length) => length,
-                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    None => {
+                        let length = length.as_ref().clone();
+                        return Err(MonomorphizationError::UnknownArrayLength { location, length });
+                    }
                 };
                 ast::Type::Array(length, element)
             }
@@ -969,7 +989,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match kind.default_type() {
                     Some(typ) => typ,
-                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    None => return Err(MonomorphizationError::NoDefaultType { location }),
                 };
 
                 let monomorphized_default = Self::convert_type(&default, location)?;
@@ -1029,13 +1049,17 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _)
-            | HirType::Constant(_)
-            | HirType::InfixExpr(..)
-            | HirType::Error => {
-                unreachable!("Unexpected type {} found", typ)
+            HirType::Forall(_, _) | HirType::Constant(..) | HirType::InfixExpr(..) => {
+                unreachable!("Unexpected type {typ} found")
             }
-            HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
+            HirType::Error => {
+                let message = "Unexpected Type::Error found during monomorphization";
+                return Err(MonomorphizationError::InternalError { message, location });
+            }
+            HirType::Quoted(typ) => {
+                let typ = typ.to_string();
+                return Err(MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location });
+            }
         })
     }
 
@@ -1049,9 +1073,15 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Unit
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
-            | HirType::Constant(_)
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
+            HirType::Constant(_value, kind) => {
+                if kind.is_error() {
+                    Err(MonomorphizationError::UnknownConstant { location })
+                } else {
+                    Ok(())
+                }
+            }
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
@@ -1073,7 +1103,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match kind.default_type() {
                     Some(typ) => typ,
-                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    None => return Err(MonomorphizationError::NoDefaultType { location }),
                 };
 
                 Self::check_type(&default, location)
@@ -1945,27 +1975,37 @@ pub fn resolve_trait_method(
     let impl_id = match trait_impl {
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
+            let location = interner.expr_location(&expr_id);
+
             match interner.lookup_trait_implementation(
                 &object_type,
                 method.trait_id,
-                &trait_generics,
+                &trait_generics.ordered,
+                &trait_generics.named,
             ) {
                 Ok(TraitImplKind::Normal(impl_id)) => impl_id,
                 Ok(TraitImplKind::Assumed { .. }) => {
-                    let location = interner.expr_location(&expr_id);
                     return Err(InterpreterError::NoImpl { location });
                 }
-                Err(constraints) => {
-                    let location = interner.expr_location(&expr_id);
+                Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
+                    return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+                }
+                Err(ImplSearchErrorKind::Nested(constraints)) => {
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location.span)
                     {
                         let file = location.file;
                         return Err(InterpreterError::NoMatchingImplFound { error, file });
                     } else {
-                        let location = interner.expr_location(&expr_id);
                         return Err(InterpreterError::NoImpl { location });
                     }
+                }
+                Err(ImplSearchErrorKind::MultipleMatching(candidates)) => {
+                    return Err(InterpreterError::MultipleMatchingImpls {
+                        object_type,
+                        location,
+                        candidates,
+                    });
                 }
             }
         }

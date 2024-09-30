@@ -1,20 +1,19 @@
 use crate::{
-    ast::FunctionKind,
+    ast::{FunctionKind, Ident},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
-    hir_def::expr::HirIdent,
+    hir_def::{expr::HirIdent, function::FuncMeta},
     macros_api::{
-        HirExpression, HirLiteral, NodeInterner, NoirFunction, Signedness, UnaryOp,
-        UnresolvedTypeData, Visibility,
+        HirExpression, HirLiteral, NodeInterner, NoirFunction, Signedness, UnaryOp, Visibility,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId},
+    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers},
     Type,
 };
 
-use noirc_errors::Span;
+use noirc_errors::{Span, Spanned};
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -39,16 +38,17 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
 /// Inline attributes are only relevant for constrained functions
 /// as all unconstrained functions are not inlined and so
 /// associated attributes are disallowed.
-pub(super) fn inlining_attributes(func: &NoirFunction) -> Option<ResolverError> {
-    if func.def.is_unconstrained {
-        let attributes = func.attributes().clone();
-
-        if attributes.is_no_predicates() {
-            Some(ResolverError::NoPredicatesAttributeOnUnconstrained {
-                ident: func.name_ident().clone(),
-            })
-        } else if attributes.is_foldable() {
-            Some(ResolverError::FoldAttributeOnUnconstrained { ident: func.name_ident().clone() })
+pub(super) fn inlining_attributes(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    if modifiers.is_unconstrained {
+        if modifiers.attributes.is_no_predicates() {
+            let ident = func_meta_name_ident(func, modifiers);
+            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident })
+        } else if modifiers.attributes.is_foldable() {
+            let ident = func_meta_name_ident(func, modifiers);
+            Some(ResolverError::FoldAttributeOnUnconstrained { ident })
         } else {
             None
         }
@@ -59,24 +59,30 @@ pub(super) fn inlining_attributes(func: &NoirFunction) -> Option<ResolverError> 
 
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
-    func: &NoirFunction,
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
-        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() })
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
     } else {
         None
     }
 }
 
 /// Oracle definitions (functions with the `#[oracle]` attribute) must be marked as unconstrained.
-pub(super) fn oracle_not_marked_unconstrained(func: &NoirFunction) -> Option<ResolverError> {
+pub(super) fn oracle_not_marked_unconstrained(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
     let is_oracle_function =
-        func.attributes().function.as_ref().map_or(false, |func| func.is_oracle());
-    if is_oracle_function && !func.def.is_unconstrained {
-        Some(ResolverError::OracleMarkedAsConstrained { ident: func.name_ident().clone() })
+        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    if is_oracle_function && !modifiers.is_unconstrained {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleMarkedAsConstrained { ident })
     } else {
         None
     }
@@ -106,12 +112,13 @@ pub(super) fn oracle_called_from_constrained_function(
 }
 
 /// `pub` is required on return types for entry point functions
-pub(super) fn missing_pub(func: &NoirFunction, is_entry_point: bool) -> Option<ResolverError> {
-    if is_entry_point
-        && func.return_type().typ != UnresolvedTypeData::Unit
-        && func.def.return_visibility == Visibility::Private
+pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Option<ResolverError> {
+    if func.is_entry_point
+        && func.return_type() != &Type::Unit
+        && func.return_visibility == Visibility::Private
     {
-        Some(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::NecessaryPub { ident })
     } else {
         None
     }
@@ -119,11 +126,12 @@ pub(super) fn missing_pub(func: &NoirFunction, is_entry_point: bool) -> Option<R
 
 /// `#[recursive]` attribute is only allowed for entry point functions
 pub(super) fn recursive_non_entrypoint_function(
-    func: &NoirFunction,
-    is_entry_point: bool,
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if !is_entry_point && func.kind == FunctionKind::Recursive {
-        Some(ResolverError::MisplacedRecursiveAttribute { ident: func.name_ident().clone() })
+    if !func.is_entry_point && func.kind == FunctionKind::Recursive {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::MisplacedRecursiveAttribute { ident })
     } else {
         None
     }
@@ -163,14 +171,13 @@ pub(super) fn unconstrained_function_return(
 ///
 /// Application of `pub` to other functions is not meaningful and is a mistake.
 pub(super) fn unnecessary_pub_return(
-    func: &NoirFunction,
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point && func.def.return_visibility == Visibility::Public {
-        Some(ResolverError::UnnecessaryPub {
-            ident: func.name_ident().clone(),
-            position: PubPosition::ReturnType,
-        })
+    if !is_entry_point && func.return_visibility == Visibility::Public {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::UnnecessaryPub { ident, position: PubPosition::ReturnType })
     } else {
         None
     }
@@ -236,9 +243,9 @@ pub(crate) fn overflowing_int(
         },
         HirExpression::Prefix(expr) => {
             overflowing_int(interner, &expr.rhs, annotated_type);
-            if expr.operator == UnaryOp::Minus {
+            if expr.operator == UnaryOp::Minus && annotated_type.is_unsigned() {
                 errors.push(TypeCheckError::InvalidUnaryOp {
-                    kind: "annotated_type".to_string(),
+                    kind: annotated_type.to_string(),
                     span,
                 });
             }
@@ -251,4 +258,8 @@ pub(crate) fn overflowing_int(
     }
 
     errors
+}
+
+fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
+    Ident(Spanned::from(func.name.location.span, modifiers.name.clone()))
 }
