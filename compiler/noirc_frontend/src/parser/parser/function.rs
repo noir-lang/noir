@@ -189,8 +189,11 @@ impl<'a> Parser<'a> {
                     let ident = Ident::new("self".to_string(), span);
                     let path = Path::from_single("Self".to_owned(), span);
                     let no_args = GenericTypeArgs::default();
+                    let mut self_type_span = span;
                     let mut self_type = if self.eat_colon() {
-                        self.parse_type_or_error()
+                        let typ = self.parse_type_or_error();
+                        self_type_span = typ.span;
+                        typ
                     } else {
                         UnresolvedTypeData::Named(path, no_args, true).with_span(span)
                     };
@@ -198,7 +201,7 @@ impl<'a> Parser<'a> {
 
                     if self_pattern.reference {
                         self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
-                            .with_span(span);
+                            .with_span(self_type_span);
                     } else if self_pattern.mutable {
                         pattern = Pattern::Mutable(Box::new(pattern), span, true);
                     }
