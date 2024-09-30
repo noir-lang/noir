@@ -26,6 +26,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_path(&mut self) -> Option<Path> {
         self.parse_path_impl(
             true, // allow turbofish
+            true, // allow trailing double colon
         )
     }
 
@@ -45,10 +46,15 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_path_no_turbofish(&mut self) -> Option<Path> {
         self.parse_path_impl(
             false, // allow turbofish
+            true,  // allow trailing double colon
         )
     }
 
-    pub(super) fn parse_path_impl(&mut self, allow_turbofish: bool) -> Option<Path> {
+    pub(super) fn parse_path_impl(
+        &mut self,
+        allow_turbofish: bool,
+        allow_trailing_double_colon: bool,
+    ) -> Option<Path> {
         let start_span = self.current_token_span;
 
         let kind = self.parse_path_kind();
@@ -56,13 +62,14 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::DoubleColon);
         }
 
-        self.parse_path_after_kind(kind, allow_turbofish, start_span)
+        self.parse_path_after_kind(kind, allow_turbofish, allow_trailing_double_colon, start_span)
     }
 
     pub(super) fn parse_path_after_kind(
         &mut self,
         kind: PathKind,
         allow_turbofish: bool,
+        allow_trailing_double_colon: bool,
         start_span: Span,
     ) -> Option<Path> {
         let mut segments = Vec::new();
@@ -90,6 +97,11 @@ impl<'a> Parser<'a> {
                     // Skip the double colons
                     self.next_token();
                 } else {
+                    if allow_trailing_double_colon && self.eat_double_colon() {
+                        self.expected_identifier();
+                        break;
+                    }
+
                     break;
                 }
             }
@@ -231,8 +243,8 @@ mod tests {
         let src = "foo::";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len() - 2);
-        assert_eq!(parser.errors.len(), 0); // TODO: this should be 1
+        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 1);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -261,8 +273,8 @@ mod tests {
         let src = "foo::bar::";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len() - 2);
-        assert!(parser.errors.is_empty());
+        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.to_string(), "foo::bar");
     }
 
@@ -271,8 +283,8 @@ mod tests {
         let src = "foo::bar::<1>::";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len() - 2);
-        assert!(parser.errors.is_empty());
+        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.to_string(), "foo::bar::<1>");
     }
 }

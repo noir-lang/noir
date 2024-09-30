@@ -30,6 +30,7 @@ impl<'a> Parser<'a> {
     ) -> UseTree {
         let prefix = self.parse_path_after_kind(
             kind, false, // allow turbofish
+            false, // allow trailing double colon
             start_span,
         );
         let prefix = prefix.unwrap_or_else(|| Path {
