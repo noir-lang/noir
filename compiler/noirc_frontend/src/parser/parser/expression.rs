@@ -279,7 +279,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let start_span = self.span_since(self.previous_token_span);
+        let start_span = self.current_token_span;
         if let Some(block) = self.parse_block_expression() {
             Some(ExpressionKind::Unsafe(block, self.span_since(start_span)))
         } else {
