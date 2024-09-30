@@ -262,14 +262,16 @@ fn submodule(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatementKind> {
     attributes()
+        .then(item_visibility())
         .then_ignore(keyword(Keyword::Mod))
         .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .validate(|((attributes, name), contents), span, emit| {
+        .validate(|(((attributes, visibility), name), contents), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
             TopLevelStatementKind::SubModule(ParsedSubModule {
+                visibility,
                 name,
                 contents,
                 outer_attributes: attributes,
@@ -283,14 +285,16 @@ fn contract(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatementKind> {
     attributes()
+        .then(item_visibility())
         .then_ignore(keyword(Keyword::Contract))
         .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .validate(|((attributes, name), contents), span, emit| {
+        .validate(|(((attributes, visibility), name), contents), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
             TopLevelStatementKind::SubModule(ParsedSubModule {
+                visibility,
                 name,
                 contents,
                 outer_attributes: attributes,
@@ -431,10 +435,14 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatementKind> {
-    attributes().then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
-        |(attributes, ident), span, emit| {
+    attributes().then(item_visibility()).then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
+        |((attributes, visibility), ident), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatementKind::Module(ModuleDeclaration { ident, outer_attributes: attributes })
+            TopLevelStatementKind::Module(ModuleDeclaration {
+                visibility,
+                ident,
+                outer_attributes: attributes,
+            })
         },
     )
 }

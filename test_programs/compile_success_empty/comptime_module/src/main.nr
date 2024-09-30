@@ -4,7 +4,7 @@ mod foo {
     pub fn x() {}
     pub fn y() {}
 
-    struct Struct1 {}
+    pub struct Struct1 {}
 }
 
 contract bar {}
@@ -61,6 +61,8 @@ comptime fn add_function(m: Module) {
 }
 
 fn main() {
+    let _ = foo::Struct1 {};
+
     comptime
     {
         // Check Module::is_contract
@@ -101,7 +103,7 @@ fn main() {
 
 // docs:start:as_module_example
 mod baz {
-    mod qux {}
+    pub mod qux {}
 }
 
 #[test]
