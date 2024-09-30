@@ -19,13 +19,22 @@ pub(crate) struct SelfPattern {
 }
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_pattern(&mut self) -> Pattern {
+    pub(crate) fn parse_pattern_or_error(&mut self) -> Pattern {
+        if let Some(pattern) = self.parse_pattern() {
+            return pattern;
+        }
+
+        self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
+        Pattern::Identifier(Ident::new(String::new(), self.span_at_previous_token_end()))
+    }
+
+    pub(crate) fn parse_pattern(&mut self) -> Option<Pattern> {
         let start_span = self.current_token_span;
         let mutable = self.eat_keyword(Keyword::Mut);
         self.parse_pattern_after_modifiers(mutable, start_span)
     }
 
-    pub(crate) fn parse_pattern_or_self(&mut self) -> PatternOrSelf {
+    pub(crate) fn parse_pattern_or_self(&mut self) -> Option<PatternOrSelf> {
         let start_span = self.current_token_span;
 
         let reference = self.eat(Token::Ampersand);
@@ -33,10 +42,10 @@ impl<'a> Parser<'a> {
 
         if self.eat_self() {
             // TODO: error if reference but not mutable
-            PatternOrSelf::SelfPattern(SelfPattern { reference, mutable })
+            Some(PatternOrSelf::SelfPattern(SelfPattern { reference, mutable }))
         } else {
             // TODO: error if reference is true
-            PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(mutable, start_span))
+            Some(PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(mutable, start_span)?))
         }
     }
 
@@ -44,9 +53,9 @@ impl<'a> Parser<'a> {
         &mut self,
         mutable: bool,
         start_span: Span,
-    ) -> Pattern {
-        let pattern = self.parse_pattern_no_mut();
-        if mutable {
+    ) -> Option<Pattern> {
+        let pattern = self.parse_pattern_no_mut()?;
+        Some(if mutable {
             Pattern::Mutable(
                 Box::new(pattern),
                 self.span_since(start_span),
@@ -54,35 +63,34 @@ impl<'a> Parser<'a> {
             )
         } else {
             pattern
-        }
+        })
     }
 
-    fn parse_pattern_no_mut(&mut self) -> Pattern {
+    fn parse_pattern_no_mut(&mut self) -> Option<Pattern> {
         if let Some(pattern) = self.parse_interned_pattern() {
-            return pattern;
+            return Some(pattern);
         }
 
         if let Some(pattern) = self.parse_tuple_pattern() {
-            return pattern;
+            return Some(pattern);
         }
 
         let Some(mut path) = self.parse_path() else {
-            self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
-            return Pattern::Identifier(Ident::default());
+            return None;
         };
 
         if self.eat_left_brace() {
-            return self.parse_struct_pattern(path);
+            return Some(self.parse_struct_pattern(path));
         }
 
         if !path.is_ident() {
             // TODO: error
             let ident = path.segments.pop().unwrap().ident;
-            return Pattern::Identifier(ident);
+            return Some(Pattern::Identifier(ident));
         }
 
         let ident = path.segments.remove(0).ident;
-        Pattern::Identifier(ident)
+        Some(Pattern::Identifier(ident))
     }
 
     fn parse_tuple_pattern(&mut self) -> Option<Pattern> {
@@ -100,12 +108,11 @@ impl<'a> Parser<'a> {
             }
 
             let start_span = self.current_token_span;
-            let pattern = self.parse_pattern();
-            if self.current_token_span == start_span {
-                // TODO: error
+            let Some(pattern) = self.parse_pattern() else {
+                self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
                 self.eat_right_paren();
                 break;
-            }
+            };
 
             if !trailing_comma && !patterns.is_empty() {
                 self.expected_token_separating_items(",", "tuple elements", start_span);
@@ -143,7 +150,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.eat_colon() {
-                patterns.push((ident, self.parse_pattern()));
+                patterns.push((ident, self.parse_pattern_or_error()));
             } else {
                 patterns.push((ident.clone(), Pattern::Identifier(ident)));
             }
@@ -177,9 +184,9 @@ mod tests {
     fn parses_identifier_pattern() {
         let src = "foo";
         let mut parser = Parser::for_str(src);
-        let typ = parser.parse_pattern();
+        let pattern = parser.parse_pattern_or_error();
         assert!(parser.errors.is_empty());
-        let Pattern::Identifier(ident) = typ else { panic!("Expected an identifier pattern") };
+        let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
         assert_eq!(ident.to_string(), "foo");
     }
 
@@ -187,9 +194,9 @@ mod tests {
     fn parses_mutable_pattern() {
         let src = "mut foo";
         let mut parser = Parser::for_str(src);
-        let typ = parser.parse_pattern();
+        let pattern = parser.parse_pattern_or_error();
         assert!(parser.errors.is_empty());
-        let Pattern::Mutable(pattern, _, _) = typ else { panic!("Expected a mutable pattern") };
+        let Pattern::Mutable(pattern, _, _) = pattern else { panic!("Expected a mutable pattern") };
         let pattern: &Pattern = &pattern;
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
         assert_eq!(ident.to_string(), "foo");
@@ -199,9 +206,9 @@ mod tests {
     fn parses_tuple_pattern() {
         let src = "(foo, bar)";
         let mut parser = Parser::for_str(src);
-        let typ = parser.parse_pattern();
+        let pattern = parser.parse_pattern_or_error();
         assert!(parser.errors.is_empty());
-        let Pattern::Tuple(mut patterns, _) = typ else { panic!("Expected a tuple pattern") };
+        let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
         assert_eq!(patterns.len(), 2);
 
         let pattern = patterns.remove(0);
@@ -217,9 +224,9 @@ mod tests {
     fn parses_unclosed_tuple_pattern() {
         let src = "(foo,";
         let mut parser = Parser::for_str(src);
-        let typ = parser.parse_pattern();
+        let pattern = parser.parse_pattern_or_error();
         assert_eq!(parser.errors.len(), 1);
-        let Pattern::Tuple(patterns, _) = typ else { panic!("Expected a tuple pattern") };
+        let Pattern::Tuple(patterns, _) = pattern else { panic!("Expected a tuple pattern") };
         assert_eq!(patterns.len(), 1);
     }
 
@@ -227,9 +234,11 @@ mod tests {
     fn parses_struct_pattern_no_fields() {
         let src = "foo::Bar {}";
         let mut parser = Parser::for_str(src);
-        let typ = parser.parse_pattern();
+        let pattern = parser.parse_pattern_or_error();
         assert!(parser.errors.is_empty());
-        let Pattern::Struct(path, patterns, _) = typ else { panic!("Expected a struct pattern") };
+        let Pattern::Struct(path, patterns, _) = pattern else {
+            panic!("Expected a struct pattern")
+        };
         assert_eq!(path.to_string(), "foo::Bar");
         assert!(patterns.is_empty());
     }
@@ -238,9 +247,9 @@ mod tests {
     fn parses_struct_pattern() {
         let src = "foo::Bar { x: one, y }";
         let mut parser = Parser::for_str(src);
-        let typ = parser.parse_pattern();
+        let pattern = parser.parse_pattern_or_error();
         assert!(parser.errors.is_empty());
-        let Pattern::Struct(path, mut patterns, _) = typ else {
+        let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")
         };
         assert_eq!(path.to_string(), "foo::Bar");
@@ -259,9 +268,9 @@ mod tests {
     fn parses_unclosed_struct_pattern() {
         let src = "foo::Bar { x";
         let mut parser = Parser::for_str(src);
-        let typ = parser.parse_pattern();
+        let pattern = parser.parse_pattern_or_error();
         assert_eq!(parser.errors.len(), 1);
-        let Pattern::Struct(path, _, _) = typ else { panic!("Expected a struct pattern") };
+        let Pattern::Struct(path, _, _) = pattern else { panic!("Expected a struct pattern") };
         assert_eq!(path.to_string(), "foo::Bar");
     }
 }

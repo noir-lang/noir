@@ -5,8 +5,7 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, GenericTypeArgs, Ident, IfExpression, IndexExpression, Literal,
-        MemberAccessExpression, MethodCallExpression, Path, Statement, TypePath, UnaryOp,
-        UnresolvedType,
+        MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::ParserErrorReason,
     token::{Keyword, Token, TokenKind},
@@ -202,6 +201,16 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        if matches!(self.token.token(), Token::InternedUnresolvedTypeData(..))
+            && self.next_token.token() == &Token::LeftBrace
+        {
+            let span = self.current_token_span;
+            let typ = self.parse_interned_type().unwrap();
+            self.eat_or_error(Token::LeftBrace);
+            let typ = UnresolvedType { typ, span };
+            return Some(self.parse_constructor(typ));
+        }
+
         if let Some(kind) = self.parse_if_expr() {
             return Some(kind);
         }
@@ -293,13 +302,14 @@ impl<'a> Parser<'a> {
         };
 
         if allow_constructors && self.eat_left_brace() {
-            return Some(self.parse_constructor(path));
+            let typ = UnresolvedType::from_path(path);
+            return Some(self.parse_constructor(typ));
         }
 
         Some(ExpressionKind::Variable(path))
     }
 
-    fn parse_constructor(&mut self, path: Path) -> ExpressionKind {
+    fn parse_constructor(&mut self, typ: UnresolvedType) -> ExpressionKind {
         let mut fields = Vec::new();
         let mut trailing_comma = false;
 
@@ -329,7 +339,7 @@ impl<'a> Parser<'a> {
         }
 
         ExpressionKind::Constructor(Box::new(ConstructorExpression {
-            typ: UnresolvedType::from_path(path),
+            typ,
             fields,
             struct_type: None,
         }))
@@ -618,23 +628,10 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            let Some(mut statement) = self.parse_statement() else {
+            let Some((statement, (token, span))) = self.parse_statement() else {
                 // TODO: error?
                 self.eat_right_brace();
                 break;
-            };
-
-            let (token, span) = if self.token.token() == &Token::Semicolon {
-                let token = self.token.clone();
-                self.next_token();
-                let span = token.to_span();
-
-                // Adjust the statement span to include the semicolon
-                statement.span = Span::from(statement.span.start()..span.end());
-
-                (Some(token.into_token()), span)
-            } else {
-                (None, self.previous_token_span)
             };
 
             statements.push((statement, (token, span)));

@@ -14,7 +14,7 @@ use super::Parser;
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
-        if let Some(statement) = self.parse_statement() {
+        if let Some((statement, (_token, _span))) = self.parse_statement() {
             statement
         } else {
             self.push_error(
@@ -25,13 +25,28 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn parse_statement(&mut self) -> Option<Statement> {
+    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
         let attributes = self.parse_attributes();
 
         let start_span = self.current_token_span;
         let kind = self.parse_statement_kind(attributes)?;
         let span = self.span_since(start_span);
-        Some(Statement { kind, span })
+        let mut statement = Statement { kind, span };
+
+        let (token, span) = if self.token.token() == &Token::Semicolon {
+            let token = self.token.clone();
+            self.next_token();
+            let span = token.to_span();
+
+            // Adjust the statement span to include the semicolon
+            statement.span = Span::from(statement.span.start()..span.end());
+
+            (Some(token.into_token()), span)
+        } else {
+            (None, self.previous_token_span)
+        };
+
+        Some((statement, (token, span)))
     }
 
     fn parse_statement_kind(
@@ -92,6 +107,20 @@ impl<'a> Parser<'a> {
                 kind: ExpressionKind::Block(block),
                 span: self.span_since(start_span),
             }));
+        }
+
+        if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
+            match token.into_token() {
+                Token::InternedLValue(lvalue) => {
+                    let lvalue = LValue::Interned(lvalue, self.span_since(start_span));
+                    if !self.eat_assign() {
+                        // TODO: error
+                    }
+                    let expression = self.parse_expression_or_error();
+                    return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+                }
+                _ => unreachable!(),
+            }
         }
 
         let expression = self.parse_expression()?;
@@ -269,7 +298,7 @@ impl<'a> Parser<'a> {
         }
 
         let attributes = self.validate_secondary_attributes(attributes);
-        let pattern = self.parse_pattern();
+        let pattern = self.parse_pattern_or_error();
         let r#type = self.parse_optional_type_annotation();
         let expression = if self.eat_assign() {
             self.parse_expression_or_error()

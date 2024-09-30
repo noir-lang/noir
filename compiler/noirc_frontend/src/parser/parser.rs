@@ -54,6 +54,11 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     let item = f(&mut parser);
+    if !parser.is_eof() {
+        parser.expected_token(Token::EOF);
+        return Err(parser.errors);
+    }
+
     if parser.errors.is_empty() {
         Ok(item)
     } else {
@@ -129,6 +134,17 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_lvalue_or_error(&mut self) -> LValue {
+        let start_span = self.current_token_span;
+
+        if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
+            match token.into_token() {
+                Token::InternedLValue(lvalue) => {
+                    return LValue::Interned(lvalue, self.span_since(start_span));
+                }
+                _ => unreachable!(),
+            }
+        }
+
         let expr = self.parse_expression_or_error();
         if let Some(lvalue) = LValue::from_expression(expr) {
             lvalue

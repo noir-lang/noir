@@ -2341,7 +2341,7 @@ fn function_def_set_parameters(
         let parameter_pattern = parse(
             interpreter.elaborator.interner,
             (tuple.pop().unwrap(), parameters_argument_location),
-            Parser::parse_pattern,
+            Parser::parse_pattern_or_error,
             "a pattern",
         )?;
 

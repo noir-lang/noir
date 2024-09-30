@@ -333,7 +333,7 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn parse_interned_type(&mut self) -> Option<UnresolvedTypeData> {
+    pub(super) fn parse_interned_type(&mut self) -> Option<UnresolvedTypeData> {
         if let Some(token) = self.eat_kind(TokenKind::InternedUnresolvedTypeData) {
             match token.into_token() {
                 Token::InternedUnresolvedTypeData(id) => {

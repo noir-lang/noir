@@ -1,5 +1,6 @@
 use crate::{
     ast::{ExpressionKind, Lambda, Pattern, UnresolvedType},
+    parser::ParserErrorReason,
     token::Token,
 };
 
@@ -32,16 +33,16 @@ impl<'a> Parser<'a> {
             }
 
             let start_span = self.current_token_span;
-            let pattern = self.parse_pattern();
-            if self.current_token_span == start_span {
-                // An error was already produced by parse_pattern().
+            let Some(pattern) = self.parse_pattern() else {
+                self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
                 // Let's try with the next token.
                 self.next_token();
                 if self.is_eof() {
                     break;
+                } else {
+                    continue;
                 }
-                continue;
-            }
+            };
 
             if !trailing_comma && !parameters.is_empty() {
                 self.expected_token_separating_items(",", "parameters", start_span);

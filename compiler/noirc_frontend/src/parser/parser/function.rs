@@ -137,17 +137,19 @@ impl<'a> Parser<'a> {
             let pattern_or_self = if allow_self && parameters.is_empty() {
                 self.parse_pattern_or_self()
             } else {
-                PatternOrSelf::Pattern(self.parse_pattern())
+                self.parse_pattern().map(PatternOrSelf::Pattern)
             };
-            if self.current_token_span == start_span {
-                // An error was already produced by parse_pattern().
-                // Let's try with the next token.
+
+            let Some(pattern_or_self) = pattern_or_self else {
+                self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
+                // Let's try with the next token
                 self.next_token();
                 if self.is_eof() {
                     break;
+                } else {
+                    continue;
                 }
-                continue;
-            }
+            };
 
             if !trailing_comma && !parameters.is_empty() {
                 self.expected_token_separating_items(",", "parameters", start_span);
