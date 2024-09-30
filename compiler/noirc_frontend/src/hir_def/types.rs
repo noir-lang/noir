@@ -862,7 +862,6 @@ impl std::fmt::Display for QuotedType {
     }
 }
 
-#[derive(Debug)]
 pub struct UnificationError;
 
 impl Type {
