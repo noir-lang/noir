@@ -70,7 +70,7 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{IntegerBitSize, Pattern, Signedness, UnresolvedTypeData},
+        ast::{IntegerBitSize, ItemVisibility, Pattern, Signedness, UnresolvedTypeData},
         parser::{
             parser::{
                 parse_program,
@@ -87,7 +87,7 @@ mod tests {
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
-        let ItemKind::Global(let_statement) = &item.kind else {
+        let ItemKind::Global(let_statement, visibility) = &item.kind else {
             panic!("Expected global");
         };
         let Pattern::Identifier(name) = &let_statement.pattern else {
@@ -96,6 +96,7 @@ mod tests {
         assert_eq!("foo", name.to_string());
         assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
         assert!(!let_statement.comptime);
+        assert_eq!(visibility, &ItemVisibility::Private);
     }
 
     #[test]
@@ -105,7 +106,7 @@ mod tests {
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
-        let ItemKind::Global(let_statement) = &item.kind else {
+        let ItemKind::Global(let_statement, _) = &item.kind else {
             panic!("Expected global");
         };
         let Pattern::Identifier(name) = &let_statement.pattern else {
@@ -125,7 +126,7 @@ mod tests {
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
-        let ItemKind::Global(let_statement) = &item.kind else {
+        let ItemKind::Global(let_statement, _) = &item.kind else {
             panic!("Expected global");
         };
         assert!(let_statement.comptime);
@@ -138,7 +139,7 @@ mod tests {
         assert!(errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
-        let ItemKind::Global(let_statement) = &item.kind else {
+        let ItemKind::Global(let_statement, _) = &item.kind else {
             panic!("Expected global");
         };
         let Pattern::Mutable(pattern, _, _) = &let_statement.pattern else {

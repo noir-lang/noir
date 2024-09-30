@@ -1,17 +1,22 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
+    ast::{Ident, ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
     token::Token,
 };
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_type_alias(&mut self, start_span: Span) -> NoirTypeAlias {
+    pub(crate) fn parse_type_alias(
+        &mut self,
+        visibility: ItemVisibility,
+        start_span: Span,
+    ) -> NoirTypeAlias {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return NoirTypeAlias {
+                visibility,
                 name: Ident::default(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
@@ -28,6 +33,7 @@ impl<'a> Parser<'a> {
             self.eat_semicolons();
 
             return NoirTypeAlias {
+                visibility,
                 name,
                 generics,
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
@@ -41,7 +47,7 @@ impl<'a> Parser<'a> {
             self.expected_token(Token::Semicolon);
         }
 
-        NoirTypeAlias { name, generics, typ, span }
+        NoirTypeAlias { visibility, name, generics, typ, span }
     }
 }
 

@@ -75,7 +75,11 @@ impl<'a> Parser<'a> {
 
         if let Some(is_contract) = self.eat_mod_or_contract() {
             // TODO: error if there's comptime, mutable or unconstrained
-            return Some(self.parse_module_or_contract(attributes, is_contract));
+            return Some(self.parse_module_or_contract(
+                attributes,
+                is_contract,
+                modifiers.visibility,
+            ));
         }
 
         if self.eat_keyword(Keyword::Struct) {
@@ -106,16 +110,21 @@ impl<'a> Parser<'a> {
 
         if self.eat_keyword(Keyword::Global) {
             // TODO: error if there's unconstrained
-            return Some(ItemKind::Global(self.parse_global(
-                attributes,
-                modifiers.comptime.is_some(),
-                modifiers.mutable.is_some(),
-            )));
+            return Some(ItemKind::Global(
+                self.parse_global(
+                    attributes,
+                    modifiers.comptime.is_some(),
+                    modifiers.mutable.is_some(),
+                ),
+                modifiers.visibility,
+            ));
         }
 
         if self.eat_keyword(Keyword::Type) {
             // TODO: error if there's comptime or mutable or unconstrained
-            return Some(ItemKind::TypeAlias(self.parse_type_alias(start_span)));
+            return Some(ItemKind::TypeAlias(
+                self.parse_type_alias(modifiers.visibility, start_span),
+            ));
         }
 
         if self.eat_keyword(Keyword::Fn) {

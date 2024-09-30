@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -35,13 +35,13 @@ struct Context {
     //
     // The type of the array being operated on is recorded.
     // If an array_set to that array type is encountered, that is also recorded.
-    inc_rcs: HashMap<Type, Vec<IncRc>>,
+    inc_rcs: HashMap<Type, Vec<RcInstruction>>,
 }
 
-struct IncRc {
-    id: InstructionId,
-    array: ValueId,
-    possibly_mutated: bool,
+pub(crate) struct RcInstruction {
+    pub(crate) id: InstructionId,
+    pub(crate) array: ValueId,
+    pub(crate) possibly_mutated: bool,
 }
 
 /// This function is very simplistic for now. It takes advantage of the fact that dec_rc
@@ -80,7 +80,8 @@ impl Context {
                 let typ = function.dfg.type_of_value(*value);
 
                 // We assume arrays aren't mutated until we find an array_set
-                let inc_rc = IncRc { id: *instruction, array: *value, possibly_mutated: false };
+                let inc_rc =
+                    RcInstruction { id: *instruction, array: *value, possibly_mutated: false };
                 self.inc_rcs.entry(typ).or_default().push(inc_rc);
             }
         }
@@ -107,11 +108,11 @@ impl Context {
     /// is not possibly mutated, then we can remove them both. Returns each such pair.
     fn find_rcs_to_remove(&mut self, function: &Function) -> HashSet<InstructionId> {
         let last_block = function.find_last_block();
-        let mut to_remove = HashSet::new();
+        let mut to_remove = HashSet::default();
 
         for instruction in function.dfg[last_block].instructions() {
             if let Instruction::DecrementRc { value } = &function.dfg[*instruction] {
-                if let Some(inc_rc) = self.pop_rc_for(*value, function) {
+                if let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs) {
                     if !inc_rc.possibly_mutated {
                         to_remove.insert(inc_rc.id);
                         to_remove.insert(*instruction);
@@ -122,16 +123,20 @@ impl Context {
 
         to_remove
     }
+}
 
-    /// Finds and pops the IncRc for the given array value if possible.
-    fn pop_rc_for(&mut self, value: ValueId, function: &Function) -> Option<IncRc> {
-        let typ = function.dfg.type_of_value(value);
+/// Finds and pops the IncRc for the given array value if possible.
+pub(crate) fn pop_rc_for(
+    value: ValueId,
+    function: &Function,
+    inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
+) -> Option<RcInstruction> {
+    let typ = function.dfg.type_of_value(value);
 
-        let rcs = self.inc_rcs.get_mut(&typ)?;
-        let position = rcs.iter().position(|inc_rc| inc_rc.array == value)?;
+    let rcs = inc_rcs.get_mut(&typ)?;
+    let position = rcs.iter().position(|inc_rc| inc_rc.array == value)?;
 
-        Some(rcs.remove(position))
-    }
+    Some(rcs.remove(position))
 }
 
 fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Function) {

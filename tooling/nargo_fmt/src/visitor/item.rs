@@ -7,7 +7,7 @@ use crate::{
     visitor::expr::{format_seq, NewlineMode},
 };
 use noirc_frontend::{
-    ast::{NoirFunction, TraitImplItemKind, Visibility},
+    ast::{ItemVisibility, NoirFunction, TraitImplItemKind, Visibility},
     macros_api::UnresolvedTypeData,
 };
 use noirc_frontend::{
@@ -179,8 +179,12 @@ impl super::FmtVisitor<'_> {
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
-                    let keyword = if module.is_contract { "contract" } else { "mod" };
+                    let visibility = module.visibility;
+                    if visibility != ItemVisibility::Private {
+                        self.push_str(&format!("{visibility} "));
+                    }
 
+                    let keyword = if module.is_contract { "contract" } else { "mod" };
                     self.push_str(&format!("{keyword} {name} "));
 
                     if module.contents.items.is_empty() {
@@ -276,7 +280,7 @@ impl super::FmtVisitor<'_> {
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
                 | ItemKind::TypeAlias(_)
-                | ItemKind::Global(_)
+                | ItemKind::Global(..)
                 | ItemKind::ModuleDecl(_)
                 | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);

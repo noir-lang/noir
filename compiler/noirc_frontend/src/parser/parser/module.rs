@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, ModuleDeclaration},
+    ast::{Ident, ItemVisibility, ModuleDeclaration},
     parser::{ItemKind, ParsedSubModule},
     token::{Attribute, Token},
 };
@@ -13,12 +13,14 @@ impl<'a> Parser<'a> {
         &mut self,
         attributes: Vec<(Attribute, Span)>,
         is_contract: bool,
+        visibility: ItemVisibility,
     ) -> ItemKind {
         let outer_attributes = self.validate_secondary_attributes(attributes);
 
         let Some(ident) = self.eat_ident() else {
             self.expected_identifier();
             return ItemKind::ModuleDecl(ModuleDeclaration {
+                visibility,
                 ident: Ident::default(),
                 outer_attributes,
             });
@@ -30,6 +32,7 @@ impl<'a> Parser<'a> {
             );
             self.eat_or_error(Token::RightBrace);
             ItemKind::Submodules(ParsedSubModule {
+                visibility,
                 name: ident,
                 contents,
                 outer_attributes,
@@ -39,7 +42,7 @@ impl<'a> Parser<'a> {
             if !self.eat_semicolons() {
                 self.expected_token(Token::Semicolon);
             }
-            ItemKind::ModuleDecl(ModuleDeclaration { ident, outer_attributes })
+            ItemKind::ModuleDecl(ModuleDeclaration { visibility, ident, outer_attributes })
         }
     }
 }

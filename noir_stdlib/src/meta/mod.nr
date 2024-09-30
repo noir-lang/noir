@@ -1,17 +1,17 @@
-mod ctstring;
-mod expr;
-mod format_string;
-mod function_def;
-mod module;
-mod op;
-mod struct_def;
-mod trait_constraint;
-mod trait_def;
-mod trait_impl;
-mod typ;
-mod typed_expr;
-mod quoted;
-mod unresolved_type;
+pub mod ctstring;
+pub mod expr;
+pub mod format_string;
+pub mod function_def;
+pub mod module;
+pub mod op;
+pub mod struct_def;
+pub mod trait_constraint;
+pub mod trait_def;
+pub mod trait_impl;
+pub mod typ;
+pub mod typed_expr;
+pub mod quoted;
+pub mod unresolved_type;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
@@ -36,7 +36,7 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a struct definition can
 // create us a quoted trait impl from it.
-type DeriveFunction = fn(StructDefinition) -> Quoted;
+pub type DeriveFunction = fn(StructDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
@@ -243,11 +243,15 @@ mod tests {
     }
     // docs:end:big-derive-usage-example
 
+    impl DoNothing for Bar {
+        fn do_nothing(_: Self) {}
+    }
+
     // This function is just to remove unused warnings
     fn remove_unused_warnings() {
-        let _: Bar = crate::panic::panic(f"");
-        let _: MyStruct = crate::panic::panic(f"");
-        let _: MyOtherStruct = crate::panic::panic(f"");
+        let _: Bar = Bar { x: 1, y: [2, 3] };
+        let _: MyStruct = MyStruct { my_field: 1 };
+        let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
         let _ = derive_do_nothing(crate::panic::panic(f""));
         let _ = derive_do_nothing_alt(crate::panic::panic(f""));
         remove_unused_warnings();

@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn parse_path_no_turbofish(&mut self) -> Option<Path> {
+    pub fn parse_path_no_turbofish(&mut self) -> Option<Path> {
         self.parse_path_impl(
             false, // allow turbofish
             true,  // allow trailing double colon

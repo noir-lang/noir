@@ -3,8 +3,11 @@ mod foo {
     #![some_attribute]
     pub fn x() {}
     pub fn y() {}
+    pub fn z() {}
 
-    struct Struct1 {}
+    pub struct Struct1 {}
+    pub struct Struct2 {}
+    pub struct Struct3 {}
 }
 
 contract bar {}
@@ -61,6 +64,8 @@ comptime fn add_function(m: Module) {
 }
 
 fn main() {
+    let _ = foo::Struct1 {};
+
     comptime
     {
         // Check Module::is_contract
@@ -73,11 +78,20 @@ fn main() {
         let another_module = quote { another_module }.as_module().unwrap();
 
         // Check Module::functions
-        assert_eq(foo.functions().len(), 2);
+        let foo_functions = foo.functions();
+        assert_eq(foo_functions.len(), 3);
+        assert_eq(foo_functions[0].name(), quote { x });
+        assert_eq(foo_functions[1].name(), quote { y });
+        assert_eq(foo_functions[2].name(), quote { z });
+
         assert_eq(bar.functions().len(), 0);
 
         // Check Module::structs
-        assert_eq(foo.structs().len(), 1);
+        let foo_structs = foo.structs();
+        assert_eq(foo_structs.len(), 3);
+        assert_eq(foo_structs[0].name(), quote { Struct1 });
+        assert_eq(foo_structs[1].name(), quote { Struct2 });
+        assert_eq(foo_structs[2].name(), quote { Struct3 });
         assert_eq(bar.structs().len(), 0);
 
         // Check Module::name
@@ -101,7 +115,7 @@ fn main() {
 
 // docs:start:as_module_example
 mod baz {
-    mod qux {}
+    pub mod qux {}
 }
 
 #[test]

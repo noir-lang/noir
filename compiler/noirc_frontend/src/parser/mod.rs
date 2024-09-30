@@ -31,7 +31,7 @@ pub struct SortedModule {
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
     pub type_aliases: Vec<Documented<NoirTypeAlias>>,
-    pub globals: Vec<Documented<LetStatement>>,
+    pub globals: Vec<(Documented<LetStatement>, ItemVisibility)>,
 
     /// Module declarations like `mod foo;`
     pub module_decls: Vec<Documented<ModuleDeclaration>>,
@@ -53,7 +53,7 @@ impl std::fmt::Display for SortedModule {
             write!(f, "{import}")?;
         }
 
-        for global_const in &self.globals {
+        for (global_const, _visibility) in &self.globals {
             write!(f, "{global_const}")?;
         }
 
@@ -103,7 +103,9 @@ impl ParsedModule {
                 ItemKind::TypeAlias(type_alias) => {
                     module.push_type_alias(type_alias, item.doc_comments);
                 }
-                ItemKind::Global(global) => module.push_global(global, item.doc_comments),
+                ItemKind::Global(global, visibility) => {
+                    module.push_global(global, visibility, item.doc_comments);
+                }
                 ItemKind::ModuleDecl(mod_name) => {
                     module.push_module_decl(mod_name, item.doc_comments);
                 }
@@ -136,7 +138,7 @@ pub enum ItemKind {
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
-    Global(LetStatement),
+    Global(LetStatement, ItemVisibility),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
     InnerAttribute(SecondaryAttribute),
@@ -160,7 +162,12 @@ impl std::fmt::Display for ItemKind {
             ItemKind::Impl(i) => i.fmt(f),
             ItemKind::TypeAlias(t) => t.fmt(f),
             ItemKind::Submodules(s) => s.fmt(f),
-            ItemKind::Global(c) => c.fmt(f),
+            ItemKind::Global(c, visibility) => {
+                if visibility != &ItemVisibility::Private {
+                    write!(f, "{visibility} ")?;
+                }
+                c.fmt(f)
+            }
             ItemKind::InnerAttribute(a) => write!(f, "#![{}]", a),
         }
     }
@@ -170,6 +177,7 @@ impl std::fmt::Display for ItemKind {
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
 pub struct ParsedSubModule {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub contents: ParsedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
@@ -179,6 +187,7 @@ pub struct ParsedSubModule {
 impl ParsedSubModule {
     pub fn into_sorted(self) -> SortedSubModule {
         SortedSubModule {
+            visibility: self.visibility,
             name: self.name,
             contents: self.contents.into_sorted(),
             outer_attributes: self.outer_attributes,
@@ -202,6 +211,7 @@ impl std::fmt::Display for SortedSubModule {
 #[derive(Clone)]
 pub struct SortedSubModule {
     pub name: Ident,
+    pub visibility: ItemVisibility,
     pub contents: SortedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
@@ -244,8 +254,13 @@ impl SortedModule {
         self.submodules.push(Documented::new(submodule, doc_comments));
     }
 
-    fn push_global(&mut self, global: LetStatement, doc_comments: Vec<String>) {
-        self.globals.push(Documented::new(global, doc_comments));
+    fn push_global(
+        &mut self,
+        global: LetStatement,
+        visibility: ItemVisibility,
+        doc_comments: Vec<String>,
+    ) {
+        self.globals.push((Documented::new(global, doc_comments), visibility));
     }
 }
 
