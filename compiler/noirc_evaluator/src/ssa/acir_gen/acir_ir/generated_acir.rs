@@ -1,6 +1,6 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, u32};
 
 use crate::{
     brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
@@ -11,7 +11,7 @@ use acvm::acir::{
     circuit::{
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, OpcodeLocation,
+        AssertionPayload, BrilligOpcodeLocation, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -53,7 +53,7 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
 
     /// Brillig function id -> Opcodes locations map
     /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
-    pub(crate) brillig_locations: BTreeMap<BrilligFunctionId, OpcodeToLocationsMap>,
+    pub(crate) brillig_locations: BTreeMap<BrilligFunctionId, BrilligOpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
@@ -76,6 +76,8 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
 
 /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
 pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
+
+pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
@@ -202,10 +204,6 @@ impl<F: AcirField> GeneratedAcir<F> {
                 BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
             BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
-            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 {
-                inputs: inputs[0].clone(),
-                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
-            },
             BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
                 inputs: inputs[0].clone(),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
@@ -311,6 +309,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 proof: inputs[1].clone(),
                 public_inputs: inputs[2].clone(),
                 key_hash: inputs[3][0],
+                proof_type: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::BigIntAdd => BlackBoxFuncCall::BigIntAdd {
                 lhs: constant_inputs[0].to_u128() as u32,
@@ -590,6 +589,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
+        // TODO(https://github.com/noir-lang/noir/issues/5792)
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
@@ -605,13 +605,10 @@ impl<F: AcirField> GeneratedAcir<F> {
         }
 
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
-            self.brillig_locations.entry(brillig_function_index).or_default().insert(
-                OpcodeLocation::Brillig {
-                    acir_index: self.opcodes.len() - 1,
-                    brillig_index: *brillig_index,
-                },
-                call_stack.clone(),
-            );
+            self.brillig_locations
+                .entry(brillig_function_index)
+                .or_default()
+                .insert(BrilligOpcodeLocation(*brillig_index), call_stack.clone());
         }
     }
 
@@ -625,6 +622,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             OpcodeLocation::Acir(index) => index,
             _ => panic!("should not have brillig index"),
         };
+
         match &mut self.opcodes[acir_index] {
             AcirOpcode::BrilligCall { id, .. } => *id = brillig_function_index,
             _ => panic!("expected brillig call opcode"),
@@ -647,7 +645,6 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // variable number of inputs.
         BlackBoxFunc::AES128Encrypt
         | BlackBoxFunc::Keccak256
-        | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Blake3
         | BlackBoxFunc::PedersenCommitment
@@ -699,10 +696,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
 
         // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256
-        | BlackBoxFunc::SHA256
-        | BlackBoxFunc::Blake2s
-        | BlackBoxFunc::Blake3 => Some(32),
+        BlackBoxFunc::Keccak256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => Some(32),
 
         BlackBoxFunc::Keccakf1600 => Some(25),
         // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.

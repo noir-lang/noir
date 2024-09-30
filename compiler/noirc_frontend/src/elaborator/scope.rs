@@ -2,6 +2,7 @@ use noirc_errors::{Location, Spanned};
 
 use crate::ast::{PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::resolution::import::{PathResolution, PathResolutionResult};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::macros_api::Ident;
@@ -29,7 +30,7 @@ type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 impl<'context> Elaborator<'context> {
     pub(super) fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
-        let id = self.resolve_path(path)?;
+        let id = self.resolve_path_or_error(path)?;
         T::try_from(id).ok_or_else(|| ResolverError::Expected {
             expected: T::description(),
             got: id.as_str().to_owned(),
@@ -37,12 +38,34 @@ impl<'context> Elaborator<'context> {
         })
     }
 
-    pub(super) fn module_id(&self) -> ModuleId {
+    pub fn module_id(&self) -> ModuleId {
         assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
         ModuleId { krate: self.crate_id, local_id: self.local_module }
     }
 
-    pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
+    pub fn replace_module(&mut self, new_module: ModuleId) -> ModuleId {
+        assert_ne!(new_module.local_id, LocalModuleId::dummy_id(), "local_module is unset");
+        let current_module = self.module_id();
+
+        self.crate_id = new_module.krate;
+        self.local_module = new_module.local_id;
+        current_module
+    }
+
+    pub(super) fn resolve_path_or_error(
+        &mut self,
+        path: Path,
+    ) -> Result<ModuleDefId, ResolverError> {
+        let path_resolution = self.resolve_path(path)?;
+
+        if let Some(error) = path_resolution.error {
+            self.push_err(error);
+        }
+
+        Ok(path_resolution.module_def_id)
+    }
+
+    pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
         let mut module_id = self.module_id();
         let mut path = path;
 
@@ -50,7 +73,10 @@ impl<'context> Elaborator<'context> {
             if let Some(Type::Struct(struct_type, _)) = &self.self_type {
                 let struct_type = struct_type.borrow();
                 if path.segments.len() == 1 {
-                    return Ok(ModuleDefId::TypeId(struct_type.id));
+                    return Ok(PathResolution {
+                        module_def_id: ModuleDefId::TypeId(struct_type.id),
+                        error: None,
+                    });
                 }
 
                 module_id = struct_type.id.module_id();
@@ -65,45 +91,50 @@ impl<'context> Elaborator<'context> {
         self.resolve_path_in_module(path, module_id)
     }
 
-    fn resolve_path_in_module(
-        &mut self,
-        path: Path,
-        module_id: ModuleId,
-    ) -> Result<ModuleDefId, ResolverError> {
+    fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
         let resolver = StandardPathResolver::new(module_id);
-        let path_resolution;
 
-        if self.interner.lsp_mode {
-            let last_segment = path.last_ident();
-            let location = Location::new(last_segment.span(), self.file);
-            let is_self_type_name = last_segment.is_self_type_name();
-
-            let mut references: Vec<_> = Vec::new();
-            path_resolution =
-                resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
-
-            for (referenced, segment) in references.iter().zip(path.segments) {
-                self.interner.add_reference(
-                    *referenced,
-                    Location::new(segment.ident.span(), self.file),
-                    segment.ident.is_self_type_name(),
-                );
-            }
-
-            self.interner.add_module_def_id_reference(
-                path_resolution.module_def_id,
-                location,
-                is_self_type_name,
+        if !self.interner.lsp_mode {
+            return resolver.resolve(
+                self.def_maps,
+                path,
+                &mut self.interner.usage_tracker,
+                &mut None,
             );
-        } else {
-            path_resolution = resolver.resolve(self.def_maps, path, &mut None)?;
         }
 
-        if let Some(error) = path_resolution.error {
-            self.push_err(error);
+        let last_segment = path.last_ident();
+        let location = Location::new(last_segment.span(), self.file);
+        let is_self_type_name = last_segment.is_self_type_name();
+
+        let mut references: Vec<_> = Vec::new();
+        let path_resolution = resolver.resolve(
+            self.def_maps,
+            path.clone(),
+            &mut self.interner.usage_tracker,
+            &mut Some(&mut references),
+        );
+
+        for (referenced, segment) in references.iter().zip(path.segments) {
+            self.interner.add_reference(
+                *referenced,
+                Location::new(segment.ident.span(), self.file),
+                segment.ident.is_self_type_name(),
+            );
         }
 
-        Ok(path_resolution.module_def_id)
+        let path_resolution = match path_resolution {
+            Ok(path_resolution) => path_resolution,
+            Err(err) => return Err(err),
+        };
+
+        self.interner.add_module_def_id_reference(
+            path_resolution.module_def_id,
+            location,
+            is_self_type_name,
+        );
+
+        Ok(path_resolution)
     }
 
     pub(super) fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
@@ -150,7 +181,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
         let span = path.span();
-        let id = self.resolve_path(path)?;
+        let id = self.resolve_path_or_error(path)?;
 
         if let Some(function) = TryFromModuleDefId::try_from(id) {
             return Ok(self.interner.function_definition_id(function));

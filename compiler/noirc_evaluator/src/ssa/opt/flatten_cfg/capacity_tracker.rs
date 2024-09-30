@@ -63,17 +63,15 @@ impl<'a> SliceCapacityTracker<'a> {
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SlicePopBack
                         | Intrinsic::SliceInsert
-                        | Intrinsic::SliceRemove => (Some(1), 1),
+                        | Intrinsic::SliceRemove => (1, 1),
                         // `pop_front` returns the popped element, and then the respective slice.
                         // This means in the case of a slice with structs, the result index of the popped slice
                         // will change depending on the number of elements in the struct.
                         // For example, a slice with four elements will look as such in SSA:
                         // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
                         // where v7 is the slice length and v8 is the popped slice itself.
-                        Intrinsic::SlicePopFront => (Some(1), results.len() - 1),
-                        // The slice capacity of these intrinsics is not determined by the arguments of the function.
-                        Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => (None, 1),
-                        Intrinsic::AsSlice => (Some(0), 1),
+                        Intrinsic::SlicePopFront => (1, results.len() - 1),
+                        Intrinsic::AsSlice => (0, 1),
                         _ => return,
                     };
                     let result_slice = results[result_index];
@@ -81,8 +79,6 @@ impl<'a> SliceCapacityTracker<'a> {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
-                            let argument_index = argument_index
-                                .expect("ICE: Should have an argument index for slice intrinsics");
                             let slice_contents = arguments[argument_index];
 
                             for arg in &arguments[(argument_index + 1)..] {
@@ -100,8 +96,6 @@ impl<'a> SliceCapacityTracker<'a> {
                         Intrinsic::SlicePopBack
                         | Intrinsic::SliceRemove
                         | Intrinsic::SlicePopFront => {
-                            let argument_index = argument_index
-                                .expect("ICE: Should have an argument index for slice intrinsics");
                             let slice_contents = arguments[argument_index];
 
                             if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
@@ -121,8 +115,6 @@ impl<'a> SliceCapacityTracker<'a> {
                                 .insert(result_slice, FieldElement::max_num_bytes() as usize);
                         }
                         Intrinsic::AsSlice => {
-                            let argument_index = argument_index
-                                .expect("ICE: Should have an argument index for AsSlice builtin");
                             let array_size = self
                                 .dfg
                                 .try_get_array_length(arguments[argument_index])

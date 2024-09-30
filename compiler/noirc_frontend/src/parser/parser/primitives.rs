@@ -1,7 +1,7 @@
 use chumsky::prelude::*;
 
 use crate::ast::{ExpressionKind, GenericTypeArgs, Ident, PathSegment, UnaryOp};
-use crate::macros_api::UnresolvedType;
+use crate::macros_api::{StatementKind, UnresolvedType};
 use crate::parser::ParserErrorReason;
 use crate::{
     parser::{labels::ParsingRuleLabel, ExprParser, NoirParser, ParserError},
@@ -116,6 +116,33 @@ pub(super) fn macro_quote_marker() -> impl NoirParser<ExpressionKind> {
     token_kind(TokenKind::UnquoteMarker).map(|token| match token {
         Token::UnquoteMarker(expr_id) => ExpressionKind::Resolved(expr_id),
         other => unreachable!("Non-unquote-marker parsed as an unquote marker: {other:?}"),
+    })
+}
+
+pub(super) fn interned_expr() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::InternedExpr).map(|token| match token {
+        Token::InternedExpr(id) => ExpressionKind::Interned(id),
+        _ => unreachable!("token_kind(InternedExpr) guarantees we parse an interned expr"),
+    })
+}
+
+pub(super) fn interned_statement() -> impl NoirParser<StatementKind> {
+    token_kind(TokenKind::InternedStatement).map(|token| match token {
+        Token::InternedStatement(id) => StatementKind::Interned(id),
+        _ => {
+            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
+        }
+    })
+}
+
+// This rule is so that we can re-parse StatementKind::Expression and Semi in
+// an expression position (ignoring the semicolon) if needed.
+pub(super) fn interned_statement_expr() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::InternedStatement).map(|token| match token {
+        Token::InternedStatement(id) => ExpressionKind::InternedStatement(id),
+        _ => {
+            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
+        }
     })
 }
 

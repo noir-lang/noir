@@ -5,6 +5,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
+use crate::ast::ConstrainKind;
 use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
@@ -59,14 +60,20 @@ pub enum TypeCheckError {
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
     #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
+    #[error("{} expects {} or {} parameters but {found} were given", kind, kind.required_arguments_count(), kind.required_arguments_count() + 1)]
+    AssertionParameterCountMismatch { kind: ConstrainKind, found: usize, span: Span },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
+    #[error("{item} has incompatible `unconstrained`")]
+    UnconstrainedMismatch { item: String, expected: bool, span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, span: Span },
-    #[error("Variable {name} must be mutable to be assigned to")]
+    #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, span: Span },
+    #[error("Cannot mutate immutable variable `{name}`")]
+    CannotMutateImmutableVariable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
@@ -104,8 +111,12 @@ pub enum TypeCheckError {
         second_type: String,
         second_index: usize,
     },
-    #[error("Cannot infer type of expression, type annotations needed before this point")]
-    TypeAnnotationsNeeded { span: Span },
+    #[error("Object type is unknown in method call")]
+    TypeAnnotationsNeededForMethodCall { span: Span },
+    #[error("Object type is unknown in field access")]
+    TypeAnnotationsNeededForFieldAccess { span: Span },
+    #[error("Multiple trait impls may apply to this object type")]
+    MultipleMatchingImpls { object_type: Type, candidates: Vec<String>, span: Span },
     #[error("use of deprecated function {name}")]
     CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
@@ -166,6 +177,10 @@ pub enum TypeCheckError {
     NoSuchNamedTypeArg { name: Ident, item: String },
     #[error("`{item}` is missing the associated type `{name}`")]
     MissingNamedTypeArg { name: Rc<String>, item: String, span: Span },
+    #[error("Internal compiler error: type unspecified for value")]
+    UnspecifiedType { span: Span },
+    #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
+    CyclicType { typ: Type, span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,10 +263,25 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
+            TypeCheckError::AssertionParameterCountMismatch { kind, found, span } => {
+                let was_or_were = if *found == 1 { "was" } else { "were" };
+                let min = kind.required_arguments_count();
+                let max = min + 1;
+                let msg = format!("{kind} expects {min} or {max} parameters but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
             TypeCheckError::GenericCountMismatch { item, expected, found, span } => {
                 let empty_or_s = if *expected == 1 { "" } else { "s" };
                 let was_or_were = if *found == 1 { "was" } else { "were" };
                 let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
+            TypeCheckError::UnconstrainedMismatch { item, expected, span } => {
+                let msg = if *expected {
+                    format!("{item} is expected to be unconstrained")
+                } else {
+                    format!("{item} is not expected to be unconstrained")
+                };
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
             TypeCheckError::InvalidCast { span, .. }
@@ -260,6 +290,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
+            | TypeCheckError::CannotMutateImmutableVariable { span, .. }
             | TypeCheckError::UnresolvedMethodCall { span, .. }
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }
@@ -286,11 +317,33 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 format!("return type is {typ}"),
                 *span,
             ),
-            TypeCheckError::TypeAnnotationsNeeded { span } => Diagnostic::simple_error(
-                "Expression type is ambiguous".to_string(),
-                "Type must be known at this point".to_string(),
-                *span,
-            ),
+            TypeCheckError::TypeAnnotationsNeededForMethodCall { span } => {
+                let mut error = Diagnostic::simple_error(
+                    "Object type is unknown in method call".to_string(),
+                    "Type must be known by this point to know which method to call".to_string(),
+                    *span,
+                );
+                error.add_note("Try adding a type annotation for the object type before this method call".to_string());
+                error
+            },
+            TypeCheckError::TypeAnnotationsNeededForFieldAccess { span } => {
+                let mut error = Diagnostic::simple_error(
+                    "Object type is unknown in field access".to_string(),
+                    "Type must be known by this point".to_string(),
+                    *span,
+                );
+                error.add_note("Try adding a type annotation for the object type before this expression".to_string());
+                error
+            },
+            TypeCheckError::MultipleMatchingImpls { object_type, candidates, span } => {
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = Diagnostic::simple_error(message, secondary, *span);
+                for (i, candidate) in candidates.iter().enumerate() {
+                    error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
+                }
+                error
+            },
             TypeCheckError::ResolverError(error) => error.into(),
             TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
                 let message = match source {
@@ -327,7 +380,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 
-                Diagnostic::simple_warning(primary_message, secondary_message, *span)
+                let mut diagnostic = Diagnostic::simple_warning(primary_message, secondary_message, *span);
+                diagnostic.deprecated = true;
+                diagnostic
             }
             TypeCheckError::UnusedResultError { expr_type, expr_span } => {
                 let msg = format!("Unused expression result of type {expr_type}");
@@ -387,6 +442,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::UnsafeFn { span } => {
                 Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::UnspecifiedType { span } => {
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::CyclicType { typ: _, span } => {
+                Diagnostic::simple_error(error.to_string(), "Cyclic types have unlimited size and are prohibited in Noir".into(), *span)
             }
         }
     }

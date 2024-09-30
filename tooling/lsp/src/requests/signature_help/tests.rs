@@ -193,4 +193,51 @@ mod signature_help_tests {
 
         assert_eq!(signature.active_parameter, Some(0));
     }
+
+    #[test]
+    async fn test_signature_help_for_assert() {
+        let src = r#"
+            fn bar() {
+                assert(>|<1, "hello");
+            }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        assert_eq!(signature_help.signatures.len(), 1);
+
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "assert(predicate: bool, [failure_message: str<N>])");
+
+        let params = signature.parameters.as_ref().unwrap();
+        assert_eq!(params.len(), 2);
+
+        check_label(&signature.label, &params[0].label, "predicate: bool");
+        check_label(&signature.label, &params[1].label, "[failure_message: str<N>]");
+
+        assert_eq!(signature.active_parameter, Some(0));
+    }
+
+    #[test]
+    async fn test_signature_help_for_assert_eq() {
+        let src = r#"
+            fn bar() {
+                assert_eq(>|<true, false, "oops");
+            }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        assert_eq!(signature_help.signatures.len(), 1);
+
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "assert_eq(lhs: T, rhs: T, [failure_message: str<N>])");
+
+        let params = signature.parameters.as_ref().unwrap();
+        assert_eq!(params.len(), 3);
+
+        check_label(&signature.label, &params[0].label, "lhs: T");
+        check_label(&signature.label, &params[1].label, "rhs: T");
+        check_label(&signature.label, &params[2].label, "[failure_message: str<N>]");
+
+        assert_eq!(signature.active_parameter, Some(0));
+    }
 }

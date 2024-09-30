@@ -5,7 +5,7 @@ use iter_extended::vecmap;
 use crate::{
     hir_def::traits::NamedType,
     macros_api::NodeInterner,
-    node_interner::{TraitId, TypeAliasId},
+    node_interner::{FuncId, TraitId, TypeAliasId},
     ResolvedGeneric, StructType, Type,
 };
 
@@ -97,6 +97,28 @@ impl Generic for Ref<'_, StructType> {
     }
 }
 
+impl Generic for FuncId {
+    fn item_kind(&self) -> &'static str {
+        "function"
+    }
+
+    fn item_name(&self, interner: &NodeInterner) -> String {
+        interner.function_name(self).to_string()
+    }
+
+    fn generics(&self, interner: &NodeInterner) -> Vec<ResolvedGeneric> {
+        interner.function_meta(self).direct_generics.clone()
+    }
+
+    fn accepts_named_type_args(&self) -> bool {
+        false
+    }
+
+    fn named_generics(&self, _interner: &NodeInterner) -> Vec<ResolvedGeneric> {
+        Vec::new()
+    }
+}
+
 /// TraitGenerics are different from regular generics in that they can
 /// also contain associated type arguments.
 #[derive(Default, PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
@@ -160,6 +182,7 @@ fn fmt_trait_generics(
                 write!(f, "{} = {}", named.name, named.typ)?;
             }
         }
+        write!(f, ">")?;
     }
     Ok(())
 }

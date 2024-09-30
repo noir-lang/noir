@@ -1,29 +1,36 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{
+    acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
+    AcirField,
+};
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
 use super::{
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
+    registers::RegisterAllocator,
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
-    pub(crate) fn codegen_allocate_fixed_length_array(
+    pub(crate) fn codegen_allocate_immediate_mem(
         &mut self,
         pointer_register: MemoryAddress,
         size: usize,
     ) {
-        let size_register = self.make_usize_constant_instruction(size.into());
-        self.codegen_allocate_array(pointer_register, size_register.address);
-        self.deallocate_single_addr(size_register);
+        self.load_free_memory_pointer_instruction(pointer_register);
+        self.codegen_usize_op_in_place(
+            ReservedRegisters::free_memory_pointer(),
+            BrilligBinaryOp::Add,
+            size,
+        );
     }
 
     /// Allocates an array of size contained in size_register and stores the
     /// pointer to the array in `pointer_register`
-    pub(crate) fn codegen_allocate_array(
+    pub(crate) fn codegen_allocate_mem(
         &mut self,
         pointer_register: MemoryAddress,
         size_register: MemoryAddress,
@@ -32,133 +39,45 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         self.increase_free_memory_pointer_instruction(size_register);
     }
 
-    /// Allocates a variable in memory and stores the
-    /// pointer to the array in `pointer_register`
-    fn codegen_allocate_variable_reference(
+    /// Gets the value stored at base_ptr + index and stores it in result
+    pub(crate) fn codegen_load_with_offset(
         &mut self,
-        pointer_register: MemoryAddress,
-        size: usize,
-    ) {
-        // A variable can be stored in up to three values, so we reserve three values for that.
-        let size_register = self.make_usize_constant_instruction(size.into());
-        self.mov_instruction(pointer_register, ReservedRegisters::free_memory_pointer());
-        self.memory_op_instruction(
-            ReservedRegisters::free_memory_pointer(),
-            size_register.address,
-            ReservedRegisters::free_memory_pointer(),
-            BrilligBinaryOp::Add,
-        );
-        self.deallocate_single_addr(size_register);
-    }
-
-    pub(crate) fn codegen_allocate_single_addr_reference(
-        &mut self,
-        pointer_register: MemoryAddress,
-    ) {
-        self.codegen_allocate_variable_reference(pointer_register, 1);
-    }
-
-    pub(crate) fn codegen_allocate_array_reference(&mut self, pointer_register: MemoryAddress) {
-        self.codegen_allocate_variable_reference(pointer_register, BrilligArray::registers_count());
-    }
-
-    pub(crate) fn codegen_allocate_vector_reference(&mut self, pointer_register: MemoryAddress) {
-        self.codegen_allocate_variable_reference(
-            pointer_register,
-            BrilligVector::registers_count(),
-        );
-    }
-
-    /// Gets the value in the array at index `index` and stores it in `result`
-    pub(crate) fn codegen_array_get(
-        &mut self,
-        array_ptr: MemoryAddress,
+        base_ptr: MemoryAddress,
         index: SingleAddrVariable,
         result: MemoryAddress,
     ) {
         assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        // Computes array_ptr + index, ie array[index]
-        let index_of_element_in_memory = self.allocate_register();
-        self.memory_op_instruction(
-            array_ptr,
-            index.address,
-            index_of_element_in_memory,
-            BrilligBinaryOp::Add,
-        );
-        self.load_instruction(result, index_of_element_in_memory);
+        let final_index = self.allocate_register();
+        self.memory_op_instruction(base_ptr, index.address, final_index, BrilligBinaryOp::Add);
+        self.load_instruction(result, final_index);
         // Free up temporary register
-        self.deallocate_register(index_of_element_in_memory);
+        self.deallocate_register(final_index);
     }
 
-    /// Sets the item in the array at index `index` to `value`
-    pub(crate) fn codegen_array_set(
+    /// Stores value at base_ptr + index
+    pub(crate) fn codegen_store_with_offset(
         &mut self,
-        array_ptr: MemoryAddress,
+        base_ptr: MemoryAddress,
         index: SingleAddrVariable,
         value: MemoryAddress,
     ) {
         assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        // Computes array_ptr + index, ie array[index]
-        let index_of_element_in_memory = self.allocate_register();
+        let final_index = self.allocate_register();
         self.binary_instruction(
-            SingleAddrVariable::new_usize(array_ptr),
+            SingleAddrVariable::new_usize(base_ptr),
             index,
-            SingleAddrVariable::new_usize(index_of_element_in_memory),
+            SingleAddrVariable::new_usize(final_index),
             BrilligBinaryOp::Add,
         );
 
-        self.store_instruction(index_of_element_in_memory, value);
+        self.store_instruction(final_index, value);
         // Free up temporary register
-        self.deallocate_register(index_of_element_in_memory);
+        self.deallocate_register(final_index);
     }
 
-    pub(crate) fn codegen_store_variable_in_array(
-        &mut self,
-        array_pointer: MemoryAddress,
-        index: SingleAddrVariable,
-        value_variable: BrilligVariable,
-    ) {
-        assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        let final_pointer_register = self.allocate_register();
-        self.memory_op_instruction(
-            array_pointer,
-            index.address,
-            final_pointer_register,
-            BrilligBinaryOp::Add,
-        );
-        self.codegen_store_variable_in_pointer(final_pointer_register, value_variable);
-        self.deallocate_register(final_pointer_register);
-    }
-
-    pub(crate) fn codegen_store_variable_in_pointer(
-        &mut self,
-        destination_pointer: MemoryAddress,
-        value_variable: BrilligVariable,
-    ) {
-        match value_variable {
-            BrilligVariable::SingleAddr(value_variable) => {
-                self.store_instruction(destination_pointer, value_variable.address);
-            }
-            BrilligVariable::BrilligArray(_) => {
-                let reference: MemoryAddress = self.allocate_register();
-                self.codegen_allocate_array_reference(reference);
-                self.codegen_store_variable(reference, value_variable);
-                self.store_instruction(destination_pointer, reference);
-                self.deallocate_register(reference);
-            }
-            BrilligVariable::BrilligVector(_) => {
-                let reference = self.allocate_register();
-                self.codegen_allocate_vector_reference(reference);
-                self.codegen_store_variable(reference, value_variable);
-                self.store_instruction(destination_pointer, reference);
-                self.deallocate_register(reference);
-            }
-        }
-    }
-
-    /// Copies the values of an array pointed by source with length stored in `num_elements_register`
-    /// Into the array pointed by destination
-    pub(crate) fn codegen_copy_array(
+    /// Copies the values of memory pointed by source with length stored in `num_elements_register`
+    /// After the address pointed by destination
+    pub(crate) fn codegen_mem_copy(
         &mut self,
         source_pointer: MemoryAddress,
         destination_pointer: MemoryAddress,
@@ -166,128 +85,62 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
     ) {
         assert!(num_elements_variable.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
 
-        let value_register = self.allocate_register();
+        if self.can_call_procedures {
+            self.call_mem_copy_procedure(
+                source_pointer,
+                destination_pointer,
+                num_elements_variable.address,
+            );
+        } else {
+            let value_register = self.allocate_register();
 
-        self.codegen_loop(num_elements_variable.address, |ctx, iterator| {
-            ctx.codegen_array_get(source_pointer, iterator, value_register);
-            ctx.codegen_array_set(destination_pointer, iterator, value_register);
-        });
+            self.codegen_loop(num_elements_variable.address, |ctx, iterator| {
+                ctx.codegen_load_with_offset(source_pointer, iterator, value_register);
+                ctx.codegen_store_with_offset(destination_pointer, iterator, value_register);
+            });
 
-        self.deallocate_register(value_register);
-    }
-
-    /// Loads a variable stored previously
-    pub(crate) fn codegen_load_variable(
-        &mut self,
-        destination: BrilligVariable,
-        variable_pointer: MemoryAddress,
-    ) {
-        match destination {
-            BrilligVariable::SingleAddr(single_addr) => {
-                self.load_instruction(single_addr.address, variable_pointer);
-            }
-            BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
-                self.load_instruction(pointer, variable_pointer);
-
-                let rc_pointer = self.allocate_register();
-                self.mov_instruction(rc_pointer, variable_pointer);
-                self.codegen_usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 1_usize);
-
-                self.load_instruction(rc, rc_pointer);
-                self.deallocate_register(rc_pointer);
-            }
-            BrilligVariable::BrilligVector(BrilligVector { pointer, size, rc }) => {
-                self.load_instruction(pointer, variable_pointer);
-
-                let size_pointer = self.allocate_register();
-                self.mov_instruction(size_pointer, variable_pointer);
-                self.codegen_usize_op_in_place(size_pointer, BrilligBinaryOp::Add, 1_usize);
-
-                self.load_instruction(size, size_pointer);
-                self.deallocate_register(size_pointer);
-
-                let rc_pointer = self.allocate_register();
-                self.mov_instruction(rc_pointer, variable_pointer);
-                self.codegen_usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 2_usize);
-
-                self.load_instruction(rc, rc_pointer);
-                self.deallocate_register(rc_pointer);
-            }
+            self.deallocate_register(value_register);
         }
     }
 
-    /// Stores a variable by saving its registers to memory
-    pub(crate) fn codegen_store_variable(
+    /// This instruction will reverse the order of the `size` elements pointed by `pointer`.
+    pub(crate) fn codegen_array_reverse(
         &mut self,
-        variable_pointer: MemoryAddress,
-        source: BrilligVariable,
+        items_pointer: MemoryAddress,
+        size: MemoryAddress,
     ) {
-        match source {
-            BrilligVariable::SingleAddr(single_addr) => {
-                self.store_instruction(variable_pointer, single_addr.address);
-            }
-            BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
-                self.store_instruction(variable_pointer, pointer);
-
-                let rc_pointer: MemoryAddress = self.allocate_register();
-                self.mov_instruction(rc_pointer, variable_pointer);
-                self.codegen_usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 1_usize);
-                self.store_instruction(rc_pointer, rc);
-                self.deallocate_register(rc_pointer);
-            }
-            BrilligVariable::BrilligVector(BrilligVector { pointer, size, rc }) => {
-                self.store_instruction(variable_pointer, pointer);
-
-                let size_pointer = self.allocate_register();
-                self.mov_instruction(size_pointer, variable_pointer);
-                self.codegen_usize_op_in_place(size_pointer, BrilligBinaryOp::Add, 1_usize);
-                self.store_instruction(size_pointer, size);
-
-                let rc_pointer: MemoryAddress = self.allocate_register();
-                self.mov_instruction(rc_pointer, variable_pointer);
-                self.codegen_usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 2_usize);
-                self.store_instruction(rc_pointer, rc);
-
-                self.deallocate_register(size_pointer);
-                self.deallocate_register(rc_pointer);
-            }
+        if self.can_call_procedures {
+            self.call_array_reverse_procedure(items_pointer, size);
+            return;
         }
-    }
 
-    /// This instruction will reverse the order of the elements in a vector.
-    pub(crate) fn codegen_reverse_vector_in_place(&mut self, vector: BrilligVector) {
         let iteration_count = self.allocate_register();
-        self.codegen_usize_op(vector.size, iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
+        self.codegen_usize_op(size, iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
 
         let start_value_register = self.allocate_register();
-        let index_at_end_of_array = self.allocate_register();
         let end_value_register = self.allocate_register();
+        let index_at_end_of_array = self.allocate_register();
+
+        self.mov_instruction(index_at_end_of_array, size);
 
         self.codegen_loop(iteration_count, |ctx, iterator_register| {
-            // Load both values
-            ctx.codegen_array_get(vector.pointer, iterator_register, start_value_register);
-
             // The index at the end of array is size - 1 - iterator
-            ctx.mov_instruction(index_at_end_of_array, vector.size);
             ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
-            ctx.memory_op_instruction(
-                index_at_end_of_array,
-                iterator_register.address,
-                index_at_end_of_array,
-                BrilligBinaryOp::Sub,
-            );
+            let index_at_end_of_array_var = SingleAddrVariable::new_usize(index_at_end_of_array);
 
-            ctx.codegen_array_get(
-                vector.pointer,
-                SingleAddrVariable::new_usize(index_at_end_of_array),
+            // Load both values
+            ctx.codegen_load_with_offset(items_pointer, iterator_register, start_value_register);
+            ctx.codegen_load_with_offset(
+                items_pointer,
+                index_at_end_of_array_var,
                 end_value_register,
             );
 
             // Write both values
-            ctx.codegen_array_set(vector.pointer, iterator_register, end_value_register);
-            ctx.codegen_array_set(
-                vector.pointer,
-                SingleAddrVariable::new_usize(index_at_end_of_array),
+            ctx.codegen_store_with_offset(items_pointer, iterator_register, end_value_register);
+            ctx.codegen_store_with_offset(
+                items_pointer,
+                index_at_end_of_array_var,
                 start_value_register,
             );
         });
@@ -296,5 +149,141 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         self.deallocate_register(start_value_register);
         self.deallocate_register(end_value_register);
         self.deallocate_register(index_at_end_of_array);
+    }
+
+    /// Converts a BrilligArray (pointer to [RC, ...items]) to a HeapArray (pointer to [items])
+    pub(crate) fn codegen_brillig_array_to_heap_array(&mut self, array: BrilligArray) -> HeapArray {
+        let heap_array = HeapArray { pointer: self.allocate_register(), size: array.size };
+        self.codegen_usize_op(array.pointer, heap_array.pointer, BrilligBinaryOp::Add, 1);
+        heap_array
+    }
+
+    pub(crate) fn codegen_brillig_vector_to_heap_vector(
+        &mut self,
+        vector: BrilligVector,
+    ) -> HeapVector {
+        let heap_vector =
+            HeapVector { pointer: self.allocate_register(), size: self.allocate_register() };
+        let current_pointer = self.allocate_register();
+
+        // Prepare a pointer to the size
+        self.codegen_usize_op(vector.pointer, current_pointer, BrilligBinaryOp::Add, 1);
+        self.load_instruction(heap_vector.size, current_pointer);
+        // Now prepare the pointer to the items
+        self.codegen_usize_op(current_pointer, heap_vector.pointer, BrilligBinaryOp::Add, 1);
+
+        self.deallocate_register(current_pointer);
+        heap_vector
+    }
+
+    pub(crate) fn variable_to_value_or_array(&mut self, variable: BrilligVariable) -> ValueOrArray {
+        match variable {
+            BrilligVariable::SingleAddr(SingleAddrVariable { address, .. }) => {
+                ValueOrArray::MemoryAddress(address)
+            }
+            BrilligVariable::BrilligArray(array) => {
+                ValueOrArray::HeapArray(self.codegen_brillig_array_to_heap_array(array))
+            }
+            BrilligVariable::BrilligVector(vector) => {
+                ValueOrArray::HeapVector(self.codegen_brillig_vector_to_heap_vector(vector))
+            }
+        }
+    }
+
+    /// Returns a variable holding the length of a given vector
+    pub(crate) fn codegen_make_vector_length(
+        &mut self,
+        vector: BrilligVector,
+    ) -> SingleAddrVariable {
+        let result = SingleAddrVariable::new_usize(self.allocate_register());
+        self.codegen_usize_op(vector.pointer, result.address, BrilligBinaryOp::Add, 1);
+        self.load_instruction(result.address, result.address);
+        result
+    }
+
+    /// Returns a pointer to the items of a given vector
+    pub(crate) fn codegen_make_vector_items_pointer(
+        &mut self,
+        vector: BrilligVector,
+    ) -> MemoryAddress {
+        let result = self.allocate_register();
+        self.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, 2);
+        result
+    }
+
+    /// Returns a variable holding the length of a given array
+    pub(crate) fn codegen_make_array_length(&mut self, array: BrilligArray) -> SingleAddrVariable {
+        let result = SingleAddrVariable::new_usize(self.allocate_register());
+        self.usize_const_instruction(result.address, array.size.into());
+        result
+    }
+
+    /// Returns a pointer to the items of a given array
+    pub(crate) fn codegen_make_array_items_pointer(
+        &mut self,
+        array: BrilligArray,
+    ) -> MemoryAddress {
+        let result = self.allocate_register();
+        self.codegen_usize_op(array.pointer, result, BrilligBinaryOp::Add, 1);
+        result
+    }
+
+    pub(crate) fn codegen_make_array_or_vector_length(
+        &mut self,
+        variable: BrilligVariable,
+    ) -> SingleAddrVariable {
+        match variable {
+            BrilligVariable::BrilligArray(array) => self.codegen_make_array_length(array),
+            BrilligVariable::BrilligVector(vector) => self.codegen_make_vector_length(vector),
+            _ => unreachable!("ICE: Expected array or vector, got {variable:?}"),
+        }
+    }
+
+    pub(crate) fn codegen_make_array_or_vector_items_pointer(
+        &mut self,
+        variable: BrilligVariable,
+    ) -> MemoryAddress {
+        match variable {
+            BrilligVariable::BrilligArray(array) => self.codegen_make_array_items_pointer(array),
+            BrilligVariable::BrilligVector(vector) => {
+                self.codegen_make_vector_items_pointer(vector)
+            }
+            _ => unreachable!("ICE: Expected array or vector, got {variable:?}"),
+        }
+    }
+
+    /// Initializes an array, allocating memory to store its representation and initializing the reference counter.
+    pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
+        self.codegen_allocate_immediate_mem(array.pointer, array.size + 1);
+        self.indirect_const_instruction(
+            array.pointer,
+            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            1_usize.into(),
+        );
+    }
+
+    /// Initializes a vector, allocating memory to store its representation and initializing the reference counter and size.
+    pub(crate) fn codegen_initialize_vector(
+        &mut self,
+        vector: BrilligVector,
+        size: SingleAddrVariable,
+    ) {
+        let allocation_size = self.allocate_register();
+        self.codegen_usize_op(size.address, allocation_size, BrilligBinaryOp::Add, 2);
+        self.codegen_allocate_mem(vector.pointer, allocation_size);
+        self.deallocate_register(allocation_size);
+
+        // Write RC
+        self.indirect_const_instruction(
+            vector.pointer,
+            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            1_usize.into(),
+        );
+
+        // Write size
+        let len_write_pointer = self.allocate_register();
+        self.codegen_usize_op(vector.pointer, len_write_pointer, BrilligBinaryOp::Add, 1);
+        self.store_instruction(len_write_pointer, size.address);
+        self.deallocate_register(len_write_pointer);
     }
 }

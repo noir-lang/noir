@@ -25,7 +25,13 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
 
     let file_path = path.as_ref().join(file_name).with_extension(format.ext());
     if !file_path.exists() {
-        return Err(FilesystemError::MissingTomlFile(file_name.to_owned(), file_path));
+        if abi.parameters.is_empty() {
+            // Reading a return value from the `Prover.toml` is optional,
+            // so if the ABI has no parameters we can skip reading the file if it doesn't exist.
+            return Ok((BTreeMap::new(), None));
+        } else {
+            return Err(FilesystemError::MissingTomlFile(file_name.to_owned(), file_path));
+        }
     }
 
     let input_string = std::fs::read_to_string(file_path).unwrap();

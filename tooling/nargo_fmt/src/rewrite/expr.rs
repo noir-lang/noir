@@ -143,9 +143,9 @@ pub(crate) fn rewrite(
             super::parenthesized(visitor, shape, span, *sub_expr)
         }
         ExpressionKind::Constructor(constructor) => {
-            let type_name = visitor.slice(span.start()..constructor.type_name.span().end());
-            let fields_span = visitor
-                .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
+            let type_name = visitor.slice(span.start()..constructor.typ.span.end());
+            let fields_span =
+                visitor.span_before(constructor.typ.span.end()..span.end(), Token::LeftBrace);
 
             visitor.format_struct_lit(type_name, fields_span, *constructor)
         }
@@ -175,6 +175,14 @@ pub(crate) fn rewrite(
         ExpressionKind::Resolved(_) => {
             unreachable!("ExpressionKind::Resolved should only emitted by the comptime interpreter")
         }
+        ExpressionKind::Interned(_) => {
+            unreachable!("ExpressionKind::Interned should only emitted by the comptime interpreter")
+        }
+        ExpressionKind::InternedStatement(_) => {
+            unreachable!(
+                "ExpressionKind::InternedStatement should only emitted by the comptime interpreter"
+            )
+        }
         ExpressionKind::Unquote(expr) => {
             if matches!(&expr.kind, ExpressionKind::Variable(..)) {
                 format!("${expr}")
@@ -184,7 +192,20 @@ pub(crate) fn rewrite(
         }
         ExpressionKind::AsTraitPath(path) => {
             let trait_path = rewrite_path(visitor, shape, path.trait_path);
-            format!("<{} as {}>::{}", path.typ, trait_path, path.impl_item)
+
+            if path.trait_generics.is_empty() {
+                format!("<{} as {}>::{}", path.typ, trait_path, path.impl_item)
+            } else {
+                let generics = path.trait_generics;
+                format!("<{} as {}::{}>::{}", path.typ, trait_path, generics, path.impl_item)
+            }
+        }
+        ExpressionKind::TypePath(path) => {
+            if path.turbofish.is_empty() {
+                format!("{}::{}", path.typ, path.item)
+            } else {
+                format!("{}::{}::{}", path.typ, path.item, path.turbofish)
+            }
         }
     }
 }

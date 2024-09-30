@@ -171,7 +171,7 @@ pub enum ValueOrArray {
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.  
+    /// and stores the value in the `result` address.
     BinaryFieldOp {
         destination: MemoryAddress,
         op: BinaryFieldOp,
@@ -180,13 +180,18 @@ pub enum BrilligOpcode<F> {
     },
     /// Takes the `bit_size` size integers in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.  
+    /// and stores the value in the `result` address.
     BinaryIntOp {
         destination: MemoryAddress,
         op: BinaryIntOp,
         bit_size: IntegerBitSize,
         lhs: MemoryAddress,
         rhs: MemoryAddress,
+    },
+    Not {
+        destination: MemoryAddress,
+        source: MemoryAddress,
+        bit_size: IntegerBitSize,
     },
     Cast {
         destination: MemoryAddress,
@@ -210,8 +215,8 @@ pub enum BrilligOpcode<F> {
     /// Copies calldata after the offset to the specified address and length
     CalldataCopy {
         destination_address: MemoryAddress,
-        size: usize,
-        offset: usize,
+        size_address: MemoryAddress,
+        offset_address: MemoryAddress,
     },
     /// We don't support dynamic jumps or calls
     /// See https://github.com/ethereum/aleth/issues/3404 for reasoning
@@ -220,6 +225,11 @@ pub enum BrilligOpcode<F> {
     },
     Const {
         destination: MemoryAddress,
+        bit_size: BitSize,
+        value: F,
+    },
+    IndirectConst {
+        destination_pointer: MemoryAddress,
         bit_size: BitSize,
         value: F,
     },

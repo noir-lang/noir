@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -72,13 +72,13 @@ pub(crate) enum Type {
     Numeric(NumericType),
 
     /// A reference to some value, such as an array
-    Reference(Rc<Type>),
+    Reference(Arc<Type>),
 
     /// An immutable array value with the given element type and length
-    Array(Rc<CompositeType>, usize),
+    Array(Arc<CompositeType>, usize),
 
     /// An immutable slice value with a given element type
-    Slice(Rc<CompositeType>),
+    Slice(Arc<CompositeType>),
 
     /// A function that may be called directly
     Function,
@@ -112,7 +112,7 @@ impl Type {
 
     /// Creates the str<N> type, of the given length N
     pub(crate) fn str(length: usize) -> Type {
-        Type::Array(Rc::new(vec![Type::char()]), length)
+        Type::Array(Arc::new(vec![Type::char()]), length)
     }
 
     /// Creates the native field type.
@@ -190,7 +190,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn element_types(self) -> Rc<Vec<Type>> {
+    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
         match self {
             Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
             other => panic!("element_types: Expected array or slice, found {other}"),

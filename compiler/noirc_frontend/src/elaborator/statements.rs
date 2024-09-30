@@ -1,7 +1,10 @@
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 
 use crate::{
-    ast::{AssignStatement, ConstrainStatement, LValue},
+    ast::{
+        AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
+        ExpressionKind, InfixExpression, LValue,
+    },
     hir::{
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
@@ -39,11 +42,16 @@ impl<'context> Elaborator<'context> {
                 let (expr, _typ) = self.elaborate_expression(expr);
                 (HirStatement::Semi(expr), Type::Unit)
             }
+            StatementKind::Interned(id) => {
+                let kind = self.interner.get_statement_kind(id);
+                let statement = Statement { kind: kind.clone(), span: statement.span };
+                self.elaborate_statement_value(statement)
+            }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
 
-    pub(super) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+    pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         let span = statement.span;
         let (hir_statement, typ) = self.elaborate_statement_value(statement);
         let id = self.interner.push_stmt(hir_statement);
@@ -90,12 +98,16 @@ impl<'context> Elaborator<'context> {
             }
         }
 
+        let warn_if_unused =
+            !let_stmt.attributes.iter().any(|attr| attr.is_allow_unused_variables());
+
         let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
             let_stmt.pattern,
             r#type.clone(),
             definition,
             &mut Vec::new(),
+            warn_if_unused,
             global_id,
         );
 
@@ -105,12 +117,51 @@ impl<'context> Elaborator<'context> {
         (HirStatement::Let(let_), Type::Unit)
     }
 
-    pub(super) fn elaborate_constrain(&mut self, stmt: ConstrainStatement) -> (HirStatement, Type) {
-        let expr_span = stmt.0.span;
-        let (expr_id, expr_type) = self.elaborate_expression(stmt.0);
+    pub(super) fn elaborate_constrain(
+        &mut self,
+        mut stmt: ConstrainStatement,
+    ) -> (HirStatement, Type) {
+        let span = stmt.span;
+        let min_args_count = stmt.kind.required_arguments_count();
+        let max_args_count = min_args_count + 1;
+        let actual_args_count = stmt.arguments.len();
+
+        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
+            self.push_err(TypeCheckError::AssertionParameterCountMismatch {
+                kind: stmt.kind,
+                found: actual_args_count,
+                span,
+            });
+
+            // Given that we already produced an error, let's make this an `assert(true)` so
+            // we don't get further errors.
+            let message = None;
+            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
+            let expr = Expression { kind, span };
+            (message, expr)
+        } else {
+            let message =
+                (actual_args_count != min_args_count).then(|| stmt.arguments.pop().unwrap());
+            let expr = match stmt.kind {
+                ConstrainKind::Assert | ConstrainKind::Constrain => stmt.arguments.pop().unwrap(),
+                ConstrainKind::AssertEq => {
+                    let rhs = stmt.arguments.pop().unwrap();
+                    let lhs = stmt.arguments.pop().unwrap();
+                    let span = Span::from(lhs.span.start()..rhs.span.end());
+                    let operator = Spanned::from(span, BinaryOpKind::Equal);
+                    let kind =
+                        ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
+                    Expression { kind, span }
+                }
+            };
+            (message, expr)
+        };
+
+        let expr_span = expr.span;
+        let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = stmt.1.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
@@ -168,7 +219,12 @@ impl<'context> Elaborator<'context> {
         // TODO: For loop variables are currently mutable by default since we haven't
         //       yet implemented syntax for them to be optionally mutable.
         let kind = DefinitionKind::Local(None);
-        let identifier = self.add_variable_decl(identifier, false, true, kind);
+        let identifier = self.add_variable_decl(
+            identifier, false, // mutable
+            true,  // allow_shadowing
+            true,  // warn_if_unused
+            kind,
+        );
 
         // Check that start range and end range have the same types
         let range_span = start_span.merge(end_span);
@@ -244,6 +300,13 @@ impl<'context> Elaborator<'context> {
                 } else {
                     if let Some(definition) = self.interner.try_definition(ident.id) {
                         mutable = definition.mutable;
+
+                        if definition.comptime && !self.in_comptime_context() {
+                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
+                                name: definition.name.clone(),
+                                span: ident.location.span,
+                            });
+                        }
                     }
 
                     let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
@@ -357,6 +420,10 @@ impl<'context> Elaborator<'context> {
                 let lvalue = HirLValue::Dereference { lvalue, element_type, location };
                 (lvalue, typ, true)
             }
+            LValue::Interned(id, span) => {
+                let lvalue = self.interner.get_lvalue(id, span).clone();
+                self.elaborate_lvalue(lvalue, assign_span)
+            }
         }
     }
 
@@ -419,7 +486,7 @@ impl<'context> Elaborator<'context> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { span });
         } else if lhs_type != Type::Error {
             self.push_err(TypeCheckError::AccessUnknownMember {
                 lhs_type,
@@ -432,14 +499,9 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
-        // We have to push a new FunctionContext so that we can resolve any constraints
-        // in this comptime block early before the function as a whole finishes elaborating.
-        // Otherwise the interpreter below may find expressions for which the underlying trait
-        // call is not yet solved for.
-        self.function_context.push(Default::default());
         let span = statement.span;
-        let (hir_statement, _typ) = self.elaborate_statement(statement);
-        self.check_and_pop_function_context();
+        let (hir_statement, _typ) =
+            self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);

@@ -4,7 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
@@ -22,8 +22,8 @@ use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::{
     request::{
-        Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest, PrepareRenameRequest,
-        References, Rename, SignatureHelpRequest,
+        CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
+        PrepareRenameRequest, References, Rename, SignatureHelpRequest,
     },
     CodeLens,
 };
@@ -35,7 +35,7 @@ use nargo::{
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
-    graph::{CrateId, CrateName},
+    graph::{CrateGraph, CrateId, CrateName},
     hir::{
         def_map::{parse_file, CrateDefMap},
         Context, FunctionNameMatch, ParsedFiles,
@@ -51,21 +51,26 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_completion_request, on_document_symbol_request, on_formatting,
-    on_goto_declaration_request, on_goto_definition_request, on_goto_type_definition_request,
-    on_hover_request, on_initialize, on_inlay_hint_request, on_prepare_rename_request,
-    on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
-    on_signature_help_request, on_test_run_request, on_tests_request, LspInitializationOptions,
+    on_code_action_request, on_code_lens_request, on_completion_request,
+    on_document_symbol_request, on_formatting, on_goto_declaration_request,
+    on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
+    on_inlay_hint_request, on_prepare_rename_request, on_profile_run_request,
+    on_references_request, on_rename_request, on_shutdown, on_signature_help_request,
+    on_test_run_request, on_tests_request, LspInitializationOptions,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
+mod attribute_reference_finder;
+mod modules;
 mod notifications;
 mod requests;
 mod solver;
+mod trait_impl_method_stub_generator;
 mod types;
 mod utils;
+mod visibility;
 
 #[cfg(test)]
 mod test_utils;
@@ -88,10 +93,24 @@ pub struct LspState {
     open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
-    cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    cached_def_maps: HashMap<String, BTreeMap<CrateId, CrateDefMap>>,
+    workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
+    package_cache: HashMap<PathBuf, PackageCacheData>,
     options: LspInitializationOptions,
+
+    // Tracks files that currently have errors, by package root.
+    files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+}
+
+struct WorkspaceCacheData {
+    file_manager: FileManager,
+}
+
+struct PackageCacheData {
+    crate_id: CrateId,
+    crate_graph: CrateGraph,
+    node_interner: NodeInterner,
+    def_maps: BTreeMap<CrateId, CrateDefMap>,
 }
 
 impl LspState {
@@ -105,11 +124,12 @@ impl LspState {
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
             cached_lenses: HashMap::new(),
-            cached_definitions: HashMap::new(),
-            open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
-            cached_def_maps: HashMap::new(),
+            workspace_cache: HashMap::new(),
+            package_cache: HashMap::new(),
+            open_documents_count: 0,
             options: Default::default(),
+            files_with_errors: HashMap::new(),
         }
     }
 }
@@ -144,6 +164,7 @@ impl NargoLspService {
             .request::<InlayHintRequest, _>(on_inlay_hint_request)
             .request::<Completion, _>(on_completion_request)
             .request::<SignatureHelpRequest, _>(on_signature_help_request)
+            .request::<CodeActionRequest, _>(on_code_action_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

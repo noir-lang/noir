@@ -2,20 +2,20 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::{collections::HashMap, future::Future};
 
-use crate::insert_all_files_for_workspace_into_file_manager;
+use crate::{insert_all_files_for_workspace_into_file_manager, parse_diff, PackageCacheData};
 use crate::{
-    parse_diff, resolve_workspace_for_source_path,
+    resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
 };
 use async_lsp::{ErrorCode, ResponseError};
 use fm::{codespan_files::Error, FileMap, PathString};
 use lsp_types::{
-    DeclarationCapability, Location, Position, TextDocumentPositionParams,
+    CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
 use nargo_fmt::Config;
-use noirc_driver::file_manager_with_stdlib;
+
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
@@ -36,6 +36,7 @@ use crate::{
 // They are not attached to the `NargoLspService` struct so they can be unit tested with only `LspState`
 // and params passed in.
 
+mod code_action;
 mod code_lens_request;
 mod completion;
 mod document_symbol;
@@ -51,14 +52,15 @@ mod test_run;
 mod tests;
 
 pub(crate) use {
-    code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
-    completion::on_completion_request, document_symbol::on_document_symbol_request,
-    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
-    inlay_hint::on_inlay_hint_request, profile_run::on_profile_run_request,
-    references::on_references_request, rename::on_prepare_rename_request,
-    rename::on_rename_request, signature_help::on_signature_help_request,
-    test_run::on_test_run_request, tests::on_tests_request,
+    code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
+    code_lens_request::on_code_lens_request, completion::on_completion_request,
+    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
+    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
+    hover::on_hover_request, inlay_hint::on_inlay_hint_request,
+    profile_run::on_profile_run_request, references::on_references_request,
+    rename::on_prepare_rename_request, rename::on_rename_request,
+    signature_help::on_signature_help_request, test_run::on_test_run_request,
+    tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -236,7 +238,11 @@ pub(crate) fn on_initialize(
                 )),
                 completion_provider: Some(lsp_types::OneOf::Right(lsp_types::CompletionOptions {
                     resolve_provider: None,
-                    trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
+                    trigger_characters: Some(vec![
+                        ".".to_string(), // For method calls
+                        ":".to_string(), // For paths
+                        "$".to_string(), // For $var inside `quote { ... }`
+                    ]),
                     all_commit_characters: None,
                     work_done_progress_options: WorkDoneProgressOptions {
                         work_done_progress: None,
@@ -252,6 +258,13 @@ pub(crate) fn on_initialize(
                         },
                     },
                 )),
+                code_action_provider: Some(lsp_types::OneOf::Right(lsp_types::CodeActionOptions {
+                    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                    resolve_provider: None,
+                })),
             },
             server_info: None,
         })
@@ -398,7 +411,7 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     location: noirc_errors::Location,
     files: &'a FileMap,
     interner: &'a NodeInterner,
-    interners: &'a HashMap<String, NodeInterner>,
+    package_cache: &'a HashMap<PathBuf, PackageCacheData>,
     crate_id: CrateId,
     crate_name: String,
     dependencies: &'a Vec<Dependency>,
@@ -423,9 +436,64 @@ where
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
 
-    let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
+    // In practice when `process_request` is called, a document in the project should already have been
+    // open so both the workspace and package cache will have data. However, just in case this isn't true
+    // for some reason, and also for tests (some tests just test a request without going through the full
+    // LSP workflow), we have a fallback where we type-check the workspace/package, then continue with
+    // processing the request.
+    let Some(workspace_cache_data) = state.workspace_cache.get(&workspace.root_dir) else {
+        return process_request_no_workspace_cache(state, text_document_position_params, callback);
+    };
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let Some(package_cache_data) = state.package_cache.get(&package.root_dir) else {
+        return process_request_no_workspace_cache(state, text_document_position_params, callback);
+    };
+
+    let file_manager = &workspace_cache_data.file_manager;
+    let interner = &package_cache_data.node_interner;
+    let def_maps = &package_cache_data.def_maps;
+    let crate_graph = &package_cache_data.crate_graph;
+    let crate_id = package_cache_data.crate_id;
+
+    let files = file_manager.as_file_map();
+
+    let location = position_to_location(
+        files,
+        &PathString::from(file_path),
+        &text_document_position_params.position,
+    )?;
+
+    Ok(callback(ProcessRequestCallbackArgs {
+        location,
+        files,
+        interner,
+        package_cache: &state.package_cache,
+        crate_id,
+        crate_name: package.name.to_string(),
+        dependencies: &crate_graph[crate_id].dependencies,
+        def_maps,
+    }))
+}
+
+pub(crate) fn process_request_no_workspace_cache<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+{
+    let file_path =
+        text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })?;
+
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
+    })?;
+
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(
         state,
         &workspace,
@@ -438,9 +506,9 @@ where
 
     let interner;
     let def_maps;
-    if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {
-        interner = def_interner;
-        def_maps = state.cached_def_maps.get(&package_root_path).unwrap();
+    if let Some(package_cache) = state.package_cache.get(&package.root_dir) {
+        interner = &package_cache.node_interner;
+        def_maps = &package_cache.def_maps;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
         let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
@@ -448,7 +516,7 @@ where
         def_maps = &context.def_maps;
     }
 
-    let files = context.file_manager.as_file_map();
+    let files = workspace_file_manager.as_file_map();
 
     let location = position_to_location(
         files,
@@ -460,17 +528,18 @@ where
         location,
         files,
         interner,
-        interners: &state.cached_definitions,
+        package_cache: &state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
+        dependencies: &context.crate_graph[crate_id].dependencies,
         def_maps,
     }))
 }
+
 pub(crate) fn find_all_references_in_workspace(
     location: noirc_errors::Location,
     interner: &NodeInterner,
-    cached_interners: &HashMap<String, NodeInterner>,
+    package_cache: &HashMap<PathBuf, PackageCacheData>,
     files: &FileMap,
     include_declaration: bool,
     include_self_type_name: bool,
@@ -492,10 +561,10 @@ pub(crate) fn find_all_references_in_workspace(
             include_declaration,
             include_self_type_name,
         );
-        for interner in cached_interners.values() {
+        for cache_data in package_cache.values() {
             locations.extend(find_all_references(
                 referenced_location,
-                interner,
+                &cache_data.node_interner,
                 files,
                 include_declaration,
                 include_self_type_name,

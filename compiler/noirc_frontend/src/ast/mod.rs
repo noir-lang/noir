@@ -4,16 +4,22 @@
 //!
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
 //! where it is converted into the Hir (defined in the hir_def module).
+mod docs;
 mod expression;
 mod function;
 mod statement;
 mod structure;
 mod traits;
 mod type_alias;
+mod visitor;
+
+pub use visitor::AttributeTarget;
+pub use visitor::Visitor;
 
 pub use expression::*;
 pub use function::*;
 
+pub use docs::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
@@ -22,7 +28,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
-    node_interner::QuotedTypeId,
+    node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     token::IntType,
     BinaryTypeOperator,
@@ -140,6 +146,10 @@ pub enum UnresolvedTypeData {
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
     Resolved(QuotedTypeId),
+
+    // This is an interned UnresolvedTypeData during comptime code.
+    // The actual UnresolvedTypeData can be retrieved with a NodeInterner.
+    Interned(InternedUnresolvedTypeData),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -297,6 +307,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
             Resolved(_) => write!(f, "(resolved type)"),
+            Interned(_) => write!(f, "?Interned"),
             AsTraitPath(path) => write!(f, "{path}"),
         }
     }
@@ -332,6 +343,19 @@ impl UnresolvedType {
 
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
+    }
+
+    pub fn from_path(mut path: Path) -> Self {
+        let span = path.span;
+        let last_segment = path.segments.last_mut().unwrap();
+        let generics = last_segment.generics.take();
+        let generic_type_args = if let Some(generics) = generics {
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new() }
+        } else {
+            GenericTypeArgs::default()
+        };
+        let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
+        UnresolvedType { typ, span }
     }
 }
 
@@ -436,6 +460,7 @@ impl UnresolvedTypeExpression {
             ExpressionKind::AsTraitPath(path) => {
                 Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
             }
+            ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
         }
     }
@@ -452,12 +477,22 @@ impl UnresolvedTypeExpression {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 /// Represents whether the definition can be referenced outside its module/crate
 pub enum ItemVisibility {
-    Public,
     Private,
     PublicCrate,
+    Public,
+}
+
+impl std::fmt::Display for ItemVisibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItemVisibility::Public => write!(f, "pub"),
+            ItemVisibility::Private => Ok(()),
+            ItemVisibility::PublicCrate => write!(f, "pub(crate)"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

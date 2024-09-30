@@ -29,7 +29,7 @@ fn test2(z: Field, t: u32) {
 
 fn pow(base: Field, exponent: Field) -> Field {
     let mut r = 1 as Field;
-    let b = exponent.to_le_bits(32 as u32);
+    let b: [u1; 32] = exponent.to_le_bits();
     for i in 1..33 {
         r = r*r;
         r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;
@@ -82,7 +82,7 @@ fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
     assert(c.0.aa.a == c.1.a);
 }
 
-fn foo<N>(a: [Field; N]) -> [Field; N] {
+fn foo<let N: u32>(a: [Field; N]) -> [Field; N] {
     a
 }
 

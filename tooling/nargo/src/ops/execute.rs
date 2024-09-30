@@ -89,6 +89,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         | OpcodeResolutionError::IndexOutOfBounds {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
                             ..
+                        }
+                        | OpcodeResolutionError::InvalidInputBitSize {
+                            opcode_location: ErrorLocation::Resolved(opcode_location),
+                            ..
                         } => {
                             let resolved_location = ResolvedOpcodeLocation {
                                 acir_function_index: self.current_function_index,
@@ -117,10 +121,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         _ => None,
                     };
 
+                    let brillig_function_id = match &error {
+                        OpcodeResolutionError::BrilligFunctionFailed { function_id, .. } => {
+                            Some(*function_id)
+                        }
+                        _ => None,
+                    };
+
                     return Err(NargoError::ExecutionError(match assertion_payload {
                         Some(payload) => ExecutionError::AssertionFailed(
                             payload,
                             call_stack.expect("Should have call stack for an assertion failure"),
+                            brillig_function_id,
                         ),
                         None => ExecutionError::SolvingError(error, call_stack),
                     }));
