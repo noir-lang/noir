@@ -126,7 +126,6 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            // TODO: maybe require visibility to always come first
             let start_span = self.current_token_span;
             let doc_comments = self.parse_outer_doc_comments();
 
