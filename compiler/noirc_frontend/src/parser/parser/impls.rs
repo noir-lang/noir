@@ -449,7 +449,7 @@ mod tests {
     fn parse_empty_impl_incorrect_body() {
         let src = "impl Foo { hello fn foo() {} }";
         let (module, errors) = parse_program(src);
-        assert_eq!(errors.len(), 0); // TODO: this should be 1
+        assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Impl(type_impl) = &item.kind else {
