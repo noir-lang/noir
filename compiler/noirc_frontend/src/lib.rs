@@ -45,7 +45,6 @@ pub mod macros_api {
     pub use noirc_errors::Span;
 
     pub use crate::graph::CrateId;
-    pub use crate::hir::def_collector::errors::MacroError;
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
     pub use crate::node_interner::{NodeInterner, StructId};
