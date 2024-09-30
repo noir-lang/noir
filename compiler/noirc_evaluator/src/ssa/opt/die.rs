@@ -157,9 +157,21 @@ impl Context {
             );
         }
 
-        let unborrowed_arrays = inc_rcs.keys().filter(|id| !borrowed_arrays.contains(id));
-        self.instructions_to_remove.extend(unborrowed_arrays);
+        let non_mutated_arrays =
+            inc_rcs
+                .keys()
+                .filter_map(|value| {
+                    if !borrowed_arrays.contains(value) {
+                        Some(&inc_rcs[value])
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+                .copied()
+                .collect::<Vec<_>>();
 
+        self.instructions_to_remove.extend(non_mutated_arrays);
         self.instructions_to_remove.extend(rc_pairs_to_remove);
 
         // If there are some instructions that might trigger an out of bounds error,
@@ -857,7 +869,11 @@ mod test {
         //     b0(v0: [u32; 2]):
         //       inc_rc v0
         //       v3 = array_set v0, index u32 0, value u32 1
-        //       return v3
+        //       inc_rc v0
+        //       inc_rc v0
+        //       inc_rc v0
+        //       v4 = array_get v3, index u32 1
+        //       return v4
         //   }
         let main_id = Id::test_new(0);
 
@@ -869,19 +885,25 @@ mod test {
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let one = builder.numeric_constant(1u128, Type::unsigned(32));
         let v3 = builder.insert_array_set(v0, zero, one);
-        builder.terminate_with_return(vec![v3]);
+        builder.increment_array_reference_count(v0);
+        builder.increment_array_reference_count(v0);
+        builder.increment_array_reference_count(v0);
+
+        let v4 = builder.insert_array_get(v3, one, Type::unsigned(32));
+
+        builder.terminate_with_return(vec![v4]);
 
         let ssa = builder.finish();
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 2);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 6);
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 2);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 6);
     }
 
     #[test]
