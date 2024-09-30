@@ -48,22 +48,25 @@ impl<'a> Parser<'a> {
         }
 
         loop {
+            if self.eat_right_brace() {
+                break;
+            }
+
+            if self.is_eof() {
+                self.expected_token(Token::RightBrace);
+                break;
+            }
+
             let doc_comments = self.parse_outer_doc_comments();
 
             if let Some(item) = self.parse_trait_item() {
                 items.push(Documented::new(item, doc_comments));
+                continue;
+            }
 
-                if self.eat_right_brace() {
-                    break;
-                }
-            } else {
+            if self.token.token() != &Token::RightBrace {
                 // TODO: error
-                if self.is_eof() || self.eat_right_brace() {
-                    break;
-                } else {
-                    // Keep going
-                    self.next_token();
-                }
+                self.next_token();
             }
         }
 

@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.is_eof() {
-                // TODO: error
+                self.expected_token(Token::RightBrace);
                 break;
             }
 
@@ -429,7 +429,7 @@ mod tests {
     fn parse_empty_impl_missing_right_brace() {
         let src = "impl Foo {";
         let (module, errors) = parse_program(src);
-        assert_eq!(errors.len(), 0); // TODO: this should be 1
+        assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Impl(type_impl) = &item.kind else {
