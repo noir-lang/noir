@@ -3,6 +3,7 @@ mod foo {
     #![some_attribute]
     pub fn x() {}
     pub fn y() {}
+    pub fn z() {}
 
     pub struct Struct1 {}
 }
@@ -75,7 +76,12 @@ fn main() {
         let another_module = quote { another_module }.as_module().unwrap();
 
         // Check Module::functions
-        assert_eq(foo.functions().len(), 2);
+        let foo_functions = foo.functions();
+        assert_eq(foo_functions.len(), 3);
+        assert_eq(foo_functions[0].name(), quote { x });
+        assert_eq(foo_functions[1].name(), quote { y });
+        assert_eq(foo_functions[2].name(), quote { z });
+
         assert_eq(bar.functions().len(), 0);
 
         // Check Module::structs
