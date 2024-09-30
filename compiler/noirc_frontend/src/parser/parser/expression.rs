@@ -380,11 +380,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_comptime_expr(&mut self) -> Option<ExpressionKind> {
-        let start_span = self.current_token_span;
-
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
         }
+
+        let start_span = self.current_token_span;
 
         let Some(block) = self.parse_block_expression() else {
             self.expected_token(Token::LeftBrace);

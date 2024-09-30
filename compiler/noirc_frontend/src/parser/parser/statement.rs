@@ -221,38 +221,44 @@ impl<'a> Parser<'a> {
         &mut self,
         attributes: Vec<(Attribute, Span)>,
     ) -> Option<StatementKind> {
+        let start_span = self.current_token_span;
+
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
         }
 
-        let start_span = self.current_token_span;
-
-        if let Some(block) = self.parse_block_expression() {
-            let span = self.span_since(start_span);
+        if let Some(kind) = self.parse_comptime_statement_kind(attributes) {
             return Some(StatementKind::Comptime(Box::new(Statement {
-                kind: StatementKind::Expression(Expression::new(
-                    ExpressionKind::Block(block),
-                    span,
-                )),
-                span,
-            })));
-        }
-
-        if let Some(let_statement) = self.parse_let_statement(attributes) {
-            return Some(StatementKind::Comptime(Box::new(Statement {
-                kind: StatementKind::Let(let_statement),
-                span: self.span_since(start_span),
-            })));
-        }
-
-        if let Some(for_loop) = self.parse_for() {
-            return Some(StatementKind::Comptime(Box::new(Statement {
-                kind: StatementKind::For(for_loop),
+                kind,
                 span: self.span_since(start_span),
             })));
         }
 
         // TODO: error (found comptime but not a valid statement)
+
+        None
+    }
+
+    fn parse_comptime_statement_kind(
+        &mut self,
+        attributes: Vec<(Attribute, Span)>,
+    ) -> Option<StatementKind> {
+        let start_span = self.current_token_span;
+
+        if let Some(block) = self.parse_block_expression() {
+            return Some(StatementKind::Expression(Expression {
+                kind: ExpressionKind::Block(block),
+                span: self.span_since(start_span),
+            }));
+        }
+
+        if let Some(let_statement) = self.parse_let_statement(attributes) {
+            return Some(StatementKind::Let(let_statement));
+        }
+
+        if let Some(for_loop) = self.parse_for() {
+            return Some(StatementKind::For(for_loop));
+        }
 
         None
     }
