@@ -618,7 +618,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            let Some(statement) = self.parse_statement() else {
+            let Some(mut statement) = self.parse_statement() else {
                 // TODO: error?
                 self.eat_right_brace();
                 break;
@@ -628,6 +628,10 @@ impl<'a> Parser<'a> {
                 let token = self.token.clone();
                 self.next_token();
                 let span = token.to_span();
+
+                // Adjust the statement span to include the semicolon
+                statement.span = Span::from(statement.span.start()..span.end());
+
                 (Some(token.into_token()), span)
             } else {
                 (None, self.previous_token_span)
