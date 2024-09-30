@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Ident, Path, Pattern},
-    parser::ParserErrorReason,
+    parser::labels::ParsingRuleLabel,
     token::{Keyword, Token, TokenKind},
 };
 
@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
             return pattern;
         }
 
-        self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
+        self.expected_label(ParsingRuleLabel::Pattern);
         Pattern::Identifier(Ident::new(String::new(), self.span_at_previous_token_end()))
     }
 
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
 
             let start_span = self.current_token_span;
             let Some(pattern) = self.parse_pattern() else {
-                self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
+                self.expected_label(ParsingRuleLabel::Pattern);
                 self.eat_right_paren();
                 break;
             };

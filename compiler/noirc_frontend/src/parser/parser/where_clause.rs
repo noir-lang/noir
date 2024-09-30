@@ -1,6 +1,6 @@
 use crate::{
     ast::{GenericTypeArgs, Path, PathKind, TraitBound, UnresolvedTraitConstraint},
-    parser::ParserErrorReason,
+    parser::labels::ParsingRuleLabel,
     token::{Keyword, Token},
 };
 
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
             return trait_bound;
         }
 
-        self.push_error(ParserErrorReason::ExpectedTraitBound, self.current_token_span);
+        self.expected_label(ParsingRuleLabel::TraitBound);
         TraitBound {
             trait_path: Path {
                 kind: PathKind::Plain,

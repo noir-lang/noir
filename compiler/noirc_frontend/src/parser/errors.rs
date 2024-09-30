@@ -13,22 +13,14 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
-    #[error("Expected pattern")]
-    ExpectedPattern,
     #[error("Unexpected `;`")]
     UnexpectedSemicolon,
     #[error("Unexpected `,`")]
     UnexpectedComma,
     #[error("Expected a `{token}` separating these two {items}")]
     ExpectedTokenSeparatingTwoItems { token: String, items: String },
-    #[error("Expected an identifier, found {found}")]
-    ExpectedIdentifier { found: Token },
-    #[error("Expected a item, found {found}")]
-    ExpectedItem { found: Token },
     #[error("Invalid left-hand side of assignment")]
     InvalidLeftHandSideOfAssignment,
-    #[error("Expected trait bound")]
-    ExpectedTraitBound,
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,

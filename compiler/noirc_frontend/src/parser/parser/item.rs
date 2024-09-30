@@ -1,5 +1,5 @@
 use crate::{
-    parser::{Item, ItemKind, ParserErrorReason},
+    parser::{labels::ParsingRuleLabel, Item, ItemKind},
     token::{Keyword, Token},
 };
 
@@ -36,10 +36,7 @@ impl<'a> Parser<'a> {
             };
 
             if is_error_token {
-                self.push_error(
-                    ParserErrorReason::ExpectedItem { found: self.token.token().clone() },
-                    self.current_token_span,
-                );
+                self.expected_label(ParsingRuleLabel::Item);
                 // We'll try parsing an item on the next token
                 self.next_token();
             }

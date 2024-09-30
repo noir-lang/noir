@@ -7,7 +7,7 @@ use crate::{
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
-use super::{ParsedModule, ParserError, ParserErrorReason};
+use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
 
 mod attributes;
 mod call;
@@ -445,15 +445,20 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_identifier(&mut self) {
-        self.push_error(
-            ParserErrorReason::ExpectedIdentifier { found: self.token.token().clone() },
-            self.current_token_span,
-        );
+        self.expected_label(ParsingRuleLabel::Identifier);
     }
 
     fn expected_token(&mut self, token: Token) {
         self.errors.push(ParserError::expected_token(
             token,
+            self.token.token().clone(),
+            self.current_token_span,
+        ))
+    }
+
+    fn expected_label(&mut self, label: ParsingRuleLabel) {
+        self.errors.push(ParserError::expected_label(
+            label,
             self.token.token().clone(),
             self.current_token_span,
         ))

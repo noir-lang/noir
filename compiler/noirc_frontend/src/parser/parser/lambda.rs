@@ -1,6 +1,6 @@
 use crate::{
     ast::{ExpressionKind, Lambda, Pattern, UnresolvedType},
-    parser::ParserErrorReason,
+    parser::labels::ParsingRuleLabel,
     token::Token,
 };
 
@@ -34,7 +34,8 @@ impl<'a> Parser<'a> {
 
             let start_span = self.current_token_span;
             let Some(pattern) = self.parse_pattern() else {
-                self.push_error(ParserErrorReason::ExpectedPattern, self.current_token_span);
+                self.expected_label(ParsingRuleLabel::Pattern);
+
                 // Let's try with the next token.
                 self.next_token();
                 if self.is_eof() {
