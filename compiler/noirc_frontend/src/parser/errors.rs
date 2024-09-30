@@ -27,6 +27,8 @@ pub enum ParserErrorReason {
     ExpectedItem { found: Token },
     #[error("Invalid left-hand side of assignment")]
     InvalidLeftHandSideOfAssignment,
+    #[error("Expected trait bound")]
+    ExpectedTraitBound,
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,

@@ -1,5 +1,6 @@
 use crate::{
-    ast::{TraitBound, UnresolvedTraitConstraint},
+    ast::{GenericTypeArgs, Path, PathKind, TraitBound, UnresolvedTraitConstraint},
+    parser::ParserErrorReason,
     token::{Keyword, Token},
 };
 
@@ -47,10 +48,9 @@ impl<'a> Parser<'a> {
         let mut trailing_plus = false;
         loop {
             let start_span = self.current_token_span;
-            let bound = self.parse_trait_bound();
-            if self.current_token_span == start_span {
+            let Some(bound) = self.parse_trait_bound() else {
                 break;
-            }
+            };
 
             if !trailing_plus && !bounds.is_empty() {
                 self.expected_token_separating_items("+", "trait bounds", start_span);
@@ -64,10 +64,27 @@ impl<'a> Parser<'a> {
         bounds
     }
 
-    pub(crate) fn parse_trait_bound(&mut self) -> TraitBound {
-        let trait_path = self.parse_path_no_turbofish_or_error();
+    pub(crate) fn parse_trait_bound_or_error(&mut self) -> TraitBound {
+        if let Some(trait_bound) = self.parse_trait_bound() {
+            return trait_bound;
+        }
+
+        self.push_error(ParserErrorReason::ExpectedTraitBound, self.current_token_span);
+        TraitBound {
+            trait_path: Path {
+                kind: PathKind::Plain,
+                segments: Vec::new(),
+                span: self.span_at_previous_token_end(),
+            },
+            trait_id: None,
+            trait_generics: GenericTypeArgs::default(),
+        }
+    }
+
+    pub(crate) fn parse_trait_bound(&mut self) -> Option<TraitBound> {
+        let trait_path = self.parse_path_no_turbofish()?;
         let trait_generics = self.parse_generic_type_args();
-        TraitBound { trait_path, trait_generics, trait_id: None }
+        Some(TraitBound { trait_path, trait_generics, trait_id: None })
     }
 }
 

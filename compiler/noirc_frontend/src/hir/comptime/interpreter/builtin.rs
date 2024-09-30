@@ -735,7 +735,7 @@ fn quoted_as_trait_constraint(
     let trait_bound = parse(
         interpreter.elaborator.interner,
         argument,
-        Parser::parse_trait_bound,
+        Parser::parse_trait_bound_or_error,
         "a trait constraint",
     )?;
     let bound = interpreter

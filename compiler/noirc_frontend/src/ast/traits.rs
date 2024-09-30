@@ -216,7 +216,24 @@ impl Display for TraitBound {
 
 impl Display for NoirTraitImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "impl {}{} for {} {{", self.trait_name, self.trait_generics, self.object_type)?;
+        write!(f, "impl")?;
+        if !self.impl_generics.is_empty() {
+            write!(
+                f,
+                "<{}>",
+                self.impl_generics.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")
+            )?;
+        }
+
+        write!(f, " {}{} for {}", self.trait_name, self.trait_generics, self.object_type)?;
+        if !self.where_clause.is_empty() {
+            write!(
+                f,
+                " where {}",
+                self.where_clause.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")
+            )?;
+        }
+        writeln!(f, "{{")?;
 
         for item in self.items.iter() {
             let item = item.to_string();
