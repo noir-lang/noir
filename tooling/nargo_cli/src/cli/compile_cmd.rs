@@ -5,15 +5,13 @@ use std::time::Duration;
 use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
-use nargo::package::Package;
+use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
-
-use noirc_frontend::graph::CrateName;
 
 use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
