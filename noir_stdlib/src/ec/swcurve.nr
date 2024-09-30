@@ -1,4 +1,4 @@
-mod affine {
+pub mod affine {
     // Affine representation of Short Weierstrass curves
     // Points are represented by two-dimensional Cartesian coordinates.
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
@@ -186,7 +186,7 @@ mod affine {
     }
 }
 
-mod curvegroup {
+pub mod curvegroup {
     // CurveGroup representation of Weierstrass curves
     // Points are represented by three-dimensional Jacobian coordinates.
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
