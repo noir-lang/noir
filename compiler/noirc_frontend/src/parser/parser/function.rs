@@ -196,17 +196,16 @@ impl<'a> Parser<'a> {
 
                     if self_pattern.reference {
                         self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
-                            .with_span(self.span_since(start_span));
+                            .with_span(span);
                     } else if self_pattern.mutable {
-                        pattern =
-                            Pattern::Mutable(Box::new(pattern), self.span_since(start_span), true);
+                        pattern = Pattern::Mutable(Box::new(pattern), span, true);
                     }
 
                     parameters.push(Param {
                         visibility: Visibility::Private,
                         pattern,
                         typ: self_type,
-                        span: self.span_since(start_span),
+                        span,
                     });
                 }
             }
