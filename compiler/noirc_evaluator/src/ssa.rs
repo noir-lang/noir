@@ -90,7 +90,6 @@ pub(crate) fn optimize_into_acir(
         options.print_codegen_timings,
         &options.emit_ssa,
     )?
-    .try_run_pass(Ssa::zero_arg_functions, "After zero-arg function-specific optimizations:")?
     .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
     .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
