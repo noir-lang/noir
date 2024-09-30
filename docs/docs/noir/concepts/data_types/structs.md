@@ -68,3 +68,15 @@ fn get_octopus() -> Animal {
 
 The new variables can be bound with names different from the original struct field names, as
 showcased in the `legs --> feet` binding in the example above.
+
+By default, like functions, structs are private to the module the exist in. You can use `pub`
+to make the struct public or `pub(crate)` to make it public to just its crate:
+
+```rust
+// This struct is now public
+pub struct Animal {
+    hands: Field,
+    legs: Field,
+    eyes: u8,
+}
+```

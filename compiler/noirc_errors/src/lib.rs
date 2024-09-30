@@ -13,20 +13,11 @@ pub use reporter::{CustomDiagnostic, DiagnosticKind};
 pub struct FileDiagnostic {
     pub file_id: fm::FileId,
     pub diagnostic: CustomDiagnostic,
-
-    /// An optional call stack to display the full runtime call stack
-    /// leading up to a runtime error. If this is empty it will not be displayed.
-    pub call_stack: Vec<Location>,
 }
 
 impl FileDiagnostic {
     pub fn new(file_id: fm::FileId, diagnostic: CustomDiagnostic) -> FileDiagnostic {
-        FileDiagnostic { file_id, diagnostic, call_stack: Vec::new() }
-    }
-
-    pub fn with_call_stack(mut self, call_stack: Vec<Location>) -> Self {
-        self.call_stack = call_stack;
-        self
+        FileDiagnostic { file_id, diagnostic }
     }
 }
 

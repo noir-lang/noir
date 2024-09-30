@@ -1,6 +1,6 @@
 use acvm::{
     acir::{brillig::BitSize, AcirField},
-    brillig_vm::brillig::{HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray},
+    brillig_vm::brillig::{HeapValueType, MemoryAddress},
     FieldElement,
 };
 use serde::{Deserialize, Serialize};
@@ -34,43 +34,12 @@ impl SingleAddrVariable {
 pub(crate) struct BrilligArray {
     pub(crate) pointer: MemoryAddress,
     pub(crate) size: usize,
-    pub(crate) rc: MemoryAddress,
-}
-
-impl BrilligArray {
-    pub(crate) fn to_heap_array(self) -> HeapArray {
-        HeapArray { pointer: self.pointer, size: self.size }
-    }
-
-    pub(crate) fn registers_count() -> usize {
-        2
-    }
-
-    pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
-        vec![self.pointer, self.rc]
-    }
 }
 
 /// The representation of a noir slice in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligVector {
     pub(crate) pointer: MemoryAddress,
-    pub(crate) size: MemoryAddress,
-    pub(crate) rc: MemoryAddress,
-}
-
-impl BrilligVector {
-    pub(crate) fn to_heap_vector(self) -> HeapVector {
-        HeapVector { pointer: self.pointer, size: self.size }
-    }
-
-    pub(crate) fn registers_count() -> usize {
-        3
-    }
-
-    pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
-        vec![self.pointer, self.size, self.rc]
-    }
 }
 
 /// The representation of a noir value in the Brillig IR
@@ -103,23 +72,11 @@ impl BrilligVariable {
         }
     }
 
-    pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
+    pub(crate) fn extract_register(self) -> MemoryAddress {
         match self {
-            BrilligVariable::SingleAddr(single_addr) => vec![single_addr.address],
-            BrilligVariable::BrilligArray(array) => array.extract_registers(),
-            BrilligVariable::BrilligVector(vector) => vector.extract_registers(),
-        }
-    }
-
-    pub(crate) fn to_value_or_array(self) -> ValueOrArray {
-        match self {
-            BrilligVariable::SingleAddr(single_addr) => {
-                ValueOrArray::MemoryAddress(single_addr.address)
-            }
-            BrilligVariable::BrilligArray(array) => ValueOrArray::HeapArray(array.to_heap_array()),
-            BrilligVariable::BrilligVector(vector) => {
-                ValueOrArray::HeapVector(vector.to_heap_vector())
-            }
+            BrilligVariable::SingleAddr(single_addr) => single_addr.address,
+            BrilligVariable::BrilligArray(array) => array.pointer,
+            BrilligVariable::BrilligVector(vector) => vector.pointer,
         }
     }
 }

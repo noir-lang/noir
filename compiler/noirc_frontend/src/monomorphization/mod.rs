@@ -1049,14 +1049,17 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _) | HirType::Constant(_) | HirType::InfixExpr(..) => {
+            HirType::Forall(_, _) | HirType::Constant(..) | HirType::InfixExpr(..) => {
                 unreachable!("Unexpected type {typ} found")
             }
             HirType::Error => {
                 let message = "Unexpected Type::Error found during monomorphization";
                 return Err(MonomorphizationError::InternalError { message, location });
             }
-            HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
+            HirType::Quoted(typ) => {
+                let typ = typ.to_string();
+                return Err(MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location });
+            }
         })
     }
 
@@ -1070,9 +1073,15 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Unit
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
-            | HirType::Constant(_)
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
+            HirType::Constant(_value, kind) => {
+                if kind.is_error() {
+                    Err(MonomorphizationError::UnknownConstant { location })
+                } else {
+                    Ok(())
+                }
+            }
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),

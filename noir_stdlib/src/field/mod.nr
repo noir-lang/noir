@@ -1,4 +1,4 @@
-mod bn254;
+pub mod bn254;
 use bn254::lt as bn254_lt;
 
 impl Field {
@@ -118,7 +118,7 @@ impl Field {
         r
     }
 
-    // Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
+    // Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x `elem` {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
     pub fn sgn0(self) -> u1 {
         self as u1
     }

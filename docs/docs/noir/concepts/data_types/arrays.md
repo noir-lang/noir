@@ -128,7 +128,9 @@ fn main() {
 
 ### sort_via
 
-Sorts the array with a custom comparison function
+Sorts the array with a custom comparison function. The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.
+
+Using this method with an operator like `<` that does not return `true` for equal values will result in an assertion failure for arrays with equal elements.
 
 ```rust
 fn sort_via(self, ordering: fn(T, T) -> bool) -> [T; N]
@@ -139,10 +141,10 @@ example
 ```rust
 fn main() {
     let arr = [42, 32]
-    let sorted_ascending = arr.sort_via(|a, b| a < b);
+    let sorted_ascending = arr.sort_via(|a, b| a <= b);
     assert(sorted_ascending == [32, 42]); // verifies
 
-    let sorted_descending = arr.sort_via(|a, b| a > b);
+    let sorted_descending = arr.sort_via(|a, b| a >= b);
     assert(sorted_descending == [32, 42]); // does not verify
 }
 ```
@@ -249,7 +251,6 @@ fn main() {
     let any = arr.any(|a| a == 5);
     assert(any);
 }
-
 ```
 
 ### as_str_unchecked

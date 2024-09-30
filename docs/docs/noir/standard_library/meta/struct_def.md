@@ -117,3 +117,14 @@ comptime fn mangle_fields(s: StructDefinition) {
     ]);
 }
 ```
+
+## Trait Implementations
+
+```rust
+impl Eq for StructDefinition
+impl Hash for StructDefinition
+```
+
+Note that each struct is assigned a unique ID internally and this is what is used for
+equality and hashing. So even structs with identical generics and fields may not
+be equal in this sense if they were originally different items in the source program.

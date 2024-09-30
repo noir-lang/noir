@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::{FunctionBody, Parameters},
+        function::FunctionBody,
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
@@ -29,7 +29,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, ReferenceId,
         TraitId, TypeAliasId,
     },
-    token::CustomAtrribute,
+    token::CustomAttribute,
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -95,9 +95,9 @@ pub struct Elaborator<'context> {
 
     pub(crate) interner: &'context mut NodeInterner,
 
-    def_maps: &'context mut DefMaps,
+    pub(crate) def_maps: &'context mut DefMaps,
 
-    file: FileId,
+    pub(crate) file: FileId,
 
     in_unsafe_block: bool,
     nested_loops: usize,
@@ -362,8 +362,12 @@ impl<'context> Elaborator<'context> {
             if let Kind::Numeric(typ) = &generic.kind {
                 let definition = DefinitionKind::GenericType(generic.type_var.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
-                let hir_ident =
-                    self.add_variable_decl_inner(ident, false, false, false, definition);
+                let hir_ident = self.add_variable_decl(
+                    ident, false, // mutable
+                    false, // allow_shadowing
+                    false, // warn_if_unused
+                    definition,
+                );
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());
             }
         }
@@ -415,7 +419,6 @@ impl<'context> Elaborator<'context> {
             self.add_existing_variable_to_scope(name, parameter.clone(), true);
         }
 
-        self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
         let (hir_func, body_type) = match kind {
@@ -756,11 +759,16 @@ impl<'context> Elaborator<'context> {
                 type_span,
             );
 
+            if is_entry_point {
+                self.mark_parameter_type_as_used(&typ);
+            }
+
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
+                true, // warn_if_unused
                 None,
             );
 
@@ -800,7 +808,7 @@ impl<'context> Elaborator<'context> {
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes: Vec<CustomAtrribute> = attributes.cloned().collect();
+        let attributes: Vec<CustomAttribute> = attributes.cloned().collect();
 
         let meta = FuncMeta {
             name: name_ident,
@@ -831,6 +839,57 @@ impl<'context> Elaborator<'context> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+    }
+
+    fn mark_parameter_type_as_used(&mut self, typ: &Type) {
+        match typ {
+            Type::Array(_n, typ) => self.mark_parameter_type_as_used(typ),
+            Type::Slice(typ) => self.mark_parameter_type_as_used(typ),
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.mark_parameter_type_as_used(typ);
+                }
+            }
+            Type::Struct(struct_type, generics) => {
+                self.mark_struct_as_constructed(struct_type.clone());
+                for generic in generics {
+                    self.mark_parameter_type_as_used(generic);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
+            }
+            Type::MutableReference(typ) => {
+                self.mark_parameter_type_as_used(typ);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.mark_parameter_type_as_used(left);
+                self.mark_parameter_type_as_used(right);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Forall(..)
+            | Type::Error => (),
+        }
+
+        if let Type::Alias(alias_type, generics) = typ {
+            self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
+            return;
+        }
+
+        if let Type::Struct(struct_type, _generics) = typ {
+            self.mark_struct_as_constructed(struct_type.clone());
+        }
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
@@ -893,44 +952,6 @@ impl<'context> Elaborator<'context> {
             func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
-        }
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/5156): Remove implicit numeric generics
-    fn declare_numeric_generics(&mut self, params: &Parameters, return_type: &Type) {
-        if self.generics.is_empty() {
-            return;
-        }
-
-        for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
-            // Declare any generics to let users use numeric generics in scope.
-            // Don't issue a warning if these are unused
-            //
-            // We can fail to find the generic in self.generics if it is an implicit one created
-            // by the compiler. This can happen when, e.g. eliding array lengths using the slice
-            // syntax [T].
-            if let Some(ResolvedGeneric { name, span, kind, .. }) =
-                self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
-            {
-                let scope = self.scopes.get_mut_scope();
-                let value = scope.find(&name_to_find);
-                if value.is_some() {
-                    // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
-                    // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
-                    // to transition to the new syntax
-                    // e.g. this code would break with a duplicate definition error:
-                    // ```
-                    // fn foo<let N: u8>(arr: [Field; N]) { }
-                    // ```
-                    continue;
-                }
-                *kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                let ident = Ident::new(name.to_string(), *span);
-                let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-
-                self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-            }
         }
     }
 
@@ -1165,11 +1186,98 @@ impl<'context> Elaborator<'context> {
         self.file = alias.file_id;
         self.local_module = alias.module_id;
 
+        let name = &alias.type_alias_def.name;
+        let visibility = alias.type_alias_def.visibility;
+        let span = alias.type_alias_def.typ.span;
+
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
+
+        if visibility != ItemVisibility::Private {
+            self.check_aliased_type_is_not_more_private(name, visibility, &typ, span);
+        }
+
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
+    }
+
+    fn check_aliased_type_is_not_more_private(
+        &mut self,
+        name: &Ident,
+        visibility: ItemVisibility,
+        typ: &Type,
+        span: Span,
+    ) {
+        match typ {
+            Type::Struct(struct_type, generics) => {
+                let struct_type = struct_type.borrow();
+                let struct_module_id = struct_type.id.module_id();
+
+                // We only check this in types in the same crate. If it's in a different crate
+                // then it's either accessible (all good) or it's not, in which case a different
+                // error will happen somewhere else, but no need to error again here.
+                if struct_module_id.krate == self.crate_id {
+                    // Find the struct in the parent module so we can know its visibility
+                    let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+                    let parent_module_data = self.get_module(parent_module_id);
+                    let per_ns = parent_module_data.find_name(&struct_type.name);
+                    if let Some((_, aliased_visibility, _)) = per_ns.types {
+                        if aliased_visibility < visibility {
+                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                                typ: struct_type.name.to_string(),
+                                item: name.to_string(),
+                                span,
+                            });
+                        }
+                    }
+                }
+
+                for generic in generics {
+                    self.check_aliased_type_is_not_more_private(name, visibility, generic, span);
+                }
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.check_aliased_type_is_not_more_private(
+                    name,
+                    visibility,
+                    &alias_type.borrow().get_type(generics),
+                    span,
+                );
+            }
+            Type::Function(args, return_type, env, _) => {
+                for arg in args {
+                    self.check_aliased_type_is_not_more_private(name, visibility, arg, span);
+                }
+                self.check_aliased_type_is_not_more_private(name, visibility, return_type, span);
+                self.check_aliased_type_is_not_more_private(name, visibility, env, span);
+            }
+            Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
+                self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.check_aliased_type_is_not_more_private(name, visibility, left, span);
+                self.check_aliased_type_is_not_more_private(name, visibility, right, span);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::TypeVariable(..)
+            | Type::Forall(..)
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::NamedGeneric(..)
+            | Type::Error => (),
+        }
     }
 
     fn collect_struct_definitions(&mut self, structs: &BTreeMap<StructId, UnresolvedStruct>) {
@@ -1187,28 +1295,6 @@ impl<'context> Elaborator<'context> {
             let fields_len = fields.len();
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
-
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
-                // This is only necessary for resolving named types when implicit numeric generics are used.
-                let mut found_names = Vec::new();
-                struct_def.find_numeric_generics_in_fields(&mut found_names);
-                for generic in struct_def.generics.iter_mut() {
-                    for found_generic in found_names.iter() {
-                        if found_generic == generic.name.as_str() {
-                            if matches!(generic.kind, Kind::Normal) {
-                                let ident = Ident::new(generic.name.to_string(), generic.span);
-                                self.errors.push((
-                                    CompilationError::ResolverError(
-                                        ResolverError::UseExplicitNumericGeneric { ident },
-                                    ),
-                                    self.file,
-                                ));
-                                generic.kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                            }
-                            break;
-                        }
-                    }
-                }
             });
 
             for field_index in 0..fields_len {

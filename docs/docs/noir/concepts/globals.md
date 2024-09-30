@@ -37,7 +37,7 @@ global T = foo(T); // dependency error
 If they are initialized to a literal integer, globals can be used to specify an array's length:
 
 ```rust
-global N: Field = 2;
+global N: u32 = 2;
 
 fn main(y : [Field; N]) {
     assert(y[0] == y[1])
@@ -70,3 +70,13 @@ fn foo() -> [Field; 100] { ... }
 This is usually fine since Noir will generally optimize any function call that does not
 refer to a program input into a constant. It should be kept in mind however, if the called
 function performs side-effects like `println`, as these will still occur on each use.
+
+### Visibility
+
+By default, like functions, globals are private to the module the exist in. You can use `pub`
+to make the global public or `pub(crate)` to make it public to just its crate:
+
+```rust
+// This global is now public
+pub global N = 5;
+```

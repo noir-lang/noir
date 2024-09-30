@@ -5,7 +5,7 @@ use crate::ssa::ir::types::Type;
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, InsertInstructionResult},
-    function::{Function, RuntimeType},
+    function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
@@ -46,14 +46,7 @@ impl<'f> FunctionInserter<'f> {
                     if let Some(fetched_value) =
                         self.const_arrays.get(&(new_array.clone(), typ.clone()))
                     {
-                        // Arrays in ACIR are immutable, but in Brillig arrays are copy-on-write
-                        // so for function's with a Brillig runtime we make sure to check that value
-                        // in our constants array map matches the resolved array value id.
-                        if matches!(self.function.runtime(), RuntimeType::Acir(_)) {
-                            return *fetched_value;
-                        } else if *fetched_value == value {
-                            return value;
-                        }
+                        return *fetched_value;
                     };
 
                     let new_array_clone = new_array.clone();
@@ -100,6 +93,14 @@ impl<'f> FunctionInserter<'f> {
         let mut terminator = self.function.dfg[block].take_terminator();
         terminator.mutate_values(|value| self.resolve(value));
         self.function.dfg[block].set_terminator(terminator);
+    }
+
+    /// Maps the data bus in place, replacing any ValueId in the data bus with the
+    /// resolved version of that value id from this FunctionInserter's internal value mapping.
+    pub(crate) fn map_data_bus_in_place(&mut self) {
+        let data_bus = self.function.dfg.data_bus.clone();
+        let data_bus = data_bus.map_values(|value| self.resolve(value));
+        self.function.dfg.data_bus = data_bus;
     }
 
     /// Push a new instruction to the given block and return its new InstructionId.

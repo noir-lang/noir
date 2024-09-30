@@ -22,7 +22,7 @@ use crate::{cmp::Eq, convert::From};
 /// assert(vector.len() == 5);
 /// assert(vector.max_len() == 10);
 /// ```
-struct BoundedVec<T, let MaxLen: u32> {
+pub struct BoundedVec<T, let MaxLen: u32> {
     storage: [T; MaxLen],
     len: u32,
 }
@@ -56,7 +56,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// fn bad() {
     ///     // Error: Type annotation needed
-    ///     // The compiller can't infer `MaxLen` from the following code:
+    ///     // The compiler can't infer `MaxLen` from the following code:
     ///     let mut v3 = BoundedVec::new();
     ///     v3.push(5);
     /// }
@@ -428,13 +428,13 @@ impl<T, let MaxLen: u32> Eq for BoundedVec<T, MaxLen> where T: Eq {
         //
         // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
         // rather than directly manipulating the internal fields as this can result in an inconsistent internal state.
-        
+
         (self.len == other.len) & (self.storage == other.storage)
     }
 }
 
 impl<T, let MaxLen: u32, let Len: u32> From<[T; Len]> for BoundedVec<T, MaxLen> {
-    fn from(array: [T; Len]) -> BoundedVec<T, MaxLen>  {
+    fn from(array: [T; Len]) -> BoundedVec<T, MaxLen> {
         BoundedVec::from_array(array)
     }
 }
