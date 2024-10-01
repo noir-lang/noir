@@ -2,7 +2,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::Function,
+        function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
         value::ValueId,
@@ -39,6 +39,7 @@ impl Function {
             analyze_last_uses(
                 &self.dfg,
                 *block,
+                matches!(self.runtime(), RuntimeType::Brillig),
                 &mut array_to_last_use,
                 &mut instructions_to_update,
                 &mut arrays_from_load,
@@ -55,6 +56,7 @@ impl Function {
 fn analyze_last_uses(
     dfg: &DataFlowGraph,
     block_id: BasicBlockId,
+    is_brillig_func: bool,
     array_to_last_use: &mut HashMap<ValueId, InstructionId>,
     instructions_that_can_be_made_mutable: &mut HashSet<InstructionId>,
     arrays_from_load: &mut HashSet<ValueId>,
@@ -72,14 +74,20 @@ fn analyze_last_uses(
             }
             Instruction::ArraySet { array, value, .. } => {
                 let array = dfg.resolve(*array);
-                let value = dfg.resolve(*value);
 
                 if let Some(existing) = array_to_last_use.insert(array, *instruction_id) {
                     instructions_that_can_be_made_mutable.remove(&existing);
                 }
-                if let Some(existing) = array_to_last_use.insert(value, *instruction_id) {
-                    instructions_that_can_be_made_mutable.remove(&existing);
+                if is_brillig_func {
+                    let value = dfg.resolve(*value);
+
+                    if let Some(existing) = array_to_last_use.insert(value, *instruction_id) {
+                        instructions_that_can_be_made_mutable.remove(&existing);
+                    }
+                    let result = dfg.instruction_results(*instruction_id)[0];
+                    array_to_last_use.insert(result, *instruction_id);
                 }
+
                 // If the array we are setting does not come from a load we can safely mark it mutable.
                 // If the array comes from a load we may potentially being mutating an array at a reference
                 // that is loaded from by other values.
@@ -96,9 +104,6 @@ fn analyze_last_uses(
                 if (!arrays_from_load.contains(&array) || is_return_block) && !array_in_terminator {
                     instructions_that_can_be_made_mutable.insert(*instruction_id);
                 }
-
-                let result = dfg.instruction_results(*instruction_id)[0];
-                array_to_last_use.insert(result, *instruction_id);
             }
             Instruction::Call { arguments, .. } => {
                 for argument in arguments {
