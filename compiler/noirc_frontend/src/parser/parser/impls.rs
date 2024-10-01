@@ -250,7 +250,10 @@ mod tests {
     use crate::{
         ast::{ItemVisibility, Pattern, TraitImplItemKind, UnresolvedTypeData},
         parser::{
-            parser::{parse_program, tests::expect_no_errors},
+            parser::{
+                parse_program,
+                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            },
             ItemKind,
         },
     };
@@ -570,5 +573,25 @@ mod tests {
         assert_eq!(name.to_string(), "x");
         assert_eq!(typ.to_string(), "Field");
         assert_eq!(expr.to_string(), "1");
+    }
+
+    #[test]
+    fn recovers_on_unknown_impl_item() {
+        let src = "
+        impl Foo { hello fn foo() {} }
+                   ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Impl(type_impl) = &item.kind else {
+            panic!("Expected struct");
+        };
+        assert_eq!(type_impl.methods.len(), 1);
+
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a fn but found hello");
     }
 }
