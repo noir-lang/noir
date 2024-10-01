@@ -1,12 +1,9 @@
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
-        dom::DominatorTree,
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
         types::Type::{Array, Slice},
         value::ValueId,
     },
@@ -163,57 +160,6 @@ fn make_mutable(
     }
 
     *dfg[block_id].instructions_mut() = instructions;
-}
-
-/// For a given function, finds all the blocks that are within loops
-fn find_all_blocks_within_loops(
-    func: &Function,
-    cfg: &ControlFlowGraph,
-    dominator_tree: &mut DominatorTree,
-) -> HashSet<BasicBlockId> {
-    let mut blocks_in_loops = HashSet::default();
-    for block_id in func.reachable_blocks() {
-        let block = &func.dfg[block_id];
-        let successors = block.successors();
-        for successor_id in successors {
-            if dominator_tree.dominates(successor_id, block_id) {
-                blocks_in_loops.extend(find_blocks_in_loop(successor_id, block_id, cfg));
-            }
-        }
-    }
-
-    blocks_in_loops
-}
-
-/// Return each block that is in a loop starting in the given header block.
-/// Expects back_edge_start -> header to be the back edge of the loop.
-fn find_blocks_in_loop(
-    header: BasicBlockId,
-    back_edge_start: BasicBlockId,
-    cfg: &ControlFlowGraph,
-) -> HashSet<BasicBlockId> {
-    let mut blocks = HashSet::default();
-    blocks.insert(header);
-
-    let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
-        if !blocks.contains(&block) {
-            blocks.insert(block);
-            stack.push(block);
-        }
-    };
-
-    // Starting from the back edge of the loop, each predecessor of this block until
-    // the header is within the loop.
-    let mut stack = vec![];
-    insert(back_edge_start, &mut stack);
-
-    while let Some(block) = stack.pop() {
-        for predecessor in cfg.predecessors(block) {
-            insert(predecessor, &mut stack);
-        }
-    }
-
-    blocks
 }
 
 #[cfg(test)]
