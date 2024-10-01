@@ -1,7 +1,8 @@
 use chumsky::prelude::*;
 
-use crate::ast::{ExpressionKind, GenericTypeArgs, Ident, PathSegment, UnaryOp};
-use crate::macros_api::{StatementKind, UnresolvedType};
+use crate::ast::{
+    ExpressionKind, GenericTypeArgs, Ident, PathSegment, StatementKind, UnaryOp, UnresolvedType,
+};
 use crate::parser::ParserErrorReason;
 use crate::{
     parser::{labels::ParsingRuleLabel, ExprParser, NoirParser, ParserError},
