@@ -586,7 +586,7 @@ pub enum DefinitionKind {
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
-    GenericType(TypeVariable),
+    NumericGeneric(TypeVariable),
 }
 
 impl DefinitionKind {
@@ -601,7 +601,7 @@ impl DefinitionKind {
             DefinitionKind::Function(_) => None,
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
-            DefinitionKind::GenericType(_) => None,
+            DefinitionKind::NumericGeneric(_) => None,
         }
     }
 }
