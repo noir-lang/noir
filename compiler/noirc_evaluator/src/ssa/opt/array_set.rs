@@ -276,7 +276,6 @@ mod tests {
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
-        println!("{}", ssa);
         // We expect the same result as above
         let ssa = ssa.array_set_optimization();
         println!("{}", ssa);
