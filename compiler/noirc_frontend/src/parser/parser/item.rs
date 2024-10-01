@@ -16,10 +16,13 @@ impl<'a> Parser<'a> {
         let mut items = Vec::new();
 
         loop {
+            // We only break out of the loop on `}` if we are inside a `mod { ..`
             if nested && self.token.token() == &Token::RightBrace {
                 break;
             }
 
+            // We always break on EOF (we don't error because if we are inside `mod { ..`
+            // the outer parsing logic will error instead)
             if self.at_eof() {
                 break;
             }
@@ -29,16 +32,25 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            let is_error_token = match self.token.token() {
-                Token::RightBrace => !nested,
-                Token::EOF => false,
-                _ => true,
-            };
-
-            if is_error_token {
-                self.expected_label(ParsingRuleLabel::Item);
-                // We'll try parsing an item on the next token
-                self.next_token();
+            // If we couldn't parse an item we check which token we got
+            match self.token.token() {
+                Token::RightBrace => {
+                    if nested {
+                        break;
+                    } else {
+                        self.expected_label(ParsingRuleLabel::Item);
+                        // We'll try parsing an item starting on the next token
+                        self.next_token();
+                    }
+                }
+                Token::EOF => {
+                    break;
+                }
+                _ => {
+                    self.expected_label(ParsingRuleLabel::Item);
+                    // We'll try parsing an item starting on the next token
+                    self.next_token();
+                }
             }
         }
 
@@ -177,5 +189,18 @@ mod tests {
         assert_eq!(module.items.len(), 2);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected an item but found hello");
+    }
+
+    #[test]
+    fn errors_on_eof_in_nested_mod() {
+        let src = "
+        mod foo { fn foo() {} 
+                             ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 1);
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a } but found end of input");
     }
 }
