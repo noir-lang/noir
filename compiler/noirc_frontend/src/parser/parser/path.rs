@@ -122,8 +122,7 @@ impl<'a> Parser<'a> {
                 let span = ident.span();
 
                 let generics = if allow_turbofish
-                    && self.token.token() == &Token::DoubleColon
-                    && self.next_token.token() == &Token::Less
+                    && self.tokens_follow(Token::DoubleColon, Token::Less)
                 {
                     self.next_token();
                     self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
@@ -133,7 +132,7 @@ impl<'a> Parser<'a> {
 
                 segments.push(PathSegment { ident, generics, span });
 
-                if self.token.token() == &Token::DoubleColon
+                if self.at(Token::DoubleColon)
                     && matches!(self.next_token.token(), Token::Ident(..))
                 {
                     // Skip the double colons

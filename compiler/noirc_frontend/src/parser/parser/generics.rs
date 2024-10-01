@@ -123,9 +123,7 @@ impl<'a> Parser<'a> {
         loop {
             let start_span = self.current_token_span;
 
-            if matches!(self.token.token(), Token::Ident(..))
-                && self.next_token.token() == &Token::Assign
-            {
+            if matches!(self.token.token(), Token::Ident(..)) && self.next_is(Token::Assign) {
                 let ident = self.eat_ident().unwrap();
 
                 if !trailing_comma && !generic_type_args.is_empty() {

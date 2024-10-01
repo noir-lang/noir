@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_and(allow_constructors)?;
 
         // Don't parse `x |= ...`, etc.
-        if self.next_token.token() == &Token::Assign {
+        if self.next_is(Token::Assign) {
             return Some(lhs);
         }
 
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_xor(allow_constructors)?;
 
         // Don't parse `x &= ...`, etc.
-        if self.next_token.token() == &Token::Assign {
+        if self.next_is(Token::Assign) {
             return Some(lhs);
         }
 
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_less_or_greater(allow_constructors)?;
 
         // Don't parse `x ^= ...`, etc.
-        if self.next_token.token() == &Token::Assign {
+        if self.next_is(Token::Assign) {
             return Some(lhs);
         }
 
@@ -155,21 +155,18 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_add_or_subtract(allow_constructors)?;
 
         loop {
-            let operator =
-                if self.next_token.token() != &Token::Assign && self.eat(Token::ShiftLeft) {
-                    BinaryOpKind::ShiftLeft
-                } else if self.token.token() == &Token::Greater
-                    && self.next_token.token() == &Token::Greater
-                {
-                    // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
-                    // to parse nested generic types. For normal expressions however, it means we have to manually
-                    // parse two greater-than tokens as a single right-shift here.
-                    self.next_token();
-                    self.next_token();
-                    BinaryOpKind::ShiftRight
-                } else {
-                    break;
-                };
+            let operator = if !self.next_is(Token::Assign) && self.eat(Token::ShiftLeft) {
+                BinaryOpKind::ShiftLeft
+            } else if self.tokens_follow(Token::Greater, Token::Greater) {
+                // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
+                // to parse nested generic types. For normal expressions however, it means we have to manually
+                // parse two greater-than tokens as a single right-shift here.
+                self.next_token();
+                self.next_token();
+                BinaryOpKind::ShiftRight
+            } else {
+                break;
+            };
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_add_or_subtract(allow_constructors) else {
@@ -188,7 +185,7 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_multiply_or_divide_or_modulo(allow_constructors)?;
 
         // Don't parse `x += ...`, etc.
-        if self.next_token.token() == &Token::Assign {
+        if self.next_is(Token::Assign) {
             return Some(lhs);
         }
 
@@ -221,7 +218,7 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_term(allow_constructors)?;
 
         // Don't parse `x *= ...`, etc.
-        if self.next_token.token() == &Token::Assign {
+        if self.next_is(Token::Assign) {
             return Some(lhs);
         }
 

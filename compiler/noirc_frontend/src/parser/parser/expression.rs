@@ -60,9 +60,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
-        if self.token.token() == &Token::Ampersand
-            && self.next_token.token() == &Token::Keyword(Keyword::Mut)
-        {
+        if self.tokens_follow(Token::Ampersand, Token::Keyword(Keyword::Mut)) {
             self.next_token();
             self.next_token();
             Some(UnaryOp::MutableReference)
@@ -82,8 +80,7 @@ impl<'a> Parser<'a> {
         let mut atom = self.parse_atom(allow_constructors)?;
 
         loop {
-            let is_macro_call =
-                self.token.token() == &Token::Bang && self.next_token.token() == &Token::LeftParen;
+            let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
             if is_macro_call {
                 // Next `self.parse_arguments` will return `Some(...)`
                 self.next_token();
@@ -125,8 +122,7 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                let is_macro_call = self.token.token() == &Token::Bang
-                    && self.next_token.token() == &Token::LeftParen;
+                let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
                 if is_macro_call {
                     // Next `self.parse_arguments` will return `Some(...)`
                     self.next_token();
@@ -202,7 +198,7 @@ impl<'a> Parser<'a> {
         }
 
         if matches!(self.token.token(), Token::InternedUnresolvedTypeData(..))
-            && self.next_token.token() == &Token::LeftBrace
+            && self.next_is(Token::LeftBrace)
         {
             let span = self.current_token_span;
             let typ = self.parse_interned_type().unwrap();
@@ -491,8 +487,7 @@ impl<'a> Parser<'a> {
         }
 
         // Check if it's `&[`
-        if self.token.token() == &Token::Ampersand && self.next_token.token() == &Token::LeftBracket
-        {
+        if self.tokens_follow(Token::Ampersand, Token::LeftBracket) {
             self.next_token();
 
             return Some(ExpressionKind::Literal(Literal::Slice(

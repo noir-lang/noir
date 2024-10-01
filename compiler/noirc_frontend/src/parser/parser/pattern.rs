@@ -58,9 +58,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.token.token() == &Token::Ampersand
-            && self.next_token.token() == &Token::Keyword(Keyword::Mut)
-        {
+        if self.tokens_follow(Token::Ampersand, Token::Keyword(Keyword::Mut)) {
             self.next_token();
             self.next_token();
             if !self.next_is_colon() && self.eat_self() {
@@ -83,7 +81,7 @@ impl<'a> Parser<'a> {
     }
 
     fn next_is_colon(&self) -> bool {
-        self.next_token.token() == &Token::Colon
+        self.next_is(Token::Colon)
     }
 
     pub(crate) fn parse_pattern_after_modifiers(

@@ -176,8 +176,7 @@ impl<'a> Parser<'a> {
 
     fn parse_parenthesized_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         // Make sure not to parse `()` as a parenthesized expression
-        if self.token.token() == &Token::LeftParen && self.next_token.token() != &Token::RightParen
-        {
+        if self.at(Token::LeftParen) && !self.next_is(Token::RightParen) {
             self.next_token();
             match self.parse_type_expression() {
                 Ok(type_expr) => {

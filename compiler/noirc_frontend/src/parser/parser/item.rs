@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
 
         loop {
             // We only break out of the loop on `}` if we are inside a `mod { ..`
-            if nested && self.token.token() == &Token::RightBrace {
+            if nested && self.at(Token::RightBrace) {
                 break;
             }
 

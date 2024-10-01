@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
             let start_span = self.current_token_span;
             let kind = self.parse_statement_kind(attributes);
 
-            let (semicolon_token, semicolon_span) = if self.token.token() == &Token::Semicolon {
+            let (semicolon_token, semicolon_span) = if self.at(Token::Semicolon) {
                 let token = self.token.clone();
                 self.next_token();
                 let span = token.to_span();
@@ -84,7 +84,7 @@ impl<'a> Parser<'a> {
             return Some(StatementKind::Error);
         }
 
-        if self.token.token() == &Token::Keyword(Keyword::Let) {
+        if self.at_keyword(Keyword::Let) {
             let let_statement = self.parse_let_statement(attributes)?;
             return Some(StatementKind::Let(let_statement));
         }
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
             return Some(StatementKind::Constrain(constrain));
         }
 
-        if self.token.token() == &Token::Keyword(Keyword::Comptime) {
+        if self.at_keyword(Keyword::Comptime) {
             return self.parse_comptime_statement(attributes);
         }
 
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
 
     fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
         let start_span = self.current_token_span;
-        let operator = if self.next_token.token() == &Token::Assign {
+        let operator = if self.next_is(Token::Assign) {
             match self.token.token() {
                 Token::Plus => Some(BinaryOpKind::Add),
                 Token::Minus => Some(BinaryOpKind::Subtract),
@@ -181,9 +181,8 @@ impl<'a> Parser<'a> {
                 Token::Pipe => Some(BinaryOpKind::Or),
                 _ => None,
             }
-        } else if self.token.token() == &Token::Greater
-            && self.next_token.token() == &Token::GreaterEqual
-        {
+        } else if self.tokens_follow(Token::Greater, Token::GreaterEqual) {
+            // >>=
             Some(BinaryOpKind::ShiftRight)
         } else {
             None

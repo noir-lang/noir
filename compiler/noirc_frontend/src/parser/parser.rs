@@ -50,6 +50,9 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     (program, errors)
 }
 
+/// Invokes `f` with the given parser (`f` must be some `parse_*` method of the parser)
+/// and returns the result if the parser has no errors, and if the parser consumed all tokens.
+/// Otherwise returns the list of errors.
 pub fn parse_result<'a, T, F>(mut parser: Parser<'a>, f: F) -> Result<T, Vec<ParserError>>
 where
     F: FnOnce(&mut Parser<'a>) -> T,
@@ -134,6 +137,7 @@ impl<'a> Parser<'a> {
         ParsedModule { items, inner_doc_comments }
     }
 
+    /// Parses an LValue. If an LValue can't be parsed, an error is recorded and a default LValue is returned.
     pub(crate) fn parse_lvalue_or_error(&mut self) -> LValue {
         let start_span = self.current_token_span;
 
@@ -430,6 +434,18 @@ impl<'a> Parser<'a> {
 
     fn at(&self, token: Token) -> bool {
         self.token.token() == &token
+    }
+
+    fn at_keyword(&self, keyword: Keyword) -> bool {
+        self.at(Token::Keyword(keyword))
+    }
+
+    fn next_is(&self, token: Token) -> bool {
+        self.next_token.token() == &token
+    }
+
+    fn tokens_follow(&self, token: Token, next_token: Token) -> bool {
+        self.at(token) && self.next_is(next_token)
     }
 
     fn at_eof(&self) -> bool {
