@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::ReferenceId;
 use crate::usage_tracker::UsageTracker;
-use crate::Type;
+
 use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
@@ -17,7 +17,7 @@ use super::errors::ResolverError;
 pub struct ImportDirective {
     pub visibility: ItemVisibility,
     pub module_id: LocalModuleId,
-    pub self_type: Option<Type>,
+    pub self_type_module_id: Option<ModuleId>,
     pub path: Path,
     pub alias: Option<Ident>,
     pub is_prelude: bool,
@@ -113,12 +113,7 @@ pub fn resolve_import(
         .expect("Found empty namespace");
 
     let error = error.or_else(|| {
-        let self_type_module_id = match &import_directive.self_type {
-            Some(Type::Struct(struct_type, _)) => Some(struct_type.borrow().id.module_id()),
-            _ => None,
-        };
-
-        if self_type_module_id == Some(resolved_module)
+        if import_directive.self_type_module_id == Some(resolved_module)
             || can_reference_module_id(
                 def_maps,
                 crate_id,
@@ -414,7 +409,7 @@ fn resolve_external_dep(
     let dep_directive = ImportDirective {
         visibility: ItemVisibility::Private,
         module_id: dep_module.local_id,
-        self_type: directive.self_type.clone(),
+        self_type_module_id: directive.self_type_module_id,
         path,
         alias: directive.alias.clone(),
         is_prelude: false,
