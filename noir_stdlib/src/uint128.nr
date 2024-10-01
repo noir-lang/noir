@@ -98,7 +98,7 @@ impl U128 {
         ((ascii >= 65) & (ascii <= 90)) // Between 'A' and 'Z'
     }
 
-    fn decode_ascii(ascii: u8) -> Field {
+    pub(crate) fn decode_ascii(ascii: u8) -> Field {
         (if ascii < 58 {
             ascii - 48
         } else {

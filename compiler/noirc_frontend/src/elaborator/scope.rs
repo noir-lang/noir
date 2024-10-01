@@ -90,7 +90,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
-        let resolver = StandardPathResolver::new(module_id);
+        let resolver = StandardPathResolver::new(module_id, self.self_type.clone());
 
         if !self.interner.lsp_mode {
             return resolver.resolve(

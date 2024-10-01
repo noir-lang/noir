@@ -81,6 +81,7 @@ pub fn collect_defs(
         collector.def_collector.imports.push(ImportDirective {
             visibility: import.visibility,
             module_id: collector.module_id,
+            self_type: None,
             path: import.path,
             alias: import.alias,
             is_prelude: false,
