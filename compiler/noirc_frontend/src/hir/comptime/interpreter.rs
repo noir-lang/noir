@@ -582,7 +582,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(value)
                 }
             }
-            DefinitionKind::GenericType(type_variable) => {
+            DefinitionKind::NumericGeneric(type_variable) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => None,
                     TypeBinding::Bound(binding) => binding.evaluate_to_u32(),

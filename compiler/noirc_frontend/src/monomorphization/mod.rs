@@ -916,7 +916,7 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Expression::Ident(ident)
                 }
             },
-            DefinitionKind::GenericType(type_variable) => {
+            DefinitionKind::NumericGeneric(type_variable) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => {
                         unreachable!("Unbound type variable used in expression")
