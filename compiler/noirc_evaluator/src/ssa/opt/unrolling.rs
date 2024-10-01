@@ -81,8 +81,8 @@ impl Ssa {
 }
 
 impl Function {
-    // TODO: are both this and Ssa::unroll_loops_iteratively needed?
-    // TODO: likely can combine them
+    // TODO(https://github.com/noir-lang/noir/issues/6192): are both this and
+    // TODO: Ssa::unroll_loops_iteratively needed? Likely able to be combined
     pub(crate) fn unroll_loops_iteratively(&mut self) -> Result<(), RuntimeError> {
         // Try to unroll loops first:
         let mut unroll_errors = vec![];
