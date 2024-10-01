@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_or(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_and(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_xor(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_less_or_greater(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 
@@ -140,7 +140,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_shift(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 
@@ -173,7 +173,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_add_or_subtract(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 
@@ -203,7 +203,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_multiply_or_divide_or_modulo(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 
@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
             let operator = Spanned::from(self.previous_token_span, operator);
 
             let Some(rhs) = self.parse_term(allow_constructors) else {
-                self.push_expected_expression_after_this_error();
+                self.push_expected_expression();
                 break;
             };
 

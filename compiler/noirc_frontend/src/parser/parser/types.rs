@@ -12,7 +12,7 @@ impl<'a> Parser<'a> {
         if let Some(typ) = self.parse_type() {
             typ
         } else {
-            self.push_error(ParserErrorReason::ExpectedTypeAfterThis, self.previous_token_span);
+            self.expected_label(ParsingRuleLabel::Type);
             self.unspecified_type_at_previous_token_end()
         }
     }
@@ -149,12 +149,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        if !self.eat_greater() {
-            self.push_error(
-                ParserErrorReason::ExpectedGreaterAfterStringTypeLength,
-                self.current_token_span,
-            );
-        }
+        self.eat_or_error(Token::Greater);
 
         Some(UnresolvedTypeData::String(expr))
     }
@@ -370,25 +365,17 @@ impl<'a> Parser<'a> {
         if self.eat_semicolon() {
             match self.parse_type_expression() {
                 Ok(expr) => {
-                    if !self.eat_right_bracket() {
-                        self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
-                    }
+                    self.eat_or_error(Token::RightBracket);
                     Some(UnresolvedTypeData::Array(expr, Box::new(typ)))
                 }
                 Err(error) => {
                     self.errors.push(error);
-                    if !self.eat_right_bracket() {
-                        self.push_error(ParserErrorReason::ExpectedBracketAfterArrayType, typ.span);
-                    }
-
+                    self.eat_or_error(Token::RightBracket);
                     Some(UnresolvedTypeData::Slice(Box::new(typ)))
                 }
             }
         } else {
-            if !self.eat_right_bracket() {
-                self.push_error(ParserErrorReason::ExpectedBracketAfterSliceType, typ.span);
-            }
-
+            self.eat_or_error(Token::RightBracket);
             Some(UnresolvedTypeData::Slice(Box::new(typ)))
         }
     }
@@ -453,10 +440,8 @@ mod tests {
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedTypeData},
         parser::{
-            parser::tests::{
-                expect_no_errors, get_single_error_reason, get_source_with_error_span,
-            },
-            Parser, ParserErrorReason,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            Parser,
         },
         QuotedType,
     };
@@ -628,14 +613,14 @@ mod tests {
     #[test]
     fn errors_if_missing_right_bracket_after_slice_type() {
         let src = "
-        [Field
-         ^^^^^
+        [Field 
+              ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         parser.parse_type();
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedBracketAfterSliceType));
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a ] but found end of input");
     }
 
     #[test]

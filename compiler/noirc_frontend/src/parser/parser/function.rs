@@ -227,22 +227,17 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::CallData) {
             if self.eat_left_paren() {
                 if let Some(int) = self.eat_int() {
-                    if !self.eat_right_paren() {
-                        self.push_error(
-                            ParserErrorReason::ExpectedRightParen,
-                            self.current_token_span,
-                        );
-                    }
+                    self.eat_or_error(Token::RightParen);
 
                     let id = int.to_u128() as u32;
                     return Visibility::CallData(id);
                 } else {
-                    self.push_error(ParserErrorReason::ExpectedInteger, self.current_token_span);
+                    self.expected_label(ParsingRuleLabel::Integer);
                     self.eat_right_paren();
                     return Visibility::CallData(0);
                 }
             } else {
-                self.push_error(ParserErrorReason::ExpectedLeftParen, self.current_token_span);
+                self.expected_token(Token::LeftParen);
                 return Visibility::CallData(0);
             }
         }

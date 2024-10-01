@@ -17,10 +17,7 @@ impl<'a> Parser<'a> {
         if let Some((statement, (_token, _span))) = self.parse_statement() {
             statement
         } else {
-            self.push_error(
-                ParserErrorReason::ExpectedStatementAfterThis,
-                self.previous_token_span,
-            );
+            self.expected_label(ParsingRuleLabel::Statement);
             Statement { kind: StatementKind::Error, span: self.span_at_previous_token_end() }
         }
     }

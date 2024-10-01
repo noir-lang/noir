@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
         if let Some(expr) = self.parse_expression_impl(allow_constructors) {
             expr
         } else {
-            self.push_expected_expression_after_this_error();
+            self.push_expected_expression();
             Expression { kind: ExpressionKind::Error, span: self.span_at_previous_token_end() }
         }
     }
@@ -48,10 +48,7 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self.parse_term(allow_constructors) else {
-                self.push_error(
-                    ParserErrorReason::ExpectedExpressionAfterThis,
-                    self.previous_token_span,
-                );
+                self.expected_label(ParsingRuleLabel::Expression);
                 return None;
             };
             let kind = ExpressionKind::prefix(operator, rhs);
@@ -376,10 +373,7 @@ impl<'a> Parser<'a> {
             } else if let Some(if_expr) = self.parse_if_expr() {
                 Some(Expression { kind: if_expr, span: self.span_since(start_span) })
             } else {
-                self.push_error(
-                    ParserErrorReason::ExpectedLeftBraceOfIfAfterElse,
-                    self.current_token_span,
-                );
+                self.expected_token(Token::LeftBrace);
                 None
             }
         } else {
@@ -502,7 +496,7 @@ impl<'a> Parser<'a> {
             self.next_token();
 
             return Some(ExpressionKind::Literal(Literal::Slice(
-                self.parse_array_literal(true).unwrap(),
+                self.parse_array_literal().unwrap(),
             )));
         }
 
@@ -514,11 +508,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_array_expression(&mut self) -> Option<ExpressionKind> {
-        self.parse_array_literal(false)
+        self.parse_array_literal()
             .map(|array_literal| ExpressionKind::Literal(Literal::Array(array_literal)))
     }
 
-    fn parse_array_literal(&mut self, is_slice: bool) -> Option<ArrayLiteral> {
+    fn parse_array_literal(&mut self) -> Option<ArrayLiteral> {
         if !self.eat_left_bracket() {
             return None;
         }
@@ -534,19 +528,7 @@ impl<'a> Parser<'a> {
 
         if self.eat_semicolon() {
             let length = self.parse_expression_or_error();
-            if !self.eat_right_bracket() {
-                if is_slice {
-                    self.push_error(
-                        ParserErrorReason::ExpectedBracketAfterSlice,
-                        self.current_token_span,
-                    );
-                } else {
-                    self.push_error(
-                        ParserErrorReason::ExpectedBracketAfterArray,
-                        self.current_token_span,
-                    );
-                }
-            }
+            self.eat_or_error(Token::RightBracket);
             return Some(ArrayLiteral::Repeated {
                 repeated_element: Box::new(first_expr),
                 length: Box::new(length),
@@ -592,10 +574,7 @@ impl<'a> Parser<'a> {
         loop {
             let start_span = self.current_token_span;
             let Some(expr) = self.parse_expression() else {
-                self.push_error(
-                    ParserErrorReason::ExpectedExpressionAfterThis,
-                    self.previous_token_span,
-                );
+                self.expected_label(ParsingRuleLabel::Expression);
                 self.eat_right_paren();
                 break;
             };
@@ -657,8 +636,8 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub(super) fn push_expected_expression_after_this_error(&mut self) {
-        self.push_error(ParserErrorReason::ExpectedExpressionAfterThis, self.previous_token_span);
+    pub(super) fn push_expected_expression(&mut self) {
+        self.expected_label(ParsingRuleLabel::Expression);
     }
 }
 
@@ -672,7 +651,10 @@ mod tests {
             UnresolvedTypeData,
         },
         parser::{
-            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
+            },
             Parser, ParserErrorReason,
         },
     };
@@ -900,14 +882,14 @@ mod tests {
     #[test]
     fn parses_unclosed_parentheses() {
         let src = "
-        (
-        ^
+        ( 
+         ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedExpressionAfterThis));
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected an expression but found end of input");
     }
 
     #[test]
@@ -1354,14 +1336,14 @@ mod tests {
     #[test]
     fn parses_cast_missing_type() {
         let src = "
-        1 as
-          ^^
+        1 as 
+            ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedTypeAfterThis));
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a type but found end of input");
     }
 
     #[test]

@@ -6,7 +6,7 @@ use crate::{
         UnresolvedTypeData,
     },
     parser::ParserErrorReason,
-    token::Attribute,
+    token::{Attribute, Token},
 };
 
 use super::Parser;
@@ -48,11 +48,8 @@ impl<'a> Parser<'a> {
             Expression { kind: ExpressionKind::Error, span: Span::default() }
         };
 
-        if !self.eat_semicolon() {
-            self.push_error(
-                ParserErrorReason::ExpectedSemicolonAfterGlobal,
-                self.current_token_span,
-            );
+        if !self.eat_semicolons() {
+            self.expected_token(Token::Semicolon);
         }
 
         LetStatement { pattern, r#type: typ, expression, attributes, comptime }
@@ -74,7 +71,10 @@ mod tests {
         parser::{
             parser::{
                 parse_program,
-                tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
+                tests::{
+                    expect_no_errors, get_single_error, get_single_error_reason,
+                    get_source_with_error_span,
+                },
             },
             ItemKind, ParserErrorReason,
         },
@@ -167,12 +167,12 @@ mod tests {
     #[test]
     fn parse_global_no_semicolon() {
         let src = "
-        global foo = 1
-                     ^
+        global foo = 1 
+                      ^ 
         ";
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedSemicolonAfterGlobal));
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a ; but found end of input");
     }
 }

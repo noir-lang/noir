@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
                     );
                 }
                 None => {
-                    self.push_expected_expression_after_this_error();
+                    self.push_expected_expression();
                 }
             }
         }
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
                     );
                 }
                 None => {
-                    self.push_expected_expression_after_this_error();
+                    self.push_expected_expression();
                     break;
                 }
             }
@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
                     ))
                 }
                 None => {
-                    self.push_expected_expression_after_this_error();
+                    self.push_expected_expression();
                     None
                 }
             };
@@ -257,7 +257,7 @@ impl<'a> Parser<'a> {
                     Some(UnresolvedType { typ, span })
                 }
                 None => {
-                    self.push_expected_expression_after_this_error();
+                    self.push_expected_expression();
                     None
                 }
             };
@@ -351,9 +351,10 @@ impl<'a> Parser<'a> {
     fn expected_type_expression_after_this(
         &mut self,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
-        Err(ParserError::with_reason(
-            ParserErrorReason::ExpectedTypeExpressionAfterThis,
-            self.previous_token_span,
+        Err(ParserError::expected_label(
+            ParsingRuleLabel::TypeExpression,
+            self.token.token().clone(),
+            self.current_token_span,
         ))
     }
 }

@@ -1,4 +1,7 @@
-use crate::{ast::ItemVisibility, parser::ParserErrorReason, token::Keyword};
+use crate::{
+    ast::ItemVisibility,
+    token::{Keyword, Token},
+};
 
 use super::Parser;
 
@@ -15,18 +18,12 @@ impl<'a> Parser<'a> {
 
         if !self.eat_keyword(Keyword::Crate) {
             // `pub(` or `pub()`
-            self.push_error(ParserErrorReason::ExpectedCrateAfterPub, self.current_token_span);
+            self.expected_token(Token::Keyword(Keyword::Crate));
             self.eat_right_paren();
             return ItemVisibility::Public;
         }
 
-        if !self.eat_right_paren() {
-            // `pub(crate`
-            self.push_error(
-                ParserErrorReason::ExpectedParenAfterPubCrate,
-                self.previous_token_span,
-            );
-        }
+        self.eat_or_error(Token::RightParen);
 
         // `pub(crate)``
         ItemVisibility::PublicCrate
@@ -38,8 +35,8 @@ mod tests {
     use crate::{
         ast::ItemVisibility,
         parser::{
-            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
-            Parser, ParserErrorReason,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            Parser,
         },
     };
 
@@ -64,15 +61,15 @@ mod tests {
     #[test]
     fn parses_public_visibility_unclosed_parentheses() {
         let src = "
-        pub(
-           ^
+        pub( 
+            ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedCrateAfterPub));
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a crate but found end of input");
     }
 
     #[test]
@@ -85,21 +82,21 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedCrateAfterPub));
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a crate but found hello");
     }
     #[test]
     fn parses_public_visibility_missing_paren_after_pub_crate() {
         let src = "
-        pub(crate
-            ^^^^^
+        pub(crate 
+                 ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::PublicCrate);
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedParenAfterPubCrate));
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a ) but found end of input");
     }
 
     #[test]

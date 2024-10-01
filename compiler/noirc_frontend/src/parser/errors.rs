@@ -48,42 +48,10 @@ pub enum ParserErrorReason {
     MissingTypeForFunctionParameter,
     #[error("Missing type for numeric generic")]
     MissingTypeForNumericGeneric,
-    #[error("Expected `)`")]
-    ExpectedRightParen,
-    #[error("Expected `(`")]
-    ExpectedLeftParen,
-    #[error("Expected an integer")]
-    ExpectedInteger,
-    #[error("Expected `crate` after `pub`")]
-    ExpectedCrateAfterPub,
-    #[error("Expected `)` after `pub(crate`")]
-    ExpectedParenAfterPubCrate,
     #[error("Expected a function body (`{{ ... }}`), not `;`")]
     ExpectedFunctionBody,
     #[error("Expected the global to have a value")]
     GlobalWithoutValue,
-    #[error("Expected `;` after a global declaration")]
-    ExpectedSemicolonAfterGlobal,
-    #[error("Expected `]` after slice type")]
-    ExpectedBracketAfterSliceType,
-    #[error("Expected `]` after array type")]
-    ExpectedBracketAfterArrayType,
-    #[error("Expected `]` after array")]
-    ExpectedBracketAfterArray,
-    #[error("Expected `]` after slice")]
-    ExpectedBracketAfterSlice,
-    #[error("Expected `>` after str type length")]
-    ExpectedGreaterAfterStringTypeLength,
-    #[error("Expected `{{` or `if` after `else`")]
-    ExpectedLeftBraceOfIfAfterElse,
-    #[error("Expected a type after this")]
-    ExpectedTypeAfterThis,
-    #[error("Expected an expression after this")]
-    ExpectedExpressionAfterThis,
-    #[error("Expected a statement after this")]
-    ExpectedStatementAfterThis,
-    #[error("Expected a type expression after this")]
-    ExpectedTypeExpressionAfterThis,
 
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
