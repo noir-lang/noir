@@ -106,7 +106,7 @@ fn check_for_constant_jmpif(
             let call_stack = call_stack.clone();
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
-            cfg.recompute_block(function, block);
+            cfg.recompute_block(function, block, true);
         }
     }
 }
@@ -171,9 +171,9 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
         };
 
         function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);
-        cfg.recompute_block(function, predecessor_block);
+        cfg.recompute_block(function, predecessor_block, false);
     }
-    cfg.recompute_block(function, block);
+    cfg.recompute_block(function, block, false);
 }
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
@@ -221,8 +221,8 @@ fn try_inline_into_predecessor(
         drop(successors);
         function.dfg.inline_block(block, predecessor);
 
-        cfg.recompute_block(function, block);
-        cfg.recompute_block(function, predecessor);
+        cfg.recompute_block(function, block, false);
+        cfg.recompute_block(function, predecessor, false);
         true
     } else {
         false
