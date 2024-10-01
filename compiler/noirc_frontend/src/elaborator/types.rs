@@ -1571,10 +1571,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
             }
             ImplSearchErrorKind::Nested(constraints) => {
-                // TODO cleanup
-                // if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
-                if let Some(error) =
-                    NoMatchingImplFoundError::new(self.interner, constraints.clone(), span)
+                if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
                 {
                     self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
