@@ -3,17 +3,18 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::{UnresolvedType, ERROR_IDENT},
+    ast::{
+        Expression, ExpressionKind, Ident, Path, Pattern, TypePath, UnresolvedType, ERROR_IDENT,
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirIdent, ImplKind},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind},
         stmt::HirPattern,
     },
-    macros_api::{HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
     ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
@@ -26,6 +27,7 @@ impl<'context> Elaborator<'context> {
         pattern: Pattern,
         expected_type: Type,
         definition_kind: DefinitionKind,
+        warn_if_unused: bool,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -33,6 +35,7 @@ impl<'context> Elaborator<'context> {
             definition_kind,
             None,
             &mut Vec::new(),
+            warn_if_unused,
             None,
         )
     }
@@ -45,6 +48,7 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
         global_id: Option<GlobalId>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -53,10 +57,12 @@ impl<'context> Elaborator<'context> {
             definition_kind,
             None,
             created_ids,
+            warn_if_unused,
             global_id,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -64,6 +70,7 @@ impl<'context> Elaborator<'context> {
         definition: DefinitionKind,
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
         global_id: Option<GlobalId>,
     ) -> HirPattern {
         match pattern {
@@ -80,7 +87,13 @@ impl<'context> Elaborator<'context> {
                     let location = Location::new(name.span(), self.file);
                     HirIdent::non_trait_method(id, location)
                 } else {
-                    self.add_variable_decl(name, mutable.is_some(), true, definition)
+                    self.add_variable_decl(
+                        name,
+                        mutable.is_some(),
+                        true, // allow_shadowing
+                        warn_if_unused,
+                        definition,
+                    )
                 };
                 self.interner.push_definition_type(ident.id, expected_type);
                 new_definitions.push(ident.clone());
@@ -97,6 +110,7 @@ impl<'context> Elaborator<'context> {
                     definition,
                     Some(span),
                     new_definitions,
+                    warn_if_unused,
                     global_id,
                 );
                 let location = Location::new(span, self.file);
@@ -128,6 +142,7 @@ impl<'context> Elaborator<'context> {
                         definition.clone(),
                         mutable,
                         new_definitions,
+                        warn_if_unused,
                         global_id,
                     )
                 });
@@ -143,6 +158,18 @@ impl<'context> Elaborator<'context> {
                 mutable,
                 new_definitions,
             ),
+            Pattern::Interned(id, _) => {
+                let pattern = self.interner.get_pattern(id).clone();
+                self.elaborate_pattern_mut(
+                    pattern,
+                    expected_type,
+                    definition,
+                    mutable,
+                    new_definitions,
+                    warn_if_unused,
+                    global_id,
+                )
+            }
         }
     }
 
@@ -169,7 +196,7 @@ impl<'context> Elaborator<'context> {
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
             // multiple times.
             let name = ERROR_IDENT.into();
-            let identifier = this.add_variable_decl(name, false, true, definition.clone());
+            let identifier = this.add_variable_decl(name, false, true, true, definition.clone());
             HirPattern::Identifier(identifier)
         };
 
@@ -177,6 +204,7 @@ impl<'context> Elaborator<'context> {
             Some(Type::Struct(struct_type, generics)) => (struct_type, generics),
             None => return error_identifier(self),
             Some(typ) => {
+                let typ = typ.to_string();
                 self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
                 return error_identifier(self);
             }
@@ -251,6 +279,7 @@ impl<'context> Elaborator<'context> {
                 definition.clone(),
                 mutable,
                 new_definitions,
+                true, // warn_if_unused
                 None,
             );
 
@@ -283,16 +312,6 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn add_variable_decl(
-        &mut self,
-        name: Ident,
-        mutable: bool,
-        allow_shadowing: bool,
-        definition: DefinitionKind,
-    ) -> HirIdent {
-        self.add_variable_decl_inner(name, mutable, allow_shadowing, true, definition)
-    }
-
-    pub fn add_variable_decl_inner(
         &mut self,
         name: Ident,
         mutable: bool,
@@ -502,15 +521,6 @@ impl<'context> Elaborator<'context> {
         let typ = self.type_check_variable(expr, id, generics);
         self.interner.push_expr_type(id, typ.clone());
 
-        // Comptime variables must be replaced with their values
-        if let Some(definition) = self.interner.try_definition(definition_id) {
-            if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter = self.setup_interpreter();
-                let value = interpreter.evaluate(id);
-                return self.inline_comptime_value(value, span);
-            }
-        }
-
         (id, typ)
     }
 
@@ -548,7 +558,7 @@ impl<'context> Elaborator<'context> {
 
                         self.interner.add_global_reference(global_id, hir_ident.location);
                     }
-                    DefinitionKind::GenericType(_) => {
+                    DefinitionKind::NumericGeneric(_) => {
                         // Initialize numeric generics to a polymorphic integer type in case
                         // they're used in expressions. We must do this here since type_check_variable
                         // does not check definition kinds and otherwise expects parameters to
@@ -585,25 +595,7 @@ impl<'context> Elaborator<'context> {
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
         if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
-            let the_trait = self.interner.get_trait(constraint.trait_id);
-            assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
-
-            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
-                // Avoid binding t = t
-                if !arg.occurs(param.type_var.id()) {
-                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
-                }
-            }
-
-            // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-            // Otherwise `self` will be replaced with a fresh type variable, which will require the user
-            // to specify a redundant type annotation.
-            if *assumed {
-                bindings.insert(
-                    the_trait.self_type_typevar_id,
-                    (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
-                );
-            }
+            self.bind_generics_from_trait_constraint(constraint, *assumed, &mut bindings);
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
@@ -622,6 +614,7 @@ impl<'context> Elaborator<'context> {
 
         let span = self.interner.expr_span(&expr_id);
         let location = self.interner.expr_location(&expr_id);
+
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
@@ -643,10 +636,9 @@ impl<'context> Elaborator<'context> {
         if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
             constraint.apply_bindings(&bindings);
             if assumed {
-                let trait_impl = TraitImplKind::Assumed {
-                    object_type: constraint.typ,
-                    trait_generics: constraint.trait_generics,
-                };
+                let trait_generics = constraint.trait_generics.clone();
+                let object_type = constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);
             } else {
                 // Currently only one impl can be selected per expr_id, so this
@@ -711,5 +703,44 @@ impl<'context> Elaborator<'context> {
         self.push_err(error);
         let id = DefinitionId::dummy_id();
         (HirIdent::non_trait_method(id, location), 0)
+    }
+
+    pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
+        let span = path.item.span();
+        let typ = self.resolve_type(path.typ);
+
+        let Some(method) = self.lookup_method(&typ, &path.item.0.contents, span, false) else {
+            let error = Expression::new(ExpressionKind::Error, span);
+            return self.elaborate_expression(error);
+        };
+
+        let func_id = method
+            .func_id(self.interner)
+            .expect("Expected trait function to be a DefinitionKind::Function");
+
+        let generics = self.resolve_type_args(path.turbofish, func_id, span).0;
+        let generics = (!generics.is_empty()).then_some(generics);
+
+        let location = Location::new(span, self.file);
+        let id = self.interner.function_definition_id(func_id);
+
+        let impl_kind = match method {
+            HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
+            HirMethodReference::TraitMethodId(method_id, generics) => {
+                let mut constraint =
+                    self.interner.get_trait(method_id.trait_id).as_constraint(span);
+                constraint.trait_generics = generics;
+                ImplKind::TraitMethod(method_id, constraint, false)
+            }
+        };
+
+        let ident = HirIdent { location, id, impl_kind };
+        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
+        self.interner.push_expr_location(id, location.span, location.file);
+
+        let typ = self.type_check_variable(ident, id, generics);
+        self.interner.push_expr_type(id, typ.clone());
+
+        (id, typ)
     }
 }

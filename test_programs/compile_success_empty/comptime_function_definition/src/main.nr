@@ -3,10 +3,15 @@ use std::meta::type_of;
 struct Foo { x: Field, field: Field }
 
 #[function_attr]
-fn foo(w: i32, y: Field, Foo { x, field: some_field }: Foo, mut a: bool, (b, c): (i32, i32)) -> i32 {
+pub fn foo(w: i32, y: Field, Foo { x, field: some_field }: Foo, mut a: bool, (b, c): (i32, i32)) -> i32 {
     let _ = (w, y, x, some_field, a, b, c);
     1
 }
+
+#[test]
+#[deprecated]
+#[check_named_attribute]
+fn some_test() {}
 
 comptime fn function_attr(f: FunctionDefinition) {
     // Check FunctionDefinition::parameters
@@ -32,6 +37,13 @@ comptime fn function_attr(f: FunctionDefinition) {
 
     // Check FunctionDefinition::name
     assert_eq(f.name(), quote { foo });
+
+    assert(f.has_named_attribute("function_attr"));
+}
+
+comptime fn check_named_attribute(f: FunctionDefinition) {
+    assert(f.has_named_attribute("test"));
+    assert(f.has_named_attribute("deprecated"));
 }
 
 #[mutate_add_one]
@@ -49,9 +61,38 @@ comptime fn mutate_add_one(f: FunctionDefinition) {
     assert_eq(f.return_type(), type_of(0));
 
     // fn add_one(x: Field) -> Field { x + 1 }
-    f.set_body(quote { x + 1 });
+    f.set_body(quote { x + 1 }.as_expr().unwrap());
 }
 
 fn main() {
     assert_eq(add_one(41), 42);
+}
+
+contract some_contract {
+    // No pub on the return type is an error
+    #[super::set_pub_return]
+    pub fn bar() -> Field {
+        1
+    }
+}
+
+comptime fn set_pub_return(f: FunctionDefinition) {
+    f.set_return_public(true);
+}
+
+mod foo {
+    #[attr]
+    pub fn some() {}
+
+    comptime fn attr(f: FunctionDefinition) {
+        assert_eq(f.module().name(), quote { foo });
+
+        assert(!f.is_unconstrained());
+
+        f.set_unconstrained(true);
+        assert(f.is_unconstrained());
+
+        f.set_unconstrained(false);
+        assert(!f.is_unconstrained());
+    }
 }

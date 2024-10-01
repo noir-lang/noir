@@ -3,4 +3,4 @@ export { BarretenbergVerifier, UltraHonkVerifier } from './verifier.js';
 
 // typedoc exports
 export { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
-export { BackendOptions } from './types.js';
+export { BackendOptions } from '@aztec/bb.js';

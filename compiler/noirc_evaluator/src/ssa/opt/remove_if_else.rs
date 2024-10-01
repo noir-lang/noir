@@ -28,14 +28,20 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_if_else(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            // This should match the check in flatten_cfg
-            if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
-                continue;
-            }
-
-            Context::default().remove_if_else(function);
+            function.remove_if_else();
         }
         self
+    }
+}
+
+impl Function {
+    pub(crate) fn remove_if_else(&mut self) {
+        // This should match the check in flatten_cfg
+        if let crate::ssa::ir::function::RuntimeType::Brillig = self.runtime() {
+            // skip
+        } else {
+            Context::default().remove_if_else(self);
+        }
     }
 }
 
@@ -128,7 +134,7 @@ impl Context {
                     self.slice_sizes.insert(result, old_capacity);
                     function.dfg[block].instructions_mut().push(instruction);
                 }
-                Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffectsIf { condition } => {
                     current_conditional = *condition;
                     function.dfg[block].instructions_mut().push(instruction);
                 }
@@ -203,18 +209,6 @@ fn slice_capacity_change(
             SizeChange::Dec { old, new }
         }
 
-        Intrinsic::ToBits(_) => {
-            assert_eq!(results.len(), 2);
-            // Some tests fail this check, returning an array instead somehow:
-            // assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], FieldElement::max_num_bits() as usize)
-        }
-        // ToRadix seems to assume it is to bytes
-        Intrinsic::ToRadix(_) => {
-            assert_eq!(results.len(), 2);
-            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], FieldElement::max_num_bytes() as usize)
-        }
         Intrinsic::AsSlice => {
             assert_eq!(arguments.len(), 1);
             assert_eq!(results.len(), 2);
@@ -238,6 +232,8 @@ fn slice_capacity_change(
         | Intrinsic::AsField
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
-        | Intrinsic::DerivePedersenGenerators => SizeChange::None,
+        | Intrinsic::DerivePedersenGenerators
+        | Intrinsic::ToBits(_)
+        | Intrinsic::ToRadix(_) => SizeChange::None,
     }
 }

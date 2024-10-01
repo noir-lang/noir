@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -23,6 +26,12 @@ serde_json.workspace = true
 serde_with = "3.2.0"
 tracing.workspace = true
 chrono = "0.4.37"
+rayon.workspace = true
+cfg-if.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+
+[features]
+bn254 = ["noirc_frontend/bn254"]
+bls12_381= []

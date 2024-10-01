@@ -12,7 +12,7 @@ trait Deserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
-global AZTEC_ADDRESS_LENGTH = 1;
+global AZTEC_ADDRESS_LENGTH: u32 = 1;
 
 struct AztecAddress {
     inner : Field
@@ -44,7 +44,7 @@ struct MyStruct<T> {
 
 impl<T> Deserialize<1> for MyStruct<T> where T: FromField {
     fn deserialize(fields: [Field; 1]) -> Self {
-        Self{ a: FromField::from_field(fields[0]) }
+        Self { a: FromField::from_field(fields[0]) }
     }
 }
 

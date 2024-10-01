@@ -2,7 +2,7 @@ use iter_extended::vecmap;
 
 use crate::{
     brillig::brillig_ir::{
-        artifact::{BrilligParameter, Label},
+        artifact::BrilligParameter,
         brillig_variable::{get_bit_size_from_ssa_type, BrilligVariable},
     },
     ssa::ir::{
@@ -15,7 +15,7 @@ use crate::{
 };
 use fxhash::FxHashMap as HashMap;
 
-use super::variable_liveness::VariableLiveness;
+use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
@@ -25,6 +25,8 @@ pub(crate) struct FunctionContext {
     pub(crate) blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
     pub(crate) liveness: VariableLiveness,
+    /// Information on where to allocate constants
+    pub(crate) constant_allocation: ConstantAllocation,
 }
 
 impl FunctionContext {
@@ -36,17 +38,16 @@ impl FunctionContext {
         reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
         reverse_post_order.reverse();
 
+        let constants = ConstantAllocation::from_function(function);
+        let liveness = VariableLiveness::from_function(function, &constants);
+
         Self {
             function_id: id,
             ssa_value_allocations: HashMap::default(),
             blocks: reverse_post_order,
-            liveness: VariableLiveness::from_function(function),
+            liveness,
+            constant_allocation: constants,
         }
-    }
-
-    /// Creates a function label from a given SSA function id.
-    pub(crate) fn function_id_to_function_label(function_id: FunctionId) -> Label {
-        function_id.to_string()
     }
 
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {

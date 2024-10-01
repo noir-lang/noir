@@ -142,13 +142,12 @@ impl DebugInstrumenter {
             None => false,
             Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
                 let save_ret_expr = ast::Statement {
-                    kind: ast::StatementKind::Let(ast::LetStatement {
-                        pattern: ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
-                        r#type: ast::UnresolvedType::unspecified(),
-                        expression: ret_expr.clone(),
-                        comptime: false,
-                        attributes: vec![],
-                    }),
+                    kind: ast::StatementKind::new_let(
+                        ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
+                        ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        ret_expr.clone(),
+                        vec![],
+                    ),
                     span: ret_expr.span,
                 };
                 statements.push(save_ret_expr);
@@ -242,18 +241,17 @@ impl DebugInstrumenter {
         });
 
         ast::Statement {
-            kind: ast::StatementKind::Let(ast::LetStatement {
-                pattern: ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
-                r#type: ast::UnresolvedType::unspecified(),
-                comptime: false,
-                expression: ast::Expression {
+            kind: ast::StatementKind::new_let(
+                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
+                ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: block_stmts,
                     }),
                     span: let_stmt.expression.span,
                 },
-                attributes: vec![],
-            }),
+                vec![],
+            ),
             span: *span,
         }
     }
@@ -274,13 +272,12 @@ impl DebugInstrumenter {
         //   __debug_expr
         // };
 
-        let let_kind = ast::StatementKind::Let(ast::LetStatement {
-            pattern: ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
-            r#type: ast::UnresolvedType::unspecified(),
-            expression: assign_stmt.expression.clone(),
-            comptime: false,
-            attributes: vec![],
-        });
+        let let_kind = ast::StatementKind::new_let(
+            ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
+            ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+            assign_stmt.expression.clone(),
+            vec![],
+        );
         let expression_span = assign_stmt.expression.span;
         let new_assign_stmt = match &assign_stmt.lvalue {
             ast::LValue::Ident(id) => {
@@ -320,6 +317,9 @@ impl DebugInstrumenter {
                             indexes.push(index.clone());
                         }
                         ast::LValue::Dereference(_ref, _span) => {
+                            unimplemented![]
+                        }
+                        ast::LValue::Interned(..) => {
                             unimplemented![]
                         }
                     }
@@ -493,7 +493,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_assign_oracle(var_id, value);
             }
             pub fn __debug_var_assign<T>(var_id: u32, value: T) {
-                __debug_var_assign_inner(var_id, value);
+                unsafe {{
+                    __debug_var_assign_inner(var_id, value);
+                }}
             }
 
             #[oracle(__debug_var_drop)]
@@ -502,7 +504,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_drop_oracle(var_id);
             }
             pub fn __debug_var_drop(var_id: u32) {
-                __debug_var_drop_inner(var_id);
+                unsafe {{
+                    __debug_var_drop_inner(var_id);
+                }}
             }
 
             #[oracle(__debug_fn_enter)]
@@ -511,7 +515,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_enter_oracle(fn_id);
             }
             pub fn __debug_fn_enter(fn_id: u32) {
-                __debug_fn_enter_inner(fn_id);
+                unsafe {{
+                    __debug_fn_enter_inner(fn_id);
+                }}
             }
 
             #[oracle(__debug_fn_exit)]
@@ -520,7 +526,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_exit_oracle(fn_id);
             }
             pub fn __debug_fn_exit(fn_id: u32) {
-                __debug_fn_exit_inner(fn_id);
+                unsafe {{
+                    __debug_fn_exit_inner(fn_id);
+                }}
             }
 
             #[oracle(__debug_dereference_assign)]
@@ -529,7 +537,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_dereference_assign_oracle(var_id, value);
             }
             pub fn __debug_dereference_assign<T>(var_id: u32, value: T) {
-                __debug_dereference_assign_inner(var_id, value);
+                unsafe {{
+                    __debug_dereference_assign_inner(var_id, value);
+                }}
             }
         "#
         .to_string(),
@@ -553,7 +563,9 @@ pub fn build_debug_crate_file() -> String {
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
                 pub fn __debug_member_assign_{n}<T, Index>(var_id: u32, value: T, {var_sig}) {{
-                    __debug_inner_member_assign_{n}(var_id, value, {vars});
+                    unsafe {{
+                        __debug_inner_member_assign_{n}(var_id, value, {vars});
+                    }}
                 }}
 
             "#
@@ -666,6 +678,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
                 stack.extend(pids.iter().map(|(_, pattern)| (pattern, is_mut)));
                 vars.extend(pids.iter().map(|(id, _)| (id.clone(), false)));
             }
+            ast::Pattern::Interned(_, _) => (),
         }
     }
     vars
@@ -692,6 +705,7 @@ fn pattern_to_string(pattern: &ast::Pattern) -> String {
                     .join(", "),
             )
         }
+        ast::Pattern::Interned(_, _) => "?Interned".to_string(),
     }
 }
 

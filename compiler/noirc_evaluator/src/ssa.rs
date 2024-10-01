@@ -64,6 +64,9 @@ pub struct SsaEvaluatorOptions {
 
     /// Dump the unoptimized SSA to the supplied path if it exists
     pub emit_ssa: Option<PathBuf>,
+
+    /// Skip the check for under constrained values
+    pub skip_underconstrained_check: bool,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -79,6 +82,7 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
+
     let mut ssa = SsaBuilder::new(
         program,
         options.enable_ssa_logging,
@@ -111,18 +115,26 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
     .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
-    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
+    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+    .run_pass(Ssa::simplify_cfg, "After Simplifying:")
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
-    let ssa_level_warnings = ssa.check_for_underconstrained_values();
+    let ssa_level_warnings = if options.skip_underconstrained_check {
+        vec![]
+    } else {
+        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
+            ssa.check_for_underconstrained_values()
+        })
+    };
+
+    drop(ssa_gen_span_guard);
+
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
-
-    drop(ssa_gen_span_guard);
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, options.expression_width)
@@ -151,6 +163,7 @@ pub struct SsaProgramArtifact {
     pub main_input_witnesses: Vec<Witness>,
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
+    pub brillig_names: Vec<String>,
     pub error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
@@ -167,6 +180,7 @@ impl SsaProgramArtifact {
             main_input_witnesses: Vec::default(),
             main_return_witnesses: Vec::default(),
             names: Vec::default(),
+            brillig_names: Vec::default(),
             error_types,
         }
     }
@@ -202,8 +216,10 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
-        optimize_into_acir(program, options)?;
+    let ArtifactsAndWarnings(
+        (generated_acirs, generated_brillig, brillig_function_names, error_types),
+        ssa_level_warnings,
+    ) = optimize_into_acir(program, options)?;
     if options.force_brillig_output {
         assert_eq!(
             generated_acirs.len(),
@@ -236,6 +252,7 @@ pub fn create_program(
         program_artifact.add_circuit(circuit_artifact, is_main);
         is_main = false;
     }
+    program_artifact.brillig_names = brillig_function_names;
 
     Ok(program_artifact)
 }
@@ -403,8 +420,9 @@ impl SsaBuilder {
         Ok(self.print(msg))
     }
 
-    fn print(self, msg: &str) -> Self {
+    fn print(mut self, msg: &str) -> Self {
         if self.print_ssa_passes {
+            self.ssa.normalize_ids();
             println!("{msg}\n{}", self.ssa);
         }
         self

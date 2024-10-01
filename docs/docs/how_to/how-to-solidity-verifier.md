@@ -57,6 +57,8 @@ bb contract
 replacing `<noir_artifact_name>` with the name of your Noir project. A new `contract` folder would then be generated in your project directory, containing the Solidity
 file `contract.sol`. It can be deployed to any EVM blockchain acting as a verifier smart contract.
 
+You can find more information about `bb` and the default Noir proving backend on [this page](../getting_started/hello_noir/index.md#proving-backend).
+
 :::info
 
 It is possible to generate verifier contracts of Noir programs for other smart contract platforms as long as the proving backend supplies an implementation.
@@ -133,7 +135,7 @@ function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) externa
 
 When using the default example in the [Hello Noir](../getting_started/hello_noir/index.md) guide, the easiest way to confirm that the verifier contract is doing its job is by calling the `verify` function via remix with the required parameters. Note that the public inputs must be passed in separately to the rest of the proof so we must split the proof as returned from `bb`.
 
-First generate a proof with `bb` at the location `./proof` using the steps in [get started](../getting_started/hello_noir/index.md), this proof is in a binary format but we want to convert it into a hex string to pass into Remix, this can be done with the 
+First generate a proof with `bb` at the location `./proof` using the steps in [get started](../getting_started/hello_noir/index.md), this proof is in a binary format but we want to convert it into a hex string to pass into Remix, this can be done with the
 
 ```bash
 # This value must be changed to match the number of public inputs (including return values!) in your program.
@@ -239,6 +241,12 @@ For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently suppo
 - Polygon PoS
 - Scroll
 - Celo
+- BSC
+- Blast L2
+- Avalanche C-Chain
+- Mode
+- Linea
+- Moonbeam
 
 If you test any other chains, please open a PR on this page to update the list. See [this doc](https://github.com/noir-lang/noir-starter/tree/main/with-foundry#testing-on-chain) for more info about testing verifier contracts on different EVM chains.
 

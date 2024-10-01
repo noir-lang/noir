@@ -9,8 +9,12 @@ use noirc_abi::{
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
-    hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern, types::Type},
-    macros_api::{HirExpression, HirLiteral},
+    hir_def::{
+        expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        function::Param,
+        stmt::HirPattern,
+        types::Type,
+    },
     node_interner::{FuncId, NodeInterner},
 };
 use noirc_frontend::{TypeBinding, TypeVariableKind};
@@ -99,7 +103,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         }
         Type::Error
         | Type::Unit
-        | Type::Constant(_)
+        | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::TraitAsType(..)
         | Type::TypeVariable(_, _)
@@ -107,7 +111,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         | Type::Forall(..)
         | Type::Quoted(_)
         | Type::Slice(_)
-        | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
+        | Type::Function(_, _, _, _) => unreachable!("{typ} cannot be used in the abi"),
         Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
         Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
     }

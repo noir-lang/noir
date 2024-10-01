@@ -6,13 +6,13 @@
 mod array_set;
 mod as_slice_length;
 mod assert_constant;
-mod bubble_up_constrains;
 mod constant_folding;
 mod defunctionalize;
 mod die;
 pub(crate) mod flatten_cfg;
 mod inlining;
 mod mem2reg;
+mod normalize_value_ids;
 mod rc;
 mod remove_bit_shifts;
 mod remove_enable_side_effects;

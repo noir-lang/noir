@@ -27,3 +27,11 @@ trait Trait {
 
 }
 
+use dependency::something;
+
+#[attr]
+pub fn foo() {}
+
+comptime fn attr(_: FunctionDefinition) -> Quoted {
+    quote { pub fn hello() {} }
+}

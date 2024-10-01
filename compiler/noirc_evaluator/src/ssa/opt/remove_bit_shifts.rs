@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, sync::Arc};
 
 use acvm::{acir::AcirField, FieldElement};
 
@@ -21,24 +21,30 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            remove_bit_shifts(function);
+            function.remove_bit_shifts();
         }
         self
     }
 }
 
-/// The structure of this pass is simple:
-/// Go through each block and re-insert all instructions.
-fn remove_bit_shifts(function: &mut Function) {
-    if let RuntimeType::Brillig = function.runtime() {
-        return;
+impl Function {
+    /// The structure of this pass is simple:
+    /// Go through each block and re-insert all instructions.
+    pub(crate) fn remove_bit_shifts(&mut self) {
+        if let RuntimeType::Brillig = self.runtime() {
+            return;
+        }
+
+        let block = self.entry_block();
+        let mut context = Context {
+            function: self,
+            new_instructions: Vec::new(),
+            block,
+            call_stack: CallStack::default(),
+        };
+
+        context.remove_bit_shifts();
     }
-
-    let block = function.entry_block();
-    let mut context =
-        Context { function, new_instructions: Vec::new(), block, call_stack: CallStack::default() };
-
-    context.remove_bit_shifts();
 }
 
 struct Context<'f> {
@@ -172,12 +178,10 @@ impl Context<'_> {
         let typ = self.function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-            let length = self.field_constant(FieldElement::from(bit_size as i128));
-            let result_types =
-                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
-            let rhs_bits = self.insert_call(to_bits, vec![rhs, length], result_types);
+            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size as usize)];
+            let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types);
 
-            let rhs_bits = rhs_bits[1];
+            let rhs_bits = rhs_bits[0];
             let one = self.field_constant(FieldElement::one());
             let mut r = one;
             for i in 1..bit_size + 1 {

@@ -2,7 +2,7 @@ use crate::hash::{Hash, Hasher};
 use crate::cmp::{Ordering, Ord, Eq};
 use crate::default::Default;
 
-struct Option<T> {
+pub struct Option<T> {
     _is_some: bool,
     _value: T,
 }
@@ -10,7 +10,7 @@ struct Option<T> {
 impl<T> Option<T> {
     /// Constructs a None value
     pub fn none() -> Self {
-        Self { _is_some: false, _value: crate::unsafe::zeroed() }
+        Self { _is_some: false, _value: crate::mem::zeroed() }
     }
 
     /// Constructs a Some wrapper around the given value
@@ -116,7 +116,7 @@ impl<T> Option<T> {
     }
 
     /// If self is Some, return self. Otherwise, return `default()`.
-    pub fn or_else<U, Env>(self, default: fn[Env]() -> Self) -> Self {
+    pub fn or_else<Env>(self, default: fn[Env]() -> Self) -> Self {
         if self._is_some { self } else { default() }
     }
 
@@ -195,12 +195,10 @@ impl<T> Ord for Option<T> where T: Ord {
             } else {
                 Ordering::greater()
             }
+        } else if other._is_some {
+            Ordering::less()
         } else {
-            if other._is_some {
-                Ordering::less()
-            } else {
-                Ordering::equal()
-            }
+            Ordering::equal()
         }
     }
 }

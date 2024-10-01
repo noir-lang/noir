@@ -7,7 +7,7 @@
 // - `T::empty().append(x) == x`
 // - `x.append(T::empty()) == x`
 // docs:start:append-trait
-trait Append {
+pub trait Append {
     fn empty() -> Self;
     fn append(self, other: Self) -> Self;
 }
@@ -25,11 +25,11 @@ impl<T> Append for [T] {
 }
 
 impl Append for Quoted {
-    fn empty() -> Self {
+    comptime fn empty() -> Self {
         quote {}
     }
 
-    fn append(self, other: Self) -> Self {
+    comptime fn append(self, other: Self) -> Self {
         quote { $self $other }
     }
 }

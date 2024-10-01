@@ -1,6 +1,7 @@
 use fxhash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeMap,
     hash::Hash,
     str::FromStr,
     sync::atomic::{AtomicUsize, Ordering},
@@ -27,7 +28,7 @@ impl<T> Id<T> {
     /// Constructs a new Id for the given index.
     /// This constructor is deliberately private to prevent
     /// constructing invalid IDs.
-    fn new(index: usize) -> Self {
+    pub(crate) fn new(index: usize) -> Self {
         Self { index, _marker: std::marker::PhantomData }
     }
 
@@ -50,7 +51,7 @@ impl<T> Id<T> {
 // Need to manually implement most impls on Id.
 // Otherwise rust assumes that Id<T>: Hash only if T: Hash,
 // which isn't true since the T is not used internally.
-impl<T> std::hash::Hash for Id<T> {
+impl<T> Hash for Id<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.index.hash(state);
     }
@@ -240,7 +241,7 @@ impl<T> std::ops::IndexMut<Id<T>> for DenseMap<T> {
 /// call to .remove().
 #[derive(Debug)]
 pub(crate) struct SparseMap<T> {
-    storage: HashMap<Id<T>, T>,
+    storage: BTreeMap<Id<T>, T>,
 }
 
 impl<T> SparseMap<T> {
@@ -271,11 +272,16 @@ impl<T> SparseMap<T> {
     pub(crate) fn remove(&mut self, id: Id<T>) -> Option<T> {
         self.storage.remove(&id)
     }
+
+    /// Unwraps the inner storage of this map
+    pub(crate) fn into_btree(self) -> BTreeMap<Id<T>, T> {
+        self.storage
+    }
 }
 
 impl<T> Default for SparseMap<T> {
     fn default() -> Self {
-        Self { storage: HashMap::default() }
+        Self { storage: Default::default() }
     }
 }
 
