@@ -294,7 +294,7 @@ mod tests {
         parser::{
             parser::{
                 parse_program,
-                tests::{get_single_error, get_source_with_error_span},
+                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             },
             ItemKind, ParserErrorReason,
         },
@@ -304,7 +304,7 @@ mod tests {
     fn parse_simple_function() {
         let src = "fn foo() {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Function(noir_function) = &item.kind else {
@@ -319,7 +319,7 @@ mod tests {
     fn parse_function_with_generics() {
         let src = "fn foo<A>() {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Function(noir_function) = &item.kind else {
@@ -332,7 +332,7 @@ mod tests {
     fn parse_function_with_arguments() {
         let src = "fn foo(x: Field, y: Field) {}";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Function(mut noir_function) = item.kind else {
@@ -355,7 +355,7 @@ mod tests {
     fn parse_function_with_argument_pub_visibility() {
         let src = "fn foo(x: pub Field) {}";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Function(mut noir_function) = item.kind else {
@@ -373,7 +373,7 @@ mod tests {
     fn parse_function_with_argument_return_data_visibility() {
         let src = "fn foo(x: return_data Field) {}";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Function(mut noir_function) = item.kind else {
@@ -389,7 +389,7 @@ mod tests {
     fn parse_function_with_argument_call_data_visibility() {
         let src = "fn foo(x: call_data(42) Field) {}";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Function(mut noir_function) = item.kind else {
@@ -405,7 +405,7 @@ mod tests {
     fn parse_function_return_type() {
         let src = "fn foo() -> Field {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Function(noir_function) = &item.kind else {
@@ -419,7 +419,7 @@ mod tests {
     fn parse_function_return_visibility() {
         let src = "fn foo() -> pub Field {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Function(noir_function) = &item.kind else {

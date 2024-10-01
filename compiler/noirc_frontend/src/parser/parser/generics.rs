@@ -5,7 +5,7 @@ use crate::{
         GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedType, UnresolvedTypeData,
     },
-    parser::ParserErrorReason,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
 };
 
@@ -139,7 +139,9 @@ impl<'a> Parser<'a> {
             } else {
                 let typ = self.parse_type_or_type_expression();
                 let Some(typ) = typ else {
-                    // TODO: error? (not sure if this is `<>` so test that)
+                    if generic_type_args.is_empty() {
+                        self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
+                    }
                     self.eat_greater();
                     break;
                 };
@@ -170,7 +172,7 @@ mod tests {
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
         parser::{
-            parser::tests::{get_single_error, get_source_with_error_span},
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
         },
     };
@@ -187,7 +189,7 @@ mod tests {
         let src = "<A, let B: u32>";
         let mut parser = Parser::for_str(src);
         let mut generics = parser.parse_generics();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(generics.len(), 2);
 
         let generic = generics.remove(0);
@@ -212,7 +214,7 @@ mod tests {
         let src = "1";
         let mut parser = Parser::for_str(src);
         let generics = parser.parse_generic_type_args();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert!(generics.is_empty());
     }
 
@@ -221,7 +223,7 @@ mod tests {
         let src = "<i32, X = Field>";
         let mut parser = Parser::for_str(src);
         let generics = parser.parse_generic_type_args();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "i32");
@@ -235,7 +237,7 @@ mod tests {
         let src = "<foo::Bar>";
         let mut parser = Parser::for_str(src);
         let generics = parser.parse_generic_type_args();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "foo::Bar");
@@ -247,7 +249,7 @@ mod tests {
         let src = "<1>";
         let mut parser = Parser::for_str(src);
         let generics = parser.parse_generic_type_args();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "1");

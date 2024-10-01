@@ -38,14 +38,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::Parser;
+    use crate::parser::{parser::tests::expect_no_errors, Parser};
 
     #[test]
     fn parses_inner_doc_comments() {
         let src = "//! Hello\n//! World";
         let mut parser = Parser::for_str(src);
         let comments = parser.parse_inner_doc_comments();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
         assert_eq!(comments[0], " Hello");
         assert_eq!(comments[1], " World");
@@ -56,7 +56,7 @@ mod tests {
         let src = "/// Hello\n/// World";
         let mut parser = Parser::for_str(src);
         let comments = parser.parse_outer_doc_comments();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
         assert_eq!(comments[0], " Hello");
         assert_eq!(comments[1], " World");

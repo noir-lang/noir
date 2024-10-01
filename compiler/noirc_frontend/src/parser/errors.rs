@@ -35,6 +35,14 @@ pub enum ParserErrorReason {
     ComptimeNotApplicable,
     #[error("`unconstrained` cannot be applied to this item")]
     UnconstrainedNotApplicable,
+    #[error("Expected an identifier or `(expression) after `$` for unquoting")]
+    ExpectedIdentifierOrLeftParenAfterDollar,
+    #[error("`&mut` can only be used with `self")]
+    RefMutCanOnlyBeUsedWithSelf,
+    #[error("Invalid pattern")]
+    InvalidPattern,
+    #[error("Documentation comment does not document anything")]
+    DocCommentDoesNotDocumentAnything,
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,

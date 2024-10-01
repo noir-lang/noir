@@ -5,7 +5,7 @@ use crate::{
         Documented, Ident, ItemVisibility, NoirTrait, Pattern, TraitItem, UnresolvedType,
         UnresolvedTypeData,
     },
-    parser::labels::ParsingRuleLabel,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Attribute, Keyword, SecondaryAttribute, Token},
 };
 
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
                 if let Pattern::Identifier(ident) = param.pattern {
                     Some((ident, param.typ))
                 } else {
-                    // TODO: error (expected a pattern identifier)
+                    self.push_error(ParserErrorReason::InvalidPattern, param.pattern.span());
                     None
                 }
             })
@@ -198,14 +198,17 @@ fn empty_trait(
 mod tests {
     use crate::{
         ast::TraitItem,
-        parser::{parser::parse_program, ItemKind},
+        parser::{
+            parser::{parse_program, tests::expect_no_errors},
+            ItemKind,
+        },
     };
 
     #[test]
     fn parse_empty_trait() {
         let src = "trait Foo {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Trait(noir_trait) = &item.kind else {
@@ -221,7 +224,7 @@ mod tests {
     fn parse_trait_with_generics() {
         let src = "trait Foo<A, B> {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Trait(noir_trait) = &item.kind else {
@@ -237,7 +240,7 @@ mod tests {
     fn parse_trait_with_where_clause() {
         let src = "trait Foo<A, B> where A: Z {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Trait(noir_trait) = &item.kind else {
@@ -253,7 +256,7 @@ mod tests {
     fn parse_trait_with_type() {
         let src = "trait Foo { type Elem; }";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Trait(mut noir_trait) = item.kind else {
@@ -272,7 +275,7 @@ mod tests {
     fn parse_trait_with_constant() {
         let src = "trait Foo { let x: Field = 1; }";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Trait(mut noir_trait) = item.kind else {
@@ -293,7 +296,7 @@ mod tests {
     fn parse_trait_with_function_no_body() {
         let src = "trait Foo { fn foo(); }";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Trait(mut noir_trait) = item.kind else {
@@ -312,7 +315,7 @@ mod tests {
     fn parse_trait_with_function_with_body() {
         let src = "trait Foo { fn foo() {} }";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Trait(mut noir_trait) = item.kind else {

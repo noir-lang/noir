@@ -359,7 +359,7 @@ mod tests {
     use crate::{
         ast::{ConstrainKind, ExpressionKind, ForRange, LValue, StatementKind, UnresolvedTypeData},
         parser::{
-            parser::tests::{get_single_error, get_source_with_error_span},
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
         },
     };
@@ -369,7 +369,7 @@ mod tests {
         let src = "break";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert!(matches!(statement.kind, StatementKind::Break));
     }
 
@@ -378,7 +378,7 @@ mod tests {
         let src = "continue";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert!(matches!(statement.kind, StatementKind::Continue));
     }
 
@@ -387,7 +387,7 @@ mod tests {
         let src = "let x = 1;";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -402,7 +402,7 @@ mod tests {
         let src = "let x: Field = 1;";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -417,7 +417,7 @@ mod tests {
         let src = "assert(true, \"good\")";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Constrain(constrain) = statement.kind else {
             panic!("Expected constrain statement");
         };
@@ -430,7 +430,7 @@ mod tests {
         let src = "assert_eq(1, 2, \"bad\")";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Constrain(constrain) = statement.kind else {
             panic!("Expected constrain statement");
         };
@@ -462,7 +462,7 @@ mod tests {
         let src = "comptime { 1 }";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime statement");
         };
@@ -480,7 +480,7 @@ mod tests {
         let src = "comptime let x = 1;";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime statement");
         };
@@ -494,7 +494,7 @@ mod tests {
         let src = "for i in x { }";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::For(for_loop) = statement.kind else {
             panic!("Expected for loop");
         };
@@ -507,7 +507,7 @@ mod tests {
         let src = "for i in 0..10 { }";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::For(for_loop) = statement.kind else {
             panic!("Expected for loop");
         };
@@ -520,7 +520,7 @@ mod tests {
         let src = "comptime for i in x { }";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime");
         };
@@ -536,7 +536,7 @@ mod tests {
         let src = "x = 1";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
@@ -552,7 +552,7 @@ mod tests {
         let src = "(x)[0] = 1";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Assign(..) = statement.kind else {
             panic!("Expected assign");
         };
@@ -563,7 +563,7 @@ mod tests {
         let src = "x += 1";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
@@ -575,7 +575,7 @@ mod tests {
         let src = "x >>= 1";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
@@ -588,7 +588,7 @@ mod tests {
         let src = "{ if 1 { 2 } (3, 4) }";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Expression(expr) = statement.kind else {
             panic!("Expected expr");
         };
@@ -604,7 +604,7 @@ mod tests {
         let src = "{ { 2 } (3, 4) }";
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let StatementKind::Expression(expr) = statement.kind else {
             panic!("Expected expr");
         };

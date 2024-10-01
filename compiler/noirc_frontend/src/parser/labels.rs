@@ -28,6 +28,7 @@ pub enum ParsingRuleLabel {
     TypeExpression,
     TypeOrTypeExpression,
     TokenKind(TokenKind),
+    UseSegment,
 }
 
 impl fmt::Display for ParsingRuleLabel {
@@ -55,6 +56,7 @@ impl fmt::Display for ParsingRuleLabel {
             ParsingRuleLabel::TypeExpression => write!(f, "type expression"),
             ParsingRuleLabel::TypeOrTypeExpression => write!(f, "type or type expression"),
             ParsingRuleLabel::TokenKind(token_kind) => write!(f, "{token_kind:?}"),
+            ParsingRuleLabel::UseSegment => write!(f, "identifier, `crate`, `dep` or `super`"),
         }
     }
 }

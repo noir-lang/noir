@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::Parser,
+        parser::{parser::tests::expect_no_errors, Parser},
         token::{Attribute, FunctionAttribute, SecondaryAttribute, TestScope},
     };
 
@@ -61,7 +61,7 @@ mod tests {
         let Some(SecondaryAttribute::Custom(custom)) = parser.parse_inner_attribute() else {
             panic!("Expected inner custom attribute");
         };
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(custom.contents, "hello");
     }
 
@@ -70,7 +70,7 @@ mod tests {
         let src = "#[test] #[deprecated]";
         let mut parser = Parser::for_str(src);
         let mut attributes = parser.parse_attributes();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(attributes.len(), 2);
 
         let (attr, _) = attributes.remove(0);

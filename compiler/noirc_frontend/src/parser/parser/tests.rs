@@ -25,3 +25,14 @@ pub(super) fn get_single_error(errors: &[ParserError], expected_span: Span) -> &
     assert_eq!(errors[0].span(), expected_span);
     errors[0].reason().unwrap()
 }
+
+pub(super) fn expect_no_errors(errors: &[ParserError]) {
+    if errors.is_empty() {
+        return;
+    }
+
+    for error in errors {
+        println!("{}", error);
+    }
+    panic!("Expected no errors, found {} errors (printed above)", errors.len());
+}

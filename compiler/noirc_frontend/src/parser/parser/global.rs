@@ -74,7 +74,7 @@ mod tests {
         parser::{
             parser::{
                 parse_program,
-                tests::{get_single_error, get_source_with_error_span},
+                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             },
             ItemKind, ParserErrorReason,
         },
@@ -84,7 +84,7 @@ mod tests {
     fn parse_global_no_type_annotation() {
         let src = "global foo = 1;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Global(let_statement, visibility) = &item.kind else {
@@ -103,7 +103,7 @@ mod tests {
     fn parse_global_with_type_annotation() {
         let src = "global foo: i32 = 1;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Global(let_statement, _) = &item.kind else {
@@ -123,7 +123,7 @@ mod tests {
     fn parse_comptime_global() {
         let src = "comptime global foo: i32 = 1;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Global(let_statement, _) = &item.kind else {
@@ -136,7 +136,7 @@ mod tests {
     fn parse_mutable_global() {
         let src = "mut global foo: i32 = 1;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Global(let_statement, _) = &item.kind else {

@@ -55,14 +55,17 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::UnresolvedTypeData,
-        parser::{parser::parse_program, ItemKind},
+        parser::{
+            parser::{parse_program, tests::expect_no_errors},
+            ItemKind,
+        },
     };
 
     #[test]
     fn parse_type_alias_no_generics() {
         let src = "type Foo = Field;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::TypeAlias(alias) = &item.kind else {
@@ -77,7 +80,7 @@ mod tests {
     fn parse_type_alias_with_generics() {
         let src = "type Foo<A> = Field;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::TypeAlias(alias) = &item.kind else {

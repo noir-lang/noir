@@ -2,6 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Ident, Path, PathKind, UseTree, UseTreeKind},
+    parser::labels::ParsingRuleLabel,
     token::{Keyword, Token},
 };
 
@@ -84,7 +85,7 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_path_use_tree_end(&mut self, mut prefix: Path) -> UseTree {
         if prefix.segments.is_empty() {
-            // TODO: error (`use (empty path)`);
+            self.expected_label(ParsingRuleLabel::UseSegment);
             UseTree { prefix, kind: UseTreeKind::Path(Ident::default(), None) }
         } else {
             let ident = prefix.segments.pop().unwrap().ident;
@@ -106,14 +107,17 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{ItemVisibility, PathKind, UseTreeKind},
-        parser::{parser::parse_program, ItemKind},
+        parser::{
+            parser::{parse_program, tests::expect_no_errors},
+            ItemKind,
+        },
     };
 
     #[test]
     fn parse_simple() {
         let src = "use foo;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Import(use_tree, visibility) = &item.kind else {
@@ -133,7 +137,7 @@ mod tests {
     fn parse_simple_pub() {
         let src = "pub use foo;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Import(_, visibility) = &item.kind else {
@@ -146,7 +150,7 @@ mod tests {
     fn parse_simple_pub_crate() {
         let src = "pub(crate) use foo;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Import(_, visibility) = &item.kind else {
@@ -159,7 +163,7 @@ mod tests {
     fn parse_simple_with_alias() {
         let src = "use foo as bar;";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Import(use_tree, visibility) = item.kind else {
@@ -179,7 +183,7 @@ mod tests {
     fn parse_with_crate_prefix() {
         let src = "use crate::foo;";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Import(use_tree, visibility) = item.kind else {
@@ -199,7 +203,7 @@ mod tests {
     fn parse_with_dep_prefix() {
         let src = "use dep::foo;";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Import(use_tree, visibility) = item.kind else {
@@ -219,7 +223,7 @@ mod tests {
     fn parse_with_super_prefix() {
         let src = "use super::foo;";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Import(use_tree, visibility) = item.kind else {
@@ -239,7 +243,7 @@ mod tests {
     fn parse_list() {
         let src = "use foo::{bar, baz};";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Import(use_tree, visibility) = &item.kind else {
@@ -258,7 +262,7 @@ mod tests {
     fn parse_list_trailing_comma() {
         let src = "use foo::{bar, baz, };";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Import(use_tree, visibility) = &item.kind else {
@@ -277,7 +281,7 @@ mod tests {
     fn parse_list_that_starts_with_crate() {
         let src = "use crate::{foo, bar};";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Import(use_tree, visibility) = &item.kind else {

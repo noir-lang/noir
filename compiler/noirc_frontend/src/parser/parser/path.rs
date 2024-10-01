@@ -169,14 +169,17 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{ast::PathKind, parser::Parser};
+    use crate::{
+        ast::PathKind,
+        parser::{parser::tests::expect_no_errors, Parser},
+    };
 
     #[test]
     fn parses_plain_one_segment() {
         let src = "foo";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 1);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -188,7 +191,7 @@ mod tests {
         let src = "foo::bar";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -202,8 +205,7 @@ mod tests {
         let src = "crate::foo::bar";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        dbg!(path.to_string());
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(path.kind, PathKind::Crate);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -217,7 +219,7 @@ mod tests {
         let src = "super::foo::bar";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(path.kind, PathKind::Super);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -231,7 +233,7 @@ mod tests {
         let src = "dep::foo::bar";
         let mut parser = Parser::for_str(src);
         let path = parser.parse_path_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(path.kind, PathKind::Dep);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
@@ -258,7 +260,7 @@ mod tests {
         let src = "foo::<T, i32>::bar";
         let mut parser = Parser::for_str(src);
         let mut path = parser.parse_path_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");

@@ -49,14 +49,17 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{parser::parse_program, ItemKind};
+    use crate::parser::{
+        parser::{parse_program, tests::expect_no_errors},
+        ItemKind,
+    };
 
     #[test]
     fn parse_module_declaration() {
         // TODO: `contract foo;` is parsed correctly but we don't it's considered a module
         let src = "mod foo;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::ModuleDecl(module) = &item.kind else {
@@ -70,7 +73,7 @@ mod tests {
         let src = "mod foo { mod bar; }";
         let (module, errors) = parse_program(src);
         dbg!(&errors);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Submodules(parsed_submodule) = &item.kind else {
@@ -86,7 +89,7 @@ mod tests {
         let src = "contract foo {}";
         let (module, errors) = parse_program(src);
         dbg!(&errors);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Submodules(parsed_submodule) = &item.kind else {

@@ -2,6 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Documented, Ident, ItemVisibility, NoirStruct, StructField, UnresolvedGenerics},
+    parser::ParserErrorReason,
     token::{Attribute, SecondaryAttribute, Token},
 };
 
@@ -42,11 +43,17 @@ impl<'a> Parser<'a> {
         let mut trailing_comma = false;
 
         loop {
+            let doc_comments_start_span = self.current_token_span;
             let doc_comments = self.parse_outer_doc_comments();
 
             let start_span = self.current_token_span;
             let Some(name) = self.eat_ident() else {
-                // TODO: error if there are doc comments
+                if !doc_comments.is_empty() {
+                    self.push_error(
+                        ParserErrorReason::DocCommentDoesNotDocumentAnything,
+                        self.span_since(doc_comments_start_span),
+                    );
+                }
                 break;
             };
 
@@ -101,7 +108,7 @@ mod tests {
         parser::{
             parser::{
                 parse_program,
-                tests::{get_single_error, get_source_with_error_span},
+                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             },
             ItemKind, ParserErrorReason,
         },
@@ -111,7 +118,7 @@ mod tests {
     fn parse_empty_struct() {
         let src = "struct Foo {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Struct(noir_struct) = &item.kind else {
@@ -126,7 +133,7 @@ mod tests {
     fn parse_empty_struct_followed_by_semicolon() {
         let src = "struct Foo;";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Struct(noir_struct) = &item.kind else {
@@ -141,7 +148,7 @@ mod tests {
     fn parse_empty_struct_with_generics() {
         let src = "struct Foo<A, let B: u32> {}";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Struct(mut noir_struct) = item.kind else {
@@ -172,7 +179,7 @@ mod tests {
     fn parse_struct_with_fields() {
         let src = "struct Foo { x: i32, y: Field }";
         let (mut module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::Struct(mut noir_struct) = item.kind else {
@@ -197,7 +204,7 @@ mod tests {
     fn parse_empty_struct_with_doc_comments() {
         let src = "/// Hello\nstruct Foo {}";
         let (module, errors) = parse_program(src);
-        assert!(errors.is_empty());
+        expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         assert_eq!(item.doc_comments.len(), 1);

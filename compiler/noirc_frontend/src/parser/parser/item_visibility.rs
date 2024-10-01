@@ -38,7 +38,7 @@ mod tests {
     use crate::{
         ast::ItemVisibility,
         parser::{
-            parser::tests::{get_single_error, get_source_with_error_span},
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
         },
     };
@@ -48,7 +48,7 @@ mod tests {
         let src = "(";
         let mut parser = Parser::for_str(src);
         let visibility = parser.parse_item_visibility();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(visibility, ItemVisibility::Private);
     }
 
@@ -57,7 +57,7 @@ mod tests {
         let src = "pub";
         let mut parser = Parser::for_str(src);
         let visibility = parser.parse_item_visibility();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(visibility, ItemVisibility::Public);
     }
 
@@ -107,7 +107,7 @@ mod tests {
         let src = "pub(crate)";
         let mut parser = Parser::for_str(src);
         let visibility = parser.parse_item_visibility();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(visibility, ItemVisibility::PublicCrate);
     }
 }

@@ -35,9 +35,7 @@ impl<'a> Parser<'a> {
             trailing_comma = self.eat_commas();
         }
 
-        if constraints.is_empty() {
-            // TODO: error? (`where` but no constrains)
-        }
+        // Constraints might end up being empty, but that's accepted as valid syntax
 
         constraints
     }
@@ -90,14 +88,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::Parser;
+    use crate::parser::{parser::tests::expect_no_errors, Parser};
 
     #[test]
     fn parses_no_where_clause() {
         let src = "{";
         let mut parser = Parser::for_str(src);
         let constraints = parser.parse_where_clause();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert!(constraints.is_empty());
     }
 
@@ -106,7 +104,7 @@ mod tests {
         let src = "where Foo: Bar<T> + Baz";
         let mut parser = Parser::for_str(src);
         let mut constraints = parser.parse_where_clause();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(constraints.len(), 2);
 
         let constraint = constraints.remove(0);
@@ -124,7 +122,7 @@ mod tests {
         let src = "where Foo: Bar<T>, i32: Qux";
         let mut parser = Parser::for_str(src);
         let mut constraints = parser.parse_where_clause();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         assert_eq!(constraints.len(), 2);
 
         let constraint = constraints.remove(0);

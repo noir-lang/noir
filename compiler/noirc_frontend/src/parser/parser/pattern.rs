@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{Ident, Path, Pattern},
-    parser::labels::ParsingRuleLabel,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
 };
 
@@ -69,7 +69,10 @@ impl<'a> Parser<'a> {
                     mutable: true,
                 }));
             } else {
-                // TODO: error (found `&mut` but `self` doesn't follow)
+                self.push_error(
+                    ParserErrorReason::RefMutCanOnlyBeUsedWithSelf,
+                    self.current_token_span,
+                );
                 return Some(PatternOrSelf::Pattern(
                     self.parse_pattern_after_modifiers(true, start_span)?,
                 ));
@@ -118,7 +121,8 @@ impl<'a> Parser<'a> {
         }
 
         if !path.is_ident() {
-            // TODO: error (found something like foo::bar::baz for a pattern)
+            self.push_error(ParserErrorReason::InvalidPattern, path.span);
+
             let ident = path.segments.pop().unwrap().ident;
             return Some(Pattern::Identifier(ident));
         }
@@ -212,14 +216,17 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{ast::Pattern, parser::Parser};
+    use crate::{
+        ast::Pattern,
+        parser::{parser::tests::expect_no_errors, Parser},
+    };
 
     #[test]
     fn parses_identifier_pattern() {
         let src = "foo";
         let mut parser = Parser::for_str(src);
         let pattern = parser.parse_pattern_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
         assert_eq!(ident.to_string(), "foo");
     }
@@ -229,7 +236,7 @@ mod tests {
         let src = "mut foo";
         let mut parser = Parser::for_str(src);
         let pattern = parser.parse_pattern_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let Pattern::Mutable(pattern, _, _) = pattern else { panic!("Expected a mutable pattern") };
         let pattern: &Pattern = &pattern;
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
@@ -241,7 +248,7 @@ mod tests {
         let src = "(foo, bar)";
         let mut parser = Parser::for_str(src);
         let pattern = parser.parse_pattern_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
         assert_eq!(patterns.len(), 2);
 
@@ -269,7 +276,7 @@ mod tests {
         let src = "foo::Bar {}";
         let mut parser = Parser::for_str(src);
         let pattern = parser.parse_pattern_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let Pattern::Struct(path, patterns, _) = pattern else {
             panic!("Expected a struct pattern")
         };
@@ -282,7 +289,7 @@ mod tests {
         let src = "foo::Bar { x: one, y }";
         let mut parser = Parser::for_str(src);
         let pattern = parser.parse_pattern_or_error();
-        assert!(parser.errors.is_empty());
+        expect_no_errors(&parser.errors);
         let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")
         };
