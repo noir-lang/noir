@@ -106,7 +106,10 @@ impl<'a> Parser<'a> {
                 } else if let Some(int) = self.eat_int() {
                     Ident::new(int.to_string(), self.previous_token_span)
                 } else {
-                    self.expected_identifier();
+                    self.push_error(
+                        ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
+                        self.current_token_span,
+                    );
                     continue;
                 };
 

@@ -53,7 +53,7 @@ pub enum ParserErrorReason {
     #[error("Expected the global to have a value")]
     GlobalWithoutValue,
 
-    #[error("Unexpected '{0}', expected a field name")]
+    #[error("Unexpected '{0}', expected a field name or number")]
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
