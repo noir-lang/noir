@@ -1577,9 +1577,6 @@ impl<'context> Elaborator<'context> {
                 if let Some(error) =
                     NoMatchingImplFoundError::new(self.interner, constraints.clone(), span)
                 {
-                    // TODO cleanup
-                    dbg!("ImplSearchErrorKind::Nested", &constraints);
-
                     self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
             }

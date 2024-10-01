@@ -66,6 +66,10 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
     let (program, parser_errors) = parse_program(src);
+
+    // TODO cleanup
+    dbg!(&program);
+
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
 
@@ -1703,7 +1707,7 @@ fn normal_generic_as_array_length() {
 #[test]
 fn numeric_generic_as_param_type() {
     let src = r#"
-    pub fn foo<let I: Field>(x: I) -> I {
+    pub fn foo<let I: u32>(x: I) -> I {
         let _q: I = 5;
         x
     }
@@ -1711,15 +1715,61 @@ fn numeric_generic_as_param_type() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
 
-    // Error from the parameter type
+    // Error from the let statement annotated type
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
-    // Error from the let statement annotated type
+    // Error from the return type
     assert!(matches!(
         errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_unused_param_type() {
+    let src = r#"
+    pub fn foo<let I: u32>(x: I) { }
+    "#;
+    let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_return_type() {
+    let src = r#"
+    // std::mem::zeroed() without stdlib
+    trait Zeroed {
+        fn zeroed<T>(self) -> T;
+    }
+
+    fn foo<T, let I: Field>(x: T) -> I where T: Zeroed {
+        x.zeroed()
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    // Error from the return type
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // foo is unused
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
     ));
 }
 
@@ -2407,7 +2457,7 @@ fn struct_array_len() {
     ));
 }
 
-// TODO moved?
+// TODO move to tests/metaprogramming
 // Regression for #5388
 #[test]
 fn comptime_let() {
@@ -2419,170 +2469,7 @@ fn comptime_let() {
     assert_eq!(errors.len(), 0);
 }
 
-// TODO moved?
-#[test]
-fn overflowing_u8() {
-    let src = r#"
-        fn main() {
-            let _: u8 = 256;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `2⁸` cannot fit into `u8` which has range `0..=255`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-// TODO moved?
-#[test]
-fn underflowing_u8() {
-    let src = r#"
-        fn main() {
-            let _: u8 = -1;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `-1` cannot fit into `u8` which has range `0..=255`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-// TODO moved?
-#[test]
-fn overflowing_i8() {
-    let src = r#"
-        fn main() {
-            let _: i8 = 128;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `2⁷` cannot fit into `i8` which has range `-128..=127`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-// TODO moved?
-#[test]
-fn underflowing_i8() {
-    let src = r#"
-        fn main() {
-            let _: i8 = -129;
-        }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    if let CompilationError::TypeError(error) = &errors[0].0 {
-        assert_eq!(
-            error.to_string(),
-            "The value `-129` cannot fit into `i8` which has range `-128..=127`"
-        );
-    } else {
-        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
-    }
-}
-
-// TODO moved?
-#[test]
-fn turbofish_numeric_generic_nested_call() {
-    // Check for turbofish numeric generics used with function calls
-    let src = r#"
-    fn foo<let N: u32>() -> [u8; N] {
-        [0; N]
-    }
-
-    fn bar<let N: u32>() -> [u8; N] {
-        foo::<N>()
-    }
-
-    global M: u32 = 3;
-
-    fn main() {
-        let _ = bar::<M>();
-    }
-    "#;
-    assert_no_errors(src);
-
-    // Check for turbofish numeric generics used with method calls
-    let src = r#"
-    struct Foo<T> {
-        a: T
-    }
-
-    impl<T> Foo<T> {
-        fn static_method<let N: u32>() -> [u8; N] {
-            [0; N]
-        }
-
-        fn impl_method<let N: u32>(self) -> [T; N] {
-            [self.a; N]
-        }
-    }
-
-    fn bar<let N: u32>() -> [u8; N] {
-        let _ = Foo::static_method::<N>();
-        let x: Foo<u8> = Foo { a: 0 };
-        x.impl_method::<N>()
-    }
-
-    global M: u32 = 3;
-
-    fn main() {
-        let _ = bar::<M>();
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-// TODO moved?
-#[test]
-fn use_super() {
-    let src = r#"
-    fn some_func() {}
-
-    mod foo {
-        use super::some_func;
-
-        pub fn bar() {
-            some_func();
-        }
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-// TODO moved?
-#[test]
-fn use_super_in_path() {
-    let src = r#"
-    fn some_func() {}
-
-    mod foo {
-        pub fn func() {
-            super::some_func();
-        }
-    }
-    "#;
-    assert_no_errors(src);
-}
-
+// TODO move to imports
 #[test]
 fn no_super() {
     let src = "use super::some_func;";

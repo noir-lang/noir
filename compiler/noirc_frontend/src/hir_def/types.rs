@@ -185,11 +185,11 @@ impl Kind {
     pub(crate) fn unifies(&self, other: &Kind) -> bool {
         match (self, other) {
             // Kind::Any unifies with everything
-            (Kind::Any, _) | (_, Kind::Any) => true
+            (Kind::Any, _) | (_, Kind::Any) => true,
 
             // Kind::Normal unifies with Kind::Integer and Kind::IntegerOrField
             (Kind::Normal, Kind::Integer | Kind::IntegerOrField)
-            | (Kind::Integer | Kind::IntegerOrField, Kind::Normal) => true
+            | (Kind::Integer | Kind::IntegerOrField, Kind::Normal) => true,
 
             // Kind::Integer unifies with Kind::IntegerOrField
             (Kind::Integer | Kind::IntegerOrField, Kind::Integer | Kind::IntegerOrField) => true,
@@ -2348,7 +2348,8 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
-    // TODO: the Kind is included since it'll be needed for size checks
+    // TODO(https://github.com/noir-lang/noir/pull/6137): the Kind is included
+    // since it'll be needed for size checks
     pub fn function(self, a: u32, b: u32, _kind: &Kind) -> Option<u32> {
         match self {
             BinaryTypeOperator::Addition => a.checked_add(b),
