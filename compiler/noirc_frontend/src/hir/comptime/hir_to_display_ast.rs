@@ -9,10 +9,11 @@ use crate::ast::{
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
-use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
+use crate::hir_def::expr::{
+    HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral,
+};
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
-use crate::macros_api::HirLiteral;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
 // TODO:
@@ -29,7 +30,7 @@ impl HirStatement {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
                 let r#type = interner.id_type(let_stmt.expression).to_display_ast();
                 let expression = let_stmt.expression.to_display_ast(interner);
-                StatementKind::new_let(pattern, r#type, expression)
+                StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
             HirStatement::Constrain(constrain) => {
                 let expr = constrain.0.to_display_ast(interner);
@@ -315,10 +316,10 @@ impl Type {
                 let name = Path::from_ident(type_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
-            Type::TypeVariable(binding, kind) => match &*binding.borrow() {
+            Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
-                TypeBinding::Unbound(id) => {
-                    let name = format!("var_{:?}_{}", kind, id);
+                TypeBinding::Unbound(id, type_var_kind) => {
+                    let name = format!("var_{:?}_{}", type_var_kind, id);
                     let path = Path::from_single(name, Span::empty(0));
                     let expression = UnresolvedTypeExpression::Variable(path);
                     UnresolvedTypeData::Expression(expression)
@@ -333,7 +334,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name, _kind) => {
+            Type::NamedGeneric(_var, name) => {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
@@ -373,7 +374,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, span),
-            Type::NamedGeneric(_var, name, _kind) => {
+            Type::NamedGeneric(_var, name) => {
                 let path = Path::from_single(name.as_ref().clone(), span);
                 UnresolvedTypeExpression::Variable(path)
             }

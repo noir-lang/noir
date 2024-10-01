@@ -1,8 +1,7 @@
 use crate::{
-    ast::UnresolvedTypeExpression,
+    ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
-    macros_api::{Ident, UnresolvedType, UnresolvedTypeData},
     node_interner::TraitImplId,
     ResolvedGeneric,
 };
@@ -154,11 +153,15 @@ impl<'context> Elaborator<'context> {
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, kind, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
         ) in method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), kind.clone());
-            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
+            let trait_fn_kind = trait_fn_generic.kind();
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            bindings.insert(
+                trait_fn_generic.id(),
+                (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
+            );
         }
 
         let mut substituted_method_ids = HashSet::default();

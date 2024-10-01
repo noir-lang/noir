@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 use noirc_frontend::{
     ast::NoirTraitImpl,
     graph::CrateId,
+    hir::def_map::ModuleDefId,
     hir::{
         def_map::{CrateDefMap, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
-    macros_api::{ModuleDefId, NodeInterner},
-    node_interner::{FunctionModifiers, ReferenceId},
-    Kind, ResolvedGeneric, Type, TypeVariableKind,
+    node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
+    Kind, ResolvedGeneric, Type,
 };
 
 use crate::modules::relative_module_id_path;
@@ -197,12 +197,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     }
                 }
 
-                let module_id = struct_type.id.module_id();
-                let module_data = &self.def_maps[&module_id.krate].modules()[module_id.local_id.0];
-                let parent_module_local_id = module_data.parent.unwrap();
-                let parent_module_id =
-                    ModuleId { krate: module_id.krate, local_id: parent_module_local_id };
-
+                let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
                 let current_module_parent_id = current_module_data
                     .parent
                     .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
@@ -295,7 +290,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push_str(&trait_.name.0.contents);
                 self.append_trait_generics(trait_generics);
             }
-            Type::TypeVariable(typevar, _) => {
+            Type::TypeVariable(typevar) => {
                 if typevar.id() == self.trait_.self_type_typevar.id() {
                     self.string.push_str("Self");
                     return;
@@ -328,8 +323,8 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 self.string.push_str("error");
             }
-            Type::NamedGeneric(typevar, _name, _kind) => {
-                self.append_type(&Type::TypeVariable(typevar.clone(), TypeVariableKind::Normal));
+            Type::NamedGeneric(typevar, _name) => {
+                self.append_type(&Type::TypeVariable(typevar.clone()));
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
@@ -442,9 +437,11 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
     }
 
     fn append_resolved_generic(&mut self, generic: &ResolvedGeneric) {
-        match &generic.kind {
-            Kind::Normal => self.string.push_str(&generic.name),
-            Kind::Numeric(typ) => {
+        match &generic.kind() {
+            Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
+                self.string.push_str(&generic.name);
+            }
+            Kind::Numeric(ref typ) => {
                 self.string.push_str("let ");
                 self.string.push_str(&generic.name);
                 self.string.push_str(": ");

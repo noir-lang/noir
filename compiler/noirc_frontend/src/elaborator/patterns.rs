@@ -3,19 +3,20 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::{TypePath, UnresolvedType, ERROR_IDENT},
+    ast::{
+        Expression, ExpressionKind, Ident, Path, Pattern, TypePath, UnresolvedType, ERROR_IDENT,
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirIdent, HirMethodReference, ImplKind},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind},
         stmt::HirPattern,
     },
-    macros_api::{Expression, ExpressionKind, HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    ResolvedGeneric, Shared, StructType, Type, TypeBindings,
+    Kind, ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -26,6 +27,7 @@ impl<'context> Elaborator<'context> {
         pattern: Pattern,
         expected_type: Type,
         definition_kind: DefinitionKind,
+        warn_if_unused: bool,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -33,6 +35,7 @@ impl<'context> Elaborator<'context> {
             definition_kind,
             None,
             &mut Vec::new(),
+            warn_if_unused,
             None,
         )
     }
@@ -45,6 +48,7 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
         global_id: Option<GlobalId>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -53,10 +57,12 @@ impl<'context> Elaborator<'context> {
             definition_kind,
             None,
             created_ids,
+            warn_if_unused,
             global_id,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -64,6 +70,7 @@ impl<'context> Elaborator<'context> {
         definition: DefinitionKind,
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
         global_id: Option<GlobalId>,
     ) -> HirPattern {
         match pattern {
@@ -80,7 +87,13 @@ impl<'context> Elaborator<'context> {
                     let location = Location::new(name.span(), self.file);
                     HirIdent::non_trait_method(id, location)
                 } else {
-                    self.add_variable_decl(name, mutable.is_some(), true, definition)
+                    self.add_variable_decl(
+                        name,
+                        mutable.is_some(),
+                        true, // allow_shadowing
+                        warn_if_unused,
+                        definition,
+                    )
                 };
                 self.interner.push_definition_type(ident.id, expected_type);
                 new_definitions.push(ident.clone());
@@ -97,6 +110,7 @@ impl<'context> Elaborator<'context> {
                     definition,
                     Some(span),
                     new_definitions,
+                    warn_if_unused,
                     global_id,
                 );
                 let location = Location::new(span, self.file);
@@ -128,6 +142,7 @@ impl<'context> Elaborator<'context> {
                         definition.clone(),
                         mutable,
                         new_definitions,
+                        warn_if_unused,
                         global_id,
                     )
                 });
@@ -151,6 +166,7 @@ impl<'context> Elaborator<'context> {
                     definition,
                     mutable,
                     new_definitions,
+                    warn_if_unused,
                     global_id,
                 )
             }
@@ -180,7 +196,7 @@ impl<'context> Elaborator<'context> {
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
             // multiple times.
             let name = ERROR_IDENT.into();
-            let identifier = this.add_variable_decl(name, false, true, definition.clone());
+            let identifier = this.add_variable_decl(name, false, true, true, definition.clone());
             HirPattern::Identifier(identifier)
         };
 
@@ -263,6 +279,7 @@ impl<'context> Elaborator<'context> {
                 definition.clone(),
                 mutable,
                 new_definitions,
+                true, // warn_if_unused
                 None,
             );
 
@@ -295,16 +312,6 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn add_variable_decl(
-        &mut self,
-        name: Ident,
-        mutable: bool,
-        allow_shadowing: bool,
-        definition: DefinitionKind,
-    ) -> HirIdent {
-        self.add_variable_decl_inner(name, mutable, allow_shadowing, true, definition)
-    }
-
-    pub fn add_variable_decl_inner(
         &mut self,
         name: Ident,
         mutable: bool,
@@ -482,7 +489,7 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<Type> {
         let generics_with_types = generics.iter().zip(turbofish_generics);
         vecmap(generics_with_types, |(generic, unresolved_type)| {
-            self.resolve_type_inner(unresolved_type, &generic.kind)
+            self.resolve_type_inner(unresolved_type, &generic.kind())
         })
     }
 
@@ -551,13 +558,14 @@ impl<'context> Elaborator<'context> {
 
                         self.interner.add_global_reference(global_id, hir_ident.location);
                     }
-                    DefinitionKind::GenericType(_) => {
+                    DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
                         // Initialize numeric generics to a polymorphic integer type in case
                         // they're used in expressions. We must do this here since type_check_variable
                         // does not check definition kinds and otherwise expects parameters to
                         // already be typed.
                         if self.interner.definition_type(hir_ident.id) == Type::Error {
-                            let typ = Type::polymorphic_integer_or_field(self.interner);
+                            let type_var_kind = Kind::Numeric(numeric_typ.clone());
+                            let typ = self.type_variable_with_kind(type_var_kind);
                             self.interner.push_definition_type(hir_ident.id, typ);
                         }
                     }

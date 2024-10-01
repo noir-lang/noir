@@ -1,8 +1,9 @@
+use noirc_errors::Span;
 use noirc_frontend::ast::{
     ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, Path, PathKind, UnaryOp,
     UnresolvedType,
 };
-use noirc_frontend::{macros_api::Span, token::Token};
+use noirc_frontend::token::Token;
 
 use crate::rewrite;
 use crate::visitor::{

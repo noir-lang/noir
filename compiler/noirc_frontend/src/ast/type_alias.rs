@@ -1,4 +1,4 @@
-use super::{Ident, UnresolvedGenerics, UnresolvedType};
+use super::{Ident, ItemVisibility, UnresolvedGenerics, UnresolvedType};
 use iter_extended::vecmap;
 use noirc_errors::Span;
 use std::fmt::Display;
@@ -9,6 +9,7 @@ pub struct NoirTypeAlias {
     pub name: Ident,
     pub generics: UnresolvedGenerics,
     pub typ: UnresolvedType,
+    pub visibility: ItemVisibility,
     pub span: Span,
 }
 
@@ -17,9 +18,10 @@ impl NoirTypeAlias {
         name: Ident,
         generics: UnresolvedGenerics,
         typ: UnresolvedType,
+        visibility: ItemVisibility,
         span: Span,
     ) -> NoirTypeAlias {
-        NoirTypeAlias { name, generics, typ, span }
+        NoirTypeAlias { name, generics, typ, visibility, span }
     }
 }
 

@@ -24,9 +24,9 @@ use noirc_frontend::{
         UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
-    hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
+    hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
     hir_def::traits::Trait,
-    macros_api::{ModuleDefId, NodeInterner},
+    node_interner::NodeInterner,
     node_interner::ReferenceId,
     parser::{Item, ItemKind, ParsedSubModule},
     token::{CustomAttribute, Token, Tokens},
@@ -581,8 +581,8 @@ impl<'a> NodeFinder<'a> {
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types, self_prefix);
             }
-            Type::TypeVariable(var, _) | Type::NamedGeneric(var, _, _) => {
-                if let TypeBinding::Bound(typ) = &*var.borrow() {
+            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+                if let TypeBinding::Bound(ref typ) = &*var.borrow() {
                     return self.complete_type_fields_and_methods(
                         typ,
                         prefix,
@@ -1662,8 +1662,8 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
             }
         }
         Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
-        Type::TypeVariable(var, _) | Type::NamedGeneric(var, _, _) => {
-            if let TypeBinding::Bound(typ) = &*var.borrow() {
+        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+            if let TypeBinding::Bound(ref typ) = &*var.borrow() {
                 get_field_type(typ, name)
             } else {
                 None
@@ -1680,7 +1680,7 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)
         }
-        Type::TypeVariable(var, _) | Type::NamedGeneric(var, _, _) => {
+        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
             if let TypeBinding::Bound(typ) = &*var.borrow() {
                 get_array_element_type(typ.clone())
             } else {

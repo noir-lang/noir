@@ -1,13 +1,15 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+use thiserror::Error;
+
 use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
-use crate::hir::def_collector::errors::DefCollectorErrorKind;
-use crate::macros_api::StructId;
-use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::node_interner::{
+    ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, StructId,
+};
 use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
@@ -75,6 +77,13 @@ pub enum UnresolvedGeneric {
     Resolved(QuotedTypeId, Span),
 }
 
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("The only supported types of numeric generics are integers, fields, and booleans")]
+pub struct UnsupportedNumericGenericType {
+    pub ident: Ident,
+    pub typ: UnresolvedTypeData,
+}
+
 impl UnresolvedGeneric {
     pub fn span(&self) -> Span {
         match self {
@@ -84,7 +93,7 @@ impl UnresolvedGeneric {
         }
     }
 
-    pub fn kind(&self) -> Result<Kind, DefCollectorErrorKind> {
+    pub fn kind(&self) -> Result<Kind, UnsupportedNumericGenericType> {
         match self {
             UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } => {
@@ -100,14 +109,14 @@ impl UnresolvedGeneric {
     fn resolve_numeric_kind_type(
         &self,
         typ: &UnresolvedType,
-    ) -> Result<Type, DefCollectorErrorKind> {
+    ) -> Result<Type, UnsupportedNumericGenericType> {
         use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
 
         match typ.typ {
             FieldElement => Ok(Type::FieldElement),
             Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
             // Only fields and integers are supported for numeric kinds
-            _ => Err(DefCollectorErrorKind::UnsupportedNumericGenericType {
+            _ => Err(UnsupportedNumericGenericType {
                 ident: self.ident().clone(),
                 typ: typ.typ.clone(),
             }),
@@ -802,6 +811,7 @@ impl Display for TypePath {
 impl FunctionDefinition {
     pub fn normal(
         name: &Ident,
+        is_unconstrained: bool,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         body: &BlockExpression,
@@ -821,7 +831,7 @@ impl FunctionDefinition {
         FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_unconstrained: false,
+            is_unconstrained,
             is_comptime: false,
             visibility: ItemVisibility::Private,
             generics: generics.clone(),

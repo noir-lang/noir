@@ -36,48 +36,51 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
-            simplify_function(function);
+            function.simplify_function();
         }
         self
     }
 }
 
-/// Simplify a function's cfg by going through each block to check for any simple blocks that can
-/// be inlined into their predecessor.
-fn simplify_function(function: &mut Function) {
-    let mut cfg = ControlFlowGraph::with_function(function);
-    let mut stack = vec![function.entry_block()];
-    let mut visited = HashSet::new();
+impl Function {
+    /// Simplify a function's cfg by going through each block to check for any simple blocks that can
+    /// be inlined into their predecessor.
+    pub(crate) fn simplify_function(&mut self) {
+        let mut cfg = ControlFlowGraph::with_function(self);
+        let mut stack = vec![self.entry_block()];
+        let mut visited = HashSet::new();
 
-    while let Some(block) = stack.pop() {
-        if visited.insert(block) {
-            stack.extend(function.dfg[block].successors().filter(|block| !visited.contains(block)));
-        }
+        while let Some(block) = stack.pop() {
+            if visited.insert(block) {
+                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+            }
 
-        // This call is before try_inline_into_predecessor so that if it succeeds in changing a
-        // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-        check_for_constant_jmpif(function, block, &mut cfg);
+            // This call is before try_inline_into_predecessor so that if it succeeds in changing a
+            // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
+            check_for_constant_jmpif(self, block, &mut cfg);
 
-        let mut predecessors = cfg.predecessors(block);
+            let mut predecessors = cfg.predecessors(block);
 
-        if predecessors.len() == 1 {
-            let predecessor = predecessors.next().expect("Already checked length of predecessors");
-            drop(predecessors);
+            if predecessors.len() == 1 {
+                let predecessor =
+                    predecessors.next().expect("Already checked length of predecessors");
+                drop(predecessors);
 
-            // If the block has only 1 predecessor, we can safely remove its block parameters
-            remove_block_parameters(function, block, predecessor);
+                // If the block has only 1 predecessor, we can safely remove its block parameters
+                remove_block_parameters(self, block, predecessor);
 
-            // Note: this function relies on `remove_block_parameters` being called first.
-            // Otherwise the inlined block will refer to parameters that no longer exist.
-            //
-            // If successful, `block` will be empty and unreachable after this call, so any
-            // optimizations performed after this point on the same block should check if
-            // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, &mut cfg, block, predecessor);
-        } else {
-            drop(predecessors);
+                // Note: this function relies on `remove_block_parameters` being called first.
+                // Otherwise the inlined block will refer to parameters that no longer exist.
+                //
+                // If successful, `block` will be empty and unreachable after this call, so any
+                // optimizations performed after this point on the same block should check if
+                // the inlining here was successful before continuing.
+                try_inline_into_predecessor(self, &mut cfg, block, predecessor);
+            } else {
+                drop(predecessors);
 
-            check_for_double_jmp(function, block, &mut cfg);
+                check_for_double_jmp(self, block, &mut cfg);
+            }
         }
     }
 }

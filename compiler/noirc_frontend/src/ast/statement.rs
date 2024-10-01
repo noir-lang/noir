@@ -10,12 +10,14 @@ use super::{
     BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
     IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
+use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::{NodeInterner, SecondaryAttribute, UnresolvedTypeData};
-use crate::node_interner::{InternedExpressionKind, InternedPattern, InternedStatementKind};
+use crate::node_interner::{
+    InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
+};
 use crate::parser::{ParserError, ParserErrorReason};
-use crate::token::Token;
+use crate::token::{SecondaryAttribute, Token};
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this
@@ -141,13 +143,14 @@ impl StatementKind {
         pattern: Pattern,
         r#type: UnresolvedType,
         expression: Expression,
+        attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
             r#type,
             expression,
             comptime: false,
-            attributes: vec![],
+            attributes,
         })
     }
 
@@ -293,6 +296,7 @@ pub trait Recoverable {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
+    pub visibility: ItemVisibility,
     pub ident: Ident,
     pub outer_attributes: Vec<SecondaryAttribute>,
 }
@@ -814,6 +818,7 @@ impl ForRange {
                         Pattern::Identifier(array_ident.clone()),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         array,
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -858,6 +863,7 @@ impl ForRange {
                         Pattern::Identifier(identifier),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         Expression::new(loop_element, array_span),
+                        vec![],
                     ),
                     span: array_span,
                 };

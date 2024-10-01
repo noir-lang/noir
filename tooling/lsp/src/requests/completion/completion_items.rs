@@ -4,10 +4,9 @@ use lsp_types::{
 };
 use noirc_frontend::{
     ast::AttributeTarget,
-    hir::def_map::ModuleId,
+    hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    macros_api::{ModuleDefId, StructId},
-    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId},
     QuotedType, Type,
 };
 
@@ -51,6 +50,10 @@ impl<'a> NodeFinder<'a> {
                     AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
                     AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
+                    AttributeTarget::Let => {
+                        // No item can be suggested for a let statement attribute
+                        return Vec::new();
+                    }
                 }
             } else {
                 None
