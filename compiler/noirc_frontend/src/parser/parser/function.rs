@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
                     } else {
                         self.push_error(
                             ParserErrorReason::MissingTypeForFunctionParameter,
-                            self.previous_token_span,
+                            Span::from(pattern.span().start()..self.current_token_span.end()),
                         );
 
                         parameters.push(Param {
@@ -480,5 +480,41 @@ mod tests {
 
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a pattern but found 1");
+    }
+
+    #[test]
+    fn recovers_on_missing_colon_after_parameter_name() {
+        let src = "
+        fn foo(x, y: i32) {}
+               ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.parameters().len(), 2);
+
+        let error = get_single_error(&errors, span);
+        assert!(error.to_string().contains("Missing type for function parameter"));
+    }
+
+    #[test]
+    fn recovers_on_missing_type_after_parameter_colon() {
+        let src = "
+        fn foo(x: , y: i32) {}
+                  ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.parameters().len(), 2);
+
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a type but found ,");
     }
 }
