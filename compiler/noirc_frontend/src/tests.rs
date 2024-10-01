@@ -66,10 +66,6 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
     let (program, parser_errors) = parse_program(src);
-
-    // TODO cleanup
-    dbg!(&program);
-
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
 
@@ -1713,11 +1709,16 @@ fn numeric_generic_as_param_type() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 3);
 
-    // Error from the let statement annotated type
+    // Error from the parameter type
     assert!(matches!(
         errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // Error from the let statement annotated type
+    assert!(matches!(
+        errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // Error from the return type
@@ -1730,19 +1731,37 @@ fn numeric_generic_as_param_type() {
 #[test]
 fn numeric_generic_as_unused_param_type() {
     let src = r#"
-    pub fn foo<let I: u32>(x: I) { }
+    pub fn foo<let I: u32>(_x: I) { }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
+
+#[test]
+fn numeric_generic_as_unused_trait_fn_param_type() {
+    let src = r#"
+    trait Foo {
+        fn foo<let I: u32>(_x: I) { }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // Foo is unused
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
+    ));
+}
+
+
 
 #[test]
 fn numeric_generic_as_return_type() {

@@ -752,7 +752,8 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
-                _ => self.resolve_type_inner(typ, &Kind::Any),
+                // Function parameters have Kind::Normal
+                _ => self.resolve_type_inner(typ, &Kind::Normal),
             };
 
             self.check_if_type_is_valid_for_program_input(
