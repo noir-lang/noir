@@ -16,7 +16,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    ResolvedGeneric, Shared, StructType, Type, TypeBindings,
+    Kind, ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -489,7 +489,7 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<Type> {
         let generics_with_types = generics.iter().zip(turbofish_generics);
         vecmap(generics_with_types, |(generic, unresolved_type)| {
-            self.resolve_type_inner(unresolved_type, &generic.kind)
+            self.resolve_type_inner(unresolved_type, &generic.kind())
         })
     }
 
@@ -558,13 +558,14 @@ impl<'context> Elaborator<'context> {
 
                         self.interner.add_global_reference(global_id, hir_ident.location);
                     }
-                    DefinitionKind::NumericGeneric(_) => {
+                    DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
                         // Initialize numeric generics to a polymorphic integer type in case
                         // they're used in expressions. We must do this here since type_check_variable
                         // does not check definition kinds and otherwise expects parameters to
                         // already be typed.
                         if self.interner.definition_type(hir_ident.id) == Type::Error {
-                            let typ = Type::polymorphic_integer_or_field(self.interner);
+                            let type_var_kind = Kind::Numeric(numeric_typ.clone());
+                            let typ = self.type_variable_with_kind(type_var_kind);
                             self.interner.push_definition_type(hir_ident.id, typ);
                         }
                     }
