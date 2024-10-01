@@ -123,13 +123,19 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            let mut context = PerFunctionContext::new(function);
-            context.mem2reg();
-            context.remove_instructions();
-            context.update_data_bus();
+            function.mem2reg();
         }
 
         self
+    }
+}
+
+impl Function {
+    pub(crate) fn mem2reg(&mut self) {
+        let mut context = PerFunctionContext::new(self);
+        context.mem2reg();
+        context.remove_instructions();
+        context.update_data_bus();
     }
 }
 

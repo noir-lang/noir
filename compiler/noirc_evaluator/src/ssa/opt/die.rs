@@ -25,44 +25,46 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            dead_instruction_elimination(function, true);
+            function.dead_instruction_elimination(true);
         }
         self
     }
 }
 
-/// Removes any unused instructions in the reachable blocks of the given function.
-///
-/// The blocks of the function are iterated in post order, such that any blocks containing
-/// instructions that reference results from an instruction in another block are evaluated first.
-/// If we did not iterate blocks in this order we could not safely say whether or not the results
-/// of its instructions are needed elsewhere.
-fn dead_instruction_elimination(function: &mut Function, insert_out_of_bounds_checks: bool) {
-    let mut context = Context::default();
-    for call_data in &function.dfg.data_bus.call_data {
-        context.mark_used_instruction_results(&function.dfg, call_data.array_id);
+impl Function {
+    /// Removes any unused instructions in the reachable blocks of the given function.
+    ///
+    /// The blocks of the function are iterated in post order, such that any blocks containing
+    /// instructions that reference results from an instruction in another block are evaluated first.
+    /// If we did not iterate blocks in this order we could not safely say whether or not the results
+    /// of its instructions are needed elsewhere.
+    pub(crate) fn dead_instruction_elimination(&mut self, insert_out_of_bounds_checks: bool) {
+        let mut context = Context::default();
+        for call_data in &self.dfg.data_bus.call_data {
+            context.mark_used_instruction_results(&self.dfg, call_data.array_id);
+        }
+
+        let mut inserted_out_of_bounds_checks = false;
+
+        let blocks = PostOrder::with_function(self);
+        for block in blocks.as_slice() {
+            inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
+                self,
+                *block,
+                insert_out_of_bounds_checks,
+            );
+        }
+
+        // If we inserted out of bounds check, let's run the pass again with those new
+        // instructions (we don't want to remove those checks, or instructions that are
+        // dependencies of those checks)
+        if inserted_out_of_bounds_checks {
+            self.dead_instruction_elimination(false);
+            return;
+        }
+
+        context.remove_rc_instructions(&mut self.dfg);
     }
-
-    let mut inserted_out_of_bounds_checks = false;
-
-    let blocks = PostOrder::with_function(function);
-    for block in blocks.as_slice() {
-        inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
-            function,
-            *block,
-            insert_out_of_bounds_checks,
-        );
-    }
-
-    // If we inserted out of bounds check, let's run the pass again with those new
-    // instructions (we don't want to remove those checks, or instructions that are
-    // dependencies of those checks)
-    if inserted_out_of_bounds_checks {
-        dead_instruction_elimination(function, false);
-        return;
-    }
-
-    context.remove_rc_instructions(&mut function.dfg);
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
