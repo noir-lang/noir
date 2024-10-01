@@ -113,6 +113,12 @@ impl<'a> Parser<'a> {
         }
 
         let Some(mut path) = self.parse_path() else {
+            if self.at_built_in_type() {
+                self.push_error(
+                    ParserErrorReason::ExpectedPatternButFoundType(self.token.token().clone()),
+                    self.current_token_span,
+                );
+            }
             return None;
         };
 
@@ -211,6 +217,28 @@ impl<'a> Parser<'a> {
             _ => unreachable!(),
         }
     }
+
+    fn at_built_in_type(&self) -> bool {
+        matches!(
+            self.token.token(),
+            Token::Bool(..)
+                | Token::IntType(..)
+                | Token::Keyword(Keyword::Bool)
+                | Token::Keyword(Keyword::CtString)
+                | Token::Keyword(Keyword::Expr)
+                | Token::Keyword(Keyword::Field)
+                | Token::Keyword(Keyword::FunctionDefinition)
+                | Token::Keyword(Keyword::Module)
+                | Token::Keyword(Keyword::Quoted)
+                | Token::Keyword(Keyword::StructDefinition)
+                | Token::Keyword(Keyword::TraitConstraint)
+                | Token::Keyword(Keyword::TraitDefinition)
+                | Token::Keyword(Keyword::TraitImpl)
+                | Token::Keyword(Keyword::TypedExpr)
+                | Token::Keyword(Keyword::TypeType)
+                | Token::Keyword(Keyword::UnresolvedType)
+        )
+    }
 }
 
 #[cfg(test)]
@@ -218,7 +246,13 @@ mod tests {
 
     use crate::{
         ast::Pattern,
-        parser::{parser::tests::expect_no_errors, Parser},
+        parser::{
+            parser::tests::{
+                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+            },
+            Parser, ParserErrorReason,
+        },
+        token::{Keyword, Token},
     };
 
     #[test]
@@ -313,5 +347,23 @@ mod tests {
         assert_eq!(parser.errors.len(), 1);
         let Pattern::Struct(path, _, _) = pattern else { panic!("Expected a struct pattern") };
         assert_eq!(path.to_string(), "foo::Bar");
+    }
+
+    #[test]
+    fn errors_on_reserved_type() {
+        let src = "
+        Field
+        ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let pattern = parser.parse_pattern();
+        assert!(pattern.is_none());
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(
+            reason,
+            ParserErrorReason::ExpectedPatternButFoundType(Token::Keyword(Keyword::Field))
+        ));
     }
 }

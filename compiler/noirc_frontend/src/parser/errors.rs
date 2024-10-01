@@ -55,7 +55,7 @@ pub enum ParserErrorReason {
 
     #[error("Unexpected '{0}', expected a field name or number")]
     ExpectedFieldName(Token),
-    #[error("expected a pattern but found a type - {0}")]
+    #[error("Expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
@@ -244,7 +244,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
                 }
                 ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
-                    "Expected a ; separating these two statements".into(),
+                    format!("Expected a pattern but found a type - {ty}"),
                     format!("{ty} is a type and cannot be used as a variable name"),
                     error.span,
                 ),
