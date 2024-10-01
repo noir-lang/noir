@@ -7,8 +7,8 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
-use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::TraitId;
+use crate::token::SecondaryAttribute;
 
 use super::{Documented, GenericTypeArgs, ItemVisibility};
 

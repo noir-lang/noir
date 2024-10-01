@@ -4,8 +4,7 @@ use iter_extended::vecmap;
 
 use crate::{
     hir_def::traits::NamedType,
-    macros_api::NodeInterner,
-    node_interner::{FuncId, TraitId, TypeAliasId},
+    node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
     ResolvedGeneric, StructType, Type,
 };
 

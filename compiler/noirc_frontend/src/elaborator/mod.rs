@@ -3,55 +3,41 @@ use std::{
     rc::Rc,
 };
 
+use crate::ast::ItemVisibility;
 use crate::{
-    ast::{FunctionKind, GenericTypeArgs, UnresolvedTraitConstraint},
+    ast::{
+        BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
+        Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedTypeData,
+    },
+    graph::CrateId,
     hir::{
         def_collector::dc_crate::{
-            filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal, UnresolvedStruct,
-            UnresolvedTypeAlias,
+            filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
+            UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
         },
-        def_map::DefMaps,
+        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
+        def_map::{DefMaps, ModuleData},
+        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
+        resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
+        Context,
     },
+    hir_def::traits::TraitImpl,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::FunctionBody,
+        function::{FuncMeta, FunctionBody, HirFunction},
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
-    macros_api::{
-        BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
-        SecondaryAttribute, StructId,
-    },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, ReferenceId,
-        TraitId, TypeAliasId,
+        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
+        ReferenceId, StructId, TraitId, TraitImplId, TypeAliasId,
     },
-    token::CustomAttribute,
+    token::{CustomAttribute, SecondaryAttribute},
     Shared, Type, TypeVariable,
-};
-use crate::{
-    ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
-    graph::CrateId,
-    hir::{
-        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::import::PathResolution,
-        Context,
-    },
-    hir_def::function::{FuncMeta, HirFunction},
-    macros_api::{Param, Path, UnresolvedTypeData},
-    node_interner::TraitImplId,
-};
-use crate::{
-    hir::{
-        def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl},
-        def_map::ModuleData,
-    },
-    hir_def::traits::TraitImpl,
-    macros_api::ItemVisibility,
 };
 
 mod comptime;
@@ -360,7 +346,7 @@ impl<'context> Elaborator<'context> {
         // Introduce all numeric generics into scope
         for generic in &all_generics {
             if let Kind::Numeric(typ) = &generic.kind {
-                let definition = DefinitionKind::GenericType(generic.type_var.clone());
+                let definition = DefinitionKind::NumericGeneric(generic.type_var.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
                 let hir_ident = self.add_variable_decl(
                     ident, false, // mutable

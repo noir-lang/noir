@@ -2,6 +2,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
+        function::Function,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
         value::ValueId,
@@ -17,29 +18,35 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            let reachable_blocks = func.reachable_blocks();
-
-            if !func.runtime().is_entry_point() {
-                assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
-            }
-            let mut array_to_last_use = HashMap::default();
-            let mut instructions_to_update = HashSet::default();
-            let mut arrays_from_load = HashSet::default();
-
-            for block in reachable_blocks.iter() {
-                analyze_last_uses(
-                    &func.dfg,
-                    *block,
-                    &mut array_to_last_use,
-                    &mut instructions_to_update,
-                    &mut arrays_from_load,
-                );
-            }
-            for block in reachable_blocks {
-                make_mutable(&mut func.dfg, block, &instructions_to_update);
-            }
+            func.array_set_optimization();
         }
         self
+    }
+}
+
+impl Function {
+    pub(crate) fn array_set_optimization(&mut self) {
+        let reachable_blocks = self.reachable_blocks();
+
+        if !self.runtime().is_entry_point() {
+            assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
+        }
+        let mut array_to_last_use = HashMap::default();
+        let mut instructions_to_update = HashSet::default();
+        let mut arrays_from_load = HashSet::default();
+
+        for block in reachable_blocks.iter() {
+            analyze_last_uses(
+                &self.dfg,
+                *block,
+                &mut array_to_last_use,
+                &mut instructions_to_update,
+                &mut arrays_from_load,
+            );
+        }
+        for block in reachable_blocks {
+            make_mutable(&mut self.dfg, block, &instructions_to_update);
+        }
     }
 }
 

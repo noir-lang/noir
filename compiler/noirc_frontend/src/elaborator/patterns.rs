@@ -3,17 +3,18 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::{TypePath, UnresolvedType, ERROR_IDENT},
+    ast::{
+        Expression, ExpressionKind, Ident, Path, Pattern, TypePath, UnresolvedType, ERROR_IDENT,
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirIdent, HirMethodReference, ImplKind},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind},
         stmt::HirPattern,
     },
-    macros_api::{Expression, ExpressionKind, HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
     ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
@@ -557,7 +558,7 @@ impl<'context> Elaborator<'context> {
 
                         self.interner.add_global_reference(global_id, hir_ident.location);
                     }
-                    DefinitionKind::GenericType(_) => {
+                    DefinitionKind::NumericGeneric(_) => {
                         // Initialize numeric generics to a polymorphic integer type in case
                         // they're used in expressions. We must do this here since type_check_variable
                         // does not check definition kinds and otherwise expects parameters to

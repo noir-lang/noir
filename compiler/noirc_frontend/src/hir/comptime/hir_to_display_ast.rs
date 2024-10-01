@@ -9,10 +9,11 @@ use crate::ast::{
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
-use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
+use crate::hir_def::expr::{
+    HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral,
+};
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
-use crate::macros_api::HirLiteral;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
 // TODO:
