@@ -368,6 +368,7 @@ fn check_trait_not_in_scope() {
 
     fn main() {
     }
+
     ";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
@@ -2912,6 +2913,8 @@ fn trait_impl_for_a_type_that_implements_another_trait() {
     pub fn use_it<T>(t: T) -> i32 where T: Two {
         Two::two(t)
     }
+
+    fn main() {}
     "#;
     assert_no_errors(src);
 }
@@ -2928,8 +2931,6 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
             let _ = self;
             1
         }
-
-        pub use bar::baz;
     }
 
     trait Two {
@@ -3154,7 +3155,8 @@ fn use_numeric_generic_in_trait_method() {
         }
 
         fn main() {
-            let _ = Bar{}.foo([1,2,3]);
+            let bytes: [u8; 3] = [1,2,3];
+            let _ = Bar{}.foo(bytes);
         }
     "#;
 
