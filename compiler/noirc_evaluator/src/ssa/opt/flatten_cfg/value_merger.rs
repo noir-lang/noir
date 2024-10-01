@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -169,7 +169,7 @@ impl<'a> ValueMerger<'a> {
             return result;
         }
 
-        let outer_type = Type::Array(Rc::new(vec![typ.clone()]), 2);
+        let outer_type = Type::Array(Arc::new(vec![typ.clone()]), 2);
         let new_array = self.dfg.make_array(vec![else_value, then_value].into(), outer_type);
 
         let index =
