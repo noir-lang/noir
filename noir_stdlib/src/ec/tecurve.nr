@@ -1,4 +1,4 @@
-mod affine {
+pub mod affine {
     // Affine coordinate representation of Twisted Edwards curves
     // Points are represented by two-dimensional Cartesian coordinates.
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
@@ -27,6 +27,7 @@ mod affine {
 
     impl Point {
         // Point constructor
+        #[deprecated = "It's recommmended to use the external noir-edwards library (https://github.com/noir-lang/noir-edwards)"]
         pub fn new(x: Field, y: Field) -> Self {
             Self { x, y }
         }
@@ -192,7 +193,7 @@ mod affine {
         }
     }
 }
-mod curvegroup {
+pub mod curvegroup {
     // CurveGroup coordinate representation of Twisted Edwards curves
     // Points are represented by four-dimensional projective coordinates, viz. extended Twisted Edwards coordinates.
     // See section 3 of <https://eprint.iacr.org/2008/522.pdf> for details.

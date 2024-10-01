@@ -13,21 +13,17 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::ExpressionKind;
-use crate::ast::Ident;
-use crate::ast::LValue;
-use crate::ast::Pattern;
-use crate::ast::StatementKind;
-use crate::ast::UnresolvedTypeData;
+use crate::ast::{
+    ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
+};
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
-use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::def_map::DefMaps;
+use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
-use crate::macros_api::ModuleDefId;
-use crate::macros_api::UnaryOp;
 use crate::usage_tracker::UnusedItem;
 use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
@@ -489,6 +485,11 @@ impl StructId {
     pub fn local_module_id(self) -> LocalModuleId {
         self.0.local_id
     }
+
+    /// Returns the module where this struct is defined.
+    pub fn parent_module_id(self, def_maps: &DefMaps) -> ModuleId {
+        self.module_id().parent(def_maps).expect("Expected struct module parent to exist")
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
@@ -580,7 +581,7 @@ pub enum DefinitionKind {
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
-    GenericType(TypeVariable),
+    NumericGeneric(TypeVariable),
 }
 
 impl DefinitionKind {
@@ -595,7 +596,7 @@ impl DefinitionKind {
             DefinitionKind::Function(_) => None,
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
-            DefinitionKind::GenericType(_) => None,
+            DefinitionKind::NumericGeneric(_) => None,
         }
     }
 }
@@ -676,7 +677,7 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            usage_tracker: UsageTracker::new(),
+            usage_tracker: UsageTracker::default(),
             doc_comments: HashMap::default(),
         }
     }

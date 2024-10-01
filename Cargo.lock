@@ -2619,6 +2619,7 @@ name = "nargo_fmt"
 version = "0.34.0"
 dependencies = [
  "bytecount",
+ "noirc_errors",
  "noirc_frontend",
  "serde",
  "similar-asserts",
@@ -2753,6 +2754,7 @@ version = "0.34.0"
 dependencies = [
  "acvm",
  "async-lsp",
+ "chumsky",
  "codespan-lsp",
  "convert_case 0.6.0",
  "fm",

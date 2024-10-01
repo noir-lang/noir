@@ -47,7 +47,7 @@ pub enum TopLevelStatementKind {
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     SubModule(ParsedSubModule),
-    Global(LetStatement),
+    Global(LetStatement, ItemVisibility),
     InnerAttribute(SecondaryAttribute),
     Error,
 }
@@ -64,7 +64,7 @@ impl TopLevelStatementKind {
             TopLevelStatementKind::Impl(i) => Some(ItemKind::Impl(i)),
             TopLevelStatementKind::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
             TopLevelStatementKind::SubModule(s) => Some(ItemKind::Submodules(s)),
-            TopLevelStatementKind::Global(c) => Some(ItemKind::Global(c)),
+            TopLevelStatementKind::Global(c, visibility) => Some(ItemKind::Global(c, visibility)),
             TopLevelStatementKind::InnerAttribute(a) => Some(ItemKind::InnerAttribute(a)),
             TopLevelStatementKind::Error => None,
         }
@@ -249,7 +249,7 @@ pub struct SortedModule {
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
     pub type_aliases: Vec<Documented<NoirTypeAlias>>,
-    pub globals: Vec<Documented<LetStatement>>,
+    pub globals: Vec<(Documented<LetStatement>, ItemVisibility)>,
 
     /// Module declarations like `mod foo;`
     pub module_decls: Vec<Documented<ModuleDeclaration>>,
@@ -271,7 +271,7 @@ impl std::fmt::Display for SortedModule {
             write!(f, "{import}")?;
         }
 
-        for global_const in &self.globals {
+        for (global_const, _visibility) in &self.globals {
             write!(f, "{global_const}")?;
         }
 
@@ -321,7 +321,9 @@ impl ParsedModule {
                 ItemKind::TypeAlias(type_alias) => {
                     module.push_type_alias(type_alias, item.doc_comments);
                 }
-                ItemKind::Global(global) => module.push_global(global, item.doc_comments),
+                ItemKind::Global(global, visibility) => {
+                    module.push_global(global, visibility, item.doc_comments);
+                }
                 ItemKind::ModuleDecl(mod_name) => {
                     module.push_module_decl(mod_name, item.doc_comments);
                 }
@@ -354,7 +356,7 @@ pub enum ItemKind {
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
-    Global(LetStatement),
+    Global(LetStatement, ItemVisibility),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
     InnerAttribute(SecondaryAttribute),
@@ -364,6 +366,7 @@ pub enum ItemKind {
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
 pub struct ParsedSubModule {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub contents: ParsedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
@@ -373,6 +376,7 @@ pub struct ParsedSubModule {
 impl ParsedSubModule {
     pub fn into_sorted(self) -> SortedSubModule {
         SortedSubModule {
+            visibility: self.visibility,
             name: self.name,
             contents: self.contents.into_sorted(),
             outer_attributes: self.outer_attributes,
@@ -396,6 +400,7 @@ impl std::fmt::Display for SortedSubModule {
 #[derive(Clone)]
 pub struct SortedSubModule {
     pub name: Ident,
+    pub visibility: ItemVisibility,
     pub contents: SortedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
@@ -438,8 +443,13 @@ impl SortedModule {
         self.submodules.push(Documented::new(submodule, doc_comments));
     }
 
-    fn push_global(&mut self, global: LetStatement, doc_comments: Vec<String>) {
-        self.globals.push(Documented::new(global, doc_comments));
+    fn push_global(
+        &mut self,
+        global: LetStatement,
+        visibility: ItemVisibility,
+        doc_comments: Vec<String>,
+    ) {
+        self.globals.push((Documented::new(global, doc_comments), visibility));
     }
 }
 
@@ -526,11 +536,10 @@ impl std::fmt::Display for TopLevelStatementKind {
             TopLevelStatementKind::Function(fun) => fun.fmt(f),
             TopLevelStatementKind::Module(m) => m.fmt(f),
             TopLevelStatementKind::Import(tree, visibility) => {
-                if visibility == &ItemVisibility::Private {
-                    write!(f, "use {tree}")
-                } else {
-                    write!(f, "{visibility} use {tree}")
+                if visibility != &ItemVisibility::Private {
+                    write!(f, "{visibility} ")?;
                 }
+                write!(f, "use {tree}")
             }
             TopLevelStatementKind::Trait(t) => t.fmt(f),
             TopLevelStatementKind::TraitImpl(i) => i.fmt(f),
@@ -538,7 +547,12 @@ impl std::fmt::Display for TopLevelStatementKind {
             TopLevelStatementKind::Impl(i) => i.fmt(f),
             TopLevelStatementKind::TypeAlias(t) => t.fmt(f),
             TopLevelStatementKind::SubModule(s) => s.fmt(f),
-            TopLevelStatementKind::Global(c) => c.fmt(f),
+            TopLevelStatementKind::Global(c, visibility) => {
+                if visibility != &ItemVisibility::Private {
+                    write!(f, "{visibility} ")?;
+                }
+                c.fmt(f)
+            }
             TopLevelStatementKind::InnerAttribute(a) => write!(f, "#![{}]", a),
             TopLevelStatementKind::Error => write!(f, "error"),
         }

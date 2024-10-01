@@ -3,13 +3,13 @@ use std::collections::BTreeMap;
 use noirc_frontend::{
     ast::NoirTraitImpl,
     graph::CrateId,
+    hir::def_map::ModuleDefId,
     hir::{
         def_map::{CrateDefMap, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
-    macros_api::{ModuleDefId, NodeInterner},
-    node_interner::{FunctionModifiers, ReferenceId},
+    node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
     Kind, ResolvedGeneric, Type, TypeVariableKind,
 };
 
@@ -197,12 +197,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     }
                 }
 
-                let module_id = struct_type.id.module_id();
-                let module_data = &self.def_maps[&module_id.krate].modules()[module_id.local_id.0];
-                let parent_module_local_id = module_data.parent.unwrap();
-                let parent_module_id =
-                    ModuleId { krate: module_id.krate, local_id: parent_module_local_id };
-
+                let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
                 let current_module_parent_id = current_module_data
                     .parent
                     .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });

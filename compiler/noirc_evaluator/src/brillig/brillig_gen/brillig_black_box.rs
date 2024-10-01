@@ -23,25 +23,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
     function_results: &[BrilligVariable],
 ) {
     match bb_func {
-        BlackBoxFunc::SHA256 => {
-            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
-            {
-                let message_vector = convert_array_or_vector(brillig_context, *message, bb_func);
-                let output_heap_array =
-                    brillig_context.codegen_brillig_array_to_heap_array(*result_array);
-
-                brillig_context.black_box_op_instruction(BlackBoxOp::Sha256 {
-                    message: message_vector,
-                    output: output_heap_array,
-                });
-
-                brillig_context.deallocate_heap_vector(message_vector);
-                brillig_context.deallocate_heap_array(output_heap_array);
-            } else {
-                unreachable!("ICE: SHA256 expects one array argument and one array result")
-            }
-        }
         BlackBoxFunc::Blake2s => {
             if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
                 (function_arguments, function_results)

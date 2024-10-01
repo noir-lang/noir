@@ -29,23 +29,25 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_enable_side_effects(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            remove_enable_side_effects(function);
+            function.remove_enable_side_effects();
         }
         self
     }
 }
 
-fn remove_enable_side_effects(function: &mut Function) {
-    let mut context = Context::default();
-    context.block_queue.push(function.entry_block());
+impl Function {
+    pub(crate) fn remove_enable_side_effects(&mut self) {
+        let mut context = Context::default();
+        context.block_queue.push(self.entry_block());
 
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
+        while let Some(block) = context.block_queue.pop() {
+            if context.visited_blocks.contains(&block) {
+                continue;
+            }
+
+            context.visited_blocks.insert(block);
+            context.remove_enable_side_effects_in_block(self, block);
         }
-
-        context.visited_blocks.insert(block);
-        context.remove_enable_side_effects_in_block(function, block);
     }
 }
 

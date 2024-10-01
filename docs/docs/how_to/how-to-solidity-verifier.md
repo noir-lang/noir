@@ -57,6 +57,8 @@ bb contract
 replacing `<noir_artifact_name>` with the name of your Noir project. A new `contract` folder would then be generated in your project directory, containing the Solidity
 file `contract.sol`. It can be deployed to any EVM blockchain acting as a verifier smart contract.
 
+You can find more information about `bb` and the default Noir proving backend on [this page](../getting_started/hello_noir/index.md#proving-backend).
+
 :::info
 
 It is possible to generate verifier contracts of Noir programs for other smart contract platforms as long as the proving backend supplies an implementation.

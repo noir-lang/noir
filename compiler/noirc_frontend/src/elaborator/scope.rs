@@ -1,11 +1,10 @@
 use noirc_errors::{Location, Spanned};
 
-use crate::ast::{PathKind, ERROR_IDENT};
+use crate::ast::{Ident, Path, PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::import::{PathResolution, PathResolutionResult};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
-use crate::macros_api::Ident;
 use crate::{
     hir::{
         def_map::{ModuleDefId, TryFromModuleDefId},
@@ -15,8 +14,7 @@ use crate::{
         expr::{HirCapturedVar, HirIdent},
         traits::Trait,
     },
-    macros_api::{Path, StructId},
-    node_interner::{DefinitionId, TraitId},
+    node_interner::{DefinitionId, StructId, TraitId},
     Shared, StructType,
 };
 use crate::{Type, TypeAlias};

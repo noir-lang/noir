@@ -9,8 +9,12 @@ use noirc_abi::{
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
-    hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern, types::Type},
-    macros_api::{HirExpression, HirLiteral},
+    hir_def::{
+        expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        function::Param,
+        stmt::HirPattern,
+        types::Type,
+    },
     node_interner::{FuncId, NodeInterner},
 };
 use noirc_frontend::{TypeBinding, TypeVariableKind};

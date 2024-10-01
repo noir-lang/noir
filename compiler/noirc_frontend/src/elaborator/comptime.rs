@@ -6,7 +6,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::Documented,
+    ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -19,13 +19,11 @@ use crate::{
         def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
     },
-    hir_def::expr::HirIdent,
+    hir_def::expr::{HirExpression, HirIdent},
     lexer::Lexer,
-    macros_api::{
-        Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
-    },
-    node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
+    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
     parser::{self, TopLevelStatement, TopLevelStatementKind},
+    token::SecondaryAttribute,
     Type, TypeBindings, UnificationError,
 };
 
@@ -439,11 +437,12 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatementKind::Global(global) => {
+            TopLevelStatementKind::Global(global, visibility) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     Documented::new(global, item.doc_comments),
+                    visibility,
                     self.file,
                     self.local_module,
                     self.crate_id,
