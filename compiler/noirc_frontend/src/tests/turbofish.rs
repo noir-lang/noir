@@ -29,11 +29,11 @@ fn turbofish_numeric_generic_nested_call() {
     }
 
     impl<T> Foo<T> {
-        fn static_method<let N: u32>() -> [u8; N] {
+        pub fn static_method<let N: u32>() -> [u8; N] {
             [0; N]
         }
 
-        fn impl_method<let N: u32>(self) -> [T; N] {
+        pub fn impl_method<let N: u32>(self) -> [T; N] {
             [self.a; N]
         }
     }
@@ -108,7 +108,7 @@ fn turbofish_in_middle_of_variable_unsupported_yet() {
     }
 
     impl <T> Foo<T> {
-        fn new(x: T) -> Self {
+        pub fn new(x: T) -> Self {
             Foo { x }
         }
     }
