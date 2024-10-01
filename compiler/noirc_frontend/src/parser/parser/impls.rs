@@ -587,11 +587,31 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Impl(type_impl) = &item.kind else {
-            panic!("Expected struct");
+            panic!("Expected impl");
         };
         assert_eq!(type_impl.methods.len(), 1);
 
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a fn but found hello");
+    }
+
+    #[test]
+    fn recovers_on_unknown_trait_impl_item() {
+        let src = "
+        impl Foo for i32 { hello fn foo() {} }
+                           ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::TraitImpl(trait_imp) = &item.kind else {
+            panic!("Expected trait impl");
+        };
+        assert_eq!(trait_imp.items.len(), 1);
+
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a trait impl item but found hello");
     }
 }
