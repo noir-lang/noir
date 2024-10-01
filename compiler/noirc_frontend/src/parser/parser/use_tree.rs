@@ -34,11 +34,6 @@ impl<'a> Parser<'a> {
             false, // allow trailing double colon
             start_span,
         );
-        let prefix = prefix.unwrap_or_else(|| Path {
-            segments: Vec::new(),
-            kind: PathKind::Plain,
-            span: self.span_since(start_span),
-        });
 
         let trailing_double_colon = if prefix.segments.is_empty() && kind != PathKind::Plain {
             true

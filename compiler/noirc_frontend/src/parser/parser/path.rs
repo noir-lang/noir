@@ -65,7 +65,41 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::DoubleColon);
         }
 
-        self.parse_path_after_kind(kind, allow_turbofish, allow_trailing_double_colon, start_span)
+        let path = self.parse_optional_path_after_kind(
+            kind,
+            allow_turbofish,
+            allow_trailing_double_colon,
+            start_span,
+        )?;
+        if path.segments.is_empty() {
+            if path.kind != PathKind::Plain {
+                self.expected_identifier();
+            }
+            None
+        } else {
+            Some(path)
+        }
+    }
+
+    pub(super) fn parse_optional_path_after_kind(
+        &mut self,
+        kind: PathKind,
+        allow_turbofish: bool,
+        allow_trailing_double_colon: bool,
+        start_span: Span,
+    ) -> Option<Path> {
+        let path = self.parse_path_after_kind(
+            kind,
+            allow_turbofish,
+            allow_trailing_double_colon,
+            start_span,
+        );
+
+        if path.segments.is_empty() && path.kind == PathKind::Plain {
+            None
+        } else {
+            Some(path)
+        }
     }
 
     pub(super) fn parse_path_after_kind(
@@ -74,7 +108,7 @@ impl<'a> Parser<'a> {
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
         start_span: Span,
-    ) -> Option<Path> {
+    ) -> Path {
         let mut segments = Vec::new();
 
         if self.token.kind() == TokenKind::Ident {
@@ -110,11 +144,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if segments.is_empty() && kind == PathKind::Plain {
-            None
-        } else {
-            Some(Path { segments, kind, span: self.span_since(start_span) })
-        }
+        Path { segments, kind, span: self.span_since(start_span) }
     }
 
     pub(super) fn parse_path_generics(
@@ -172,7 +202,10 @@ mod tests {
 
     use crate::{
         ast::PathKind,
-        parser::{parser::tests::expect_no_errors, Parser},
+        parser::{
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            Parser,
+        },
     };
 
     #[test]
@@ -291,5 +324,20 @@ mod tests {
         assert_eq!(path.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.to_string(), "foo::bar::<1>");
+    }
+
+    #[test]
+    fn errors_on_crate_double_colons() {
+        let src = "
+        crate:: 
+               ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let path = parser.parse_path();
+        assert!(path.is_none());
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected an identifier but found end of input");
     }
 }
