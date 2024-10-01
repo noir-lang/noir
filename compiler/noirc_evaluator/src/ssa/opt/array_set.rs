@@ -70,10 +70,14 @@ fn analyze_last_uses(
                     instructions_that_can_be_made_mutable.remove(&existing);
                 }
             }
-            Instruction::ArraySet { array, .. } => {
+            Instruction::ArraySet { array, value, .. } => {
                 let array = dfg.resolve(*array);
+                let value = dfg.resolve(*value);
 
                 if let Some(existing) = array_to_last_use.insert(array, *instruction_id) {
+                    instructions_that_can_be_made_mutable.remove(&existing);
+                }
+                if let Some(existing) = array_to_last_use.insert(value, *instruction_id) {
                     instructions_that_can_be_made_mutable.remove(&existing);
                 }
                 // If the array we are setting does not come from a load we can safely mark it mutable.
@@ -92,6 +96,9 @@ fn analyze_last_uses(
                 if (!arrays_from_load.contains(&array) || is_return_block) && !array_in_terminator {
                     instructions_that_can_be_made_mutable.insert(*instruction_id);
                 }
+
+                let result = dfg.instruction_results(*instruction_id)[0];
+                array_to_last_use.insert(result, *instruction_id);
             }
             Instruction::Call { arguments, .. } => {
                 for argument in arguments {
@@ -169,29 +176,31 @@ mod tests {
         // from and cloned in a loop. If the array is inadvertently marked mutable, and is cloned in a previous iteration
         // of the loop, its clone will also be altered.
         //
-        // acir(inline) fn main f0 {
+        // brillig fn main f0 {
         //     b0():
-        //       v2 = allocate
-        //       store [Field 0, Field 0, Field 0, Field 0, Field 0] at v2
         //       v3 = allocate
-        //       store [Field 0, Field 0, Field 0, Field 0, Field 0] at v3
+        //       store [[Field 0, Field 0, Field 0, Field 0, Field 0], [Field 0, Field 0, Field 0, Field 0, Field 0]] at v3
+        //       v4 = allocate
+        //       store [[Field 0, Field 0, Field 0, Field 0, Field 0], [Field 0, Field 0, Field 0, Field 0, Field 0]] at v4
         //       jmp b1(u32 0)
-        //     b1(v5: u32):
-        //       v7 = lt v5, u32 5
-        //       jmpif v7 then: b3, else: b2
+        //     b1(v6: u32):
+        //       v8 = lt v6, u32 5
+        //       jmpif v8 then: b3, else: b2
         //     b3():
-        //       v8 = eq v5, u32 5
-        //       jmpif v8 then: b4, else: b5
+        //       v9 = eq v6, u32 5
+        //       jmpif v9 then: b4, else: b5
         //     b4():
-        //       v9 = load v2
-        //       store v9 at v3
+        //       v10 = load v3
+        //       store v10 at v4
         //       jmp b5()
         //     b5():
-        //       v10 = load v2
-        //       v12 = array_set v10, index v5, value Field 20
-        //       store v12 at v2
-        //       v14 = add v5, u32 1
-        //       jmp b1(v14)
+        //       v11 = load v3
+        //       v13 = array_get v11, index Field 0
+        //       v14 = array_set v13, index v6, value Field 20
+        //       v15 = array_set v11, index v6, value v14
+        //       store v15 at v3
+        //       v17 = add v6, u32 1
+        //       jmp b1(v17)
         //     b2():
         //       return
         //   }
@@ -203,13 +212,16 @@ mod tests {
         let zero = builder.field_constant(0u128);
         let array_constant =
             builder.array_constant(vector![zero, zero, zero, zero, zero], array_type.clone());
-
-        let v2 = builder.insert_allocate(array_type.clone());
-
-        builder.insert_store(v2, array_constant);
+        let nested_array_type = Type::Array(Arc::new(vec![array_type.clone()]), 2);
+        let nested_array_constant = builder
+            .array_constant(vector![array_constant, array_constant], nested_array_type.clone());
 
         let v3 = builder.insert_allocate(array_type.clone());
-        builder.insert_store(v3, array_constant);
+
+        builder.insert_store(v3, nested_array_constant);
+
+        let v4 = builder.insert_allocate(array_type.clone());
+        builder.insert_store(v4, nested_array_constant);
 
         let b1 = builder.insert_block();
         let zero_u32 = builder.numeric_constant(0u128, Type::unsigned(32));
@@ -219,42 +231,47 @@ mod tests {
         builder.switch_to_block(b1);
         let v5 = builder.add_block_parameter(b1, Type::unsigned(32));
         let five = builder.numeric_constant(5u128, Type::unsigned(32));
-        let v7 = builder.insert_binary(v5, BinaryOp::Lt, five);
+        let v8 = builder.insert_binary(v5, BinaryOp::Lt, five);
 
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
         let b4 = builder.insert_block();
         let b5 = builder.insert_block();
-        builder.terminate_with_jmpif(v7, b3, b2);
+        builder.terminate_with_jmpif(v8, b3, b2);
 
         // Loop body
         // b3 is the if statement conditional
         builder.switch_to_block(b3);
         let two = builder.numeric_constant(5u128, Type::unsigned(32));
-        let v8 = builder.insert_binary(v5, BinaryOp::Eq, two);
-        builder.terminate_with_jmpif(v8, b4, b5);
+        let v9 = builder.insert_binary(v5, BinaryOp::Eq, two);
+        builder.terminate_with_jmpif(v9, b4, b5);
 
         // b4 is the rest of the loop after the if statement
         builder.switch_to_block(b4);
-        let v9 = builder.insert_load(v2, array_type.clone());
-        builder.insert_store(v3, v9);
+        let v10 = builder.insert_load(v3, nested_array_type.clone());
+        builder.insert_store(v4, v10);
         builder.terminate_with_jmp(b5, vec![]);
 
         builder.switch_to_block(b5);
-        let v10 = builder.insert_load(v2, array_type.clone());
+        let v11 = builder.insert_load(v3, nested_array_type.clone());
         let twenty = builder.field_constant(20u128);
-        let v12 = builder.insert_array_set(v10, v5, twenty);
-        builder.insert_store(v2, v12);
+        let v13 = builder.insert_array_get(v11, zero, array_type.clone());
+        let v14 = builder.insert_array_set(v13, v5, twenty);
+        let v15 = builder.insert_array_set(v11, v5, v14);
+
+        builder.insert_store(v3, v15);
         let one = builder.numeric_constant(1u128, Type::unsigned(32));
-        let v14 = builder.insert_binary(v5, BinaryOp::Add, one);
-        builder.terminate_with_jmp(b1, vec![v14]);
+        let v17 = builder.insert_binary(v5, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b1, vec![v17]);
 
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
+        println!("{}", ssa);
         // We expect the same result as above
         let ssa = ssa.array_set_optimization();
+        println!("{}", ssa);
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 6);
@@ -265,7 +282,7 @@ mod tests {
             .filter(|instruction| matches!(&main.dfg[**instruction], Instruction::ArraySet { .. }))
             .collect::<Vec<_>>();
 
-        assert_eq!(array_set_instructions.len(), 1);
+        assert_eq!(array_set_instructions.len(), 2);
         if let Instruction::ArraySet { mutable, .. } = &main.dfg[*array_set_instructions[0]] {
             // The single array set should not be marked mutable
             assert!(!mutable);
