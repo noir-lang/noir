@@ -51,16 +51,16 @@ impl Function {
         let mut visited = HashSet::new();
 
         while let Some(block) = stack.pop() {
-            if visited.insert(block) {
-                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
-            }
-
             // This call is before try_inline_into_predecessor so that if it succeeds in changing a
             // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
             check_for_constant_jmpif(self, block, &mut cfg);
 
-            let mut predecessors = cfg.predecessors(block);
+            // We extend the stack after checking for constant jmpifs to avoid pushing an unreachable block onto the stack.
+            if visited.insert(block) {
+                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+            }
 
+            let mut predecessors = cfg.predecessors(block);
             if predecessors.len() == 1 {
                 let predecessor =
                     predecessors.next().expect("Already checked length of predecessors");
