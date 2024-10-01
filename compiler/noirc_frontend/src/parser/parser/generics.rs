@@ -172,7 +172,9 @@ mod tests {
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
+            parser::tests::{
+                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+            },
             Parser, ParserErrorReason,
         },
     };
