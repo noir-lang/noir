@@ -135,6 +135,7 @@ pub enum Type {
 #[derive(PartialEq, Eq, Clone, Hash, Debug, PartialOrd, Ord)]
 pub enum Kind {
     /// Can bind to any type
+    // TODO(https://github.com/noir-lang/noir/issues/6194): evaluate need for and usage of
     Any,
 
     /// Can bind to any type, except Type::Constant and Type::InfixExpr
