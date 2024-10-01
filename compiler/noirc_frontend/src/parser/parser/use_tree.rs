@@ -17,7 +17,9 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::DoubleColon);
         }
 
-        let use_tree = self.parse_use_tree_without_kind(start_span, kind);
+        let use_tree = self.parse_use_tree_without_kind(
+            start_span, kind, false, // nested
+        );
         if !self.eat_semicolons() {
             self.expected_token(Token::Semicolon);
         }
@@ -28,13 +30,13 @@ impl<'a> Parser<'a> {
         &mut self,
         start_span: Span,
         kind: PathKind,
+        nested: bool,
     ) -> UseTree {
         let prefix = self.parse_path_after_kind(
             kind, false, // allow turbofish
             false, // allow trailing double colon
             start_span,
         );
-
         let trailing_double_colon = if prefix.segments.is_empty() && kind != PathKind::Plain {
             true
         } else {
@@ -48,8 +50,11 @@ impl<'a> Parser<'a> {
                 loop {
                     let start_span = self.current_token_span;
 
-                    let use_tree =
-                        self.parse_use_tree_without_kind(self.current_token_span, PathKind::Plain);
+                    let use_tree = self.parse_use_tree_without_kind(
+                        self.current_token_span,
+                        PathKind::Plain,
+                        true, // nested
+                    );
 
                     // If we didn't advance at all, we are done
                     if start_span == self.current_token_span {
@@ -71,16 +76,20 @@ impl<'a> Parser<'a> {
                 UseTree { prefix, kind: UseTreeKind::List(use_trees) }
             } else {
                 self.expected_token(Token::LeftBrace);
-                self.parse_path_use_tree_end(prefix)
+                self.parse_path_use_tree_end(prefix, nested)
             }
         } else {
-            self.parse_path_use_tree_end(prefix)
+            self.parse_path_use_tree_end(prefix, nested)
         }
     }
 
-    pub(super) fn parse_path_use_tree_end(&mut self, mut prefix: Path) -> UseTree {
+    pub(super) fn parse_path_use_tree_end(&mut self, mut prefix: Path, nested: bool) -> UseTree {
         if prefix.segments.is_empty() {
-            self.expected_label(ParsingRuleLabel::UseSegment);
+            if nested {
+                self.expected_identifier();
+            } else {
+                self.expected_label(ParsingRuleLabel::UseSegment);
+            }
             UseTree { prefix, kind: UseTreeKind::Path(Ident::default(), None) }
         } else {
             let ident = prefix.segments.pop().unwrap().ident;
@@ -284,5 +293,12 @@ mod tests {
         };
         assert_eq!(visibility, &ItemVisibility::Private);
         assert_eq!("crate::{foo, bar}", use_tree.to_string());
+    }
+
+    #[test]
+    fn errors_on_crate_in_subtree() {
+        let src = "use foo::{crate::bar}";
+        let (_, errors) = parse_program(src);
+        assert!(!errors.is_empty());
     }
 }
