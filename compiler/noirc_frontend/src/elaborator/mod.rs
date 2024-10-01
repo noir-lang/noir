@@ -8,8 +8,7 @@ use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedTypeData,
-        UnsupportedNumericGenericType,
+        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
     },
     graph::CrateId,
     hir::{
@@ -39,13 +38,6 @@ use crate::{
     },
     token::{CustomAttribute, SecondaryAttribute},
     Shared, Type, TypeVariable,
-};
-use crate::{
-    hir::{
-        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::import::PathResolution,
-    },
 };
 
 mod comptime;
@@ -354,7 +346,8 @@ impl<'context> Elaborator<'context> {
         // Introduce all numeric generics into scope
         for generic in &all_generics {
             if let Kind::Numeric(typ) = &generic.kind() {
-                let definition = DefinitionKind::GenericType(generic.type_var.clone(), typ.clone());
+                let definition =
+                    DefinitionKind::NumericGeneric(generic.type_var.clone(), typ.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
                 let hir_ident = self.add_variable_decl(
                     ident, false, // mutable

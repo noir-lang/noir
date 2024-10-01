@@ -11,12 +11,8 @@ use crate::{
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
     hir_def::{function::Parameters, traits::TraitFunction},
-    macros_api::{
-        BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        NodeInterner, NoirFunction, UnresolvedType,
-    },
-    node_interner::{FuncId, ReferenceId, TraitId},
-    Kind, ResolvedGeneric, Type, TypeBindings,
+    node_interner::{FuncId, NodeInterner, ReferenceId, TraitId},
+    ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;

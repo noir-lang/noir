@@ -558,7 +558,7 @@ impl<'context> Elaborator<'context> {
 
                         self.interner.add_global_reference(global_id, hir_ident.location);
                     }
-                    DefinitionKind::GenericType(_, ref numeric_typ) => {
+                    DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
                         // Initialize numeric generics to a polymorphic integer type in case
                         // they're used in expressions. We must do this here since type_check_variable
                         // does not check definition kinds and otherwise expects parameters to

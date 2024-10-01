@@ -10,7 +10,7 @@ use noirc_frontend::{
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
-    Kind, ResolvedGeneric, Type, TypeVariableKind,
+    Kind, ResolvedGeneric, Type,
 };
 
 use crate::modules::relative_module_id_path;
