@@ -7,11 +7,15 @@ use noirc_frontend::{
     ast::Visibility,
     elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
-    hir_def::{expr::HirArrayLiteral, stmt::HirPattern, traits::Trait},
-    macros_api::{HirExpression, HirLiteral, NodeInterner, StructId},
+    hir_def::{
+        expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        stmt::HirPattern,
+        traits::Trait,
+    },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
+    node_interner::{NodeInterner, StructId},
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 

@@ -3,13 +3,13 @@ use std::collections::BTreeMap;
 use noirc_frontend::{
     ast::NoirTraitImpl,
     graph::CrateId,
+    hir::def_map::ModuleDefId,
     hir::{
         def_map::{CrateDefMap, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
-    macros_api::{ModuleDefId, NodeInterner},
-    node_interner::{FunctionModifiers, ReferenceId},
+    node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
     Kind, ResolvedGeneric, Type, TypeVariableKind,
 };
 

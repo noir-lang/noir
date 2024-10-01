@@ -14,9 +14,9 @@ use crate::{
 };
 use crate::{
     ast::{
-        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
+        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
+        UnresolvedTypeData, Visibility,
     },
-    macros_api::UnresolvedTypeData,
     parser::{ParserError, ParserErrorReason},
 };
 use crate::{
