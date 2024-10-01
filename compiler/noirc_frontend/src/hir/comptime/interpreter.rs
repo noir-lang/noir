@@ -8,14 +8,13 @@ use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::ImplKind;
 use crate::hir_def::function::FunctionBody;
-use crate::macros_api::UnaryOp;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
@@ -27,17 +26,16 @@ use crate::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
         stmt::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
-            HirPattern,
+            HirPattern, HirStatement,
         },
         types::Kind,
     },
-    macros_api::{HirLiteral, HirStatement, NodeInterner},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
     Shared, Type, TypeBinding, TypeBindings,
 };
 
@@ -585,7 +583,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(value)
                 }
             }
-            DefinitionKind::GenericType(type_variable, numeric_typ) => {
+            DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_, _) => None,
                     TypeBinding::Bound(binding) => binding.evaluate_to_u32(),

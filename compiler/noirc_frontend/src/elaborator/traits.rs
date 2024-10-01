@@ -5,7 +5,9 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+        BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
+        ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
     hir_def::{function::Parameters, traits::TraitFunction},
@@ -14,7 +16,7 @@ use crate::{
         NodeInterner, NoirFunction, UnresolvedType,
     },
     node_interner::{FuncId, ReferenceId, TraitId},
-    ResolvedGeneric, Type, TypeBindings,
+    Kind, ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;

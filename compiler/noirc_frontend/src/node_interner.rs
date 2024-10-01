@@ -13,22 +13,17 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::ExpressionKind;
-use crate::ast::Ident;
-use crate::ast::LValue;
-use crate::ast::Pattern;
-use crate::ast::StatementKind;
-use crate::ast::UnresolvedTypeData;
+use crate::ast::{
+    ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
+};
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::DefMaps;
-use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
-use crate::macros_api::ModuleDefId;
-use crate::macros_api::UnaryOp;
 use crate::usage_tracker::UnusedItem;
 use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
@@ -586,7 +581,7 @@ pub enum DefinitionKind {
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
-    GenericType(TypeVariable, Box<Type>),
+    NumericGeneric(TypeVariable, Box<Type>),
 }
 
 impl DefinitionKind {
@@ -601,7 +596,7 @@ impl DefinitionKind {
             DefinitionKind::Function(_) => None,
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
-            DefinitionKind::GenericType(_, _) => None,
+            DefinitionKind::NumericGeneric(_, _) => None,
         }
     }
 }

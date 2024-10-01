@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::Expression;
+use crate::ast::Expression;
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
@@ -514,7 +514,7 @@ impl DefCollector {
 }
 
 fn add_import_reference(
-    def_id: crate::macros_api::ModuleDefId,
+    def_id: crate::hir::def_map::ModuleDefId,
     name: &Ident,
     interner: &mut NodeInterner,
     file_id: FileId,

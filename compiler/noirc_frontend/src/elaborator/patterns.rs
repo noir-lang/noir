@@ -3,17 +3,18 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::{TypePath, UnresolvedType, ERROR_IDENT},
+    ast::{
+        Expression, ExpressionKind, Ident, Path, Pattern, TypePath, UnresolvedType, ERROR_IDENT,
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirIdent, HirMethodReference, ImplKind},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind},
         stmt::HirPattern,
     },
-    macros_api::{Expression, ExpressionKind, HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
     Kind, ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };

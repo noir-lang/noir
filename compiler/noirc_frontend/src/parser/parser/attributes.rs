@@ -2,9 +2,8 @@ use chumsky::Parser;
 use noirc_errors::Span;
 
 use crate::{
-    macros_api::SecondaryAttribute,
     parser::{NoirParser, ParserError, ParserErrorReason},
-    token::{Attribute, Attributes, Token, TokenKind},
+    token::{Attribute, Attributes, SecondaryAttribute, Token, TokenKind},
 };
 
 use super::primitives::token_kind;

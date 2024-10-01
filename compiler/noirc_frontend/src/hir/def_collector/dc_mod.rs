@@ -11,13 +11,12 @@ use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    Documented, FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItemKind,
-    TraitItem, TypeImpl,
+    Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
+    ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern,
+    TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType, UnresolvedTypeData,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::macros_api::{Expression, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData};
-use crate::node_interner::{ModuleAttributes, ReferenceId};
+use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, StructId};
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{

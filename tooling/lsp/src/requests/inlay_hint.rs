@@ -15,8 +15,7 @@ use noirc_frontend::{
         UnresolvedTypeData, Visitor,
     },
     hir_def::stmt::HirPattern,
-    macros_api::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::{Item, ParsedSubModule},
     Kind, Type, TypeBinding, TypeVariable,
 };

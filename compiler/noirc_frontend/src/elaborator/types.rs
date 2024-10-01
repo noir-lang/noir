@@ -7,8 +7,9 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedTypeExpression,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
+        Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
+        UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{Interpreter, Value},
@@ -22,20 +23,18 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
-            HirPrefixExpression,
+            HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
+            HirMethodReference, HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
+        stmt::HirStatement,
         traits::{NamedType, TraitConstraint},
     },
-    macros_api::{
-        HirExpression, HirLiteral, HirStatement, Ident, NodeInterner, Path, PathKind,
-        SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
-    },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ImplSearchErrorKind, TraitId,
-        TraitImplKind, TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ImplSearchErrorKind, NodeInterner,
+        TraitId, TraitImplKind, TraitMethodId,
     },
+    token::SecondaryAttribute,
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
     UnificationError,
 };
