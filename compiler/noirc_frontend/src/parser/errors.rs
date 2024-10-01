@@ -57,18 +57,6 @@ pub enum ParserErrorReason {
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
-    #[error("expected {{ or -> after function parameters")]
-    ExpectedLeftBraceOrArrowAfterFunctionParameters,
-    #[error("expected {{ after if condition")]
-    ExpectedLeftBraceAfterIfCondition,
-    #[error("expected <, where or {{ after trait name")]
-    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
-    #[error("expected <, where or {{ after impl type")]
-    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
-    #[error("expected <, where or {{ after trait impl for type")]
-    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
-    #[error("expected ( or < after function name")]
-    ExpectedLeftParenOrLeftBracketAfterFunctionName,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]

@@ -351,10 +351,7 @@ impl<'a> Parser<'a> {
 
         let start_span = self.current_token_span;
         let Some(consequence) = self.parse_block_expression() else {
-            self.push_error(
-                ParserErrorReason::ExpectedLeftBraceAfterIfCondition,
-                self.current_token_span,
-            );
+            self.expected_token(Token::LeftBrace);
             let span = self.span_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
                 condition,
