@@ -2444,66 +2444,6 @@ fn impl_not_found_for_inner_impl() {
     ));
 }
 
-// TODO move?
-#[test]
-fn struct_array_len() {
-    let src = r#"
-        struct Array<T, let N: u32> {
-            inner: [T; N],
-        }
-
-        impl<T, let N: u32> Array<T, N> {
-            pub fn len(self) -> u32 {
-                N as u32
-            }
-        }
-
-        fn main(xs: [Field; 2]) {
-            let ys = Array {
-                inner: xs,
-            };
-            assert(ys.len() == 2);
-        }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
-    ));
-}
-
-// TODO move to tests/metaprogramming
-// Regression for #5388
-#[test]
-fn comptime_let() {
-    let src = r#"fn main() {
-        comptime let my_var = 2;
-        assert_eq(my_var, 2);
-    }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
-}
-
-// TODO move to imports
-#[test]
-fn no_super() {
-    let src = "use super::some_func;";
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NoSuper(span),
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(span.start(), 4);
-    assert_eq!(span.end(), 9);
-}
-
 #[test]
 fn cannot_call_unconstrained_function_outside_of_unsafe() {
     let src = r#"
@@ -3135,6 +3075,35 @@ fn infer_globals_to_u32_from_type_use() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn struct_array_len() {
+    let src = r#"
+        struct Array<T, let N: u32> {
+            inner: [T; N],
+        }
+
+        impl<T, let N: u32> Array<T, N> {
+            pub fn len(self) -> u32 {
+                N as u32
+            }
+        }
+
+        fn main(xs: [Field; 2]) {
+            let ys = Array {
+                inner: xs,
+            };
+            assert(ys.len() == 2);
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
+    ));
 }
 
 #[test]
