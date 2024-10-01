@@ -189,7 +189,7 @@ mod tests {
         let title = "Remove the whole `use` item";
 
         let src = r#"
-        mod moo {
+        pub(crate) mod moo {
             pub fn foo() {}
         }
 
@@ -202,7 +202,7 @@ mod tests {
         "#;
 
         let expected = r#"
-        mod moo {
+        pub(crate) mod moo {
             pub fn foo() {}
         }
 

@@ -366,6 +366,7 @@ pub enum ItemKind {
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
 pub struct ParsedSubModule {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub contents: ParsedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
@@ -375,6 +376,7 @@ pub struct ParsedSubModule {
 impl ParsedSubModule {
     pub fn into_sorted(self) -> SortedSubModule {
         SortedSubModule {
+            visibility: self.visibility,
             name: self.name,
             contents: self.contents.into_sorted(),
             outer_attributes: self.outer_attributes,
@@ -398,6 +400,7 @@ impl std::fmt::Display for SortedSubModule {
 #[derive(Clone)]
 pub struct SortedSubModule {
     pub name: Ident,
+    pub visibility: ItemVisibility,
     pub contents: SortedModule,
     pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,

@@ -1,4 +1,4 @@
-mod affine {
+pub mod affine {
     // Affine representation of Montgomery curves
     // Points are represented by two-dimensional Cartesian coordinates.
     // All group operations are induced by those of the corresponding Twisted Edwards curve.
@@ -210,7 +210,7 @@ mod affine {
         }
     }
 }
-mod curvegroup {
+pub mod curvegroup {
     // Affine representation of Montgomery curves
     // Points are represented by three-dimensional projective (homogeneous) coordinates.
     // All group operations are induced by those of the corresponding Twisted Edwards curve.
