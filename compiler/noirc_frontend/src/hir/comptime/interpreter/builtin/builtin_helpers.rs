@@ -26,8 +26,7 @@ use crate::{
         function::{FuncMeta, FunctionBody},
         stmt::HirPattern,
     },
-    macros_api::{NodeInterner, StructId},
-    node_interner::{FuncId, TraitId, TraitImplId},
+    node_interner::{FuncId, NodeInterner, StructId, TraitId, TraitImplId},
     token::{SecondaryAttribute, Token, Tokens},
     QuotedType, Type,
 };

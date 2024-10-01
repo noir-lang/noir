@@ -19,8 +19,9 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement,
-        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
+        Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        Visibility,
     },
     hir::{
         comptime::{
@@ -29,10 +30,11 @@ use crate::{
             InterpreterError, Value,
         },
         def_collector::dc_crate::CollectedItems,
+        def_map::ModuleDefId,
     },
+    hir_def::expr::{HirExpression, HirLiteral},
     hir_def::function::FunctionBody,
-    macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
-    node_interner::{DefinitionKind, TraitImplKind},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::Parser,
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,

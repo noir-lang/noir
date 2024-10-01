@@ -6,8 +6,9 @@ use crate::ast::{
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
-use crate::macros_api::StructId;
-use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::node_interner::{
+    ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, StructId,
+};
 use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};

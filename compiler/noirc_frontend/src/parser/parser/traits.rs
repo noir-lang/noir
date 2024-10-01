@@ -1,10 +1,8 @@
 use noirc_errors::Span;
 
+use crate::ast::{Documented, ItemVisibility, NoirTrait, Pattern, TraitItem, UnresolvedType};
 use crate::{
-    ast::{
-        Documented, Ident, ItemVisibility, NoirTrait, Pattern, TraitItem, UnresolvedType,
-        UnresolvedTypeData,
-    },
+    ast::{Ident, UnresolvedTypeData},
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Attribute, Keyword, SecondaryAttribute, Token},
 };

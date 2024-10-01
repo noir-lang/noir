@@ -1,10 +1,11 @@
+use crate::ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType};
+use crate::parser::ParserErrorReason;
+
+use crate::token::{Keyword, Token};
+
 use noirc_errors::Span;
 
-use crate::{
-    ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType},
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
-    token::{Keyword, Token, TokenKind},
-};
+use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
 
 use super::Parser;
 

@@ -6,9 +6,8 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::{
-    ast::{ItemVisibility, NoirFunction, TraitImplItemKind, Visibility},
-    macros_api::UnresolvedTypeData,
+use noirc_frontend::ast::{
+    ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility,
 };
 use noirc_frontend::{
     hir::resolution::errors::Span,

@@ -1,8 +1,7 @@
 use crate::{
-    ast::UnresolvedTypeExpression,
+    ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
-    macros_api::{Ident, UnresolvedType, UnresolvedTypeData},
     node_interner::TraitImplId,
     ResolvedGeneric,
 };

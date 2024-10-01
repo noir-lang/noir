@@ -1,15 +1,19 @@
-use acvm::AcirField;
-use noirc_errors::Span;
-
+use crate::ast::{
+    BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
+    UnresolvedType,
+};
+use crate::token::{Attribute, Attributes, Keyword, Token};
+use crate::{ast::UnresolvedGenerics, parser::labels::ParsingRuleLabel};
 use crate::{
     ast::{
-        BlockExpression, FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident,
-        ItemVisibility, NoirFunction, Param, Path, Pattern, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
+        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
+        UnresolvedTypeData, Visibility,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
-    token::{Attribute, Attributes, Keyword, Token},
+    parser::ParserErrorReason,
 };
+use acvm::AcirField;
+
+use noirc_errors::Span;
 
 use super::{pattern::PatternOrSelf, Parser};
 
