@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if self.is_eof() {
+            if self.at_eof() {
                 self.expected_token(Token::RightBrace);
                 break;
             }
@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
                 if self.eat_right_brace() {
                     break;
                 }
-            } else if self.is_eof() || self.eat_right_brace() {
+            } else if self.at_eof() || self.eat_right_brace() {
                 break;
             } else {
                 self.expected_label(ParsingRuleLabel::TraitImplItem);

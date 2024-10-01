@@ -20,10 +20,27 @@ pub(super) fn get_source_with_error_span(src: &str) -> (String, Span) {
     (src, span)
 }
 
-pub(super) fn get_single_error(errors: &[ParserError], expected_span: Span) -> &ParserErrorReason {
-    assert_eq!(errors.len(), 1);
+pub(super) fn get_single_error(errors: &[ParserError], expected_span: Span) -> &ParserError {
+    if errors.is_empty() {
+        panic!("Expected an error, found none");
+    }
+
+    if errors.len() > 1 {
+        for error in errors {
+            println!("{}", error);
+        }
+        panic!("Expected one error, found {} errors (printed above)", errors.len());
+    }
+
     assert_eq!(errors[0].span(), expected_span);
-    errors[0].reason().unwrap()
+    &errors[0]
+}
+
+pub(super) fn get_single_error_reason(
+    errors: &[ParserError],
+    expected_span: Span,
+) -> &ParserErrorReason {
+    get_single_error(errors, expected_span).reason().unwrap()
 }
 
 pub(super) fn expect_no_errors(errors: &[ParserError]) {

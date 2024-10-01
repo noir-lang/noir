@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
 
                 // Let's try with the next token.
                 self.next_token();
-                if self.is_eof() {
+                if self.at_eof() {
                     break;
                 } else {
                     continue;

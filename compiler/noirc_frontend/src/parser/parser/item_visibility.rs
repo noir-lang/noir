@@ -38,7 +38,7 @@ mod tests {
     use crate::{
         ast::ItemVisibility,
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
             Parser, ParserErrorReason,
         },
     };
@@ -71,7 +71,7 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedCrateAfterPub));
     }
 
@@ -85,7 +85,7 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedCrateAfterPub));
     }
     #[test]
@@ -98,7 +98,7 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::PublicCrate);
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedParenAfterPubCrate));
     }
 

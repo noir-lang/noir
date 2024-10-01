@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if self.is_eof() {
+            if self.at_eof() {
                 break;
             }
 
@@ -156,5 +156,26 @@ impl<'a> Parser<'a> {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        parse_program,
+        parser::parser::tests::{get_single_error, get_source_with_error_span},
+    };
+
+    #[test]
+    fn recovers_on_unknown_item() {
+        let src = "
+        fn foo() {} hello fn bar() {}
+                    ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 2);
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected an item but found hello");
     }
 }

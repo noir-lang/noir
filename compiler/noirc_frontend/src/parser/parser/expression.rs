@@ -672,7 +672,7 @@ mod tests {
             UnresolvedTypeData,
         },
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
             Parser, ParserErrorReason,
         },
     };
@@ -906,7 +906,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedExpressionAfterThis));
     }
 
@@ -919,7 +919,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
             panic!("Expected a different error");
         };
@@ -1360,7 +1360,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
         parser.parse_expression();
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedTypeAfterThis));
     }
 

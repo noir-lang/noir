@@ -42,20 +42,43 @@ impl<'a> Parser<'a> {
         let mut fields = Vec::new();
         let mut trailing_comma = false;
 
-        loop {
-            let doc_comments_start_span = self.current_token_span;
-            let doc_comments = self.parse_outer_doc_comments();
+        'outer: loop {
+            let mut doc_comments;
+            let name;
 
-            let start_span = self.current_token_span;
-            let Some(name) = self.eat_ident() else {
+            // Loop until we find an identifier, skipping anything that's not one
+            loop {
+                let doc_comments_start_span = self.current_token_span;
+                doc_comments = self.parse_outer_doc_comments();
+
+                if let Some(ident) = self.eat_ident() {
+                    name = ident;
+                    break;
+                }
+
                 if !doc_comments.is_empty() {
                     self.push_error(
                         ParserErrorReason::DocCommentDoesNotDocumentAnything,
                         self.span_since(doc_comments_start_span),
                     );
                 }
-                break;
-            };
+
+                // Though we do have to stop at EOF
+                if self.at_eof() {
+                    self.expected_token(Token::RightBrace);
+                    break 'outer;
+                }
+
+                // Or if we find a right brace
+                if self.eat_right_brace() {
+                    break 'outer;
+                }
+
+                self.expected_identifier();
+                self.next_token();
+            }
+
+            let start_span = self.previous_token_span;
 
             self.eat_or_error(Token::Colon);
 
@@ -69,8 +92,6 @@ impl<'a> Parser<'a> {
 
             trailing_comma = self.eat_commas();
         }
-
-        self.eat_or_error(Token::RightBrace);
 
         NoirStruct {
             name,
@@ -108,7 +129,10 @@ mod tests {
         parser::{
             parser::{
                 parse_program,
-                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+                tests::{
+                    expect_no_errors, get_single_error, get_single_error_reason,
+                    get_source_with_error_span,
+                },
             },
             ItemKind, ParserErrorReason,
         },
@@ -235,7 +259,28 @@ mod tests {
         ";
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
-        let reason = get_single_error(&errors, span);
+        let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnStruct));
+    }
+
+    #[test]
+    fn recovers_on_non_field() {
+        let src = "
+        struct Foo { 42 x: i32 }
+                     ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Struct(noir_struct) = &item.kind else {
+            panic!("Expected struct");
+        };
+        assert_eq!("Foo", noir_struct.name.to_string());
+        assert_eq!(noir_struct.fields.len(), 1);
+
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected an identifier but found 42");
     }
 }

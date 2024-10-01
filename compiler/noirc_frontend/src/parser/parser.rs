@@ -55,7 +55,7 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     let item = f(&mut parser);
-    if !parser.is_eof() {
+    if !parser.at_eof() {
         parser.expected_token(Token::EOF);
         return Err(parser.errors);
     }
@@ -428,7 +428,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn is_eof(&self) -> bool {
+    fn at_eof(&self) -> bool {
         self.token.token() == &Token::EOF
     }
 

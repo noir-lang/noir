@@ -74,7 +74,7 @@ mod tests {
         parser::{
             parser::{
                 parse_program,
-                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+                tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
             },
             ItemKind, ParserErrorReason,
         },
@@ -160,7 +160,7 @@ mod tests {
         ";
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
-        let reason = get_single_error(&errors, span);
+        let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
     }
 
@@ -172,7 +172,7 @@ mod tests {
         ";
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
-        let reason = get_single_error(&errors, span);
+        let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedSemicolonAfterGlobal));
     }
 }

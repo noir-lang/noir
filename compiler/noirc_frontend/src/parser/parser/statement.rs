@@ -359,7 +359,7 @@ mod tests {
     use crate::{
         ast::{ConstrainKind, ExpressionKind, ForRange, LValue, StatementKind, UnresolvedTypeData},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
             Parser, ParserErrorReason,
         },
     };
@@ -453,7 +453,7 @@ mod tests {
         assert_eq!(constrain.kind, ConstrainKind::Constrain);
         assert_eq!(constrain.arguments.len(), 1);
 
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
     }
 
@@ -625,7 +625,7 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         let statement = parser.parse_statement_or_error();
         assert!(matches!(statement.kind, StatementKind::Error));
-        let reason = get_single_error(&parser.errors, span);
+        let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::EarlyReturn));
     }
 }

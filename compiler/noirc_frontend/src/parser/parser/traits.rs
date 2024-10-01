@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if self.is_eof() {
+            if self.at_eof() {
                 self.expected_token(Token::RightBrace);
                 break;
             }
