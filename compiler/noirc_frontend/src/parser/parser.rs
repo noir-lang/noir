@@ -428,6 +428,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn at(&self, token: Token) -> bool {
+        self.token.token() == &token
+    }
+
     fn at_eof(&self) -> bool {
         self.token.token() == &Token::EOF
     }

@@ -6,7 +6,7 @@ use crate::{
         ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement,
         Statement, StatementKind,
     },
-    parser::ParserErrorReason,
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
@@ -26,27 +26,36 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
-        let attributes = self.parse_attributes();
+        loop {
+            let attributes = self.parse_attributes();
+            let start_span = self.current_token_span;
+            let kind = self.parse_statement_kind(attributes);
 
-        let start_span = self.current_token_span;
-        let kind = self.parse_statement_kind(attributes)?;
-        let span = self.span_since(start_span);
-        let mut statement = Statement { kind, span };
+            let (semicolon_token, semicolon_span) = if self.token.token() == &Token::Semicolon {
+                let token = self.token.clone();
+                self.next_token();
+                let span = token.to_span();
 
-        let (token, span) = if self.token.token() == &Token::Semicolon {
-            let token = self.token.clone();
-            self.next_token();
-            let span = token.to_span();
+                (Some(token.into_token()), span)
+            } else {
+                (None, self.previous_token_span)
+            };
 
-            // Adjust the statement span to include the semicolon
-            statement.span = Span::from(statement.span.start()..span.end());
+            let span = self.span_since(start_span);
 
-            (Some(token.into_token()), span)
-        } else {
-            (None, self.previous_token_span)
-        };
+            if let Some(kind) = kind {
+                let statement = Statement { kind, span };
+                return Some((statement, (semicolon_token, semicolon_span)));
+            }
 
-        Some((statement, (token, span)))
+            self.expected_label(ParsingRuleLabel::Statement);
+
+            if semicolon_token.is_some() || self.at(Token::RightBrace) || self.at_eof() {
+                return None;
+            } else {
+                self.next_token();
+            }
+        }
     }
 
     fn parse_statement_kind(
@@ -359,7 +368,10 @@ mod tests {
     use crate::{
         ast::{ConstrainKind, ExpressionKind, ForRange, LValue, StatementKind, UnresolvedTypeData},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
+            },
             Parser, ParserErrorReason,
         },
     };
@@ -627,5 +639,37 @@ mod tests {
         assert!(matches!(statement.kind, StatementKind::Error));
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::EarlyReturn));
+    }
+
+    #[test]
+    fn recovers_on_unknown_statement_followed_by_actual_statement() {
+        let src = "
+        ] let x = 1;
+        ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let statement = parser.parse_statement_or_error();
+        assert!(matches!(statement.kind, StatementKind::Let(..)));
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a statement but found ]");
+    }
+
+    #[test]
+    fn recovers_on_unknown_statement_followed_by_semicolon() {
+        let src = " ] ;";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(statement.is_none());
+        assert_eq!(parser.errors.len(), 2);
+    }
+
+    #[test]
+    fn recovers_on_unknown_statement_followed_by_right_brace() {
+        let src = " ] }";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement();
+        assert!(statement.is_none());
+        assert_eq!(parser.errors.len(), 2);
     }
 }
