@@ -1761,8 +1761,6 @@ fn numeric_generic_as_unused_trait_fn_param_type() {
     ));
 }
 
-
-
 #[test]
 fn numeric_generic_as_return_type() {
     let src = r#"
