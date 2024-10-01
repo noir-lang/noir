@@ -1723,7 +1723,7 @@ fn numeric_generic_as_param_type() {
     ));
     // Error from the return type
     assert!(matches!(
-        errors[1].0,
+        errors[2].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
