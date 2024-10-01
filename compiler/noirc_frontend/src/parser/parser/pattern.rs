@@ -13,6 +13,7 @@ pub(crate) enum PatternOrSelf {
     SelfPattern(SelfPattern),
 }
 
+/// SelfPattern is guaranteed to be `self`, `&self` or `&mut self` without a colon following it.
 pub(crate) struct SelfPattern {
     pub(crate) reference: bool,
     pub(crate) mutable: bool,
@@ -37,22 +38,49 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_pattern_or_self(&mut self) -> Option<PatternOrSelf> {
         let start_span = self.current_token_span;
 
-        let reference = self.eat(Token::Ampersand);
-        let mutable = self.eat_keyword(Keyword::Mut);
-
-        if self.eat_self() {
-            if reference && !mutable {
-                // TODO: error (found `&` but expected `&mut`)
-            }
-
-            Some(PatternOrSelf::SelfPattern(SelfPattern { reference, mutable }))
-        } else {
-            if reference {
-                // TODO: error? (reference pattern but not `self`)
-            }
-
-            Some(PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(mutable, start_span)?))
+        if !self.next_is_colon() && self.eat_self() {
+            return Some(PatternOrSelf::SelfPattern(SelfPattern {
+                reference: false,
+                mutable: false,
+            }));
         }
+
+        if self.eat_keyword(Keyword::Mut) {
+            if !self.next_is_colon() && self.eat_self() {
+                return Some(PatternOrSelf::SelfPattern(SelfPattern {
+                    reference: false,
+                    mutable: true,
+                }));
+            } else {
+                return Some(PatternOrSelf::Pattern(
+                    self.parse_pattern_after_modifiers(true, start_span)?,
+                ));
+            }
+        }
+
+        if self.token.token() == &Token::Ampersand
+            && self.next_token.token() == &Token::Keyword(Keyword::Mut)
+        {
+            self.next_token();
+            self.next_token();
+            if !self.next_is_colon() && self.eat_self() {
+                return Some(PatternOrSelf::SelfPattern(SelfPattern {
+                    reference: true,
+                    mutable: true,
+                }));
+            } else {
+                // TODO: error (found `&mut` but `self` doesn't follow)
+                return Some(PatternOrSelf::Pattern(
+                    self.parse_pattern_after_modifiers(true, start_span)?,
+                ));
+            }
+        }
+
+        Some(PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(false, start_span)?))
+    }
+
+    fn next_is_colon(&self) -> bool {
+        self.next_token.token() == &Token::Colon
     }
 
     pub(crate) fn parse_pattern_after_modifiers(
