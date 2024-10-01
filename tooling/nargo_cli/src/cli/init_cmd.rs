@@ -4,9 +4,8 @@ use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
-use nargo::package::PackageType;
+use nargo::package::{CrateName, PackageType};
 use noirc_driver::NOIRC_VERSION;
-use noirc_frontend::graph::CrateName;
 use std::path::PathBuf;
 
 /// Create a Noir project in the current directory.

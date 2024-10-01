@@ -2458,10 +2458,12 @@ fn module_functions(
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
     let func_ids = module_data
-        .value_definitions()
+        .definitions()
+        .definitions()
+        .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::FunctionId(func_id) = module_def_id {
-                Some(Value::FunctionDefinition(func_id))
+                Some(Value::FunctionDefinition(*func_id))
             } else {
                 None
             }
@@ -2482,10 +2484,12 @@ fn module_structs(
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
     let struct_ids = module_data
-        .type_definitions()
+        .definitions()
+        .definitions()
+        .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::TypeId(id) = module_def_id {
-                Some(Value::StructDefinition(id))
+                Some(Value::StructDefinition(*id))
             } else {
                 None
             }
