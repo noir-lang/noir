@@ -25,6 +25,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Tries to parse a Path.
+    /// Note that `crate::`, `super::`, etc., are not valid paths on their own.
     pub(crate) fn parse_path(&mut self) -> Option<Path> {
         self.parse_path_impl(
             true, // allow turbofish
@@ -102,6 +104,9 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parses a path assuming the path's kind (plain, `crate::`, `super::`, etc.)
+    /// was already parsed. Note that this method always returns a Path, even if it
+    /// ends up being just `crate::` or an empty path.
     pub(super) fn parse_path_after_kind(
         &mut self,
         kind: PathKind,
