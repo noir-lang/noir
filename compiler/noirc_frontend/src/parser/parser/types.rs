@@ -408,10 +408,7 @@ impl<'a> Parser<'a> {
             let start_span = self.current_token_span;
 
             let Some(typ) = self.parse_type() else {
-                if types.is_empty() {
-                    self.expected_label(ParsingRuleLabel::Type);
-                }
-
+                self.expected_label(ParsingRuleLabel::Type);
                 self.eat_right_paren();
                 break;
             };
@@ -456,7 +453,9 @@ mod tests {
     use crate::{
         ast::{IntegerBitSize, Signedness, UnresolvedTypeData},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
+            parser::tests::{
+                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+            },
             Parser, ParserErrorReason,
         },
         QuotedType,
@@ -584,7 +583,7 @@ mod tests {
         let src = "(Field";
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors); // TODO: there should be an error here
+        assert_eq!(parser.errors.len(), 1);
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
