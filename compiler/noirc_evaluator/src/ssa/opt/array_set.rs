@@ -278,7 +278,6 @@ mod tests {
         let ssa = builder.finish();
         // We expect the same result as above
         let ssa = ssa.array_set_optimization();
-        println!("{}", ssa);
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 6);
