@@ -88,7 +88,7 @@ impl<'a> Lexer<'a> {
 
     /// Peeks at the character two positions ahead and returns true if it is equal to the char argument
     fn peek2_char_is(&mut self, ch: char) -> bool {
-        self.peek_char() == Some(ch)
+        self.peek2_char() == Some(ch)
     }
 
     fn ampersand(&mut self) -> SpannedTokenResult {

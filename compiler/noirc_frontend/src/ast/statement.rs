@@ -780,7 +780,7 @@ pub struct ForBounds(
 
 impl ForBounds {
     /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
-    /// desugaring at `start..=end` into `start..end+1` if necessary.
+    /// desugaring `start..=end` into `start..end+1` if necessary.
     ///
     /// Returns the `start` and `end` expressions.
     pub(crate) fn into_half_open(self) -> (Expression, Expression) {
@@ -810,7 +810,7 @@ pub enum ForRange {
 }
 
 impl ForRange {
-    /// Create a half-open range, bounded inclusively below and exlusively above.
+    /// Create a half-open range, bounded inclusively below and exclusively above.
     pub fn range(start: Expression, end: Expression) -> Self {
         Self::Range(ForBounds(start, end, false))
     }
