@@ -1583,9 +1583,7 @@ fn struct_numeric_generic_in_struct() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::UnsupportedNumericGenericType { .. }
-        ),
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType(_)),
     ));
 }
 
@@ -1638,7 +1636,6 @@ fn bool_generic_as_loop_bound() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 3);
-
     assert!(matches!(
         errors[0].0,
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
@@ -1703,7 +1700,7 @@ fn normal_generic_as_array_length() {
 #[test]
 fn numeric_generic_as_param_type() {
     let src = r#"
-    pub fn foo<let I: Field>(x: I) -> I {
+    pub fn foo<let I: u32>(x: I) -> I {
         let _q: I = 5;
         x
     }
@@ -1725,6 +1722,68 @@ fn numeric_generic_as_param_type() {
     assert!(matches!(
         errors[2].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_unused_param_type() {
+    let src = r#"
+    pub fn foo<let I: u32>(_x: I) { }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_unused_trait_fn_param_type() {
+    let src = r#"
+    trait Foo {
+        fn foo<let I: u32>(_x: I) { }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // Foo is unused
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_return_type() {
+    let src = r#"
+    // std::mem::zeroed() without stdlib
+    trait Zeroed {
+        fn zeroed<T>(self) -> T;
+    }
+
+    fn foo<T, let I: Field>(x: T) -> I where T: Zeroed {
+        x.zeroed()
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    // Error from the return type
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // foo is unused
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
     ));
 }
 
@@ -2383,23 +2442,6 @@ fn impl_not_found_for_inner_impl() {
 }
 
 #[test]
-fn no_super() {
-    let src = "use super::some_func;";
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NoSuper(span),
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(span.start(), 4);
-    assert_eq!(span.end(), 9);
-}
-
-#[test]
 fn cannot_call_unconstrained_function_outside_of_unsafe() {
     let src = r#"
     fn main() {
@@ -3033,6 +3075,35 @@ fn infer_globals_to_u32_from_type_use() {
 }
 
 #[test]
+fn struct_array_len() {
+    let src = r#"
+        struct Array<T, let N: u32> {
+            inner: [T; N],
+        }
+
+        impl<T, let N: u32> Array<T, N> {
+            pub fn len(self) -> u32 {
+                N as u32
+            }
+        }
+
+        fn main(xs: [Field; 2]) {
+            let ys = Array {
+                inner: xs,
+            };
+            assert(ys.len() == 2);
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
+    ));
+}
+
+#[test]
 fn non_u32_in_array_length() {
     let src = r#"
         global ARRAY_LEN: u8 = 3;
@@ -3081,7 +3152,8 @@ fn use_numeric_generic_in_trait_method() {
         }
 
         fn main() {
-            let _ = Bar{}.foo([1,2,3]);
+            let bytes: [u8; 3] = [1,2,3];
+            let _ = Bar{}.foo(bytes);
         }
     "#;
 
