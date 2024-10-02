@@ -1575,7 +1575,7 @@ mod completion_tests {
     async fn test_auto_import_suggests_modules_too() {
         let src = r#"
             mod foo {
-                mod barbaz {
+                pub mod barbaz {
                     fn hello_world() {}
                 }
             }
