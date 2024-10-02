@@ -29,7 +29,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
 }
 
 impl<'a> Parser<'a> {
-    /// Function = 'fn' identifier Generics FunctionParameters ('->' Visibility Type) WhereClause (Block | ';')
+    /// Function = 'fn' identifier Generics FunctionParameters ('->' Visibility Type)? WhereClause (Block | ';')
     pub(crate) fn parse_function(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
