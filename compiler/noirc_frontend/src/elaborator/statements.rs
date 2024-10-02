@@ -3,7 +3,8 @@ use noirc_errors::{Location, Span, Spanned};
 use crate::{
     ast::{
         AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
-        ExpressionKind, InfixExpression, LValue,
+        ExpressionKind, ForLoopStatement, ForRange, InfixExpression, LValue, LetStatement, Path,
+        Statement, StatementKind,
     },
     hir::{
         resolution::errors::ResolverError,
@@ -13,10 +14,8 @@ use crate::{
         expr::HirIdent,
         stmt::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
+            HirStatement,
         },
-    },
-    macros_api::{
-        ForLoopStatement, ForRange, HirStatement, LetStatement, Path, Statement, StatementKind,
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     Type,

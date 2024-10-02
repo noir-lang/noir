@@ -13,8 +13,7 @@ use crate::{
         UnresolvedTypeData,
     },
     hir_def::traits::TraitConstraint,
-    macros_api::NodeInterner,
-    node_interner::InternedStatementKind,
+    node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, Token},
     Type,
 };

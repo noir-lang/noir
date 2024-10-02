@@ -3,12 +3,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{Ident, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::ResolvedGeneric;
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Type, TypeBindings, TypeVariable,
 };
-use crate::{ResolvedGeneric, TypeVariableKind};
 use fm::FileId;
 use noirc_errors::{Location, Span};
 
@@ -168,7 +168,7 @@ impl Trait {
         });
 
         TraitConstraint {
-            typ: Type::TypeVariable(self.self_type_typevar.clone(), TypeVariableKind::Normal),
+            typ: Type::TypeVariable(self.self_type_typevar.clone()),
             trait_generics: TraitGenerics { ordered, named },
             trait_id: self.id,
             span,

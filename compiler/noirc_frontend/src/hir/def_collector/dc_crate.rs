@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::Expression;
+use crate::ast::Expression;
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
@@ -23,7 +23,7 @@ use crate::node_interner::{
 use crate::ast::{
     ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, LetStatement, Literal, NoirFunction,
     NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -231,9 +231,16 @@ impl From<ResolverError> for CompilationError {
         CompilationError::ResolverError(value)
     }
 }
+
 impl From<TypeCheckError> for CompilationError {
     fn from(value: TypeCheckError) -> Self {
         CompilationError::TypeError(value)
+    }
+}
+
+impl From<UnsupportedNumericGenericType> for CompilationError {
+    fn from(value: UnsupportedNumericGenericType) -> Self {
+        Self::ResolverError(value.into())
     }
 }
 
@@ -507,7 +514,7 @@ impl DefCollector {
 }
 
 fn add_import_reference(
-    def_id: crate::macros_api::ModuleDefId,
+    def_id: crate::hir::def_map::ModuleDefId,
     name: &Ident,
     interner: &mut NodeInterner,
     file_id: FileId,

@@ -1,6 +1,6 @@
 use std::iter::zip;
 
-use noirc_frontend::macros_api::Span;
+use noirc_errors::Span;
 
 use noirc_frontend::ast::{ConstrainKind, ConstrainStatement, ForRange, Statement, StatementKind};
 

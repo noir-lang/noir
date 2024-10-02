@@ -2,10 +2,10 @@ use chumsky::{prelude::just, Parser};
 use noirc_errors::Span;
 
 use crate::{
-    macros_api::SecondaryAttribute,
     parser::{parenthesized, NoirParser, ParserError, ParserErrorReason},
     token::{
-        Attribute, Attributes, CustomAttribute, FormalVerificationAttribute, Token, TokenKind,
+        Attribute, Attributes, CustomAttribute, FormalVerificationAttribute, SecondaryAttribute,
+        Token, TokenKind,
     },
 };
 

@@ -2,7 +2,7 @@ use lsp_types::{Position, Range, TextEdit};
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::{Ident, Path},
-    macros_api::ModuleDefId,
+    hir::def_map::ModuleDefId,
 };
 
 use crate::{

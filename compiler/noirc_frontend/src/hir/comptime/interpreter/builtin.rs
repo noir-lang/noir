@@ -20,8 +20,9 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, IntegerBitSize, LValue, Literal, Pattern, Statement,
-        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
+        Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        Visibility,
     },
     hir::{
         comptime::{
@@ -30,10 +31,13 @@ use crate::{
             InterpreterError, Value,
         },
         def_collector::dc_crate::CollectedItems,
+        def_map::ModuleDefId,
     },
-    hir_def::function::FunctionBody,
-    macros_api::{HirExpression, HirLiteral, Ident, ModuleDefId, NodeInterner, Signedness},
-    node_interner::{DefinitionKind, TraitImplKind},
+    hir_def::{
+        expr::{HirExpression, HirLiteral},
+        function::FunctionBody,
+    },
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser,
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
@@ -400,11 +404,11 @@ fn struct_def_add_generic(
         }
     }
 
-    let type_var = TypeVariable::unbound(interner.next_type_variable_id());
+    let type_var_kind = Kind::Normal;
+    let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
     let span = generic_location.span;
-    let kind = Kind::Normal;
-    let typ = Type::NamedGeneric(type_var.clone(), name.clone(), kind.clone());
-    let new_generic = ResolvedGeneric { name, type_var, span, kind };
+    let typ = Type::NamedGeneric(type_var.clone(), name.clone());
+    let new_generic = ResolvedGeneric { name, type_var, span };
     the_struct.generics.push(new_generic);
 
     Ok(Value::Type(typ))
@@ -422,7 +426,7 @@ fn struct_def_as_type(
     let struct_def = struct_def_rc.borrow();
 
     let generics = vecmap(&struct_def.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
+        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
     });
 
     drop(struct_def);
@@ -1192,14 +1196,14 @@ fn zeroed(return_type: Type) -> IResult<Value> {
             Ok(Value::Pointer(Shared::new(element), false))
         }
         // Optimistically assume we can resolve this type later or that the value is unused
-        Type::TypeVariable(_, _)
+        Type::TypeVariable(_)
         | Type::Forall(_, _)
         | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
         | Type::TraitAsType(..)
-        | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
+        | Type::NamedGeneric(_, _) => Ok(Value::Zeroed(return_type)),
     }
 }
 
@@ -2075,7 +2079,7 @@ fn fmtstr_quoted_contents(
 
 // fn fresh_type_variable() -> Type
 fn fresh_type_variable(interner: &NodeInterner) -> IResult<Value> {
-    Ok(Value::Type(interner.next_type_variable()))
+    Ok(Value::Type(interner.next_type_variable_with_kind(Kind::Any)))
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
