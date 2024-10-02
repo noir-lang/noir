@@ -630,9 +630,9 @@ impl Instruction {
                 }
             }
             Instruction::ArraySet { array, index, value, .. } => {
-                let array = dfg.get_array_constant(*array);
-                let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, element_type)), Some(index)) = (array, index) {
+                let array_const = dfg.get_array_constant(*array);
+                let index_const = dfg.get_numeric_constant(*index);
+                if let (Some((array, element_type)), Some(index)) = (array_const, index_const) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
@@ -641,7 +641,8 @@ impl Instruction {
                         return SimplifiedTo(new_array);
                     }
                 }
-                None
+
+                try_optimize_array_set_from_previous_get(dfg, *array, *index, *value)
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if bit_size == max_bit_size {
@@ -815,6 +816,27 @@ fn try_optimize_array_get_from_previous_set(
         }
     }
     SimplifyResult::None
+}
+
+fn try_optimize_array_set_from_previous_get(
+    dfg: &DataFlowGraph,
+    array_id: ValueId,
+    target_index: ValueId,
+    target_value: ValueId,
+) -> SimplifyResult {
+    match &dfg[target_value] {
+        Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+            Instruction::ArrayGet { array, index } => {
+                if *array == array_id && *index == target_index {
+                    SimplifyResult::SimplifiedTo(array_id)
+                } else {
+                    SimplifyResult::None
+                }
+            }
+            _ => SimplifyResult::None,
+        },
+        _ => SimplifyResult::None,
+    }
 }
 
 pub(crate) type ErrorType = HirType;
