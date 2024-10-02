@@ -5,7 +5,7 @@ description:
   file, and how to prove and verify your program.
 keywords:
   [Nargo, Nargo project, Prover.toml, proof verification, private asset transfer]
-sidebar_position: 2 
+sidebar_position: 0
 ---
 
 This section breaks down our hello world program from the previous section.
@@ -66,7 +66,7 @@ The package section defines a number of fields including:
 - `entry` (optional) - a relative filepath to use as the entry point into your package (overrides the default of `src/lib.nr` or `src/main.nr`)
 - `backend` (optional)
 - `license` (optional)
-- `expression_width` (optional) - Sets the default backend expression width. This field will override the default backend expression width specified by the Noir compiler (currently set to width 4). 
+- `expression_width` (optional) - Sets the default backend expression width. This field will override the default backend expression width specified by the Noir compiler (currently set to width 4).
 
 #### Dependencies section
 

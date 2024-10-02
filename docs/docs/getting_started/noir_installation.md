@@ -1,5 +1,5 @@
 ---
-title: Alternative Installations
+title: Standalone Noir Installation
 description: There are different ways to install Nargo, the one-stop shop and command-line tool for developing Noir programs. This guide explains how to specify which version to install when using noirup, and using WSL for windows.
 keywords: [
     Installation
@@ -17,7 +17,6 @@ keywords: [
 sidebar_position: 1
 ---
 
-## Encouraged Installation Method: Noirup
 
 Noirup is the endorsed method for installing Nargo, streamlining the process of fetching binaries or compiling from source. It supports a range of options to cater to your specific needs, from nightly builds and specific versions to compiling from various sources.
 
@@ -40,6 +39,7 @@ With `noirup`, you can easily switch between different Nargo versions, including
   ```
 
 - **Specific Version**: Install a specific version of Nargo.
+
   ```sh
   noirup --version <version>
   ```
@@ -79,6 +79,7 @@ With `noirup`, you can easily switch between different Nargo versions, including
   ```
 
 - **From Local Source**: Compile and install from a local directory.
+
   ```sh
   noirup --path ./path/to/local/source
   ```
