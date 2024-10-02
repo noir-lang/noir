@@ -772,12 +772,59 @@ impl LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForBounds(
+    /*start:*/ pub Expression,
+    /*end:*/ pub Expression,
+    /*inclusive:*/ pub bool,
+);
+
+impl ForBounds {
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// desugaring at `start..=end` into `start..end+1` if necessary.
+    ///
+    /// Returns the `start` and `end` expressions.
+    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
+        match self {
+            ForBounds(start, end, false) => (start, end),
+            ForBounds(start, end, true) => {
+                let end_span = end.span;
+                let end = ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: end,
+                    operator: Spanned::from(end_span, BinaryOpKind::Add),
+                    rhs: Expression::new(
+                        ExpressionKind::integer(FieldElement::from(1u32)),
+                        end_span,
+                    ),
+                }));
+                let end = Expression::new(end, end_span);
+                (start, end)
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
-    Range(/*start:*/ Expression, /*end:*/ Expression, /*inclusive:*/ bool),
+    Range(ForBounds),
     Array(Expression),
 }
 
 impl ForRange {
+    /// Create a half-open range, bounded inclusively below and exlusively above.
+    pub fn range(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds(start, end, false))
+    }
+
+    /// Create a range bounded inclusively below and above.
+    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds(start, end, true))
+    }
+
+    /// Create a range over some array.
+    pub fn array(value: Expression) -> Self {
+        Self::Array(value)
+    }
+
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
@@ -880,7 +927,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::Range(start_range, end_range, false),
+                        range: ForRange::range(start_range, end_range),
                         block: new_block,
                         span: for_loop_span,
                     }),
@@ -894,34 +941,6 @@ impl ForRange {
                     kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
                     span: for_loop_span,
                 }
-            }
-        }
-    }
-
-    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
-    /// desugaring at `start..=end` into `start..end+1` if necessary.
-    ///
-    /// Not expected to be called on `Arrays`, only `Range`.
-    ///
-    /// Returns the `start` and `end` expressions.
-    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
-        match self {
-            ForRange::Array(..) => {
-                unreachable!("only called to elaborate ranges")
-            }
-            ForRange::Range(start, end, false) => (start, end),
-            ForRange::Range(start, end, true) => {
-                let end_span = end.span;
-                let end = ExpressionKind::Infix(Box::new(InfixExpression {
-                    lhs: end,
-                    operator: Spanned::from(end_span, BinaryOpKind::Add),
-                    rhs: Expression::new(
-                        ExpressionKind::integer(FieldElement::from(1u32)),
-                        end_span,
-                    ),
-                }));
-                let end = Expression::new(end, end_span);
-                (start, end)
             }
         }
     }
@@ -1038,8 +1057,8 @@ impl Display for Pattern {
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let range = match &self.range {
-            ForRange::Range(start, end, false) => format!("{start}..{end}"),
-            ForRange::Range(start, end, true) => format!("{start}..={end}"),
+            ForRange::Range(ForBounds(start, end, false)) => format!("{start}..{end}"),
+            ForRange::Range(ForBounds(start, end, true)) => format!("{start}..={end}"),
             ForRange::Array(expr) => expr.to_string(),
         };
 

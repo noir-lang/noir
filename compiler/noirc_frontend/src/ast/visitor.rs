@@ -21,9 +21,9 @@ use crate::{
 };
 
 use super::{
-    FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern, Signedness,
-    TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern,
+    Signedness, TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -1192,7 +1192,7 @@ impl ForRange {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            ForRange::Range(start, end, _) => {
+            ForRange::Range(ForBounds(start, end, _)) => {
                 start.accept(visitor);
                 end.accept(visitor);
             }

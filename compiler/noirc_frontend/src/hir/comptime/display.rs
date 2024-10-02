@@ -7,7 +7,7 @@ use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
+        ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
         MethodCallExpression, Pattern, PrefixExpression, Statement, StatementKind, UnresolvedType,
         UnresolvedTypeData,
@@ -267,6 +267,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Dot
             | Token::DoubleColon
             | Token::DoubleDot
+            | Token::DoubleDotEqual
             | Token::Caret
             | Token::Pound
             | Token::Pipe
@@ -713,11 +714,11 @@ fn remove_interned_in_statement_kind(
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
             range: match for_loop.range {
-                ForRange::Range(from, to, inclusive) => ForRange::Range(
+                ForRange::Range(ForBounds(from, to, inclusive)) => ForRange::Range(ForBounds(
                     remove_interned_in_expression(interner, from),
                     remove_interned_in_expression(interner, to),
                     inclusive,
-                ),
+                )),
                 ForRange::Array(expr) => {
                     ForRange::Array(remove_interned_in_expression(interner, expr))
                 }

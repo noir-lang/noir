@@ -1076,9 +1076,15 @@ where
 {
     expr_no_constructors
         .clone()
-        .then_ignore(just(Token::DoubleDot))
+        .then(just(Token::DoubleDot).or(just(Token::DoubleDotEqual)))
         .then(expr_no_constructors.clone())
-        .map(|(start, end)| ForRange::Range(start, end))
+        .map(|((start, dots), end)| {
+            if dots == Token::DoubleDotEqual {
+                ForRange::range_inclusive(start, end)
+            } else {
+                ForRange::range(start, end)
+            }
+        })
         .or(expr_no_constructors.map(ForRange::Array))
 }
 
