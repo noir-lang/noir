@@ -20,17 +20,17 @@ pub struct BigInt {
 
 impl BigInt {
     #[builtin(bigint_add)]
-    pub fn bigint_add(self, other: BigInt) -> BigInt {}
+    fn bigint_add(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_sub)]
-    pub fn bigint_sub(self, other: BigInt) -> BigInt {}
+    fn bigint_sub(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_mul)]
-    pub fn bigint_mul(self, other: BigInt) -> BigInt {}
+    fn bigint_mul(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_div)]
-    pub fn bigint_div(self, other: BigInt) -> BigInt {}
+    fn bigint_div(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_from_le_bytes)]
-    pub fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}
+    fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}
     #[builtin(bigint_to_le_bytes)]
-    pub fn to_le_bytes(self) -> [u8; 32] {}
+    fn to_le_bytes(self) -> [u8; 32] {}
 
     fn check_32_bytes(self: Self, other: BigInt) -> bool {
         let bytes = self.to_le_bytes();

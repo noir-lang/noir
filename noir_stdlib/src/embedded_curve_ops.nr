@@ -13,12 +13,12 @@ pub struct EmbeddedCurvePoint {
 impl EmbeddedCurvePoint {
     /// Elliptic curve point doubling operation
     /// returns the doubled point of a point P, i.e P+P
-    fn double(self) -> EmbeddedCurvePoint {
+    pub fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
     }
 
     /// Returns the null element of the curve; 'the point at infinity'
-    fn point_at_infinity() -> EmbeddedCurvePoint {
+    pub fn point_at_infinity() -> EmbeddedCurvePoint {
         EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
     }
 }
