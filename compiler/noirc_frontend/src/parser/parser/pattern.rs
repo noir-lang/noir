@@ -29,12 +29,17 @@ impl<'a> Parser<'a> {
         Pattern::Identifier(Ident::new(String::new(), self.span_at_previous_token_end()))
     }
 
+    /// Pattern
+    ///     = 'mut' PatternNoMut
     pub(crate) fn parse_pattern(&mut self) -> Option<Pattern> {
         let start_span = self.current_token_span;
         let mutable = self.eat_keyword(Keyword::Mut);
         self.parse_pattern_after_modifiers(mutable, start_span)
     }
 
+    /// PatternOrSelf
+    ///     = Pattern
+    ///     | SelfPattern
     pub(crate) fn parse_pattern_or_self(&mut self) -> Option<PatternOrSelf> {
         let start_span = self.current_token_span;
 
@@ -101,6 +106,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// PatternNoMut
+    ///     = InternedPattern
+    ///     | TuplePattern
+    ///     | StructPattern
+    ///     | IdentifierPattern
+    ///
+    /// IdentifierPattern = identifier
     fn parse_pattern_no_mut(&mut self) -> Option<Pattern> {
         if let Some(pattern) = self.parse_interned_pattern() {
             return Some(pattern);
@@ -135,6 +147,21 @@ impl<'a> Parser<'a> {
         Some(Pattern::Identifier(ident))
     }
 
+    /// InternedPattern = interned_pattern
+    fn parse_interned_pattern(&mut self) -> Option<Pattern> {
+        let Some(token) = self.eat_kind(TokenKind::InternedPattern) else {
+            return None;
+        };
+
+        match token.into_token() {
+            Token::InternedPattern(pattern) => {
+                Some(Pattern::Interned(pattern, self.previous_token_span))
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    /// TuplePattern = '(' (Pattern ','?)* ')'
     fn parse_tuple_pattern(&mut self) -> Option<Pattern> {
         let start_span = self.current_token_span;
 
@@ -168,6 +195,9 @@ impl<'a> Parser<'a> {
         Some(Pattern::Tuple(patterns, self.span_since(start_span)))
     }
 
+    /// StructPattern = Path '{' (StructPatternField ','?)* '}'
+    ///
+    /// StructPatternField = identifier (':' Pattern)?
     fn parse_struct_pattern(&mut self, path: Path) -> Pattern {
         let start_span = path.span();
 
@@ -201,19 +231,6 @@ impl<'a> Parser<'a> {
         }
 
         Pattern::Struct(path, patterns, self.span_since(start_span))
-    }
-
-    fn parse_interned_pattern(&mut self) -> Option<Pattern> {
-        let Some(token) = self.eat_kind(TokenKind::InternedPattern) else {
-            return None;
-        };
-
-        match token.into_token() {
-            Token::InternedPattern(pattern) => {
-                Some(Pattern::Interned(pattern, self.previous_token_span))
-            }
-            _ => unreachable!(),
-        }
     }
 
     fn at_built_in_type(&self) -> bool {
