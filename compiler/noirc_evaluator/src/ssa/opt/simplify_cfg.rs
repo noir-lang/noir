@@ -60,7 +60,6 @@ impl Function {
             check_for_constant_jmpif(self, block, &mut cfg);
 
             let mut predecessors = cfg.predecessors(block);
-
             if predecessors.len() == 1 {
                 let predecessor =
                     predecessors.next().expect("Already checked length of predecessors");
@@ -99,14 +98,23 @@ fn check_for_constant_jmpif(
     }) = function.dfg[block].terminator()
     {
         if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
-            let destination =
-                if constant.is_zero() { *else_destination } else { *then_destination };
+            let (destination, unchosen_destination) = if constant.is_zero() {
+                (*else_destination, *then_destination)
+            } else {
+                (*then_destination, *else_destination)
+            };
 
             let arguments = Vec::new();
             let call_stack = call_stack.clone();
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
+
+            // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
+            // we can then invalidate it successors as it's an invalid predecessor.
+            if cfg.predecessors(unchosen_destination).len() == 0 {
+                cfg.invalidate_block_successors(unchosen_destination);
+            }
         }
     }
 }
