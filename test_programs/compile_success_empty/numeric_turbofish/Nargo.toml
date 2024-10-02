@@ -1,6 +1,0 @@
-[package]
-name = "numeric_turbofish"
-type = "bin"
-authors = [""]
-
-[dependencies]
