@@ -78,100 +78,151 @@ impl<'a> Parser<'a> {
     fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut atom = self.parse_atom(allow_constructors)?;
+        let mut parsed;
 
         loop {
-            let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
-            if is_macro_call {
-                // Next `self.parse_arguments` will return `Some(...)`
-                self.next_token();
-            }
-
-            if let Some(arguments) = self.parse_arguments() {
-                let kind = ExpressionKind::Call(Box::new(CallExpression {
-                    func: Box::new(atom),
-                    arguments,
-                    is_macro_call,
-                }));
-                let span = self.span_since(start_span);
-                atom = Expression { kind, span };
+            (atom, parsed) = self.parse_unary_right(atom, start_span);
+            if parsed {
                 continue;
+            } else {
+                break;
             }
-
-            if self.eat_dot() {
-                let field_name = if let Some(ident) = self.eat_ident() {
-                    ident
-                } else if let Some(int) = self.eat_int() {
-                    Ident::new(int.to_string(), self.previous_token_span)
-                } else {
-                    self.push_error(
-                        ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
-                        self.current_token_span,
-                    );
-                    continue;
-                };
-
-                let generics = if self.eat_double_colon() {
-                    let generics = self.parse_path_generics(
-                        ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls,
-                    );
-                    if generics.is_none() {
-                        self.expected_token(Token::Less);
-                    }
-                    generics
-                } else {
-                    None
-                };
-
-                let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
-                if is_macro_call {
-                    // Next `self.parse_arguments` will return `Some(...)`
-                    self.next_token();
-                }
-
-                if let Some(arguments) = self.parse_arguments() {
-                    let kind = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                        object: atom,
-                        method_name: field_name,
-                        generics,
-                        arguments,
-                        is_macro_call,
-                    }));
-                    let span = self.span_since(start_span);
-                    atom = Expression { kind, span };
-                } else {
-                    let kind = ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
-                        lhs: atom,
-                        rhs: field_name,
-                    }));
-                    let span = self.span_since(start_span);
-                    atom = Expression { kind, span };
-                }
-                continue;
-            }
-
-            if self.eat_keyword(Keyword::As) {
-                let typ = self.parse_type_or_error();
-                let kind =
-                    ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
-                let span = self.span_since(start_span);
-                atom = Expression { kind, span };
-                continue;
-            }
-
-            if self.eat_left_bracket() {
-                let index = self.parse_expression_or_error();
-                self.eat_or_error(Token::RightBracket);
-                let kind =
-                    ExpressionKind::Index(Box::new(IndexExpression { collection: atom, index }));
-                let span = self.span_since(start_span);
-                atom = Expression { kind, span };
-                continue;
-            }
-
-            break;
         }
 
         Some(atom)
+    }
+
+    fn parse_unary_right(&mut self, mut atom: Expression, start_span: Span) -> (Expression, bool) {
+        let mut parsed;
+
+        (atom, parsed) = self.parse_call(atom, start_span);
+        if parsed {
+            return (atom, parsed);
+        }
+
+        (atom, parsed) = self.parse_member_access_or_method_call(atom, start_span);
+        if parsed {
+            return (atom, parsed);
+        }
+
+        (atom, parsed) = self.parse_cast(atom, start_span);
+        if parsed {
+            return (atom, parsed);
+        }
+
+        self.parse_index(atom, start_span)
+    }
+
+    fn parse_call(&mut self, atom: Expression, start_span: Span) -> (Expression, bool) {
+        let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
+        if is_macro_call {
+            // Next `self.parse_arguments` will return `Some(...)`
+            self.next_token();
+        }
+
+        if let Some(arguments) = self.parse_arguments() {
+            let kind = ExpressionKind::Call(Box::new(CallExpression {
+                func: Box::new(atom),
+                arguments,
+                is_macro_call,
+            }));
+            let span = self.span_since(start_span);
+            let atom = Expression { kind, span };
+            (atom, true)
+        } else {
+            (atom, false)
+        }
+    }
+
+    fn parse_member_access_or_method_call(
+        &mut self,
+        atom: Expression,
+        start_span: Span,
+    ) -> (Expression, bool) {
+        if !self.eat_dot() {
+            return (atom, false);
+        }
+
+        let Some(field_name) = self.parse_member_access_field_name() else { return (atom, true) };
+
+        let generics = self.parse_generics_after_member_access_field_name();
+
+        let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
+        if is_macro_call {
+            // Next `self.parse_arguments` will return `Some(...)`
+            self.next_token();
+        }
+
+        let kind = if let Some(arguments) = self.parse_arguments() {
+            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                object: atom,
+                method_name: field_name,
+                generics,
+                arguments,
+                is_macro_call,
+            }))
+        } else {
+            ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                lhs: atom,
+                rhs: field_name,
+            }))
+        };
+
+        let span = self.span_since(start_span);
+        let atom = Expression { kind, span };
+        (atom, true)
+    }
+
+    fn parse_member_access_field_name(&mut self) -> Option<Ident> {
+        if let Some(ident) = self.eat_ident() {
+            Some(ident)
+        } else if let Some(int) = self.eat_int() {
+            Some(Ident::new(int.to_string(), self.previous_token_span))
+        } else {
+            self.push_error(
+                ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
+                self.current_token_span,
+            );
+            None
+        }
+    }
+
+    fn parse_cast(&mut self, atom: Expression, start_span: Span) -> (Expression, bool) {
+        if !self.eat_keyword(Keyword::As) {
+            return (atom, false);
+        }
+
+        let typ = self.parse_type_or_error();
+        let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
+        let span = self.span_since(start_span);
+        let atom = Expression { kind, span };
+        (atom, true)
+    }
+
+    fn parse_index(&mut self, atom: Expression, start_span: Span) -> (Expression, bool) {
+        if !self.eat_left_bracket() {
+            return (atom, false);
+        }
+
+        let index = self.parse_expression_or_error();
+        self.eat_or_error(Token::RightBracket);
+        let kind = ExpressionKind::Index(Box::new(IndexExpression { collection: atom, index }));
+        let span = self.span_since(start_span);
+        let atom = Expression { kind, span };
+        (atom, true)
+    }
+
+    fn parse_generics_after_member_access_field_name(&mut self) -> Option<Vec<UnresolvedType>> {
+        if self.eat_double_colon() {
+            let generics =
+                self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls);
+            if generics.is_none() {
+                self.expected_token(Token::Less);
+            }
+            generics
+        } else {
+            None
+        }
     }
 
     fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
