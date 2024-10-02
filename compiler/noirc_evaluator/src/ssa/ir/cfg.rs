@@ -59,10 +59,7 @@ impl ControlFlowGraph {
 
     /// Clears out a given block's successors. This also removes the given block from
     /// being a predecessor of any of its previous successors.
-    fn invalidate_block_successors(
-        &mut self,
-        basic_block_id: BasicBlockId,
-    ) -> BTreeSet<BasicBlockId> {
+    pub(crate) fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {
         let node = self
             .data
             .get_mut(&basic_block_id)
@@ -70,40 +67,23 @@ impl ControlFlowGraph {
 
         let old_successors = std::mem::take(&mut node.successors);
 
-        for successor_id in &old_successors {
+        for successor_id in old_successors {
             self.data
-                .get_mut(successor_id)
+                .get_mut(&successor_id)
                 .expect("ICE: Cfg node successor doesn't exist.")
                 .predecessors
                 .remove(&basic_block_id);
         }
-
-        old_successors
     }
 
     /// Recompute the control flow graph of `block`.
     ///
     /// This is for use after modifying instructions within a specific block. It recomputes all edges
     /// from `basic_block_id` while leaving edges to `basic_block_id` intact.
-    pub(crate) fn recompute_block(
-        &mut self,
-        func: &Function,
-        basic_block_id: BasicBlockId,
-        check_for_orphans: bool,
-    ) {
-        let old_successors = self.invalidate_block_successors(basic_block_id);
+    pub(crate) fn recompute_block(&mut self, func: &Function, basic_block_id: BasicBlockId) {
+        self.invalidate_block_successors(basic_block_id);
         let basic_block = &func.dfg[basic_block_id];
         self.compute_block(basic_block_id, basic_block);
-
-        if check_for_orphans {
-            // If we've made any of the old successors unreachable, we should remove it as a predecessor from its successors.
-            for orphaned_successor in old_successors.difference(&basic_block.successors().collect())
-            {
-                if self.predecessors(*orphaned_successor).len() == 0 {
-                    self.invalidate_block_successors(*orphaned_successor);
-                }
-            }
-        }
     }
 
     /// Add a directed edge making `from` a predecessor of `to`.
@@ -261,9 +241,9 @@ mod tests {
         });
 
         // Recompute new and changed blocks
-        cfg.recompute_block(&func, block0_id, false);
-        cfg.recompute_block(&func, block2_id, false);
-        cfg.recompute_block(&func, ret_block_id, false);
+        cfg.recompute_block(&func, block0_id);
+        cfg.recompute_block(&func, block2_id);
+        cfg.recompute_block(&func, ret_block_id);
 
         #[allow(clippy::needless_collect)]
         {

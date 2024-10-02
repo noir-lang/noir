@@ -51,14 +51,13 @@ impl Function {
         let mut visited = HashSet::new();
 
         while let Some(block) = stack.pop() {
-            // This call is before try_inline_into_predecessor so that if it succeeds in changing a
-            // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-            check_for_constant_jmpif(self, block, &mut cfg);
-
-            // We extend the stack after checking for constant jmpifs to avoid pushing an unreachable block onto the stack.
             if visited.insert(block) {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
+
+            // This call is before try_inline_into_predecessor so that if it succeeds in changing a
+            // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
+            check_for_constant_jmpif(self, block, &mut cfg);
 
             let mut predecessors = cfg.predecessors(block);
             if predecessors.len() == 1 {
@@ -99,14 +98,23 @@ fn check_for_constant_jmpif(
     }) = function.dfg[block].terminator()
     {
         if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
-            let destination =
-                if constant.is_zero() { *else_destination } else { *then_destination };
+            let (destination, unchosen_destination) = if constant.is_zero() {
+                (*else_destination, *then_destination)
+            } else {
+                (*then_destination, *else_destination)
+            };
 
             let arguments = Vec::new();
             let call_stack = call_stack.clone();
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
-            cfg.recompute_block(function, block, true);
+            cfg.recompute_block(function, block);
+
+            // If `block` was the only predecessor to `unchose_destination` then it's no long reachable through the CFG,
+            // we can then invalidate it successors as it's an invalid predecessor.
+            if cfg.predecessors(unchosen_destination).len() == 0 {
+                cfg.invalidate_block_successors(unchosen_destination);
+            }
         }
     }
 }
@@ -171,9 +179,9 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
         };
 
         function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);
-        cfg.recompute_block(function, predecessor_block, false);
+        cfg.recompute_block(function, predecessor_block);
     }
-    cfg.recompute_block(function, block, false);
+    cfg.recompute_block(function, block);
 }
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
@@ -221,8 +229,8 @@ fn try_inline_into_predecessor(
         drop(successors);
         function.dfg.inline_block(block, predecessor);
 
-        cfg.recompute_block(function, block, false);
-        cfg.recompute_block(function, predecessor, false);
+        cfg.recompute_block(function, block);
+        cfg.recompute_block(function, predecessor);
         true
     } else {
         false
