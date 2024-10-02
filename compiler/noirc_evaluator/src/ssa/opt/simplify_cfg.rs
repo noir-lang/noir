@@ -110,7 +110,7 @@ fn check_for_constant_jmpif(
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
 
-            // If `block` was the only predecessor to `unchose_destination` then it's no long reachable through the CFG,
+            // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
             // we can then invalidate it successors as it's an invalid predecessor.
             if cfg.predecessors(unchosen_destination).len() == 0 {
                 cfg.invalidate_block_successors(unchosen_destination);
