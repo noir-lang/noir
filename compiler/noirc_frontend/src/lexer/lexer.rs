@@ -185,6 +185,8 @@ impl<'a> Lexer<'a> {
             Token::Dot => {
                 if self.peek_char_is('.') && self.peek2_char_is('=') {
                     let start = self.position;
+                    self.next_char();
+                    self.next_char();
                     Ok(Token::DoubleDotEqual.into_span(start, start + 2))
                 } else {
                     self.single_double_peek_token('.', prev_token, Token::DoubleDot)
