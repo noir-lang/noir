@@ -7,8 +7,9 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedTypeExpression,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
+        Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
+        UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{Interpreter, Value},
@@ -22,22 +23,20 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
-            HirPrefixExpression,
+            HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
+            HirMethodReference, HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
+        stmt::HirStatement,
         traits::{NamedType, TraitConstraint},
     },
-    macros_api::{
-        HirExpression, HirLiteral, HirStatement, Ident, NodeInterner, Path, PathKind,
-        SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
-    },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ImplSearchErrorKind, TraitId,
-        TraitImplKind, TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ImplSearchErrorKind, NodeInterner,
+        TraitId, TraitImplKind, TraitMethodId,
     },
+    token::SecondaryAttribute,
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableKind, UnificationError,
+    UnificationError,
 };
 
 use super::{lints, Elaborator};
@@ -126,7 +125,7 @@ impl<'context> Elaborator<'context> {
                 let env = Box::new(self.resolve_type_inner(*env, kind));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
                     _ => {
@@ -169,14 +168,10 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        if !kind.matches_opt(resolved_type.kind()) {
+        if !kind.unifies(&resolved_type.kind()) {
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.to_string(),
-                expr_kind: resolved_type
-                    .kind()
-                    .as_ref()
-                    .map(Kind::to_string)
-                    .unwrap_or("unknown".to_string()),
+                expr_kind: resolved_type.kind().to_string(),
                 expr_span: span,
             });
             self.errors.push((expected_typ_err, self.file));
@@ -230,7 +225,7 @@ impl<'context> Elaborator<'context> {
                     return self_type;
                 }
             } else if name == WILDCARD_TYPE {
-                return self.interner.next_type_variable();
+                return self.interner.next_type_variable_with_kind(Kind::Any);
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
             if !args.is_empty() {
@@ -333,7 +328,7 @@ impl<'context> Elaborator<'context> {
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
         let ordered =
-            vecmap(ordered_args, |(generic, typ)| self.resolve_type_inner(typ, &generic.kind));
+            vecmap(ordered_args, |(generic, typ)| self.resolve_type_inner(typ, &generic.kind()));
 
         let mut associated = Vec::new();
 
@@ -377,7 +372,7 @@ impl<'context> Elaborator<'context> {
             let expected = required_args.remove(index);
             seen_args.insert(name.0.contents.clone(), name.span());
 
-            let typ = self.resolve_type_inner(typ, &expected.kind);
+            let typ = self.resolve_type_inner(typ, &expected.kind());
             resolved.push(NamedType { name, typ });
         }
 
@@ -396,7 +391,7 @@ impl<'context> Elaborator<'context> {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
-                return Some(Type::NamedGeneric(generic.type_var, generic.name, generic.kind));
+                return Some(Type::NamedGeneric(generic.type_var, generic.name));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
             return Some(typ);
@@ -452,7 +447,7 @@ impl<'context> Elaborator<'context> {
                             });
                             return Type::Error;
                         }
-                        if let Some(result) = op.function(lhs, rhs) {
+                        if let Some(result) = op.function(lhs, rhs, &lhs_kind) {
                             Type::Constant(result, lhs_kind)
                         } else {
                             self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
@@ -470,15 +465,13 @@ impl<'context> Elaborator<'context> {
     }
 
     fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
-        if let Some(kind) = typ.kind() {
-            if !kind.unifies(expected_kind) {
-                self.push_err(TypeCheckError::TypeKindMismatch {
-                    expected_kind: expected_kind.to_string(),
-                    expr_kind: kind.to_string(),
-                    expr_span: span,
-                });
-                return Type::Error;
-            }
+        if !typ.kind().unifies(expected_kind) {
+            self.push_err(TypeCheckError::TypeKindMismatch {
+                expected_kind: expected_kind.to_string(),
+                expr_kind: typ.kind().to_string(),
+                expr_span: span,
+            });
+            return Type::Error;
         }
         typ
     }
@@ -580,7 +573,7 @@ impl<'context> Elaborator<'context> {
         }
 
         for constraint in self.trait_bounds.clone() {
-            if let Type::NamedGeneric(_, name, _) = &constraint.typ {
+            if let Type::NamedGeneric(_, name) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
                 if path.segments[0].ident.0.contents != name.as_str() {
                     continue;
@@ -697,11 +690,21 @@ impl<'context> Elaborator<'context> {
         typ
     }
 
+    /// Return a fresh integer type variable and log it
+    /// in self.type_variables to default it later.
+    pub(super) fn type_variable_with_kind(&mut self, type_var_kind: Kind) -> Type {
+        let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
+        self.push_type_variable(typ.clone());
+        typ
+    }
+
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
         match &typ.typ {
-            UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
+            UnresolvedTypeData::Unspecified => {
+                self.interner.next_type_variable_with_kind(Kind::Any)
+            }
             _ => self.resolve_type(typ),
         }
     }
@@ -790,7 +793,7 @@ impl<'context> Elaborator<'context> {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function {
-            Type::TypeVariable(binding, TypeVariableKind::Normal) => {
+            Type::TypeVariable(binding) if binding.kind() == Kind::Normal => {
                 if let TypeBinding::Bound(typ) = &*binding.borrow() {
                     return self.bind_function_type(typ.clone(), args, span);
                 }
@@ -801,7 +804,8 @@ impl<'context> Elaborator<'context> {
                 let expected =
                     Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
-                if let Err(error) = binding.try_bind(expected, span) {
+                let expected_kind = expected.kind();
+                if let Err(error) = binding.try_bind(expected, &expected_kind, span) {
                     self.push_err(error);
                 }
                 ret
@@ -821,16 +825,14 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
         match from.follow_bindings() {
-            Type::Integer(..)
-            | Type::FieldElement
-            | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
-            | Type::TypeVariable(_, TypeVariableKind::Integer)
-            | Type::Bool => (),
+            Type::Integer(..) | Type::FieldElement | Type::Bool => (),
 
-            Type::TypeVariable(_, _) => {
+            Type::TypeVariable(var) if var.is_integer() || var.is_integer_or_field() => (),
+
+            Type::TypeVariable(_) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
@@ -878,8 +880,8 @@ impl<'context> Elaborator<'context> {
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (TypeVariable(var, _), other) | (other, TypeVariable(var, _)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
+            (TypeVariable(var), other) | (other, TypeVariable(var)) => {
+                if let TypeBinding::Bound(ref binding) = &*var.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
@@ -943,14 +945,14 @@ impl<'context> Elaborator<'context> {
             span,
         });
 
-        let use_impl = !lhs_type.is_numeric();
+        let use_impl = !lhs_type.is_numeric_value();
 
         // If this operator isn't valid for fields we have to possibly narrow
-        // TypeVariableKind::IntegerOrField to TypeVariableKind::Integer.
+        // Kind::IntegerOrField to Kind::Integer.
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
-        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
-            let target = Type::polymorphic_integer(self.interner);
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
+            let target = self.polymorphic_integer();
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
@@ -991,22 +993,22 @@ impl<'context> Elaborator<'context> {
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int), other) | (other, TypeVariable(int)) => {
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
                     self.unify(
                         rhs_type,
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
                         || TypeCheckError::InvalidShiftSize { span },
                     );
-                    let use_impl = if lhs_type.is_numeric() {
-                        let integer_type = Type::polymorphic_integer(self.interner);
+                    let use_impl = if lhs_type.is_numeric_value() {
+                        let integer_type = self.polymorphic_integer();
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
                         true
                     };
                     return Ok((lhs_type.clone(), use_impl));
                 }
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
+                if let TypeBinding::Bound(ref binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
@@ -1091,21 +1093,21 @@ impl<'context> Elaborator<'context> {
 
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
-                    TypeVariable(int, _) => {
-                        if let TypeBinding::Bound(binding) = &*int.borrow() {
+                    TypeVariable(int) => {
+                        if let TypeBinding::Bound(ref binding) = &*int.borrow() {
                             return self.prefix_operand_type_rules(op, binding, span);
                         }
 
                         // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
-                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
+                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric_value() {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
                             });
                         }
 
-                        Ok((rhs_type.clone(), !rhs_type.is_numeric()))
+                        Ok((rhs_type.clone(), !rhs_type.is_numeric_value()))
                     }
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
@@ -1187,7 +1189,11 @@ impl<'context> Elaborator<'context> {
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
                 the_trait.self_type_typevar.id(),
-                (the_trait.self_type_typevar.clone(), object_type.clone()),
+                (
+                    the_trait.self_type_typevar.clone(),
+                    the_trait.self_type_typevar.kind(),
+                    object_type.clone(),
+                ),
             );
             self.interner.select_impl_for_expression(
                 expr_id,
@@ -1268,7 +1274,7 @@ impl<'context> Elaborator<'context> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _, _) => {
+            Type::NamedGeneric(_, _) => {
                 self.lookup_method_in_trait_constraints(object_type, method_name, span)
             }
             // Mutable references to another type should resolve to methods of their element type.
@@ -1284,7 +1290,7 @@ impl<'context> Elaborator<'context> {
             Type::Error => None,
 
             // The type variable must be unbound at this point since follow_bindings was called
-            Type::TypeVariable(_, TypeVariableKind::Normal) => {
+            Type::TypeVariable(var) if var.kind() == Kind::Normal => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
                 None
             }
@@ -1631,9 +1637,9 @@ impl<'context> Elaborator<'context> {
             | Type::Bool
             | Type::Unit
             | Type::Error
-            | Type::TypeVariable(_, _)
+            | Type::TypeVariable(_)
             | Type::Constant(..)
-            | Type::NamedGeneric(_, _, _)
+            | Type::NamedGeneric(_, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
@@ -1647,7 +1653,7 @@ impl<'context> Elaborator<'context> {
             }
 
             Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(element_type, found);
@@ -1672,7 +1678,7 @@ impl<'context> Elaborator<'context> {
 
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name, _) = generic {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
                         if struct_type.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1683,7 +1689,7 @@ impl<'context> Elaborator<'context> {
             }
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name, _) = generic {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
                         if alias.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1694,12 +1700,12 @@ impl<'context> Elaborator<'context> {
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
             }
             Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);
@@ -1752,7 +1758,10 @@ impl<'context> Elaborator<'context> {
         for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
             // Avoid binding t = t
             if !arg.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.clone()),
+                );
             }
         }
 
@@ -1771,7 +1780,10 @@ impl<'context> Elaborator<'context> {
 
             // Avoid binding t = t
             if !arg.typ.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.typ.clone()));
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.typ.clone()),
+                );
             }
         }
 
@@ -1780,7 +1792,8 @@ impl<'context> Elaborator<'context> {
         // to specify a redundant type annotation.
         if assumed {
             let self_type = the_trait.self_type_typevar.clone();
-            bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
+            let kind = the_trait.self_type_typevar.kind();
+            bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
         }
     }
 }

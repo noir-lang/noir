@@ -15,10 +15,9 @@ use noirc_frontend::{
         UnresolvedTypeData, Visitor,
     },
     hir_def::stmt::HirPattern,
-    macros_api::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::{Item, ParsedSubModule},
-    Type, TypeBinding, TypeVariable, TypeVariableKind,
+    Kind, Type, TypeBinding, TypeVariable,
 };
 
 use crate::{utils, LspState};
@@ -460,19 +459,14 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             parts.push(string_part("&mut "));
             push_type_parts(typ, parts, files);
         }
-        Type::TypeVariable(var, TypeVariableKind::Normal) => {
-            push_type_variable_parts(var, parts, files);
-        }
-        Type::TypeVariable(binding, TypeVariableKind::Integer) => {
-            if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                push_type_parts(&Type::default_int_type(), parts, files);
-            } else {
-                push_type_variable_parts(binding, parts, files);
-            }
-        }
-        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-            if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                parts.push(string_part("Field"));
+        Type::TypeVariable(binding) => {
+            if let TypeBinding::Unbound(_, kind) = &*binding.borrow() {
+                match kind {
+                    Kind::Any | Kind::Normal => push_type_variable_parts(binding, parts, files),
+                    Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
+                    Kind::IntegerOrField => parts.push(string_part("Field")),
+                    Kind::Numeric(ref typ) => push_type_parts(typ, parts, files),
+                }
             } else {
                 push_type_variable_parts(binding, parts, files);
             }
