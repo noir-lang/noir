@@ -42,11 +42,7 @@ impl Function {
 
         let instructions_to_update = mem::take(&mut context.instructions_that_can_be_made_mutable);
         for block in reachable_blocks {
-            make_mutable(
-                &mut self.dfg,
-                block,
-                &instructions_to_update,
-            );
+            make_mutable(&mut self.dfg, block, &instructions_to_update);
         }
     }
 }
@@ -124,10 +120,8 @@ impl<'f> Context<'f> {
                 }
                 Instruction::Call { arguments, .. } => {
                     for argument in arguments {
-                        if matches!(
-                            self.dfg.type_of_value(*argument),
-                            Array { .. } | Slice { .. }
-                        ) {
+                        if matches!(self.dfg.type_of_value(*argument), Array { .. } | Slice { .. })
+                        {
                             let argument = self.dfg.resolve(*argument);
 
                             if let Some(existing) =
@@ -140,10 +134,7 @@ impl<'f> Context<'f> {
                 }
                 Instruction::Load { .. } => {
                     let result = self.dfg.instruction_results(*instruction_id)[0];
-                    if matches!(
-                        self.dfg.type_of_value(result),
-                        Array { .. } | Slice { .. }
-                    ) {
+                    if matches!(self.dfg.type_of_value(result), Array { .. } | Slice { .. }) {
                         self.arrays_from_load.insert(result);
                     }
                 }
