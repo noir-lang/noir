@@ -2271,4 +2271,56 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_does_not_auto_import_private_global() {
+        let src = r#"mod moo {
+            global foobar = 1;
+        }
+
+        fn main() {
+            fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
+    }
+
+    #[test]
+    async fn test_does_not_auto_import_private_type_alias() {
+        let src = r#"mod moo {
+            type foobar = i32;
+        }
+
+        fn main() {
+            fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
+    }
+
+    #[test]
+    async fn test_does_not_auto_import_private_trait() {
+        let src = r#"mod moo {
+            trait Foobar {}
+        }
+
+        fn main() {
+            Fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
+    }
+
+    #[test]
+    async fn test_does_not_auto_import_private_module() {
+        let src = r#"mod moo {
+            mod foobar {}
+        }
+
+        fn main() {
+            fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
+    }
 }

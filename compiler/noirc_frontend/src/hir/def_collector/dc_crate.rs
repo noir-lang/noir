@@ -111,6 +111,7 @@ pub struct UnresolvedGlobal {
     pub module_id: LocalModuleId,
     pub global_id: GlobalId,
     pub stmt_def: LetStatement,
+    pub visibility: ItemVisibility,
 }
 
 pub struct ModuleAttribute {
