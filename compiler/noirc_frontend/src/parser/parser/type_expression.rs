@@ -213,6 +213,9 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let typ = self.parse_add_or_subtract_type_or_type_expression()?;
         let span = typ.span;
+
+        // If we end up with a Variable type expression, make it a Named type (they are equivalent),
+        // but for testing purposes and simplicity we default to types instead of type expressions.
         Some(
             if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(path)) =
                 typ.typ
@@ -230,6 +233,8 @@ impl<'a> Parser<'a> {
     fn parse_add_or_subtract_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let start_span = self.current_token_span;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_or_type_expression()?;
+
+        // If lhs is a type then no operator can follow, so we stop right away
         if !type_is_type_expr(&lhs) {
             return Some(lhs);
         }
@@ -244,6 +249,8 @@ impl<'a> Parser<'a> {
     ) -> Option<UnresolvedType> {
         let start_span = self.current_token_span;
         let lhs = self.parse_term_type_or_type_expression()?;
+
+        // If lhs is a type then no operator can follow, so we stop right away
         if !type_is_type_expr(&lhs) {
             return Some(lhs);
         }
@@ -257,6 +264,7 @@ impl<'a> Parser<'a> {
     fn parse_term_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let start_span = self.current_token_span;
         if self.eat(Token::Minus) {
+            // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let lhs = UnresolvedTypeExpression::Constant(0, start_span);
@@ -323,6 +331,8 @@ impl<'a> Parser<'a> {
             return None;
         };
 
+        // If what we just parsed is a type expression then this must be a parenthesized type
+        // expression (there's no such thing as a tuple of type expressions)
         let mut typ_span = typ.span;
         if let UnresolvedTypeData::Expression(type_expr) = typ.typ {
             self.eat_or_error(Token::RightParen);
