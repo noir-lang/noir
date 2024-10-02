@@ -6,9 +6,8 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::{
-    ast::{ItemVisibility, NoirFunction, TraitImplItemKind, Visibility},
-    macros_api::UnresolvedTypeData,
+use noirc_frontend::ast::{
+    ItemVisibility, ModuleDeclaration, NoirFunction, NoirStruct, TraitImplItemKind, Visibility,
 };
 use noirc_frontend::{
     hir::resolution::errors::Span,
@@ -277,11 +276,18 @@ impl super::FmtVisitor<'_> {
                     self.push_rewrite(use_tree, span);
                     self.last_position = span.end();
                 }
+                ItemKind::ModuleDecl(ModuleDeclaration { visibility, ident, outer_attributes }) => {
+                    if !outer_attributes.is_empty() {
+                        self.push_rewrite(self.slice(span).to_string(), span);
+                        self.last_position = span.end();
+                        continue;
+                    }
+                }
+
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
                 | ItemKind::TypeAlias(_)
                 | ItemKind::Global(..)
-                | ItemKind::ModuleDecl(_)
                 | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);
                     self.last_position = span.end();

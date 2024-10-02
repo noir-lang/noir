@@ -10,12 +10,14 @@ use super::{
     BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
     IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
+use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::{NodeInterner, SecondaryAttribute, UnresolvedTypeData};
-use crate::node_interner::{InternedExpressionKind, InternedPattern, InternedStatementKind};
+use crate::node_interner::{
+    InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
+};
 use crate::parser::{ParserError, ParserErrorReason};
-use crate::token::Token;
+use crate::token::{SecondaryAttribute, Token};
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this
