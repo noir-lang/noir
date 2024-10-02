@@ -1,4 +1,4 @@
-mod bn254;
+pub mod bn254;
 use bn254::lt as bn254_lt;
 
 impl Field {

@@ -51,3 +51,10 @@ use std::collections::bounded_vec::BoundedVec;
 fn instantiate_generic() {
     let x: BoundedVec<subone::SubOneStruct, 3> = BoundedVec::new();
 }
+
+#[attr]
+pub fn foo() {}
+
+comptime fn attr(_: FunctionDefinition) -> Quoted {
+    quote { pub fn hello() {} }
+}

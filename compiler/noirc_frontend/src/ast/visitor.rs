@@ -500,7 +500,7 @@ impl Item {
                 noir_trait_impl.accept(self.span, visitor);
             }
             ItemKind::Impl(type_impl) => type_impl.accept(self.span, visitor),
-            ItemKind::Global(let_statement) => {
+            ItemKind::Global(let_statement, _visibility) => {
                 if visitor.visit_global(let_statement, self.span) {
                     let_statement.accept(visitor);
                 }

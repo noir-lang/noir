@@ -570,28 +570,34 @@ mod test {
         let liveness = VariableLiveness::from_function(func, &constants);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
-        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
+        assert_eq!(
+            liveness.get_live_in(&b1),
+            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
+        );
         assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
-        assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
+        assert_eq!(
+            liveness.get_live_in(&b2),
+            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
+        );
         assert_eq!(
             liveness.get_live_in(&b4),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b6),
-            &FxHashSet::from_iter([v0, v1, v3, v4, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b5),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b7),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b8),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
 
         let block_3 = &func.dfg[b3];
