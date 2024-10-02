@@ -72,6 +72,11 @@ impl super::FmtVisitor<'_> {
                         rewrite::sub_expr(self, self.shape(), start),
                         rewrite::sub_expr(self, self.shape(), end)
                     ),
+                    ForRange::RangeInclusive(start, end) => format!(
+                        "{}..={}",
+                        rewrite::sub_expr(self, self.shape(), start),
+                        rewrite::sub_expr(self, self.shape(), end)
+                    ),
                     ForRange::Array(array) => rewrite::sub_expr(self, self.shape(), array),
                 };
                 let block = rewrite::sub_expr(self, self.shape(), for_stmt.block);

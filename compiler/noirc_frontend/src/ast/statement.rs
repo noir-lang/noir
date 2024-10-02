@@ -7,8 +7,9 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
-    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
+    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
+    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
@@ -773,6 +774,7 @@ impl LValue {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
     Range(/*start:*/ Expression, /*end:*/ Expression),
+    RangeInclusive(/*start:*/ Expression, /*end:*/ Expression),
     Array(Expression),
 }
 
@@ -799,7 +801,7 @@ impl ForRange {
         static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 
         match self {
-            ForRange::Range(..) => {
+            ForRange::Range(..) | ForRange::RangeInclusive(..) => {
                 unreachable!()
             }
             ForRange::Array(array) => {
@@ -893,6 +895,34 @@ impl ForRange {
                     kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
                     span: for_loop_span,
                 }
+            }
+        }
+    }
+
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// desugaring at `start..=end` into `start..end+1` if necessary.
+    ///
+    /// Not expected to be called on `Arrays`, only ranges.
+    ///
+    /// Returns the `start` and `end` expressions.
+    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
+        match self {
+            ForRange::Array(..) => {
+                unreachable!("only called to elaborate ranges")
+            }
+            ForRange::Range(start, end) => (start, end),
+            ForRange::RangeInclusive(start, end) => {
+                let end_span = end.span;
+                let end = ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: end,
+                    operator: Spanned::from(end_span, BinaryOpKind::Add),
+                    rhs: Expression::new(
+                        ExpressionKind::integer(FieldElement::from(1u32)),
+                        end_span,
+                    ),
+                }));
+                let end = Expression::new(end, end_span);
+                (start, end)
             }
         }
     }
@@ -1010,6 +1040,7 @@ impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let range = match &self.range {
             ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::RangeInclusive(start, end) => format!("{start}..={end}"),
             ForRange::Array(expr) => expr.to_string(),
         };
 

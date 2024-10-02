@@ -1196,6 +1196,10 @@ impl ForRange {
                 start.accept(visitor);
                 end.accept(visitor);
             }
+            ForRange::RangeInclusive(start, end) => {
+                start.accept(visitor);
+                end.accept(visitor);
+            }
             ForRange::Array(expression) => expression.accept(visitor),
         }
     }

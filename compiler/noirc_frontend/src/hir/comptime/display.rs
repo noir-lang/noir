@@ -717,6 +717,10 @@ fn remove_interned_in_statement_kind(
                     remove_interned_in_expression(interner, from),
                     remove_interned_in_expression(interner, to),
                 ),
+                ForRange::RangeInclusive(from, to) => ForRange::RangeInclusive(
+                    remove_interned_in_expression(interner, from),
+                    remove_interned_in_expression(interner, to),
+                ),
                 ForRange::Array(expr) => {
                     ForRange::Array(remove_interned_in_expression(interner, expr))
                 }
