@@ -165,45 +165,6 @@ impl Context {
         false
     }
 
-    fn track_inc_rcs_to_remove(
-        &self,
-        instruction_id: InstructionId,
-        function: &Function,
-        inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
-        inc_rcs_to_remove: &mut HashSet<InstructionId>,
-    ) {
-        let instruction = &function.dfg[instruction_id];
-        // DIE loops over a block in reverse order, so we insert an RC instruction for possible removal
-        // when we see a DecrementRc and check whether it was possibly mutated when we see an IncrementRc.
-        match instruction {
-            Instruction::IncrementRc { value } => {
-                if let Some(inc_rc) = pop_rc_for(*value, function, inc_rcs) {
-                    if !inc_rc.possibly_mutated {
-                        inc_rcs_to_remove.insert(inc_rc.id);
-                        inc_rcs_to_remove.insert(instruction_id);
-                    }
-                }
-            }
-            Instruction::DecrementRc { value } => {
-                let typ = function.dfg.type_of_value(*value);
-
-                // We assume arrays aren't mutated until we find an array_set
-                let inc_rc =
-                    RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
-                inc_rcs.entry(typ).or_default().push(inc_rc);
-            }
-            Instruction::ArraySet { array, .. } => {
-                let typ = function.dfg.type_of_value(*array);
-                if let Some(inc_rcs) = inc_rcs.get_mut(&typ) {
-                    for inc_rc in inc_rcs {
-                        inc_rc.possibly_mutated = true;
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
     /// Returns true if an instruction can be removed.
     ///
     /// An instruction can be removed as long as it has no side-effects, and none of its result
