@@ -6,7 +6,7 @@ use noirc_errors::Location;
 
 use crate::{
     hir::comptime::{errors::IResult, InterpreterError, Value},
-    macros_api::NodeInterner,
+    node_interner::NodeInterner,
 };
 
 use super::builtin::builtin_helpers::{

@@ -6,8 +6,9 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
-    macros_api::{NodeInterner, StructId},
-    node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
+    node_interner::{
+        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
+    },
 };
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 

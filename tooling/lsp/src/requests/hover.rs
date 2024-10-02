@@ -7,11 +7,15 @@ use noirc_frontend::{
     ast::Visibility,
     elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
-    hir_def::{expr::HirArrayLiteral, stmt::HirPattern, traits::Trait},
-    macros_api::{HirExpression, HirLiteral, NodeInterner, StructId},
+    hir_def::{
+        expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        stmt::HirPattern,
+        traits::Trait,
+    },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
+    node_interner::{NodeInterner, StructId},
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
@@ -526,7 +530,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(generic);
                 }
             }
-            Type::TypeVariable(var, _) => {
+            Type::TypeVariable(var) => {
                 self.gather_type_variable_links(var);
             }
             Type::TraitAsType(trait_id, _, generics) => {
@@ -539,7 +543,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(&named_type.typ);
                 }
             }
-            Type::NamedGeneric(var, _, _) => {
+            Type::NamedGeneric(var, _) => {
                 self.gather_type_variable_links(var);
             }
             Type::Function(args, return_type, env, _) => {
