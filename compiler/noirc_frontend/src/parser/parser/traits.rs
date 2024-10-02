@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// TraitBody = '{' (OuterDocComments TraitItem)* '}'
+    /// TraitBody = '{' ( OuterDocComments TraitItem )* '}'
     fn parse_trait_body(&mut self) -> Vec<Documented<TraitItem>> {
         let mut items = Vec::new();
 
@@ -113,7 +113,7 @@ impl<'a> Parser<'a> {
         Some(TraitItem::Type { name })
     }
 
-    /// TraitConstant = 'let' identifier ':' Type ('=' Expression) ';'
+    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
     fn parse_trait_constant(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Let) {
             return None;

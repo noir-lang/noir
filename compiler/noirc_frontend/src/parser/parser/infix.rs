@@ -9,7 +9,7 @@ use super::Parser;
 
 impl<'a> Parser<'a> {
     /// EqualOrNotEqualExpression
-    ///     = OrExpression (('==' | '!=') OrExpression)*
+    ///     = OrExpression ( ( '==' | '!=' ) OrExpression )*
     pub(super) fn parse_equal_or_not_equal(
         &mut self,
         allow_constructors: bool,
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
     }
 
     /// OrExpression
-    ///     = AndExpression ('|' AndExpression)*
+    ///     = AndExpression ( '|' AndExpression )*
     pub(super) fn parse_or(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_and(allow_constructors)?;
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
     }
 
     /// AndExpression
-    ///     = XorExpression ('&' XorExpression)*
+    ///     = XorExpression ( '&' XorExpression )*
     pub(super) fn parse_and(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_xor(allow_constructors)?;
@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
     }
 
     /// XorExpression
-    ///     = LessOrGreaterExpression ('^' LessOrGreaterExpression)*
+    ///     = LessOrGreaterExpression ( '^' LessOrGreaterExpression )*
     pub(super) fn parse_xor(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_less_or_greater(allow_constructors)?;
@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
     }
 
     /// LessOrGreaterExpression
-    ///     = ShiftExpression (('<' | '<=' | '>' | '>=') ShiftExpression)*
+    ///     = ShiftExpression ( ( '<' | '<=' | '>' | '>=' ) ShiftExpression )*
     pub(super) fn parse_less_or_greater(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_shift(allow_constructors)?;
@@ -161,7 +161,7 @@ impl<'a> Parser<'a> {
     }
 
     /// ShiftExpression
-    ///     = AddOrSubtractExpression (('<<' | '>' '>') AddOrSubtractExpression)*
+    ///     = AddOrSubtractExpression ( ( '<<' | '>' '>' ) AddOrSubtractExpression )*
     pub(super) fn parse_shift(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_add_or_subtract(allow_constructors)?;
@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
     }
 
     /// AddOrSubtractExpression
-    ///     = MultiplyOrDivideOrModuloExpression (('+' | '-') MultiplyOrDivideOrModuloExpression)*
+    ///     = MultiplyOrDivideOrModuloExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloExpression )*
     pub(super) fn parse_add_or_subtract(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut lhs = self.parse_multiply_or_divide_or_modulo(allow_constructors)?;
@@ -225,7 +225,7 @@ impl<'a> Parser<'a> {
     }
 
     /// MultiplyOrDivideOrModuloExpression
-    ///     = Term (('*' | '/' | '%') Term)*
+    ///     = Term ( ( '*' | '/' | '%' ) Term )*
     pub(super) fn parse_multiply_or_divide_or_modulo(
         &mut self,
         allow_constructors: bool,

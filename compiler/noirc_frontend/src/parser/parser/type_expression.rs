@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
     }
 
     /// AddOrSubtractTypeExpression
-    ///     = MultiplyOrDivideOrModuloTypeExpression (('+' | '-') MultiplyOrDivideOrModuloTypeExpression)*
+    ///     = MultiplyOrDivideOrModuloTypeExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloTypeExpression )*
     fn parse_add_or_subtract_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let start_span = self.current_token_span;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_expression()?;
@@ -66,7 +66,7 @@ impl<'a> Parser<'a> {
     }
 
     /// MultiplyOrDivideOrModuloTypeExpression
-    ///     = TermTypeExpression (('*' | '/' | '%') TermTypeExpression)*
+    ///     = TermTypeExpression ( ( '*' | '/' | '%' ) TermTypeExpression )*
     fn parse_multiply_or_divide_or_modulo_type_expression(
         &mut self,
     ) -> Option<UnresolvedTypeExpression> {

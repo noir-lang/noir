@@ -12,7 +12,9 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    /// Generics = ('<' (Generic ','?)* '>')?
+    /// Generics = ( '<' GenericsList? '>' )?
+    ///
+    /// GenericsList = Generic ( ',' Generic )* ','?
     pub(super) fn parse_generics(&mut self) -> UnresolvedGenerics {
         let mut generics = Vec::new();
 
@@ -121,7 +123,9 @@ impl<'a> Parser<'a> {
         None
     }
 
-    /// GenericTypeArgs = ('<' (GenericTypeArg ','?)* '>')
+    /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )
+    ///
+    /// GenericTypeArgsList = GenericTypeArg ( ',' GenericTypeArg )* ','?
     ///
     /// GenericTypeArg
     ///     = NamedTypeArg

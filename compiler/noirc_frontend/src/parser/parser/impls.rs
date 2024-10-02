@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
         self.parse_trait_impl_function()
     }
 
-    /// TraitImplType = 'type' identifier (':' Type)? ';'
+    /// TraitImplType = 'type' identifier ( ':' Type )? ';'
     fn parse_trait_impl_type(&mut self) -> Option<TraitImplItemKind> {
         if !self.eat_keyword(Keyword::Type) {
             return None;

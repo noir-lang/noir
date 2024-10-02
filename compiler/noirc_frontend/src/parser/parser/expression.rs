@@ -408,7 +408,7 @@ impl<'a> Parser<'a> {
     ///
     /// ConstructorFields = ConstructorField ( ',' ConstructorField )* ','?
     ///
-    /// ConstructorField = identifier (':' Expression)?
+    /// ConstructorField = identifier ( ':' Expression )?
     fn parse_constructor(&mut self, typ: UnresolvedType) -> ExpressionKind {
         let mut fields = Vec::new();
         let mut trailing_comma = false;
@@ -445,7 +445,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    /// IfExpression = 'if' Expression Block ('else' (Block | IfExpression))?
+    /// IfExpression = 'if' Expression Block ( 'else' ( Block | IfExpression ) )?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::If) {
             return None;
@@ -537,7 +537,7 @@ impl<'a> Parser<'a> {
         None
     }
 
-    /// TypePathExpression = PrimitiveType '::' identifier ('::' GenericTypeArgs)?
+    /// TypePathExpression = PrimitiveType '::' identifier ( '::' GenericTypeArgs )?
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_span = self.current_token_span;
         let Some(typ) = self.parse_primitive_type() else {
@@ -574,11 +574,13 @@ impl<'a> Parser<'a> {
     ///     | rawstr
     ///     | fmtstr
     ///     | QuoteExpression
-    ///     | ArrayLiteralExpression
-    ///     | SliceLiteralExpression
+    ///     | ArrayExpression
+    ///     | SliceExpression
     ///     | BlockExpression
     ///
     /// QuoteExpression = 'quote' '{' token* '}'
+    ///
+    /// ArrayExpression = ArrayLiteral
     ///
     /// BlockExpression = Block
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
@@ -621,13 +623,15 @@ impl<'a> Parser<'a> {
         None
     }
 
-    /// ArrayLiteralExpression
-    ///     = StandardArrayLiteralExpression
-    ///     | RepeatedArrayLiteralExpression
+    /// ArrayLiteral
+    ///     = StandardArrayLiteral
+    ///     | RepeatedArrayLiteral
     ///
-    /// StandardArrayLiteralExpression = '[' (Expression ','?)* ']'
+    /// StandardArrayLiteral = '[' ArrayElements? ']'
     ///
-    /// RepeatedArrayLiteralExpression = '[' Expression ';' TypeExpression ']'
+    /// ArrayElements = Expression ( ',' Expression )? ','?
+    ///
+    /// RepeatedArrayLiteral = '[' Expression ';' TypeExpression ']'
     fn parse_array_literal(&mut self) -> Option<ArrayLiteral> {
         if !self.eat_left_bracket() {
             return None;
@@ -676,13 +680,7 @@ impl<'a> Parser<'a> {
         Some(ArrayLiteral::Standard(exprs))
     }
 
-    /// SliceLiteralExpression
-    ///     = StandardSliceLiteralExpression
-    ///     | RepeatedSliceLiteralExpression
-    ///
-    /// StandardSliceLiteralExpression = '&' '[' (Expression ','?)* ']'
-    ///
-    /// RepeatedSliceLiteralExpression = '&' '[' Expression ';' TypeExpression ']'
+    /// SliceExpression = '&' ArrayLiteral
     fn parse_slice_literal(&mut self) -> Option<ArrayLiteral> {
         if !self.tokens_follow(Token::Ampersand, Token::LeftBracket) {
             return None;
@@ -701,7 +699,7 @@ impl<'a> Parser<'a> {
     ///
     /// ParenthesizedExpression = '(' Expression ')'
     ///
-    /// TupleExpression = '(' Expression (',' Expression)+ ')'
+    /// TupleExpression = '(' Expression ( ',' Expression )+ ','? ')'
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
         if !self.eat_left_paren() {
             return None;

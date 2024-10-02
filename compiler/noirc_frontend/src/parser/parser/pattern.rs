@@ -161,7 +161,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// TuplePattern = '(' (Pattern ','?)* ')'
+    /// TuplePattern = '(' PatternList? ')'
+    ///
+    /// PatternList = Pattern ( ',' Pattern )* ','?
     fn parse_tuple_pattern(&mut self) -> Option<Pattern> {
         let start_span = self.current_token_span;
 
@@ -197,9 +199,9 @@ impl<'a> Parser<'a> {
 
     /// StructPattern = Path '{' StructPatternFields? '}'
     ///
-    /// StructPatternFields = StructPatternField (',' StructPatternField)? ','?
+    /// StructPatternFields = StructPatternField ( ',' StructPatternField )? ','?
     ///
-    /// StructPatternField = identifier (':' Pattern)?
+    /// StructPatternField = identifier ( ':' Pattern )?
     fn parse_struct_pattern(&mut self, path: Path) -> Pattern {
         let start_span = path.span();
 

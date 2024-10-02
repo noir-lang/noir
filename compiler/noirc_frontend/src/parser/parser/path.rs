@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
     /// Tries to parse a Path.
     /// Note that `crate::`, `super::`, etc., are not valid paths on their own.
     ///
-    /// Path = PathKind identifier Turbofish? ('::' identifier Turbofish?)*
+    /// Path = PathKind identifier Turbofish? ( '::' identifier Turbofish? )*
     ///
     /// Turbofish = '::' PathGenerics
     pub(crate) fn parse_path(&mut self) -> Option<Path> {
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// PathNoTurbofish = PathKind identifier ('::' identifier)*
+    /// PathNoTurbofish = PathKind identifier ( '::' identifier )*
     pub fn parse_path_no_turbofish(&mut self) -> Option<Path> {
         self.parse_path_impl(
             false, // allow turbofish

@@ -10,7 +10,7 @@ use super::Parser;
 
 impl<'a> Parser<'a> {
     /// ModOrContract
-    ///     = ('mod' | 'contract') identifier ('{' Module '}' | ';')
+    ///     = ( 'mod' | 'contract' ) identifier ( '{' Module '}' | ';' )
     pub(super) fn parse_mod_or_contract(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
