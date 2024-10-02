@@ -110,7 +110,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
         // If the block is filled, compress it.
         // An un-filled block is handled after this loop.
-        if msg_byte_ptr == BLOCK_SIZE {
+        if (msg_start < message_size) & (msg_byte_ptr == BLOCK_SIZE) {
             h = sha256_compression(msg_u8_to_u32(msg_block), h);
         }
     }
