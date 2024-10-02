@@ -22,6 +22,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Statement = Attributes StatementKind ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
         loop {
             let attributes = self.parse_attributes();
@@ -55,6 +56,30 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// StatementKind
+    ///     = BreakStatement
+    ///     | ContinueStatement
+    ///     | ReturnStatement
+    ///     | LetStatement
+    ///     | ConstrainStatement
+    ///     | ComptimeStatement
+    ///     | ForStatement
+    ///     | IfStatement
+    ///     | BlockStatement
+    ///     | AssignStatement
+    ///     | ExpressionStatement
+    ///
+    /// BreakStatement = 'break'
+    ///
+    /// ContinueStatement = 'continue'
+    ///
+    /// ReturnStatement = 'return' Expression?
+    ///
+    /// BlockStatement = Block
+    ///
+    /// AssignStatement = Expression '=' Expression
+    ///
+    /// ExpressionStatement = Expression
     fn parse_statement_kind(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
@@ -197,6 +222,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// ForStatement = 'for' identifier 'in' ForRange Block
     fn parse_for(&mut self) -> Option<ForLoopStatement> {
         let start_span = self.current_token_span;
 
@@ -215,13 +241,7 @@ impl<'a> Parser<'a> {
             return Some(self.empty_for_loop(identifier, start_span));
         }
 
-        let expr = self.parse_expression_no_constructors_or_error();
-
-        let range = if self.eat(Token::DoubleDot) {
-            ForRange::Range(expr, self.parse_expression_no_constructors_or_error())
-        } else {
-            ForRange::Array(expr)
-        };
+        let range = self.parse_for_range();
 
         let block_start_span = self.current_token_span;
         let block = if let Some(block) = self.parse_block() {
@@ -237,6 +257,19 @@ impl<'a> Parser<'a> {
         Some(ForLoopStatement { identifier, range, block, span: self.span_since(start_span) })
     }
 
+    /// ForRange
+    ///     = Expression
+    ///     | Expression '..' Expression
+    fn parse_for_range(&mut self) -> ForRange {
+        let expr = self.parse_expression_no_constructors_or_error();
+
+        if self.eat(Token::DoubleDot) {
+            ForRange::Range(expr, self.parse_expression_no_constructors_or_error())
+        } else {
+            ForRange::Array(expr)
+        }
+    }
+
     fn empty_for_loop(&mut self, identifier: Ident, start_span: Span) -> ForLoopStatement {
         ForLoopStatement {
             identifier,
@@ -249,6 +282,16 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// ComptimeStatement
+    ///     = ComptimeBlock
+    ///     | ComptimeLet
+    ///     | ComptimeFor
+    ///
+    /// ComptimeBlock = 'comptime' Block
+    ///
+    /// ComptimeLet = 'comptime' LetStatement
+    ///
+    /// ComptimeFor = 'comptime' ForStatement
     fn parse_comptime_statement(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
@@ -299,6 +342,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// LetStatement = 'let' pattern OptionalTypeAnnotation '=' Expression
     fn parse_let_statement(&mut self, attributes: Vec<(Attribute, Span)>) -> Option<LetStatement> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -317,6 +361,10 @@ impl<'a> Parser<'a> {
         Some(LetStatement { pattern, r#type, expression, attributes, comptime: false })
     }
 
+    /// ConstrainStatement
+    ///     = 'constrain' Expression
+    ///     | 'assert' Arguments
+    ///     | 'assert_eq' Arguments
     fn parse_constrain_statement(&mut self) -> Option<ConstrainStatement> {
         let start_span = self.current_token_span;
         let Some(kind) = self.parse_constrain_kind() else {

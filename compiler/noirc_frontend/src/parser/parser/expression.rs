@@ -736,7 +736,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Block = '{' (Statement ';'?)* '}'
+    /// Block = '{' Statement* '}'
     pub(super) fn parse_block(&mut self) -> Option<BlockExpression> {
         if !self.eat_left_brace() {
             return None;
