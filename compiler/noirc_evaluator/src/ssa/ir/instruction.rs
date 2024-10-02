@@ -820,23 +820,55 @@ fn try_optimize_array_get_from_previous_set(
 
 fn try_optimize_array_set_from_previous_get(
     dfg: &DataFlowGraph,
-    array_id: ValueId,
+    mut array_id: ValueId,
     target_index: ValueId,
     target_value: ValueId,
 ) -> SimplifyResult {
-    match &dfg[target_value] {
+
+    let array_from_get = match &dfg[target_value] {
         Value::Instruction { instruction, .. } => match &dfg[*instruction] {
             Instruction::ArrayGet { array, index } => {
                 if *array == array_id && *index == target_index {
-                    SimplifyResult::SimplifiedTo(array_id)
+                    return SimplifyResult::SimplifiedTo(array_id);
                 } else {
-                    SimplifyResult::None
+                    Some(*array)
                 }
             }
-            _ => SimplifyResult::None,
+            _ => None,
         },
-        _ => SimplifyResult::None,
+        _ => None,
+    };
+
+    let original_array_id = array_id;
+    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    let max_tries = 5;
+    for _ in 0..max_tries {
+        match &dfg[array_id] {
+            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+                Instruction::ArraySet { array, index, .. } => {
+                    if *index == target_index {
+                        return SimplifyResult::None;
+                    }
+
+                    if let Some(array_id) = array_from_get {
+                        if *array == array_id {
+                            return SimplifyResult::SimplifiedTo(original_array_id);
+                        }
+                    }
+
+                    array_id = *array; // recur
+                }
+                _ => {
+                    return SimplifyResult::None
+                }
+            },
+            _ => {
+                return SimplifyResult::None
+            }
+        }
     }
+
+    SimplifyResult::None
 }
 
 pub(crate) type ErrorType = HirType;
