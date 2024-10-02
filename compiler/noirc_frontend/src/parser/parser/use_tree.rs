@@ -9,6 +9,9 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// Use = 'use' PathKind PathNoTurbofish UseTree
+    ///
+    /// UseTree = PathNoTurbofish ('::' '{' (UseTree ',')? '}')?
     pub(super) fn parse_use_tree(&mut self) -> UseTree {
         let start_span = self.current_token_span;
 

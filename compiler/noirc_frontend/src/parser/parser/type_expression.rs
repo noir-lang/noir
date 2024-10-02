@@ -14,6 +14,7 @@ use noirc_errors::Span;
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// TypeExpression= AddOrSubtractTypeExpression
     pub(crate) fn parse_type_expression(
         &mut self,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
@@ -23,6 +24,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// AddOrSubtractTypeExpression
+    ///     = MultiplyOrDivideOrModuloTypeExpression (('+' | '-') MultiplyOrDivideOrModuloTypeExpression)*
     fn parse_add_or_subtract_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let start_span = self.current_token_span;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_expression()?;
@@ -62,6 +65,8 @@ impl<'a> Parser<'a> {
         lhs
     }
 
+    /// MultiplyOrDivideOrModuloTypeExpression
+    ///     = TermTypeExpression (('*' | '/' | '%') TermTypeExpression)*
     fn parse_multiply_or_divide_or_modulo_type_expression(
         &mut self,
     ) -> Option<UnresolvedTypeExpression> {
@@ -106,6 +111,9 @@ impl<'a> Parser<'a> {
         lhs
     }
 
+    /// TermTypeExpression
+    ///    = '- TermTypeExpression
+    ///    | AtomTypeExpression
     fn parse_term_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let start_span = self.current_token_span;
         if self.eat(Token::Minus) {
@@ -131,6 +139,10 @@ impl<'a> Parser<'a> {
         self.parse_atom_type_expression()
     }
 
+    /// AtomTypeExpression
+    ///     = ConstantTypeExpression
+    ///     | VariableTypeExpression
+    ///     | ParenthesizedTypeExpression
     fn parse_atom_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         if let Some(type_expr) = self.parse_constant_type_expression() {
             return Some(type_expr);
@@ -147,6 +159,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let Some(int) = self.eat_int() else {
             return None;
@@ -169,11 +182,13 @@ impl<'a> Parser<'a> {
         Some(UnresolvedTypeExpression::Constant(int, self.previous_token_span))
     }
 
+    /// VariableTypeExpression = Path
     fn parse_variable_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let path = self.parse_path()?;
         Some(UnresolvedTypeExpression::Variable(path))
     }
 
+    /// ParenthesizedTypeExpression = '(' TypeExpression ')'
     fn parse_parenthesized_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         // Make sure not to parse `()` as a parenthesized expression
         if self.at(Token::LeftParen) && !self.next_is(Token::RightParen) {
@@ -194,6 +209,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// TypeOrTypeExpression = Type | TypeExpression
     pub(crate) fn parse_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let typ = self.parse_add_or_subtract_type_or_type_expression()?;
         let span = typ.span;
