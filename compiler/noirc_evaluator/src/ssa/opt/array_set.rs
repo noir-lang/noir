@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
@@ -31,102 +33,122 @@ impl Function {
         if !self.runtime().is_entry_point() {
             assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
         }
-        let mut array_to_last_use = HashMap::default();
-        let mut instructions_to_update = HashSet::default();
-        let mut arrays_from_load = HashSet::default();
-        let mut inner_nested_arrays = HashMap::default();
+
+        let mut context = Context::new(&self.dfg, matches!(self.runtime(), RuntimeType::Brillig));
 
         for block in reachable_blocks.iter() {
-            analyze_last_uses(
-                &self.dfg,
-                *block,
-                matches!(self.runtime(), RuntimeType::Brillig),
-                &mut array_to_last_use,
-                &mut instructions_to_update,
-                &mut arrays_from_load,
-                &mut inner_nested_arrays,
-            );
+            context.analyze_last_uses(*block);
         }
+
+        let instructions_to_update = mem::take(&mut context.instructions_that_can_be_made_mutable);
         for block in reachable_blocks {
-            make_mutable(&mut self.dfg, block, &instructions_to_update);
+            make_mutable(
+                &mut self.dfg,
+                block,
+                &instructions_to_update,
+            );
         }
     }
 }
 
-/// Builds the set of ArraySet instructions that can be made mutable
-/// because their input value is unused elsewhere afterward.
-fn analyze_last_uses(
-    dfg: &DataFlowGraph,
-    block_id: BasicBlockId,
-    is_brillig_func: bool,
-    array_to_last_use: &mut HashMap<ValueId, InstructionId>,
-    instructions_that_can_be_made_mutable: &mut HashSet<InstructionId>,
-    arrays_from_load: &mut HashSet<ValueId>,
-    inner_nested_arrays: &mut HashMap<ValueId, InstructionId>,
-) {
-    let block = &dfg[block_id];
+struct Context<'f> {
+    dfg: &'f DataFlowGraph,
+    is_brillig_runtime: bool,
+    array_to_last_use: HashMap<ValueId, InstructionId>,
+    instructions_that_can_be_made_mutable: HashSet<InstructionId>,
+    arrays_from_load: HashSet<ValueId>,
+    inner_nested_arrays: HashMap<ValueId, InstructionId>,
+}
 
-    for instruction_id in block.instructions() {
-        match &dfg[*instruction_id] {
-            Instruction::ArrayGet { array, .. } => {
-                let array = dfg.resolve(*array);
+impl<'f> Context<'f> {
+    fn new(dfg: &'f DataFlowGraph, is_brillig_runtime: bool) -> Self {
+        Context {
+            dfg,
+            is_brillig_runtime,
+            array_to_last_use: HashMap::default(),
+            instructions_that_can_be_made_mutable: HashSet::default(),
+            arrays_from_load: HashSet::default(),
+            inner_nested_arrays: HashMap::default(),
+        }
+    }
 
-                if let Some(existing) = array_to_last_use.insert(array, *instruction_id) {
-                    instructions_that_can_be_made_mutable.remove(&existing);
-                }
-            }
-            Instruction::ArraySet { array, value, .. } => {
-                let array = dfg.resolve(*array);
+    /// Builds the set of ArraySet instructions that can be made mutable
+    /// because their input value is unused elsewhere afterward.
+    fn analyze_last_uses(&mut self, block_id: BasicBlockId) {
+        let block = &self.dfg[block_id];
 
-                if let Some(existing) = array_to_last_use.insert(array, *instruction_id) {
-                    instructions_that_can_be_made_mutable.remove(&existing);
-                }
-                if is_brillig_func {
-                    let value = dfg.resolve(*value);
+        for instruction_id in block.instructions() {
+            match &self.dfg[*instruction_id] {
+                Instruction::ArrayGet { array, .. } => {
+                    let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) = inner_nested_arrays.get(&value) {
-                        instructions_that_can_be_made_mutable.remove(existing);
+                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                        self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
-                    let result = dfg.instruction_results(*instruction_id)[0];
-                    inner_nested_arrays.insert(result, *instruction_id);
                 }
+                Instruction::ArraySet { array, value, .. } => {
+                    let array = self.dfg.resolve(*array);
 
-                // If the array we are setting does not come from a load we can safely mark it mutable.
-                // If the array comes from a load we may potentially being mutating an array at a reference
-                // that is loaded from by other values.
-                let terminator = dfg[block_id].unwrap_terminator();
-                // If we are in a return block we are not concerned about the array potentially being mutated again.
-                let is_return_block = matches!(terminator, TerminatorInstruction::Return { .. });
-                // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
-                let mut array_in_terminator = false;
-                terminator.for_each_value(|value| {
-                    if value == array {
-                        array_in_terminator = true;
+                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                        self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
-                });
-                if (!arrays_from_load.contains(&array) || is_return_block) && !array_in_terminator {
-                    instructions_that_can_be_made_mutable.insert(*instruction_id);
-                }
-            }
-            Instruction::Call { arguments, .. } => {
-                for argument in arguments {
-                    if matches!(dfg.type_of_value(*argument), Array { .. } | Slice { .. }) {
-                        let argument = dfg.resolve(*argument);
+                    if self.is_brillig_runtime {
+                        let value = self.dfg.resolve(*value);
 
-                        if let Some(existing) = array_to_last_use.insert(argument, *instruction_id)
-                        {
-                            instructions_that_can_be_made_mutable.remove(&existing);
+                        if let Some(existing) = self.inner_nested_arrays.get(&value) {
+                            self.instructions_that_can_be_made_mutable.remove(existing);
+                        }
+                        let result = self.dfg.instruction_results(*instruction_id)[0];
+                        self.inner_nested_arrays.insert(result, *instruction_id);
+                    }
+
+                    // If the array we are setting does not come from a load we can safely mark it mutable.
+                    // If the array comes from a load we may potentially being mutating an array at a reference
+                    // that is loaded from by other values.
+                    let terminator = self.dfg[block_id].unwrap_terminator();
+                    // If we are in a return block we are not concerned about the array potentially being mutated again.
+                    let is_return_block =
+                        matches!(terminator, TerminatorInstruction::Return { .. });
+                    // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
+                    let mut array_in_terminator = false;
+                    terminator.for_each_value(|value| {
+                        if value == array {
+                            array_in_terminator = true;
+                        }
+                    });
+                    if (!self.arrays_from_load.contains(&array) || is_return_block)
+                        && !array_in_terminator
+                    {
+                        self.instructions_that_can_be_made_mutable.insert(*instruction_id);
+                    }
+                }
+                Instruction::Call { arguments, .. } => {
+                    for argument in arguments {
+                        if matches!(
+                            self.dfg.type_of_value(*argument),
+                            Array { .. } | Slice { .. }
+                        ) {
+                            let argument = self.dfg.resolve(*argument);
+
+                            if let Some(existing) =
+                                self.array_to_last_use.insert(argument, *instruction_id)
+                            {
+                                self.instructions_that_can_be_made_mutable.remove(&existing);
+                            }
                         }
                     }
                 }
-            }
-            Instruction::Load { .. } => {
-                let result = dfg.instruction_results(*instruction_id)[0];
-                if matches!(dfg.type_of_value(result), Array { .. } | Slice { .. }) {
-                    arrays_from_load.insert(result);
+                Instruction::Load { .. } => {
+                    let result = self.dfg.instruction_results(*instruction_id)[0];
+                    if matches!(
+                        self.dfg.type_of_value(result),
+                        Array { .. } | Slice { .. }
+                    ) {
+                        self.arrays_from_load.insert(result);
+                    }
                 }
+                _ => (),
             }
-            _ => (),
         }
     }
 }
