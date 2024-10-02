@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
 
             None
         } else {
-            Some(self.parse_block_expression().unwrap_or_else(empty_body))
+            Some(self.parse_block().unwrap_or_else(empty_body))
         };
 
         FunctionDefinitionWithOptionalBody {

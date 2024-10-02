@@ -336,7 +336,7 @@ impl<'a> Parser<'a> {
         }
 
         let start_span = self.current_token_span;
-        if let Some(block) = self.parse_block_expression() {
+        if let Some(block) = self.parse_block() {
             Some(ExpressionKind::Unsafe(block, self.span_since(start_span)))
         } else {
             Some(ExpressionKind::Error)
@@ -400,7 +400,7 @@ impl<'a> Parser<'a> {
         let condition = self.parse_expression_no_constructors_or_error();
 
         let start_span = self.current_token_span;
-        let Some(consequence) = self.parse_block_expression() else {
+        let Some(consequence) = self.parse_block() else {
             self.expected_token(Token::LeftBrace);
             let span = self.span_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
@@ -414,7 +414,7 @@ impl<'a> Parser<'a> {
 
         let alternative = if self.eat_keyword(Keyword::Else) {
             let start_span = self.current_token_span;
-            if let Some(alternative) = self.parse_block_expression() {
+            if let Some(alternative) = self.parse_block() {
                 let span = self.span_since(start_span);
                 Some(Expression { kind: ExpressionKind::Block(alternative), span })
             } else if let Some(if_expr) = self.parse_if_expr() {
@@ -437,7 +437,7 @@ impl<'a> Parser<'a> {
 
         let start_span = self.current_token_span;
 
-        let Some(block) = self.parse_block_expression() else {
+        let Some(block) = self.parse_block() else {
             self.expected_token(Token::LeftBrace);
             return None;
         };
@@ -546,7 +546,7 @@ impl<'a> Parser<'a> {
             )));
         }
 
-        if let Some(kind) = self.parse_block_expression() {
+        if let Some(kind) = self.parse_block() {
             return Some(ExpressionKind::Block(kind));
         }
 
@@ -644,7 +644,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub(super) fn parse_block_expression(&mut self) -> Option<BlockExpression> {
+    pub(super) fn parse_block(&mut self) -> Option<BlockExpression> {
         if !self.eat_left_brace() {
             return None;
         }

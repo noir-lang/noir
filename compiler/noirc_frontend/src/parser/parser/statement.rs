@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
             }));
         }
 
-        if let Some(block) = self.parse_block_expression() {
+        if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
                 span: self.span_since(start_span),
@@ -224,7 +224,7 @@ impl<'a> Parser<'a> {
         };
 
         let block_start_span = self.current_token_span;
-        let block = if let Some(block) = self.parse_block_expression() {
+        let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
                 span: self.span_since(block_start_span),
@@ -281,7 +281,7 @@ impl<'a> Parser<'a> {
     ) -> Option<StatementKind> {
         let start_span = self.current_token_span;
 
-        if let Some(block) = self.parse_block_expression() {
+        if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
                 span: self.span_since(start_span),
