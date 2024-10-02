@@ -404,7 +404,11 @@ impl<'a> Parser<'a> {
         Some(ExpressionKind::Variable(path))
     }
 
-    /// ConstructorExpression = Type '{' (identifier (':' Expression)?)* '}'
+    /// ConstructorExpression = Type '{' ConstructorFields? '}'
+    ///
+    /// ConstructorFields = ConstructorField ( ',' ConstructorField )* ','?
+    ///
+    /// ConstructorField = identifier (':' Expression)?
     fn parse_constructor(&mut self, typ: UnresolvedType) -> ExpressionKind {
         let mut fields = Vec::new();
         let mut trailing_comma = false;

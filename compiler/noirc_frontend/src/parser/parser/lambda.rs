@@ -7,7 +7,9 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    /// Lambda = '|' (LambdaParameter ','?)* '|' ('->' Type)? Expression
+    /// Lambda = '|' LambdaParameters? '|' ('->' Type)? Expression
+    ///
+    /// LambdaParameters = LambdaParameter (',' LambdaParameter)? ','?
     ///
     /// LambdaParameter
     ///     = Pattern OptionalTypeAnnotation

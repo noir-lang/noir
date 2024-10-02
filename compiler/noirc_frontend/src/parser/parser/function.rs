@@ -124,7 +124,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// FunctionParameters = '(' (FunctionParameter ','?)* ')'
+    /// FunctionParameters = '(' (FunctionParameter (',' FunctionParameter)* ','? )? ')'
     ///
     /// FunctionParameter = Visibility PatternOrSelf ':' Type
     fn parse_function_parameters(&mut self, allow_self: bool) -> Vec<Param> {

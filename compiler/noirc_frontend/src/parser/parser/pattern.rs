@@ -195,7 +195,9 @@ impl<'a> Parser<'a> {
         Some(Pattern::Tuple(patterns, self.span_since(start_span)))
     }
 
-    /// StructPattern = Path '{' (StructPatternField ','?)* '}'
+    /// StructPattern = Path '{' StructPatternFields? '}'
+    ///
+    /// StructPatternFields = StructPatternField (',' StructPatternField)? ','?
     ///
     /// StructPatternField = identifier (':' Pattern)?
     fn parse_struct_pattern(&mut self, path: Path) -> Pattern {
