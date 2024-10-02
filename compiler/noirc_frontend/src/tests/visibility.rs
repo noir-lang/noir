@@ -146,6 +146,7 @@ fn does_not_error_if_calling_private_struct_function_from_same_module() {
     }
 
     fn main() {
+        let _ = Foo {};
         assert_eq(Foo::bar(), 0);
     }
     "#;
