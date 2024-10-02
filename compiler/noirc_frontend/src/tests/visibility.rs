@@ -133,3 +133,21 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn does_not_error_if_calling_private_struct_function_from_same_module() {
+    let src = r#"
+    struct Foo;
+
+    impl Foo {
+        fn bar() -> Field {
+            0
+        }
+    }
+
+    fn main() {
+        assert_eq(Foo::bar(), 0);
+    }
+    "#;
+    assert_no_errors(src);
+}
