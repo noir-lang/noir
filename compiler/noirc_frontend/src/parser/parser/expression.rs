@@ -18,6 +18,7 @@ impl<'a> Parser<'a> {
         self.parse_expression_or_error_impl(true) // allow constructors
     }
 
+    /// Expression = EqualOrNotEqualExpression
     pub(crate) fn parse_expression(&mut self) -> Option<Expression> {
         self.parse_expression_impl(true) // allow constructors
     }
@@ -44,8 +45,12 @@ impl<'a> Parser<'a> {
         self.parse_equal_or_not_equal(allow_constructors)
     }
 
+    /// Term
+    ///    = UnaryOp Term
+    ///    | AtomOrUnaryRightExpression
     pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
+
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self.parse_term(allow_constructors) else {
                 self.expected_label(ParsingRuleLabel::Expression);
@@ -59,6 +64,7 @@ impl<'a> Parser<'a> {
         self.parse_atom_or_unary_right(allow_constructors)
     }
 
+    /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
         if self.tokens_follow(Token::Ampersand, Token::Keyword(Keyword::Mut)) {
             self.next_token();
@@ -75,6 +81,9 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// AtomOrUnaryRightExpression
+    ///     = Atom
+    ///     | UnaryRightExpression
     fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut atom = self.parse_atom(allow_constructors)?;
@@ -92,6 +101,11 @@ impl<'a> Parser<'a> {
         Some(atom)
     }
 
+    /// UnaryRightExpression
+    ///     = CallExpression
+    ///     | MemberAccessOrMethodCallExpression
+    ///     | CastExpression
+    ///     | IndexExpression
     fn parse_unary_right(&mut self, mut atom: Expression, start_span: Span) -> (Expression, bool) {
         let mut parsed;
 
@@ -113,6 +127,7 @@ impl<'a> Parser<'a> {
         self.parse_index(atom, start_span)
     }
 
+    /// CallExpression = Atom '!'? Arguments
     fn parse_call(&mut self, atom: Expression, start_span: Span) -> (Expression, bool) {
         let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
         if is_macro_call {
@@ -134,6 +149,13 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// MemberAccessOrMethodCallExpression
+    ///     = MemberAccessExpression
+    ///     | MethodCallExpression
+    ///
+    /// MemberAccessExpression = Atom '.' identifier
+    ///
+    /// MethodCallExpression = Atom '.' identifier '!'? Arguments
     fn parse_member_access_or_method_call(
         &mut self,
         atom: Expression,
@@ -187,6 +209,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// CastExpression = Atom 'as' Type
     fn parse_cast(&mut self, atom: Expression, start_span: Span) -> (Expression, bool) {
         if !self.eat_keyword(Keyword::As) {
             return (atom, false);
@@ -199,6 +222,7 @@ impl<'a> Parser<'a> {
         (atom, true)
     }
 
+    /// IndexExpression = Atom '[' Expression ']'
     fn parse_index(&mut self, atom: Expression, start_span: Span) -> (Expression, bool) {
         if !self.eat_left_bracket() {
             return (atom, false);
@@ -225,6 +249,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Atom
+    ///     = Literal
+    ///     | ParenthesesExpression
+    ///     | UnsafeExpression
+    ///     | PathExpression
+    ///     | IfExpression
+    ///     | Lambda
+    ///     | ComptimeExpression
+    ///     | UnquoteExpression
+    ///     | TypePathExpression
+    ///     | AsTraitPath
+    ///     | ResolvedExpression
+    ///     | InternedExpression
+    ///     | InternedStatementExpression
     fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let kind = self.parse_atom_kind(allow_constructors)?;
@@ -248,6 +286,7 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        // A constructor where the type is an interned unresolved type data is valid
         if matches!(self.token.token(), Token::InternedUnresolvedTypeData(..))
             && self.next_is(Token::LeftBrace)
         {
@@ -297,6 +336,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// ResolvedExpression = unquote_marker
     fn parse_resolved_expr(&mut self) -> Option<ExpressionKind> {
         if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
             match token.into_token() {
@@ -308,6 +348,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// InternedExpression = interned_expr
     fn parse_interned_expr(&mut self) -> Option<ExpressionKind> {
         if let Some(token) = self.eat_kind(TokenKind::InternedExpr) {
             match token.into_token() {
@@ -319,6 +360,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// InternedStatementExpression = interned_statement
     fn parse_interned_statement_expr(&mut self) -> Option<ExpressionKind> {
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
@@ -330,6 +372,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// UnsafeExpression = 'unsafe' Block
     fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Unsafe) {
             return None;
@@ -343,6 +386,11 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// PathExpression
+    ///     = VariableExpression
+    ///     | ConstructorExpression
+    ///
+    /// VariableExpression = Path
     fn parse_path_expr(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         let Some(path) = self.parse_path() else {
             return None;
@@ -356,6 +404,7 @@ impl<'a> Parser<'a> {
         Some(ExpressionKind::Variable(path))
     }
 
+    /// ConstructorExpression = Type '{' (identifier (':' Expression)?)* '}'
     fn parse_constructor(&mut self, typ: UnresolvedType) -> ExpressionKind {
         let mut fields = Vec::new();
         let mut trailing_comma = false;
@@ -392,6 +441,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    /// IfExpression = 'if' Expression Block ('else' (Block | IfExpression))?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::If) {
             return None;
@@ -430,6 +480,7 @@ impl<'a> Parser<'a> {
         Some(ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative })))
     }
 
+    /// ComptimeExpression = 'comptime' Block
     fn parse_comptime_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
@@ -445,6 +496,9 @@ impl<'a> Parser<'a> {
         Some(ExpressionKind::Comptime(block, self.span_since(start_span)))
     }
 
+    /// UnquoteExpression
+    ///     = '$' identifier
+    ///     | '$' '(' Expression ')'
     fn parse_unquote_expr(&mut self) -> Option<ExpressionKind> {
         let start_span = self.current_token_span;
 
@@ -479,6 +533,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// TypePathExpression = PrimitiveType '::' identifier ('::' GenericTypeArgs)?
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_span = self.current_token_span;
         let Some(typ) = self.parse_primitive_type() else {
@@ -508,6 +563,20 @@ impl<'a> Parser<'a> {
         Some(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
     }
 
+    /// Literal
+    ///     = bool
+    ///     | int
+    ///     | str
+    ///     | rawstr
+    ///     | fmtstr
+    ///     | QuoteExpression
+    ///     | ArrayLiteralExpression
+    ///     | SliceLiteralExpression
+    ///     | BlockExpression
+    ///
+    /// QuoteExpression = 'quote' '{' token* '}'
+    ///
+    /// BlockExpression = Block
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
         if let Some(bool) = self.eat_bool() {
             return Some(ExpressionKind::Literal(Literal::Bool(bool)));
@@ -533,17 +602,12 @@ impl<'a> Parser<'a> {
             return Some(ExpressionKind::Quote(tokens));
         }
 
-        if let Some(kind) = self.parse_array_expression() {
-            return Some(kind);
+        if let Some(literal) = self.parse_array_literal() {
+            return Some(ExpressionKind::Literal(Literal::Array(literal)));
         }
 
-        // Check if it's `&[`
-        if self.tokens_follow(Token::Ampersand, Token::LeftBracket) {
-            self.next_token();
-
-            return Some(ExpressionKind::Literal(Literal::Slice(
-                self.parse_array_literal().unwrap(),
-            )));
+        if let Some(literal) = self.parse_slice_literal() {
+            return Some(ExpressionKind::Literal(Literal::Slice(literal)));
         }
 
         if let Some(kind) = self.parse_block() {
@@ -553,11 +617,13 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn parse_array_expression(&mut self) -> Option<ExpressionKind> {
-        self.parse_array_literal()
-            .map(|array_literal| ExpressionKind::Literal(Literal::Array(array_literal)))
-    }
-
+    /// ArrayLiteralExpression
+    ///     = StandardArrayLiteralExpression
+    ///     | RepeatedArrayLiteralExpression
+    ///
+    /// StandardArrayLiteralExpression = '[' (Expression ','?)* ']'
+    ///
+    /// RepeatedArrayLiteralExpression = '[' Expression ';' TypeExpression ']'
     fn parse_array_literal(&mut self) -> Option<ArrayLiteral> {
         if !self.eat_left_bracket() {
             return None;
@@ -606,6 +672,32 @@ impl<'a> Parser<'a> {
         Some(ArrayLiteral::Standard(exprs))
     }
 
+    /// SliceLiteralExpression
+    ///     = StandardSliceLiteralExpression
+    ///     | RepeatedSliceLiteralExpression
+    ///
+    /// StandardSliceLiteralExpression = '&' '[' (Expression ','?)* ']'
+    ///
+    /// RepeatedSliceLiteralExpression = '&' '[' Expression ';' TypeExpression ']'
+    fn parse_slice_literal(&mut self) -> Option<ArrayLiteral> {
+        if !self.tokens_follow(Token::Ampersand, Token::LeftBracket) {
+            return None;
+        }
+
+        self.next_token();
+        self.parse_array_literal()
+    }
+
+    /// ParenthesesExpression
+    ///     = UnitLiteral
+    ///     | ParenthesizedExpression
+    ///     | TupleExpression
+    ///
+    /// UnitLiteral = '(' ')'
+    ///
+    /// ParenthesizedExpression = '(' Expression ')'
+    ///
+    /// TupleExpression = '(' Expression (',' Expression)+ ')'
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
         if !self.eat_left_paren() {
             return None;
@@ -644,6 +736,7 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Block = '{' (Statement ';'?)* '}'
     pub(super) fn parse_block(&mut self) -> Option<BlockExpression> {
         if !self.eat_left_brace() {
             return None;
