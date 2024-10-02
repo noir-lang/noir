@@ -444,11 +444,15 @@ pub fn can_reference_module_id(
         ItemVisibility::PublicCrate => same_crate,
         ItemVisibility::Private => {
             same_crate
-                && module_descendent_of_target(
+                && (module_descendent_of_target(
                     target_crate_def_map,
                     target_module.local_id,
                     current_module,
-                )
+                ) || module_is_parent_of_struct_module(
+                    target_crate_def_map,
+                    current_module,
+                    target_module.local_id,
+                ))
         }
     }
 }
@@ -467,4 +471,14 @@ fn module_descendent_of_target(
     def_map.modules[current.0]
         .parent
         .map_or(false, |parent| module_descendent_of_target(def_map, target, parent))
+}
+
+/// Returns true if `target` is a struct and its parent is `current`.
+fn module_is_parent_of_struct_module(
+    def_map: &CrateDefMap,
+    current: LocalModuleId,
+    target: LocalModuleId,
+) -> bool {
+    let module_data = &def_map.modules[target.0];
+    module_data.is_struct && module_data.parent == Some(current)
 }

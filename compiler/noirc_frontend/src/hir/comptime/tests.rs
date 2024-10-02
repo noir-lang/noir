@@ -28,7 +28,8 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
         location,
         Vec::new(),
         Vec::new(),
-        false,
+        false, // is contract
+        false, // is struct
     )));
     assert_eq!(root, module_id);
 
