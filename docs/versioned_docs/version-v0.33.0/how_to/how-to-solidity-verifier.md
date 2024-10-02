@@ -241,6 +241,7 @@ For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently suppo
 - Polygon PoS
 - Scroll
 - Celo
+- Base
 
 If you test any other chains, please open a PR on this page to update the list. See [this doc](https://github.com/noir-lang/noir-starter/tree/main/with-foundry#testing-on-chain) for more info about testing verifier contracts on different EVM chains.
 
