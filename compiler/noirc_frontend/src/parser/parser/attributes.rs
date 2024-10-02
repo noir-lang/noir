@@ -7,6 +7,7 @@ use crate::token::{Attribute, Token, TokenKind};
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// InnerAttribute = inner_attribute
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
         let token = self.eat_kind(TokenKind::InnerAttribute)?;
         match token.into_token() {
@@ -15,6 +16,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Attributes = attribute*
     pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
         let mut attributes = Vec::new();
 

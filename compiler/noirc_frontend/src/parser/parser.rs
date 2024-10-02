@@ -10,8 +10,8 @@ use crate::{
 
 use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
 
+mod arguments;
 mod attributes;
-mod call;
 mod doc_comments;
 mod expression;
 mod function;

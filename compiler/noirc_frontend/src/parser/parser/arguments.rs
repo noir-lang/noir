@@ -3,6 +3,7 @@ use crate::ast::Expression;
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// Arguments = '(' (Expression ','?)* ')'
     pub(crate) fn parse_arguments(&mut self) -> Option<Vec<Expression>> {
         if !self.eat_left_paren() {
             return None;
