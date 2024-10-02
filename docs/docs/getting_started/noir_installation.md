@@ -90,7 +90,7 @@ The default backend for Noir (Barretenberg) doesn't provide Windows binaries at 
 
 Step 1: Follow the instructions [here](https://learn.microsoft.com/en-us/windows/wsl/install) to install and run WSL.
 
-step 2: Follow the [Noirup instructions](#encouraged-installation-method-noirup).
+step 2: Follow the [Noirup instructions](#installing-noirup).
 
 ## Uninstalling Nargo
 

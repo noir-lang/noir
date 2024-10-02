@@ -5,7 +5,7 @@ tags: []
 
 ## A Quick Start with Noirenberg
 
-Noir is a backend-agnostic programming language for writing zero-knowledge proofs. This means you need to pair it with a proving backend. You can visit the [nargo installation](./getting_started/installation/index.md) page for details on using Noir without any particular backend.
+Noir is a backend-agnostic programming language for writing zero-knowledge proofs. This means you need to pair it with a proving backend. You can visit the [nargo installation](./getting_started/noir_installation.md) page for details on using Noir without any particular backend.
 
 As an example, you can use the convenient binary [noirenberg](https://raw.githubusercontent.com/noir-lang/noirenberg/main/install.sh) script, which installs Noir along with Aztec Lab's [Barretenberg backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg):
 
@@ -46,7 +46,7 @@ fn main(x : Field, y : pub Field) {
 }
 ```
 
-To learn more about private and public values, check the [Data Types](../../noir/concepts/data_types/index.md) section.
+To learn more about private and public values, check the [Data Types](./noir/concepts/data_types/index.md) section.
 
 ### Compiling and executing
 
