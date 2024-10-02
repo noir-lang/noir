@@ -773,8 +773,7 @@ impl LValue {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
-    Range(/*start:*/ Expression, /*end:*/ Expression),
-    RangeInclusive(/*start:*/ Expression, /*end:*/ Expression),
+    Range(/*start:*/ Expression, /*end:*/ Expression, /*inclusive:*/ bool),
     Array(Expression),
 }
 
@@ -801,7 +800,7 @@ impl ForRange {
         static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 
         match self {
-            ForRange::Range(..) | ForRange::RangeInclusive(..) => {
+            ForRange::Range(..) => {
                 unreachable!()
             }
             ForRange::Array(array) => {
@@ -881,7 +880,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::Range(start_range, end_range),
+                        range: ForRange::Range(start_range, end_range, false),
                         block: new_block,
                         span: for_loop_span,
                     }),
@@ -902,7 +901,7 @@ impl ForRange {
     /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
     /// desugaring at `start..=end` into `start..end+1` if necessary.
     ///
-    /// Not expected to be called on `Arrays`, only ranges.
+    /// Not expected to be called on `Arrays`, only `Range`.
     ///
     /// Returns the `start` and `end` expressions.
     pub(crate) fn into_half_open(self) -> (Expression, Expression) {
@@ -910,8 +909,8 @@ impl ForRange {
             ForRange::Array(..) => {
                 unreachable!("only called to elaborate ranges")
             }
-            ForRange::Range(start, end) => (start, end),
-            ForRange::RangeInclusive(start, end) => {
+            ForRange::Range(start, end, false) => (start, end),
+            ForRange::Range(start, end, true) => {
                 let end_span = end.span;
                 let end = ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: end,
@@ -1039,8 +1038,8 @@ impl Display for Pattern {
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let range = match &self.range {
-            ForRange::Range(start, end) => format!("{start}..{end}"),
-            ForRange::RangeInclusive(start, end) => format!("{start}..={end}"),
+            ForRange::Range(start, end, false) => format!("{start}..{end}"),
+            ForRange::Range(start, end, true) => format!("{start}..={end}"),
             ForRange::Array(expr) => expr.to_string(),
         };
 

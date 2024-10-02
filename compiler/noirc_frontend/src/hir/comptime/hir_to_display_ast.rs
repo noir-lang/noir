@@ -55,6 +55,7 @@ impl HirStatement {
                 range: ForRange::Range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
+                    false,
                 ),
                 block: for_stmt.block.to_display_ast(interner),
                 span,
