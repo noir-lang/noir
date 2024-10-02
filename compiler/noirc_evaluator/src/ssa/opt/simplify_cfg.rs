@@ -57,11 +57,11 @@ impl Function {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
 
-            check_for_negated_jmpif_condition(function, block, &mut cfg);
+            check_for_negated_jmpif_condition(self, block, &mut cfg);
 
             // This call is before try_inline_into_predecessor so that if it succeeds in changing a
             // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-            check_for_constant_jmpif(function, block, &mut cfg);
+            check_for_constant_jmpif(self, block, &mut cfg);
 
             let mut predecessors = cfg.predecessors(block);
 
