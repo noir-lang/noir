@@ -18,6 +18,9 @@ pub(crate) enum Impl {
 }
 
 impl<'a> Parser<'a> {
+    /// Impl
+    ///     = TypeImpl
+    ///     | TraitImpl
     pub(crate) fn parse_impl(&mut self) -> Impl {
         let generics = self.parse_generics();
 
@@ -43,13 +46,26 @@ impl<'a> Parser<'a> {
             };
         }
 
+        self.parse_type_impl(object_type, type_span, generics)
+    }
+
+    /// TypeImpl = 'impl' Generics Type TypeImplBody
+    fn parse_type_impl(
+        &mut self,
+        object_type: UnresolvedType,
+        type_span: Span,
+        generics: Vec<UnresolvedGeneric>,
+    ) -> Impl {
         let where_clause = self.parse_where_clause();
-        let methods = self.parse_impl_body();
+        let methods = self.parse_type_impl_body();
 
         Impl::Impl(TypeImpl { object_type, type_span, generics, where_clause, methods })
     }
 
-    fn parse_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Span)> {
+    /// TypeImplBody = '{' TypeImplItem* '}'
+    ///
+    /// TypeImplItem = OuterDocComments Attributes Modifiers Function
+    fn parse_type_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Span)> {
         let mut methods = Vec::new();
 
         if !self.eat_left_brace() {
@@ -97,6 +113,7 @@ impl<'a> Parser<'a> {
         methods
     }
 
+    /// TraitImpl = 'impl' Generics Path GenericTypeArgs 'for' Type TraitImplBody
     fn parse_trait_impl(
         &mut self,
         impl_generics: Vec<UnresolvedGeneric>,
@@ -105,7 +122,7 @@ impl<'a> Parser<'a> {
     ) -> NoirTraitImpl {
         let object_type = self.parse_type_or_error();
         let where_clause = self.parse_where_clause();
-        let items = self.parse_trait_impl_items();
+        let items = self.parse_trait_impl_body();
 
         NoirTraitImpl {
             impl_generics,
@@ -117,7 +134,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_trait_impl_items(&mut self) -> Vec<Documented<TraitImplItem>> {
+    /// TraitImplBody = '{' TraitImplItem* '}'
+    fn parse_trait_impl_body(&mut self) -> Vec<Documented<TraitImplItem>> {
         let mut items = Vec::new();
 
         if !self.eat_left_brace() {
@@ -149,12 +167,12 @@ impl<'a> Parser<'a> {
         items
     }
 
+    /// TraitImplItem
+    ///     = TraitImplType
+    ///     | TraitImplConstant
+    ///     | TraitImplFunction
     fn parse_trait_impl_item_kind(&mut self) -> Option<TraitImplItemKind> {
         if let Some(kind) = self.parse_trait_impl_type() {
-            return Some(kind);
-        }
-
-        if let Some(kind) = self.parse_trait_impl_function() {
             return Some(kind);
         }
 
@@ -162,36 +180,10 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
-        None
+        self.parse_trait_impl_function()
     }
 
-    fn parse_trait_impl_function(&mut self) -> Option<TraitImplItemKind> {
-        let modifiers = self.parse_modifiers(
-            false, // allow mut
-        );
-        if modifiers.visibility != ItemVisibility::Private {
-            self.push_error(
-                ParserErrorReason::TraitImplVisibilityIgnored,
-                modifiers.visibility_span,
-            );
-        }
-        let attributes = self.parse_attributes();
-
-        if !self.eat_keyword(Keyword::Fn) {
-            self.modifiers_not_followed_by_an_item(modifiers);
-            return None;
-        }
-
-        let noir_function = self.parse_function(
-            attributes,
-            ItemVisibility::Public,
-            modifiers.comptime.is_some(),
-            modifiers.unconstrained.is_some(),
-            true, // allow_self
-        );
-        Some(TraitImplItemKind::Function(noir_function))
-    }
-
+    /// TraitImplType = 'type' identifier (':' Type)? ';'
     fn parse_trait_impl_type(&mut self) -> Option<TraitImplItemKind> {
         if !self.eat_keyword(Keyword::Type) {
             return None;
@@ -217,6 +209,7 @@ impl<'a> Parser<'a> {
         Some(TraitImplItemKind::Type { name, alias })
     }
 
+    /// TraitImplConstant = 'let' identifier OptionalTypeAnnotation ';'
     fn parse_trait_impl_constant(&mut self) -> Option<TraitImplItemKind> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -242,6 +235,35 @@ impl<'a> Parser<'a> {
         self.eat_semicolons();
 
         Some(TraitImplItemKind::Constant(name, typ, expr))
+    }
+
+    /// TraitImplFunction = Attributes Modifiers Function
+    fn parse_trait_impl_function(&mut self) -> Option<TraitImplItemKind> {
+        let attributes = self.parse_attributes();
+
+        let modifiers = self.parse_modifiers(
+            false, // allow mut
+        );
+        if modifiers.visibility != ItemVisibility::Private {
+            self.push_error(
+                ParserErrorReason::TraitImplVisibilityIgnored,
+                modifiers.visibility_span,
+            );
+        }
+
+        if !self.eat_keyword(Keyword::Fn) {
+            self.modifiers_not_followed_by_an_item(modifiers);
+            return None;
+        }
+
+        let noir_function = self.parse_function(
+            attributes,
+            ItemVisibility::Public,
+            modifiers.comptime.is_some(),
+            modifiers.unconstrained.is_some(),
+            true, // allow_self
+        );
+        Some(TraitImplItemKind::Function(noir_function))
     }
 }
 

@@ -101,11 +101,7 @@ impl<'a> Parser<'a> {
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return Some(self.parse_module_or_contract(
-                attributes,
-                is_contract,
-                modifiers.visibility,
-            ));
+            return Some(self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility));
         }
 
         if self.eat_keyword(Keyword::Struct) {

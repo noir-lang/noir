@@ -9,7 +9,9 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    pub(super) fn parse_module_or_contract(
+    /// ModOrContract
+    ///     = ('mod' | 'contract') identifier ('{' Module '}' | ';')
+    pub(super) fn parse_mod_or_contract(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
         is_contract: bool,

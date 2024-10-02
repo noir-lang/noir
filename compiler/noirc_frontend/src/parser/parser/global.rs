@@ -12,6 +12,7 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
         attributes: Vec<(Attribute, Span)>,

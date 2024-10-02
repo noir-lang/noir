@@ -29,6 +29,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
 }
 
 impl<'a> Parser<'a> {
+    /// Function = 'fn' identifier Generics FunctionParameters ('->' Visibility Type) WhereClause (Block | ';')
     pub(crate) fn parse_function(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
@@ -123,6 +124,9 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// FunctionParameters = '(' (FunctionParameter ','?)* ')'
+    ///
+    /// FunctionParameter = Visibility PatternOrSelf ':' Type
     fn parse_function_parameters(&mut self, allow_self: bool) -> Vec<Param> {
         let mut parameters = Vec::new();
 
@@ -219,6 +223,11 @@ impl<'a> Parser<'a> {
         parameters
     }
 
+    /// Visibility
+    ///     = 'pub'
+    ///     | 'return_data'
+    ///     | 'call_data' '(' int ')'
+    ///     | nothing
     fn parse_visibility(&mut self) -> Visibility {
         if self.eat_keyword(Keyword::Pub) {
             return Visibility::Public;

@@ -12,6 +12,7 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// Generics = ('<' (Generic ','?)* '>')?
     pub(super) fn parse_generics(&mut self) -> UnresolvedGenerics {
         let mut generics = Vec::new();
 
@@ -47,6 +48,10 @@ impl<'a> Parser<'a> {
         generics
     }
 
+    /// Generic
+    ///     = VariableGeneric
+    ///     | NumericGeneric
+    ///     | ResolvedGeneric
     fn parse_generic(&mut self) -> Option<UnresolvedGeneric> {
         if let Some(generic) = self.parse_variable_generic() {
             return Some(generic);
@@ -63,6 +68,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// VariableGeneric = identifier
     fn parse_variable_generic(&mut self) -> Option<UnresolvedGeneric> {
         if let Some(ident) = self.eat_ident() {
             return Some(UnresolvedGeneric::Variable(ident));
@@ -71,6 +77,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// NumericGeneric = 'let' identifier ':' Type
     fn parse_numeric_generic(&mut self) -> Option<UnresolvedGeneric> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -100,6 +107,7 @@ impl<'a> Parser<'a> {
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }
 
+    /// ResolvedGeneric = quoted_type
     fn parse_resolved_generic(&mut self) -> Option<UnresolvedGeneric> {
         if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
             match token.into_token() {
@@ -113,6 +121,15 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// GenericTypeArgs = ('<' (GenericTypeArg ','?)* '>')
+    ///
+    /// GenericTypeArg
+    ///     = NamedTypeArg
+    ///     | OrderedTypeArg
+    ///
+    /// NamedTypeArg = identifier '=' Type
+    ///
+    /// OrderedTypeArg = TypeOrTypeExpression
     pub(super) fn parse_generic_type_args(&mut self) -> GenericTypeArgs {
         let mut generic_type_args = GenericTypeArgs::default();
         if !self.eat_less() {

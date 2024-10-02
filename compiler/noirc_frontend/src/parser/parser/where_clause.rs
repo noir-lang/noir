@@ -7,6 +7,7 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// WhereClause = 'where' (Type ':' TraitBounds ','?)*
     pub(super) fn parse_where_clause(&mut self) -> Vec<UnresolvedTraitConstraint> {
         let mut constraints = Vec::new();
 
@@ -40,6 +41,7 @@ impl<'a> Parser<'a> {
         constraints
     }
 
+    /// TraitBounds = (TraitBound '+'?)*
     pub(super) fn parse_trait_bounds(&mut self) -> Vec<TraitBound> {
         let mut bounds = Vec::new();
 
@@ -79,6 +81,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// TraitBound = PathNoTurbofish GenericTypeArgs
     pub(crate) fn parse_trait_bound(&mut self) -> Option<TraitBound> {
         let trait_path = self.parse_path_no_turbofish()?;
         let trait_generics = self.parse_generic_type_args();
