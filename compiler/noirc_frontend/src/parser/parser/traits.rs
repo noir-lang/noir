@@ -10,6 +10,7 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// Trait = 'trait' identifier Generics WhereClause TraitBody
     pub(crate) fn parse_trait(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
@@ -25,7 +26,7 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generics();
         let where_clause = self.parse_where_clause();
-        let items = self.parse_trait_items();
+        let items = self.parse_trait_body();
 
         NoirTrait {
             name,
@@ -38,7 +39,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_trait_items(&mut self) -> Vec<Documented<TraitItem>> {
+    /// TraitBody = '{' (OuterDocComments TraitItem)* '}'
+    fn parse_trait_body(&mut self) -> Vec<Documented<TraitItem>> {
         let mut items = Vec::new();
 
         if !self.eat_left_brace() {
@@ -72,6 +74,10 @@ impl<'a> Parser<'a> {
         items
     }
 
+    /// TraitItem
+    ///     = TraitType
+    ///     | TraitConstant
+    ///     | TraitFunction
     fn parse_trait_item(&mut self) -> Option<TraitItem> {
         if let Some(item) = self.parse_trait_type() {
             return Some(item);
@@ -88,6 +94,7 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// TraitType = 'type' identifier ';'
     fn parse_trait_type(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Type) {
             return None;
@@ -106,6 +113,7 @@ impl<'a> Parser<'a> {
         Some(TraitItem::Type { name })
     }
 
+    /// TraitConstant = 'let' identifier ':' Type ('=' Expression) ';'
     fn parse_trait_constant(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -134,6 +142,7 @@ impl<'a> Parser<'a> {
         Some(TraitItem::Constant { name, typ, default_value })
     }
 
+    /// TraitFunction = Modifiers Function
     fn parse_trait_function(&mut self) -> Option<TraitItem> {
         let modifiers = self.parse_modifiers(
             false, // allow mut
