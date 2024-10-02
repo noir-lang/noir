@@ -57,6 +57,7 @@ impl<'a> Parser<'a> {
         items
     }
 
+    /// Item = OuterDocComments ItemKind
     fn parse_item(&mut self) -> Option<Item> {
         let start_span = self.current_token_span;
         let doc_comments = self.parse_outer_doc_comments();
@@ -66,6 +67,18 @@ impl<'a> Parser<'a> {
         Some(Item { kind, span, doc_comments })
     }
 
+    /// ItemKind
+    ///     = InnerAttribute
+    ///     | Attributes Modifiers
+    ///         ( Use
+    ///         | ModOrContract
+    ///         | Struct
+    ///         | Impl
+    ///         | Trait
+    ///         | Global
+    ///         | TypeAlias
+    ///         | Function
+    ///         )
     fn parse_item_kind(&mut self) -> Option<ItemKind> {
         if let Some(kind) = self.parse_inner_attribute() {
             return Some(ItemKind::InnerAttribute(kind));

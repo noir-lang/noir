@@ -7,6 +7,10 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// Lambda = '|' (LambdaParameter ','?)* '|' Expression
+    ///
+    /// LambdaParameter
+    ///     = Pattern OptionalTypeAnnotation
     pub(super) fn parse_lambda(&mut self) -> Option<ExpressionKind> {
         if !self.eat_pipe() {
             return None;

@@ -3,6 +3,7 @@ use crate::token::{DocStyle, Token, TokenKind};
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// InnerDocComments = inner_doc_comment*
     pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<String> {
         let mut comments: Vec<String> = Vec::new();
 
@@ -19,6 +20,7 @@ impl<'a> Parser<'a> {
         comments
     }
 
+    /// OuterDocComments = outer_doc_comments*
     pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<String> {
         let mut comments: Vec<String> = Vec::new();
 

@@ -6,6 +6,10 @@ use crate::{
 use super::Parser;
 
 impl<'a> Parser<'a> {
+    /// ItemVisibility
+    ///     = 'pub'                 // ItemVisibility::Public
+    ///     | 'pub' '(' 'crate' ')' // ItemVisibility::PublicCrate
+    ///     | nothing               // ItemVisibility::Private
     pub(super) fn parse_item_visibility(&mut self) -> ItemVisibility {
         if !self.eat_keyword(Keyword::Pub) {
             return ItemVisibility::Private;

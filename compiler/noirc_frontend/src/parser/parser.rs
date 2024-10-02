@@ -124,12 +124,14 @@ impl<'a> Parser<'a> {
         parser
     }
 
+    /// Program = Module
     pub(crate) fn parse_program(&mut self) -> ParsedModule {
         self.parse_module(
             false, // nested
         )
     }
 
+    /// Module = InnerDocComments Item*
     pub(crate) fn parse_module(&mut self, nested: bool) -> ParsedModule {
         let inner_doc_comments = self.parse_inner_doc_comments();
         let items = self.parse_items(nested);

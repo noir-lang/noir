@@ -14,6 +14,7 @@ pub(crate) struct Modifiers {
 }
 
 impl<'a> Parser<'a> {
+    /// Modifiers = 'unconstrained'? ItemVisibility 'comptime'? 'mut'?
     pub(crate) fn parse_modifiers(&mut self, allow_mutable: bool) -> Modifiers {
         let unconstrained = self.parse_modifier(Keyword::Unconstrained);
 

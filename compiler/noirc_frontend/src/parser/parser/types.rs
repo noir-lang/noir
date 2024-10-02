@@ -420,6 +420,7 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// OptionalTypeAnnotation = (':' Type)?
     pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {
         if self.eat_colon() {
             self.parse_type_or_error()
