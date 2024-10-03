@@ -857,7 +857,7 @@ fn try_optimize_array_set_from_previous_get(
         _ => return SimplifyResult::None,
     };
 
-    let Some(target_index)= dfg.get_numeric_constant(target_index) else {
+    let Some(target_index) = dfg.get_numeric_constant(target_index) else {
         return SimplifyResult::None;
     };
 
@@ -869,17 +869,17 @@ fn try_optimize_array_set_from_previous_get(
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
                     if let Some(index) = dfg.get_numeric_constant(*index) {
-                        if *index == target_index {
+                        if index == target_index {
                             return SimplifyResult::None;
                         }
-    
+
                         if *array == array_from_get {
                             return SimplifyResult::SimplifiedTo(original_array_id);
                         }
-    
+
                         array_id = *array; // recur
                     } else {
-                        return SimplifyResult::None
+                        return SimplifyResult::None;
                     }
                 }
                 _ => return SimplifyResult::None,
