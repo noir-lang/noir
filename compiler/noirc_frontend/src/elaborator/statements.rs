@@ -196,7 +196,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
         let (start, end) = match for_loop.range {
-            ForRange::Range(start, end) => (start, end),
+            ForRange::Range(bounds) => bounds.into_half_open(),
             ForRange::Array(_) => {
                 let for_stmt =
                     for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.span);

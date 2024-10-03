@@ -1072,6 +1072,18 @@ fn resolve_for_expr() {
 }
 
 #[test]
+fn resolve_for_expr_incl() {
+    let src = r#"
+        fn main(x : u64) {
+            for i in 1..=20 {
+                let _z = x + i;
+            };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn resolve_call_expr() {
     let src = r#"
         fn main(x : Field) {

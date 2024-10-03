@@ -1514,7 +1514,8 @@ fn expr_as_for_range(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
-            if let ForRange::Range(from, to) = for_statement.range {
+            if let ForRange::Range(bounds) = for_statement.range {
+                let (from, to) = bounds.into_half_open();
                 let identifier =
                     Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
                 let from = Value::expression(from.kind);
