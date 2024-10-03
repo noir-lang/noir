@@ -623,11 +623,7 @@ impl Instruction {
                 }
             }
             Instruction::ArrayGet { array, index } => {
-                if let Some(index) = dfg.get_numeric_constant(*index) {
-                    try_optimize_array_get_from_previous_set(dfg, *array, index)
-                } else {
-                    None
-                }
+                try_optimize_array_get_from_previous_set(dfg, *array, *index)
             }
             Instruction::ArraySet { array, index, value, .. } => {
                 let array_const = dfg.get_array_constant(*array);
@@ -776,9 +772,21 @@ impl Instruction {
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
-    mut array_id: Id<Value>,
-    target_index: FieldElement,
+    mut array_id: ValueId,
+    target_index: ValueId,
 ) -> SimplifyResult {
+    if let Value::Instruction { instruction, .. } = &dfg[array_id] {
+        if let Instruction::ArraySet { index, value, .. } = &dfg[*instruction] {
+            if *index == target_index {
+                return SimplifyResult::SimplifiedTo(*value);
+            }
+        }
+    }
+
+    let Some(target_index) = dfg.get_numeric_constant(target_index) else {
+        return SimplifyResult::None;
+    };
+
     let mut elements = None;
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
