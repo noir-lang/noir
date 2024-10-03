@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DatabusVisibility {
     None,
     CallData(u32),
@@ -214,34 +214,27 @@ impl FunctionBuilder {
     fn deflatten_databus_visibilities(
         &self,
         ssa_params: &[ValueId],
-        flattened_params_databus_visibility: Vec<DatabusVisibility>,
+        mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        // To do so, create a vec the size of the flattened arguments where the items are the ssa param index they correspond to
-        let ssa_param_indices: Vec<_> = ssa_params
+        let ssa_param_sizes: Vec<_> = ssa_params
             .iter()
-            .enumerate()
-            .flat_map(|(ssa_param_index, ssa_param)| {
-                let flattened_size =
-                    self.current_function.dfg[*ssa_param].get_type().flattened_size();
-                std::iter::repeat(ssa_param_index).take(flattened_size)
-            })
+            .map(|ssa_param| self.current_function.dfg[*ssa_param].get_type().flattened_size())
             .collect();
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
-        assert!(flattened_params_databus_visibility.len() == ssa_param_indices.len());
-        for (databus_visibility, ssa_index) in
-            flattened_params_databus_visibility.into_iter().zip(ssa_param_indices)
-        {
-            if let Some(previous_databus_visibility) = is_ssa_params_databus.get(ssa_index) {
-                assert!(
-                    *previous_databus_visibility == databus_visibility,
-                    "inconsistent databus visibility for ssa param"
-                );
-            } else {
-                assert!(ssa_index == is_ssa_params_databus.len());
-                is_ssa_params_databus.push(databus_visibility);
-            }
+        for size in ssa_param_sizes {
+            let visibilities: Vec<DatabusVisibility> =
+                flattened_params_databus_visibility.drain(0..size).collect();
+            let visibility = visibilities.get(0).copied().unwrap_or(DatabusVisibility::None);
+            assert!(
+                visibilities.iter().all(|v| *v == visibility),
+                "inconsistent databus visibility for ssa param"
+            );
+            is_ssa_params_databus.push(visibility);
         }
+
+        assert_eq!(is_ssa_params_databus.len(), ssa_params.len());
+
         is_ssa_params_databus
     }
 }

@@ -881,7 +881,7 @@ impl Type {
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {
-        let var = TypeVariable::unbound(id, Kind::Normal);
+        let var = TypeVariable::unbound(id, Kind::Any);
         Type::TypeVariable(var)
     }
 
