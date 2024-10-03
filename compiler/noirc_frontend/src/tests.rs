@@ -90,7 +90,8 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             location,
             Vec::new(),
             inner_attributes.clone(),
-            false,
+            false, // is contract
+            false, // is struct
         ));
 
         let def_map = CrateDefMap {

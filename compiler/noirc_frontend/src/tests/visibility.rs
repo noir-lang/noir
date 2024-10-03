@@ -3,7 +3,7 @@ use crate::{
         def_collector::{dc_crate::CompilationError, errors::DefCollectorErrorKind},
         resolution::{errors::ResolverError, import::PathResolutionError},
     },
-    tests::get_program_errors,
+    tests::{assert_no_errors, get_program_errors},
 };
 
 #[test]
@@ -104,4 +104,45 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
     };
 
     assert_eq!(ident.to_string(), "bar");
+}
+
+#[test]
+fn does_not_error_if_calling_private_struct_function_from_same_struct() {
+    let src = r#"
+    struct Foo {
+
+    }
+
+    impl Foo {
+        fn foo() {
+            Foo::bar()
+        }
+
+        fn bar() {}
+    }
+
+    fn main() {
+        let _ = Foo {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_if_calling_private_struct_function_from_same_module() {
+    let src = r#"
+    struct Foo;
+
+    impl Foo {
+        fn bar() -> Field {
+            0
+        }
+    }
+
+    fn main() {
+        let _ = Foo {};
+        assert_eq(Foo::bar(), 0);
+    }
+    "#;
+    assert_no_errors(src);
 }
