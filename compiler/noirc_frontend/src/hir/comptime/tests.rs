@@ -161,6 +161,19 @@ fn for_loop() {
 }
 
 #[test]
+fn for_loop_inclusive() {
+    let program = "comptime fn main() -> pub u8 {
+        let mut x = 0;
+        for i in 0 ..= 6 {
+            x += i;
+        }
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(21));
+}
+
+#[test]
 fn for_loop_u16() {
     let program = "comptime fn main() -> pub u16 {
         let mut x = 0;

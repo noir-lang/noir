@@ -3,8 +3,8 @@ use noirc_errors::{Span, Spanned};
 use crate::{
     ast::{
         AssignStatement, BinaryOp, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
-        ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement,
-        Statement, StatementKind,
+        ExpressionKind, ForBounds, ForLoopStatement, ForRange, Ident, InfixExpression, LValue,
+        LetStatement, Statement, StatementKind,
     },
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Attribute, Keyword, Token, TokenKind},
@@ -264,7 +264,11 @@ impl<'a> Parser<'a> {
         let expr = self.parse_expression_no_constructors_or_error();
 
         if self.eat(Token::DoubleDot) {
-            ForRange::Range(expr, self.parse_expression_no_constructors_or_error())
+            let end = self.parse_expression_no_constructors_or_error();
+            ForRange::Range(ForBounds { start: expr, end, inclusive: false })
+        } else if self.eat(Token::DoubleDotEqual) {
+            let end = self.parse_expression_no_constructors_or_error();
+            ForRange::Range(ForBounds { start: expr, end, inclusive: true })
         } else {
             ForRange::Array(expr)
         }
@@ -555,7 +559,10 @@ mod tests {
             panic!("Expected for loop");
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
-        assert!(matches!(for_loop.range, ForRange::Array(..)));
+        let ForRange::Array(expr) = for_loop.range else {
+            panic!("Expected array");
+        };
+        assert_eq!(expr.to_string(), "x");
     }
 
     #[test]
@@ -568,7 +575,30 @@ mod tests {
             panic!("Expected for loop");
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
-        assert!(matches!(for_loop.range, ForRange::Range(..)));
+        let ForRange::Range(bounds) = for_loop.range else {
+            panic!("Expected range");
+        };
+        assert_eq!(bounds.start.to_string(), "0");
+        assert_eq!(bounds.end.to_string(), "10");
+        assert!(!bounds.inclusive);
+    }
+
+    #[test]
+    fn parses_for_range_inclusive() {
+        let src = "for i in 0..=10 { }";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement_or_error();
+        expect_no_errors(&parser.errors);
+        let StatementKind::For(for_loop) = statement.kind else {
+            panic!("Expected for loop");
+        };
+        assert_eq!(for_loop.identifier.to_string(), "i");
+        let ForRange::Range(bounds) = for_loop.range else {
+            panic!("Expected range");
+        };
+        assert_eq!(bounds.start.to_string(), "0");
+        assert_eq!(bounds.end.to_string(), "10");
+        assert!(bounds.inclusive);
     }
 
     #[test]

@@ -28,17 +28,14 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
         ))
     ));
 }
-
 #[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
     pub type Bar = Foo;
-
     pub fn no_unused_warnings(_b: Bar) {
         let _ = Foo {};
     }
-
     fn main() {}
     "#;
 
@@ -60,15 +57,12 @@ fn errors_if_type_alias_aliases_more_private_type() {
 fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     let src = r#"
     pub struct Generic<T> { value: T }
-
     struct Foo {}
     pub type Bar = Generic<Foo>;
-
     pub fn no_unused_warnings(_b: Bar) {
         let _ = Foo {};
         let _ = Generic { value: 1 };
     }
-
     fn main() {}
     "#;
 
