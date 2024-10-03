@@ -12,10 +12,10 @@ pub mod affine {
     // Curve specification
     pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
-        a: Field,
-        b: Field,
+        pub a: Field,
+        pub b: Field,
         // Generator as point in Cartesian coordinates
-        gen: Point
+        pub gen: Point
     }
     // Point in Cartesian coordinates
     pub struct Point {
@@ -196,10 +196,10 @@ pub mod curvegroup {
     // Curve specification
     pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
-        a: Field,
-        b: Field,
+        pub a: Field,
+        pub b: Field,
         // Generator as point in Cartesian coordinates
-        gen: Point
+        pub gen: Point
     }
     // Point in three-dimensional Jacobian coordinates
     pub struct Point {

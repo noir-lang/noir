@@ -2,9 +2,9 @@ use crate::ec::tecurve::affine::Point as TEPoint;
 use crate::ec::tecurve::affine::Curve as TECurve;
 
 pub struct BabyJubjub {
-    curve: TECurve,
-    base8: TEPoint,
-    suborder: Field,
+    pub curve: TECurve,
+    pub base8: TEPoint,
+    pub suborder: Field,
 }
 
 #[field(bn254)]
