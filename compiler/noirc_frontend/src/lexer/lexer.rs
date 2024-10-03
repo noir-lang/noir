@@ -719,7 +719,7 @@ mod tests {
     use crate::token::{CustomAttribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
-    fn test_single_double_char() {
+    fn test_single_multi_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. ..= % / * = == << >>";
 
         let expected = vec![
