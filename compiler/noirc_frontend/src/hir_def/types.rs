@@ -5,6 +5,8 @@ use std::{
     rc::Rc,
 };
 
+use acvm::FieldElement;
+
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
@@ -1469,7 +1471,7 @@ impl Type {
         }
     }
 
-    fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
+    fn get_inner_type_variable(&self) -> Option<Shared<(TypeBinding, Kind)>> {
         match self {
             Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
             Type::NamedGeneric(var, _) => Some((var.1.clone(), var.kind())),
@@ -2341,19 +2343,16 @@ impl Type {
                 Some(((1u128 << max_bit_size) - 1).into())
             }
             Type::Bool => Some(FieldElement::from(1u128)),
-
-            Type::TypeVariable(_binding, TypeVariableKind::Normal) => None,
-            Type::TypeVariable(binding, TypeVariableKind::Integer | TypeVariableKind::IntegerOrField) => {
+            Type::TypeVariable(var) => {
+                let binding = &var.1;
                 match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => typ.integral_maximum_size(),
-                    TypeBinding::Unbound(_) => None,
+                    TypeBinding::Unbound(_, type_var_kind) => match type_var_kind {
+                        Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => None,
+                        Kind::Numeric(typ) => typ.integral_maximum_size(),
+                    },
+                    TypeBinding::Bound(binding) => typ.integral_maximum_size(),
                 }
             }
-
-            // TODO: after sync-TypeVariableKind
-            // TODO: include a similar assertion as with Type::NamedGeneric
-            // Type::TypeVariable(_var, TypeVariableKind::Numeric(typ)) => typ.integral_maximum_size(),
-
             Type::Alias(alias, _args) => alias.borrow().typ.integral_maximum_size(),
             Type::NamedGeneric(binding, _name, kind) => {
                 let binding_maximum_size = match &*binding.borrow() {
