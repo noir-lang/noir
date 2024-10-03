@@ -21,7 +21,7 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
 }
 
 // Convert 64-byte array to array of 16 u32s
-fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
+pub fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     let mut msg32: [u32; 16] = [0; 16];
 
     for i in 0..16 {
@@ -35,7 +35,7 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     msg32
 }
 
-unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> ([u8; 64], u32) {
+unconstrained pub fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> ([u8; 64], u32) {
     let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
     // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
     let block_input = if msg_start + BLOCK_SIZE > message_size {
@@ -56,7 +56,7 @@ unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u3
 }
 
 // Verify the block we are compressing was appropriately constructed
-fn verify_msg_block<let N: u32>(
+pub fn verify_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
     msg_block: [u8; 64],
@@ -207,7 +207,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     hash_final_block(msg_block, h)
 }
 
-unconstrained fn pad_msg_block(
+unconstrained pub fn pad_msg_block(
     mut msg_block: [u8; 64],
     mut msg_byte_ptr: u32
 ) -> ([u8; BLOCK_SIZE], u32) {
@@ -224,7 +224,7 @@ unconstrained fn pad_msg_block(
     }
 }
 
-unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; BLOCK_SIZE], msg_byte_ptr: u32, message_size: u32) -> [u8; BLOCK_SIZE] {
+unconstrained pub fn attach_len_to_msg_block(mut msg_block: [u8; BLOCK_SIZE], msg_byte_ptr: u32, message_size: u32) -> [u8; BLOCK_SIZE] {
     // We assume that `msg_byte_ptr` is less than 57 because if not then it is reset to zero before calling this function.
     // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
 
@@ -240,7 +240,7 @@ unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; BLOCK_SIZE], msg_by
     msg_block
 }
 
-fn hash_final_block(msg_block: [u8; BLOCK_SIZE], mut state: [u32; 8]) -> [u8; 32] {
+pub fn hash_final_block(msg_block: [u8; BLOCK_SIZE], mut state: [u32; 8]) -> [u8; 32] {
     let mut out_h: [u8; 32] = [0; 32]; // Digest as sequence of bytes
 
     // Hash final padded block
