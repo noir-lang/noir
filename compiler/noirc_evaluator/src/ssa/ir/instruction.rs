@@ -857,6 +857,10 @@ fn try_optimize_array_set_from_previous_get(
         _ => return SimplifyResult::None,
     };
 
+    let Some(target_index)= dfg.get_numeric_constant(target_index) else {
+        return SimplifyResult::None;
+    };
+
     let original_array_id = array_id;
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
@@ -864,15 +868,19 @@ fn try_optimize_array_set_from_previous_get(
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
-                    if *index == target_index {
-                        return SimplifyResult::None;
+                    if let Some(index) = dfg.get_numeric_constant(*index) {
+                        if *index == target_index {
+                            return SimplifyResult::None;
+                        }
+    
+                        if *array == array_from_get {
+                            return SimplifyResult::SimplifiedTo(original_array_id);
+                        }
+    
+                        array_id = *array; // recur
+                    } else {
+                        return SimplifyResult::None
                     }
-
-                    if *array == array_from_get {
-                        return SimplifyResult::SimplifiedTo(original_array_id);
-                    }
-
-                    array_id = *array; // recur
                 }
                 _ => return SimplifyResult::None,
             },
