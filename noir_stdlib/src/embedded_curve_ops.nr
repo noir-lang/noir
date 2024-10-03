@@ -74,7 +74,7 @@ impl EmbeddedCurveScalar {
 
     //Bytes to scalar: take the first (after the specified offset) 16 bytes of the input as the lo value, and the next 16 bytes as the hi value
     #[field(bn254)]
-    fn from_bytes(bytes: [u8; 64], offset: u32) -> EmbeddedCurveScalar {
+    pub(crate) fn from_bytes(bytes: [u8; 64], offset: u32) -> EmbeddedCurveScalar {
         let mut v = 1;
         let mut lo = 0 as Field;
         let mut hi = 0 as Field;
