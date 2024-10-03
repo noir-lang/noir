@@ -1009,7 +1009,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match kind.default_type() {
+                let default = match type_var_kind.default_type() {
                     Some(typ) => typ,
                     None => return Err(MonomorphizationError::NoDefaultType { location }),
                 };
@@ -1466,9 +1466,9 @@ impl<'interner> Monomorphizer<'interner> {
     fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
         bindings
             .iter()
-            .map(|(id, (var, binding))| {
+            .map(|(id, (var, kind, binding))| {
                 let binding2 = binding.follow_bindings();
-                (*id, (var.clone(), binding2))
+                (*id, (var.clone(), kind.clone(), binding2))
             })
             .collect()
     }
@@ -1969,7 +1969,7 @@ pub fn perform_impl_bindings(
             interner.function_meta(&impl_method).typ.unwrap_forall().1.clone();
 
         // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
-        // with the same internal id and binding.
+        // with the same internal id, binding.
         trait_method_type.replace_named_generics_with_type_variables();
         impl_method_type.replace_named_generics_with_type_variables();
 

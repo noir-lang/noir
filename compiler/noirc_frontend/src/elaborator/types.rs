@@ -168,7 +168,7 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        if !kind.matches_opt(resolved_type.kind()) {
+        if !kind.unifies(&resolved_type.kind()) {
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.to_string(),
                 expr_kind: resolved_type.kind().to_string(),
@@ -465,15 +465,13 @@ impl<'context> Elaborator<'context> {
     }
 
     fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
-        if let Some(kind) = typ.kind() {
-            if !kind.unifies(expected_kind) {
-                self.push_err(TypeCheckError::TypeKindMismatch {
-                    expected_kind: expected_kind.to_string(),
-                    expr_kind: kind.to_string(),
-                    expr_span: span,
-                });
-                return Type::Error;
-            }
+        if !typ.kind().unifies(expected_kind) {
+            self.push_err(TypeCheckError::TypeKindMismatch {
+                expected_kind: expected_kind.to_string(),
+                expr_kind: typ.kind().to_string(),
+                expr_span: span,
+            });
+            return Type::Error;
         }
         typ
     }
@@ -834,7 +832,7 @@ impl<'context> Elaborator<'context> {
             Type::TypeVariable(_) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
@@ -947,14 +945,14 @@ impl<'context> Elaborator<'context> {
             span,
         });
 
-        let use_impl = !lhs_type.is_numeric();
+        let use_impl = !lhs_type.is_numeric_value();
 
         // If this operator isn't valid for fields we have to possibly narrow
         // Kind::IntegerOrField to Kind::Integer.
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
-        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
-            let target = Type::polymorphic_integer(self.interner);
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
+            let target = self.polymorphic_integer();
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
@@ -1002,8 +1000,8 @@ impl<'context> Elaborator<'context> {
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
                         || TypeCheckError::InvalidShiftSize { span },
                     );
-                    let use_impl = if lhs_type.is_numeric() {
-                        let integer_type = Type::polymorphic_integer(self.interner);
+                    let use_impl = if lhs_type.is_numeric_value() {
+                        let integer_type = self.polymorphic_integer();
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
                         true
@@ -1102,14 +1100,14 @@ impl<'context> Elaborator<'context> {
 
                         // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
-                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
+                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric_value() {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
                             });
                         }
 
-                        Ok((rhs_type.clone(), !rhs_type.is_numeric()))
+                        Ok((rhs_type.clone(), !rhs_type.is_numeric_value()))
                     }
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {

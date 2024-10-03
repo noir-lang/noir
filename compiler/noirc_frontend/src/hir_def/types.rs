@@ -170,10 +170,6 @@ impl Kind {
         matches!(self, Self::Numeric { .. })
     }
 
-    pub(crate) fn matches_opt(&self, other: Option<Self>) -> bool {
-        other.as_ref().map_or(true, |other_kind| self.unifies(other_kind))
-    }
-
     pub(crate) fn u32() -> Self {
         Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
     }
@@ -238,7 +234,7 @@ impl Kind {
 
     fn integral_maximum_size(&self) -> Option<FieldElement> {
         match self {
-            Self::Normal => None,
+            Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
         }
     }
@@ -273,10 +269,10 @@ pub enum QuotedType {
     CtString,
 }
 
-/// A list of TypeVariableIds to bind to a type. Storing the
+/// A list of (TypeVariableId, Kind)'s to bind to a type. Storing the
 /// TypeVariable in addition to the matching TypeVariableId allows
 /// the binding to later be undone if needed.
-pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Type)>;
+pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
 /// Represents a struct type in the type system. Each instance of this
 /// rust struct will be shared across all Type::Struct variants that represent
@@ -673,6 +669,8 @@ impl TypeVariable {
     /// Forcibly bind a type variable to a new type - even if the type
     /// variable is already bound to a different type. This generally
     /// a logic error to use outside of monomorphization.
+    ///
+    /// Asserts that the given type is compatible with the given Kind
     pub fn force_bind(&self, typ: Type) {
         if !typ.occurs(self.id()) {
             *self.1.borrow_mut() = TypeBinding::Bound(typ);
@@ -892,7 +890,7 @@ impl Type {
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {
-        let var = TypeVariable::unbound(id, Kind::Normal);
+        let var = TypeVariable::unbound(id, Kind::Any);
         Type::TypeVariable(var)
     }
 
@@ -1211,9 +1209,10 @@ impl Type {
     }
 
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
-    /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
+    /// given type bindings, ignoring what each type variable is bound to in the TypeBindings
+    /// and their Kind's
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
-        let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, _))| type_var);
+        let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, _kind, _))| type_var);
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
@@ -1236,7 +1235,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn kind(&self) -> Option<Kind> {
+    pub(crate) fn kind(&self) -> Kind {
         match self {
             Type::NamedGeneric(var, _) => var.kind(),
             Type::Constant(_, kind) => kind.clone(),
@@ -1244,7 +1243,7 @@ impl Type {
                 TypeBinding::Bound(ref typ) => typ.kind(),
                 TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
             },
-            Type::InfixExpr(lhs, _op, rhs) => Some(lhs.infix_kind(rhs)),
+            Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
             Type::FieldElement
             | Type::Array(..)
             | Type::Slice(..)
@@ -1261,26 +1260,18 @@ impl Type {
             | Type::MutableReference(..)
             | Type::Forall(..)
             | Type::Quoted(..)
-            | Type::Error => Some(Kind::Normal),
+            | Type::Error => Kind::Normal,
         }
     }
 
-    /// if both Kind's are equal to Some(_), return that Kind,
-    ///     otherwise return a Kind error
-    /// if both Kind's are None, default to u32
-    /// if exactly one Kind is None, return the other one
+    /// Unifies self and other kinds or fails with a Kind error
     fn infix_kind(&self, other: &Self) -> Kind {
-        match (self.kind(), other.kind()) {
-            (Some(self_kind), Some(other_kind)) => {
-                if self_kind == other_kind {
-                    self_kind
-                } else {
-                    Kind::Numeric(Box::new(Type::Error))
-                }
-            }
-            (None, None) => Kind::u32(),
-            (Some(self_kind), None) => self_kind,
-            (None, Some(other_kind)) => other_kind,
+        let self_kind = self.kind();
+        let other_kind = other.kind();
+        if self_kind.unifies(&other_kind) {
+            self_kind
+        } else {
+            Kind::Numeric(Box::new(Type::Error))
         }
     }
 
@@ -1441,6 +1432,7 @@ impl Type {
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
+        kind: Kind,
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
@@ -1452,9 +1444,9 @@ impl Type {
         }
 
         let this = self.substitute(bindings).follow_bindings();
-        if let Some(binding) = this.get_inner_type_variable() {
+        if let Some((binding, kind)) = this.get_inner_type_variable() {
             match &*binding.borrow() {
-                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings),
+                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id, _) if *id == target_id => return Ok(()),
                 _ => (),
@@ -1471,7 +1463,7 @@ impl Type {
         }
     }
 
-    fn get_inner_type_variable(&self) -> Option<Shared<(TypeBinding, Kind)>> {
+    fn get_inner_type_variable(&self) -> Option<(Shared<TypeBinding>, Kind)> {
         match self {
             Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
             Type::NamedGeneric(var, _) => Some((var.1.clone(), var.kind())),
@@ -1651,9 +1643,9 @@ impl Type {
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
-                // TODO: replace evaluate_to_u32
+                // TODO(https://github.com/noir-lang/noir/pull/6137): replace evaluate_to_u32
                 if let Some(other_value) = other.evaluate_to_u32() {
-                    if *value == other_value && kind.matches_opt(other.kind()) {
+                    if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
                         Err(UnificationError)
@@ -1705,7 +1697,12 @@ impl Type {
                 // We may have already "bound" this type variable in this call to
                 // try_unify, so check those bindings as well.
                 match bindings.get(id) {
-                    Some((_, binding)) => binding.clone().try_unify(self, bindings),
+                    Some((_, kind, binding)) => {
+                        if !kind.unifies(&binding.kind()) {
+                            return Err(UnificationError);
+                        }
+                        binding.clone().try_unify(self, bindings)
+                    }
 
                     // Otherwise, bind it
                     None => bind_variable(bindings),
@@ -2640,7 +2637,8 @@ impl std::fmt::Debug for StructType {
 
 impl std::hash::Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        if let Some(variable) = self.get_inner_type_variable() {
+        if let Some((variable, kind)) = self.get_inner_type_variable() {
+            kind.hash(state);
             if let TypeBinding::Bound(typ) = &*variable.borrow() {
                 typ.hash(state);
                 return;

@@ -81,6 +81,7 @@ pub fn collect_defs(
         collector.def_collector.imports.push(ImportDirective {
             visibility: import.visibility,
             module_id: collector.module_id,
+            self_type_module_id: None,
             path: import.path,
             alias: import.alias,
             is_prelude: false,
@@ -385,7 +386,8 @@ impl<'a> ModCollector<'a> {
                 Vec::new(),
                 Vec::new(),
                 false,
-                false,
+                false, // is contract
+                false, // is struct
             ) {
                 Ok(module_id) => TraitId(ModuleId { krate, local_id: module_id.local_id }),
                 Err(error) => {
@@ -619,6 +621,7 @@ impl<'a> ModCollector<'a> {
                 submodule.contents.inner_attributes.clone(),
                 true,
                 submodule.is_contract,
+                false, // is struct
             ) {
                 Ok(child) => {
                     self.collect_attributes(
@@ -718,7 +721,8 @@ impl<'a> ModCollector<'a> {
             mod_decl.outer_attributes.clone(),
             ast.inner_attributes.clone(),
             true,
-            false,
+            false, // is contract
+            false, // is struct
         ) {
             Ok(child_mod_id) => {
                 self.collect_attributes(
@@ -770,6 +774,7 @@ impl<'a> ModCollector<'a> {
         inner_attributes: Vec<SecondaryAttribute>,
         add_to_parent_scope: bool,
         is_contract: bool,
+        is_struct: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
         push_child_module(
             &mut context.def_interner,
@@ -782,6 +787,7 @@ impl<'a> ModCollector<'a> {
             inner_attributes,
             add_to_parent_scope,
             is_contract,
+            is_struct,
         )
     }
 
@@ -817,6 +823,7 @@ fn push_child_module(
     inner_attributes: Vec<SecondaryAttribute>,
     add_to_parent_scope: bool,
     is_contract: bool,
+    is_struct: bool,
 ) -> Result<ModuleId, DefCollectorErrorKind> {
     // Note: the difference between `location` and `mod_location` is:
     // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
@@ -826,8 +833,14 @@ fn push_child_module(
     // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
-    let new_module =
-        ModuleData::new(Some(parent), location, outer_attributes, inner_attributes, is_contract);
+    let new_module = ModuleData::new(
+        Some(parent),
+        location,
+        outer_attributes,
+        inner_attributes,
+        is_contract,
+        is_struct,
+    );
 
     let module_id = def_map.modules.insert(new_module);
     let modules = &mut def_map.modules;
@@ -962,8 +975,9 @@ pub fn collect_struct(
         location,
         Vec::new(),
         Vec::new(),
-        false,
-        false,
+        false, // add to parent scope
+        false, // is contract
+        true,  // is struct
     ) {
         Ok(module_id) => {
             interner.new_struct(&unresolved, resolved_generics, krate, module_id.local_id, file_id)

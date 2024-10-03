@@ -3,7 +3,7 @@ use crate::{
         def_collector::{dc_crate::CompilationError, errors::DefCollectorErrorKind},
         resolution::{errors::ResolverError, import::PathResolutionError},
     },
-    tests::get_program_errors,
+    tests::{assert_no_errors, get_program_errors},
 };
 
 #[test]
@@ -28,17 +28,14 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
         ))
     ));
 }
-
 #[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
     pub type Bar = Foo;
-
     pub fn no_unused_warnings(_b: Bar) {
         let _ = Foo {};
     }
-
     fn main() {}
     "#;
 
@@ -60,15 +57,12 @@ fn errors_if_type_alias_aliases_more_private_type() {
 fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     let src = r#"
     pub struct Generic<T> { value: T }
-
     struct Foo {}
     pub type Bar = Generic<Foo>;
-
     pub fn no_unused_warnings(_b: Bar) {
         let _ = Foo {};
         let _ = Generic { value: 1 };
     }
-
     fn main() {}
     "#;
 
@@ -110,4 +104,45 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
     };
 
     assert_eq!(ident.to_string(), "bar");
+}
+
+#[test]
+fn does_not_error_if_calling_private_struct_function_from_same_struct() {
+    let src = r#"
+    struct Foo {
+
+    }
+
+    impl Foo {
+        fn foo() {
+            Foo::bar()
+        }
+
+        fn bar() {}
+    }
+
+    fn main() {
+        let _ = Foo {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_if_calling_private_struct_function_from_same_module() {
+    let src = r#"
+    struct Foo;
+
+    impl Foo {
+        fn bar() -> Field {
+            0
+        }
+    }
+
+    fn main() {
+        let _ = Foo {};
+        assert_eq(Foo::bar(), 0);
+    }
+    "#;
+    assert_no_errors(src);
 }

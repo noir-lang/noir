@@ -554,6 +554,7 @@ fn inject_prelude(
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
+            None,
             path,
             &mut context.def_interner.usage_tracker,
             &mut None,
@@ -571,6 +572,7 @@ fn inject_prelude(
                     ImportDirective {
                         visibility: ItemVisibility::Private,
                         module_id: crate_root,
+                        self_type_module_id: None,
                         path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,

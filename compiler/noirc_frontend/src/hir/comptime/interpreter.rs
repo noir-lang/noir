@@ -33,6 +33,7 @@ use crate::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
             HirPattern, HirStatement,
         },
+        types::Kind,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
     Kind, Shared, Type, TypeBinding, TypeBindings,
