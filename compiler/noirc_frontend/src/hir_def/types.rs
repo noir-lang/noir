@@ -268,7 +268,6 @@ pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 /// Represents a struct type in the type system. Each instance of this
 /// rust struct will be shared across all Type::Struct variants that represent
 /// the same struct type.
-#[derive(Eq)]
 pub struct StructType {
     /// A unique id representing this struct type. Used to check if two
     /// struct types are equal.
@@ -279,10 +278,15 @@ pub struct StructType {
     /// Fields are ordered and private, they should only
     /// be accessed through get_field(), get_fields(), or instantiate()
     /// since these will handle applying generic arguments to fields as well.
-    fields: Vec<(Ident, Type)>,
+    fields: Vec<StructField>,
 
     pub generics: Generics,
     pub location: Location,
+}
+
+pub struct StructField {
+    pub name: Ident,
+    pub typ: Type,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source program.
@@ -328,6 +332,8 @@ impl std::hash::Hash for StructType {
     }
 }
 
+impl Eq for StructType {}
+
 impl PartialEq for StructType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
@@ -352,7 +358,7 @@ impl StructType {
         name: Ident,
 
         location: Location,
-        fields: Vec<(Ident, Type)>,
+        fields: Vec<StructField>,
         generics: Generics,
     ) -> StructType {
         StructType { id, fields, name, location, generics }
@@ -362,7 +368,7 @@ impl StructType {
     /// fields are resolved strictly after the struct itself is initially
     /// created. Therefore, this method is used to set the fields once they
     /// become known.
-    pub fn set_fields(&mut self, fields: Vec<(Ident, Type)>) {
+    pub fn set_fields(&mut self, fields: Vec<StructField>) {
         self.fields = fields;
     }
 
@@ -374,8 +380,8 @@ impl StructType {
     pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<(Type, usize)> {
         assert_eq!(self.generics.len(), generic_args.len());
 
-        self.fields.iter().enumerate().find(|(_, (name, _))| name.0.contents == field_name).map(
-            |(i, (_, typ))| {
+        self.fields.iter().enumerate().find(|(_, field)| field.name.0.contents == field_name).map(
+            |(i, field)| {
                 let substitutions = self
                     .generics
                     .iter()
@@ -388,7 +394,7 @@ impl StructType {
                     })
                     .collect();
 
-                (typ.substitute(&substitutions), i)
+                (field.typ.substitute(&substitutions), i)
             },
         )
     }
@@ -406,9 +412,9 @@ impl StructType {
             })
             .collect();
 
-        vecmap(&self.fields, |(name, typ)| {
-            let name = name.0.contents.clone();
-            (name, typ.substitute(&substitutions))
+        vecmap(&self.fields, |field| {
+            let name = field.name.0.contents.clone();
+            (name, field.typ.substitute(&substitutions))
         })
     }
 
@@ -418,23 +424,26 @@ impl StructType {
     ///
     /// This method is almost never what is wanted for type checking or monomorphization,
     /// prefer to use `get_fields` whenever possible.
-    pub fn get_fields_as_written(&self) -> Vec<(String, Type)> {
-        vecmap(&self.fields, |(name, typ)| (name.0.contents.clone(), typ.clone()))
+    pub fn get_fields_as_written(&self) -> Vec<StructField> {
+        vecmap(&self.fields, |field| StructField {
+            name: field.name.clone(),
+            typ: field.typ.clone(),
+        })
     }
 
     /// Returns the field at the given index. Panics if no field exists at the given index.
-    pub fn field_at(&self, index: usize) -> &(Ident, Type) {
+    pub fn field_at(&self, index: usize) -> &StructField {
         &self.fields[index]
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
-        self.fields.iter().map(|(name, _)| name.clone()).collect()
+        self.fields.iter().map(|field| field.name.clone()).collect()
     }
 
     /// Search the fields of a struct for any types with a `TypeKind::Numeric`
     pub fn find_numeric_generics_in_fields(&self, found_names: &mut Vec<String>) {
-        for (_, field) in self.fields.iter() {
-            field.find_numeric_type_vars(found_names);
+        for field in self.fields.iter() {
+            field.typ.find_numeric_type_vars(found_names);
         }
     }
 
@@ -1830,8 +1839,8 @@ impl Type {
             // only to have to call .into_iter again afterward. Trying to elide
             // collecting to a Vec leads to us dropping the temporary Ref before
             // the iterator is returned
-            Type::Struct(def, args) => vecmap(&def.borrow().fields, |(name, _)| {
-                let name = &name.0.contents;
+            Type::Struct(def, args) => vecmap(&def.borrow().fields, |field| {
+                let name = &field.name.0.contents;
                 let typ = def.borrow().get_field(name, args).unwrap().0;
                 (name.clone(), typ)
             }),
