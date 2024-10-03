@@ -69,7 +69,7 @@ impl super::FmtVisitor<'_> {
             StatementKind::For(for_stmt) => {
                 let identifier = self.slice(for_stmt.identifier.span());
                 let range = match for_stmt.range {
-                    ForRange::Range(ForBounds(start, end, inclusive)) => format!(
+                    ForRange::Range(ForBounds { start, end, inclusive }) => format!(
                         "{}{}{}",
                         rewrite::sub_expr(self, self.shape(), start),
                         if inclusive { "..=" } else { ".." },

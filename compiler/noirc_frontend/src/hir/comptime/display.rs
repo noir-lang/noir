@@ -714,11 +714,13 @@ fn remove_interned_in_statement_kind(
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
             range: match for_loop.range {
-                ForRange::Range(ForBounds(from, to, inclusive)) => ForRange::Range(ForBounds(
-                    remove_interned_in_expression(interner, from),
-                    remove_interned_in_expression(interner, to),
-                    inclusive,
-                )),
+                ForRange::Range(ForBounds { start, end, inclusive }) => {
+                    ForRange::Range(ForBounds {
+                        start: remove_interned_in_expression(interner, start),
+                        end: remove_interned_in_expression(interner, end),
+                        inclusive,
+                    })
+                }
                 ForRange::Array(expr) => {
                     ForRange::Array(remove_interned_in_expression(interner, expr))
                 }

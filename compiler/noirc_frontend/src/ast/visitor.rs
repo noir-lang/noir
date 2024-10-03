@@ -1192,7 +1192,7 @@ impl ForRange {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            ForRange::Range(ForBounds(start, end, _)) => {
+            ForRange::Range(ForBounds { start, end, inclusive: _ }) => {
                 start.accept(visitor);
                 end.accept(visitor);
             }
