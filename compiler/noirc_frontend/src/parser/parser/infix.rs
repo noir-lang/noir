@@ -14,214 +14,116 @@ impl<'a> Parser<'a> {
         &mut self,
         allow_constructors: bool,
     ) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_or(allow_constructors)?;
-
-        loop {
-            let operator = if self.eat(Token::Equal) {
-                BinaryOpKind::Equal
-            } else if self.eat(Token::NotEqual) {
-                BinaryOpKind::NotEqual
+        self.parse_infix(allow_constructors, Parser::parse_or, |parser| {
+            if parser.eat(Token::Equal) {
+                Some(BinaryOpKind::Equal)
+            } else if parser.eat(Token::NotEqual) {
+                Some(BinaryOpKind::NotEqual)
             } else {
-                break;
-            };
-            let operator = Spanned::from(self.previous_token_span, operator);
-
-            let Some(rhs) = self.parse_or(allow_constructors) else {
-                self.push_expected_expression();
-                break;
-            };
-
-            lhs = self.new_infix_expression(lhs, operator, rhs, start_span);
-        }
-
-        Some(lhs)
+                None
+            }
+        })
     }
 
     /// OrExpression
     ///     = AndExpression ( '|' AndExpression )*
     pub(super) fn parse_or(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_and(allow_constructors)?;
-
-        // Don't parse `x |= ...`, etc.
-        if self.next_is(Token::Assign) {
-            return Some(lhs);
-        }
-
-        loop {
-            let operator = if self.eat(Token::Pipe) {
-                BinaryOpKind::Or
+        self.parse_infix(allow_constructors, Parser::parse_and, |parser| {
+            // Don't parse `x |= ...`, etc.
+            if parser.next_is(Token::Assign) {
+                None
+            } else if parser.eat(Token::Pipe) {
+                Some(BinaryOpKind::Or)
             } else {
-                break;
-            };
-            let operator = Spanned::from(self.previous_token_span, operator);
-
-            let Some(rhs) = self.parse_and(allow_constructors) else {
-                self.push_expected_expression();
-                break;
-            };
-
-            lhs = self.new_infix_expression(lhs, operator, rhs, start_span);
-        }
-
-        Some(lhs)
+                None
+            }
+        })
     }
 
     /// AndExpression
     ///     = XorExpression ( '&' XorExpression )*
     pub(super) fn parse_and(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_xor(allow_constructors)?;
-
-        // Don't parse `x &= ...`, etc.
-        if self.next_is(Token::Assign) {
-            return Some(lhs);
-        }
-
-        loop {
-            let operator = if self.eat(Token::Ampersand) {
-                BinaryOpKind::And
+        self.parse_infix(allow_constructors, Parser::parse_xor, |parser| {
+            // Don't parse `x |= ...`, etc.
+            if parser.next_is(Token::Assign) {
+                None
+            } else if parser.eat(Token::Ampersand) {
+                Some(BinaryOpKind::And)
             } else {
-                break;
-            };
-            let operator = Spanned::from(self.previous_token_span, operator);
-
-            let Some(rhs) = self.parse_xor(allow_constructors) else {
-                self.push_expected_expression();
-                break;
-            };
-
-            lhs = self.new_infix_expression(lhs, operator, rhs, start_span);
-        }
-
-        Some(lhs)
+                None
+            }
+        })
     }
 
     /// XorExpression
     ///     = LessOrGreaterExpression ( '^' LessOrGreaterExpression )*
     pub(super) fn parse_xor(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_less_or_greater(allow_constructors)?;
-
-        // Don't parse `x ^= ...`, etc.
-        if self.next_is(Token::Assign) {
-            return Some(lhs);
-        }
-
-        loop {
-            let operator = if self.eat(Token::Caret) {
-                BinaryOpKind::Xor
+        self.parse_infix(allow_constructors, Parser::parse_less_or_greater, |parser| {
+            // Don't parse `x |= ...`, etc.
+            if parser.next_is(Token::Assign) {
+                None
+            } else if parser.eat(Token::Caret) {
+                Some(BinaryOpKind::Xor)
             } else {
-                break;
-            };
-            let operator = Spanned::from(self.previous_token_span, operator);
-
-            let Some(rhs) = self.parse_less_or_greater(allow_constructors) else {
-                self.push_expected_expression();
-                break;
-            };
-
-            lhs = self.new_infix_expression(lhs, operator, rhs, start_span);
-        }
-
-        Some(lhs)
+                None
+            }
+        })
     }
 
     /// LessOrGreaterExpression
     ///     = ShiftExpression ( ( '<' | '<=' | '>' | '>=' ) ShiftExpression )*
     pub(super) fn parse_less_or_greater(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_shift(allow_constructors)?;
-
-        loop {
-            let operator = if self.eat(Token::Less) {
-                BinaryOpKind::Less
-            } else if self.eat(Token::LessEqual) {
-                BinaryOpKind::LessEqual
-            } else if self.next_token.token() != &Token::GreaterEqual && self.eat(Token::Greater) {
+        self.parse_infix(allow_constructors, Parser::parse_shift, |parser| {
+            if parser.eat(Token::Less) {
+                Some(BinaryOpKind::Less)
+            } else if parser.eat(Token::LessEqual) {
+                Some(BinaryOpKind::LessEqual)
+            } else if parser.next_token.token() != &Token::GreaterEqual
+                && parser.eat(Token::Greater)
+            {
                 // Make sure to skip the `>>=` case, as `>>=` is lexed as `> >=`.
-                BinaryOpKind::Greater
-            } else if self.eat(Token::GreaterEqual) {
-                BinaryOpKind::GreaterEqual
+                Some(BinaryOpKind::Greater)
+            } else if parser.eat(Token::GreaterEqual) {
+                Some(BinaryOpKind::GreaterEqual)
             } else {
-                break;
-            };
-            let operator = Spanned::from(self.previous_token_span, operator);
-
-            let Some(rhs) = self.parse_shift(allow_constructors) else {
-                self.push_expected_expression();
-                break;
-            };
-
-            lhs = self.new_infix_expression(lhs, operator, rhs, start_span);
-        }
-
-        Some(lhs)
+                None
+            }
+        })
     }
 
     /// ShiftExpression
     ///     = AddOrSubtractExpression ( ( '<<' | '>' '>' ) AddOrSubtractExpression )*
     pub(super) fn parse_shift(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_add_or_subtract(allow_constructors)?;
-
-        loop {
-            let operator = if !self.next_is(Token::Assign) && self.eat(Token::ShiftLeft) {
-                BinaryOpKind::ShiftLeft
-            } else if self.tokens_follow(Token::Greater, Token::Greater) {
+        self.parse_infix(allow_constructors, Parser::parse_add_or_subtract, |parser| {
+            if !parser.next_is(Token::Assign) && parser.eat(Token::ShiftLeft) {
+                Some(BinaryOpKind::ShiftLeft)
+            } else if parser.tokens_follow(Token::Greater, Token::Greater) {
                 // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
                 // to parse nested generic types. For normal expressions however, it means we have to manually
                 // parse two greater-than tokens as a single right-shift here.
-                self.next_token();
-                self.next_token();
-                BinaryOpKind::ShiftRight
+                parser.next_token();
+                parser.next_token();
+                Some(BinaryOpKind::ShiftRight)
             } else {
-                break;
-            };
-            let operator = Spanned::from(self.previous_token_span, operator);
-
-            let Some(rhs) = self.parse_add_or_subtract(allow_constructors) else {
-                self.push_expected_expression();
-                break;
-            };
-
-            lhs = self.new_infix_expression(lhs, operator, rhs, start_span);
-        }
-
-        Some(lhs)
+                None
+            }
+        })
     }
 
     /// AddOrSubtractExpression
     ///     = MultiplyOrDivideOrModuloExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloExpression )*
     pub(super) fn parse_add_or_subtract(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_multiply_or_divide_or_modulo(allow_constructors)?;
-
-        // Don't parse `x += ...`, etc.
-        if self.next_is(Token::Assign) {
-            return Some(lhs);
-        }
-
-        loop {
-            let operator = if self.eat(Token::Plus) {
-                BinaryOpKind::Add
-            } else if self.eat(Token::Minus) {
-                BinaryOpKind::Subtract
+        self.parse_infix(allow_constructors, Parser::parse_multiply_or_divide_or_modulo, |parser| {
+            if parser.next_is(Token::Assign) {
+                None
+            } else if parser.eat(Token::Plus) {
+                Some(BinaryOpKind::Add)
+            } else if parser.eat(Token::Minus) {
+                Some(BinaryOpKind::Subtract)
             } else {
-                break;
-            };
-            let operator = Spanned::from(self.previous_token_span, operator);
-
-            let Some(rhs) = self.parse_multiply_or_divide_or_modulo(allow_constructors) else {
-                self.push_expected_expression();
-                break;
-            };
-
-            lhs = self.new_infix_expression(lhs, operator, rhs, start_span);
-        }
-
-        Some(lhs)
+                None
+            }
+        })
     }
 
     /// MultiplyOrDivideOrModuloExpression
@@ -230,27 +132,42 @@ impl<'a> Parser<'a> {
         &mut self,
         allow_constructors: bool,
     ) -> Option<Expression> {
-        let start_span = self.current_token_span;
-        let mut lhs = self.parse_term(allow_constructors)?;
+        self.parse_infix(allow_constructors, Parser::parse_term, |parser| {
+            if parser.next_is(Token::Assign) {
+                None
+            } else if parser.eat(Token::Star) {
+                Some(BinaryOpKind::Multiply)
+            } else if parser.eat(Token::Slash) {
+                Some(BinaryOpKind::Divide)
+            } else if parser.eat(Token::Percent) {
+                Some(BinaryOpKind::Modulo)
+            } else {
+                None
+            }
+        })
+    }
 
-        // Don't parse `x *= ...`, etc.
-        if self.next_is(Token::Assign) {
-            return Some(lhs);
-        }
+    fn parse_infix<Next, Op>(
+        &mut self,
+        allow_constructors: bool,
+        mut next: Next,
+        mut op: Op,
+    ) -> Option<Expression>
+    where
+        Next: FnMut(&mut Parser<'a>, bool) -> Option<Expression>,
+        Op: FnMut(&mut Parser<'a>) -> Option<BinaryOpKind>,
+    {
+        let start_span = self.current_token_span;
+        let mut lhs = next(self, allow_constructors)?;
 
         loop {
-            let operator = if self.eat(Token::Star) {
-                BinaryOpKind::Multiply
-            } else if self.eat(Token::Slash) {
-                BinaryOpKind::Divide
-            } else if self.eat(Token::Percent) {
-                BinaryOpKind::Modulo
-            } else {
+            let operator_start_span = self.current_token_span;
+            let Some(operator) = op(self) else {
                 break;
             };
-            let operator = Spanned::from(self.previous_token_span, operator);
+            let operator = Spanned::from(operator_start_span, operator);
 
-            let Some(rhs) = self.parse_term(allow_constructors) else {
+            let Some(rhs) = next(self, allow_constructors) else {
                 self.push_expected_expression();
                 break;
             };
