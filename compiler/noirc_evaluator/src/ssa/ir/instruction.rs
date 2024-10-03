@@ -761,7 +761,7 @@ impl Instruction {
 /// Simple case:
 /// v4 = array_set v1, index v2, value v3
 /// v5 = array_get v4, index v2
-/// 
+///
 /// If we could not immediately simplify the array get, we can try to follow
 /// the array set backwards in the case we have constant indices:
 ///
