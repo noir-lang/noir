@@ -52,7 +52,7 @@ impl HirStatement {
             }),
             HirStatement::For(for_stmt) => StatementKind::For(ForLoopStatement {
                 identifier: for_stmt.identifier.to_display_ast(interner),
-                range: ForRange::Range(
+                range: ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
                 ),

@@ -20,7 +20,7 @@ fn good() -> BoundedVec<Field, 10> {
 
 fn bad() {
     // Error: Type annotation needed
-    // The compiller can't infer `MaxLen` from this code.
+    // The compiler can't infer `MaxLen` from this code.
     let mut v3 = BoundedVec::new();
     v3.push(5);
 }
