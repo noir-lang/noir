@@ -127,19 +127,13 @@ impl<'a> Parser<'a> {
         self.parse_index(atom, start_span)
     }
 
-    /// CallExpression = Atom '!'? Arguments
+    /// CallExpression = Atom CallArguments
     fn parse_call(&mut self, atom: Expression, start_span: Span) -> (Expression, bool) {
-        let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
-        if is_macro_call {
-            // Next `self.parse_arguments` will return `Some(...)`
-            self.next_token();
-        }
-
-        if let Some(arguments) = self.parse_arguments() {
+        if let Some(call_arguments) = self.parse_call_arguments() {
             let kind = ExpressionKind::Call(Box::new(CallExpression {
                 func: Box::new(atom),
-                arguments,
-                is_macro_call,
+                arguments: call_arguments.arguments,
+                is_macro_call: call_arguments.is_macro_call,
             }));
             let span = self.span_since(start_span);
             let atom = Expression { kind, span };
@@ -155,7 +149,7 @@ impl<'a> Parser<'a> {
     ///
     /// MemberAccessExpression = Atom '.' identifier
     ///
-    /// MethodCallExpression = Atom '.' identifier '!'? Arguments
+    /// MethodCallExpression = Atom '.' identifier CallArguments
     fn parse_member_access_or_method_call(
         &mut self,
         atom: Expression,
@@ -169,19 +163,13 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generics_after_member_access_field_name();
 
-        let is_macro_call = self.tokens_follow(Token::Bang, Token::LeftParen);
-        if is_macro_call {
-            // Next `self.parse_arguments` will return `Some(...)`
-            self.next_token();
-        }
-
-        let kind = if let Some(arguments) = self.parse_arguments() {
+        let kind = if let Some(call_arguments) = self.parse_call_arguments() {
             ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                 object: atom,
                 method_name: field_name,
                 generics,
-                arguments,
-                is_macro_call,
+                arguments: call_arguments.arguments,
+                is_macro_call: call_arguments.is_macro_call,
             }))
         } else {
             ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
