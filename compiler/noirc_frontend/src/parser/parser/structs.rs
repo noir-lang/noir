@@ -51,9 +51,11 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatementKind> {
 
 fn struct_fields() -> impl NoirParser<Vec<Documented<StructField>>> {
     let field = ident().then_ignore(just(Token::Colon)).then(parse_type());
-    let field = outer_doc_comments().then(field).map(|(doc_comments, (name, typ))| {
-        Documented::new(StructField { name, typ }, doc_comments)
-    });
+    let field = outer_doc_comments().then(item_visibility()).then(field).map(
+        |((doc_comments, visibility), (name, typ))| {
+            Documented::new(StructField { visibility, name, typ }, doc_comments)
+        },
+    );
     field.separated_by(just(Token::Comma)).allow_trailing()
 }
 
