@@ -11,7 +11,10 @@ use crate::{
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, ModuleId},
-        resolution::{errors::ResolverError, import::PathResolutionError},
+        resolution::{
+            errors::ResolverError,
+            import::{module_descendent_of_target, PathResolutionError},
+        },
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -447,7 +450,7 @@ impl<'context> Elaborator<'context> {
                     let reference_location = Location::new(span, self.file);
                     self.interner.add_struct_member_reference(s.id, index, reference_location);
 
-                    self.check_field_visibiilty(&s, field_name, visibility, span);
+                    self.check_struct_field_visibiilty(&s, field_name, visibility, span);
 
                     return Some((field, index));
                 }
@@ -503,7 +506,7 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    fn check_field_visibiilty(
+    pub(super) fn check_struct_field_visibiilty(
         &mut self,
         struct_type: &StructType,
         field_name: &str,
@@ -543,6 +546,22 @@ fn struct_field_is_visible(
         ItemVisibility::PublicCrate => {
             struct_type.id.parent_module_id(def_maps).krate == current_module_id.krate
         }
-        ItemVisibility::Private => struct_type.id.parent_module_id(def_maps) == current_module_id,
+        ItemVisibility::Private => {
+            let struct_parent_module_id = struct_type.id.parent_module_id(def_maps);
+            if struct_parent_module_id.krate != current_module_id.krate {
+                return false;
+            }
+
+            if struct_parent_module_id.local_id == current_module_id.local_id {
+                return true;
+            }
+
+            let def_map = &def_maps[&current_module_id.krate];
+            module_descendent_of_target(
+                def_map,
+                struct_parent_module_id.local_id,
+                current_module_id.local_id,
+            )
+        }
     }
 }

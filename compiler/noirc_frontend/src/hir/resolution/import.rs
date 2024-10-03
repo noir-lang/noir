@@ -437,12 +437,12 @@ pub fn can_reference_module_id(
     // Note that if the target module is in a different crate from the current module then we will either
     // return true as the target module is public or return false as it is private without looking at the `CrateDefMap` in either case.
     let same_crate = target_module.krate == importing_crate;
-    let target_crate_def_map = &def_maps[&target_module.krate];
 
     match visibility {
         ItemVisibility::Public => true,
         ItemVisibility::PublicCrate => same_crate,
         ItemVisibility::Private => {
+            let target_crate_def_map = &def_maps[&target_module.krate];
             same_crate
                 && (module_descendent_of_target(
                     target_crate_def_map,
@@ -459,7 +459,7 @@ pub fn can_reference_module_id(
 
 // Returns true if `current` is a (potentially nested) child module of `target`.
 // This is also true if `current == target`.
-fn module_descendent_of_target(
+pub(crate) fn module_descendent_of_target(
     def_map: &CrateDefMap,
     target: LocalModuleId,
     current: LocalModuleId,

@@ -405,22 +405,40 @@ impl StructType {
     }
 
     /// Returns all the fields of this type, after being applied to the given generic arguments.
-    pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
-        assert_eq!(self.generics.len(), generic_args.len());
+    pub fn get_fields_with_visibility(
+        &self,
+        generic_args: &[Type],
+    ) -> Vec<(String, ItemVisibility, Type)> {
+        let substitutions = self.get_fields_subtitutions(generic_args);
 
-        let substitutions = self
-            .generics
-            .iter()
-            .zip(generic_args)
-            .map(|(old, new)| {
-                (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
-            })
-            .collect();
+        vecmap(&self.fields, |field| {
+            let name = field.name.0.contents.clone();
+            (name, field.visibility, field.typ.substitute(&substitutions))
+        })
+    }
+
+    pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
+        let substitutions = self.get_fields_subtitutions(generic_args);
 
         vecmap(&self.fields, |field| {
             let name = field.name.0.contents.clone();
             (name, field.typ.substitute(&substitutions))
         })
+    }
+
+    fn get_fields_subtitutions(
+        &self,
+        generic_args: &[Type],
+    ) -> HashMap<TypeVariableId, (TypeVariable, Kind, Type)> {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        self.generics
+            .iter()
+            .zip(generic_args)
+            .map(|(old, new)| {
+                (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
+            })
+            .collect()
     }
 
     /// Returns the name and raw types of each field of this type.

@@ -177,7 +177,27 @@ fn error_when_accessing_private_struct_field() {
 }
 
 #[test]
-fn error_when_accessing_private_struct_field_in_constructor() {
+fn does_not_error_when_accessing_private_struct_field_from_nested_module() {
+    let src = r#"
+    struct Foo {
+        x: Field
+    }
+
+    mod nested {
+        fn foo(foo: super::Foo) -> Field {
+            foo.x
+        }
+    }
+
+    fn main() {
+        let _ = Foo { x: 1 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_when_using_private_struct_field_in_constructor() {
     let src = r#"
     mod moo {
         pub struct Foo {
@@ -186,7 +206,7 @@ fn error_when_accessing_private_struct_field_in_constructor() {
     }
 
     fn main() {
-        let _ = Foo { x: 1 }
+        let _ = moo::Foo { x: 1 };
     }
     "#;
 
