@@ -1,13 +1,17 @@
+use std::collections::BTreeMap;
+
 use noirc_errors::{Location, Span, Spanned};
 
 use crate::{
     ast::{
         AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
-        ExpressionKind, ForLoopStatement, ForRange, InfixExpression, LValue, LetStatement, Path,
-        Statement, StatementKind,
+        ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, ItemVisibility, LValue,
+        LetStatement, Path, Statement, StatementKind,
     },
+    graph::CrateId,
     hir::{
-        resolution::errors::ResolverError,
+        def_map::{CrateDefMap, ModuleId},
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -18,7 +22,7 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
-    Type,
+    StructType, Type,
 };
 
 use super::{lints, Elaborator};
@@ -439,9 +443,11 @@ impl<'context> Elaborator<'context> {
         match &lhs_type {
             Type::Struct(s, args) => {
                 let s = s.borrow();
-                if let Some((field, index)) = s.get_field(field_name, args) {
+                if let Some((field, visibility, index)) = s.get_field(field_name, args) {
                     let reference_location = Location::new(span, self.file);
                     self.interner.add_struct_member_reference(s.id, index, reference_location);
+
+                    self.check_field_visibiilty(&s, field_name, visibility, span);
 
                     return Some((field, index));
                 }
@@ -497,6 +503,20 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    fn check_field_visibiilty(
+        &mut self,
+        struct_type: &StructType,
+        field_name: &str,
+        visibility: ItemVisibility,
+        span: Span,
+    ) {
+        if !struct_field_is_visible(struct_type, visibility, self.module_id(), self.def_maps) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                Ident::new(field_name.to_string(), span),
+            )));
+        }
+    }
+
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
         let span = statement.span;
         let (hir_statement, _typ) =
@@ -509,5 +529,20 @@ impl<'context> Elaborator<'context> {
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
 
         (HirStatement::Expression(expr), typ)
+    }
+}
+
+fn struct_field_is_visible(
+    struct_type: &StructType,
+    visibility: ItemVisibility,
+    current_module_id: ModuleId,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+) -> bool {
+    match visibility {
+        ItemVisibility::Public => true,
+        ItemVisibility::PublicCrate => {
+            struct_type.id.parent_module_id(def_maps).krate == current_module_id.krate
+        }
+        ItemVisibility::Private => struct_type.id.parent_module_id(def_maps) == current_module_id,
     }
 }

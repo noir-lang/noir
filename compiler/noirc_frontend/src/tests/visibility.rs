@@ -146,3 +146,59 @@ fn does_not_error_if_calling_private_struct_function_from_same_module() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn error_when_accessing_private_struct_field() {
+    let src = r#"
+    mod moo {
+        pub struct Foo {
+            x: Field
+        }
+    }
+
+    fn foo(foo: moo::Foo) -> Field {
+        foo.x
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "x");
+}
+
+#[test]
+fn error_when_accessing_private_struct_field_in_constructor() {
+    let src = r#"
+    mod moo {
+        pub struct Foo {
+            x: Field
+        }
+    }
+
+    fn main() {
+        let _ = Foo { x: 1 }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "x");
+}

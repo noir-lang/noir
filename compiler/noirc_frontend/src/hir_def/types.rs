@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    ast::IntegerBitSize,
+    ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
@@ -285,6 +285,7 @@ pub struct StructType {
 }
 
 pub struct StructField {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub typ: Type,
 }
@@ -376,8 +377,12 @@ impl StructType {
         self.fields.len()
     }
 
-    /// Returns the field matching the given field name, as well as its field index.
-    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<(Type, usize)> {
+    /// Returns the field matching the given field name, as well as its visibility and field index.
+    pub fn get_field(
+        &self,
+        field_name: &str,
+        generic_args: &[Type],
+    ) -> Option<(Type, ItemVisibility, usize)> {
         assert_eq!(self.generics.len(), generic_args.len());
 
         self.fields.iter().enumerate().find(|(_, field)| field.name.0.contents == field_name).map(
@@ -394,7 +399,7 @@ impl StructType {
                     })
                     .collect();
 
-                (field.typ.substitute(&substitutions), i)
+                (field.typ.substitute(&substitutions), field.visibility, i)
             },
         )
     }
@@ -426,6 +431,7 @@ impl StructType {
     /// prefer to use `get_fields` whenever possible.
     pub fn get_fields_as_written(&self) -> Vec<StructField> {
         vecmap(&self.fields, |field| StructField {
+            visibility: field.visibility,
             name: field.name.clone(),
             typ: field.typ.clone(),
         })
@@ -1858,7 +1864,7 @@ impl Type {
     pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
         match self.follow_bindings() {
             Type::Struct(def, args) => {
-                def.borrow().get_field(field_name, &args).map(|(typ, _)| typ)
+                def.borrow().get_field(field_name, &args).map(|(typ, _, _)| typ)
             }
             Type::Tuple(fields) => {
                 let mut fields = fields.into_iter().enumerate();
