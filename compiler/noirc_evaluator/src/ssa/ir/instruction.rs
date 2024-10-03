@@ -755,6 +755,16 @@ impl Instruction {
     }
 }
 
+/// If we have an array get whose array is from an array set at the same index,
+/// we can simplify that array get to the value in that array set.
+///
+/// Simple case:
+/// v4 = array_set v1, index v2, value v3
+/// v5 = array_get v4, index v2
+/// 
+/// If we could not immediately simplify the array get, we can try to follow
+/// the array set backwards in the case we have constant indices:
+///
 /// Given a chain of operations like:
 /// v1 = array_set [10, 11, 12], index 1, value: 5
 /// v2 = array_set v1, index 2, value: 6
