@@ -17,7 +17,9 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     let c = if x[0] != 0 {
         test_unconstrained1(a, b)
     } else {
-        test_unconstrained2(a, b)
+        unsafe {
+            test_unconstrained2(a, b)
+        }
     };
     assert(c.array[0] == std::wrapping_mul(x[0], y[0]));
 
@@ -33,7 +35,7 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
 
     let d = d - b;
     let mut result = [0; 32];
-    let result_slice = (a_field * b_field - b_field).to_le_bytes(32);
+    let result_slice: [u8; 32] = (a_field * b_field - b_field).to_le_bytes();
     for i in 0..32 {
         result[i] = result_slice[i];
     }

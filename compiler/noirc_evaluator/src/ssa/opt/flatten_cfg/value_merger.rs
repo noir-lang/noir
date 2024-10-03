@@ -20,6 +20,8 @@ pub(crate) struct ValueMerger<'a> {
     slice_sizes: &'a mut HashMap<ValueId, usize>,
 
     array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
+
+    call_stack: CallStack,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -29,8 +31,16 @@ impl<'a> ValueMerger<'a> {
         slice_sizes: &'a mut HashMap<ValueId, usize>,
         array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
         current_condition: Option<ValueId>,
+        call_stack: CallStack,
     ) -> Self {
-        ValueMerger { dfg, block, slice_sizes, array_set_conditionals, current_condition }
+        ValueMerger {
+            dfg,
+            block,
+            slice_sizes,
+            array_set_conditionals,
+            current_condition,
+            call_stack,
+        }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -48,6 +58,13 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        let then_value = self.dfg.resolve(then_value);
+        let else_value = self.dfg.resolve(else_value);
+
+        if then_value == else_value {
+            return then_value;
+        }
+
         match self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Self::merge_numeric_values(
                 self.dfg,
@@ -164,7 +181,12 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars| {
                     let get = Instruction::ArrayGet { array, index };
                     self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                        .insert_instruction_and_results(
+                            get,
+                            self.block,
+                            typevars,
+                            self.call_stack.clone(),
+                        )
                         .first()
                 };
 
@@ -234,7 +256,7 @@ impl<'a> ValueMerger<'a> {
                                 get,
                                 self.block,
                                 typevars,
-                                CallStack::new(),
+                                self.call_stack.clone(),
                             )
                             .first()
                     }
@@ -359,13 +381,18 @@ impl<'a> ValueMerger<'a> {
         for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
 
-            let instruction = Instruction::EnableSideEffects { condition };
+            let instruction = Instruction::EnableSideEffectsIf { condition };
             self.insert_instruction(instruction);
 
             let mut get_element = |array, typevars| {
                 let get = Instruction::ArrayGet { array, index };
                 self.dfg
-                    .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                    .insert_instruction_and_results(
+                        get,
+                        self.block,
+                        typevars,
+                        self.call_stack.clone(),
+                    )
                     .first()
             };
 
@@ -378,13 +405,18 @@ impl<'a> ValueMerger<'a> {
             array = self.insert_array_set(array, index, value, Some(condition)).first();
         }
 
-        let instruction = Instruction::EnableSideEffects { condition: current_condition };
+        let instruction = Instruction::EnableSideEffectsIf { condition: current_condition };
         self.insert_instruction(instruction);
         Some(array)
     }
 
     fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
-        self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new())
+        self.dfg.insert_instruction_and_results(
+            instruction,
+            self.block,
+            None,
+            self.call_stack.clone(),
+        )
     }
 
     fn insert_array_set(
@@ -399,7 +431,7 @@ impl<'a> ValueMerger<'a> {
             instruction,
             self.block,
             None,
-            CallStack::new(),
+            self.call_stack.clone(),
         );
 
         if let Some(condition) = condition {

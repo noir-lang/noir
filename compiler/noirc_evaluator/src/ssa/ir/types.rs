@@ -1,4 +1,5 @@
-use std::rc::Rc;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -13,7 +14,7 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 ///
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -65,19 +66,19 @@ impl NumericType {
 }
 
 /// All types representable in the IR.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub(crate) enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
     /// A reference to some value, such as an array
-    Reference(Rc<Type>),
+    Reference(Arc<Type>),
 
     /// An immutable array value with the given element type and length
-    Array(Rc<CompositeType>, usize),
+    Array(Arc<CompositeType>, usize),
 
     /// An immutable slice value with a given element type
-    Slice(Rc<CompositeType>),
+    Slice(Arc<CompositeType>),
 
     /// A function that may be called directly
     Function,
@@ -107,6 +108,11 @@ impl Type {
     /// Creates the char type, represented as u8.
     pub(crate) fn char() -> Type {
         Type::unsigned(8)
+    }
+
+    /// Creates the str<N> type, of the given length N
+    pub(crate) fn str(length: usize) -> Type {
+        Type::Array(Arc::new(vec![Type::char()]), length)
     }
 
     /// Creates the native field type.
@@ -184,7 +190,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn element_types(self) -> Rc<Vec<Type>> {
+    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
         match self {
             Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
             other => panic!("element_types: Expected array or slice, found {other}"),

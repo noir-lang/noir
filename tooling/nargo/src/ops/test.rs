@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use acvm::{
     acir::native_types::{WitnessMap, WitnessStack},
     BlackBoxFunctionSolver, FieldElement,
@@ -23,31 +25,93 @@ impl TestStatus {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
     config: &CompileOptions,
 ) -> TestStatus {
-    let compiled_program = compile_no_check(context, config, test_function.get_id(), None, false);
-    match compiled_program {
+    let test_function_has_no_arguments = context
+        .def_interner
+        .function_meta(&test_function.get_id())
+        .function_signature()
+        .0
+        .is_empty();
+
+    match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
-            // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
-            // otherwise constraints involving these expressions will not error.
-            let circuit_execution = execute_program(
-                &compiled_program.program,
-                WitnessMap::new(),
-                blackbox_solver,
-                &mut DefaultForeignCallExecutor::new(show_output, foreign_call_resolver_url),
-            );
-            test_status_program_compile_pass(
-                test_function,
-                compiled_program.abi,
-                compiled_program.debug,
-                circuit_execution,
-            )
+            if test_function_has_no_arguments {
+                // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
+                // otherwise constraints involving these expressions will not error.
+                let circuit_execution = execute_program(
+                    &compiled_program.program,
+                    WitnessMap::new(),
+                    blackbox_solver,
+                    &mut DefaultForeignCallExecutor::new(
+                        show_output,
+                        foreign_call_resolver_url,
+                        root_path,
+                        package_name,
+                    ),
+                );
+                test_status_program_compile_pass(
+                    test_function,
+                    compiled_program.abi,
+                    compiled_program.debug,
+                    circuit_execution,
+                )
+            } else {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // We currently don't support fuzz testing on wasm32 as the u128 strategies do not exist on this platform.
+                    TestStatus::Fail {
+                        message: "Fuzz tests are not supported on wasm32".to_string(),
+                        error_diagnostic: None,
+                    }
+                }
+
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    use acvm::acir::circuit::Program;
+                    use noir_fuzzer::FuzzedExecutor;
+                    use proptest::test_runner::TestRunner;
+                    let runner = TestRunner::default();
+
+                    let executor =
+                        |program: &Program<FieldElement>,
+                         initial_witness: WitnessMap<FieldElement>|
+                         -> Result<WitnessStack<FieldElement>, String> {
+                            execute_program(
+                                program,
+                                initial_witness,
+                                blackbox_solver,
+                                &mut DefaultForeignCallExecutor::<FieldElement>::new(
+                                    false,
+                                    foreign_call_resolver_url,
+                                    root_path.clone(),
+                                    package_name.clone(),
+                                ),
+                            )
+                            .map_err(|err| err.to_string())
+                        };
+                    let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+
+                    let result = fuzzer.fuzz();
+                    if result.success {
+                        TestStatus::Pass
+                    } else {
+                        TestStatus::Fail {
+                            message: result.reason.unwrap_or_default(),
+                            error_diagnostic: None,
+                        }
+                    }
+                }
+            }
         }
         Err(err) => test_status_program_compile_fail(err, test_function),
     }
@@ -127,8 +191,16 @@ fn check_expected_failure_message(
         None => return TestStatus::Pass,
     };
 
-    let expected_failure_message_matches =
-        matches!(&failed_assertion, Some(message) if message.contains(expected_failure_message));
+    // Match the failure message that the user will see, i.e. the failed_assertion
+    // if present or else the error_diagnostic's message, against the
+    // expected_failure_message
+    let expected_failure_message_matches = failed_assertion
+        .as_ref()
+        .or_else(|| {
+            error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.diagnostic.message)
+        })
+        .map(|message| message.contains(expected_failure_message))
+        .unwrap_or(false);
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }

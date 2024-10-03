@@ -4,7 +4,7 @@ use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use lsp_types::{LogMessageParams, MessageType};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 
 use crate::{
     get_package_tests_in_crate, parse_diff,
@@ -50,7 +50,7 @@ fn on_tests_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(
         state,
         &workspace,
@@ -65,7 +65,7 @@ fn on_tests_request_inner(
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
             // We ignore the warnings and errors produced by compilation for producing tests
             // because we can still get the test functions even if compilation fails
-            let _ = check_crate(&mut context, crate_id, false, false, None);
+            let _ = check_crate(&mut context, crate_id, &Default::default());
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             get_package_tests_in_crate(&context, &crate_id, &package.name)

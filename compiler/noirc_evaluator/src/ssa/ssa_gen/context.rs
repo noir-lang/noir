@@ -1,5 +1,4 @@
-use std::rc::Rc;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -85,7 +84,7 @@ pub(super) struct Loop {
 }
 
 /// The queue of functions remaining to compile
-type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
+type FunctionQueue = Vec<(FuncId, IrFunctionId)>;
 
 impl<'a> FunctionContext<'a> {
     /// Create a new FunctionContext to compile the first function in the shared_context's
@@ -198,7 +197,7 @@ impl<'a> FunctionContext<'a> {
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
             ast::Type::MutableReference(element) => {
-                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Rc::new(typ))))
+                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
@@ -213,7 +212,7 @@ impl<'a> FunctionContext<'a> {
                 let element_types = Self::convert_type(elements).flatten();
                 Tree::Branch(vec![
                     Tree::Leaf(f(Type::length_type())),
-                    Tree::Leaf(f(Type::Slice(Rc::new(element_types)))),
+                    Tree::Leaf(f(Type::Slice(Arc::new(element_types)))),
                 ])
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
@@ -237,23 +236,23 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
                 let element_types = Self::convert_type(element).flatten();
-                Type::Array(Rc::new(element_types), *len as usize)
+                Type::Array(Arc::new(element_types), *len as usize)
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
             ast::Type::Bool => Type::unsigned(1),
-            ast::Type::String(len) => Type::Array(Rc::new(vec![Type::char()]), *len as usize),
+            ast::Type::String(len) => Type::str(*len as usize),
             ast::Type::FmtString(_, _) => {
                 panic!("convert_non_tuple_type called on a fmt string: {typ}")
             }
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
-            ast::Type::Function(_, _, _) => Type::Function,
+            ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
-                Type::Reference(Rc::new(element))
+                Type::Reference(Arc::new(element))
             }
         }
     }
@@ -733,6 +732,10 @@ impl<'a> FunctionContext<'a> {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
+            // Reference counting in brillig relies on us incrementing reference
+            // counts when arrays/slices are constructed or indexed.
+            // Thus, if we dereference an lvalue which happens to be array/slice we should increment its reference counter.
+            self.builder.increment_array_reference_count(reference);
             self.builder.insert_load(reference, element_type).into()
         })
     }
@@ -1005,14 +1008,14 @@ impl SharedContext {
     }
 
     /// Pops the next function from the shared function queue, returning None if the queue is empty.
-    pub(super) fn pop_next_function_in_queue(&self) -> Option<(ast::FuncId, IrFunctionId)> {
+    pub(super) fn pop_next_function_in_queue(&self) -> Option<(FuncId, IrFunctionId)> {
         self.function_queue.lock().expect("Failed to lock function_queue").pop()
     }
 
     /// Return the matching id for the given function if known. If it is not known this
     /// will add the function to the queue of functions to compile, assign it a new id,
     /// and return this new id.
-    pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
+    pub(super) fn get_or_queue_function(&self, id: FuncId) -> IrFunctionId {
         // Start a new block to guarantee the destructor for the map lock is released
         // before map needs to be acquired again in self.functions.write() below
         {

@@ -72,7 +72,7 @@ fn on_code_lens_request_inner(
     let (mut context, crate_id) = prepare_source(source_string, state);
     // We ignore the warnings and errors produced by compilation for producing code lenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, crate_id, false, false, None);
+    let _ = check_crate(&mut context, crate_id, &Default::default());
 
     let collected_lenses =
         collect_lenses_for_package(&context, crate_id, &workspace, package, None);
@@ -89,8 +89,8 @@ fn on_code_lens_request_inner(
 }
 
 pub(crate) fn collect_lenses_for_package(
-    context: &noirc_frontend::macros_api::HirContext,
-    crate_id: noirc_frontend::macros_api::CrateId,
+    context: &noirc_frontend::hir::Context,
+    crate_id: noirc_frontend::graph::CrateId,
     workspace: &Workspace,
     package: &Package,
     file_path: Option<&std::path::PathBuf>,
@@ -120,7 +120,7 @@ pub(crate) fn collect_lenses_for_package(
             arguments: Some(
                 [
                     package_selection_args(workspace, package),
-                    vec!["--exact".into(), func_name.into()],
+                    vec!["--exact".into(), "--show-output".into(), func_name.into()],
                 ]
                 .concat(),
             ),

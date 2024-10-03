@@ -1,7 +1,8 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::ssa::ir::dfg::CallStack;
+use crate::brillig::brillig_ir::procedures::ProcedureId;
+use crate::ssa::ir::{basic_block::BasicBlockId, dfg::CallStack, function::FunctionId};
 
 /// Represents a parameter or a return value of an entry point function.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -22,6 +23,7 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) byte_code: Vec<BrilligOpcode<F>>,
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+    pub(crate) name: String,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -44,20 +46,85 @@ pub(crate) struct BrilligArtifact<F> {
     /// which are defined in other bytecode, that this bytecode has called.
     /// TODO: perhaps we should combine this with the `unresolved_jumps` field
     /// TODO: and have an enum which indicates whether the jump is internal or external
-    unresolved_external_call_labels: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
+    unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
     /// Maps the opcodes that are associated with a callstack to it.
     locations: BTreeMap<OpcodeLocation, CallStack>,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
     call_stack: CallStack,
+    /// Name of the function, only used for debugging purposes.
+    pub(crate) name: String,
 }
 
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub(crate) enum LabelType {
+    /// Labels for the entry point bytecode
+    Entrypoint,
+    /// Labels for user defined functions
+    Function(FunctionId, Option<BasicBlockId>),
+    /// Labels for intrinsic procedures
+    Procedure(ProcedureId),
+}
+
+impl std::fmt::Display for LabelType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            LabelType::Function(function_id, block_id) => {
+                if let Some(block_id) = block_id {
+                    write!(f, "Function({:?}, {:?})", function_id, block_id)
+                } else {
+                    write!(f, "Function({:?})", function_id)
+                }
+            }
+            LabelType::Entrypoint => write!(f, "Entrypoint"),
+            LabelType::Procedure(procedure_id) => write!(f, "Procedure({:?})", procedure_id),
+        }
+    }
+}
+
 /// An identifier for a location in the code.
 ///
 /// It is assumed that an entity will keep a map
 /// of labels to Opcode locations.
-pub(crate) type Label = String;
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub(crate) struct Label {
+    pub(crate) label_type: LabelType,
+    pub(crate) section: Option<usize>,
+}
+
+impl Label {
+    pub(crate) fn add_section(&self, section: usize) -> Self {
+        Label { label_type: self.label_type, section: Some(section) }
+    }
+
+    pub(crate) fn function(func_id: FunctionId) -> Self {
+        Label { label_type: LabelType::Function(func_id, None), section: None }
+    }
+
+    pub(crate) fn block(func_id: FunctionId, block_id: BasicBlockId) -> Self {
+        Label { label_type: LabelType::Function(func_id, Some(block_id)), section: None }
+    }
+
+    pub(crate) fn entrypoint() -> Self {
+        Label { label_type: LabelType::Entrypoint, section: None }
+    }
+
+    pub(crate) fn procedure(procedure_id: ProcedureId) -> Self {
+        Label { label_type: LabelType::Procedure(procedure_id), section: None }
+    }
+}
+
+impl std::fmt::Display for Label {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(section) = self.section {
+            write!(f, "{:?} - {}", self.label_type, section)
+        } else {
+            write!(f, "{:?}", self.label_type)
+        }
+    }
+}
 /// Pointer to a unresolved Jump instruction in
 /// the bytecode.
 pub(crate) type JumpInstructionPosition = OpcodeLocation;
@@ -81,12 +148,13 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
             byte_code: self.byte_code,
             locations: self.locations,
             assert_messages: self.assert_messages,
+            name: self.name,
         }
     }
 
     /// Gets the first unresolved function call of this artifact.
     pub(crate) fn first_unresolved_function_call(&self) -> Option<Label> {
-        self.unresolved_external_call_labels.first().map(|(_, label)| label.clone())
+        self.unresolved_external_call_labels.first().map(|(_, label)| *label)
     }
 
     /// Link with an external brillig artifact called from this artifact.
@@ -131,17 +199,16 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     fn add_unresolved_jumps_and_calls(&mut self, obj: &BrilligArtifact<F>) {
         let offset = self.index_of_next_opcode();
         for (jump_label, jump_location) in &obj.unresolved_jumps {
-            self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));
+            self.unresolved_jumps.push((jump_label + offset, *jump_location));
         }
 
         for (label_id, position_in_bytecode) in &obj.labels {
-            let old_value = self.labels.insert(label_id.clone(), position_in_bytecode + offset);
+            let old_value = self.labels.insert(*label_id, position_in_bytecode + offset);
             assert!(old_value.is_none(), "overwriting label {label_id} {old_value:?}");
         }
 
         for (position_in_bytecode, label_id) in &obj.unresolved_external_call_labels {
-            self.unresolved_external_call_labels
-                .push((position_in_bytecode + offset, label_id.clone()));
+            self.unresolved_external_call_labels.push((position_in_bytecode + offset, *label_id));
         }
 
         for (position_in_bytecode, message) in &obj.assert_messages {
@@ -199,8 +266,8 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     /// Adds a label in the bytecode to specify where this block's
     /// opcodes will start.
-    pub(crate) fn add_label_at_position(&mut self, label: String, position: OpcodeLocation) {
-        let old_value = self.labels.insert(label.clone(), position);
+    pub(crate) fn add_label_at_position(&mut self, label: Label, position: OpcodeLocation) {
+        let old_value = self.labels.insert(label, position);
         assert!(
             old_value.is_none(),
             "overwriting label {label}. old_value = {old_value:?}, new_value = {position}"

@@ -23,7 +23,14 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let module_id = LocalModuleId(Index::unsafe_zeroed());
     let mut modules = noirc_arena::Arena::default();
     let location = Location::new(Default::default(), file);
-    let root = LocalModuleId(modules.insert(ModuleData::new(None, location, false)));
+    let root = LocalModuleId(modules.insert(ModuleData::new(
+        None,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false, // is contract
+        false, // is struct
+    )));
     assert_eq!(root, module_id);
 
     let file_manager = FileManager::new(&PathBuf::new());
@@ -40,7 +47,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context, &[]);
+    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
@@ -152,6 +159,19 @@ fn for_loop() {
     }";
     let result = interpret(program);
     assert_eq!(result, Value::U8(15));
+}
+
+#[test]
+fn for_loop_inclusive() {
+    let program = "comptime fn main() -> pub u8 {
+        let mut x = 0;
+        for i in 0 ..= 6 {
+            x += i;
+        }
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(21));
 }
 
 #[test]

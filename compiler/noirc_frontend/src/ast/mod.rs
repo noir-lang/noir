@@ -4,16 +4,22 @@
 //!
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
 //! where it is converted into the Hir (defined in the hir_def module).
+mod docs;
 mod expression;
 mod function;
 mod statement;
 mod structure;
 mod traits;
 mod type_alias;
+mod visitor;
+
+pub use visitor::AttributeTarget;
+pub use visitor::Visitor;
 
 pub use expression::*;
 pub use function::*;
 
+pub use docs::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
@@ -22,7 +28,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
-    node_interner::QuotedTypeId,
+    node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     token::IntType,
     BinaryTypeOperator,
@@ -37,6 +43,18 @@ pub enum IntegerBitSize {
     Sixteen,
     ThirtyTwo,
     SixtyFour,
+}
+
+impl IntegerBitSize {
+    pub fn bit_size(&self) -> u8 {
+        match self {
+            IntegerBitSize::One => 1,
+            IntegerBitSize::Eight => 8,
+            IntegerBitSize::Sixteen => 16,
+            IntegerBitSize::ThirtyTwo => 32,
+            IntegerBitSize::SixtyFour => 64,
+        }
+    }
 }
 
 impl IntegerBitSize {
@@ -100,10 +118,10 @@ pub enum UnresolvedTypeData {
     Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
-    Named(Path, Vec<UnresolvedType>, /*is_synthesized*/ bool),
+    Named(Path, GenericTypeArgs, /*is_synthesized*/ bool),
 
     /// A Trait as return type or parameter of function, including its generics
-    TraitAsType(Path, Vec<UnresolvedType>),
+    TraitAsType(Path, GenericTypeArgs),
 
     /// &mut T
     MutableReference(Box<UnresolvedType>),
@@ -115,14 +133,23 @@ pub enum UnresolvedTypeData {
         /*args:*/ Vec<UnresolvedType>,
         /*ret:*/ Box<UnresolvedType>,
         /*env:*/ Box<UnresolvedType>,
+        /*unconstrained:*/ bool,
     ),
 
-    // The type of quoted code for metaprogramming
+    /// The type of quoted code for metaprogramming
     Quoted(crate::QuotedType),
+
+    /// An "as Trait" path leading to an associated type.
+    /// E.g. `<Foo as Trait>::Bar`
+    AsTraitPath(Box<crate::ast::AsTraitPath>),
 
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
     Resolved(QuotedTypeId),
+
+    // This is an interned UnresolvedTypeData during comptime code.
+    // The actual UnresolvedTypeData can be retrieved with a NodeInterner.
+    Interned(InternedUnresolvedTypeData),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -131,11 +158,47 @@ pub enum UnresolvedTypeData {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
+    pub span: Span,
+}
 
-    // The span is None in the cases where the User omitted a type:
-    //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
-    //  let x = 100; --- type is UnresolvedType::Unspecified without a span
-    pub span: Option<Span>,
+/// An argument to a generic type or trait.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum GenericTypeArg {
+    /// An ordered argument, e.g. `<A, B, C>`
+    Ordered(UnresolvedType),
+
+    /// A named argument, e.g. `<A = B, C = D, E = F>`.
+    /// Used for associated types.
+    Named(Ident, UnresolvedType),
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
+pub struct GenericTypeArgs {
+    /// Each ordered argument, e.g. `<A, B, C>`
+    pub ordered_args: Vec<UnresolvedType>,
+
+    /// All named arguments, e.g. `<A = B, C = D, E = F>`.
+    /// Used for associated types.
+    pub named_args: Vec<(Ident, UnresolvedType)>,
+}
+
+impl GenericTypeArgs {
+    pub fn is_empty(&self) -> bool {
+        self.ordered_args.is_empty() && self.named_args.is_empty()
+    }
+}
+
+impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
+    fn from(args: Vec<GenericTypeArg>) -> Self {
+        let mut this = GenericTypeArgs::default();
+        for arg in args {
+            match arg {
+                GenericTypeArg::Ordered(typ) => this.ordered_args.push(typ),
+                GenericTypeArg::Named(name, typ) => this.named_args.push((name, typ)),
+            }
+        }
+        this
+    }
 }
 
 /// Type wrapper for a member access
@@ -163,11 +226,38 @@ pub enum UnresolvedTypeExpression {
         Box<UnresolvedTypeExpression>,
         Span,
     ),
+    AsTraitPath(Box<AsTraitPath>),
 }
 
 impl Recoverable for UnresolvedType {
     fn error(span: Span) -> Self {
-        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span) }
+        UnresolvedType { typ: UnresolvedTypeData::Error, span }
+    }
+}
+
+impl std::fmt::Display for GenericTypeArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GenericTypeArg::Ordered(typ) => typ.fmt(f),
+            GenericTypeArg::Named(name, typ) => write!(f, "{name} = {typ}"),
+        }
+    }
+}
+
+impl std::fmt::Display for GenericTypeArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_empty() {
+            Ok(())
+        } else {
+            let mut args = vecmap(&self.ordered_args, ToString::to_string).join(", ");
+
+            if !self.ordered_args.is_empty() && !self.named_args.is_empty() {
+                args += ", ";
+            }
+
+            args += &vecmap(&self.named_args, |(name, typ)| format!("{name} = {typ}")).join(", ");
+            write!(f, "<{args}>")
+        }
     }
 }
 
@@ -182,22 +272,8 @@ impl std::fmt::Display for UnresolvedTypeData {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Named(s, args, _) => {
-                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
-                if args.is_empty() {
-                    write!(f, "{s}")
-                } else {
-                    write!(f, "{}<{}>", s, args.join(", "))
-                }
-            }
-            TraitAsType(s, args) => {
-                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
-                if args.is_empty() {
-                    write!(f, "impl {s}")
-                } else {
-                    write!(f, "impl {}<{}>", s, args.join(", "))
-                }
-            }
+            Named(s, args, _) => write!(f, "{s}{args}"),
+            TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
@@ -206,7 +282,11 @@ impl std::fmt::Display for UnresolvedTypeData {
             Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
-            Function(args, ret, env) => {
+            Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let args = vecmap(args, ToString::to_string).join(", ");
 
                 match &env.as_ref().typ {
@@ -227,6 +307,8 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
             Resolved(_) => write!(f, "(resolved type)"),
+            Interned(_) => write!(f, "?Interned"),
+            AsTraitPath(path) => write!(f, "{path}"),
         }
     }
 }
@@ -245,6 +327,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
                 write!(f, "({lhs} {op} {rhs})")
             }
+            UnresolvedTypeExpression::AsTraitPath(path) => write!(f, "{path}"),
         }
     }
 }
@@ -258,16 +341,21 @@ impl UnresolvedType {
         }
     }
 
-    pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
-        UnresolvedType { typ, span: None }
-    }
-
-    pub fn unspecified() -> UnresolvedType {
-        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
-    }
-
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
+    }
+
+    pub fn from_path(mut path: Path) -> Self {
+        let span = path.span;
+        let last_segment = path.segments.last_mut().unwrap();
+        let generics = last_segment.generics.take();
+        let generic_type_args = if let Some(generics) = generics {
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new() }
+        } else {
+            GenericTypeArgs::default()
+        };
+        let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
+        UnresolvedType { typ, span }
     }
 }
 
@@ -287,14 +375,23 @@ impl UnresolvedTypeData {
     }
 
     pub fn with_span(&self, span: Span) -> UnresolvedType {
-        UnresolvedType { typ: self.clone(), span: Some(span) }
+        UnresolvedType { typ: self.clone(), span }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
 pub enum Signedness {
     Unsigned,
     Signed,
+}
+
+impl Signedness {
+    pub fn is_signed(&self) -> bool {
+        match self {
+            Signedness::Unsigned => false,
+            Signedness::Signed => true,
+        }
+    }
 }
 
 impl UnresolvedTypeExpression {
@@ -315,6 +412,9 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Variable(path) => path.span(),
             UnresolvedTypeExpression::Constant(_, span) => *span,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, span) => *span,
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                path.trait_path.span.merge(path.impl_item.span())
+            }
         }
     }
 
@@ -357,6 +457,10 @@ impl UnresolvedTypeExpression {
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
             }
+            ExpressionKind::AsTraitPath(path) => {
+                Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
+            }
+            ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
         }
     }
@@ -373,12 +477,22 @@ impl UnresolvedTypeExpression {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 /// Represents whether the definition can be referenced outside its module/crate
 pub enum ItemVisibility {
-    Public,
     Private,
     PublicCrate,
+    Public,
+}
+
+impl std::fmt::Display for ItemVisibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItemVisibility::Public => write!(f, "pub"),
+            ItemVisibility::Private => Ok(()),
+            ItemVisibility::PublicCrate => write!(f, "pub(crate)"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

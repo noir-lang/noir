@@ -1,6 +1,6 @@
 pub(crate) mod data_bus;
 
-use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{acir::circuit::ErrorSelector, FieldElement};
 use noirc_errors::Location;
@@ -189,7 +189,7 @@ impl FunctionBuilder {
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
-        let reference_type = Type::Reference(Rc::new(element_type));
+        let reference_type = Type::Reference(Arc::new(element_type));
         self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
@@ -337,7 +337,7 @@ impl FunctionBuilder {
     /// Insert an enable_side_effects_if instruction. These are normally only automatically
     /// inserted during the flattening pass when branching is removed.
     pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
-        self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
+        self.insert_instruction(Instruction::EnableSideEffectsIf { condition }, None);
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -371,10 +371,12 @@ impl FunctionBuilder {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
+        let call_stack = self.call_stack.clone();
         self.terminate_block_with(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
             else_destination,
+            call_stack,
         });
     }
 
@@ -418,25 +420,20 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, true, None);
+        self.update_array_reference_count(value, true);
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, false, None);
+        self.update_array_reference_count(value, false);
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
     /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
     /// are ignored outside of unconstrained code.
-    fn update_array_reference_count(
-        &mut self,
-        value: ValueId,
-        increment: bool,
-        load_address: Option<ValueId>,
-    ) {
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
@@ -444,40 +441,16 @@ impl FunctionBuilder {
                 if element.contains_an_array() {
                     let reference = value;
                     let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, increment, Some(reference));
+                    self.update_array_reference_count(value, increment);
                 }
             }
-            typ @ Type::Array(..) | typ @ Type::Slice(..) => {
+            Type::Array(..) | Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                let update_rc = |this: &mut Self, value| {
-                    if increment {
-                        this.insert_inc_rc(value);
-                    } else {
-                        this.insert_dec_rc(value);
-                    }
-                };
-
-                update_rc(self, value);
-                let dfg = &self.current_function.dfg;
-
-                // This is a bit odd, but in brillig the inc_rc instruction operates on
-                // a copy of the array's metadata, so we need to re-store a loaded array
-                // even if there have been no other changes to it.
-                if let Some(address) = load_address {
-                    // If we already have a load from the Type::Reference case, avoid inserting
-                    // another load and rc update.
-                    self.insert_store(address, value);
-                } else if let Value::Instruction { instruction, .. } = &dfg[value] {
-                    let instruction = &dfg[*instruction];
-                    if let Instruction::Load { address } = instruction {
-                        // We can't re-use `value` in case the original address was stored
-                        // to again in the meantime. So introduce another load.
-                        let address = *address;
-                        let new_load = self.insert_load(address, typ);
-                        update_rc(self, new_load);
-                        self.insert_store(address, new_load);
-                    }
+                if increment {
+                    self.insert_inc_rc(value);
+                } else {
+                    self.insert_dec_rc(value);
                 }
             }
         }
@@ -514,7 +487,7 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use acvm::{acir::AcirField, FieldElement};
 
@@ -531,7 +504,7 @@ mod tests {
     fn insert_constant_call() {
         // `bits` should be an array of constants [1, 1, 1, 0...] of length 8:
         // let x = 7;
-        // let bits = x.to_le_bits(8);
+        // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let one = builder.numeric_constant(FieldElement::one(), Type::bool());
@@ -540,17 +513,11 @@ mod tests {
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
         let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
-        let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let slice_len = match &builder.current_function.dfg[call_results[0]] {
-            Value::NumericConstant { constant, .. } => *constant,
-            _ => panic!(),
-        };
-        assert_eq!(slice_len, FieldElement::from(8_u128));
-
-        let slice = match &builder.current_function.dfg[call_results[1]] {
+        let slice = match &builder.current_function.dfg[call_results[0]] {
             Value::Array { array, .. } => array,
             _ => panic!(),
         };

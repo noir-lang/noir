@@ -173,6 +173,15 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
+    /// Stores the value of `constant` in the `result` register
+    pub(crate) fn indirect_const_instruction<F: DebugToString>(
+        &self,
+        result_pointer: MemoryAddress,
+        constant: F,
+    ) {
+        debug_println!(self.enable_debug_trace, "  ICONST {} = {}", result_pointer, constant);
+    }
+
     /// Processes a not instruction. Append with "_" as this is a high-level instruction.
     pub(crate) fn not_instruction(
         &self,
@@ -275,9 +284,6 @@ impl DebugShow {
                     key,
                     outputs
                 );
-            }
-            BlackBoxOp::Sha256 { message, output } => {
-                debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
             }
             BlackBoxOp::Keccak256 { message, output } => {
                 debug_println!(self.enable_debug_trace, "  KECCAK256 {} -> {}", message, output);
@@ -453,7 +459,7 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::ToRadix { input, radix, output } => {
+            BlackBoxOp::ToRadix { input, radix, output, output_bits: _ } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  TO_RADIX {} {} -> {}",

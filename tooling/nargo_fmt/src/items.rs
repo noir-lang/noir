@@ -1,4 +1,4 @@
-use noirc_frontend::macros_api::Span;
+use noirc_errors::Span;
 
 use crate::{
     utils::{comment_len, find_comment_end},
@@ -110,9 +110,5 @@ pub(crate) trait HasItem {
 
     fn start(&self) -> u32 {
         self.span().start()
-    }
-
-    fn end(&self) -> u32 {
-        self.span().end()
     }
 }

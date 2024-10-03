@@ -83,8 +83,11 @@ pub(crate) fn generate_ssa(
                     _ => unreachable!("ICE - expect return on the last block"),
                 };
 
-            return_data =
-                function_context.builder.initialize_data_bus(&return_data_values, return_data);
+            return_data = function_context.builder.initialize_data_bus(
+                &return_data_values,
+                return_data,
+                None,
+            );
         }
         let return_instruction =
             function_context.builder.current_function.dfg[block].unwrap_terminator_mut();
@@ -393,11 +396,11 @@ impl<'a> FunctionContext<'a> {
     /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
         &mut self,
-        array: super::ir::value::ValueId,
-        index: super::ir::value::ValueId,
+        array: ValueId,
+        index: ValueId,
         element_type: &ast::Type,
         location: Location,
-        length: Option<super::ir::value::ValueId>,
+        length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
@@ -435,11 +438,7 @@ impl<'a> FunctionContext<'a> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(
-        &mut self,
-        index: super::ir::value::ValueId,
-        length: Option<super::ir::value::ValueId>,
-    ) {
+    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self
@@ -702,6 +701,11 @@ impl<'a> FunctionContext<'a> {
         assert_message: &Option<Box<(Expression, HirType)>>,
     ) -> Result<Option<ConstrainError>, RuntimeError> {
         let Some(assert_message_payload) = assert_message else { return Ok(None) };
+
+        if let Expression::Literal(ast::Literal::Str(static_string)) = &assert_message_payload.0 {
+            return Ok(Some(ConstrainError::StaticString(static_string.clone())));
+        }
+
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
         let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
@@ -714,7 +718,7 @@ impl<'a> FunctionContext<'a> {
                 self.builder.record_error_type(error_type_id, assert_message_typ.clone());
             }
         };
-        Ok(Some(ConstrainError::UserDefined(error_type_id, values)))
+        Ok(Some(ConstrainError::Dynamic(error_type_id, values)))
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

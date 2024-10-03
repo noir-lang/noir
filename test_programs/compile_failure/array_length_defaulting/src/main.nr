@@ -1,5 +1,5 @@
 fn main() {
-    let x = std::unsafe::zeroed();
+    let x = std::mem::zeroed();
     foo(x);
 }
 

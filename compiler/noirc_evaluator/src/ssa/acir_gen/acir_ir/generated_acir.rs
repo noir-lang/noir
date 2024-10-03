@@ -1,6 +1,6 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, u32};
 
 use crate::{
     brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
@@ -9,9 +9,9 @@ use crate::{
 };
 use acvm::acir::{
     circuit::{
-        brillig::{BrilligInputs, BrilligOutputs},
+        brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, OpcodeLocation,
+        AssertionPayload, BrilligOpcodeLocation, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -27,7 +27,7 @@ use num_bigint::BigUint;
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-pub(crate) const PLACEHOLDER_BRILLIG_INDEX: u32 = 0;
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
@@ -49,8 +49,11 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// All witness indices which are inputs to the main function
     pub(crate) input_witnesses: Vec<Witness>,
 
-    /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
-    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
+    pub(crate) locations: OpcodeToLocationsMap,
+
+    /// Brillig function id -> Opcodes locations map
+    /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
+    pub(crate) brillig_locations: BTreeMap<BrilligFunctionId, BrilligOpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
@@ -70,6 +73,11 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
     pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
 }
+
+/// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
+pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
+
+pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
@@ -196,10 +204,6 @@ impl<F: AcirField> GeneratedAcir<F> {
                 BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
             BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
-            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 {
-                inputs: inputs[0].clone(),
-                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
-            },
             BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
                 inputs: inputs[0].clone(),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
@@ -305,6 +309,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 proof: inputs[1].clone(),
                 public_inputs: inputs[2].clone(),
                 key_hash: inputs[3][0],
+                proof_type: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::BigIntAdd => BlackBoxFuncCall::BigIntAdd {
                 lhs: constant_inputs[0].to_u128() as u32,
@@ -564,26 +569,27 @@ impl<F: AcirField> GeneratedAcir<F> {
         generated_brillig: &GeneratedBrillig<F>,
         inputs: Vec<BrilligInputs<F>>,
         outputs: Vec<BrilligOutputs>,
-        brillig_function_index: u32,
+        brillig_function_index: BrilligFunctionId,
         stdlib_func: Option<BrilligStdlibFunc>,
     ) {
+        // Check whether we have a call to this Brillig function already exists.
+        // This helps us optimize the Brillig metadata to only be stored once per Brillig entry point.
+        let inserted_func_before = self.brillig_locations.get(&brillig_function_index).is_some();
+
         let opcode =
             AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };
         self.push_opcode(opcode);
+
         if let Some(stdlib_func) = stdlib_func {
             self.brillig_stdlib_func_locations
                 .insert(self.last_acir_opcode_location(), stdlib_func);
+            // The Brillig stdlib functions are handwritten and do not have any locations or assert messages.
+            // To avoid inserting the `PLACEHOLDER_BRILLIG_INDEX` into `self.brillig_locations` before the first
+            // user-specified Brillig call we can simply return after the Brillig stdlib function call.
+            return;
         }
 
-        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
-            self.locations.insert(
-                OpcodeLocation::Brillig {
-                    acir_index: self.opcodes.len() - 1,
-                    brillig_index: *brillig_index,
-                },
-                call_stack.clone(),
-            );
-        }
+        // TODO(https://github.com/noir-lang/noir/issues/5792)
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
@@ -593,18 +599,30 @@ impl<F: AcirField> GeneratedAcir<F> {
                 AssertionPayload::StaticString(message.clone()),
             );
         }
+
+        if inserted_func_before {
+            return;
+        }
+
+        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
+            self.brillig_locations
+                .entry(brillig_function_index)
+                .or_default()
+                .insert(BrilligOpcodeLocation(*brillig_index), call_stack.clone());
+        }
     }
 
     // We can only resolve the Brillig stdlib after having processed the entire ACIR
     pub(crate) fn resolve_brillig_stdlib_call(
         &mut self,
         opcode_location: OpcodeLocation,
-        brillig_function_index: u32,
+        brillig_function_index: BrilligFunctionId,
     ) {
         let acir_index = match opcode_location {
             OpcodeLocation::Acir(index) => index,
             _ => panic!("should not have brillig index"),
         };
+
         match &mut self.opcodes[acir_index] {
             AcirOpcode::BrilligCall { id, .. } => *id = brillig_function_index,
             _ => panic!("expected brillig call opcode"),
@@ -627,7 +645,6 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // variable number of inputs.
         BlackBoxFunc::AES128Encrypt
         | BlackBoxFunc::Keccak256
-        | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Blake3
         | BlackBoxFunc::PedersenCommitment
@@ -679,10 +696,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
 
         // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256
-        | BlackBoxFunc::SHA256
-        | BlackBoxFunc::Blake2s
-        | BlackBoxFunc::Blake3 => Some(32),
+        BlackBoxFunc::Keccak256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => Some(32),
 
         BlackBoxFunc::Keccakf1600 => Some(25),
         // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.

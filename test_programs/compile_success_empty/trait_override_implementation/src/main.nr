@@ -12,8 +12,8 @@ struct Foo {
 }
 
 impl MyDefault for Foo {
-    fn my_default(x: Field,y: Field) -> Self {
-        Self { bar: x, array: [x,y] }
+    fn my_default(x: Field, y: Field) -> Self {
+        Self { bar: x, array: [x, y] }
     }
 
     fn method2(x: Field) -> Field {
@@ -32,9 +32,15 @@ trait F {
 struct Bar {}
 
 impl F for Bar {
-    fn f5(_self: Self) -> Field { 50 }
-    fn f1(_self: Self) -> Field { 10 }
-    fn f3(_self: Self) -> Field { 30 }
+    fn f5(_self: Self) -> Field {
+        50
+    }
+    fn f1(_self: Self) -> Field {
+        10
+    }
+    fn f3(_self: Self) -> Field {
+        30
+    }
 }
 // Impls on mutable references are temporarily disabled
 // impl F for &mut Bar {

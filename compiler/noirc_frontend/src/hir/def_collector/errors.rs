@@ -1,5 +1,6 @@
-use crate::ast::{Ident, Path, UnresolvedTypeData};
+use crate::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
 use crate::hir::resolution::import::PathResolutionError;
+use crate::hir::type_check::generics::TraitGenerics;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
@@ -34,6 +35,8 @@ pub enum DefCollectorErrorKind {
     OverlappingModuleDecls { mod_name: Ident, expected_path: String, alternative_path: String },
     #[error("path resolution error")]
     PathResolutionError(PathResolutionError),
+    #[error("cannot re-export {item_name} because it has less visibility than this use statement")]
+    CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
     #[error("Cannot implement trait on a mutable reference type")]
@@ -68,32 +71,35 @@ pub enum DefCollectorErrorKind {
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
-    #[error("macro error : {0:?}")]
-    MacroError(MacroError),
-    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
-    UnsupportedNumericGenericType { ident: Ident, typ: UnresolvedTypeData },
     #[error("impl has stricter requirements than trait")]
     ImplIsStricterThanTrait {
         constraint_typ: crate::Type,
         constraint_name: String,
-        constraint_generics: Vec<crate::Type>,
+        constraint_generics: TraitGenerics,
         constraint_span: Span,
         trait_method_name: String,
         trait_method_span: Span,
     },
-}
-
-/// An error struct that macro processors can return.
-#[derive(Debug, Clone)]
-pub struct MacroError {
-    pub primary_message: String,
-    pub secondary_message: Option<String>,
-    pub span: Option<Span>,
+    #[error("{0}")]
+    UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
 }
 
 impl DefCollectorErrorKind {
     pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
         Diagnostic::from(self).in_file(file)
+    }
+}
+
+impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
+    fn from(error: &'a UnsupportedNumericGenericType) -> Diagnostic {
+        let name = &error.ident.0.contents;
+        let typ = &error.typ;
+
+        Diagnostic::simple_error(
+            format!("{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."),
+            "Unsupported numeric generic type".to_string(),
+            error.ident.0.span(),
+        )
     }
 }
 
@@ -172,6 +178,12 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 )
             }
             DefCollectorErrorKind::PathResolutionError(error) => error.into(),
+            DefCollectorErrorKind::CannotReexportItemWithLessVisibility{item_name, desired_visibility} => {
+                Diagnostic::simple_warning(
+                    format!("cannot re-export {item_name} because it has less visibility than this use statement"), 
+                    format!("consider marking {item_name} as {desired_visibility}"), 
+                    item_name.span())
+            }
             DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
                 "Non-struct type used in impl".into(),
                 "Only struct types may have implementation methods".into(),
@@ -267,36 +279,18 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 "Either the type or the trait must be from the same crate as the trait implementation".into(),
                 *span,
             ),
-            DefCollectorErrorKind::MacroError(macro_error) => {
-                Diagnostic::simple_error(macro_error.primary_message.clone(), macro_error.secondary_message.clone().unwrap_or_default(), macro_error.span.unwrap_or_default())
-            },
-            DefCollectorErrorKind::UnsupportedNumericGenericType { ident, typ } => {
-                let name = &ident.0.contents;
-
-                Diagnostic::simple_error(
-                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers and fields"),
-                    "Unsupported numeric generic type".to_string(),
-                    ident.0.span(),
-                )
-            }
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_span, trait_method_name, trait_method_span } => {
-                let mut constraint_name_with_generics = constraint_name.to_owned();
-                if !constraint_generics.is_empty() {
-                    constraint_name_with_generics.push('<');
-                    for generic in constraint_generics.iter() {
-                        constraint_name_with_generics.push_str(generic.to_string().as_str());
-                    }
-                    constraint_name_with_generics.push('>');
-                }
+                let constraint = format!("{}{}", constraint_name, constraint_generics);
 
                 let mut diag = Diagnostic::simple_error(
                     "impl has stricter requirements than trait".to_string(),
-                    format!("impl has extra requirement `{constraint_typ}: {constraint_name_with_generics}`"),
+                    format!("impl has extra requirement `{constraint_typ}: {constraint}`"),
                     *constraint_span,
                 );
                 diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_span);
                 diag
             }
+            DefCollectorErrorKind::UnsupportedNumericGenericType(err) => err.into(),
         }
     }
 }

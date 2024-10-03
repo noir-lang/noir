@@ -105,7 +105,12 @@ pub(crate) fn display_terminator(
         Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
             writeln!(f, "    jmp {}({})", destination, value_list(function, arguments))
         }
-        Some(TerminatorInstruction::JmpIf { condition, then_destination, else_destination }) => {
+        Some(TerminatorInstruction::JmpIf {
+            condition,
+            then_destination,
+            else_destination,
+            call_stack: _,
+        }) => {
             writeln!(
                 f,
                 "    jmpif {} then: {}, else: {}",
@@ -171,7 +176,7 @@ fn display_instruction_inner(
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
         }
-        Instruction::EnableSideEffects { condition } => {
+        Instruction::EnableSideEffectsIf { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index } => {
@@ -240,10 +245,10 @@ fn display_constrain_error(
     f: &mut Formatter,
 ) -> Result {
     match error {
-        ConstrainError::Intrinsic(assert_message_string) => {
+        ConstrainError::StaticString(assert_message_string) => {
             writeln!(f, " '{assert_message_string:?}'")
         }
-        ConstrainError::UserDefined(selector, values) => {
+        ConstrainError::Dynamic(selector, values) => {
             if let Some(constant_string) =
                 try_to_extract_string_from_error_payload(*selector, values, &function.dfg)
             {

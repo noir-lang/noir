@@ -44,7 +44,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function, false);
+            function.constant_fold(false);
         }
         self
     }
@@ -57,25 +57,27 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function, true);
+            function.constant_fold(true);
         }
         self
     }
 }
 
-/// The structure of this pass is simple:
-/// Go through each block and re-insert all instructions.
-fn constant_fold(function: &mut Function, use_constraint_info: bool) {
-    let mut context = Context { use_constraint_info, ..Default::default() };
-    context.block_queue.push(function.entry_block());
+impl Function {
+    /// The structure of this pass is simple:
+    /// Go through each block and re-insert all instructions.
+    pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
+        let mut context = Context { use_constraint_info, ..Default::default() };
+        context.block_queue.push(self.entry_block());
 
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
+        while let Some(block) = context.block_queue.pop() {
+            if context.visited_blocks.contains(&block) {
+                continue;
+            }
+
+            context.visited_blocks.insert(block);
+            context.fold_constants_in_block(self, block);
         }
-
-        context.visited_blocks.insert(block);
-        context.fold_constants_in_block(function, block);
     }
 }
 
@@ -159,9 +161,9 @@ impl Context {
             *side_effects_enabled_var,
         );
 
-        // If we just inserted an `Instruction::EnableSideEffects`, we need to update `side_effects_enabled_var`
+        // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
-        if let Instruction::EnableSideEffects { condition } = instruction {
+        if let Instruction::EnableSideEffectsIf { condition } = instruction {
             *side_effects_enabled_var = condition;
         };
     }
@@ -311,7 +313,7 @@ impl Context {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -509,7 +511,7 @@ mod test {
         let one = builder.field_constant(1u128);
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
 
-        let array_type = Type::Array(Rc::new(vec![Type::field()]), 1);
+        let array_type = Type::Array(Arc::new(vec![Type::field()]), 1);
         let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
         builder.terminate_with_return(vec![arr]);
 
@@ -601,7 +603,7 @@ mod test {
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
-        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 4));
+        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 4));
         let v1 = builder.add_parameter(Type::unsigned(32));
         let v2 = builder.add_parameter(Type::unsigned(1));
         let v3 = builder.add_parameter(Type::unsigned(1));
@@ -737,7 +739,7 @@ mod test {
         let zero = builder.field_constant(0u128);
         let one = builder.field_constant(1u128);
 
-        let typ = Type::Array(Rc::new(vec![Type::field()]), 2);
+        let typ = Type::Array(Arc::new(vec![Type::field()]), 2);
         let array = builder.array_constant(vec![zero, one].into(), typ);
 
         let _v2 = builder.insert_array_get(array, v1, Type::field());
@@ -787,7 +789,7 @@ mod test {
 
         let v0 = builder.add_parameter(Type::bool());
         let v1 = builder.add_parameter(Type::bool());
-        let v2 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 2));
+        let v2 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
 
         let zero = builder.numeric_constant(0u128, Type::length_type());
         let one = builder.numeric_constant(1u128, Type::length_type());

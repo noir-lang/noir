@@ -5,8 +5,10 @@ use std::collections::HashMap;
 use acir::{
     brillig::ForeignCallResult,
     circuit::{
-        brillig::BrilligBytecode,
-        opcodes::{BlockId, ConstantOrWitnessEnum, FunctionInput},
+        brillig::{BrilligBytecode, BrilligFunctionId},
+        opcodes::{
+            AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
+        },
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
@@ -128,10 +130,16 @@ pub enum OpcodeResolutionError<F> {
     },
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
     IndexOutOfBounds { opcode_location: ErrorLocation, index: u32, array_size: u32 },
+    #[error("Cannot solve opcode: {invalid_input_bit_size}")]
+    InvalidInputBitSize {
+        opcode_location: ErrorLocation,
+        invalid_input_bit_size: InvalidInputBitSize,
+    },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
     BrilligFunctionFailed {
+        function_id: BrilligFunctionId,
         call_stack: Vec<OpcodeLocation>,
         payload: Option<ResolvedAssertionPayload<F>>,
     },
@@ -147,6 +155,15 @@ impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
             BlackBoxResolutionError::Failed(func, reason) => {
                 OpcodeResolutionError::BlackBoxFunctionFailed(func, reason)
             }
+        }
+    }
+}
+
+impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
+    fn from(invalid_input_bit_size: InvalidInputBitSize) -> Self {
+        Self::InvalidInputBitSize {
+            opcode_location: ErrorLocation::Unresolved,
+            invalid_input_bit_size,
         }
     }
 }
@@ -386,6 +403,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                         *opcode_index = ErrorLocation::Resolved(location);
                         *assertion_payload = self.extract_assertion_payload(location);
                     }
+                    OpcodeResolutionError::InvalidInputBitSize {
+                        opcode_location: opcode_index,
+                        ..
+                    } => {
+                        let location = OpcodeLocation::Acir(self.instruction_pointer());
+                        *opcode_index = ErrorLocation::Resolved(location);
+                    }
                     // All other errors are thrown normally.
                     _ => (),
                 };
@@ -475,9 +499,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 &self.witness_map,
                 &self.block_solvers,
                 inputs,
-                &self.unconstrained_functions[*id as usize].bytecode,
+                &self.unconstrained_functions[id.as_usize()].bytecode,
                 self.backend,
                 self.instruction_pointer,
+                *id,
             )?,
         };
 
@@ -502,7 +527,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     fn map_brillig_error(&self, mut err: OpcodeResolutionError<F>) -> OpcodeResolutionError<F> {
         match &mut err {
-            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload } => {
+            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload, .. } => {
                 // Some brillig errors have static strings as payloads, we can resolve them here
                 let last_location =
                     call_stack.last().expect("Call stacks should have at least one item");
@@ -546,9 +571,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             witness,
             &self.block_solvers,
             inputs,
-            &self.unconstrained_functions[*id as usize].bytecode,
+            &self.unconstrained_functions[id.as_usize()].bytecode,
             self.backend,
             self.instruction_pointer,
+            *id,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),
@@ -572,7 +598,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         else {
             unreachable!("Not executing a Call opcode");
         };
-        if *id == 0 {
+        if *id == AcirFunctionId(0) {
             return Err(OpcodeResolutionError::AcirMainCallAttempted {
                 opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(
                     self.instruction_pointer(),
@@ -630,12 +656,31 @@ pub fn witness_to_value<F>(
     }
 }
 
+// TODO(https://github.com/noir-lang/noir/issues/5985):
+// remove skip_bitsize_checks
 pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     input: FunctionInput<F>,
+    skip_bitsize_checks: bool,
 ) -> Result<F, OpcodeResolutionError<F>> {
-    match input.input {
-        ConstantOrWitnessEnum::Witness(witness) => Ok(*witness_to_value(initial_witness, witness)?),
+    match input.input() {
+        ConstantOrWitnessEnum::Witness(witness) => {
+            let initial_value = *witness_to_value(initial_witness, witness)?;
+            if skip_bitsize_checks || initial_value.num_bits() <= input.num_bits() {
+                Ok(initial_value)
+            } else {
+                let value_num_bits = initial_value.num_bits();
+                let value = initial_value.to_string();
+                Err(OpcodeResolutionError::InvalidInputBitSize {
+                    opcode_location: ErrorLocation::Unresolved,
+                    invalid_input_bit_size: InvalidInputBitSize {
+                        value,
+                        value_num_bits,
+                        max_bits: input.num_bits(),
+                    },
+                })
+            }
+        }
         ConstantOrWitnessEnum::Constant(value) => Ok(value),
     }
 }
@@ -713,7 +758,7 @@ pub(crate) fn is_predicate_false<F: AcirField>(
 #[derive(Debug, Clone, PartialEq)]
 pub struct AcirCallWaitInfo<F> {
     /// Index in the list of ACIR function's that should be called
-    pub id: u32,
+    pub id: AcirFunctionId,
     /// Initial witness for the given circuit to be called
     pub initial_witness: WitnessMap<F>,
 }

@@ -1,5 +1,5 @@
 // Converts an array into a slice.
-fn as_slice_push<T, N>(xs: [T; N]) -> [T] {
+fn as_slice_push<T, let N: u32>(xs: [T; N]) -> [T] {
     let mut slice = &[];
     for elem in xs {
         slice = slice.push_back(elem);

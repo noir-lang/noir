@@ -3,12 +3,11 @@ use std::collections::HashMap;
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use iter_extended::vecmap;
-use nargo::package::Package;
+use nargo::package::{CrateName, Package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_artifacts::{debug::DebugArtifact, program::ProgramArtifact};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
-use noirc_frontend::graph::CrateName;
 use prettytable::{row, table, Row};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -100,8 +99,7 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
-            let mut program_table =
-                table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes"]);
+            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"]);
 
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();
@@ -176,18 +174,32 @@ struct ProgramInfo {
     #[serde(skip)]
     expression_width: ExpressionWidth,
     functions: Vec<FunctionInfo>,
+    #[serde(skip)]
+    unconstrained_functions_opcodes: usize,
+    unconstrained_functions: Vec<FunctionInfo>,
 }
 
 impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
-        vecmap(program_info.functions, |function| {
+        let mut main = vecmap(program_info.functions, |function| {
             row![
                 Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
                 format!("{:?}", program_info.expression_width),
-                Fc->format!("{}", function.acir_opcodes),
+                Fc->format!("{}", function.opcodes),
+                Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
-        })
+        });
+        main.extend(vecmap(program_info.unconstrained_functions, |function| {
+            row![
+                Fm->format!("{}", program_info.package_name),
+                Fc->format!("{}", function.name),
+                format!("N/A", ),
+                Fc->format!("N/A"),
+                Fc->format!("{}", function.opcodes),
+            ]
+        }));
+        main
     }
 }
 
@@ -203,7 +215,7 @@ struct ContractInfo {
 #[derive(Debug, Serialize)]
 struct FunctionInfo {
     name: String,
-    acir_opcodes: usize,
+    opcodes: usize,
 }
 
 impl From<ContractInfo> for Vec<Row> {
@@ -213,7 +225,7 @@ impl From<ContractInfo> for Vec<Row> {
                 Fm->format!("{}", contract_info.name),
                 Fc->format!("{}", function.name),
                 format!("{:?}", contract_info.expression_width),
-                Fc->format!("{}", function.acir_opcodes),
+                Fc->format!("{}", function.opcodes),
             ]
         })
     }
@@ -231,9 +243,35 @@ fn count_opcodes_and_gates_in_program(
         .enumerate()
         .map(|(i, function)| FunctionInfo {
             name: compiled_program.names[i].clone(),
-            acir_opcodes: function.opcodes.len(),
+            opcodes: function.opcodes.len(),
         })
         .collect();
 
-    ProgramInfo { package_name: package.name.to_string(), expression_width, functions }
+    let opcodes_len: Vec<usize> = compiled_program
+        .bytecode
+        .unconstrained_functions
+        .iter()
+        .map(|func| func.bytecode.len())
+        .collect();
+    let unconstrained_functions_opcodes = compiled_program
+        .bytecode
+        .unconstrained_functions
+        .into_par_iter()
+        .map(|function| function.bytecode.len())
+        .sum();
+    let unconstrained_info: Vec<FunctionInfo> = compiled_program
+        .brillig_names
+        .clone()
+        .iter()
+        .zip(opcodes_len)
+        .map(|(name, len)| FunctionInfo { name: name.clone(), opcodes: len })
+        .collect();
+
+    ProgramInfo {
+        package_name: package.name.to_string(),
+        expression_width,
+        functions,
+        unconstrained_functions_opcodes,
+        unconstrained_functions: unconstrained_info,
+    }
 }

@@ -12,9 +12,8 @@ impl Match {
 
 impl Eq for Match {
     fn eq(self, other: Self) -> bool {
-        (self.succeeded == other.succeeded) &
-            (self.match_ends == other.match_ends)
-            // (self.leftover == other.leftover)
+        (self.succeeded == other.succeeded) & (self.match_ends == other.match_ends)
+        // (self.leftover == other.leftover)
     }
 }
 
@@ -48,17 +47,9 @@ impl<let N: u32> Regex for str<N> {
             }
         }
         if matches_input {
-            Match {
-                succeeded: true,
-                match_ends: self_as_bytes.len(),
-                leftover,
-            }
+            Match { succeeded: true, match_ends: self_as_bytes.len(), leftover }
         } else {
-            Match {
-                succeeded: false,
-                match_ends: 0,
-                leftover: input,
-            }
+            Match { succeeded: false, match_ends: 0, leftover: input }
         }
     }
 }
@@ -73,21 +64,13 @@ impl<T, U> Regex for (T, U) where T: Regex, U: Regex {
                 Match {
                     succeeded: true,
                     match_ends: lhs_result.match_ends + rhs_result.match_ends,
-                    leftover: rhs_result.leftover,
+                    leftover: rhs_result.leftover
                 }
             } else {
-                Match {
-                    succeeded: false,
-                    match_ends: 0,
-                    leftover: input,
-                }
+                Match { succeeded: false, match_ends: 0, leftover: input }
             }
         } else {
-            Match {
-                succeeded: false,
-                match_ends: 0,
-                leftover: input,
-            }
+            Match { succeeded: false, match_ends: 0, leftover: input }
         }
     }
 }
@@ -136,10 +119,7 @@ struct Question<T> {
 
 impl<T> Regex for Question<T> where T: Regex {
     fn match(self, input: [u8]) -> Match {
-        Or {
-            lhs: self.inner,
-            rhs: (),
-        }.match(input)
+        Or { lhs: self.inner, rhs: () }.match(input)
     }
 }
 
@@ -150,9 +130,7 @@ struct Star<T, let N: u32> {
 
 impl<T, let N: u32> Regex for Star<T, N> where T: Regex {
     fn match(self, input: [u8]) -> Match {
-        let regex: Repeated<_, N> = Repeated {
-            inner: Question { inner: self.inner },
-        };
+        let regex: Repeated<_, N> = Repeated { inner: Question { inner: self.inner } };
         regex.match(input)
     }
 }
@@ -166,10 +144,7 @@ impl<T, let N: u32, let N_PRED: u32> Regex for Plus<T, N, N_PRED> where T: Regex
     fn match(self, input: [u8]) -> Match {
         std::static_assert(N_PRED + 1 == N, "N - 1 != N_PRED");
         let star: Star<T, N_PRED> = Star { inner: self.inner };
-        (
-            self.inner,
-            star
-        ).match(input)
+        (self.inner, star).match(input)
     }
 }
 
@@ -327,7 +302,7 @@ fn main() {
 //
 // impl<T, let N: u32> Bvec<T, N> {
 //     fn empty() -> Self {
-//         Self { inner: [std::unsafe::zeroed(); N], offset: 0, len: 0 }
+//         Self { inner: [std::mem::zeroed(); N], offset: 0, len: 0 }
 //     }
 //
 //     fn new(array: [T; N]) -> Self {
@@ -559,7 +534,7 @@ fn main() {
 // }
 //
 // fn reverse_array<T, let N: u32>(input: [T; N]) -> [T; N] {
-//     let mut output = [std::unsafe::zeroed(); N];
+//     let mut output = [std::mem::zeroed(); N];
 //     for i in 0..N {
 //         output[i] = input[N - (i + 1)];
 //     }
@@ -587,7 +562,7 @@ fn main() {
 //     assert_eq(xs, ys);
 //
 //     // test that pop_front gives all contents, in order,
-//     // followed by std::unsafe::zeroed()
+//     // followed by std::mem::zeroed()
 //     println(xs);
 //     let (x, new_xs) = xs.pop_front();
 //     assert_eq(x, 0);
@@ -606,7 +581,7 @@ fn main() {
 //     println(xs);
 //     if xs.len != 0 {
 //         let (x, _new_xs) = xs.pop_front();
-//         assert_eq(x, std::unsafe::zeroed());
+//         assert_eq(x, std::mem::zeroed());
 //     }
 //
 //     assert_eq(new_xs, Bvec { inner: [0, 1, 2], offset: 3, len: 0 });

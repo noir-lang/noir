@@ -9,6 +9,8 @@ unconstrained fn unconstrained_intermediate() {
 }
 
 fn main() {
-    unconstrained_intermediate();
+    unsafe {
+        unconstrained_intermediate();
+    }
     check(false);
 }

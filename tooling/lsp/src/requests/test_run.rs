@@ -4,9 +4,7 @@ use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::ops::{run_test, TestStatus};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{
-    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
@@ -48,7 +46,7 @@ fn on_test_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(
         state,
         &workspace,
@@ -61,7 +59,7 @@ fn on_test_run_request_inner(
         Some(package) => {
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-            if check_crate(&mut context, crate_id, false, false, None).is_err() {
+            if check_crate(&mut context, crate_id, &Default::default()).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
@@ -86,8 +84,10 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                false,
+                true,
                 None,
+                Some(workspace.root_dir.clone()),
+                Some(package.name.to_string()),
                 &CompileOptions::default(),
             );
             let result = match test_result {

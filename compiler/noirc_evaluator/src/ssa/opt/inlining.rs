@@ -2,7 +2,7 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 
 use acvm::acir::AcirField;
 use iter_extended::{btree_map, vecmap};
@@ -372,14 +372,14 @@ impl<'function> PerFunctionContext<'function> {
     fn translate_block(
         &mut self,
         source_block: BasicBlockId,
-        block_queue: &mut Vec<BasicBlockId>,
+        block_queue: &mut VecDeque<BasicBlockId>,
     ) -> BasicBlockId {
         if let Some(block) = self.blocks.get(&source_block) {
             return *block;
         }
 
         // The block is not yet inlined, queue it
-        block_queue.push(source_block);
+        block_queue.push_back(source_block);
 
         // The block is not already present in the function being inlined into so we must create it.
         // The block's instructions are not copied over as they will be copied later in inlining.
@@ -415,13 +415,14 @@ impl<'function> PerFunctionContext<'function> {
     /// Inline all reachable blocks within the source_function into the destination function.
     fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<ValueId> {
         let mut seen_blocks = HashSet::new();
-        let mut block_queue = vec![self.source_function.entry_block()];
+        let mut block_queue = VecDeque::new();
+        block_queue.push_back(self.source_function.entry_block());
 
         // This Vec will contain each block with a Return instruction along with the
         // returned values of that block.
         let mut function_returns = vec![];
 
-        while let Some(source_block_id) = block_queue.pop() {
+        while let Some(source_block_id) = block_queue.pop_front() {
             if seen_blocks.contains(&source_block_id) {
                 continue;
             }
@@ -502,7 +503,7 @@ impl<'function> PerFunctionContext<'function> {
                     }
                     None => self.push_instruction(*id),
                 },
-                Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffectsIf { condition } => {
                     side_effects_enabled = Some(self.translate_value(*condition));
                     self.push_instruction(*id);
                 }
@@ -609,7 +610,7 @@ impl<'function> PerFunctionContext<'function> {
     fn handle_terminator_instruction(
         &mut self,
         block_id: BasicBlockId,
-        block_queue: &mut Vec<BasicBlockId>,
+        block_queue: &mut VecDeque<BasicBlockId>,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
         match self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
@@ -625,8 +626,16 @@ impl<'function> PerFunctionContext<'function> {
                     .terminate_with_jmp(destination, arguments);
                 None
             }
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
                 let condition = self.translate_value(*condition);
+
+                let mut new_call_stack = self.context.call_stack.clone();
+                new_call_stack.append(call_stack.clone());
 
                 // See if the value of the condition is known, and if so only inline the reachable
                 // branch. This lets us inline some recursive functions without recurring forever.
@@ -635,14 +644,19 @@ impl<'function> PerFunctionContext<'function> {
                     Some(constant) => {
                         let next_block =
                             if constant.is_zero() { *else_destination } else { *then_destination };
+
                         let next_block = self.translate_block(next_block, block_queue);
-                        self.context.builder.terminate_with_jmp(next_block, vec![]);
+                        self.context
+                            .builder
+                            .set_call_stack(new_call_stack)
+                            .terminate_with_jmp(next_block, vec![]);
                     }
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
                         self.context
                             .builder
+                            .set_call_stack(new_call_stack)
                             .terminate_with_jmpif(condition, then_block, else_block);
                     }
                 }

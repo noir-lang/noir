@@ -1,7 +1,7 @@
 mod bar;
 
-global N: u64 = 5;
-global MAGIC_NUMBER: u64 = 3;
+global N: u32 = 5;
+global MAGIC_NUMBER: u32 = 3;
 global TYPE_INFERRED = 42;
 
 pub fn from_foo(x: [Field; bar::N]) {

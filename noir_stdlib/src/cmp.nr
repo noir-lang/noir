@@ -2,54 +2,94 @@ use crate::meta::derive_via;
 
 #[derive_via(derive_eq)]
 // docs:start:eq-trait
-trait Eq {
+pub trait Eq {
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
 
+// docs:start:derive_eq
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
-    let typ = s.as_type();
-
-    let impl_generics = s.generics().join(quote {,});
-
-    let where_clause = s.generics().map(|name| quote { $name: Default }).join(quote {,});
-
-    // `(self.a == other.a) & (self.b == other.b) & ...`
-    let equalities = s.fields().map(
-        |f: (Quoted, Type)| {
-        let name = f.0;
-        quote { (self.$name == other.$name) }
-    }
-    );
-    let body = equalities.join(quote { & });
-
-    quote {
-        impl<$impl_generics> Eq for $typ where $where_clause {
-            fn eq(self, other: Self) -> bool {
-                $body
-            }
+    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
+    let for_each_field = |name| quote { (_self.$name == _other.$name) };
+    let body = |fields| {
+        if s.fields().len() == 0 {
+            quote { true }
+        } else {
+            fields
         }
+    };
+    crate::meta::make_trait_impl(s, quote { Eq }, signature, for_each_field, quote { & }, body)
+}
+// docs:end:derive_eq
+
+impl Eq for Field {
+    fn eq(self, other: Field) -> bool {
+        self == other
     }
 }
 
-impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
+impl Eq for u64 {
+    fn eq(self, other: u64) -> bool {
+        self == other
+    }
+}
+impl Eq for u32 {
+    fn eq(self, other: u32) -> bool {
+        self == other
+    }
+}
+impl Eq for u16 {
+    fn eq(self, other: u16) -> bool {
+        self == other
+    }
+}
+impl Eq for u8 {
+    fn eq(self, other: u8) -> bool {
+        self == other
+    }
+}
+impl Eq for u1 {
+    fn eq(self, other: u1) -> bool {
+        self == other
+    }
+}
 
-impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
-impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
-impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
-impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
+impl Eq for i8 {
+    fn eq(self, other: i8) -> bool {
+        self == other
+    }
+}
+impl Eq for i16 {
+    fn eq(self, other: i16) -> bool {
+        self == other
+    }
+}
+impl Eq for i32 {
+    fn eq(self, other: i32) -> bool {
+        self == other
+    }
+}
+impl Eq for i64 {
+    fn eq(self, other: i64) -> bool {
+        self == other
+    }
+}
 
-impl Eq for i8 { fn eq(self, other: i8) -> bool { self == other } }
-impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
-impl Eq for i64 { fn eq(self, other: i64) -> bool { self == other } }
-
-impl Eq for () { fn eq(_self: Self, _other: ()) -> bool { true } }
-impl Eq for bool { fn eq(self, other: bool) -> bool { self == other } }
+impl Eq for () {
+    fn eq(_self: Self, _other: ()) -> bool {
+        true
+    }
+}
+impl Eq for bool {
+    fn eq(self, other: bool) -> bool {
+        self == other
+    }
+}
 
 impl<T, let N: u32> Eq for [T; N] where T: Eq {
     fn eq(self, other: [T; N]) -> bool {
         let mut result = true;
-        for i in 0 .. self.len() {
+        for i in 0..self.len() {
             result &= self[i].eq(other[i]);
         }
         result
@@ -59,7 +99,7 @@ impl<T, let N: u32> Eq for [T; N] where T: Eq {
 impl<T> Eq for [T] where T: Eq {
     fn eq(self, other: [T]) -> bool {
         let mut result = self.len() == other.len();
-        for i in 0 .. self.len() {
+        for i in 0..self.len() {
             result &= self[i].eq(other[i]);
         }
         result
@@ -94,7 +134,11 @@ impl<A, B, C, D> Eq for (A, B, C, D) where A: Eq, B: Eq, C: Eq, D: Eq {
 
 impl<A, B, C, D, E> Eq for (A, B, C, D, E) where A: Eq, B: Eq, C: Eq, D: Eq, E: Eq {
     fn eq(self, other: (A, B, C, D, E)) -> bool {
-        self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3) & self.4.eq(other.4)
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
     }
 }
 
@@ -106,7 +150,7 @@ impl Eq for Ordering {
 
 // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
 // that has 3 public functions for constructing the struct.
-struct Ordering {
+pub struct Ordering {
     result: Field,
 }
 
@@ -127,11 +171,29 @@ impl Ordering {
     }
 }
 
+#[derive_via(derive_ord)]
 // docs:start:ord-trait
-trait Ord {
+pub trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait
+
+// docs:start:derive_ord
+comptime fn derive_ord(s: StructDefinition) -> Quoted {
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
+    let for_each_field = |name| quote {
+        if result == std::cmp::Ordering::equal() {
+            result = _self.$name.cmp(_other.$name);
+        }
+    };
+    let body = |fields| quote {
+        let mut result = std::cmp::Ordering::equal();
+        $fields
+        result
+    };
+    crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)
+}
+// docs:end:derive_ord
 
 // Note: Field deliberately does not implement Ord
 
@@ -159,6 +221,18 @@ impl Ord for u32 {
     }
 }
 
+impl Ord for u16 {
+    fn cmp(self, other: u16) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
+
 impl Ord for u8 {
     fn cmp(self, other: u8) -> Ordering {
         if self < other {
@@ -173,6 +247,18 @@ impl Ord for u8 {
 
 impl Ord for i8 {
     fn cmp(self, other: i8) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
+
+impl Ord for i16 {
+    fn cmp(self, other: i16) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -221,12 +307,10 @@ impl Ord for bool {
             } else {
                 Ordering::greater()
             }
+        } else if other {
+            Ordering::less()
         } else {
-            if other {
-                Ordering::less()
-            } else {
-                Ordering::equal()
-            }
+            Ordering::equal()
         }
     }
 }
@@ -236,7 +320,7 @@ impl<T, let N: u32> Ord for [T; N] where T: Ord {
     // the ordering for the whole array.
     fn cmp(self, other: [T; N]) -> Ordering {
         let mut result = Ordering::equal();
-        for i in 0 .. self.len() {
+        for i in 0..self.len() {
             if result == Ordering::equal() {
                 let result_i = self[i].cmp(other[i]);
 
@@ -256,7 +340,7 @@ impl<T> Ord for [T] where T: Ord {
     // the ordering for the whole array.
     fn cmp(self, other: [T]) -> Ordering {
         let mut result = self.len().cmp(other.len());
-        for i in 0 .. self.len() {
+        for i in 0..self.len() {
             if result == Ordering::equal() {
                 let result_i = self[i].cmp(other[i]);
 

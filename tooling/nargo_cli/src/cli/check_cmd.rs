@@ -4,19 +4,18 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
-    package::Package, parse_all, prepare_package,
+    errors::CompileError,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::report_errors,
+    package::{CrateName, Package},
+    parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
-    check_crate, compute_function_abi, file_manager_with_stdlib, CompileOptions,
-    NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, compute_function_abi, CompileOptions, CrateId, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::{
-    graph::{CrateId, CrateName},
-    hir::{Context, ParsedFiles},
-};
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use super::fs::write_to_file;
 use super::NargoConfig;
@@ -52,7 +51,7 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
@@ -81,14 +80,7 @@ fn check_package(
     allow_overwrite: bool,
 ) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(
-        &mut context,
-        crate_id,
-        compile_options.deny_warnings,
-        compile_options.disable_macros,
-        compile_options.silence_warnings,
-        compile_options.debug_comptime_in_file.as_deref(),
-    )?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
@@ -157,14 +149,10 @@ fn create_input_toml_template(
 pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
-    deny_warnings: bool,
-    disable_macros: bool,
-    silence_warnings: bool,
-    debug_comptime_in_file: Option<&str>,
+    options: &CompileOptions,
 ) -> Result<(), CompileError> {
-    let result =
-        check_crate(context, crate_id, deny_warnings, disable_macros, debug_comptime_in_file);
-    report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
+    let result = check_crate(context, crate_id, options);
+    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }
 
 #[cfg(test)]
