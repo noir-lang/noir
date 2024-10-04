@@ -79,6 +79,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
             &args.compile_options,
             None,
             true,
+            false,
         );
 
         let compiled_program = report_errors(

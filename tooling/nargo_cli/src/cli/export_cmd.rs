@@ -91,7 +91,7 @@ fn compile_exported_functions(
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
             let program =
-                compile_no_check(&mut context, compile_options, function_id, None, false, false)
+                compile_no_check(&mut context, compile_options, function_id, None, false, false, false)
                     .map_err(|error| vec![FileDiagnostic::from(error)]);
 
             let program = report_errors(

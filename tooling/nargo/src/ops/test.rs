@@ -44,7 +44,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
         .is_empty();
 
     let compiled_program =
-        compile_no_check(context, config, test_function.get_id(), None, false, false);
+        compile_no_check(context, config, test_function.get_id(), None, false, false, false);
     match compiled_program {
         Ok(compiled_program) => {
             if test_function_has_no_arguments {

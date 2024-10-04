@@ -40,6 +40,7 @@ pub fn compile_workspace(
                 compile_options,
                 None,
                 false,
+                false,
             )
         })
         .collect();
@@ -72,6 +73,7 @@ pub fn compile_program(
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
     generate_plonky2: bool,
+    create_debug_trace_list: bool,
 ) -> CompilationResult<CompiledProgram> {
     compile_program_with_debug_instrumenter(
         file_manager,
@@ -82,6 +84,7 @@ pub fn compile_program(
         cached_program,
         DebugInstrumenter::default(),
         generate_plonky2,
+        create_debug_trace_list,
     )
 }
 
@@ -94,6 +97,7 @@ pub fn compile_program_with_debug_instrumenter(
     cached_program: Option<CompiledProgram>,
     debug_instrumenter: DebugInstrumenter,
     generate_plonky2: bool,
+    create_debug_trace_list: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     link_to_debug_crate(&mut context, crate_id);
@@ -106,6 +110,7 @@ pub fn compile_program_with_debug_instrumenter(
         compile_options,
         cached_program,
         generate_plonky2,
+        create_debug_trace_list,
     )
 }
 

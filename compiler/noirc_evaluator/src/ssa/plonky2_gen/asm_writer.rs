@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    collections::HashMap,
     fmt::Display,
     fs::File,
     io::{BufWriter, Write},
@@ -12,6 +13,7 @@ use plonky2::iop::{
     wire::Wire,
 };
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 
 use crate::ssa::ir::dfg::CallStack;
@@ -172,6 +174,30 @@ impl Display for U32TargetDisplay {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+pub struct DebugTraceSourcePoint {
+    pub file: String,
+    pub line_number: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DebugTraceAsmListIndexRange {
+    pub start: usize,
+    pub end: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DebugTraceList {
+    pub list: Vec<String>,
+    pub source_map: HashMap<DebugTraceSourcePoint, Vec<DebugTraceAsmListIndexRange>>,
+}
+
+impl DebugTraceList {
+    pub fn new() -> DebugTraceList {
+        DebugTraceList { list: vec![], source_map: HashMap::new() }
+    }
+}
+
 pub struct AsmWriter {
     pub builder: P2Builder,
     pub show_plonky2: bool,
@@ -181,11 +207,14 @@ pub struct AsmWriter {
     last_line_number_begin: usize,
     last_line_number_end: usize,
     file_map: FileMap,
+    // information, stored, for use with the 'nargo trace --trace-plonky2' feature
+    pub debug_trace_list: Option<DebugTraceList>,
+    prev_dsp: Option<DebugTraceSourcePoint>,
 }
 
 impl AsmWriter {
     fn output_enabled(&self) -> bool {
-        self.show_plonky2 || self.file.is_some()
+        self.show_plonky2 || self.file.is_some() || self.debug_trace_list.is_some()
     }
 
     fn handle_output(&mut self, s: String) {
@@ -195,6 +224,10 @@ impl AsmWriter {
 
         if let Some(f) = &mut self.file {
             writeln!(f, "{}", s).expect("Unable to write PLONKY2 data to file");
+        }
+
+        if let Some(l) = &mut self.debug_trace_list {
+            l.list.push(s);
         }
     }
 
@@ -213,6 +246,7 @@ impl AsmWriter {
         show_plonky2: bool,
         plonky2_print_file: Option<String>,
         file_map: FileMap,
+        create_debug_trace_list: bool,
     ) -> Self {
         AsmWriter {
             builder,
@@ -229,6 +263,12 @@ impl AsmWriter {
             last_line_number_begin: 0,
             last_line_number_end: 0,
             file_map,
+            debug_trace_list: if create_debug_trace_list {
+                Some(DebugTraceList::new())
+            } else {
+                None
+            },
+            prev_dsp: None,
         }
     }
 
@@ -576,12 +616,40 @@ impl AsmWriter {
         self.comment(format!("lessthan end (result = {})", BoolTargetDisplay { t: result }));
     }
 
+    fn add_debug_trace_source_file_line(&mut self, name: String, line_number: usize) {
+        let dtlist = self.debug_trace_list.as_mut().unwrap();
+
+        if let Some(prev_dsp) = &self.prev_dsp {
+            if let Some(last_range_vec) = dtlist.source_map.get_mut(prev_dsp) {
+                last_range_vec.last_mut().unwrap().end = Some(dtlist.list.len() - 1);
+            }
+        }
+
+        let dsp = DebugTraceSourcePoint { file: name, line_number };
+        if let Some(line_list) = dtlist.source_map.get_mut(&dsp) {
+            line_list.push(DebugTraceAsmListIndexRange { start: dtlist.list.len(), end: None });
+        } else {
+            dtlist.source_map.insert(
+                dsp.clone(),
+                vec![DebugTraceAsmListIndexRange { start: dtlist.list.len(), end: None }],
+            );
+        }
+        self.prev_dsp = Some(dsp);
+    }
+
     fn comment_source_file_name(&mut self, name: PathString) {
-        self.comment(format!("[{}]", name));
+        if self.debug_trace_list.is_none() {
+            self.comment(format!("[{}]", name));
+        }
     }
 
     fn comment_source_line(&mut self, line_number: usize, s: &str) {
-        self.comment(format!("[{}] {}", line_number, s));
+        if self.debug_trace_list.is_some() {
+            let last_file_name = self.file_map.name(self.last_file).unwrap();
+            self.add_debug_trace_source_file_line(last_file_name.to_string(), line_number);
+        } else {
+            self.comment(format!("[{}] {}", line_number, s));
+        }
     }
 
     pub fn comment_update_call_stack(&mut self, call_stack: CallStack) {

@@ -188,6 +188,7 @@ fn compile_programs(
             compile_options,
             load_cached_program(package),
             false,
+            false,
         )?;
 
         let target_width =

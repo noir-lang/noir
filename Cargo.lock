@@ -2707,6 +2707,7 @@ dependencies = [
  "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
+ "noirc_evaluator",
  "noirc_frontend",
  "notify",
  "notify-debouncer-full",

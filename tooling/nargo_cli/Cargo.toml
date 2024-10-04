@@ -62,6 +62,7 @@ dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 proptest.workspace = true
 runtime_tracing.workspace = true
+noirc_evaluator.workspace = true
 
 notify = "6.1.1"
 notify-debouncer-full = "0.3.1"

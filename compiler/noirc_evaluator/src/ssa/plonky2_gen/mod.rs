@@ -304,6 +304,7 @@ impl Builder {
         show_plonky2: bool,
         plonky2_print_file: Option<String>,
         file_map: FileMap,
+        create_debug_trace_list: bool,
     ) -> Builder {
         let config = CircuitConfig::standard_recursion_config();
         Builder {
@@ -312,6 +313,7 @@ impl Builder {
                 show_plonky2,
                 plonky2_print_file,
                 file_map,
+                create_debug_trace_list,
             ),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
@@ -370,9 +372,15 @@ impl Builder {
             }
             next_param_idx += fields_for_param;
         }
+
+        // get the debug trace list out of the asm_writer, without cloning,
+        // and without pissing off the temperamental Rust borrow checker
+        let debug_trace_list = self.asm_writer.debug_trace_list;
+        self.asm_writer.debug_trace_list = None; // assign new value to make the borrow checker calm and docile
+
         let data = self.asm_writer.move_builder().build::<P2Config>();
         // println!("stanm: data={:?}", data);
-        Ok(Plonky2Circuit { data, parameters, parameter_names })
+        Ok(Plonky2Circuit { data, parameters, parameter_names, debug_trace_list })
     }
 
     fn add_parameter(&mut self, value_id: ValueId) -> Result<(), Plonky2GenError> {

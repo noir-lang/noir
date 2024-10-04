@@ -326,6 +326,7 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
     generate_plonky2: bool,
+    create_debug_trace_list: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
@@ -345,6 +346,7 @@ pub fn compile_main(
         cached_program,
         options.force_compile,
         generate_plonky2,
+        create_debug_trace_list,
     )
     .map_err(FileDiagnostic::from)?;
 
@@ -447,13 +449,14 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None, true, false) {
-            Ok(function) => function,
-            Err(new_error) => {
-                errors.push(FileDiagnostic::from(new_error));
-                continue;
-            }
-        };
+        let function =
+            match compile_no_check(context, options, function_id, None, true, false, false) {
+                Ok(function) => function,
+                Err(new_error) => {
+                    errors.push(FileDiagnostic::from(new_error));
+                    continue;
+                }
+            };
         warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
 
@@ -559,6 +562,7 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
     compile_plonky2_circuit: bool,
+    create_debug_trace_list: bool,
 ) -> Result<CompiledProgram, CompileError> {
     let monomorph = if options.instrument_debug {
         monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
@@ -611,11 +615,13 @@ pub fn compile_no_check(
 
     let plonky2_circuit = if compile_plonky2_circuit {
         let parameter_names = abi.parameters.iter().map(|param| param.name.clone()).collect();
+
         Some(create_plonky2_circuit(
             monomorph,
             &ssa_evaluator_options,
             parameter_names,
             context.file_manager.as_file_map(),
+            create_debug_trace_list,
         )?)
     } else {
         None

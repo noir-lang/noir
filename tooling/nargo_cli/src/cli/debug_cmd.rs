@@ -118,6 +118,7 @@ pub(crate) fn compile_bin_package_for_debugging(
             None,
             debug_state,
             false,
+            false,
         )
     } else {
         compile_program(
@@ -127,6 +128,7 @@ pub(crate) fn compile_bin_package_for_debugging(
             package,
             &compile_options,
             None,
+            false,
             false,
         )
     };
