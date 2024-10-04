@@ -409,7 +409,7 @@ impl StructType {
         &self,
         generic_args: &[Type],
     ) -> Vec<(String, ItemVisibility, Type)> {
-        let substitutions = self.get_fields_subtitutions(generic_args);
+        let substitutions = self.get_fields_substitutions(generic_args);
 
         vecmap(&self.fields, |field| {
             let name = field.name.0.contents.clone();
@@ -418,7 +418,7 @@ impl StructType {
     }
 
     pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
-        let substitutions = self.get_fields_subtitutions(generic_args);
+        let substitutions = self.get_fields_substitutions(generic_args);
 
         vecmap(&self.fields, |field| {
             let name = field.name.0.contents.clone();
@@ -426,7 +426,7 @@ impl StructType {
         })
     }
 
-    fn get_fields_subtitutions(
+    fn get_fields_substitutions(
         &self,
         generic_args: &[Type],
     ) -> HashMap<TypeVariableId, (TypeVariable, Kind, Type)> {
