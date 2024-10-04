@@ -453,9 +453,9 @@ impl<'a> Parser<'a> {
 
         let alternative = if self.eat_keyword(Keyword::Else) {
             let start_span = self.current_token_span;
-            if let Some(alternative) = self.parse_block() {
+            if let Some(block) = self.parse_block() {
                 let span = self.span_since(start_span);
-                Some(Expression { kind: ExpressionKind::Block(alternative), span })
+                Some(Expression { kind: ExpressionKind::Block(block), span })
             } else if let Some(if_expr) = self.parse_if_expr() {
                 Some(Expression { kind: if_expr, span: self.span_since(start_span) })
             } else {
