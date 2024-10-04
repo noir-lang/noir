@@ -74,6 +74,8 @@ pub enum BorrowedToken<'input> {
     Dot,
     /// ..
     DoubleDot,
+    /// ..=
+    DoubleDotEqual,
     /// (
     LeftParen,
     /// )
@@ -196,6 +198,8 @@ pub enum Token {
     Dot,
     /// ..
     DoubleDot,
+    /// ..=
+    DoubleDotEqual,
     /// (
     LeftParen,
     /// )
@@ -290,6 +294,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::ShiftRight => BorrowedToken::ShiftRight,
         Token::Dot => BorrowedToken::Dot,
         Token::DoubleDot => BorrowedToken::DoubleDot,
+        Token::DoubleDotEqual => BorrowedToken::DoubleDotEqual,
         Token::LeftParen => BorrowedToken::LeftParen,
         Token::RightParen => BorrowedToken::RightParen,
         Token::LeftBrace => BorrowedToken::LeftBrace,
@@ -422,6 +427,7 @@ impl fmt::Display for Token {
             Token::ShiftRight => write!(f, ">>"),
             Token::Dot => write!(f, "."),
             Token::DoubleDot => write!(f, ".."),
+            Token::DoubleDotEqual => write!(f, "..="),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
             Token::LeftBrace => write!(f, "{{"),

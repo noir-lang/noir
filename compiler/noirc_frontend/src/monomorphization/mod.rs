@@ -850,8 +850,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
-        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            return self.resolve_trait_method_expr(expr_id, typ, method);
+        if let ImplKind::TraitMethod(method) = ident.impl_kind {
+            return self.resolve_trait_method_expr(expr_id, typ, method.method_id);
         }
 
         // Ensure all instantiation bindings are bound.

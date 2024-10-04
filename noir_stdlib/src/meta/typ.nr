@@ -8,58 +8,58 @@ pub comptime fn fresh_type_variable() -> Type {}
 
 impl Type {
     #[builtin(type_as_array)]
-// docs:start:as_array
-    comptime fn as_array(self) -> Option<(Type, Type)> {}
+    // docs:start:as_array
+    pub comptime fn as_array(self) -> Option<(Type, Type)> {}
     // docs:end:as_array
 
     #[builtin(type_as_constant)]
-// docs:start:as_constant
-    comptime fn as_constant(self) -> Option<u32> {}
+    // docs:start:as_constant
+    pub comptime fn as_constant(self) -> Option<u32> {}
     // docs:end:as_constant
 
     #[builtin(type_as_integer)]
-// docs:start:as_integer
-    comptime fn as_integer(self) -> Option<(bool, u8)> {}
+    // docs:start:as_integer
+    pub comptime fn as_integer(self) -> Option<(bool, u8)> {}
     // docs:end:as_integer
 
     #[builtin(type_as_slice)]
-// docs:start:as_slice
-    comptime fn as_slice(self) -> Option<Type> {}
+    // docs:start:as_slice
+    pub comptime fn as_slice(self) -> Option<Type> {}
     // docs:end:as_slice
 
     #[builtin(type_as_str)]
-// docs:start:as_str
-    comptime fn as_str(self) -> Option<Type> {}
+    // docs:start:as_str
+    pub comptime fn as_str(self) -> Option<Type> {}
     // docs:end:as_str
 
     #[builtin(type_as_struct)]
-// docs:start:as_struct
-    comptime fn as_struct(self) -> Option<(StructDefinition, [Type])> {}
+    // docs:start:as_struct
+    pub comptime fn as_struct(self) -> Option<(StructDefinition, [Type])> {}
     // docs:end:as_struct
 
     #[builtin(type_as_tuple)]
-// docs:start:as_tuple
-    comptime fn as_tuple(self) -> Option<[Type]> {}
+    // docs:start:as_tuple
+    pub comptime fn as_tuple(self) -> Option<[Type]> {}
     // docs:end:as_tuple
 
     #[builtin(type_get_trait_impl)]
-// docs:start:get_trait_impl
-    comptime fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl> {}
+    // docs:start:get_trait_impl
+    pub comptime fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl> {}
     // docs:end:get_trait_impl
 
     #[builtin(type_implements)]
-// docs:start:implements
-    comptime fn implements(self, constraint: TraitConstraint) -> bool {}
+    // docs:start:implements
+    pub comptime fn implements(self, constraint: TraitConstraint) -> bool {}
     // docs:end:implements
 
     #[builtin(type_is_bool)]
-// docs:start:is_bool
-    comptime fn is_bool(self) -> bool {}
+    // docs:start:is_bool
+    pub comptime fn is_bool(self) -> bool {}
     // docs:end:is_bool
 
     #[builtin(type_is_field)]
 // docs:start:is_field
-    comptime fn is_field(self) -> bool {}
+    pub comptime fn is_field(self) -> bool {}
     // docs:end:is_field
 }
 
