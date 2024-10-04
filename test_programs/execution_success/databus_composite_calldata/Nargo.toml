@@ -1,5 +1,5 @@
 [package]
-name = "databus"
+name = "databus_composite_calldata"
 type = "bin"
 authors = [""]
 
