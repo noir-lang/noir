@@ -878,19 +878,19 @@ fn try_optimize_array_set_from_previous_get(
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
-                    if let Some(index) = dfg.get_numeric_constant(*index) {
-                        if index == target_index {
-                            return SimplifyResult::None;
-                        }
-
-                        if *array == array_from_get {
-                            return SimplifyResult::SimplifiedTo(original_array_id);
-                        }
-
-                        array_id = *array; // recur
-                    } else {
+                    let Some(index) = dfg.get_numeric_constant(*index) else  {
+                        return SimplifyResult::None;
+                    }    
+                    
+                    if index == target_index {
                         return SimplifyResult::None;
                     }
+
+                    if *array == array_from_get {
+                        return SimplifyResult::SimplifiedTo(original_array_id);
+                    }
+
+                    array_id = *array; // recur
                 }
                 _ => return SimplifyResult::None,
             },
