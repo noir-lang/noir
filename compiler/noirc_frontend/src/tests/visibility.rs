@@ -197,6 +197,26 @@ fn does_not_error_when_accessing_private_struct_field_from_nested_module() {
 }
 
 #[test]
+fn does_not_error_when_accessing_pub_crate_struct_field_from_nested_module() {
+    let src = r#"
+    mod moo {
+        pub(crate) struct Foo {
+            pub(crate) x: Field
+        }
+    }
+
+    fn foo(foo: moo::Foo) -> Field {
+        foo.x
+    }
+
+    fn main() {
+        let _ = moo::Foo { x: 1 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn error_when_using_private_struct_field_in_constructor() {
     let src = r#"
     mod moo {
