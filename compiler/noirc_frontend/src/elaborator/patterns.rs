@@ -12,7 +12,7 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
@@ -525,11 +525,15 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_variable(&mut self, path: Path) -> HirIdent {
-        if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path) {
+        if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
+            if let Some(error) = trait_path_resolution.error {
+                self.push_err(error);
+            }
+
             HirIdent {
                 location: Location::new(path.span, self.file),
-                id: self.interner.trait_method_id(method),
-                impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
+                id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
+                impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
             }
         } else {
             // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -595,8 +599,12 @@ impl<'context> Elaborator<'context> {
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
-            self.bind_generics_from_trait_constraint(constraint, *assumed, &mut bindings);
+        if let ImplKind::TraitMethod(method) = &ident.impl_kind {
+            self.bind_generics_from_trait_constraint(
+                &method.constraint,
+                method.assumed,
+                &mut bindings,
+            );
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
@@ -634,18 +642,18 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
-            constraint.apply_bindings(&bindings);
-            if assumed {
-                let trait_generics = constraint.trait_generics.clone();
-                let object_type = constraint.typ;
+        if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
+            method.constraint.apply_bindings(&bindings);
+            if method.assumed {
+                let trait_generics = method.constraint.trait_generics.clone();
+                let object_type = method.constraint.typ;
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);
             } else {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(constraint, expr_id);
+                self.push_trait_constraint(method.constraint, expr_id);
             }
         }
 
@@ -731,7 +739,7 @@ impl<'context> Elaborator<'context> {
                 let mut constraint =
                     self.interner.get_trait(method_id.trait_id).as_constraint(span);
                 constraint.trait_generics = generics;
-                ImplKind::TraitMethod(method_id, constraint, false)
+                ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }
         };
 

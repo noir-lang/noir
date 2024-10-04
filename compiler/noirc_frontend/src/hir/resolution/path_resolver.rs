@@ -2,6 +2,7 @@ use super::import::{resolve_import, ImportDirective, PathResolution, PathResolut
 use crate::ast::{ItemVisibility, Path};
 use crate::node_interner::ReferenceId;
 use crate::usage_tracker::UsageTracker;
+
 use std::collections::BTreeMap;
 
 use crate::graph::CrateId;
@@ -28,11 +29,13 @@ pub trait PathResolver {
 pub struct StandardPathResolver {
     // Module that we are resolving the path in
     module_id: ModuleId,
+    // The module of the self type, if any (for example, the ModuleId of a struct)
+    self_type_module_id: Option<ModuleId>,
 }
 
 impl StandardPathResolver {
-    pub fn new(module_id: ModuleId) -> StandardPathResolver {
-        Self { module_id }
+    pub fn new(module_id: ModuleId, self_type_module_id: Option<ModuleId>) -> StandardPathResolver {
+        Self { module_id, self_type_module_id }
     }
 }
 
@@ -44,7 +47,14 @@ impl PathResolver for StandardPathResolver {
         usage_tracker: &mut UsageTracker,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        resolve_path(def_maps, self.module_id, path, usage_tracker, path_references)
+        resolve_path(
+            def_maps,
+            self.module_id,
+            self.self_type_module_id,
+            path,
+            usage_tracker,
+            path_references,
+        )
     }
 
     fn local_module_id(&self) -> LocalModuleId {
@@ -61,6 +71,7 @@ impl PathResolver for StandardPathResolver {
 pub fn resolve_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
+    self_type_module_id: Option<ModuleId>,
     path: Path,
     usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
@@ -69,6 +80,7 @@ pub fn resolve_path(
     let import = ImportDirective {
         visibility: ItemVisibility::Private,
         module_id: module_id.local_id,
+        self_type_module_id,
         path,
         alias: None,
         is_prelude: false,

@@ -2,20 +2,20 @@ use crate::append::Append;
 
 impl CtString {
     // docs:start:new
-    comptime fn new() -> Self {
+    pub comptime fn new() -> Self {
         // docs:end:new
         "".as_ctstring()
     }
 
     // Bug: using &mut self as the object results in this method not being found
     // docs:start:append_str
-    comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
+    pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
         // docs:end:append_str
         f"{self}{s}".as_ctstring()
     }
 
     // docs:start:append_fmtstr
-    comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
+    pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
         // docs:end:append_fmtstr
         f"{self}{s}".as_ctstring()
     }
@@ -24,7 +24,7 @@ impl CtString {
     /// To get around this, we return a quoted str and the underlying str can
     /// be accessed using macro insertion `foo.as_quoted_str!()`.
     // docs:start:as_quoted_str
-    comptime fn as_quoted_str(self) -> Quoted {
+    pub comptime fn as_quoted_str(self) -> Quoted {
         // docs:end:as_quoted_str
         quote { $self }
     }
