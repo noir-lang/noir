@@ -840,7 +840,7 @@ fn try_optimize_array_get_from_previous_set(
 /// - If the index is constant and is our target index, we conservatively fail the optimization.
 /// - Otherwise, we check the array value of the array set. We will refer to this array as array'.
 ///   In the case above, array' is `v1` from `v5 = array set ...`
-///   - Check the original array set value's array get against array'. If they are equal we can simplify.
+///   - If the original `array_set` value comes from an `array_get`, check that value against array'. If they are equal we can simplify.
 ///     - Continuing the example above, as we have `v3 = array_get v1, index 1`, `v1` is
 ///       what we want to check against array'. We now know we can simplify `v7` to `v5` as it is unchanged.
 ///   - If they are not equal, recur
@@ -866,14 +866,15 @@ fn try_optimize_array_set_from_previous_get(
         },
         _ => return SimplifyResult::None,
     };
-        // At this point we have determined that the value we are writing in the `array_set` instruction
-        // comes from an `array_get` from the same index at which we want to write it at.
-        // It's possible that we're acting on the same array where other indices have been mutated in between
-        // the `array_get` and `array_set` (resulting in the `array_id` not matching).
-        //
-        // We then inspect the set of `array_set`s which which led to the current array the `array_set` is acting on.
-        // If we can work back to the array on which the `array_get` was reading from without having another `array_set`
-        // act on the same index then we can be sure that the new `array_set` can be removed without affecting the final result.
+
+    // At this point we have determined that the value we are writing in the `array_set` instruction
+    // comes from an `array_get` from the same index at which we want to write it at.
+    // It's possible that we're acting on the same array where other indices have been mutated in between
+    // the `array_get` and `array_set` (resulting in the `array_id` not matching).
+    //
+    // We then inspect the set of `array_set`s which which led to the current array the `array_set` is acting on.
+    // If we can work back to the array on which the `array_get` was reading from without having another `array_set`
+    // act on the same index then we can be sure that the new `array_set` can be removed without affecting the final result.
     let Some(target_index) = dfg.get_numeric_constant(target_index) else {
         return SimplifyResult::None;
     };
@@ -885,10 +886,10 @@ fn try_optimize_array_set_from_previous_get(
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
-                    let Some(index) = dfg.get_numeric_constant(*index) else  {
+                    let Some(index) = dfg.get_numeric_constant(*index) else {
                         return SimplifyResult::None;
-                    }    
-                    
+                    };
+
                     if index == target_index {
                         return SimplifyResult::None;
                     }
