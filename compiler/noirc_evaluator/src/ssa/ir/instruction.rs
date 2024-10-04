@@ -840,7 +840,7 @@ fn try_optimize_array_get_from_previous_set(
 /// - If the index is constant and is our target index, we conservatively fail the optimization.
 /// - Otherwise, we check the array value of the `array_set``. We will refer to this array as array'.
 ///   In the case above, array' is `v1` from `v5 = array set ...`
-///   - If the original `array_set` value comes from an `array_get`, check the array in that `array_get` against array'. 
+///   - If the original `array_set` value comes from an `array_get`, check the array in that `array_get` against array'.
 ///   - If the two values are equal we can simplify.
 ///     - Continuing the example above, as we have `v3 = array_get v1, index 1`, `v1` is
 ///       what we want to check against array'. We now know we can simplify `v7` to `v5` as it is unchanged.
