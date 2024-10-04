@@ -488,10 +488,10 @@ impl<'a> Parser<'a> {
         ));
     }
 
-    fn expected_token_separating_items(&mut self, token: &str, items: &str, span: Span) {
+    fn expected_token_separating_items(&mut self, token: Token, items: &str, span: Span) {
         self.push_error(
             ParserErrorReason::ExpectedTokenSeparatingTwoItems {
-                token: token.to_string(),
+                token: token,
                 items: items.to_string(),
             },
             span,

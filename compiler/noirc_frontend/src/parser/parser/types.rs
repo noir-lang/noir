@@ -383,14 +383,7 @@ impl<'a> Parser<'a> {
         let (mut types, trailing_comma) = self.parse_many_return_trailing_separator_if_any(
             "tuple elements",
             separated_by_comma_until_right_paren(),
-            |parser| {
-                if let Some(typ) = parser.parse_type() {
-                    Some(typ)
-                } else {
-                    parser.expected_label(ParsingRuleLabel::Type);
-                    None
-                }
-            },
+            Self::parse_type_in_list,
         );
 
         Some(if types.len() == 1 && !trailing_comma {
@@ -398,6 +391,15 @@ impl<'a> Parser<'a> {
         } else {
             UnresolvedTypeData::Tuple(types)
         })
+    }
+
+    pub(super) fn parse_type_in_list(&mut self) -> Option<UnresolvedType> {
+        if let Some(typ) = self.parse_type() {
+            Some(typ)
+        } else {
+            self.expected_label(ParsingRuleLabel::Type);
+            None
+        }
     }
 
     /// OptionalTypeAnnotation = ( ':' Type )?

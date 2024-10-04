@@ -638,7 +638,7 @@ impl<'a> Parser<'a> {
         }
 
         let comma_after_first_expr = self.eat_comma();
-        let first_expr_span = self.current_token_span;
+        let second_expr_span = self.current_token_span;
 
         let mut exprs = self.parse_many(
             "expressions",
@@ -647,7 +647,7 @@ impl<'a> Parser<'a> {
         );
 
         if !exprs.is_empty() && !comma_after_first_expr {
-            self.expected_token_separating_items(",", "expressions", first_expr_span);
+            self.expected_token_separating_items(Token::Comma, "expressions", second_expr_span);
         }
 
         exprs.insert(0, first_expr);
@@ -766,6 +766,7 @@ mod tests {
             },
             Parser, ParserErrorReason,
         },
+        token::Token,
     };
 
     #[test]
@@ -1014,7 +1015,7 @@ mod tests {
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
             panic!("Expected a different error");
         };
-        assert_eq!(token, ",");
+        assert_eq!(token, &Token::Comma);
         assert_eq!(items, "expressions");
     }
 
@@ -1078,7 +1079,7 @@ mod tests {
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
             panic!("Expected a different error");
         };
-        assert_eq!(token, ",");
+        assert_eq!(token, &Token::Comma);
         assert_eq!(items, "expressions");
 
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
@@ -1272,7 +1273,7 @@ mod tests {
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
             panic!("Expected a different error");
         };
-        assert_eq!(token, ",");
+        assert_eq!(token, &Token::Comma);
         assert_eq!(items, "arguments");
 
         let ExpressionKind::Call(call) = expr.kind else {

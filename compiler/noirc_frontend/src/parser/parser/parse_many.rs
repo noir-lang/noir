@@ -46,11 +46,7 @@ impl<'a> Parser<'a> {
             };
 
             if !trailing_separator && !elements.is_empty() {
-                self.expected_token_separating_items(
-                    &separated_by.token.to_string(),
-                    items,
-                    start_span,
-                );
+                self.expected_token_separating_items(separated_by.token.clone(), items, start_span);
             }
 
             elements.push(element);

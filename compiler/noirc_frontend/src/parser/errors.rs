@@ -18,7 +18,7 @@ pub enum ParserErrorReason {
     #[error("Unexpected `,`")]
     UnexpectedComma,
     #[error("Expected a `{token}` separating these two {items}")]
-    ExpectedTokenSeparatingTwoItems { token: String, items: String },
+    ExpectedTokenSeparatingTwoItems { token: Token, items: String },
     #[error("Invalid left-hand side of assignment")]
     InvalidLeftHandSideOfAssignment,
     #[error("Expected trait, found {found}")]

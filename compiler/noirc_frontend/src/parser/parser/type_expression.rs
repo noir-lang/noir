@@ -11,7 +11,7 @@ use crate::{
 use acvm::acir::AcirField;
 use noirc_errors::Span;
 
-use super::Parser;
+use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
 impl<'a> Parser<'a> {
     /// TypeExpression= AddOrSubtractTypeExpression
@@ -333,12 +333,11 @@ impl<'a> Parser<'a> {
 
         // If what we just parsed is a type expression then this must be a parenthesized type
         // expression (there's no such thing as a tuple of type expressions)
-        let mut typ_span = typ.span;
         if let UnresolvedTypeData::Expression(type_expr) = typ.typ {
             self.eat_or_error(Token::RightParen);
             return Some(UnresolvedType {
                 typ: UnresolvedTypeData::Expression(type_expr),
-                span: typ_span,
+                span: typ.span,
             });
         }
 
@@ -349,23 +348,20 @@ impl<'a> Parser<'a> {
             });
         }
 
-        let mut types = vec![typ];
-        loop {
-            if !self.eat_commas() {
-                self.expected_token_separating_items(",", "tuple items", typ_span);
-            }
+        let comma_after_first_type = self.eat_comma();
+        let second_type_span = self.current_token_span;
 
-            let Some(typ) = self.parse_type() else {
-                self.eat_or_error(Token::RightParen);
-                break;
-            };
-            typ_span = typ.span;
-            types.push(typ);
+        let mut types = self.parse_many(
+            "tuple items",
+            separated_by_comma_until_right_paren(),
+            Self::parse_type_in_list,
+        );
 
-            if self.eat_right_paren() {
-                break;
-            }
+        if !types.is_empty() && !comma_after_first_type {
+            self.expected_token_separating_items(Token::Comma, "tuple items", second_type_span);
         }
+
+        types.insert(0, typ);
 
         Some(UnresolvedType {
             typ: UnresolvedTypeData::Tuple(types),
@@ -417,7 +413,13 @@ mod tests {
 
     use crate::{
         ast::{UnresolvedTypeData, UnresolvedTypeExpression},
-        parser::{parser::tests::expect_no_errors, Parser},
+        parser::{
+            parser::tests::{
+                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+            },
+            Parser, ParserErrorReason,
+        },
+        token::Token,
         BinaryTypeOperator,
     };
 
@@ -580,6 +582,35 @@ mod tests {
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_type_or_type_expression().unwrap();
         expect_no_errors(&parser.errors);
+        let UnresolvedTypeData::Tuple(types) = typ.typ else {
+            panic!("Expected tuple type");
+        };
+        let UnresolvedTypeData::FieldElement = types[0].typ else {
+            panic!("Expected field type");
+        };
+        let UnresolvedTypeData::Bool = types[1].typ else {
+            panic!("Expected bool type");
+        };
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_tuple_type_missing_comma() {
+        let src = "
+        (Field bool)
+               ^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+
+        let typ = parser.parse_type_or_type_expression().unwrap();
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
+            panic!("Expected a different error");
+        };
+        assert_eq!(token, &Token::Comma);
+        assert_eq!(items, "tuple items");
+
         let UnresolvedTypeData::Tuple(types) = typ.typ else {
             panic!("Expected tuple type");
         };

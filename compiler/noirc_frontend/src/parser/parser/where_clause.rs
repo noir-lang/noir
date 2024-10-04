@@ -92,9 +92,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{
-        parser::tests::{expect_no_errors, get_single_error_reason, get_source_with_error_span},
-        Parser, ParserErrorReason,
+    use crate::{
+        parser::{
+            parser::tests::{
+                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+            },
+            Parser, ParserErrorReason,
+        },
+        token::Token,
     };
 
     #[test]
@@ -156,7 +161,7 @@ mod tests {
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
             panic!("Expected a different error");
         };
-        assert_eq!(token, ",");
+        assert_eq!(token, &Token::Comma);
         assert_eq!(items, "where clauses");
 
         assert_eq!(constraints.len(), 2);
