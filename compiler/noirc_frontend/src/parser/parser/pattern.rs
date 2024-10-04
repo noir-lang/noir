@@ -6,7 +6,10 @@ use crate::{
     token::{Keyword, Token, TokenKind},
 };
 
-use super::Parser;
+use super::{
+    parse_many::{separated_by_comma_until_right_brace, separated_by_comma_until_right_paren},
+    Parser,
+};
 
 pub(crate) enum PatternOrSelf {
     Pattern(Pattern),
@@ -114,6 +117,8 @@ impl<'a> Parser<'a> {
     ///
     /// IdentifierPattern = identifier
     fn parse_pattern_no_mut(&mut self) -> Option<Pattern> {
+        let start_span = self.current_token_span;
+
         if let Some(pattern) = self.parse_interned_pattern() {
             return Some(pattern);
         }
@@ -133,7 +138,7 @@ impl<'a> Parser<'a> {
         };
 
         if self.eat_left_brace() {
-            return Some(self.parse_struct_pattern(path));
+            return Some(self.parse_struct_pattern(path, start_span));
         }
 
         if !path.is_ident() {
@@ -171,30 +176,22 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let mut patterns = Vec::new();
-        let mut trailing_comma = false;
-        loop {
-            if self.eat_right_paren() {
-                break;
-            }
-
-            let start_span = self.current_token_span;
-            let Some(pattern) = self.parse_pattern() else {
-                self.expected_label(ParsingRuleLabel::Pattern);
-                self.eat_right_paren();
-                break;
-            };
-
-            if !trailing_comma && !patterns.is_empty() {
-                self.expected_token_separating_items(",", "tuple elements", start_span);
-            }
-
-            patterns.push(pattern);
-
-            trailing_comma = self.eat_commas();
-        }
+        let patterns = self.parse_many(
+            "tuple elements",
+            separated_by_comma_until_right_paren(),
+            Self::parse_tuple_pattern_element,
+        );
 
         Some(Pattern::Tuple(patterns, self.span_since(start_span)))
+    }
+
+    fn parse_tuple_pattern_element(&mut self) -> Option<Pattern> {
+        if let Some(pattern) = self.parse_pattern() {
+            Some(pattern)
+        } else {
+            self.expected_label(ParsingRuleLabel::Pattern);
+            None
+        }
     }
 
     /// StructPattern = Path '{' StructPatternFields? '}'
@@ -202,39 +199,27 @@ impl<'a> Parser<'a> {
     /// StructPatternFields = StructPatternField ( ',' StructPatternField )? ','?
     ///
     /// StructPatternField = identifier ( ':' Pattern )?
-    fn parse_struct_pattern(&mut self, path: Path) -> Pattern {
-        let start_span = path.span();
+    fn parse_struct_pattern(&mut self, path: Path, start_span: Span) -> Pattern {
+        let fields = self.parse_many(
+            "struct fields",
+            separated_by_comma_until_right_brace(),
+            Self::parse_struct_pattern_field,
+        );
 
-        let mut patterns = Vec::new();
-        let mut trailing_comma = false;
+        Pattern::Struct(path, fields, self.span_since(start_span))
+    }
 
-        loop {
-            if self.eat_right_brace() {
-                break;
-            }
+    fn parse_struct_pattern_field(&mut self) -> Option<(Ident, Pattern)> {
+        let Some(ident) = self.eat_ident() else {
+            self.expected_identifier();
+            return None;
+        };
 
-            let start_span = self.current_token_span;
-
-            let Some(ident) = self.eat_ident() else {
-                self.expected_identifier();
-                self.eat_right_brace();
-                break;
-            };
-
-            if !trailing_comma && !patterns.is_empty() {
-                self.expected_token_separating_items(",", "struct fields", start_span);
-            }
-
-            if self.eat_colon() {
-                patterns.push((ident, self.parse_pattern_or_error()));
-            } else {
-                patterns.push((ident.clone(), Pattern::Identifier(ident)));
-            }
-
-            trailing_comma = self.eat_commas();
-        }
-
-        Pattern::Struct(path, patterns, self.span_since(start_span))
+        Some(if self.eat_colon() {
+            (ident, self.parse_pattern_or_error())
+        } else {
+            (ident.clone(), Pattern::Identifier(ident))
+        })
     }
 
     fn at_built_in_type(&self) -> bool {

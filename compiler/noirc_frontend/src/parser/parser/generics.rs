@@ -2,52 +2,38 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
     },
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
 };
 
-use super::Parser;
+use super::{parse_many::separated_by_comma, Parser};
 
 impl<'a> Parser<'a> {
     /// Generics = ( '<' GenericsList? '>' )?
     ///
     /// GenericsList = Generic ( ',' Generic )* ','?
     pub(super) fn parse_generics(&mut self) -> UnresolvedGenerics {
-        let mut generics = Vec::new();
-
         if !self.eat_less() {
-            return generics;
+            return Vec::new();
         }
 
-        if self.eat_greater() {
-            return generics;
+        self.parse_many(
+            "generic parameters",
+            separated_by_comma().until(Token::Greater),
+            Self::parse_generic_in_list,
+        )
+    }
+
+    fn parse_generic_in_list(&mut self) -> Option<UnresolvedGeneric> {
+        if let Some(generic) = self.parse_generic() {
+            Some(generic)
+        } else {
+            self.expected_label(ParsingRuleLabel::GenericParameter);
+            None
         }
-
-        let mut trailing_comma = false;
-
-        loop {
-            let start_span = self.current_token_span;
-            let Some(generic) = self.parse_generic() else {
-                break;
-            };
-
-            if !trailing_comma && !generics.is_empty() {
-                self.expected_token_separating_items(",", "generic parameters", start_span);
-            }
-
-            generics.push(generic);
-
-            trailing_comma = self.eat_commas();
-
-            if self.eat_greater() {
-                break;
-            }
-        }
-
-        generics
     }
 
     /// Generic
@@ -140,42 +126,44 @@ impl<'a> Parser<'a> {
             return generic_type_args;
         }
 
-        let mut trailing_comma = false;
-        loop {
-            let start_span = self.current_token_span;
+        let generics = self.parse_many(
+            "generic parameters",
+            separated_by_comma().until(Token::Greater),
+            Self::parse_generic_type_arg,
+        );
 
-            if matches!(self.token.token(), Token::Ident(..)) && self.next_is(Token::Assign) {
-                let ident = self.eat_ident().unwrap();
-
-                if !trailing_comma && !generic_type_args.is_empty() {
-                    self.expected_token_separating_items(",", "generic parameters", start_span);
+        for generic in generics {
+            match generic {
+                GenericTypeArg::Ordered(typ) => {
+                    generic_type_args.ordered_args.push(typ);
                 }
-
-                self.eat_assign();
-
-                let typ = self.parse_type_or_error();
-                generic_type_args.named_args.push((ident, typ));
-            } else {
-                let typ = self.parse_type_or_type_expression();
-                let Some(typ) = typ else {
-                    if generic_type_args.is_empty() {
-                        self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
-                    }
-                    self.eat_greater();
-                    break;
-                };
-
-                if !trailing_comma && !generic_type_args.is_empty() {
-                    self.expected_token_separating_items(",", "generic parameters", start_span);
+                GenericTypeArg::Named(name, typ) => {
+                    generic_type_args.named_args.push((name, typ));
                 }
-
-                generic_type_args.ordered_args.push(typ);
             }
-
-            trailing_comma = self.eat_commas();
         }
 
         generic_type_args
+    }
+
+    fn parse_generic_type_arg(&mut self) -> Option<GenericTypeArg> {
+        if matches!(self.token.token(), Token::Ident(..)) && self.next_is(Token::Assign) {
+            let ident = self.eat_ident().unwrap();
+
+            self.eat_assign();
+
+            let typ = self.parse_type_or_error();
+            return Some(GenericTypeArg::Named(ident, typ));
+        }
+
+        // Otherwise
+        let typ = self.parse_type_or_type_expression();
+        let Some(typ) = typ else {
+            self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
+            return None;
+        };
+
+        Some(GenericTypeArg::Ordered(typ))
     }
 }
 

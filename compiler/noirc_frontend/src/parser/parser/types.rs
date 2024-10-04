@@ -5,7 +5,7 @@ use crate::{
     QuotedType,
 };
 
-use super::Parser;
+use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
@@ -264,29 +264,11 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        let mut args = Vec::new();
-        let mut trailing_comma = false;
-
-        loop {
-            if self.eat_right_paren() {
-                break;
-            }
-
-            let start_span = self.current_token_span;
-            let typ = self.parse_type_or_error();
-            if let UnresolvedTypeData::Unspecified = typ.typ {
-                self.eat_right_paren();
-                break;
-            }
-
-            if !trailing_comma && !args.is_empty() {
-                self.expected_token_separating_items(",", "parameters", start_span);
-            }
-
-            args.push(typ);
-
-            trailing_comma = self.eat_commas();
-        }
+        let args = self.parse_many(
+            "parameters",
+            separated_by_comma_until_right_paren(),
+            Self::parse_parameter,
+        );
 
         let ret = if self.eat(Token::Arrow) {
             self.parse_type_or_error()
@@ -296,6 +278,15 @@ impl<'a> Parser<'a> {
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
+    }
+
+    fn parse_parameter(&mut self) -> Option<UnresolvedType> {
+        let typ = self.parse_type_or_error();
+        if let UnresolvedTypeData::Error = typ.typ {
+            None
+        } else {
+            Some(typ)
+        }
     }
 
     fn parse_trait_as_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -389,29 +380,18 @@ impl<'a> Parser<'a> {
             return Some(UnresolvedTypeData::Unit);
         }
 
-        let mut types = Vec::new();
-        let mut trailing_comma = false;
-        loop {
-            let start_span = self.current_token_span;
-
-            let Some(typ) = self.parse_type() else {
-                self.expected_label(ParsingRuleLabel::Type);
-                self.eat_right_paren();
-                break;
-            };
-
-            if !trailing_comma && !types.is_empty() {
-                self.expected_token_separating_items(",", "tuple elements", start_span);
-            }
-
-            types.push(typ);
-
-            trailing_comma = self.eat_commas();
-
-            if self.eat_right_paren() {
-                break;
-            }
-        }
+        let (mut types, trailing_comma) = self.parse_many_return_trailing_separator_if_any(
+            "tuple elements",
+            separated_by_comma_until_right_paren(),
+            |parser| {
+                if let Some(typ) = parser.parse_type() {
+                    Some(typ)
+                } else {
+                    parser.expected_label(ParsingRuleLabel::Type);
+                    None
+                }
+            },
+        );
 
         Some(if types.len() == 1 && !trailing_comma {
             UnresolvedTypeData::Parenthesized(Box::new(types.remove(0)))

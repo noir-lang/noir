@@ -6,7 +6,7 @@ use crate::{
     token::{Keyword, Token},
 };
 
-use super::Parser;
+use super::{parse_many::separated_by_comma_until_right_brace, Parser};
 
 impl<'a> Parser<'a> {
     /// Use = 'use' PathKind PathNoTurbofish UseTree
@@ -50,34 +50,12 @@ impl<'a> Parser<'a> {
 
         if trailing_double_colon {
             if self.eat_left_brace() {
-                let mut use_trees = Vec::new();
-                let mut trailing_comma = false;
-                loop {
-                    let start_span = self.current_token_span;
+                let use_trees = self.parse_many(
+                    "use trees",
+                    separated_by_comma_until_right_brace(),
+                    Self::parse_use_tree_in_list,
+                );
 
-                    let use_tree = self.parse_use_tree_without_kind(
-                        self.current_token_span,
-                        PathKind::Plain,
-                        true, // nested
-                    );
-
-                    // If we didn't advance at all, we are done
-                    if start_span == self.current_token_span {
-                        break;
-                    }
-
-                    if !trailing_comma && !use_trees.is_empty() {
-                        self.expected_token_separating_items(",", "use trees", start_span);
-                    }
-
-                    use_trees.push(use_tree);
-
-                    trailing_comma = self.eat_commas();
-
-                    if self.eat_right_brace() {
-                        break;
-                    }
-                }
                 UseTree { prefix, kind: UseTreeKind::List(use_trees) }
             } else {
                 self.expected_token(Token::LeftBrace);
@@ -85,6 +63,24 @@ impl<'a> Parser<'a> {
             }
         } else {
             self.parse_path_use_tree_end(prefix, nested)
+        }
+    }
+
+    fn parse_use_tree_in_list(&mut self) -> Option<UseTree> {
+        let start_span = self.current_token_span;
+
+        let use_tree = self.parse_use_tree_without_kind(
+            start_span,
+            PathKind::Plain,
+            true, // nested
+        );
+
+        // If we didn't advance at all, we are done
+        if start_span == self.current_token_span {
+            self.expected_label(ParsingRuleLabel::UseSegment);
+            None
+        } else {
+            Some(use_tree)
         }
     }
 

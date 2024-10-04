@@ -24,6 +24,7 @@ mod item_visibility;
 mod lambda;
 mod modifiers;
 mod module;
+mod parse_many;
 mod path;
 mod pattern;
 mod statement;
@@ -393,16 +394,8 @@ impl<'a> Parser<'a> {
         self.eat(Token::Less)
     }
 
-    fn eat_greater(&mut self) -> bool {
-        self.eat(Token::Greater)
-    }
-
     fn eat_assign(&mut self) -> bool {
         self.eat(Token::Assign)
-    }
-
-    fn eat_plus(&mut self) -> bool {
-        self.eat(Token::Plus)
     }
 
     fn eat_dot(&mut self) -> bool {

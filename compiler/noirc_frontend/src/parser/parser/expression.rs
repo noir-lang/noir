@@ -7,11 +7,14 @@ use crate::{
         Expression, ExpressionKind, GenericTypeArgs, Ident, IfExpression, IndexExpression, Literal,
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
 };
 
-use super::Parser;
+use super::{
+    parse_many::{separated_by_comma_until_right_brace, separated_by_comma_until_right_paren},
+    Parser,
+};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
@@ -398,39 +401,30 @@ impl<'a> Parser<'a> {
     ///
     /// ConstructorField = identifier ( ':' Expression )?
     fn parse_constructor(&mut self, typ: UnresolvedType) -> ExpressionKind {
-        let mut fields = Vec::new();
-        let mut trailing_comma = false;
-
-        loop {
-            let start_span = self.current_token_span;
-            let Some(ident) = self.eat_ident() else {
-                self.eat_or_error(Token::RightBrace);
-                break;
-            };
-
-            if !trailing_comma && !fields.is_empty() {
-                self.expected_token_separating_items(",", "constructor fields", start_span);
-            }
-
-            if self.eat_colon() {
-                let expression = self.parse_expression_or_error();
-                fields.push((ident, expression));
-            } else {
-                fields.push((ident.clone(), ident.into()));
-            }
-
-            trailing_comma = self.eat_commas();
-
-            if self.eat_right_brace() {
-                break;
-            }
-        }
+        let fields = self.parse_many(
+            "constructor fields",
+            separated_by_comma_until_right_brace(),
+            Self::parse_constructor_field,
+        );
 
         ExpressionKind::Constructor(Box::new(ConstructorExpression {
             typ,
             fields,
             struct_type: None,
         }))
+    }
+
+    fn parse_constructor_field(&mut self) -> Option<(Ident, Expression)> {
+        let Some(ident) = self.eat_ident() else {
+            return None;
+        };
+
+        Some(if self.eat_colon() {
+            let expression = self.parse_expression_or_error();
+            (ident, expression)
+        } else {
+            (ident.clone(), ident.into())
+        })
     }
 
     /// IfExpression = 'if' Expression Block ( 'else' ( Block | IfExpression ) )?
@@ -643,27 +637,20 @@ impl<'a> Parser<'a> {
             });
         }
 
-        let mut exprs = vec![first_expr];
-        let mut trailing_comma = self.eat_comma();
-        loop {
-            if self.eat_right_bracket() {
-                break;
-            }
+        let comma_after_first_expr = self.eat_comma();
+        let first_expr_span = self.current_token_span;
 
-            let start_span = self.current_token_span;
-            let Some(expr) = self.parse_expression() else {
-                self.eat_right_brace();
-                break;
-            };
+        let mut exprs = self.parse_many(
+            "expressions",
+            separated_by_comma().until(Token::RightBracket),
+            Self::parse_expression_in_list,
+        );
 
-            if !trailing_comma {
-                self.expected_token_separating_items(",", "expressions", start_span);
-            }
-
-            exprs.push(expr);
-
-            trailing_comma = self.eat_commas();
+        if !exprs.is_empty() && !comma_after_first_expr {
+            self.expected_token_separating_items(",", "expressions", first_expr_span);
         }
+
+        exprs.insert(0, first_expr);
 
         Some(ArrayLiteral::Standard(exprs))
     }
@@ -697,33 +684,26 @@ impl<'a> Parser<'a> {
             return Some(ExpressionKind::Literal(Literal::Unit));
         }
 
-        let mut exprs = Vec::new();
-        let mut trailing_comma = false;
-        loop {
-            let start_span = self.current_token_span;
-            let Some(expr) = self.parse_expression() else {
-                self.expected_label(ParsingRuleLabel::Expression);
-                self.eat_right_paren();
-                break;
-            };
-            if !trailing_comma && !exprs.is_empty() {
-                self.expected_token_separating_items(",", "expressions", start_span);
-            }
-
-            exprs.push(expr);
-
-            trailing_comma = self.eat_commas();
-
-            if self.eat_right_paren() {
-                break;
-            }
-        }
+        let (mut exprs, trailing_comma) = self.parse_many_return_trailing_separator_if_any(
+            "expressions",
+            separated_by_comma_until_right_paren(),
+            Self::parse_expression_in_list,
+        );
 
         Some(if exprs.len() == 1 && !trailing_comma {
             ExpressionKind::Parenthesized(Box::new(exprs.remove(0)))
         } else {
             ExpressionKind::Tuple(exprs)
         })
+    }
+
+    pub(super) fn parse_expression_in_list(&mut self) -> Option<Expression> {
+        if let Some(expr) = self.parse_expression() {
+            Some(expr)
+        } else {
+            self.expected_label(ParsingRuleLabel::Expression);
+            None
+        }
     }
 
     /// Block = '{' Statement* '}'
@@ -1084,6 +1064,33 @@ mod tests {
     }
 
     #[test]
+    fn parses_array_expression_with_two_elements_missing_comma() {
+        let src = "
+        [1 3]
+           ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
+            panic!("Expected a different error");
+        };
+        assert_eq!(token, ",");
+        assert_eq!(items, "expressions");
+
+        let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
+        else {
+            panic!("Expected array literal");
+        };
+        assert_eq!(exprs.len(), 2);
+        assert_eq!(exprs[0].to_string(), "1");
+        assert_eq!(exprs[1].to_string(), "3");
+    }
+
+    #[test]
     fn parses_repeated_array_expression() {
         let src = "[1; 10]";
         let mut parser = Parser::for_str(src);
@@ -1249,6 +1256,39 @@ mod tests {
         assert_eq!(call.func.to_string(), "foo");
         assert_eq!(call.arguments.len(), 2);
         assert!(!call.is_macro_call);
+    }
+
+    #[test]
+    fn parses_call_missing_comma() {
+        let src = "
+        foo(1 2)
+              ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+        assert_eq!(expr.span.end() as usize, src.len());
+        let reason = get_single_error_reason(&parser.errors, span);
+        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
+            panic!("Expected a different error");
+        };
+        assert_eq!(token, ",");
+        assert_eq!(items, "arguments");
+
+        let ExpressionKind::Call(call) = expr.kind else {
+            panic!("Expected call expression");
+        };
+        assert_eq!(call.func.to_string(), "foo");
+        assert_eq!(call.arguments.len(), 2);
+        assert!(!call.is_macro_call);
+    }
+
+    #[test]
+    fn parses_call_with_wrong_expression() {
+        let src = "foo(]) ";
+        let mut parser = Parser::for_str(src);
+        parser.parse_expression_or_error();
+        assert!(!parser.errors.is_empty());
     }
 
     #[test]

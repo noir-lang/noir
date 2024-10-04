@@ -4,7 +4,7 @@ use crate::{
     token::Token,
 };
 
-use super::Parser;
+use super::{parse_many::separated_by_comma, Parser};
 
 impl<'a> Parser<'a> {
     /// Lambda = '|' LambdaParameters? '|' ( '->' Type )? Expression
@@ -30,37 +30,29 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_lambda_parameters(&mut self) -> Vec<(Pattern, UnresolvedType)> {
-        let mut parameters = Vec::new();
-        let mut trailing_comma = false;
+        self.parse_many(
+            "parameters",
+            separated_by_comma().until(Token::Pipe),
+            Self::parse_lambda_parameter,
+        )
+    }
 
+    fn parse_lambda_parameter(&mut self) -> Option<(Pattern, UnresolvedType)> {
         loop {
-            if self.eat_pipe() {
-                break;
-            }
-
-            let start_span = self.current_token_span;
             let Some(pattern) = self.parse_pattern() else {
                 self.expected_label(ParsingRuleLabel::Pattern);
 
                 // Let's try with the next token.
                 self.next_token();
                 if self.at_eof() {
-                    break;
+                    return None;
                 } else {
                     continue;
                 }
             };
 
-            if !trailing_comma && !parameters.is_empty() {
-                self.expected_token_separating_items(",", "parameters", start_span);
-            }
-
             let typ = self.parse_optional_type_annotation();
-            parameters.push((pattern, typ));
-
-            trailing_comma = self.eat_commas();
+            return Some((pattern, typ));
         }
-
-        parameters
     }
 }

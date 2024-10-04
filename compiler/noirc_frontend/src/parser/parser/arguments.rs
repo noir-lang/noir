@@ -1,6 +1,6 @@
 use crate::{ast::Expression, token::Token};
 
-use super::Parser;
+use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
 pub(crate) struct CallArguments {
     pub(crate) arguments: Vec<Expression>,
@@ -16,27 +16,11 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        if self.eat_right_paren() {
-            return Some(Vec::new());
-        }
-
-        let mut arguments = Vec::new();
-        let mut trailing_comma = false;
-        loop {
-            let start_span = self.current_token_span;
-            let Some(expr) = self.parse_expression() else {
-                self.eat_right_paren();
-                break;
-            };
-
-            if !trailing_comma && !arguments.is_empty() {
-                self.expected_token_separating_items(",", "arguments", start_span);
-            }
-
-            arguments.push(expr);
-
-            trailing_comma = self.eat_comma();
-        }
+        let arguments = self.parse_many(
+            "arguments",
+            separated_by_comma_until_right_paren(),
+            Self::parse_expression_in_list,
+        );
 
         Some(arguments)
     }

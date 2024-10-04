@@ -15,6 +15,8 @@ use acvm::AcirField;
 
 use noirc_errors::Span;
 
+use super::parse_many::separated_by_comma_until_right_paren;
+use super::pattern::SelfPattern;
 use super::{pattern::PatternOrSelf, Parser};
 
 pub(crate) struct FunctionDefinitionWithOptionalBody {
@@ -130,21 +132,20 @@ impl<'a> Parser<'a> {
     ///
     /// FunctionParameter = Visibility PatternOrSelf ':' Type
     fn parse_function_parameters(&mut self, allow_self: bool) -> Vec<Param> {
-        let mut parameters = Vec::new();
-
         if !self.eat_left_paren() {
-            return parameters;
+            return Vec::new();
         }
 
-        let mut trailing_comma = false;
+        self.parse_many("parameters", separated_by_comma_until_right_paren(), |parser| {
+            parser.parse_function_parameter(allow_self)
+        })
+    }
 
+    fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
         loop {
-            if self.eat_right_paren() {
-                break;
-            }
-
             let start_span = self.current_token_span;
-            let pattern_or_self = if allow_self && parameters.is_empty() {
+
+            let pattern_or_self = if allow_self {
                 self.parse_pattern_or_self()
             } else {
                 self.parse_pattern().map(PatternOrSelf::Pattern)
@@ -152,77 +153,61 @@ impl<'a> Parser<'a> {
 
             let Some(pattern_or_self) = pattern_or_self else {
                 self.expected_label(ParsingRuleLabel::Pattern);
+
                 // Let's try with the next token
                 self.next_token();
                 if self.at_eof() {
-                    break;
+                    return None;
                 } else {
                     continue;
                 }
             };
 
-            if !trailing_comma && !parameters.is_empty() {
-                self.expected_token_separating_items(",", "parameters", start_span);
-            }
+            return Some(match pattern_or_self {
+                PatternOrSelf::Pattern(pattern) => self.pattern_param(pattern, start_span),
+                PatternOrSelf::SelfPattern(self_pattern) => self.self_pattern_param(self_pattern),
+            });
+        }
+    }
 
-            match pattern_or_self {
-                PatternOrSelf::Pattern(pattern) => {
-                    if self.eat_colon() {
-                        let visibility = self.parse_visibility();
+    fn pattern_param(&mut self, pattern: Pattern, start_span: Span) -> Param {
+        let (visibility, typ) = if !self.eat_colon() {
+            self.push_error(
+                ParserErrorReason::MissingTypeForFunctionParameter,
+                Span::from(pattern.span().start()..self.current_token_span.end()),
+            );
 
-                        let typ = self.parse_type_or_error();
-                        parameters.push(Param {
-                            visibility,
-                            pattern,
-                            typ,
-                            span: self.span_since(start_span),
-                        });
-                    } else {
-                        self.push_error(
-                            ParserErrorReason::MissingTypeForFunctionParameter,
-                            Span::from(pattern.span().start()..self.current_token_span.end()),
-                        );
+            let visibility = Visibility::Private;
+            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() };
+            (visibility, typ)
+        } else {
+            (self.parse_visibility(), self.parse_type_or_error())
+        };
 
-                        parameters.push(Param {
-                            visibility: Visibility::Private,
-                            pattern,
-                            typ: UnresolvedType {
-                                typ: UnresolvedTypeData::Error,
-                                span: Span::default(),
-                            },
-                            span: self.span_since(start_span),
-                        });
-                    }
-                }
-                PatternOrSelf::SelfPattern(self_pattern) => {
-                    let ident_span = self.previous_token_span;
-                    let ident = Ident::new("self".to_string(), ident_span);
-                    let path = Path::from_single("Self".to_owned(), ident_span);
-                    let no_args = GenericTypeArgs::default();
-                    let mut self_type =
-                        UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span);
-                    let mut pattern = Pattern::Identifier(ident);
+        Param { visibility, pattern, typ, span: self.span_since(start_span) }
+    }
 
-                    if self_pattern.reference {
-                        self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
-                            .with_span(ident_span);
-                    } else if self_pattern.mutable {
-                        pattern = Pattern::Mutable(Box::new(pattern), ident_span, true);
-                    }
+    fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
+        let ident_span = self.previous_token_span;
+        let ident = Ident::new("self".to_string(), ident_span);
+        let path = Path::from_single("Self".to_owned(), ident_span);
+        let no_args = GenericTypeArgs::default();
+        let mut self_type = UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span);
+        let mut pattern = Pattern::Identifier(ident);
 
-                    parameters.push(Param {
-                        visibility: Visibility::Private,
-                        pattern,
-                        typ: self_type,
-                        span: self.span_since(ident_span),
-                    });
-                }
-            }
-
-            trailing_comma = self.eat_commas();
+        if self_pattern.reference {
+            self_type =
+                UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(ident_span);
+        } else if self_pattern.mutable {
+            pattern = Pattern::Mutable(Box::new(pattern), ident_span, true);
         }
 
-        parameters
+        Param {
+            visibility: Visibility::Private,
+            pattern,
+            typ: self_type,
+            span: self.span_since(ident_span),
+        }
     }
 
     /// Visibility

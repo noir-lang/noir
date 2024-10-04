@@ -6,7 +6,7 @@ use crate::{
     token::{Attribute, SecondaryAttribute, Token},
 };
 
-use super::Parser;
+use super::{parse_many::separated_by_comma_until_right_brace, Parser};
 
 impl<'a> Parser<'a> {
     /// Struct = 'struct' identifier Generics '{' StructField* '}'
@@ -42,59 +42,11 @@ impl<'a> Parser<'a> {
             return self.empty_struct(name, attributes, visibility, generics, start_span);
         }
 
-        let mut fields = Vec::new();
-        let mut trailing_comma = false;
-
-        'outer: loop {
-            let mut doc_comments;
-            let name;
-
-            // Loop until we find an identifier, skipping anything that's not one
-            loop {
-                let doc_comments_start_span = self.current_token_span;
-                doc_comments = self.parse_outer_doc_comments();
-
-                if let Some(ident) = self.eat_ident() {
-                    name = ident;
-                    break;
-                }
-
-                if !doc_comments.is_empty() {
-                    self.push_error(
-                        ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                        self.span_since(doc_comments_start_span),
-                    );
-                }
-
-                // Though we do have to stop at EOF
-                if self.at_eof() {
-                    self.expected_token(Token::RightBrace);
-                    break 'outer;
-                }
-
-                // Or if we find a right brace
-                if self.eat_right_brace() {
-                    break 'outer;
-                }
-
-                self.expected_identifier();
-                self.next_token();
-            }
-
-            let start_span = self.previous_token_span;
-
-            self.eat_or_error(Token::Colon);
-
-            let typ = self.parse_type_or_error();
-
-            if !trailing_comma && !fields.is_empty() {
-                self.expected_token_separating_items(",", "struct fields", start_span);
-            }
-
-            fields.push(Documented::new(StructField { name, typ }, doc_comments));
-
-            trailing_comma = self.eat_commas();
-        }
+        let fields = self.parse_many(
+            "struct fields",
+            separated_by_comma_until_right_brace(),
+            Self::parse_struct_field,
+        );
 
         NoirStruct {
             name,
@@ -104,6 +56,48 @@ impl<'a> Parser<'a> {
             fields,
             span: self.span_since(start_span),
         }
+    }
+
+    fn parse_struct_field(&mut self) -> Option<Documented<StructField>> {
+        let mut doc_comments;
+        let name;
+
+        // Loop until we find an identifier, skipping anything that's not one
+        loop {
+            let doc_comments_start_span = self.current_token_span;
+            doc_comments = self.parse_outer_doc_comments();
+
+            if let Some(ident) = self.eat_ident() {
+                name = ident;
+                break;
+            }
+
+            if !doc_comments.is_empty() {
+                self.push_error(
+                    ParserErrorReason::DocCommentDoesNotDocumentAnything,
+                    self.span_since(doc_comments_start_span),
+                );
+            }
+
+            // Though we do have to stop at EOF
+            if self.at_eof() {
+                self.expected_token(Token::RightBrace);
+                return None;
+            }
+
+            // Or if we find a right brace
+            if self.at(Token::RightBrace) {
+                return None;
+            }
+
+            self.expected_identifier();
+            self.next_token();
+        }
+
+        self.eat_or_error(Token::Colon);
+
+        let typ = self.parse_type_or_error();
+        Some(Documented::new(StructField { name, typ }, doc_comments))
     }
 
     fn empty_struct(
