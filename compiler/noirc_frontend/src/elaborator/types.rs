@@ -15,7 +15,7 @@ use crate::{
         comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
         def_map::ModuleDefId,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             generics::{Generic, TraitGenerics},
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -24,15 +24,15 @@ use crate::{
     hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
-            HirMethodReference, HirPrefixExpression,
+            HirMethodReference, HirPrefixExpression, TraitMethod,
         },
         function::{FuncMeta, Parameters},
         stmt::HirStatement,
         traits::{NamedType, TraitConstraint},
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ImplSearchErrorKind, NodeInterner,
-        TraitId, TraitImplKind, TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, GlobalId, ImplSearchErrorKind, NodeInterner, TraitId,
+        TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
@@ -43,6 +43,11 @@ use super::{lints, Elaborator};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 pub const WILDCARD_TYPE: &str = "_";
+
+pub(super) struct TraitPathResolution {
+    pub(super) method: TraitMethod,
+    pub(super) error: Option<PathResolutionError>,
+}
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
@@ -522,10 +527,7 @@ impl<'context> Elaborator<'context> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(
-        &mut self,
-        path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
+    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
         let trait_impl = self.current_trait_impl?;
         let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
 
@@ -537,7 +539,10 @@ impl<'context> Elaborator<'context> {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
                 let constraint = the_trait.as_constraint(path.span);
-                return Some((method, constraint, true));
+                return Some(TraitPathResolution {
+                    method: TraitMethod { method_id: method, constraint, assumed: true },
+                    error: None,
+                });
             }
         }
         None
@@ -547,16 +552,18 @@ impl<'context> Elaborator<'context> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method(
-        &mut self,
-        path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
-        let func_id: FuncId = self.lookup(path.clone()).ok()?;
+    fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+        let path_resolution = self.resolve_path(path.clone()).ok()?;
+        let ModuleDefId::FunctionId(func_id) = path_resolution.module_def_id else { return None };
+
         let meta = self.interner.function_meta(&func_id);
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.span);
-        Some((method, constraint, false))
+        Some(TraitPathResolution {
+            method: TraitMethod { method_id: method, constraint, assumed: false },
+            error: path_resolution.error,
+        })
     }
 
     // This resolves a static trait method T::trait_method by iterating over the where clause
@@ -567,7 +574,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_method_by_named_generic(
         &mut self,
         path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
+    ) -> Option<TraitPathResolution> {
         if path.segments.len() != 2 {
             return None;
         }
@@ -581,7 +588,10 @@ impl<'context> Elaborator<'context> {
 
                 let the_trait = self.interner.get_trait(constraint.trait_id);
                 if let Some(method) = the_trait.find_method(path.last_name()) {
-                    return Some((method, constraint, true));
+                    return Some(TraitPathResolution {
+                        method: TraitMethod { method_id: method, constraint, assumed: true },
+                        error: None,
+                    });
                 }
             }
         }
@@ -595,7 +605,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_trait_generic_path(
         &mut self,
         path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
+    ) -> Option<TraitPathResolution> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))

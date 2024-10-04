@@ -7,8 +7,9 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
-    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
+    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
+    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
@@ -771,12 +772,56 @@ impl LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForBounds {
+    pub start: Expression,
+    pub end: Expression,
+    pub inclusive: bool,
+}
+
+impl ForBounds {
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// desugaring `start..=end` into `start..end+1` if necessary.
+    ///
+    /// Returns the `start` and `end` expressions.
+    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
+        let end = if self.inclusive {
+            let end_span = self.end.span;
+            let end = ExpressionKind::Infix(Box::new(InfixExpression {
+                lhs: self.end,
+                operator: Spanned::from(end_span, BinaryOpKind::Add),
+                rhs: Expression::new(ExpressionKind::integer(FieldElement::from(1u32)), end_span),
+            }));
+            Expression::new(end, end_span)
+        } else {
+            self.end
+        };
+
+        (self.start, end)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
-    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Range(ForBounds),
     Array(Expression),
 }
 
 impl ForRange {
+    /// Create a half-open range, bounded inclusively below and exclusively above.
+    pub fn range(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: false })
+    }
+
+    /// Create a range bounded inclusively below and above.
+    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: true })
+    }
+
+    /// Create a range over some array.
+    pub fn array(value: Expression) -> Self {
+        Self::Array(value)
+    }
+
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
@@ -879,7 +924,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::Range(start_range, end_range),
+                        range: ForRange::range(start_range, end_range),
                         block: new_block,
                         span: for_loop_span,
                     }),
@@ -1009,7 +1054,14 @@ impl Display for Pattern {
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let range = match &self.range {
-            ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::Range(bounds) => {
+                format!(
+                    "{}{}{}",
+                    bounds.start,
+                    if bounds.inclusive { "..=" } else { ".." },
+                    bounds.end
+                )
+            }
             ForRange::Array(expr) => expr.to_string(),
         };
 

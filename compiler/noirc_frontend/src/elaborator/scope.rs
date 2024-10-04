@@ -90,7 +90,13 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
-        let resolver = StandardPathResolver::new(module_id);
+        let self_type_module_id = if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+            Some(struct_type.borrow().id.module_id())
+        } else {
+            None
+        };
+
+        let resolver = StandardPathResolver::new(module_id, self_type_module_id);
 
         if !self.interner.lsp_mode {
             return resolver.resolve(
