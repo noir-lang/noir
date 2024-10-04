@@ -866,7 +866,14 @@ fn try_optimize_array_set_from_previous_get(
         },
         _ => return SimplifyResult::None,
     };
-
+        // At this point we have determined that the value we are writing in the `array_set` instruction
+        // comes from an `array_get` from the same index at which we want to write it at.
+        // It's possible that we're acting on the same array where other indices have been mutated in between
+        // the `array_get` and `array_set` (resulting in the `array_id` not matching).
+        //
+        // We then inspect the set of `array_set`s which which led to the current array the `array_set` is acting on.
+        // If we can work back to the array on which the `array_get` was reading from without having another `array_set`
+        // act on the same index then we can be sure that the new `array_set` can be removed without affecting the final result.
     let Some(target_index) = dfg.get_numeric_constant(target_index) else {
         return SimplifyResult::None;
     };
