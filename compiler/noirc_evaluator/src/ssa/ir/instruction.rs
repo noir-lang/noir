@@ -838,12 +838,13 @@ fn try_optimize_array_get_from_previous_set(
 /// For each array set:
 /// - If the index is non-constant we fail the optimization since any index may be changed.
 /// - If the index is constant and is our target index, we conservatively fail the optimization.
-/// - Otherwise, we check the array value of the array set. We will refer to this array as array'.
+/// - Otherwise, we check the array value of the `array_set``. We will refer to this array as array'.
 ///   In the case above, array' is `v1` from `v5 = array set ...`
-///   - If the original `array_set` value comes from an `array_get`, check that value against array'. If they are equal we can simplify.
+///   - If the original `array_set` value comes from an `array_get`, check the array in that `array_get` against array'. 
+///   - If the two values are equal we can simplify.
 ///     - Continuing the example above, as we have `v3 = array_get v1, index 1`, `v1` is
 ///       what we want to check against array'. We now know we can simplify `v7` to `v5` as it is unchanged.
-///   - If they are not equal, recur
+///   - If they are not equal, recur marking the current `array_set` array as the new array id to use in the checks
 fn try_optimize_array_set_from_previous_get(
     dfg: &DataFlowGraph,
     mut array_id: ValueId,
