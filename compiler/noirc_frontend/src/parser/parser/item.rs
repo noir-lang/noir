@@ -7,16 +7,18 @@ use super::{impls::Impl, parse_many::without_separator, Parser};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {
-        self.parse_items(
+        self.parse_module_items(
             false, // nested
         )
     }
 
-    pub(crate) fn parse_items(&mut self, nested: bool) -> Vec<Item> {
-        self.parse_many("items", without_separator(), |parser| parser.parse_item_in_list(nested))
+    pub(crate) fn parse_module_items(&mut self, nested: bool) -> Vec<Item> {
+        self.parse_many("items", without_separator(), |parser| {
+            parser.parse_module_item_in_list(nested)
+        })
     }
 
-    fn parse_item_in_list(&mut self, nested: bool) -> Option<Item> {
+    fn parse_module_item_in_list(&mut self, nested: bool) -> Option<Item> {
         loop {
             // We only break out of the loop on `}` if we are inside a `mod { ..`
             if nested && self.at(Token::RightBrace) {
@@ -29,22 +31,56 @@ impl<'a> Parser<'a> {
                 return None;
             }
 
-            if let Some(item) = self.parse_item() {
-                return Some(item);
-            }
-
-            // If we couldn't parse an item we check which token we got
-            match self.token.token() {
-                Token::RightBrace if nested => {
-                    return None;
+            let Some(item) = self.parse_item() else {
+                // If we couldn't parse an item we check which token we got
+                match self.token.token() {
+                    Token::RightBrace if nested => {
+                        return None;
+                    }
+                    Token::EOF => return None,
+                    _ => (),
                 }
-                Token::EOF => return None,
-                _ => (),
+
+                self.expected_label(ParsingRuleLabel::Item);
+                // We'll try parsing an item starting on the next token
+                self.next_token();
+                continue;
+            };
+
+            return Some(item);
+        }
+    }
+
+    /// Parses an item inside an impl or trait, with good recovery:
+    /// - If we run into EOF, we error that we expect a '}'
+    /// - If we can't parse an item and we don't end up in '}', error but try with the next token
+    pub(super) fn parse_item_in_list<T, F>(
+        &mut self,
+        label: ParsingRuleLabel,
+        mut f: F,
+    ) -> Option<T>
+    where
+        F: FnMut(&mut Parser<'a>) -> Option<T>,
+    {
+        loop {
+            if self.at_eof() {
+                self.expected_token(Token::RightBrace);
+                return None;
             }
 
-            self.expected_label(ParsingRuleLabel::Item);
-            // We'll try parsing an item starting on the next token
-            self.next_token();
+            let Some(item) = f(self) else {
+                if !self.at(Token::RightBrace) {
+                    self.expected_label(label.clone());
+
+                    // Try with the next token
+                    self.next_token();
+                    continue;
+                }
+
+                return None;
+            };
+
+            return Some(item);
         }
     }
 

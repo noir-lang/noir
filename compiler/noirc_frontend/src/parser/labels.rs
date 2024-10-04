@@ -59,7 +59,7 @@ impl fmt::Display for ParsingRuleLabel {
             ParsingRuleLabel::Type => write!(f, "type"),
             ParsingRuleLabel::TypeExpression => write!(f, "type expression"),
             ParsingRuleLabel::TypeOrTypeExpression => write!(f, "type or type expression"),
-            ParsingRuleLabel::TokenKind(token_kind) => write!(f, "{token_kind:?}"),
+            ParsingRuleLabel::TokenKind(token_kind) => write!(f, "{token_kind}"),
             ParsingRuleLabel::UseSegment => write!(f, "identifier, `crate`, `dep` or `super`"),
         }
     }

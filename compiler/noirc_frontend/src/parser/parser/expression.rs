@@ -1018,7 +1018,7 @@ mod tests {
             panic!("Expected a different error");
         };
         assert_eq!(token, &Token::Comma);
-        assert_eq!(items, "expressions");
+        assert_eq!(*items, "expressions");
     }
 
     #[test]
@@ -1082,7 +1082,7 @@ mod tests {
             panic!("Expected a different error");
         };
         assert_eq!(token, &Token::Comma);
-        assert_eq!(items, "expressions");
+        assert_eq!(*items, "expressions");
 
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -1276,7 +1276,7 @@ mod tests {
             panic!("Expected a different error");
         };
         assert_eq!(token, &Token::Comma);
-        assert_eq!(items, "arguments");
+        assert_eq!(*items, "arguments");
 
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");

@@ -162,7 +162,7 @@ mod tests {
             panic!("Expected a different error");
         };
         assert_eq!(token, &Token::Comma);
-        assert_eq!(items, "where clauses");
+        assert_eq!(*items, "where clauses");
 
         assert_eq!(constraints.len(), 2);
 

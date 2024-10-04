@@ -135,7 +135,7 @@ impl<'a> Parser<'a> {
     /// Module = InnerDocComments Item*
     pub(crate) fn parse_module(&mut self, nested: bool) -> ParsedModule {
         let inner_doc_comments = self.parse_inner_doc_comments();
-        let items = self.parse_items(nested);
+        let items = self.parse_module_items(nested);
 
         ParsedModule { items, inner_doc_comments }
     }
@@ -484,14 +484,8 @@ impl<'a> Parser<'a> {
         ));
     }
 
-    fn expected_token_separating_items(&mut self, token: Token, items: &str, span: Span) {
-        self.push_error(
-            ParserErrorReason::ExpectedTokenSeparatingTwoItems {
-                token: token,
-                items: items.to_string(),
-            },
-            span,
-        );
+    fn expected_token_separating_items(&mut self, token: Token, items: &'static str, span: Span) {
+        self.push_error(ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items }, span);
     }
 
     fn modifiers_not_followed_by_an_item(&mut self, modifiers: Modifiers) {

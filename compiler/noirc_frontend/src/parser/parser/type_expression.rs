@@ -609,7 +609,7 @@ mod tests {
             panic!("Expected a different error");
         };
         assert_eq!(token, &Token::Comma);
-        assert_eq!(items, "tuple items");
+        assert_eq!(*items, "tuple items");
 
         let UnresolvedTypeData::Tuple(types) = typ.typ else {
             panic!("Expected tuple type");

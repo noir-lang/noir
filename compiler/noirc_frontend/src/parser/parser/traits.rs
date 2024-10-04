@@ -55,28 +55,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_trait_item_in_list(&mut self) -> Option<Documented<TraitItem>> {
-        loop {
-            if self.at_eof() {
-                self.expected_token(Token::RightBrace);
-                return None;
-            }
-
-            let doc_comments = self.parse_outer_doc_comments();
-
-            let Some(item) = self.parse_trait_item() else {
-                if !self.at(Token::RightBrace) {
-                    self.expected_label(ParsingRuleLabel::TraitItem);
-
-                    // Try with the next token
-                    self.next_token();
-                    continue;
-                }
-
-                return None;
-            };
-
-            return Some(Documented::new(item, doc_comments));
-        }
+        self.parse_item_in_list(ParsingRuleLabel::TraitItem, |parser| {
+            let doc_comments = parser.parse_outer_doc_comments();
+            parser.parse_trait_item().map(|item| Documented::new(item, doc_comments))
+        })
     }
 
     /// TraitItem
