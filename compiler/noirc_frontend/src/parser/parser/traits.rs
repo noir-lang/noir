@@ -7,6 +7,7 @@ use crate::{
     token::{Attribute, Keyword, SecondaryAttribute, Token},
 };
 
+use super::parse_many::without_separator;
 use super::Parser;
 
 impl<'a> Parser<'a> {
@@ -41,37 +42,41 @@ impl<'a> Parser<'a> {
 
     /// TraitBody = '{' ( OuterDocComments TraitItem )* '}'
     fn parse_trait_body(&mut self) -> Vec<Documented<TraitItem>> {
-        let mut items = Vec::new();
-
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return items;
+            return Vec::new();
         }
 
-        loop {
-            if self.eat_right_brace() {
-                break;
-            }
+        self.parse_many(
+            "trait items",
+            without_separator().until(Token::RightBrace),
+            Self::parse_trait_item_in_list,
+        )
+    }
 
+    fn parse_trait_item_in_list(&mut self) -> Option<Documented<TraitItem>> {
+        loop {
             if self.at_eof() {
                 self.expected_token(Token::RightBrace);
-                break;
+                return None;
             }
 
             let doc_comments = self.parse_outer_doc_comments();
 
-            if let Some(item) = self.parse_trait_item() {
-                items.push(Documented::new(item, doc_comments));
-                continue;
-            }
+            let Some(item) = self.parse_trait_item() else {
+                if !self.at(Token::RightBrace) {
+                    self.expected_label(ParsingRuleLabel::TraitItem);
 
-            if self.token.token() != &Token::RightBrace {
-                self.expected_label(ParsingRuleLabel::TraitItem);
-                self.next_token();
-            }
+                    // Try with the next token
+                    self.next_token();
+                    continue;
+                }
+
+                return None;
+            };
+
+            return Some(Documented::new(item, doc_comments));
         }
-
-        items
     }
 
     /// TraitItem

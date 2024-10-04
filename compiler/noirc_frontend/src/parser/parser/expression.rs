@@ -12,7 +12,10 @@ use crate::{
 };
 
 use super::{
-    parse_many::{separated_by_comma_until_right_brace, separated_by_comma_until_right_paren},
+    parse_many::{
+        separated_by_comma_until_right_brace, separated_by_comma_until_right_paren,
+        without_separator,
+    },
     Parser,
 };
 
@@ -712,25 +715,24 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let mut statements: Vec<(Statement, (Option<Token>, Span))> = Vec::new();
-
-        loop {
-            if self.eat_right_brace() {
-                break;
-            }
-
-            let Some((statement, (token, span))) = self.parse_statement() else {
-                self.expected_label(ParsingRuleLabel::Statement);
-                self.eat_right_brace();
-                break;
-            };
-
-            statements.push((statement, (token, span)));
-        }
+        let statements = self.parse_many(
+            "statements",
+            without_separator().until(Token::RightBrace),
+            Self::parse_statement_in_block,
+        );
 
         let statements = self.check_statements_require_semicolon(statements);
 
         Some(BlockExpression { statements })
+    }
+
+    fn parse_statement_in_block(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
+        if let Some(statement) = self.parse_statement() {
+            Some(statement)
+        } else {
+            self.expected_label(ParsingRuleLabel::Statement);
+            None
+        }
     }
 
     fn check_statements_require_semicolon(

@@ -45,13 +45,19 @@ impl<'a> Parser<'a> {
                 break;
             };
 
-            if !trailing_separator && !elements.is_empty() {
-                self.expected_token_separating_items(separated_by.token.clone(), items, start_span);
+            if let Some(separator) = &separated_by.token {
+                if !trailing_separator && !elements.is_empty() {
+                    self.expected_token_separating_items(separator.clone(), items, start_span);
+                }
             }
 
             elements.push(element);
 
-            trailing_separator = self.eat(separated_by.token.clone());
+            trailing_separator = if let Some(separator) = &separated_by.token {
+                self.eat(separator.clone())
+            } else {
+                true
+            };
 
             if !trailing_separator && !separated_by.continue_if_separator_is_missing {
                 if let Some(end) = &separated_by.until {
@@ -66,7 +72,7 @@ impl<'a> Parser<'a> {
 }
 
 pub(super) struct SeparatedBy {
-    pub(super) token: Token,
+    pub(super) token: Option<Token>,
     pub(super) until: Option<Token>,
     pub(super) continue_if_separator_is_missing: bool,
 }
@@ -82,7 +88,7 @@ impl SeparatedBy {
 }
 
 pub(super) fn separated_by(token: Token) -> SeparatedBy {
-    SeparatedBy { token, until: None, continue_if_separator_is_missing: true }
+    SeparatedBy { token: Some(token), until: None, continue_if_separator_is_missing: true }
 }
 
 pub(super) fn separated_by_comma() -> SeparatedBy {
@@ -95,4 +101,8 @@ pub(super) fn separated_by_comma_until_right_paren() -> SeparatedBy {
 
 pub(super) fn separated_by_comma_until_right_brace() -> SeparatedBy {
     separated_by_comma().until(Token::RightBrace)
+}
+
+pub(super) fn without_separator() -> SeparatedBy {
+    SeparatedBy { token: None, until: None, continue_if_separator_is_missing: true }
 }

@@ -3,7 +3,7 @@ use crate::{
     token::{Keyword, Token},
 };
 
-use super::{impls::Impl, Parser};
+use super::{impls::Impl, parse_many::without_separator, Parser};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {
@@ -13,48 +13,39 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_items(&mut self, nested: bool) -> Vec<Item> {
-        let mut items = Vec::new();
+        self.parse_many("items", without_separator(), |parser| parser.parse_item_in_list(nested))
+    }
 
+    fn parse_item_in_list(&mut self, nested: bool) -> Option<Item> {
         loop {
             // We only break out of the loop on `}` if we are inside a `mod { ..`
             if nested && self.at(Token::RightBrace) {
-                break;
+                return None;
             }
 
             // We always break on EOF (we don't error because if we are inside `mod { ..`
             // the outer parsing logic will error instead)
             if self.at_eof() {
-                break;
+                return None;
             }
 
             if let Some(item) = self.parse_item() {
-                items.push(item);
-                continue;
+                return Some(item);
             }
 
             // If we couldn't parse an item we check which token we got
             match self.token.token() {
-                Token::RightBrace => {
-                    if nested {
-                        break;
-                    } else {
-                        self.expected_label(ParsingRuleLabel::Item);
-                        // We'll try parsing an item starting on the next token
-                        self.next_token();
-                    }
+                Token::RightBrace if nested => {
+                    return None;
                 }
-                Token::EOF => {
-                    break;
-                }
-                _ => {
-                    self.expected_label(ParsingRuleLabel::Item);
-                    // We'll try parsing an item starting on the next token
-                    self.next_token();
-                }
+                Token::EOF => return None,
+                _ => (),
             }
-        }
 
-        items
+            self.expected_label(ParsingRuleLabel::Item);
+            // We'll try parsing an item starting on the next token
+            self.next_token();
+        }
     }
 
     /// Item = OuterDocComments ItemKind

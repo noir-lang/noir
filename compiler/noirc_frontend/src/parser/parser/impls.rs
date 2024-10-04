@@ -10,7 +10,7 @@ use crate::{
     token::{Keyword, Token},
 };
 
-use super::Parser;
+use super::{parse_many::without_separator, Parser};
 
 pub(crate) enum Impl {
     Impl(TypeImpl),
@@ -66,21 +66,23 @@ impl<'a> Parser<'a> {
     ///
     /// TypeImplItem = OuterDocComments Attributes Modifiers Function
     fn parse_type_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Span)> {
-        let mut methods = Vec::new();
-
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return methods;
+            return Vec::new();
         }
 
-        loop {
-            if self.eat_right_brace() {
-                break;
-            }
+        self.parse_many(
+            "type impl methods",
+            without_separator().until(Token::RightBrace),
+            Self::parse_type_impl_method,
+        )
+    }
 
+    fn parse_type_impl_method(&mut self) -> Option<(Documented<NoirFunction>, Span)> {
+        loop {
             if self.at_eof() {
                 self.expected_token(Token::RightBrace);
-                break;
+                return None;
             }
 
             let doc_comments = self.parse_outer_doc_comments();
@@ -90,27 +92,29 @@ impl<'a> Parser<'a> {
                 false, // allow mutable
             );
 
-            if self.eat_keyword(Keyword::Fn) {
-                let method = self.parse_function(
-                    attributes,
-                    modifiers.visibility,
-                    modifiers.comptime.is_some(),
-                    modifiers.unconstrained.is_some(),
-                    true, // allow_self
-                );
-                methods.push((Documented::new(method, doc_comments), self.span_since(start_span)));
-                continue;
+            if !self.eat_keyword(Keyword::Fn) {
+                self.modifiers_not_followed_by_an_item(modifiers);
+
+                if !self.at(Token::RightBrace) {
+                    self.expected_token(Token::Keyword(Keyword::Fn));
+
+                    // Try with the next token
+                    self.next_token();
+                    continue;
+                }
+
+                return None;
             }
 
-            self.modifiers_not_followed_by_an_item(modifiers);
-
-            if self.token.token() != &Token::RightBrace {
-                self.expected_token(Token::Keyword(Keyword::Fn));
-                self.next_token();
-            }
+            let method = self.parse_function(
+                attributes,
+                modifiers.visibility,
+                modifiers.comptime.is_some(),
+                modifiers.unconstrained.is_some(),
+                true, // allow_self
+            );
+            return Some((Documented::new(method, doc_comments), self.span_since(start_span)));
         }
-
-        methods
     }
 
     /// TraitImpl = 'impl' Generics Path GenericTypeArgs 'for' Type TraitImplBody
@@ -136,35 +140,43 @@ impl<'a> Parser<'a> {
 
     /// TraitImplBody = '{' TraitImplItem* '}'
     fn parse_trait_impl_body(&mut self) -> Vec<Documented<TraitImplItem>> {
-        let mut items = Vec::new();
-
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return items;
+            return Vec::new();
         }
 
+        self.parse_many(
+            "trait impl item",
+            without_separator().until(Token::RightBrace),
+            Self::parse_trait_impl_item,
+        )
+    }
+
+    fn parse_trait_impl_item(&mut self) -> Option<Documented<TraitImplItem>> {
         loop {
+            if self.at_eof() {
+                self.expected_token(Token::RightBrace);
+                return None;
+            }
+
             let start_span = self.current_token_span;
             let doc_comments = self.parse_outer_doc_comments();
 
-            if let Some(kind) = self.parse_trait_impl_item_kind() {
-                let item = TraitImplItem { kind, span: self.span_since(start_span) };
-                items.push(Documented::new(item, doc_comments));
+            let Some(kind) = self.parse_trait_impl_item_kind() else {
+                if !self.at(Token::RightBrace) {
+                    self.expected_label(ParsingRuleLabel::TraitImplItem);
 
-                if self.eat_right_brace() {
-                    break;
+                    // Try with the next token
+                    self.next_token();
+                    continue;
                 }
-            } else if self.at_eof() || self.eat_right_brace() {
-                break;
-            } else {
-                self.expected_label(ParsingRuleLabel::TraitImplItem);
 
-                // Keep going
-                self.next_token();
-            }
+                return None;
+            };
+
+            let item = TraitImplItem { kind, span: self.span_since(start_span) };
+            return Some(Documented::new(item, doc_comments));
         }
-
-        items
     }
 
     /// TraitImplItem

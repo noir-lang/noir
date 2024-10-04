@@ -378,10 +378,6 @@ impl<'a> Parser<'a> {
         self.eat(Token::LeftBrace)
     }
 
-    fn eat_right_brace(&mut self) -> bool {
-        self.eat(Token::RightBrace)
-    }
-
     fn eat_left_bracket(&mut self) -> bool {
         self.eat(Token::LeftBracket)
     }
