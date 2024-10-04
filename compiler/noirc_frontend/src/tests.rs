@@ -1949,6 +1949,184 @@ fn numeric_generic_used_in_turbofish() {
     assert_no_errors(src);
 }
 
+// TODO this doesn't involve check_cast
+//
+// #[test]
+// fn numeric_generic_u16_array_size() {
+//     let src = r#"
+//     fn len<let N: u32>(_arr: [Field; N]) -> u32 {
+//         N
+//     }
+//
+//     pub fn foo<let N: u16>() -> u32 {
+//         let fields: [Field; N] = [0; N];
+//         len(fields)
+//     }
+//     "#;
+//     let errors = get_program_errors(src);
+//
+//     // TODO: cleanup
+//     dbg!(&errors);
+//     println!();
+//     println!();
+//     println!();
+//
+//     // TODO
+//     assert_eq!(errors.len(), 2);
+//     assert!(matches!(
+//         errors[0].0,
+//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+//     ));
+//     assert!(matches!(
+//         errors[1].0,
+//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+//     ));
+// }
+
+// TODO might want to hold off on this one because
+// it involves array size evaluation outside of array size usage
+//
+// // https://github.com/noir-lang/noir/issues/6125
+// #[test]
+// fn numeric_generic_field_larger_than_u32() {
+//     let src = r#"
+//         global A: Field = 4294967297;
+//         
+//         fn foo<let A: Field>() { }
+//         
+//         fn main() {
+//             let _ = foo::<A>();
+//         }
+//     "#;
+//     let errors = get_program_errors(src);
+//
+//     // TODO: cleanup
+//     dbg!(&errors);
+//     println!();
+//     println!();
+//     println!();
+//
+//     // TODO
+//     assert_eq!(errors.len(), 1);
+//     assert!(matches!(
+//         errors[0].0,
+//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+//     ));
+// }
+
+// https://github.com/noir-lang/noir/issues/6126
+#[test]
+fn numeric_generic_field_arithmetic_larger_than_u32() {
+    let src = r#"
+        struct Foo<let F: Field> {}
+
+        impl<let F: Field> Foo<F> {
+            fn size(self) -> Field {
+                F
+            }
+        }
+        
+        // 2^32 - 1
+        global A: Field = 4294967295;
+        
+        fn foo<let A: Field>() -> Foo<A + A> {
+            Foo {}
+        }
+        
+        fn main() {
+            let _ = foo::<A>().size();
+        }
+    "#;
+    let errors = get_program_errors(src);
+
+    // TODO: cleanup
+    dbg!(&errors);
+    println!();
+    println!();
+    println!();
+
+    // TODO
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
+    ));
+}
+
+// https://github.com/noir-lang/noir/issues/6219
+#[test]
+fn cast_256_to_u8_size_checks() {
+    let src = r#"
+        fn main() {
+            assert(256 as u8 == 0);
+        }
+    "#;
+    let errors = get_program_errors(src);
+
+    // TODO: cleanup
+    dbg!(&errors);
+    println!();
+    println!();
+    println!();
+
+    // TODO
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::InvalidCast { .. }),
+    ));
+}
+
+// TODO add negative integer literal checks
+//
+// // https://github.com/noir-lang/noir/issues/6219
+// #[test]
+// fn cast_negative_one_to_u8_size_checks() {
+//     let src = r#"
+//         fn main() {
+//             assert((-1) as u8 != 0);
+//         }
+//     "#;
+//     let errors = get_program_errors(src);
+//
+//     // TODO: cleanup
+//     dbg!(&errors);
+//     println!();
+//     println!();
+//     println!();
+//
+//     // TODO
+//     assert_eq!(errors.len(), 4);
+//     assert!(matches!(
+//         errors[0].0,
+//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+//     ));
+// }
+
+// https://github.com/noir-lang/noir/issues/6219
+#[test]
+fn cast_negative_one_infix_to_u8_size_checks() {
+    let src = r#"
+        fn main() {
+            assert((0 - 1) as u8 != 0);
+        }
+    "#;
+    let errors = get_program_errors(src);
+
+    // TODO: cleanup
+    dbg!(&errors);
+    println!();
+    println!();
+    println!();
+
+    // TODO
+    assert_eq!(errors.len(), 4);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
 #[test]
 fn constant_used_with_numeric_generic() {
     let src = r#"
@@ -3189,7 +3367,7 @@ fn trait_unconstrained_methods_typechecked_correctly() {
                 self
             }
 
-            unconstrained fn foo(self) -> u64;
+            unconstrained fn foo(self) -> Field;
         }
 
         impl Foo for u64 {

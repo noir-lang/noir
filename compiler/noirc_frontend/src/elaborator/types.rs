@@ -619,7 +619,16 @@ impl<'context> Elaborator<'context> {
 
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
-            Ok(Err(_cast_err)) => self.push_err(ResolverError::IntegerTooLarge { span }),
+
+            // TODO cleanup
+            // Ok(Err(_cast_err)) => {
+            Ok(Err(cast_err)) => {
+
+                // TODO cleanup
+                dbg!("eval_global_as_array_length (IntegerTooLarge):", self.interner.expression(&length), &cast_err);
+
+                self.push_err(ResolverError::IntegerTooLarge { span })
+            }
             Err(Some(error)) => self.push_err(error),
             Err(None) => (),
         }
@@ -823,12 +832,42 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
+    pub(super) fn check_cast(&mut self, from_expr_id: &ExprId, from: &Type, to: &Type, span: Span) -> Type {
         let from_follow_bindings = from.follow_bindings();
-        match from_follow_bindings {
-            Type::Integer(..) | Type::FieldElement | Type::Bool => (),
 
-            Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => (),
+        // TODO cleanup
+        dbg!(&from_follow_bindings, &to, &self.interner.expression(&from_expr_id));
+
+        // TODO: factor out size checks from type checks?
+        let from_value_opt = match self.interner.expression(&from_expr_id) {
+            HirExpression::Literal(HirLiteral::Integer(int, false)) => Some(int),
+
+            // TODO
+            other => {
+                dbg!("from_value_opt: other", other);
+                None
+            }
+        };
+
+        // TODO type
+        let (_from_value_size_opt, from_is_polymorphic): (Option<acvm::FieldElement>, bool) = match from_follow_bindings {
+            Type::Integer(..) | Type::FieldElement | Type::Bool => (None, false),
+
+            Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => {
+
+                // TODO cleanup/fix
+                match &*var.borrow() {
+                    TypeBinding::Bound(typ) => {
+                        dbg!("bound: {:?} ;;; {}", &typ, &typ);
+                    }
+                    TypeBinding::Unbound(_id, kind) => {
+                        dbg!("unbound: (kind) {:?} ;;; {}", &kind, &kind);
+                    }
+                }
+
+                // TODO None?
+                (None, true)
+            },
 
             Type::TypeVariable(_) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
@@ -837,32 +876,69 @@ impl<'context> Elaborator<'context> {
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
+                    reason: "casting from a non-integral type is unsupported".into(),
                 });
+                (None, false)
             }
             Type::Error => return Type::Error,
             from => {
-                self.push_err(TypeCheckError::InvalidCast { from, span });
+                let reason = "casting from this type is unsupported".into();
+                self.push_err(TypeCheckError::InvalidCast { from, span, reason });
                 return Type::Error;
             }
-        }
+        };
 
-        // TODO does this resolve https://github.com/noir-lang/noir/issues/6219 ?
+        // TODO cleanup
+        dbg!(&from_value_opt, &from_is_polymorphic);
+
+        // If we have the value itself, that's the size,
+        // otherwise use its type's maximum size
+        let from_size = from_value_opt.or(from_follow_bindings.integral_maximum_size());
+
         // TODO also check minimum size when 'from' is negative 
         // (casting to a smaller value?)
-        match (from_follow_bindings.integral_maximum_size(), to.integral_maximum_size()) {
-            (_, None) => (),
-            (None, Some(_)) => {
-                let from = from.clone();
-                self.push_err(TypeCheckError::InvalidCast { from, span });
-                return Type::Error;
+        // TODO get is_polymorphic out of match?
+        match (from_is_polymorphic, from_size, to.integral_maximum_size()) {
+            // allow casting from unsized polymorphic variables
+            (true, None, _) => (),
+
+            // allow casting from sized to unsized types
+            (_, Some(_), None) => (),
+
+            // disallow casting specific unsized types to sized types
+            (false, None, Some(_)) => {
+                // TODO: lots of usage of this in the stdlib, e.g. (some_field_element as u64)
+                //
+                // let from = from.clone();
+                // let reason = "casting from a max-size type to one with a smaller type is unsupported".into();
+                // self.push_err(TypeCheckError::InvalidCast { from, span, reason });
+                // return Type::Error;
+                ()
             }
-            (Some(from_maximum_size), Some(to_maximum_size)) => {
+
+            // if both types are specific, check their sizes
+            (_, Some(from_maximum_size), Some(to_maximum_size)) => {
                 if from_maximum_size > to_maximum_size {
-                    let from = from.clone();
-                    self.push_err(TypeCheckError::InvalidCast { from, span });
-                    return Type::Error;
+                    // TODO: lots of usage of this in the stdlib
+                    // e.g.
+                    // let high = if crate::field::modulus_num_bits() as u32 > 196 {
+                    //               --------------------------------------- casting from size 18446744073709551615 to a smaller size (4294967295) is unsupported
+                    //
+                    // let from = from.clone();
+                    // let reason = format!("casting from size {} to a smaller size ({}) is unsupported", from_maximum_size, to_maximum_size);
+                    // self.push_err(TypeCheckError::InvalidCast { from, span, reason });
+                    // return Type::Error;
+                    ()
                 }
             }
+
+            // allow casting from non-polymorphic unsized types
+            (false, None, None) => (),
+        }
+
+        // TODO cleanup
+        if matches!(to, Type::Integer(..) | Type::FieldElement | Type::Bool) {
+            dbg!("check_cast appears successful");
         }
 
         match to {
@@ -870,7 +946,13 @@ impl<'context> Elaborator<'context> {
             Type::FieldElement => Type::FieldElement,
             Type::Bool => Type::Bool,
             Type::Error => Type::Error,
-            _ => {
+
+            // TODO cleanup
+            // _ => {
+            other => {
+                // TODO cleanup
+                dbg!("check_cast failed type check", other);
+
                 self.push_err(TypeCheckError::UnsupportedCast { span });
                 Type::Error
             }
@@ -1845,6 +1927,9 @@ fn try_eval_array_length_id_with_fuel(
 
     match interner.expression(&rhs) {
         HirExpression::Literal(HirLiteral::Integer(int, false)) => {
+            // TODO cleanup
+            dbg!("try_eval_array_length_id_with_fuel: try_into_u128", int, int.try_into_u128());
+
             int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
         }
         HirExpression::Ident(ident, _) => {
@@ -1894,6 +1979,9 @@ fn try_eval_array_length_id_with_fuel(
             let evaluated_value =
                 Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
                     .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+            // TODO cleanup
+            dbg!("try_eval_array_length_id_with_fuel: Cast", &evaluated_value);
 
             evaluated_value
                 .to_u128()

@@ -2212,11 +2212,19 @@ impl Type {
                 def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            TypeVariable(var) | NamedGeneric(var, _) => {
-                if let TypeBinding::Bound(typ) = &*var.borrow() {
-                    return typ.follow_bindings();
-                }
-                self.clone()
+            TypeVariable(var) => {
+                let (id, kind) = match &*var.borrow() {
+                    TypeBinding::Bound(typ) => return typ.follow_bindings(),
+                    TypeBinding::Unbound(id, kind) => (*id, kind.follow_bindings()),
+                };
+                TypeVariable(crate::TypeVariable::unbound(id, kind))
+            }
+            NamedGeneric(var, name) => {
+                let (id, kind) = match &*var.borrow() {
+                    TypeBinding::Bound(typ) => return typ.follow_bindings(),
+                    TypeBinding::Unbound(id, kind) => (*id, kind.follow_bindings()),
+                };
+                NamedGeneric(crate::TypeVariable::unbound(id, kind), name.clone())
             }
 
             Function(args, ret, env, unconstrained) => {

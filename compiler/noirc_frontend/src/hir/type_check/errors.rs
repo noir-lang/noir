@@ -53,7 +53,7 @@ pub enum TypeCheckError {
     #[error("Return type in a function cannot be public")]
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
-    InvalidCast { from: Type, span: Span },
+    InvalidCast { from: Type, span: Span, reason: String },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]
@@ -284,8 +284,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 };
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
-            TypeCheckError::InvalidCast { span, .. }
-            | TypeCheckError::ExpectedFunction { span, .. }
+            TypeCheckError::InvalidCast { span, reason, .. } => {
+                Diagnostic::simple_error(error.to_string(), reason.clone(), *span)
+            }
+
+            TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
