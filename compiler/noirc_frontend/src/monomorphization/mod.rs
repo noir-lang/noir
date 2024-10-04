@@ -944,7 +944,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let typ = Self::convert_type(&typ, ident.location)?;
                 ast::Expression::Literal(ast::Literal::Integer(
-                    (value as u128).into(),
+                    value,
                     false,
                     typ,
                     location,

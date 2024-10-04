@@ -824,10 +824,11 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
-        match from.follow_bindings() {
+        let from_follow_bindings = from.follow_bindings();
+        match from_follow_bindings {
             Type::Integer(..) | Type::FieldElement | Type::Bool => (),
 
-            Type::TypeVariable(var) if var.is_integer() || var.is_integer_or_field() => (),
+            Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => (),
 
             Type::TypeVariable(_) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
@@ -842,6 +843,25 @@ impl<'context> Elaborator<'context> {
             from => {
                 self.push_err(TypeCheckError::InvalidCast { from, span });
                 return Type::Error;
+            }
+        }
+
+        // TODO does this resolve https://github.com/noir-lang/noir/issues/6219 ?
+        // TODO also check minimum size when 'from' is negative 
+        // (casting to a smaller value?)
+        match (from_follow_bindings.integral_maximum_size(), to.integral_maximum_size()) {
+            (_, None) => (),
+            (None, Some(_)) => {
+                let from = from.clone();
+                self.push_err(TypeCheckError::InvalidCast { from, span });
+                return Type::Error;
+            }
+            (Some(from_maximum_size), Some(to_maximum_size)) => {
+                if from_maximum_size > to_maximum_size {
+                    let from = from.clone();
+                    self.push_err(TypeCheckError::InvalidCast { from, span });
+                    return Type::Error;
+                }
             }
         }
 

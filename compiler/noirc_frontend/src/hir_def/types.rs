@@ -238,6 +238,21 @@ impl Kind {
             Self::Numeric(typ) => typ.integral_maximum_size(),
         }
     }
+
+    /// Ensure the given value fits in self.integral_maximum_size()
+    pub(crate) fn ensure_value_fits<T: Clone + Into<FieldElement>>(&self, value: T) -> Option<T> {
+        match self.integral_maximum_size() {
+            None => Some(value),
+            Some(maximum_size) => {
+                // TODO possible to avoid clone, e.g. get by ref and return a bool?
+                if value.clone().into() <= maximum_size {
+                    Some(value)
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for Kind {
@@ -2329,7 +2344,7 @@ impl Type {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<FieldElement> {
+    pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
         match self {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
@@ -2347,23 +2362,15 @@ impl Type {
                         Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => None,
                         Kind::Numeric(typ) => typ.integral_maximum_size(),
                     },
-                    TypeBinding::Bound(binding) => typ.integral_maximum_size(),
+                    TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 }
             }
             Type::Alias(alias, _args) => alias.borrow().typ.integral_maximum_size(),
-            Type::NamedGeneric(binding, _name, kind) => {
-                let binding_maximum_size = match &*binding.borrow() {
+            Type::NamedGeneric(binding, _name) => {
+                match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.integral_maximum_size(),
-                    TypeBinding::Unbound(_) => None,
-                };
-                let kind_maximum_size = kind.integral_maximum_size();
-                assert!(
-                    binding_maximum_size.is_none() || kind_maximum_size.is_none() || binding_maximum_size == kind_maximum_size,
-                    "NamedGeneric binding has incompatible maximum size ({:?}) with its kind ({:?})",
-                    binding_maximum_size,
-                    kind_maximum_size
-                );
-                binding_maximum_size.or(kind_maximum_size)
+                    TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
+                }
             },
             Type::MutableReference(typ) => typ.integral_maximum_size(),
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs).integral_maximum_size(),

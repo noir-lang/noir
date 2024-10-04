@@ -2028,13 +2028,13 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
 #[test]
 fn numeric_generics_type_kind_mismatch() {
     let src = r#"
-    fn foo<let N: u32>() -> u16 {
-        N as u16
+    fn foo<let N: u32>() -> u64 {
+        N as u64
     }
 
     global J: u16 = 10;
 
-    fn bar<let N: u16>() -> u16 {
+    fn bar<let N: u16>() -> u64 {
         foo::<J>()
     }
 
@@ -2991,6 +2991,7 @@ fn impl_missing_associated_type() {
     ));
 }
 
+// TODO currently failing because "1" is implicitly a Field and is casted to an i32
 #[test]
 fn as_trait_path_syntax_resolves_outside_impl() {
     let src = r#"
@@ -3191,14 +3192,14 @@ fn trait_unconstrained_methods_typechecked_correctly() {
             unconstrained fn foo(self) -> u64;
         }
 
-        impl Foo for Field {
-            unconstrained fn foo(self) -> u64 {
-                self as u64
+        impl Foo for u64 {
+            unconstrained fn foo(self) -> Field {
+                self as Field
             }
         }
 
         unconstrained fn main() {
-            assert_eq(2.foo() as Field, 2.identity());
+            assert_eq(2.foo(), 2.identity() as Field);
         }
     "#;
 

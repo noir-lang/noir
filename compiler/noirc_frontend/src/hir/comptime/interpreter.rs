@@ -36,7 +36,7 @@ use crate::{
         types::Kind,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
-    Kind, Shared, Type, TypeBinding, TypeBindings,
+    Shared, Type, TypeBinding, TypeBindings,
 };
 
 use super::errors::{IResult, InterpreterError};
