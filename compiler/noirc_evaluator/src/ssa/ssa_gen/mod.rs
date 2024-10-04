@@ -195,12 +195,23 @@ impl<'a> FunctionContext<'a> {
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
         match literal {
             ast::Literal::Array(array) => {
+                // dbg!(array.contents.clone());
                 let elements =
                     try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
+                dbg!(typ.clone());
+                dbg!(elements.len());
+                let flat_size = elements.clone().into_iter().flat_map(|value| value.flatten()).collect::<Vec<_>>();
+                dbg!(flat_size.len());
+                for elem in elements.clone() {
+                    dbg!(elem.count_leaves());
+                }
+                dbg!(typ[0].element_size());
+                dbg!(typ[0].flattened_size());
                 Ok(match array.typ {
                     ast::Type::Array(_, _) => {
+                        // if typ[0].
                         self.codegen_array_checked(elements, typ[0].clone())?
                     }
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
@@ -288,10 +299,27 @@ impl<'a> FunctionContext<'a> {
                 // effect in ACIR code.
                 self.builder.increment_array_reference_count(element);
                 array.push_back(element);
+                // array.extend(self.codegen_array_helper(element));
             });
         }
 
         self.builder.array_constant(array, typ).into()
+    }
+
+    fn codegen_array_helper(&mut self, element: ValueId) -> im::Vector<ValueId> {
+        // for element in elements {
+
+        // }
+        let mut flat_elements = im::Vector::new();
+        if let Some((array, _)) = self.builder.current_function.dfg.get_array_constant(element) {
+            for value in array {
+                flat_elements.extend(self.codegen_array_helper(value))
+            }
+        } else {
+            flat_elements.push_back(element);
+        }
+
+        flat_elements
     }
 
     fn codegen_block(&mut self, block: &[Expression]) -> Result<Values, RuntimeError> {
