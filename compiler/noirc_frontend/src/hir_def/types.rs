@@ -1879,14 +1879,20 @@ impl Type {
 
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
-    pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
+    pub fn get_field_type_and_visibility(
+        &self,
+        field_name: &str,
+    ) -> Option<(Type, ItemVisibility)> {
         match self.follow_bindings() {
-            Type::Struct(def, args) => {
-                def.borrow().get_field(field_name, &args).map(|(typ, _, _)| typ)
-            }
+            Type::Struct(def, args) => def
+                .borrow()
+                .get_field(field_name, &args)
+                .map(|(typ, visibility, _)| (typ, visibility)),
             Type::Tuple(fields) => {
                 let mut fields = fields.into_iter().enumerate();
-                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ)
+                fields
+                    .find(|(i, _)| i.to_string() == *field_name)
+                    .map(|(_, typ)| (typ, ItemVisibility::Public))
             }
             _ => None,
         }

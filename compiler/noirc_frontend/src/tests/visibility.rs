@@ -222,3 +222,34 @@ fn error_when_using_private_struct_field_in_constructor() {
 
     assert_eq!(ident.to_string(), "x");
 }
+
+#[test]
+fn error_when_using_private_struct_field_in_struct_pattern() {
+    let src = r#"
+    mod moo {
+        pub struct Foo {
+            x: Field
+        }
+    }
+
+    fn foo(foo: moo::Foo) -> Field {
+        let moo::Foo { x } = foo;
+        x
+    }
+
+    fn main() {
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "x");
+}
