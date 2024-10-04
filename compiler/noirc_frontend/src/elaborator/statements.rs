@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use noirc_errors::{Location, Span, Spanned};
 
 use crate::{
@@ -8,12 +6,9 @@ use crate::{
         ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, ItemVisibility, LValue,
         LetStatement, Path, Statement, StatementKind,
     },
-    graph::CrateId,
     hir::{
-        def_map::{CrateDefMap, ModuleId},
         resolution::{
-            errors::ResolverError,
-            import::{module_descendent_of_target, PathResolutionError},
+            errors::ResolverError, import::PathResolutionError, visibility::struct_field_is_visible,
         },
         type_check::{Source, TypeCheckError},
     },
@@ -532,36 +527,5 @@ impl<'context> Elaborator<'context> {
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
 
         (HirStatement::Expression(expr), typ)
-    }
-}
-
-fn struct_field_is_visible(
-    struct_type: &StructType,
-    visibility: ItemVisibility,
-    current_module_id: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> bool {
-    match visibility {
-        ItemVisibility::Public => true,
-        ItemVisibility::PublicCrate => {
-            struct_type.id.parent_module_id(def_maps).krate == current_module_id.krate
-        }
-        ItemVisibility::Private => {
-            let struct_parent_module_id = struct_type.id.parent_module_id(def_maps);
-            if struct_parent_module_id.krate != current_module_id.krate {
-                return false;
-            }
-
-            if struct_parent_module_id.local_id == current_module_id.local_id {
-                return true;
-            }
-
-            let def_map = &def_maps[&current_module_id.krate];
-            module_descendent_of_target(
-                def_map,
-                struct_parent_module_id.local_id,
-                current_module_id.local_id,
-            )
-        }
     }
 }
