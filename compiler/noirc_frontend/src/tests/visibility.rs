@@ -253,3 +253,19 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
 
     assert_eq!(ident.to_string(), "x");
 }
+
+#[test]
+fn does_not_error_if_referring_to_top_level_private_module_via_crate() {
+    let src = r#"
+    mod foo {
+        pub fn bar() {}
+    }
+
+    use crate::foo::bar;
+
+    fn main() {
+        bar()
+    }
+    "#;
+    assert_no_errors(src);
+}
