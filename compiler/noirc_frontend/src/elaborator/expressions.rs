@@ -625,7 +625,7 @@ impl<'context> Elaborator<'context> {
                 let field_name = &field_name.0.contents;
                 self.check_struct_field_visibility(
                     &struct_type,
-                    &field_name,
+                    field_name,
                     *visibility,
                     field_span,
                 );
