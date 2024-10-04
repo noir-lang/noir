@@ -558,7 +558,7 @@ fn struct_def_set_fields(
                 match name_tokens.first() {
                     Some(Token::Ident(name)) if name_tokens.len() == 1 => {
                         Ok(hir_def::types::StructField {
-                            visibility: ItemVisibility::Private,
+                            visibility: ItemVisibility::Public,
                             name: Ident::new(name.clone(), field_location.span),
                             typ,
                         })
