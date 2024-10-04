@@ -450,7 +450,7 @@ impl<'context> Elaborator<'context> {
                     let reference_location = Location::new(span, self.file);
                     self.interner.add_struct_member_reference(s.id, index, reference_location);
 
-                    self.check_struct_field_visibiilty(&s, field_name, visibility, span);
+                    self.check_struct_field_visibility(&s, field_name, visibility, span);
 
                     return Some((field, index));
                 }
@@ -506,7 +506,7 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    pub(super) fn check_struct_field_visibiilty(
+    pub(super) fn check_struct_field_visibility(
         &mut self,
         struct_type: &StructType,
         field_name: &str,

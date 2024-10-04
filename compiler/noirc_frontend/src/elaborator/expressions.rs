@@ -623,7 +623,7 @@ impl<'context> Elaborator<'context> {
                 let struct_type = struct_type.borrow();
                 let field_span = field_name.span();
                 let field_name = &field_name.0.contents;
-                self.check_struct_field_visibiilty(
+                self.check_struct_field_visibility(
                     &struct_type,
                     &field_name,
                     *visibility,
