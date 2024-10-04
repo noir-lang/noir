@@ -214,10 +214,10 @@ pub mod curvegroup {
     }
     // Point in extended twisted Edwards coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        t: Field,
-        z: Field
+        pub x: Field,
+        pub y: Field,
+        pub t: Field,
+        pub z: Field
     }
 
     impl Point {

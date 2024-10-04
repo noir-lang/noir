@@ -19,9 +19,9 @@ pub mod affine {
     }
     // Point in Cartesian coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        infty: bool // Indicator for point at infinity
+        pub x: Field,
+        pub y: Field,
+        pub infty: bool // Indicator for point at infinity
     }
 
     impl Point {
@@ -203,9 +203,9 @@ pub mod curvegroup {
     }
     // Point in three-dimensional Jacobian coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        z: Field // z = 0 corresponds to point at infinity.
+        pub x: Field,
+        pub y: Field,
+        pub z: Field // z = 0 corresponds to point at infinity.
     }
 
     impl Point {
