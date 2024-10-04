@@ -123,12 +123,13 @@ impl FunctionBuilder {
             Type::Array(typ, len) => {
                 databus.map.insert(value, databus.index);
                 for i in 0..len {
-                    for subitem_typ in typ.iter() {
+                    for (subitem_index, subitem_typ) in typ.iter().enumerate() {
+                        let index = i * typ.len() + subitem_index;
                         // load each element of the array
                         let index = self
                             .current_function
                             .dfg
-                            .make_constant(FieldElement::from(i as i128), Type::length_type());
+                            .make_constant(FieldElement::from(index as i128), Type::length_type());
                         let element = self.insert_array_get(value, index, subitem_typ.clone());
                         self.add_to_data_bus(element, databus);
                     }

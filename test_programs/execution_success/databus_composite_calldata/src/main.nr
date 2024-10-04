@@ -3,9 +3,9 @@ struct Foo {
     y: u32,
 }
 
-fn main(foos: call_data(0) [Foo; 2]) -> return_data u32 {
-    assert_eq(foos[0].x + 1, foos[1].x);
-    assert_eq(foos[0].y + 2, foos[1].y);
-    foos[0].x + foos[0].y
+fn main(foos: call_data(0) [Foo; 2], zero: u32, one: u32) -> return_data u32 {
+    assert_eq(foos[zero].x + 1, foos[one].x);
+    assert_eq(foos[zero].y + 2, foos[one].y);
+    foos[zero].x + foos[one].y
 }
 
