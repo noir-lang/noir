@@ -1,7 +1,7 @@
 #[attr_with_args(1, 2)]
 #[varargs(1, 2)]
 #[varargs(1, 2, 3, 4)]
-struct Foo {}
+pub struct Foo {}
 
 comptime fn attr_with_args(s: StructDefinition, a: Field, b: Field) {
     // Ensure all variables are in scope.

@@ -97,7 +97,7 @@ fn mul_add<let N: u32, let M: u32, let P: u32>() -> Equiv<W<N * (M + P)>, (), W<
 }
 
 // (N + 1) * N == N * N + N
-fn demo_proof<let N: u32>() -> Equiv<W<(N * (N + 1))>, (Equiv<W<N>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>), W<N>, (Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>, Equiv<W<N>, (), W<N>, ()>)> {
+pub fn demo_proof<let N: u32>() -> Equiv<W<(N * (N + 1))>, (Equiv<W<N>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>), W<N>, (Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>, Equiv<W<N>, (), W<N>, ()>)> {
     let p1: Equiv<W<(N + 1) * N>, (), W<N * (N + 1)>, ()> = mul_comm();
     let p2: Equiv<W<N * (N + 1)>, (), W<N * N + N>, ()> = mul_add::<N, N, 1>();
     let p3_sub: Equiv<W<N>, (), W<N>, ()> = mul_one_r();
