@@ -18,9 +18,6 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
 
         let kind = self.parse_path_kind();
-        if kind != PathKind::Plain {
-            self.eat_or_error(Token::DoubleColon);
-        }
 
         let use_tree = self.parse_use_tree_without_kind(
             start_span, kind, false, // nested

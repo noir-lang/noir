@@ -68,9 +68,6 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
 
         let kind = self.parse_path_kind();
-        if kind != PathKind::Plain {
-            self.eat_or_error(Token::DoubleColon);
-        }
 
         let path = self.parse_optional_path_after_kind(
             kind,
@@ -179,7 +176,7 @@ impl<'a> Parser<'a> {
     ///     | 'super' '::'
     ///     | nothing
     pub(super) fn parse_path_kind(&mut self) -> PathKind {
-        if self.eat_keyword(Keyword::Crate) {
+        let kind = if self.eat_keyword(Keyword::Crate) {
             PathKind::Crate
         } else if self.eat_keyword(Keyword::Dep) {
             PathKind::Dep
@@ -187,7 +184,11 @@ impl<'a> Parser<'a> {
             PathKind::Super
         } else {
             PathKind::Plain
+        };
+        if kind != PathKind::Plain {
+            self.eat_or_error(Token::DoubleColon);
         }
+        kind
     }
 
     /// AsTraitPath = '<' Type 'as' PathNoTurbofish GenericTypeArgs '>' '::' identifier
