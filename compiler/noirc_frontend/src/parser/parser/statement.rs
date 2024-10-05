@@ -75,6 +75,8 @@ impl<'a> Parser<'a> {
     ///
     /// ReturnStatement = 'return' Expression?
     ///
+    /// IfStatement = IfExpression
+    ///
     /// BlockStatement = Block
     ///
     /// AssignStatement = Expression '=' Expression
@@ -258,16 +260,16 @@ impl<'a> Parser<'a> {
     }
 
     /// ForRange
-    ///     = Expression
-    ///     | Expression '..' Expression
+    ///     = ExpressionExceptConstructor
+    ///     | ExpressionExceptConstructor '..' ExpressionExceptConstructor
     fn parse_for_range(&mut self) -> ForRange {
-        let expr = self.parse_expression_no_constructors_or_error();
+        let expr = self.parse_expression_except_constructor_or_error();
 
         if self.eat(Token::DoubleDot) {
-            let end = self.parse_expression_no_constructors_or_error();
+            let end = self.parse_expression_except_constructor_or_error();
             ForRange::Range(ForBounds { start: expr, end, inclusive: false })
         } else if self.eat(Token::DoubleDotEqual) {
-            let end = self.parse_expression_no_constructors_or_error();
+            let end = self.parse_expression_except_constructor_or_error();
             ForRange::Range(ForBounds { start: expr, end, inclusive: true })
         } else {
             ForRange::Array(expr)

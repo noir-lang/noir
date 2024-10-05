@@ -31,7 +31,10 @@ impl<'a> Parser<'a> {
 
     /// When parsing `if` conditions we don't allow constructors.
     /// For example `if foo { 1 }` shouldn't have `foo { 1 }` as the condition, but `foo` instead.
-    pub(crate) fn parse_expression_no_constructors_or_error(&mut self) -> Expression {
+    /// The same goes with `for`: `for x in foo { 1 }` should have `foo` as the collection, not `foo { 1 }`.
+    ///
+    /// ExpressionExceptConstructor = "Expression except ConstructorException"
+    pub(crate) fn parse_expression_except_constructor_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(false) // allow constructors
     }
 
@@ -430,13 +433,13 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// IfExpression = 'if' Expression Block ( 'else' ( Block | IfExpression ) )?
+    /// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::If) {
             return None;
         }
 
-        let condition = self.parse_expression_no_constructors_or_error();
+        let condition = self.parse_expression_except_constructor_or_error();
 
         let start_span = self.current_token_span;
         let Some(consequence) = self.parse_block() else {
