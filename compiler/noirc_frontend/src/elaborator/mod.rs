@@ -1125,7 +1125,7 @@ impl<'context> Elaborator<'context> {
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
-                if module.declare_function(name, ItemVisibility::Public, *method_id).is_err() {
+                if module.declare_function(name, method.def.visibility, *method_id).is_err() {
                     let existing = module.find_func_with_name(method.name_ident()).expect(
                         "declare_function should only error if there is an existing function",
                     );
@@ -1385,7 +1385,7 @@ impl<'context> Elaborator<'context> {
         }
 
         if let Some(name) = name {
-            self.interner.register_global(global_id, name, self.module_id());
+            self.interner.register_global(global_id, name, global.visibility, self.module_id());
         }
 
         self.local_module = old_module;

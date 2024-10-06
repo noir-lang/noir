@@ -59,7 +59,7 @@ impl ControlFlowGraph {
 
     /// Clears out a given block's successors. This also removes the given block from
     /// being a predecessor of any of its previous successors.
-    fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {
+    pub(crate) fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {
         let node = self
             .data
             .get_mut(&basic_block_id)

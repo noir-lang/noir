@@ -86,6 +86,11 @@ impl<'a> Lexer<'a> {
         self.peek_char() == Some(ch)
     }
 
+    /// Peeks at the character two positions ahead and returns true if it is equal to the char argument
+    fn peek2_char_is(&mut self, ch: char) -> bool {
+        self.peek2_char() == Some(ch)
+    }
+
     fn ampersand(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('&') {
             // When we issue this error the first '&' will already be consumed
@@ -152,6 +157,7 @@ impl<'a> Lexer<'a> {
         Ok(token.into_single_span(self.position))
     }
 
+    /// If `single` is followed by `character` then extend it as `double`.
     fn single_double_peek_token(
         &mut self,
         character: char,
@@ -169,13 +175,23 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Given that some tokens can contain two characters, such as <= , !=, >=
-    /// Glue will take the first character of the token and check if it can be glued onto the next character
-    /// forming a double token
+    /// Given that some tokens can contain two characters, such as <= , !=, >=, or even three like ..=
+    /// Glue will take the first character of the token and check if it can be glued onto the next character(s)
+    /// forming a double or triple token
+    ///
+    /// Returns an error if called with a token which cannot be extended with anything.
     fn glue(&mut self, prev_token: Token) -> SpannedTokenResult {
-        let spanned_prev_token = prev_token.clone().into_single_span(self.position);
         match prev_token {
-            Token::Dot => self.single_double_peek_token('.', prev_token, Token::DoubleDot),
+            Token::Dot => {
+                if self.peek_char_is('.') && self.peek2_char_is('=') {
+                    let start = self.position;
+                    self.next_char();
+                    self.next_char();
+                    Ok(Token::DoubleDotEqual.into_span(start, start + 2))
+                } else {
+                    self.single_double_peek_token('.', prev_token, Token::DoubleDot)
+                }
+            }
             Token::Less => {
                 let start = self.position;
                 if self.peek_char_is('=') {
@@ -214,7 +230,7 @@ impl<'a> Lexer<'a> {
                     return self.parse_block_comment(start);
                 }
 
-                Ok(spanned_prev_token)
+                Ok(prev_token.into_single_span(start))
             }
             _ => Err(LexerErrorKind::NotADoubleChar {
                 span: Span::single_char(self.position),
@@ -703,8 +719,8 @@ mod tests {
     use crate::token::{CustomAttribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
-    fn test_single_double_char() {
-        let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
+    fn test_single_multi_char() {
+        let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. ..= % / * = == << >>";
 
         let expected = vec![
             Token::Bang,
@@ -730,6 +746,7 @@ mod tests {
             Token::Arrow,
             Token::Dot,
             Token::DoubleDot,
+            Token::DoubleDotEqual,
             Token::Percent,
             Token::Slash,
             Token::Star,

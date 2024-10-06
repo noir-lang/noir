@@ -102,7 +102,8 @@ impl CrateDefMap {
             location,
             Vec::new(),
             ast.inner_attributes.clone(),
-            false,
+            false, // is contract
+            false, // is struct
         ));
 
         let def_map = CrateDefMap {

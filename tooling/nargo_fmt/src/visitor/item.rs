@@ -276,6 +276,7 @@ impl super::FmtVisitor<'_> {
                     self.push_rewrite(use_tree, span);
                     self.last_position = span.end();
                 }
+
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
                 | ItemKind::TypeAlias(_)
