@@ -5,6 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::ReferenceId;
 use crate::usage_tracker::UsageTracker;
+
 use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
@@ -16,6 +17,7 @@ use super::errors::ResolverError;
 pub struct ImportDirective {
     pub visibility: ItemVisibility,
     pub module_id: LocalModuleId,
+    pub self_type_module_id: Option<ModuleId>,
     pub path: Path,
     pub alias: Option<Ident>,
     pub is_prelude: bool,
@@ -92,18 +94,15 @@ pub fn resolve_import(
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
-    let NamespaceResolution {
-        module_id: resolved_module,
-        namespace: resolved_namespace,
-        mut error,
-    } = resolve_path_to_ns(
-        import_directive,
-        crate_id,
-        crate_id,
-        def_maps,
-        usage_tracker,
-        path_references,
-    )?;
+    let NamespaceResolution { module_id: resolved_module, namespace: resolved_namespace, error } =
+        resolve_path_to_ns(
+            import_directive,
+            crate_id,
+            crate_id,
+            def_maps,
+            usage_tracker,
+            path_references,
+        )?;
 
     let name = resolve_path_name(import_directive);
 
@@ -113,14 +112,16 @@ pub fn resolve_import(
         .map(|(_, visibility, _)| visibility)
         .expect("Found empty namespace");
 
-    error = error.or_else(|| {
-        if can_reference_module_id(
-            def_maps,
-            crate_id,
-            import_directive.module_id,
-            resolved_module,
-            visibility,
-        ) {
+    let error = error.or_else(|| {
+        if import_directive.self_type_module_id == Some(resolved_module)
+            || can_reference_module_id(
+                def_maps,
+                crate_id,
+                import_directive.module_id,
+                resolved_module,
+                visibility,
+            )
+        {
             None
         } else {
             Some(PathResolutionError::Private(name.clone()))
@@ -408,6 +409,7 @@ fn resolve_external_dep(
     let dep_directive = ImportDirective {
         visibility: ItemVisibility::Private,
         module_id: dep_module.local_id,
+        self_type_module_id: directive.self_type_module_id,
         path,
         alias: directive.alias.clone(),
         is_prelude: false,
@@ -442,11 +444,15 @@ pub fn can_reference_module_id(
         ItemVisibility::PublicCrate => same_crate,
         ItemVisibility::Private => {
             same_crate
-                && module_descendent_of_target(
+                && (module_descendent_of_target(
                     target_crate_def_map,
                     target_module.local_id,
                     current_module,
-                )
+                ) || module_is_parent_of_struct_module(
+                    target_crate_def_map,
+                    current_module,
+                    target_module.local_id,
+                ))
         }
     }
 }
@@ -465,4 +471,14 @@ fn module_descendent_of_target(
     def_map.modules[current.0]
         .parent
         .map_or(false, |parent| module_descendent_of_target(def_map, target, parent))
+}
+
+/// Returns true if `target` is a struct and its parent is `current`.
+fn module_is_parent_of_struct_module(
+    def_map: &CrateDefMap,
+    current: LocalModuleId,
+    target: LocalModuleId,
+) -> bool {
+    let module_data = &def_map.modules[target.0];
+    module_data.is_struct && module_data.parent == Some(current)
 }

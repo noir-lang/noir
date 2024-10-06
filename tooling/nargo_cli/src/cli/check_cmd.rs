@@ -4,18 +4,18 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
-    package::Package, parse_all, prepare_package,
+    errors::CompileError,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::report_errors,
+    package::{CrateName, Package},
+    parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
-    check_crate, compute_function_abi, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, compute_function_abi, CompileOptions, CrateId, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::{
-    graph::{CrateId, CrateName},
-    hir::{Context, ParsedFiles},
-};
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use super::fs::write_to_file;
 use super::NargoConfig;

@@ -1,5 +1,5 @@
 use lsp_types::{Position, Range, TextEdit};
-use noirc_frontend::macros_api::ModuleDefId;
+use noirc_frontend::hir::def_map::ModuleDefId;
 
 use crate::modules::{relative_module_full_path, relative_module_id_path};
 

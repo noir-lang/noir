@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
 use acvm::acir::circuit::ExpressionWidth;
-use noirc_frontend::graph::CrateName;
+pub use noirc_driver::CrateName;
 
 use crate::constants::PROVER_INPUT_FILE;
 

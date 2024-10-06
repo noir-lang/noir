@@ -96,6 +96,7 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
 
   async generateProof(compressedWitness: Uint8Array): Promise<ProofData> {
     const proofWithPublicInputs = await this.backend.generateProof(gunzip(compressedWitness));
+
     const proofAsStrings = deflattenFields(proofWithPublicInputs.slice(4));
 
     const numPublicInputs = Number(proofAsStrings[1]);
@@ -121,7 +122,6 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
 
   async verifyProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputsHonk(proofData);
-
     return this.backend.verifyProof(proof);
   }
 

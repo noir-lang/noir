@@ -2,6 +2,17 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 
 use super::get_program_errors;
 
+// Regression for #5388
+#[test]
+fn comptime_let() {
+    let src = r#"fn main() {
+        comptime let my_var = 2;
+        assert_eq(my_var, 2);
+    }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
 #[test]
 fn comptime_type_in_runtime_code() {
     let source = "pub fn foo(_f: FunctionDefinition) {}";

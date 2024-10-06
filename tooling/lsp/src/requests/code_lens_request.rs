@@ -89,8 +89,8 @@ fn on_code_lens_request_inner(
 }
 
 pub(crate) fn collect_lenses_for_package(
-    context: &noirc_frontend::macros_api::HirContext,
-    crate_id: noirc_frontend::macros_api::CrateId,
+    context: &noirc_frontend::hir::Context,
+    crate_id: noirc_frontend::graph::CrateId,
     workspace: &Workspace,
     package: &Package,
     file_path: Option<&std::path::PathBuf>,

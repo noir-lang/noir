@@ -1,5 +1,6 @@
-use crate::ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, TypePath, UnresolvedType};
-use crate::macros_api::ExpressionKind;
+use crate::ast::{
+    AsTraitPath, ExpressionKind, Ident, Path, PathKind, PathSegment, TypePath, UnresolvedType,
+};
 use crate::parser::{NoirParser, ParserError, ParserErrorReason};
 
 use crate::token::{Keyword, Token};

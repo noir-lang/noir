@@ -44,7 +44,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function, false);
+            function.constant_fold(false);
         }
         self
     }
@@ -57,25 +57,27 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function, true);
+            function.constant_fold(true);
         }
         self
     }
 }
 
-/// The structure of this pass is simple:
-/// Go through each block and re-insert all instructions.
-fn constant_fold(function: &mut Function, use_constraint_info: bool) {
-    let mut context = Context { use_constraint_info, ..Default::default() };
-    context.block_queue.push(function.entry_block());
+impl Function {
+    /// The structure of this pass is simple:
+    /// Go through each block and re-insert all instructions.
+    pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
+        let mut context = Context { use_constraint_info, ..Default::default() };
+        context.block_queue.push(self.entry_block());
 
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
+        while let Some(block) = context.block_queue.pop() {
+            if context.visited_blocks.contains(&block) {
+                continue;
+            }
+
+            context.visited_blocks.insert(block);
+            context.fold_constants_in_block(self, block);
         }
-
-        context.visited_blocks.insert(block);
-        context.fold_constants_in_block(function, block);
     }
 }
 

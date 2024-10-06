@@ -42,6 +42,8 @@ for i in 0..10 {
 }
 ```
 
+Alternatively, `start..=end` can be used for a range that is inclusive on both ends.
+
 The index for loops is of type `u64`.
 
 ### Break and Continue

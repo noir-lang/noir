@@ -111,7 +111,7 @@ He might find it more efficient to generate a proof for that setup phase separat
 
 ## What params do I need
 
-As you can see in the [recursion reference](noir/standard_library/recursion.md), a simple recursive proof requires:
+As you can see in the [recursion reference](noir/standard_library/recursion.mdx), a simple recursive proof requires:
 
 - The proof to verify
 - The Verification Key of the circuit that generated the proof

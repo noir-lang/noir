@@ -9,16 +9,16 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, LValue,
-        Pattern, Signedness, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
+        IntegerBitSize, LValue, Literal, Path, Pattern, Signedness, Statement, StatementKind,
+        UnresolvedType, UnresolvedTypeData,
     },
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
-    hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
-    macros_api::{
-        Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
-        StructId,
+    hir_def::expr::{
+        HirArrayLiteral, HirConstructorExpression, HirExpression, HirIdent, HirLambda, HirLiteral,
+        ImplKind,
     },
-    node_interner::{ExprId, FuncId, StmtId, TraitId, TraitImplId},
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,

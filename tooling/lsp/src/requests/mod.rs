@@ -18,7 +18,7 @@ use nargo_fmt::Config;
 
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::def_map::CrateDefMap;
-use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
+use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{

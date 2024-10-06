@@ -1,4 +1,4 @@
-use noirc_frontend::macros_api::Span;
+use noirc_errors::Span;
 
 use crate::{
     utils::{comment_len, find_comment_end},

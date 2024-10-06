@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use nargo::package::CrateName;
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
-use noirc_frontend::graph::CrateName;
 
 use crate::errors::FilesystemError;
 

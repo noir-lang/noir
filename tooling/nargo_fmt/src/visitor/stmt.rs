@@ -1,8 +1,10 @@
 use std::iter::zip;
 
-use noirc_frontend::macros_api::Span;
+use noirc_errors::Span;
 
-use noirc_frontend::ast::{ConstrainKind, ConstrainStatement, ForRange, Statement, StatementKind};
+use noirc_frontend::ast::{
+    ConstrainKind, ConstrainStatement, ForBounds, ForRange, Statement, StatementKind,
+};
 
 use crate::{rewrite, visitor::expr::wrap_exprs};
 
@@ -67,11 +69,13 @@ impl super::FmtVisitor<'_> {
             StatementKind::For(for_stmt) => {
                 let identifier = self.slice(for_stmt.identifier.span());
                 let range = match for_stmt.range {
-                    ForRange::Range(start, end) => format!(
-                        "{}..{}",
+                    ForRange::Range(ForBounds { start, end, inclusive }) => format!(
+                        "{}{}{}",
                         rewrite::sub_expr(self, self.shape(), start),
+                        if inclusive { "..=" } else { ".." },
                         rewrite::sub_expr(self, self.shape(), end)
                     ),
+
                     ForRange::Array(array) => rewrite::sub_expr(self, self.shape(), array),
                 };
                 let block = rewrite::sub_expr(self, self.shape(), for_stmt.block);

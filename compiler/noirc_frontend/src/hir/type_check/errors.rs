@@ -5,14 +5,14 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::ast::ConstrainKind;
-use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
+use crate::ast::{
+    BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize, Signedness,
+};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::Type;
-use crate::macros_api::Ident;
-use crate::macros_api::NodeInterner;
+use crate::node_interner::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {

@@ -10,6 +10,10 @@ fn for_stmt() {
             b *= b;
         }
 
+        for k in 0..=C1 {
+            d *= d;
+        }
+
         z *= if b == 1 { 1 } else { c };
 
         c *= c;

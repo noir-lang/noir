@@ -5,8 +5,10 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, ConstructorExpression, IfExpression, InfixExpression, Lambda, UnaryOp,
-        UnresolvedTypeData, UnresolvedTypeExpression,
+        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression, Lambda,
+        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression, StatementKind,
+        UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -17,15 +19,11 @@ use crate::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
+        stmt::HirStatement,
         traits::TraitConstraint,
-    },
-    macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirLiteral,
-        HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, PrefixExpression, StatementKind,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::Tokens,

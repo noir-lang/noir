@@ -20,10 +20,16 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn as_slice_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            let known_slice_lengths = known_slice_lengths(func);
-            replace_known_slice_lengths(func, known_slice_lengths);
+            func.as_slice_optimization();
         }
         self
+    }
+}
+
+impl Function {
+    pub(crate) fn as_slice_optimization(&mut self) {
+        let known_slice_lengths = known_slice_lengths(self);
+        replace_known_slice_lengths(self, known_slice_lengths);
     }
 }
 

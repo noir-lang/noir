@@ -15,7 +15,7 @@ use noirc_frontend::{
     ast::{ConstructorExpression, ItemVisibility, NoirTraitImpl, Path, UseTree, Visitor},
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
-    macros_api::NodeInterner,
+    node_interner::NodeInterner,
 };
 use noirc_frontend::{
     parser::{Item, ItemKind, ParsedSubModule},

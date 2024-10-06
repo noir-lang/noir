@@ -13,12 +13,12 @@ pub struct EmbeddedCurvePoint {
 impl EmbeddedCurvePoint {
     /// Elliptic curve point doubling operation
     /// returns the doubled point of a point P, i.e P+P
-    fn double(self) -> EmbeddedCurvePoint {
+    pub fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
     }
 
     /// Returns the null element of the curve; 'the point at infinity'
-    fn point_at_infinity() -> EmbeddedCurvePoint {
+    pub fn point_at_infinity() -> EmbeddedCurvePoint {
         EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
     }
 }
@@ -67,14 +67,14 @@ impl EmbeddedCurveScalar {
     }
 
     #[field(bn254)]
-    fn from_field(scalar: Field) -> EmbeddedCurveScalar {
+    pub fn from_field(scalar: Field) -> EmbeddedCurveScalar {
         let (a,b) = crate::field::bn254::decompose(scalar);
         EmbeddedCurveScalar { lo: a, hi: b }
     }
 
     //Bytes to scalar: take the first (after the specified offset) 16 bytes of the input as the lo value, and the next 16 bytes as the hi value
     #[field(bn254)]
-    fn from_bytes(bytes: [u8; 64], offset: u32) -> EmbeddedCurveScalar {
+    pub(crate) fn from_bytes(bytes: [u8; 64], offset: u32) -> EmbeddedCurveScalar {
         let mut v = 1;
         let mut lo = 0 as Field;
         let mut hi = 0 as Field;

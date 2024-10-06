@@ -5,7 +5,7 @@ keywords: [cryptographic primitives, Noir project, schnorr, signatures]
 sidebar_position: 2
 ---
 
-import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
 
 ## schnorr::verify_signature
 
@@ -43,7 +43,7 @@ const signature = Array.from(
 ...
 ```
 
-<BlackBoxInfo />
+<BlackBoxInfo to="../black_box_fns"/>
 
 ## schnorr::verify_signature_slice
 
@@ -61,4 +61,4 @@ pub fn verify_signature_slice(
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/schnorr.nr#L13-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/schnorr.nr#L13-L20</a></sub></sup>
 
 
-<BlackBoxInfo />
+<BlackBoxInfo to="../black_box_fns"/>

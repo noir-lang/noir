@@ -25,7 +25,7 @@ This guide shows you how to use recursive proofs in your NoirJS app. For the sak
 
 - You already have a NoirJS app. If you don't, please visit the [NoirJS tutorial](../tutorials/noirjs_app.md) and the [reference](../reference/NoirJS/noir_js/index.md).
 - You are familiar with what are recursive proofs and you have read the [recursion explainer](../explainers/explainer-recursion.md)
-- You already built a recursive circuit following [the reference](../noir/standard_library/recursion.md), and understand how it works.
+- You already built a recursive circuit following [the reference](../noir/standard_library/recursion.mdx), and understand how it works.
 
 It is also assumed that you're not using `noir_wasm` for compilation, and instead you've used [`nargo compile`](../reference/nargo_commands.md) to generate the `json` you're now importing into your project. However, the guide should work just the same if you're using `noir_wasm`.
 

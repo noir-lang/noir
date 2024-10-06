@@ -3,9 +3,8 @@ use std::collections::BTreeMap;
 use noirc_frontend::{
     ast::ItemVisibility,
     graph::{CrateId, Dependency},
-    hir::def_map::{CrateDefMap, ModuleId},
-    macros_api::{ModuleDefId, NodeInterner},
-    node_interner::ReferenceId,
+    hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
+    node_interner::{NodeInterner, ReferenceId},
 };
 
 use crate::visibility::is_visible;

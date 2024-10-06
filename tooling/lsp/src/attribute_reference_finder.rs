@@ -103,7 +103,7 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
             return;
         };
 
-        let resolver = StandardPathResolver::new(self.module_id);
+        let resolver = StandardPathResolver::new(self.module_id, None);
         let mut usage_tracker = UsageTracker::default();
         let Ok(result) = resolver.resolve(self.def_maps, path, &mut usage_tracker, &mut None)
         else {

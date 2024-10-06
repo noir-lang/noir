@@ -25,7 +25,7 @@ Here is a list of the current black box functions:
 - XOR
 - RANGE
 - [Keccak256](./cryptographic_primitives/hashes.mdx#keccak256)
-- [Recursive proof verification](./recursion.md)
+- [Recursive proof verification](./recursion.mdx)
 
 Most black box functions are included as part of the Noir standard library, however `AND`, `XOR` and `RANGE` are used as part of the Noir language syntax. For instance, using the bitwise operator `&` will invoke the `AND` black box function.
 

@@ -26,22 +26,31 @@ impl Ssa {
         mut self,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            for block in function.reachable_blocks() {
-                // Unfortunately we can't just use instructions.retain(...) here since
-                // check_instruction can also return an error
-                let instructions = function.dfg[block].take_instructions();
-                let mut filtered_instructions = Vec::with_capacity(instructions.len());
-
-                for instruction in instructions {
-                    if check_instruction(function, instruction)? {
-                        filtered_instructions.push(instruction);
-                    }
-                }
-
-                *function.dfg[block].instructions_mut() = filtered_instructions;
-            }
+            function.evaluate_static_assert_and_assert_constant()?;
         }
         Ok(self)
+    }
+}
+
+impl Function {
+    pub(crate) fn evaluate_static_assert_and_assert_constant(
+        &mut self,
+    ) -> Result<(), RuntimeError> {
+        for block in self.reachable_blocks() {
+            // Unfortunately we can't just use instructions.retain(...) here since
+            // check_instruction can also return an error
+            let instructions = self.dfg[block].take_instructions();
+            let mut filtered_instructions = Vec::with_capacity(instructions.len());
+
+            for instruction in instructions {
+                if check_instruction(self, instruction)? {
+                    filtered_instructions.push(instruction);
+                }
+            }
+
+            *self.dfg[block].instructions_mut() = filtered_instructions;
+        }
+        Ok(())
     }
 }
 

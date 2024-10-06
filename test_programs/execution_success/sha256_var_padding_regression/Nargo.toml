@@ -1,0 +1,7 @@
+[package]
+name = "sha256_var_padding_regression"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.34.0"
+
+[dependencies]

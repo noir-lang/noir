@@ -10,10 +10,9 @@ use super::{
 };
 
 use crate::ast::{
-    Documented, Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem,
-    TraitImplItemKind, TraitItem, UnresolvedTraitConstraint, UnresolvedType,
+    Documented, Expression, ItemVisibility, NoirTrait, NoirTraitImpl, Pattern, TraitBound,
+    TraitImplItem, TraitImplItemKind, TraitItem, UnresolvedTraitConstraint, UnresolvedType,
 };
-use crate::macros_api::Pattern;
 use crate::parser::spanned;
 use crate::{
     parser::{

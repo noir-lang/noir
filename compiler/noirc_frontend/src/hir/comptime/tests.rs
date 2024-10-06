@@ -28,7 +28,8 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
         location,
         Vec::new(),
         Vec::new(),
-        false,
+        false, // is contract
+        false, // is struct
     )));
     assert_eq!(root, module_id);
 
@@ -158,6 +159,19 @@ fn for_loop() {
     }";
     let result = interpret(program);
     assert_eq!(result, Value::U8(15));
+}
+
+#[test]
+fn for_loop_inclusive() {
+    let program = "comptime fn main() -> pub u8 {
+        let mut x = 0;
+        for i in 0 ..= 6 {
+            x += i;
+        }
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(21));
 }
 
 #[test]

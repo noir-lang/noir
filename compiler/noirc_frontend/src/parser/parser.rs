@@ -1076,9 +1076,15 @@ where
 {
     expr_no_constructors
         .clone()
-        .then_ignore(just(Token::DoubleDot))
+        .then(just(Token::DoubleDot).or(just(Token::DoubleDotEqual)))
         .then(expr_no_constructors.clone())
-        .map(|(start, end)| ForRange::Range(start, end))
+        .map(|((start, dots), end)| {
+            if dots == Token::DoubleDotEqual {
+                ForRange::range_inclusive(start, end)
+            } else {
+                ForRange::range(start, end)
+            }
+        })
         .or(expr_no_constructors.map(ForRange::Array))
 }
 
@@ -1465,15 +1471,21 @@ mod test {
     fn parse_for_loop() {
         parse_all(
             for_loop(expression_no_constructors(expression()), fresh_statement()),
-            vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
+            vec![
+                "for i in x+y..z {}",
+                "for i in 0..100 { foo; bar }",
+                "for i in 90..=100 { foo; bar }",
+            ],
         );
 
         parse_all_failing(
             for_loop(expression_no_constructors(expression()), fresh_statement()),
             vec![
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
-                "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
-                "for i in 0..=100 {}", // Only '..' is supported, there are no inclusive ranges yet
+                "for i in 0...100 {}", // Only '..' is supported
+                "for i in .. {}",      // Range needs needs bounds
+                "for i in ..=10 {}",   // Range needs lower bound
+                "for i in 0.. {}",     // Range needs upper bound
             ],
         );
     }

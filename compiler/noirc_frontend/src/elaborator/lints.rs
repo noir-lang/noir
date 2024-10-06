@@ -1,14 +1,15 @@
 use crate::{
-    ast::{FunctionKind, Ident},
+    ast::{FunctionKind, Ident, NoirFunction, Signedness, UnaryOp, Visibility},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
-    hir_def::{expr::HirIdent, function::FuncMeta},
-    macros_api::{
-        HirExpression, HirLiteral, NodeInterner, NoirFunction, Signedness, UnaryOp, Visibility,
+    hir_def::{
+        expr::{HirExpression, HirIdent, HirLiteral},
+        function::FuncMeta,
     },
+    node_interner::NodeInterner,
     node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers},
     Type,
 };
