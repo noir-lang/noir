@@ -134,7 +134,8 @@ impl FunctionBuilder {
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
-                            _ => 1,
+                            Type::Numeric(_) => 1,
+                            _ => unreachable!("Unsupported type for databus"),
                         };
                         self.add_to_data_bus(element, databus);
                     }
