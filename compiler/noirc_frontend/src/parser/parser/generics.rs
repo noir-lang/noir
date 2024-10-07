@@ -67,9 +67,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let Some(ident) = self.eat_ident() else {
-            return None;
-        };
+        let ident = self.eat_ident()?;
 
         if !self.eat_colon() {
             self.push_error(
