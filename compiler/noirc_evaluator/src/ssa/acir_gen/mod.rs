@@ -1316,27 +1316,32 @@ impl<'a> Context<'a> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        if let Some(call_data) =
-            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array))
-        {
-            let type_size = res_typ.flattened_size();
-            let type_size = self.acir_context.add_constant(FieldElement::from(type_size as i128));
-            let offset = self.acir_context.mul_var(var_index, type_size)?;
+        let call_data =
+            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
+        if let Some(call_data) = call_data {
+            let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
                 .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
-            let new_index = self.acir_context.add_var(offset, bus_index)?;
-            return self.array_get(
-                instruction,
-                call_data.array_id,
-                new_index,
-                dfg,
-                index_side_effect,
-            );
-        }
+            let type_size = res_typ.flattened_size();
+            let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
+            let mut acir_array = Vector::new();
+            for _i in 0..type_size {
+                let read =
+                    self.array_get_value(&Type::field(), call_data_block, &mut current_index)?;
+                acir_array.push_back(read);
+            }
 
+            if acir_array.len() == 1 {
+                self.define_result(dfg, instruction, acir_array[0].clone());
+                return Ok(acir_array[0].clone());
+            } else {
+                let result = AcirValue::Array(acir_array);
+                self.define_result(dfg, instruction, result.clone());
+                return Ok(result);
+            }
+        }
         // Compiler sanity check
         assert!(
             !res_typ.contains_slice_element(),
