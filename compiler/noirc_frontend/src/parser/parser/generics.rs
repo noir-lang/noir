@@ -1,5 +1,3 @@
-use noirc_errors::Span;
-
 use crate::{
     ast::{
         GenericTypeArg, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric,
@@ -70,11 +68,16 @@ impl<'a> Parser<'a> {
         let ident = self.eat_ident()?;
 
         if !self.eat_colon() {
+            // If we didn't get a type after the colon, error and assume it's u32
             self.push_error(
                 ParserErrorReason::MissingTypeForNumericGeneric,
                 self.current_token_span,
             );
-            return Some(UnresolvedGeneric::Numeric { ident, typ: type_u32() });
+            let typ = UnresolvedType {
+                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+                span: self.span_at_previous_token_end(),
+            };
+            return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
 
         let typ = self.parse_type_or_error();
@@ -154,13 +157,6 @@ impl<'a> Parser<'a> {
         };
 
         Some(GenericTypeArg::Ordered(typ))
-    }
-}
-
-fn type_u32() -> UnresolvedType {
-    UnresolvedType {
-        typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-        span: Span::default(),
     }
 }
 
