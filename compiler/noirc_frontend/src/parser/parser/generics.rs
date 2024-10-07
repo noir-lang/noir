@@ -58,11 +58,7 @@ impl<'a> Parser<'a> {
 
     /// VariableGeneric = identifier
     fn parse_variable_generic(&mut self) -> Option<UnresolvedGeneric> {
-        if let Some(ident) = self.eat_ident() {
-            return Some(UnresolvedGeneric::Variable(ident));
-        }
-
-        None
+        self.eat_ident().map(UnresolvedGeneric::Variable)
     }
 
     /// NumericGeneric = 'let' identifier ':' Type
