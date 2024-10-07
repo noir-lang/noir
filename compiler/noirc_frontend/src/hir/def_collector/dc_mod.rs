@@ -357,7 +357,12 @@ impl<'a> ModCollector<'a> {
             if context.def_interner.is_in_lsp_mode() {
                 let parent_module_id = ModuleId { krate, local_id: self.module_id };
                 let name = name.to_string();
-                context.def_interner.register_type_alias(type_alias_id, name, parent_module_id);
+                context.def_interner.register_type_alias(
+                    type_alias_id,
+                    name,
+                    visibility,
+                    parent_module_id,
+                );
             }
         }
         errors
@@ -591,7 +596,12 @@ impl<'a> ModCollector<'a> {
 
             if context.def_interner.is_in_lsp_mode() {
                 let parent_module_id = ModuleId { krate, local_id: self.module_id };
-                context.def_interner.register_trait(trait_id, name.to_string(), parent_module_id);
+                context.def_interner.register_trait(
+                    trait_id,
+                    name.to_string(),
+                    visibility,
+                    parent_module_id,
+                );
             }
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
@@ -879,7 +889,7 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            interner.register_module(mod_id, mod_name.0.contents.clone());
+            interner.register_module(mod_id, visibility, mod_name.0.contents.clone());
         }
     }
 
@@ -1221,7 +1231,7 @@ pub(crate) fn collect_global(
 
     interner.set_doc_comments(ReferenceId::Global(global_id), doc_comments);
 
-    let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
+    let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global, visibility };
     (global, error)
 }
 

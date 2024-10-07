@@ -544,8 +544,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::VariableNotInScope { location }
         })?;
 
-        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        if let ImplKind::TraitMethod(method) = ident.impl_kind {
+            let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
             let typ = self.elaborator.interner.id_type(id).follow_bindings();
             let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));

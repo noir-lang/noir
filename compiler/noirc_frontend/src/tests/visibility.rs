@@ -94,7 +94,7 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2); // There's a bug that duplicates this error
+    assert_eq!(errors.len(), 1);
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::Private(ident),
