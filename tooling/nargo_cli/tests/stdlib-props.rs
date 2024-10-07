@@ -84,7 +84,6 @@ fn run_snippet_proptest(
         RefCell::new(DefaultForeignCallExecutor::new(false, None, None, None));
 
     // Generate multiple input/output
-    // TODO: Execute with the interpreter as well.
     proptest!(ProptestConfig::with_cases(100), |(io in strategy)| {
         let initial_witness = program.abi.encode(&io.inputs, None).expect("failed to encode");
         let mut foreign_call_executor = foreign_call_executor.borrow_mut();
@@ -118,10 +117,10 @@ fn run_snippet_proptest(
 fn run_hash_proptest<const N: usize>(
     // Different generic maximum input sizes to try.
     max_lengths: &[usize],
+    // Some hash functions allow inputs which are less than the generic parameters, others don't.
+    variable_length: bool,
     // Make the source code specialized for a given expected input size.
     source: impl Fn(usize) -> String,
-    // Some hash functions allow inputs which are less than the generic parameters, others don't.
-    length_strategy: impl Fn(usize) -> BoxedStrategy<usize>,
     // Rust implementation of the hash function.
     hash: fn(&[u8]) -> [u8; N],
 ) {
@@ -131,9 +130,10 @@ fn run_hash_proptest<const N: usize>(
         let source = source(max_len);
         // Hash functions runs differently depending on whether the code is unconstrained or not.
         for force_brillig in [false, true] {
-            let hash = hash.clone();
+            let length_strategy =
+                if variable_length { (0..=max_len).boxed() } else { Just(max_len).boxed() };
             // The actual input length can be up to the maximum.
-            let strategy = length_strategy(max_len)
+            let strategy = length_strategy
                 .prop_flat_map(|len| prop::collection::vec(any::<u8>(), len))
                 .prop_map(move |mut msg| {
                     // The output is the hash of the data as it is.
@@ -143,14 +143,17 @@ fn run_hash_proptest<const N: usize>(
                     let msg_size = msg.len();
                     msg.resize(max_len, 0u8);
 
-                    SnippetInputOutput::new(
-                        vec![
-                            ("input", bytes_input(&msg)),
-                            ("message_size", InputValue::Field(FieldElement::from(msg_size))),
-                        ],
-                        bytes_input(&output),
-                    )
-                    .with_description(format!(
+                    let mut inputs = vec![("input", bytes_input(&msg))];
+
+                    // Omit the `message_size` if the hash function doesn't support it.
+                    if variable_length {
+                        inputs.push((
+                            "message_size",
+                            InputValue::Field(FieldElement::from(msg_size)),
+                        ));
+                    }
+
+                    SnippetInputOutput::new(inputs, bytes_input(&output)).with_description(format!(
                         "force_brillig = {force_brillig}, max_len = {max_len}"
                     ))
                 })
@@ -190,6 +193,7 @@ fn test_keccak256() {
     run_hash_proptest(
         // XXX: Currently it fails with inputs >= 135 bytes
         &[0, 1, 100, 134],
+        true,
         |max_len| {
             format!(
                 "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
@@ -197,7 +201,6 @@ fn test_keccak256() {
                 }}"
             )
         },
-        |max_len| (0..=max_len).boxed(),
         |data| sha3::Keccak256::digest(data).try_into().unwrap(),
     );
 }
@@ -206,6 +209,7 @@ fn test_keccak256() {
 fn test_sha256() {
     run_hash_proptest(
         &[0, 1, 200],
+        true,
         |max_len| {
             format!(
                 "fn main(input: [u8; {max_len}], message_size: u64) -> pub [u8; 32] {{
@@ -213,7 +217,6 @@ fn test_sha256() {
                 }}"
             )
         },
-        |max_len| (0..=max_len).boxed(),
         // It's SHA2, not SHA3:
         // |data| sha3::Sha3_256::digest(data).try_into().expect("result is 256 bits"),
         |data| sha2::Sha256::digest(data).try_into().unwrap(),
@@ -224,20 +227,17 @@ fn test_sha256() {
 fn test_sha512() {
     run_hash_proptest(
         &[0, 1, 200],
+        false,
         |max_len| {
             format!(
-                "fn main(input: [u8; {max_len}], message_size: u64) -> pub [u8; 64] {{
-                    let _ = message_size;
+                "fn main(input: [u8; {max_len}]) -> pub [u8; 64] {{
                     std::hash::sha512::digest(input)
                 }}"
             )
         },
-        |max_len| Just(max_len).boxed(),
         |data| sha2::Sha512::digest(data).try_into().unwrap(),
     );
 }
-
-// TODO: Schnorr, Poseidon and Poseidon2
 
 fn bytes_input(bytes: &[u8]) -> InputValue {
     InputValue::Vec(
