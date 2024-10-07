@@ -832,7 +832,7 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let array = builder.array_constant(vector![zero, zero], array_type.clone());
+        let array = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
         builder.increment_array_reference_count(array);
         builder.insert_store(v2, array);
