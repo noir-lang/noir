@@ -1554,7 +1554,37 @@ mod tests {
 
     #[test]
     fn parses_operator_precedence() {
-        let src = "1 + 2 * 3 + 4";
+        // This test produces a gigantic expression with lots of infix expressions without parentheses.
+        // We parse it, then we transform that to a string. Because `InfixExpression::to_string()` adds parentheses
+        // around it, we can check the operator precedence is correct by checking where parentheses were placed.
+        let multiply_or_divide_or_modulo = "1 * 2 / 3 % 4";
+        let expected_multiply_or_divide_or_modulo = "(((1 * 2) / 3) % 4)";
+
+        let add_or_subtract = format!("{multiply_or_divide_or_modulo} + {multiply_or_divide_or_modulo} - {multiply_or_divide_or_modulo}");
+        let expected_add_or_subtract = format!("(({expected_multiply_or_divide_or_modulo} + {expected_multiply_or_divide_or_modulo}) - {expected_multiply_or_divide_or_modulo})");
+
+        let shift = format!("{add_or_subtract} << {add_or_subtract} >> {add_or_subtract}");
+        let expected_shift = format!("(({expected_add_or_subtract} << {expected_add_or_subtract}) >> {expected_add_or_subtract})");
+
+        let less_or_greater = format!("{shift} < {shift} > {shift} <= {shift} >= {shift}");
+        let expected_less_or_greater = format!("(((({expected_shift} < {expected_shift}) > {expected_shift}) <= {expected_shift}) >= {expected_shift})");
+
+        let xor = format!("{less_or_greater} ^ {less_or_greater}");
+        let expected_xor = format!("({expected_less_or_greater} ^ {expected_less_or_greater})");
+
+        let and = format!("{xor} & {xor}");
+        let expected_and = format!("({expected_xor} & {expected_xor})");
+
+        let or = format!("{and} | {and}");
+        let expected_or = format!("({expected_and} | {expected_and})");
+
+        let equal_or_not_equal = format!("{or} == {or} != {or}");
+        let expected_equal_or_not_equal =
+            format!("(({expected_or} == {expected_or}) != {expected_or})");
+
+        let src = &equal_or_not_equal;
+        let expected_src = expected_equal_or_not_equal;
+
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
@@ -1562,9 +1592,7 @@ mod tests {
         let ExpressionKind::Infix(infix_expr) = expr.kind else {
             panic!("Expected infix");
         };
-        assert_eq!(infix_expr.lhs.to_string(), "(1 + (2 * 3))");
-        assert_eq!(infix_expr.operator.contents, BinaryOpKind::Add);
-        assert_eq!(infix_expr.rhs.to_string(), "4");
+        assert_eq!(infix_expr.to_string(), expected_src);
     }
 
     #[test]
