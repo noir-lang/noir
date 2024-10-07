@@ -2577,7 +2577,6 @@ dependencies = [
  "const_format",
  "criterion",
  "dap",
- "digest",
  "dirs",
  "fm",
  "iai",

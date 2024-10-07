@@ -72,7 +72,6 @@ tokio-util = { version = "0.7.8", features = ["compat"] }
 
 [dev-dependencies]
 tempfile.workspace = true
-digest = "0.10"
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"

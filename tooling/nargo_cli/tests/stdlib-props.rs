@@ -166,7 +166,7 @@ fn run_hash_proptest<const N: usize>(
 
 /// This is just a simple test to check that property testing works.
 #[test]
-fn test_basic() {
+fn fuzz_basic() {
     let program = "fn main(init: u32) -> pub u32 {
         let mut x = init;
         for i in 0 .. 6 {
@@ -189,7 +189,7 @@ fn test_basic() {
 }
 
 #[test]
-fn test_keccak256() {
+fn fuzz_keccak256_equivalence() {
     run_hash_proptest(
         // XXX: Currently it fails with inputs >= 135 bytes
         &[0, 1, 100, 134],
@@ -207,7 +207,7 @@ fn test_keccak256() {
 
 #[test]
 #[should_panic] // Remove once fixed
-fn test_keccak256_over_135() {
+fn fuzz_keccak256_equivalence_over_135() {
     run_hash_proptest(
         &[135, 150],
         true,
@@ -223,7 +223,7 @@ fn test_keccak256_over_135() {
 }
 
 #[test]
-fn test_sha256() {
+fn fuzz_sha256_equivalence() {
     run_hash_proptest(
         &[0, 1, 200],
         true,
@@ -241,7 +241,7 @@ fn test_sha256() {
 }
 
 #[test]
-fn test_sha512() {
+fn fuzz_sha512_equivalence() {
     run_hash_proptest(
         &[0, 1, 200],
         false,
