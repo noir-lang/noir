@@ -16,23 +16,24 @@ pub(crate) struct Modifiers {
 impl<'a> Parser<'a> {
     /// Modifiers = 'unconstrained'? ItemVisibility 'comptime'? 'mut'?
     pub(crate) fn parse_modifiers(&mut self, allow_mutable: bool) -> Modifiers {
-        let unconstrained = self.parse_modifier(Keyword::Unconstrained);
+        let unconstrained = if self.eat_keyword(Keyword::Unconstrained) {
+            Some(self.previous_token_span)
+        } else {
+            None
+        };
 
         let start_span = self.current_token_span;
         let visibility = self.parse_item_visibility();
         let visibility_span = self.span_since(start_span);
 
-        let comptime = self.parse_modifier(Keyword::Comptime);
-        let mutable = if allow_mutable { self.parse_modifier(Keyword::Mut) } else { None };
-
-        Modifiers { visibility, visibility_span, unconstrained, comptime, mutable }
-    }
-
-    fn parse_modifier(&mut self, keyword: Keyword) -> Option<Span> {
-        if self.eat_keyword(keyword) {
+        let comptime =
+            if self.eat_keyword(Keyword::Comptime) { Some(self.previous_token_span) } else { None };
+        let mutable = if allow_mutable && self.eat_keyword(Keyword::Mut) {
             Some(self.previous_token_span)
         } else {
             None
-        }
+        };
+
+        Modifiers { visibility, visibility_span, unconstrained, comptime, mutable }
     }
 }
