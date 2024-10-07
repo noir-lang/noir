@@ -115,13 +115,15 @@ fn run_snippet_proptest(
 ///
 /// The calls are executed with and without forcing brillig, because it seems common for hash functions to run different
 /// code paths based on `runtime::is_unconstrained()`.
-fn run_hash_proptest(
+fn run_hash_proptest<const N: usize>(
     // Different generic maximum input sizes to try.
     max_lengths: &[usize],
     // Make the source code specialized for a given expected input size.
     source: impl Fn(usize) -> String,
+    // Some hash functions allow inputs which are less than the generic parameters, others don't.
+    length_strategy: impl Fn(usize) -> BoxedStrategy<usize>,
     // Rust implementation of the hash function.
-    hash: fn(&[u8]) -> [u8; 32],
+    hash: fn(&[u8]) -> [u8; N],
 ) {
     for max_len in max_lengths {
         let max_len = *max_len;
@@ -131,7 +133,7 @@ fn run_hash_proptest(
         for force_brillig in [false, true] {
             let hash = hash.clone();
             // The actual input length can be up to the maximum.
-            let strategy = (0..=max_len)
+            let strategy = length_strategy(max_len)
                 .prop_flat_map(|len| prop::collection::vec(any::<u8>(), len))
                 .prop_map(move |mut msg| {
                     // The output is the hash of the data as it is.
@@ -187,7 +189,7 @@ fn test_basic() {
 fn test_keccak256() {
     run_hash_proptest(
         // XXX: Currently it fails with inputs >= 135 bytes
-        &[0, 1, 50, 134],
+        &[0, 1, 100, 134],
         |max_len| {
             format!(
                 "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
@@ -195,6 +197,7 @@ fn test_keccak256() {
                 }}"
             )
         },
+        |max_len| (0..=max_len).boxed(),
         |data| sha3::Keccak256::digest(data).try_into().unwrap(),
     );
 }
@@ -202,7 +205,7 @@ fn test_keccak256() {
 #[test]
 fn test_sha256() {
     run_hash_proptest(
-        &[0, 1, 100, 200],
+        &[0, 1, 200],
         |max_len| {
             format!(
                 "fn main(input: [u8; {max_len}], message_size: u64) -> pub [u8; 32] {{
@@ -210,13 +213,31 @@ fn test_sha256() {
                 }}"
             )
         },
+        |max_len| (0..=max_len).boxed(),
         // It's SHA2, not SHA3:
         // |data| sha3::Sha3_256::digest(data).try_into().expect("result is 256 bits"),
         |data| sha2::Sha256::digest(data).try_into().unwrap(),
     );
 }
 
-// TODO: - Sha256, Sha512, Schnorr, Poseidon and Poseidon2
+#[test]
+fn test_sha512() {
+    run_hash_proptest(
+        &[0, 1, 200],
+        |max_len| {
+            format!(
+                "fn main(input: [u8; {max_len}], message_size: u64) -> pub [u8; 64] {{
+                    let _ = message_size;
+                    std::hash::sha512::digest(input)
+                }}"
+            )
+        },
+        |max_len| Just(max_len).boxed(),
+        |data| sha2::Sha512::digest(data).try_into().unwrap(),
+    );
+}
+
+// TODO: Schnorr, Poseidon and Poseidon2
 
 fn bytes_input(bytes: &[u8]) -> InputValue {
     InputValue::Vec(
