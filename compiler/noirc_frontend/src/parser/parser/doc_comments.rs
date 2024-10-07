@@ -1,40 +1,32 @@
 use crate::token::{DocStyle, Token, TokenKind};
 
-use super::Parser;
+use super::{parse_many::without_separator, Parser};
 
 impl<'a> Parser<'a> {
     /// InnerDocComments = inner_doc_comment*
     pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<String> {
-        let mut comments: Vec<String> = Vec::new();
+        self.parse_many("inner doc comments", without_separator(), Self::parse_inner_doc_comment)
+    }
 
-        while let Some(token) = self.eat_kind(TokenKind::InnerDocComment) {
-            match token.into_token() {
-                Token::LineComment(comment, Some(DocStyle::Inner))
-                | Token::BlockComment(comment, Some(DocStyle::Inner)) => {
-                    comments.push(comment);
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        comments
+    fn parse_inner_doc_comment(&mut self) -> Option<String> {
+        self.eat_kind(TokenKind::InnerDocComment).map(|token| match token.into_token() {
+            Token::LineComment(comment, Some(DocStyle::Inner))
+            | Token::BlockComment(comment, Some(DocStyle::Inner)) => comment,
+            _ => unreachable!(),
+        })
     }
 
     /// OuterDocComments = outer_doc_comments*
     pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<String> {
-        let mut comments: Vec<String> = Vec::new();
+        self.parse_many("outer doc comments", without_separator(), Self::parse_outer_doc_comment)
+    }
 
-        while let Some(token) = self.eat_kind(TokenKind::OuterDocComment) {
-            match token.into_token() {
-                Token::LineComment(comment, Some(DocStyle::Outer))
-                | Token::BlockComment(comment, Some(DocStyle::Outer)) => {
-                    comments.push(comment);
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        comments
+    fn parse_outer_doc_comment(&mut self) -> Option<String> {
+        self.eat_kind(TokenKind::OuterDocComment).map(|token| match token.into_token() {
+            Token::LineComment(comment, Some(DocStyle::Outer))
+            | Token::BlockComment(comment, Some(DocStyle::Outer)) => comment,
+            _ => unreachable!(),
+        })
     }
 }
 

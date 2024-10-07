@@ -4,6 +4,7 @@ use crate::parser::ParserErrorReason;
 use crate::token::SecondaryAttribute;
 use crate::token::{Attribute, Token, TokenKind};
 
+use super::parse_many::without_separator;
 use super::Parser;
 
 impl<'a> Parser<'a> {
@@ -18,18 +19,14 @@ impl<'a> Parser<'a> {
 
     /// Attributes = attribute*
     pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
-        let mut attributes = Vec::new();
+        self.parse_many("attributes", without_separator(), Self::parse_attribute)
+    }
 
-        while let Some(token) = self.eat_kind(TokenKind::Attribute) {
-            match token.into_token() {
-                Token::Attribute(attribute) => {
-                    attributes.push((attribute, self.previous_token_span));
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        attributes
+    fn parse_attribute(&mut self) -> Option<(Attribute, Span)> {
+        self.eat_kind(TokenKind::Attribute).map(|token| match token.into_token() {
+            Token::Attribute(attribute) => (attribute, self.previous_token_span),
+            _ => unreachable!(),
+        })
     }
 
     pub(super) fn validate_secondary_attributes(
