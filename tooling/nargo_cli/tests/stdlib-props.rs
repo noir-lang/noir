@@ -187,7 +187,7 @@ fn test_basic() {
 fn test_keccak256() {
     run_hash_proptest(
         // XXX: Currently it fails with inputs >= 135 bytes
-        &[0, 50, 134],
+        &[0, 1, 50, 134],
         |max_len| {
             format!(
                 "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
@@ -195,7 +195,24 @@ fn test_keccak256() {
                 }}"
             )
         },
-        |data| sha3::Keccak256::digest(data).try_into().expect("result is 256 bits"),
+        |data| sha3::Keccak256::digest(data).try_into().unwrap(),
+    );
+}
+
+#[test]
+fn test_sha256() {
+    run_hash_proptest(
+        &[0, 1, 100, 200],
+        |max_len| {
+            format!(
+                "fn main(input: [u8; {max_len}], message_size: u64) -> pub [u8; 32] {{
+                    std::hash::sha256_var(input, message_size)
+                }}"
+            )
+        },
+        // It's SHA2, not SHA3:
+        // |data| sha3::Sha3_256::digest(data).try_into().expect("result is 256 bits"),
+        |data| sha2::Sha256::digest(data).try_into().unwrap(),
     );
 }
 

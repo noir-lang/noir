@@ -82,6 +82,7 @@ criterion.workspace = true
 pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
+sha2 = "0.10"
 sha3 = "0.10"
 iai = "0.1.1"
 test-binary = "3.0.2"
