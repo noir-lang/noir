@@ -126,7 +126,7 @@ pub enum BorrowedToken<'input> {
     Invalid(char),
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord, Default)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
     Int(FieldElement),
@@ -227,7 +227,6 @@ pub enum Token {
     /// $
     DollarSign,
     #[allow(clippy::upper_case_acronyms)]
-    #[default]
     EOF,
 
     Whitespace(String),
@@ -314,7 +313,7 @@ pub enum DocStyle {
     Inner,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SpannedToken(Spanned<Token>);
 
 impl PartialEq<SpannedToken> for Token {

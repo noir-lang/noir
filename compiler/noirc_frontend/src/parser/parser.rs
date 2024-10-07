@@ -116,8 +116,8 @@ impl<'a> Parser<'a> {
         let mut parser = Self {
             errors: Vec::new(),
             tokens,
-            token: SpannedToken::default(),
-            next_token: SpannedToken::default(),
+            token: eof_spanned_token(),
+            next_token: eof_spanned_token(),
             current_token_span: Default::default(),
             previous_token_span: Default::default(),
         };
@@ -162,13 +162,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn next_token(&mut self) {
+    /// Bumps this parser by one token. Returns the token that was previously the "current" token.
+    fn next_token(&mut self) -> SpannedToken {
         self.previous_token_span = self.current_token_span;
-        let token = self.read_token_internal();
-        let next_token = std::mem::take(&mut self.next_token);
-        self.token = next_token;
-        self.next_token = token;
+        let next_next_token = self.read_token_internal();
+        let next_token = std::mem::replace(&mut self.next_token, next_next_token);
+        let token = std::mem::replace(&mut self.token, next_token);
         self.current_token_span = self.token.to_span();
+        token
     }
 
     fn read_two_first_tokens(&mut self) {
@@ -186,16 +187,14 @@ impl<'a> Parser<'a> {
                     Err(lexer_error) => self.errors.push(lexer_error.into()),
                 }
             } else {
-                return SpannedToken::default();
+                return eof_spanned_token();
             }
         }
     }
 
     fn eat_kind(&mut self, kind: TokenKind) -> Option<SpannedToken> {
         if self.token.kind() == kind {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
-            Some(token)
+            Some(self.next_token())
         } else {
             None
         }
@@ -239,8 +238,7 @@ impl<'a> Parser<'a> {
     fn eat_int_type(&mut self) -> Option<IntType> {
         let is_int_type = matches!(self.token.token(), Token::IntType(..));
         if is_int_type {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
+            let token = self.next_token();
             match token.into_token() {
                 Token::IntType(int_type) => Some(int_type),
                 _ => unreachable!(),
@@ -252,8 +250,7 @@ impl<'a> Parser<'a> {
 
     fn eat_int(&mut self) -> Option<FieldElement> {
         if matches!(self.token.token(), Token::Int(..)) {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
+            let token = self.next_token();
             match token.into_token() {
                 Token::Int(int) => Some(int),
                 _ => unreachable!(),
@@ -265,8 +262,7 @@ impl<'a> Parser<'a> {
 
     fn eat_bool(&mut self) -> Option<bool> {
         if matches!(self.token.token(), Token::Bool(..)) {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
+            let token = self.next_token();
             match token.into_token() {
                 Token::Bool(bool) => Some(bool),
                 _ => unreachable!(),
@@ -278,8 +274,7 @@ impl<'a> Parser<'a> {
 
     fn eat_str(&mut self) -> Option<String> {
         if matches!(self.token.token(), Token::Str(..)) {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
+            let token = self.next_token();
             match token.into_token() {
                 Token::Str(string) => Some(string),
                 _ => unreachable!(),
@@ -291,8 +286,7 @@ impl<'a> Parser<'a> {
 
     fn eat_raw_str(&mut self) -> Option<(String, u8)> {
         if matches!(self.token.token(), Token::RawStr(..)) {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
+            let token = self.next_token();
             match token.into_token() {
                 Token::RawStr(string, n) => Some((string, n)),
                 _ => unreachable!(),
@@ -304,8 +298,7 @@ impl<'a> Parser<'a> {
 
     fn eat_fmt_str(&mut self) -> Option<String> {
         if matches!(self.token.token(), Token::FmtStr(..)) {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
+            let token = self.next_token();
             match token.into_token() {
                 Token::FmtStr(string) => Some(string),
                 _ => unreachable!(),
@@ -317,8 +310,7 @@ impl<'a> Parser<'a> {
 
     fn eat_quote(&mut self) -> Option<Tokens> {
         if matches!(self.token.token(), Token::Quote(..)) {
-            let token = std::mem::take(&mut self.token);
-            self.next_token();
+            let token = self.next_token();
             match token.into_token() {
                 Token::Quote(tokens) => Some(tokens),
                 _ => unreachable!(),
@@ -544,4 +536,8 @@ impl<'a> Parser<'a> {
     fn push_error(&mut self, reason: ParserErrorReason, span: Span) {
         self.errors.push(ParserError::with_reason(reason, span));
     }
+}
+
+fn eof_spanned_token() -> SpannedToken {
+    SpannedToken::new(Token::EOF, Default::default())
 }
