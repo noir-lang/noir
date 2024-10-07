@@ -651,8 +651,8 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::ArraySet { array, index, value, .. } => {
-                let array_const = dfg.get_array_constant(*array);
+            Instruction::ArraySet { array: array_id, index, value, .. } => {
+                let array_const = dfg.get_array_constant(*array_id);
                 let index_const = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array_const, index_const) {
                     let index =
@@ -660,8 +660,7 @@ impl Instruction {
 
                     if index < array.len() {
                         let elements = array.update(index, *value);
-                        let typ = dfg.type_of_value(*array);
-                        let instruction = Instruction::MakeArray { elements, typ };
+                        let instruction = Instruction::MakeArray { elements, typ: element_type };
                         let new_array = dfg.insert_instruction_and_results(
                             instruction,
                             block,
@@ -672,7 +671,7 @@ impl Instruction {
                     }
                 }
 
-                try_optimize_array_set_from_previous_get(dfg, *array, *index, *value)
+                try_optimize_array_set_from_previous_get(dfg, *array_id, *index, *value)
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if bit_size == max_bit_size {
