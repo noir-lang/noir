@@ -1,11 +1,10 @@
 use noirc_errors::{Location, Spanned};
 
-use crate::ast::{PathKind, ERROR_IDENT};
+use crate::ast::{Ident, Path, PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::import::{PathResolution, PathResolutionResult};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
-use crate::macros_api::Ident;
 use crate::{
     hir::{
         def_map::{ModuleDefId, TryFromModuleDefId},
@@ -15,8 +14,7 @@ use crate::{
         expr::{HirCapturedVar, HirIdent},
         traits::Trait,
     },
-    macros_api::{Path, StructId},
-    node_interner::{DefinitionId, TraitId},
+    node_interner::{DefinitionId, StructId, TraitId},
     Shared, StructType,
 };
 use crate::{Type, TypeAlias};
@@ -38,9 +36,18 @@ impl<'context> Elaborator<'context> {
         })
     }
 
-    pub(super) fn module_id(&self) -> ModuleId {
+    pub fn module_id(&self) -> ModuleId {
         assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
         ModuleId { krate: self.crate_id, local_id: self.local_module }
+    }
+
+    pub fn replace_module(&mut self, new_module: ModuleId) -> ModuleId {
+        assert_ne!(new_module.local_id, LocalModuleId::dummy_id(), "local_module is unset");
+        let current_module = self.module_id();
+
+        self.crate_id = new_module.krate;
+        self.local_module = new_module.local_id;
+        current_module
     }
 
     pub(super) fn resolve_path_or_error(
@@ -83,7 +90,13 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
-        let resolver = StandardPathResolver::new(module_id);
+        let self_type_module_id = if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+            Some(struct_type.borrow().id.module_id())
+        } else {
+            None
+        };
+
+        let resolver = StandardPathResolver::new(module_id, self_type_module_id);
 
         if !self.interner.lsp_mode {
             return resolver.resolve(

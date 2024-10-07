@@ -1,21 +1,28 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::FileMap;
+use fm::{FileMap, PathString};
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::Visibility,
-    graph::CrateId,
+    elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
-    hir_def::{stmt::HirPattern, traits::Trait},
-    macros_api::{NodeInterner, StructId},
-    node_interner::{
-        DefinitionId, DefinitionKind, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
+    hir_def::{
+        expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        stmt::HirPattern,
+        traits::Trait,
     },
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
+    },
+    node_interner::{NodeInterner, StructId},
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
-use crate::LspState;
+use crate::{
+    attribute_reference_finder::AttributeReferenceFinder, modules::module_full_path, utils,
+    LspState,
+};
 
 use super::{process_request, to_lsp_location, ProcessRequestCallbackArgs};
 
@@ -23,18 +30,41 @@ pub(crate) fn on_hover_request(
     state: &mut LspState,
     params: HoverParams,
 ) -> impl Future<Output = Result<Option<Hover>, ResponseError>> {
+    let uri = params.text_document_position_params.text_document.uri.clone();
+    let position = params.text_document_position_params.position;
     let result = process_request(state, params.text_document_position_params, |args| {
-        args.interner.reference_at_location(args.location).and_then(|reference| {
-            let location = args.interner.reference_location(reference);
-            let lsp_location = to_lsp_location(args.files, location.file, location.span);
-            format_reference(reference, &args).map(|formatted| Hover {
-                range: lsp_location.map(|location| location.range),
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: formatted,
-                }),
+        let path = PathString::from_path(uri.to_file_path().unwrap());
+        args.files
+            .get_file_id(&path)
+            .and_then(|file_id| {
+                utils::position_to_byte_index(args.files, file_id, &position).and_then(
+                    |byte_index| {
+                        let file = args.files.get_file(file_id).unwrap();
+                        let source = file.source();
+                        let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+
+                        let mut finder = AttributeReferenceFinder::new(
+                            file_id,
+                            byte_index,
+                            args.crate_id,
+                            args.def_maps,
+                        );
+                        finder.find(&parsed_module)
+                    },
+                )
             })
-        })
+            .or_else(|| args.interner.reference_at_location(args.location))
+            .and_then(|reference| {
+                let location = args.interner.reference_location(reference);
+                let lsp_location = to_lsp_location(args.files, location.file, location.span);
+                format_reference(reference, &args).map(|formatted| Hover {
+                    range: lsp_location.map(|location| location.range),
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: formatted,
+                    }),
+                })
+            })
     });
 
     future::ready(result)
@@ -60,30 +90,37 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
     let crate_root = args.def_maps[&id.krate].root();
 
-    if id.local_id == crate_root {
-        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate);
-        return dep.map(|dep| format!("    crate {}", dep.name));
-    }
-
-    // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
-    // This is a workaround to avoid panicking in that case (which brings the LSP server down).
-    // Cases where this happens are related to generated code, so once that stops happening
-    // this won't be an issue anymore.
-    let module_attributes = args.interner.try_module_attributes(&id)?;
-
     let mut string = String::new();
-    if let Some(parent_local_id) = module_attributes.parent {
-        if format_parent_module_from_module_id(
-            &ModuleId { krate: id.krate, local_id: parent_local_id },
-            args,
-            &mut string,
-        ) {
-            string.push('\n');
+
+    if id.local_id == crate_root {
+        let Some(dep) = args.dependencies.iter().find(|dep| dep.crate_id == id.krate) else {
+            return None;
+        };
+        string.push_str("    crate ");
+        string.push_str(&dep.name.to_string());
+    } else {
+        // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
+        // This is a workaround to avoid panicking in that case (which brings the LSP server down).
+        // Cases where this happens are related to generated code, so once that stops happening
+        // this won't be an issue anymore.
+        let module_attributes = args.interner.try_module_attributes(&id)?;
+
+        if let Some(parent_local_id) = module_attributes.parent {
+            if format_parent_module_from_module_id(
+                &ModuleId { krate: id.krate, local_id: parent_local_id },
+                args,
+                &mut string,
+            ) {
+                string.push('\n');
+            }
         }
+        string.push_str("    ");
+        string.push_str("mod ");
+        string.push_str(&module_attributes.name);
     }
-    string.push_str("    ");
-    string.push_str("mod ");
-    string.push_str(&module_attributes.name);
+
+    append_doc_comments(args.interner, ReferenceId::Module(id), &mut string);
+
     Some(string)
 }
 
@@ -108,6 +145,9 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str(",\n");
     }
     string.push_str("    }");
+
+    append_doc_comments(args.interner, ReferenceId::Struct(id), &mut string);
+
     string
 }
 
@@ -131,6 +171,9 @@ fn format_struct_member(
     string.push_str(": ");
     string.push_str(&format!("{}", field_type));
     string.push_str(&go_to_type_links(field_type, args.interner, args.files));
+
+    append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
+
     string
 }
 
@@ -145,25 +188,114 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("trait ");
     string.push_str(&a_trait.name.0.contents);
     format_generics(&a_trait.generics, &mut string);
+
+    append_doc_comments(args.interner, ReferenceId::Trait(id), &mut string);
+
     string
 }
 
 fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     let global_info = args.interner.get_global(id);
     let definition_id = global_info.definition_id;
+    let definition = args.interner.definition(definition_id);
     let typ = args.interner.definition_type(definition_id);
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Global(id), args, &mut string) {
         string.push('\n');
     }
+
     string.push_str("    ");
+    if definition.comptime {
+        string.push_str("comptime ");
+    }
+    if definition.mutable {
+        string.push_str("mut ");
+    }
     string.push_str("global ");
     string.push_str(&global_info.ident.0.contents);
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
+
+    // See if we can figure out what's the global's value
+    if let Some(stmt) = args.interner.get_global_let_statement(id) {
+        if let Some(value) = get_global_value(args.interner, stmt.expression) {
+            string.push_str(" = ");
+            string.push_str(&value);
+        }
+    }
+
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
+    append_doc_comments(args.interner, ReferenceId::Global(id), &mut string);
+
     string
+}
+
+fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
+    let span = interner.expr_span(&expr);
+
+    // Globals as array lengths are extremely common, so we try that first.
+    if let Ok(result) = try_eval_array_length_id(interner, expr, span) {
+        return Some(result.to_string());
+    }
+
+    match interner.expression(&expr) {
+        HirExpression::Literal(literal) => match literal {
+            HirLiteral::Array(hir_array_literal) => {
+                get_global_array_value(interner, hir_array_literal, false)
+            }
+            HirLiteral::Slice(hir_array_literal) => {
+                get_global_array_value(interner, hir_array_literal, true)
+            }
+            HirLiteral::Bool(value) => Some(value.to_string()),
+            HirLiteral::Integer(field_element, _) => Some(field_element.to_string()),
+            HirLiteral::Str(string) => Some(format!("{:?}", string)),
+            HirLiteral::FmtStr(..) => None,
+            HirLiteral::Unit => Some("()".to_string()),
+        },
+        HirExpression::Tuple(values) => {
+            get_exprs_global_value(interner, &values).map(|value| format!("({})", value))
+        }
+        _ => None,
+    }
+}
+
+fn get_global_array_value(
+    interner: &NodeInterner,
+    literal: HirArrayLiteral,
+    is_slice: bool,
+) -> Option<String> {
+    match literal {
+        HirArrayLiteral::Standard(values) => {
+            get_exprs_global_value(interner, &values).map(|value| {
+                if is_slice {
+                    format!("&[{}]", value)
+                } else {
+                    format!("[{}]", value)
+                }
+            })
+        }
+        HirArrayLiteral::Repeated { repeated_element, length } => {
+            get_global_value(interner, repeated_element).map(|value| {
+                if is_slice {
+                    format!("&[{}; {}]", value, length)
+                } else {
+                    format!("[{}; {}]", value, length)
+                }
+            })
+        }
+    }
+}
+
+fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<String> {
+    let strings: Vec<String> =
+        exprs.iter().filter_map(|value| get_global_value(interner, *value)).collect();
+    if strings.len() == exprs.len() {
+        Some(strings.join(", "))
+    } else {
+        None
+    }
 }
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
@@ -220,6 +352,8 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
+    append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+
     string
 }
 
@@ -235,11 +369,18 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&type_alias.name.0.contents);
     string.push_str(" = ");
     string.push_str(&format!("{}", &type_alias.typ));
+
+    append_doc_comments(args.interner, ReferenceId::Alias(id), &mut string);
+
     string
 }
 
 fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     let definition_info = args.interner.definition(id);
+    if let DefinitionKind::Global(global_id) = &definition_info.kind {
+        return format_global(*global_id, args);
+    }
+
     let DefinitionKind::Local(expr_id) = definition_info.kind else {
         panic!("Expected a local reference to reference a local definition")
     };
@@ -270,6 +411,7 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
+/// Some doc comments
 fn format_generics(generics: &Generics, string: &mut String) {
     if generics.is_empty() {
         return;
@@ -328,43 +470,14 @@ fn format_parent_module_from_module_id(
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
-    let mut segments: Vec<&str> = Vec::new();
-
-    if let Some(module_attributes) = args.interner.try_module_attributes(module) {
-        segments.push(&module_attributes.name);
-
-        let mut current_attributes = module_attributes;
-        loop {
-            let Some(parent_local_id) = current_attributes.parent else {
-                break;
-            };
-
-            let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
-                krate: module.krate,
-                local_id: parent_local_id,
-            }) else {
-                break;
-            };
-
-            segments.push(&parent_attributes.name);
-            current_attributes = parent_attributes;
-        }
-    }
-
-    // We don't record module attriubtes for the root module,
-    // so we handle that case separately
-    if let CrateId::Root(_) = module.krate {
-        segments.push(&args.crate_name);
-    };
-
-    if segments.is_empty() {
+    let full_path =
+        module_full_path(module, args.interner, args.crate_id, &args.crate_name, args.dependencies);
+    if full_path.is_empty() {
         return false;
     }
 
-    segments.reverse();
-
     string.push_str("    ");
-    string.push_str(&segments.join("::"));
+    string.push_str(&full_path);
     true
 }
 
@@ -417,7 +530,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(generic);
                 }
             }
-            Type::TypeVariable(var, _) => {
+            Type::TypeVariable(var) => {
                 self.gather_type_variable_links(var);
             }
             Type::TraitAsType(trait_id, _, generics) => {
@@ -430,7 +543,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(&named_type.typ);
                 }
             }
-            Type::NamedGeneric(var, _, _) => {
+            Type::NamedGeneric(var, _) => {
                 self.gather_type_variable_links(var);
             }
             Type::Function(args, return_type, env, _) => {
@@ -452,7 +565,7 @@ impl<'a> TypeLinksGatherer<'a> {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Forall(_, _)
-            | Type::Constant(_)
+            | Type::Constant(..)
             | Type::Quoted(_)
             | Type::Error => (),
         }
@@ -511,6 +624,16 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
         location.range.end.line + 1,
         location.range.end.character + 1
     )
+}
+
+fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) {
+    if let Some(doc_comments) = interner.doc_comments(id) {
+        string.push_str("\n\n---\n\n");
+        for comment in doc_comments {
+            string.push_str(comment);
+            string.push('\n');
+        }
+    }
 }
 
 #[cfg(test)]
@@ -624,7 +747,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 15, character: 25 },
             r#"    one::subone
-    global some_global: Field"#,
+    global some_global: Field = 2"#,
         )
         .await;
     }
@@ -822,6 +945,17 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 0, character: 5 },
             "    crate one",
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_attribute_function() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 54, character: 2 },
+            "    two\n    fn attr(_: FunctionDefinition) -> Quoted",
         )
         .await;
     }

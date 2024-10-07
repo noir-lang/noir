@@ -2,9 +2,8 @@ use chumsky::Parser;
 use noirc_errors::Span;
 
 use crate::{
-    macros_api::SecondaryAttribute,
     parser::{NoirParser, ParserError, ParserErrorReason},
-    token::{Attribute, Attributes, Token, TokenKind},
+    token::{Attribute, Attributes, SecondaryAttribute, Token, TokenKind},
 };
 
 use super::primitives::token_kind;
@@ -66,4 +65,13 @@ pub(super) fn validate_secondary_attributes(
     }
 
     struct_attributes
+}
+
+pub(super) fn inner_attribute() -> impl NoirParser<SecondaryAttribute> {
+    token_kind(TokenKind::InnerAttribute).map(|token| match token {
+        Token::InnerAttribute(attribute) => attribute,
+        _ => unreachable!(
+            "Parser should have already errored due to token not being an inner attribute"
+        ),
+    })
 }

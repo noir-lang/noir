@@ -16,7 +16,7 @@ unconstrained fn set_mock_times_oracle(id: Field, times: u64) {}
 #[oracle(clear_mock)]
 unconstrained fn clear_mock_oracle(id: Field) {}
 
-struct OracleMock {
+pub struct OracleMock {
     id: Field,
 }
 

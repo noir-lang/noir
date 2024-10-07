@@ -15,7 +15,9 @@ use acvm::acir::AcirField;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
+        basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        function::{Function, RuntimeType},
         instruction::TerminatorInstruction,
     },
     ssa_gen::Ssa,
@@ -30,48 +32,54 @@ impl Ssa {
     /// 5. Replacing any jmpifs with constant conditions with jmps. If this causes the block to have
     ///    only 1 successor then (2) also will be applied.
     ///
-    /// Currently, 1 and 4 are unimplemented.
+    /// Currently, 1 is unimplemented.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
-            simplify_function(function);
+            function.simplify_function();
         }
         self
     }
 }
 
-/// Simplify a function's cfg by going through each block to check for any simple blocks that can
-/// be inlined into their predecessor.
-fn simplify_function(function: &mut Function) {
-    let mut cfg = ControlFlowGraph::with_function(function);
-    let mut stack = vec![function.entry_block()];
-    let mut visited = HashSet::new();
+impl Function {
+    /// Simplify a function's cfg by going through each block to check for any simple blocks that can
+    /// be inlined into their predecessor.
+    pub(crate) fn simplify_function(&mut self) {
+        let mut cfg = ControlFlowGraph::with_function(self);
+        let mut stack = vec![self.entry_block()];
+        let mut visited = HashSet::new();
 
-    while let Some(block) = stack.pop() {
-        if visited.insert(block) {
-            stack.extend(function.dfg[block].successors().filter(|block| !visited.contains(block)));
-        }
+        while let Some(block) = stack.pop() {
+            if visited.insert(block) {
+                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+            }
 
-        // This call is before try_inline_into_predecessor so that if it succeeds in changing a
-        // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-        check_for_constant_jmpif(function, block, &mut cfg);
+            // This call is before try_inline_into_predecessor so that if it succeeds in changing a
+            // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
+            check_for_constant_jmpif(self, block, &mut cfg);
 
-        let mut predecessors = cfg.predecessors(block);
+            let mut predecessors = cfg.predecessors(block);
+            if predecessors.len() == 1 {
+                let predecessor =
+                    predecessors.next().expect("Already checked length of predecessors");
+                drop(predecessors);
 
-        if predecessors.len() == 1 {
-            let predecessor = predecessors.next().expect("Already checked length of predecessors");
-            drop(predecessors);
+                // If the block has only 1 predecessor, we can safely remove its block parameters
+                remove_block_parameters(self, block, predecessor);
 
-            // If the block has only 1 predecessor, we can safely remove its block parameters
-            remove_block_parameters(function, block, predecessor);
+                // Note: this function relies on `remove_block_parameters` being called first.
+                // Otherwise the inlined block will refer to parameters that no longer exist.
+                //
+                // If successful, `block` will be empty and unreachable after this call, so any
+                // optimizations performed after this point on the same block should check if
+                // the inlining here was successful before continuing.
+                try_inline_into_predecessor(self, &mut cfg, block, predecessor);
+            } else {
+                drop(predecessors);
 
-            // Note: this function relies on `remove_block_parameters` being called first.
-            // Otherwise the inlined block will refer to parameters that no longer exist.
-            //
-            // If successful, `block` will be empty and unreachable after this call, so any
-            // optimizations performed after this point on the same block should check if
-            // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, &mut cfg, block, predecessor);
+                check_for_double_jmp(self, block, &mut cfg);
+            }
         }
     }
 }
@@ -90,16 +98,90 @@ fn check_for_constant_jmpif(
     }) = function.dfg[block].terminator()
     {
         if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
-            let destination =
-                if constant.is_zero() { *else_destination } else { *then_destination };
+            let (destination, unchosen_destination) = if constant.is_zero() {
+                (*else_destination, *then_destination)
+            } else {
+                (*then_destination, *else_destination)
+            };
 
             let arguments = Vec::new();
             let call_stack = call_stack.clone();
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
+
+            // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
+            // we can then invalidate it successors as it's an invalid predecessor.
+            if cfg.predecessors(unchosen_destination).len() == 0 {
+                cfg.invalidate_block_successors(unchosen_destination);
+            }
         }
     }
+}
+
+/// Optimize a jmp to a block which immediately jmps elsewhere to just jmp to the second block.
+fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut ControlFlowGraph) {
+    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        // We can't remove double jumps in ACIR functions as this interferes with the `flatten_cfg` pass.
+        return;
+    }
+
+    if !function.dfg[block].instructions().is_empty()
+        || !function.dfg[block].parameters().is_empty()
+    {
+        return;
+    }
+
+    let Some(TerminatorInstruction::Jmp { destination: final_destination, arguments, .. }) =
+        function.dfg[block].terminator()
+    else {
+        return;
+    };
+
+    if !arguments.is_empty() {
+        return;
+    }
+
+    let final_destination = *final_destination;
+
+    let predecessors: Vec<_> = cfg.predecessors(block).collect();
+    for predecessor_block in predecessors {
+        let terminator_instruction = function.dfg[predecessor_block].take_terminator();
+        let redirected_terminator_instruction = match terminator_instruction {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
+                let then_destination =
+                    if then_destination == block { final_destination } else { then_destination };
+                let else_destination =
+                    if else_destination == block { final_destination } else { else_destination };
+                TerminatorInstruction::JmpIf {
+                    condition,
+                    then_destination,
+                    else_destination,
+                    call_stack,
+                }
+            }
+            TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
+                assert_eq!(
+                    destination, block,
+                    "ICE: predecessor block doesn't jump to current block"
+                );
+                assert!(arguments.is_empty(), "ICE: predecessor jmp has arguments");
+                TerminatorInstruction::Jmp { destination: final_destination, arguments, call_stack }
+            }
+            TerminatorInstruction::Return { .. } => {
+                unreachable!("ICE: predecessor block should not have return terminator instruction")
+            }
+        };
+
+        function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);
+        cfg.recompute_block(function, predecessor_block);
+    }
+    cfg.recompute_block(function, block);
 }
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.

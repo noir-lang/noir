@@ -5,17 +5,14 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
-    prepare_package,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::TestStatus,
+    package::{CrateName, Package},
+    parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{
-    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
-};
-use noirc_frontend::{
-    graph::CrateName,
-    hir::{FunctionNameMatch, ParsedFiles},
-};
+use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -65,7 +62,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 

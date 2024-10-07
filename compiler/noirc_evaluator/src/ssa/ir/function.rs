@@ -72,6 +72,13 @@ impl Function {
         Self { name: another.name.clone(), id, entry_block, dfg, runtime: another.runtime }
     }
 
+    /// Takes the signature (function name & runtime) from a function but does not copy the body.
+    pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
+        let mut new_function = Function::new(another.name.clone(), id);
+        new_function.runtime = another.runtime;
+        new_function
+    }
+
     /// The name of the function.
     /// Used exclusively for debugging purposes.
     pub(crate) fn name(&self) -> &str {
@@ -152,6 +159,17 @@ impl Function {
         let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
         let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
         Signature { params, returns }
+    }
+
+    /// Finds the block of the function with the Return instruction
+    pub(crate) fn find_last_block(&self) -> BasicBlockId {
+        for block in self.reachable_blocks() {
+            if matches!(self.dfg[block].terminator(), Some(TerminatorInstruction::Return { .. })) {
+                return block;
+            }
+        }
+
+        unreachable!("SSA Function {} has no reachable return instruction!", self.id())
     }
 }
 

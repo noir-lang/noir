@@ -1,6 +1,6 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
-use crate::{BinaryTypeOperator, Type};
+use crate::{BinaryTypeOperator, Type, TypeBindings, UnificationError};
 
 impl Type {
     /// Try to canonicalize the representation of this type.
@@ -17,9 +17,12 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs) => {
                 // evaluate_to_u32 also calls canonicalize so if we just called
                 // `self.evaluate_to_u32()` we'd get infinite recursion.
-                if let (Some(lhs), Some(rhs)) = (lhs.evaluate_to_u32(), rhs.evaluate_to_u32()) {
-                    if let Some(result) = op.function(lhs, rhs) {
-                        return Type::Constant(result);
+                if let (Some(lhs_u32), Some(rhs_u32)) =
+                    (lhs.evaluate_to_u32(), rhs.evaluate_to_u32())
+                {
+                    let kind = lhs.infix_kind(&rhs);
+                    if let Some(result) = op.function(lhs_u32, rhs_u32, &kind) {
+                        return Type::Constant(result, kind);
                     }
                 }
 
@@ -52,7 +55,8 @@ impl Type {
     fn sort_commutative(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
         let mut queue = vec![lhs.clone(), rhs.clone()];
 
-        let mut sorted = BTreeSet::new();
+        // Maps each term to the number of times that term was used.
+        let mut sorted = BTreeMap::new();
 
         let zero_value = if op == BinaryTypeOperator::Addition { 0 } else { 1 };
         let mut constant = zero_value;
@@ -64,34 +68,43 @@ impl Type {
                     queue.push(*lhs);
                     queue.push(*rhs);
                 }
-                Type::Constant(new_constant) => {
-                    if let Some(result) = op.function(constant, new_constant) {
+                Type::Constant(new_constant, new_constant_kind) => {
+                    if let Some(result) = op.function(constant, new_constant, &new_constant_kind) {
                         constant = result;
                     } else {
-                        sorted.insert(Type::Constant(new_constant));
+                        let constant = Type::Constant(new_constant, new_constant_kind);
+                        *sorted.entry(constant).or_default() += 1;
                     }
                 }
                 other => {
-                    sorted.insert(other);
+                    *sorted.entry(other).or_default() += 1;
                 }
             }
         }
 
         if let Some(first) = sorted.pop_first() {
-            let mut typ = first.clone();
+            let (mut typ, first_type_count) = first.clone();
 
-            for rhs in sorted {
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(rhs.clone()));
+            // - 1 since `typ` already is set to the first instance
+            for _ in 0..first_type_count - 1 {
+                typ = Type::InfixExpr(Box::new(typ), op, Box::new(first.0.clone()));
+            }
+
+            for (rhs, rhs_count) in sorted {
+                for _ in 0..rhs_count {
+                    typ = Type::InfixExpr(Box::new(typ), op, Box::new(rhs.clone()));
+                }
             }
 
             if constant != zero_value {
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(Type::Constant(constant)));
+                let constant = Type::Constant(constant, lhs.infix_kind(rhs));
+                typ = Type::InfixExpr(Box::new(typ), op, Box::new(constant));
             }
 
             typ
         } else {
             // Every type must have been a constant
-            Type::Constant(constant)
+            Type::Constant(constant, lhs.infix_kind(rhs))
         }
     }
 
@@ -193,8 +206,9 @@ impl Type {
                 if l_op == Subtraction {
                     op = op.inverse()?;
                 }
-                let result = op.function(l_const, r_const)?;
-                Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result))))
+                let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
+                let constant = Type::Constant(result, lhs.infix_kind(rhs));
+                Some(Type::InfixExpr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication | Division, Multiplication | Division) => {
                 // If l_op is a division we want to inverse the rhs operator.
@@ -205,11 +219,52 @@ impl Type {
                 if op == Division && (r_const == 0 || l_const % r_const != 0) {
                     None
                 } else {
-                    let result = op.function(l_const, r_const)?;
-                    Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result))))
+                    let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
+                    let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
+                    Some(Type::InfixExpr(l_type, l_op, constant))
                 }
             }
             _ => None,
         }
+    }
+
+    /// Try to unify equations like `(..) + 3 = (..) + 1`
+    /// by transforming them to `(..) + 2 =  (..)`
+    pub(super) fn try_unify_by_moving_constant_terms(
+        &self,
+        other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
+            if let Some(inverse) = op_a.inverse() {
+                if let Some(rhs_a_u32) = rhs_a.evaluate_to_u32() {
+                    let rhs_a = Box::new(Type::Constant(rhs_a_u32, lhs_a.infix_kind(rhs_a)));
+                    let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
+
+                    let mut tmp_bindings = bindings.clone();
+                    if lhs_a.try_unify(&new_other, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        if let Type::InfixExpr(lhs_b, op_b, rhs_b) = other {
+            if let Some(inverse) = op_b.inverse() {
+                if let Some(rhs_b_u32) = rhs_b.evaluate_to_u32() {
+                    let rhs_b = Box::new(Type::Constant(rhs_b_u32, lhs_b.infix_kind(rhs_b)));
+                    let new_self = Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b);
+
+                    let mut tmp_bindings = bindings.clone();
+                    if new_self.try_unify(lhs_b, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        Err(UnificationError)
     }
 }

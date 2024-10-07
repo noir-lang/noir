@@ -7,3 +7,4 @@ pub use crate::cmp::{Eq, Ord};
 pub use crate::default::Default;
 pub use crate::convert::{From, Into};
 pub use crate::meta::{derive, derive_via};
+pub use crate::panic::panic;

@@ -11,13 +11,23 @@ struct StructImplementsSomeTrait {
 
 }
 
-impl SomeTrait<i32> for StructImplementsSomeTrait {
-
-}
+impl SomeTrait<i32> for StructImplementsSomeTrait {}
 
 struct StructDoesNotImplementSomeTrait {
 
 }
+
+// docs:start:serialize-setup
+trait Serialize<let N: u32> {}
+
+impl Serialize<1> for Field {}
+
+impl<T, let N: u32, let M: u32> Serialize<N * M> for [T; N]
+    where T: Serialize<M> {}
+
+impl<T, U, let N: u32, let M: u32> Serialize<N + M> for (T, U)
+    where T: Serialize<N>, U: Serialize<M> {}
+// docs:end:serialize-setup
 
 fn main() {
     comptime
@@ -115,6 +125,29 @@ fn main() {
         let str_type = quote { str<10> }.as_type();
         let constant = str_type.as_str().unwrap();
         assert_eq(constant.as_constant().unwrap(), 10);
+
+        // Check std::meta::typ::fresh_type_variable
+        // docs:start:fresh-type-variable-example
+        let typevar1 = std::meta::typ::fresh_type_variable();
+        let constraint = quote { Serialize<$typevar1> }.as_trait_constraint();
+        let field_type = quote { Field }.as_type();
+
+        // Search for a trait impl (binding typevar1 to 1 when the impl is found):
+        assert(field_type.implements(constraint));
+
+        // typevar1 should be bound to the "1" generic now:
+        assert_eq(typevar1.as_constant().unwrap(), 1);
+
+        // If we want to do the same with a different type, we need to
+        // create a new type variable now that `typevar1` is bound
+        let typevar2 = std::meta::typ::fresh_type_variable();
+        let constraint = quote { Serialize<$typevar2> }.as_trait_constraint();
+        let array_type = quote { [(Field, Field); 5] }.as_type();
+        assert(array_type.implements(constraint));
+
+        // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
+        assert_eq(typevar2.as_constant().unwrap(), 10);
+        // docs:end:fresh-type-variable-example
     }
 }
 

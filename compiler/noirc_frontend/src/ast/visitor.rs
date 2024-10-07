@@ -12,19 +12,28 @@ use crate::{
         UseTreeKind,
     },
     node_interner::{
-        ExprId, InternedExpressionKind, InternedStatementKind, InternedUnresolvedTypeData,
-        QuotedTypeId,
+        ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
+        InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::Tokens,
+    token::{CustomAttribute, SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
 use super::{
-    FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern, Signedness,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern,
+    Signedness, TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum AttributeTarget {
+    Module,
+    Struct,
+    Trait,
+    Function,
+    Let,
+}
 
 /// Implements the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) for Noir's AST.
 ///
@@ -61,6 +70,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_trait_impl_item_kind(&mut self, _: &TraitImplItemKind, _span: Span) -> bool {
+        true
+    }
+
     fn visit_trait_impl_item_function(&mut self, _: &NoirFunction, _span: Span) -> bool {
         true
     }
@@ -70,11 +83,17 @@ pub trait Visitor {
         _name: &Ident,
         _typ: &UnresolvedType,
         _expression: &Expression,
+        _span: Span,
     ) -> bool {
         true
     }
 
-    fn visit_trait_impl_item_type(&mut self, _name: &Ident, _alias: &UnresolvedType) -> bool {
+    fn visit_trait_impl_item_type(
+        &mut self,
+        _name: &Ident,
+        _alias: &UnresolvedType,
+        _span: Span,
+    ) -> bool {
         true
     }
 
@@ -253,7 +272,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_import(&mut self, _: &UseTree, _visibility: ItemVisibility) -> bool {
+    fn visit_import(&mut self, _: &UseTree, _: Span, _visibility: ItemVisibility) -> bool {
         true
     }
 
@@ -319,6 +338,10 @@ pub trait Visitor {
     }
 
     fn visit_as_trait_path(&mut self, _: &AsTraitPath, _: Span) -> bool {
+        true
+    }
+
+    fn visit_type_path(&mut self, _: &TypePath, _: Span) -> bool {
         true
     }
 
@@ -432,6 +455,18 @@ pub trait Visitor {
     fn visit_struct_pattern(&mut self, _: &Path, _: &[(Ident, Pattern)], _: Span) -> bool {
         true
     }
+
+    fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {}
+
+    fn visit_secondary_attribute(
+        &mut self,
+        _: &SecondaryAttribute,
+        _target: AttributeTarget,
+    ) -> bool {
+        true
+    }
+
+    fn visit_custom_attribute(&mut self, _: &CustomAttribute, _target: AttributeTarget) {}
 }
 
 impl ParsedModule {
@@ -465,14 +500,14 @@ impl Item {
                 noir_trait_impl.accept(self.span, visitor);
             }
             ItemKind::Impl(type_impl) => type_impl.accept(self.span, visitor),
-            ItemKind::Global(let_statement) => {
+            ItemKind::Global(let_statement, _visibility) => {
                 if visitor.visit_global(let_statement, self.span) {
                     let_statement.accept(visitor);
                 }
             }
             ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
             ItemKind::Import(use_tree, visibility) => {
-                if visitor.visit_import(use_tree, *visibility) {
+                if visitor.visit_import(use_tree, self.span, *visibility) {
                     use_tree.accept(visitor);
                 }
             }
@@ -481,12 +516,19 @@ impl Item {
             ItemKind::ModuleDecl(module_declaration) => {
                 module_declaration.accept(self.span, visitor);
             }
+            ItemKind::InnerAttribute(attribute) => {
+                attribute.accept(AttributeTarget::Module, visitor);
+            }
         }
     }
 }
 
 impl ParsedSubModule {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        for attribute in &self.outer_attributes {
+            attribute.accept(AttributeTarget::Module, visitor);
+        }
+
         if visitor.visit_parsed_submodule(self, span) {
             self.accept_children(visitor);
         }
@@ -505,6 +547,10 @@ impl NoirFunction {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for attribute in self.secondary_attributes() {
+            attribute.accept(AttributeTarget::Function, visitor);
+        }
+
         for param in &self.def.parameters {
             param.typ.accept(visitor);
         }
@@ -525,7 +571,7 @@ impl NoirTraitImpl {
         self.object_type.accept(visitor);
 
         for item in &self.items {
-            item.accept(visitor);
+            item.item.accept(visitor);
         }
     }
 }
@@ -538,24 +584,32 @@ impl TraitImplItem {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        match self {
-            TraitImplItem::Function(noir_function) => {
-                let span = Span::from(
-                    noir_function.name_ident().span().start()..noir_function.span().end(),
-                );
+        self.kind.accept(self.span, visitor);
+    }
+}
 
+impl TraitImplItemKind {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_trait_impl_item_kind(self, span) {
+            self.accept_children(span, visitor);
+        }
+    }
+
+    pub fn accept_children(&self, span: Span, visitor: &mut impl Visitor) {
+        match self {
+            TraitImplItemKind::Function(noir_function) => {
                 if visitor.visit_trait_impl_item_function(noir_function, span) {
                     noir_function.accept(span, visitor);
                 }
             }
-            TraitImplItem::Constant(name, unresolved_type, expression) => {
-                if visitor.visit_trait_impl_item_constant(name, unresolved_type, expression) {
+            TraitImplItemKind::Constant(name, unresolved_type, expression) => {
+                if visitor.visit_trait_impl_item_constant(name, unresolved_type, expression, span) {
                     unresolved_type.accept(visitor);
                     expression.accept(visitor);
                 }
             }
-            TraitImplItem::Type { name, alias } => {
-                if visitor.visit_trait_impl_item_type(name, alias) {
+            TraitImplItemKind::Type { name, alias } => {
+                if visitor.visit_trait_impl_item_type(name, alias, span) {
                     alias.accept(visitor);
                 }
             }
@@ -574,7 +628,7 @@ impl TypeImpl {
         self.object_type.accept(visitor);
 
         for (method, span) in &self.methods {
-            method.accept(*span, visitor);
+            method.item.accept(*span, visitor);
         }
     }
 }
@@ -587,8 +641,12 @@ impl NoirTrait {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Trait, visitor);
+        }
+
         for item in &self.items {
-            item.accept(visitor);
+            item.item.accept(visitor);
         }
     }
 }
@@ -602,7 +660,17 @@ impl TraitItem {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+            TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body,
+                is_unconstrained: _,
+                visibility: _,
+                is_comptime: _,
+            } => {
                 if visitor.visit_trait_item_function(
                     name,
                     generics,
@@ -669,8 +737,12 @@ impl NoirStruct {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        for (_name, unresolved_type) in &self.fields {
-            unresolved_type.accept(visitor);
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Struct, visitor);
+        }
+
+        for field in &self.fields {
+            field.item.typ.accept(visitor);
         }
     }
 }
@@ -689,6 +761,10 @@ impl NoirTypeAlias {
 
 impl ModuleDeclaration {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        for attribute in &self.outer_attributes {
+            attribute.accept(AttributeTarget::Module, visitor);
+        }
+
         visitor.visit_module_declaration(self, span);
     }
 }
@@ -767,9 +843,11 @@ impl Expression {
             ExpressionKind::AsTraitPath(as_trait_path) => {
                 as_trait_path.accept(self.span, visitor);
             }
+            ExpressionKind::TypePath(path) => path.accept(self.span, visitor),
             ExpressionKind::Quote(tokens) => visitor.visit_quote(tokens),
             ExpressionKind::Resolved(expr_id) => visitor.visit_resolved_expression(*expr_id),
             ExpressionKind::Interned(id) => visitor.visit_interned_expression(*id),
+            ExpressionKind::InternedStatement(id) => visitor.visit_interned_statement(*id),
             ExpressionKind::Error => visitor.visit_error_expression(),
         }
     }
@@ -877,7 +955,7 @@ impl ConstructorExpression {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.type_name.accept(visitor);
+        self.typ.accept(visitor);
 
         for (_field_name, expression) in &self.fields {
             expression.accept(visitor);
@@ -1020,6 +1098,10 @@ impl Statement {
 
 impl LetStatement {
     pub fn accept(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Let, visitor);
+        }
+
         if visitor.visit_let_statement(self) {
             self.accept_children(visitor);
         }
@@ -1040,11 +1122,7 @@ impl ConstrainStatement {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.0.accept(visitor);
-
-        if let Some(exp) = &self.1 {
-            exp.accept(visitor);
-        }
+        visit_expressions(&self.arguments, visitor);
     }
 }
 
@@ -1114,7 +1192,7 @@ impl ForRange {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            ForRange::Range(start, end) => {
+            ForRange::Range(ForBounds { start, end, inclusive: _ }) => {
                 start.accept(visitor);
                 end.accept(visitor);
             }
@@ -1133,6 +1211,19 @@ impl AsTraitPath {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.trait_path.accept(visitor);
         self.trait_generics.accept(visitor);
+    }
+}
+
+impl TypePath {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_type_path(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.typ.accept(visitor);
+        self.turbofish.accept(visitor);
     }
 }
 
@@ -1285,7 +1376,30 @@ impl Pattern {
                     }
                 }
             }
+            Pattern::Interned(id, span) => {
+                visitor.visit_interned_pattern(id, *span);
+            }
         }
+    }
+}
+
+impl SecondaryAttribute {
+    pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
+        if visitor.visit_secondary_attribute(self, target) {
+            self.accept_children(target, visitor);
+        }
+    }
+
+    pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
+        if let SecondaryAttribute::Custom(custom) = self {
+            custom.accept(target, visitor);
+        }
+    }
+}
+
+impl CustomAttribute {
+    pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
+        visitor.visit_custom_attribute(self, target);
     }
 }
 

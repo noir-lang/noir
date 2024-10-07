@@ -1,8 +1,7 @@
 use chumsky::{primitive::just, Parser};
 
 use super::{parse_type, pattern};
-use crate::ast::{Expression, ExpressionKind, Lambda, Pattern, UnresolvedType};
-use crate::macros_api::UnresolvedTypeData;
+use crate::ast::{Expression, ExpressionKind, Lambda, Pattern, UnresolvedType, UnresolvedTypeData};
 use crate::{
     parser::{labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery, NoirParser},
     token::Token,

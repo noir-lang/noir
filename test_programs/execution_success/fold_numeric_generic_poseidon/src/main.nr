@@ -1,6 +1,6 @@
 use std::hash::{pedersen_hash_with_separator, poseidon2::Poseidon2};
 
-global NUM_HASHES = 2;
+global NUM_HASHES: u32 = 2;
 global HASH_LENGTH = 10;
 
 #[fold]
