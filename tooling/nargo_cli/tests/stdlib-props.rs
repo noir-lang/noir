@@ -107,49 +107,29 @@ fn run_snippet_proptest(
     });
 }
 
-/// This is just a simple test to check that property testing works.
-#[test]
-fn test_basic() {
-    let program = "fn main(init: u32) -> pub u32 {
-        let mut x = init;
-        for i in 0 .. 6 {
-            x += i;
-        }
-        x
-    }";
-
-    let strategy = any::<u32>()
-        .prop_map(|init| {
-            let init = init / 2;
-            SnippetInputOutput::new(
-                vec![("init", InputValue::Field(init.into()))],
-                InputValue::Field((init + 15).into()),
-            )
-        })
-        .boxed();
-
-    run_snippet_proptest(program.to_string(), false, strategy);
-}
-
-// TODO: - Sha256, Keccak256, Sha512, Schnorr, Poseidon2 and Poseidon
-
-#[test]
-fn test_keccak256() {
-    fn hash(input: &[u8]) -> [u8; 32] {
-        sha3::Keccak256::digest(input).try_into().expect("result is 256 bits")
-    }
-
-    // Keccak256 runs differently depending on whether it's unconstrained or not.
-    for force_brillig in [false, true] {
-        // XXX: Currently it fails with inputs >= 135 bytes
-        for max_len in [0usize, 10, 100, 134] {
-            // The maximum length is used to pick the generic version of the method.
-            let program = format!(
-                "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
-                    std::hash::keccak256(input, message_size)
-                }}"
-            );
-
+/// Run property tests on a code snippet which is assumed to execute a hashing function with the following signature:
+///
+/// ```ignore
+/// fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32]
+/// ```
+///
+/// The calls are executed with and without forcing brillig, because it seems common for hash functions to run different
+/// code paths based on `runtime::is_unconstrained()`.
+fn run_hash_proptest(
+    // Different generic maximum input sizes to try.
+    max_lengths: &[usize],
+    // Make the source code specialized for a given expected input size.
+    source: impl Fn(usize) -> String,
+    // Rust implementation of the hash function.
+    hash: fn(&[u8]) -> [u8; 32],
+) {
+    for max_len in max_lengths {
+        let max_len = *max_len;
+        // The maximum length is used to pick the generic version of the method.
+        let source = source(max_len);
+        // Hash functions runs differently depending on whether the code is unconstrained or not.
+        for force_brillig in [false, true] {
+            let hash = hash.clone();
             // The actual input length can be up to the maximum.
             let strategy = (0..=max_len)
                 .prop_flat_map(|len| prop::collection::vec(any::<u8>(), len))
@@ -174,10 +154,52 @@ fn test_keccak256() {
                 })
                 .boxed();
 
-            run_snippet_proptest(program.to_string(), force_brillig, strategy);
+            run_snippet_proptest(source.clone(), force_brillig, strategy);
         }
     }
 }
+
+/// This is just a simple test to check that property testing works.
+#[test]
+fn test_basic() {
+    let program = "fn main(init: u32) -> pub u32 {
+        let mut x = init;
+        for i in 0 .. 6 {
+            x += i;
+        }
+        x
+    }";
+
+    let strategy = any::<u32>()
+        .prop_map(|init| {
+            let init = init / 2;
+            SnippetInputOutput::new(
+                vec![("init", InputValue::Field(init.into()))],
+                InputValue::Field((init + 15).into()),
+            )
+        })
+        .boxed();
+
+    run_snippet_proptest(program.to_string(), false, strategy);
+}
+
+#[test]
+fn test_keccak256() {
+    run_hash_proptest(
+        // XXX: Currently it fails with inputs >= 135 bytes
+        &[0, 50, 134],
+        |max_len| {
+            format!(
+                "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
+                    std::hash::keccak256(input, message_size)
+                }}"
+            )
+        },
+        |data| sha3::Keccak256::digest(data).try_into().expect("result is 256 bits"),
+    );
+}
+
+// TODO: - Sha256, Sha512, Schnorr, Poseidon and Poseidon2
 
 fn bytes_input(bytes: &[u8]) -> InputValue {
     InputValue::Vec(
