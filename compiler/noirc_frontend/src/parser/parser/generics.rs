@@ -148,8 +148,7 @@ impl<'a> Parser<'a> {
         }
 
         // Otherwise
-        let typ = self.parse_type_or_type_expression();
-        let Some(typ) = typ else {
+        let Some(typ) = self.parse_type_or_type_expression() else {
             self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
             return None;
         };
