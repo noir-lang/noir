@@ -421,7 +421,7 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        ast::{IntegerBitSize, Signedness, UnresolvedTypeData},
+        ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
         parser::{
             parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser,
@@ -429,30 +429,31 @@ mod tests {
         QuotedType,
     };
 
-    #[test]
-    fn parses_unit_type() {
-        let src = "()";
+    fn parse_type_no_errors(src: &str) -> UnresolvedType {
         let mut parser = Parser::for_str(src);
         let typ = parser.parse_type_or_error();
         expect_no_errors(&parser.errors);
+        typ
+    }
+
+    #[test]
+    fn parses_unit_type() {
+        let src = "()";
+        let typ = parse_type_no_errors(src);
         assert!(matches!(typ.typ, UnresolvedTypeData::Unit));
     }
 
     #[test]
     fn parses_bool_type() {
         let src = "bool";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
     }
 
     #[test]
     fn parses_int_type() {
         let src = "u32";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         assert!(matches!(
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
@@ -462,18 +463,14 @@ mod tests {
     #[test]
     fn parses_field_type() {
         let src = "Field";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
     }
 
     #[test]
     fn parses_str_type() {
         let src = "str<10>";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::String(expr) = typ.typ else { panic!("Expected a string type") };
         assert_eq!(expr.to_string(), "10");
     }
@@ -481,9 +478,7 @@ mod tests {
     #[test]
     fn parses_fmtstr_type() {
         let src = "fmtstr<10, T>";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::FormatString(expr, typ) = typ.typ else {
             panic!("Expected a format string type")
         };
@@ -495,9 +490,7 @@ mod tests {
     fn parses_comptime_types() {
         for quoted_type in QuotedType::iter() {
             let src = quoted_type.to_string();
-            let mut parser = Parser::for_str(&src);
-            let typ = parser.parse_type_or_error();
-            expect_no_errors(&parser.errors);
+            let typ = parse_type_no_errors(&src);
             let UnresolvedTypeData::Quoted(parsed_qouted_type) = typ.typ else {
                 panic!("Expected a quoted type for {}", quoted_type)
             };
@@ -508,9 +501,7 @@ mod tests {
     #[test]
     fn parses_tuple_type() {
         let src = "(Field, bool)";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Tuple(mut types) = typ.typ else { panic!("Expected a tuple type") };
         assert_eq!(types.len(), 2);
 
@@ -524,9 +515,7 @@ mod tests {
     #[test]
     fn parses_tuple_type_one_element() {
         let src = "(Field,)";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Tuple(mut types) = typ.typ else { panic!("Expected a tuple type") };
         assert_eq!(types.len(), 1);
 
@@ -537,9 +526,7 @@ mod tests {
     #[test]
     fn parses_parenthesized_type() {
         let src = "(Field)";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
@@ -561,9 +548,7 @@ mod tests {
     #[test]
     fn parses_mutable_reference_type() {
         let src = "&mut Field";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::MutableReference(typ) = typ.typ else {
             panic!("Expected a mutable reference type")
         };
@@ -573,9 +558,7 @@ mod tests {
     #[test]
     fn parses_named_type_no_generics() {
         let src = "foo::Bar";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
             panic!("Expected a named type")
         };
@@ -586,9 +569,7 @@ mod tests {
     #[test]
     fn parses_slice_type() {
         let src = "[Field]";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
         assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
     }
@@ -609,9 +590,7 @@ mod tests {
     #[test]
     fn parses_array_type() {
         let src = "[Field; 10]";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
             panic!("Expected an array type")
         };
@@ -622,9 +601,7 @@ mod tests {
     #[test]
     fn parses_empty_function_type() {
         let src = "fn() -> Field";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Function(args, ret, env, unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
@@ -637,9 +614,7 @@ mod tests {
     #[test]
     fn parses_function_type_with_arguments() {
         let src = "fn(Field, bool) -> Field";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Function(args, _ret, _env, _unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
@@ -651,9 +626,7 @@ mod tests {
     #[test]
     fn parses_function_type_with_return_type() {
         let src = "fn() -> Field";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
@@ -663,9 +636,7 @@ mod tests {
     #[test]
     fn parses_function_type_with_env() {
         let src = "fn[Field]() -> Field";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Function(_args, _ret, env, _unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
@@ -675,9 +646,7 @@ mod tests {
     #[test]
     fn parses_unconstrained_function_type() {
         let src = "unconstrained fn() -> Field";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Function(_args, _ret, _env, unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
@@ -687,9 +656,7 @@ mod tests {
     #[test]
     fn parses_trait_as_type_no_generics() {
         let src = "impl foo::Bar";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::TraitAsType(path, generics) = typ.typ else {
             panic!("Expected trait as type")
         };
@@ -700,9 +667,7 @@ mod tests {
     #[test]
     fn parses_as_trait_path() {
         let src = "<Field as foo::Bar>::baz";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_error();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::AsTraitPath(as_trait_path) = typ.typ else {
             panic!("Expected as_trait_path")
         };

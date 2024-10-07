@@ -108,24 +108,29 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ItemVisibility, PathKind, UseTreeKind},
+        ast::{ItemVisibility, PathKind, UseTree, UseTreeKind},
         parser::{
             parser::{parse_program, tests::expect_no_errors},
             ItemKind,
         },
     };
 
+    fn parse_use_tree_no_errors(src: &str) -> (UseTree, ItemVisibility) {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Import(use_tree, visibility) = item.kind else {
+            panic!("Expected import");
+        };
+        (use_tree, visibility)
+    }
+
     #[test]
     fn parse_simple() {
         let src = "use foo;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Import(use_tree, visibility) = &item.kind else {
-            panic!("Expected import");
-        };
-        assert_eq!(visibility, &ItemVisibility::Private);
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
+        assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
         assert_eq!("foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = &use_tree.kind else {
@@ -138,39 +143,21 @@ mod tests {
     #[test]
     fn parse_simple_pub() {
         let src = "pub use foo;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Import(_, visibility) = &item.kind else {
-            panic!("Expected import");
-        };
-        assert_eq!(visibility, &ItemVisibility::Public);
+        let (_use_tree, visibility) = parse_use_tree_no_errors(src);
+        assert_eq!(visibility, ItemVisibility::Public);
     }
 
     #[test]
     fn parse_simple_pub_crate() {
         let src = "pub(crate) use foo;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Import(_, visibility) = &item.kind else {
-            panic!("Expected import");
-        };
-        assert_eq!(visibility, &ItemVisibility::PublicCrate);
+        let (_use_tree, visibility) = parse_use_tree_no_errors(src);
+        assert_eq!(visibility, ItemVisibility::PublicCrate);
     }
 
     #[test]
     fn parse_simple_with_alias() {
         let src = "use foo as bar;";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Import(use_tree, visibility) = item.kind else {
-            panic!("Expected import");
-        };
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
         assert_eq!("foo as bar", use_tree.to_string());
@@ -184,13 +171,7 @@ mod tests {
     #[test]
     fn parse_with_crate_prefix() {
         let src = "use crate::foo;";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Import(use_tree, visibility) = item.kind else {
-            panic!("Expected import");
-        };
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Crate);
         assert_eq!("crate::foo", use_tree.to_string());
@@ -204,13 +185,7 @@ mod tests {
     #[test]
     fn parse_with_dep_prefix() {
         let src = "use dep::foo;";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Import(use_tree, visibility) = item.kind else {
-            panic!("Expected import");
-        };
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Dep);
         assert_eq!("dep::foo", use_tree.to_string());
@@ -224,13 +199,7 @@ mod tests {
     #[test]
     fn parse_with_super_prefix() {
         let src = "use super::foo;";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Import(use_tree, visibility) = item.kind else {
-            panic!("Expected import");
-        };
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Super);
         assert_eq!("super::foo", use_tree.to_string());
@@ -244,14 +213,8 @@ mod tests {
     #[test]
     fn parse_list() {
         let src = "use foo::{bar, baz};";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Import(use_tree, visibility) = &item.kind else {
-            panic!("Expected import");
-        };
-        assert_eq!(visibility, &ItemVisibility::Private);
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
+        assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
         assert_eq!("foo::{bar, baz}", use_tree.to_string());
         let UseTreeKind::List(use_trees) = &use_tree.kind else {
@@ -263,14 +226,8 @@ mod tests {
     #[test]
     fn parse_list_trailing_comma() {
         let src = "use foo::{bar, baz, };";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Import(use_tree, visibility) = &item.kind else {
-            panic!("Expected import");
-        };
-        assert_eq!(visibility, &ItemVisibility::Private);
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
+        assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
         assert_eq!("foo::{bar, baz}", use_tree.to_string());
         let UseTreeKind::List(use_trees) = &use_tree.kind else {
@@ -282,14 +239,8 @@ mod tests {
     #[test]
     fn parse_list_that_starts_with_crate() {
         let src = "use crate::{foo, bar};";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Import(use_tree, visibility) = &item.kind else {
-            panic!("Expected import");
-        };
-        assert_eq!(visibility, &ItemVisibility::Private);
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
+        assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!("crate::{foo, bar}", use_tree.to_string());
     }
 

@@ -68,7 +68,9 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{IntegerBitSize, ItemVisibility, Pattern, Signedness, UnresolvedTypeData},
+        ast::{
+            IntegerBitSize, ItemVisibility, LetStatement, Pattern, Signedness, UnresolvedTypeData,
+        },
         parser::{
             parser::{
                 parse_program,
@@ -81,35 +83,34 @@ mod tests {
         },
     };
 
+    fn parse_global_no_errors(src: &str) -> (LetStatement, ItemVisibility) {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Global(let_statement, visibility) = item.kind else {
+            panic!("Expected global");
+        };
+        (let_statement, visibility)
+    }
+
     #[test]
     fn parse_global_no_type_annotation() {
         let src = "global foo = 1;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Global(let_statement, visibility) = &item.kind else {
-            panic!("Expected global");
-        };
+        let (let_statement, visibility) = parse_global_no_errors(src);
         let Pattern::Identifier(name) = &let_statement.pattern else {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
         assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
         assert!(!let_statement.comptime);
-        assert_eq!(visibility, &ItemVisibility::Private);
+        assert_eq!(visibility, ItemVisibility::Private);
     }
 
     #[test]
     fn parse_global_with_type_annotation() {
         let src = "global foo: i32 = 1;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Global(let_statement, _) = &item.kind else {
-            panic!("Expected global");
-        };
+        let (let_statement, _visibility) = parse_global_no_errors(src);
         let Pattern::Identifier(name) = &let_statement.pattern else {
             panic!("Expected identifier pattern");
         };
@@ -123,26 +124,14 @@ mod tests {
     #[test]
     fn parse_comptime_global() {
         let src = "comptime global foo: i32 = 1;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Global(let_statement, _) = &item.kind else {
-            panic!("Expected global");
-        };
+        let (let_statement, _visibility) = parse_global_no_errors(src);
         assert!(let_statement.comptime);
     }
 
     #[test]
     fn parse_mutable_global() {
         let src = "mut global foo: i32 = 1;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Global(let_statement, _) = &item.kind else {
-            panic!("Expected global");
-        };
+        let (let_statement, _visibility) = parse_global_no_errors(src);
         let Pattern::Mutable(pattern, _, _) = &let_statement.pattern else {
             panic!("Expected mutable pattern");
         };

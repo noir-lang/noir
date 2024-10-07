@@ -55,23 +55,28 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::UnresolvedTypeData,
+        ast::{NoirTypeAlias, UnresolvedTypeData},
         parser::{
             parser::{parse_program, tests::expect_no_errors},
             ItemKind,
         },
     };
 
+    fn parse_type_alias_no_errors(src: &str) -> NoirTypeAlias {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TypeAlias(alias) = item.kind else {
+            panic!("Expected global");
+        };
+        alias
+    }
+
     #[test]
     fn parse_type_alias_no_generics() {
         let src = "type Foo = Field;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::TypeAlias(alias) = &item.kind else {
-            panic!("Expected global");
-        };
+        let alias = parse_type_alias_no_errors(src);
         assert_eq!("Foo", alias.name.to_string());
         assert!(alias.generics.is_empty());
         assert_eq!(alias.typ.typ, UnresolvedTypeData::FieldElement);
@@ -80,13 +85,7 @@ mod tests {
     #[test]
     fn parse_type_alias_with_generics() {
         let src = "type Foo<A> = Field;";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::TypeAlias(alias) = &item.kind else {
-            panic!("Expected type alias");
-        };
+        let alias = parse_type_alias_no_errors(src);
         assert_eq!("Foo", alias.name.to_string());
         assert_eq!(alias.generics.len(), 1);
     }

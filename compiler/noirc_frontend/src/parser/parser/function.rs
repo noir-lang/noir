@@ -285,7 +285,7 @@ fn empty_body() -> BlockExpression {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{UnresolvedTypeData, Visibility},
+        ast::{NoirFunction, UnresolvedTypeData, Visibility},
         parser::{
             parser::{
                 parse_program,
@@ -298,16 +298,21 @@ mod tests {
         },
     };
 
+    fn parse_function_no_error(src: &str) -> NoirFunction {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Function(noir_function) = item.kind else {
+            panic!("Expected function");
+        };
+        noir_function
+    }
+
     #[test]
     fn parse_simple_function() {
         let src = "fn foo() {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Function(noir_function) = &item.kind else {
-            panic!("Expected function");
-        };
+        let noir_function = parse_function_no_error(src);
         assert_eq!("foo", noir_function.def.name.to_string());
         assert!(noir_function.def.parameters.is_empty());
         assert!(noir_function.def.generics.is_empty());
@@ -316,26 +321,14 @@ mod tests {
     #[test]
     fn parse_function_with_generics() {
         let src = "fn foo<A>() {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Function(noir_function) = &item.kind else {
-            panic!("Expected function");
-        };
+        let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.generics.len(), 1);
     }
 
     #[test]
     fn parse_function_with_arguments() {
         let src = "fn foo(x: Field, y: Field) {}";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Function(mut noir_function) = item.kind else {
-            panic!("Expected function");
-        };
+        let mut noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.parameters.len(), 2);
 
         let param = noir_function.def.parameters.remove(0);
@@ -352,13 +345,7 @@ mod tests {
     #[test]
     fn parse_function_with_argument_pub_visibility() {
         let src = "fn foo(x: pub Field) {}";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Function(mut noir_function) = item.kind else {
-            panic!("Expected function");
-        };
+        let mut noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.parameters.len(), 1);
 
         let param = noir_function.def.parameters.remove(0);
@@ -370,13 +357,7 @@ mod tests {
     #[test]
     fn parse_function_with_argument_return_data_visibility() {
         let src = "fn foo(x: return_data Field) {}";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Function(mut noir_function) = item.kind else {
-            panic!("Expected function");
-        };
+        let mut noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.parameters.len(), 1);
 
         let param = noir_function.def.parameters.remove(0);
@@ -386,13 +367,7 @@ mod tests {
     #[test]
     fn parse_function_with_argument_call_data_visibility() {
         let src = "fn foo(x: call_data(42) Field) {}";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Function(mut noir_function) = item.kind else {
-            panic!("Expected function");
-        };
+        let mut noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.parameters.len(), 1);
 
         let param = noir_function.def.parameters.remove(0);
@@ -402,13 +377,7 @@ mod tests {
     #[test]
     fn parse_function_return_type() {
         let src = "fn foo() -> Field {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Function(noir_function) = &item.kind else {
-            panic!("Expected function");
-        };
+        let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Private);
         assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
     }
@@ -416,13 +385,7 @@ mod tests {
     #[test]
     fn parse_function_return_visibility() {
         let src = "fn foo() -> pub Field {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Function(noir_function) = &item.kind else {
-            panic!("Expected function");
-        };
+        let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Public);
         assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
     }

@@ -259,12 +259,17 @@ mod tests {
         token::{Keyword, Token},
     };
 
-    #[test]
-    fn parses_identifier_pattern() {
-        let src = "foo";
+    fn parse_pattern_no_errors(src: &str) -> Pattern {
         let mut parser = Parser::for_str(src);
         let pattern = parser.parse_pattern_or_error();
         expect_no_errors(&parser.errors);
+        pattern
+    }
+
+    #[test]
+    fn parses_identifier_pattern() {
+        let src = "foo";
+        let pattern = parse_pattern_no_errors(src);
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
         assert_eq!(ident.to_string(), "foo");
     }
@@ -272,9 +277,7 @@ mod tests {
     #[test]
     fn parses_mutable_pattern() {
         let src = "mut foo";
-        let mut parser = Parser::for_str(src);
-        let pattern = parser.parse_pattern_or_error();
-        expect_no_errors(&parser.errors);
+        let pattern = parse_pattern_no_errors(src);
         let Pattern::Mutable(pattern, _, _) = pattern else { panic!("Expected a mutable pattern") };
         let pattern: &Pattern = &pattern;
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
@@ -284,9 +287,7 @@ mod tests {
     #[test]
     fn parses_tuple_pattern() {
         let src = "(foo, bar)";
-        let mut parser = Parser::for_str(src);
-        let pattern = parser.parse_pattern_or_error();
-        expect_no_errors(&parser.errors);
+        let pattern = parse_pattern_no_errors(src);
         let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
         assert_eq!(patterns.len(), 2);
 
@@ -325,9 +326,7 @@ mod tests {
     #[test]
     fn parses_struct_pattern() {
         let src = "foo::Bar { x: one, y }";
-        let mut parser = Parser::for_str(src);
-        let pattern = parser.parse_pattern_or_error();
-        expect_no_errors(&parser.errors);
+        let pattern = parse_pattern_no_errors(src);
         let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")
         };

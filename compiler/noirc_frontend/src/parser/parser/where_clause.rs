@@ -93,6 +93,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        ast::UnresolvedTraitConstraint,
         parser::{
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
@@ -102,21 +103,24 @@ mod tests {
         token::Token,
     };
 
-    #[test]
-    fn parses_no_where_clause() {
-        let src = "{";
+    fn parse_where_clause_no_errors(src: &str) -> Vec<UnresolvedTraitConstraint> {
         let mut parser = Parser::for_str(src);
         let constraints = parser.parse_where_clause();
         expect_no_errors(&parser.errors);
+        constraints
+    }
+
+    #[test]
+    fn parses_no_where_clause() {
+        let src = "{";
+        let constraints = parse_where_clause_no_errors(src);
         assert!(constraints.is_empty());
     }
 
     #[test]
     fn parses_one_where_clause_with_two_constraints() {
         let src = "where Foo: Bar<T> + Baz";
-        let mut parser = Parser::for_str(src);
-        let mut constraints = parser.parse_where_clause();
-        expect_no_errors(&parser.errors);
+        let mut constraints = parse_where_clause_no_errors(src);
         assert_eq!(constraints.len(), 2);
 
         let constraint = constraints.remove(0);
@@ -132,9 +136,7 @@ mod tests {
     #[test]
     fn parses_two_where_clauses() {
         let src = "where Foo: Bar<T>, i32: Qux {";
-        let mut parser = Parser::for_str(src);
-        let mut constraints = parser.parse_where_clause();
-        expect_no_errors(&parser.errors);
+        let mut constraints = parse_where_clause_no_errors(src);
         assert_eq!(constraints.len(), 2);
 
         let constraint = constraints.remove(0);

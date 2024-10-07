@@ -412,7 +412,7 @@ mod tests {
     use core::panic;
 
     use crate::{
-        ast::{UnresolvedTypeData, UnresolvedTypeExpression},
+        ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
         parser::{
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
@@ -423,12 +423,24 @@ mod tests {
         BinaryTypeOperator,
     };
 
-    #[test]
-    fn parses_constant_type_expression() {
-        let src = "42";
+    fn parse_type_expression_no_errors(src: &str) -> UnresolvedTypeExpression {
         let mut parser = Parser::for_str(src);
         let expr = parser.parse_type_expression().unwrap();
         expect_no_errors(&parser.errors);
+        expr
+    }
+
+    fn parse_type_or_type_expression_no_errors(src: &str) -> UnresolvedType {
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_type_expression().unwrap();
+        expect_no_errors(&parser.errors);
+        typ
+    }
+
+    #[test]
+    fn parses_constant_type_expression() {
+        let src = "42";
+        let expr = parse_type_expression_no_errors(src);
         let UnresolvedTypeExpression::Constant(n, _) = expr else {
             panic!("Expected constant");
         };
@@ -438,9 +450,7 @@ mod tests {
     #[test]
     fn parses_variable_type_expression() {
         let src = "foo::bar";
-        let mut parser = Parser::for_str(src);
-        let expr = parser.parse_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let expr = parse_type_expression_no_errors(src);
         let UnresolvedTypeExpression::Variable(path) = expr else {
             panic!("Expected path");
         };
@@ -450,9 +460,7 @@ mod tests {
     #[test]
     fn parses_binary_type_expression() {
         let src = "1 + 2 * 3 + 4";
-        let mut parser = Parser::for_str(src);
-        let expr = parser.parse_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let expr = parse_type_expression_no_errors(src);
         let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
             panic!("Expected binary operation");
         };
@@ -464,9 +472,7 @@ mod tests {
     #[test]
     fn parses_parenthesized_type_expression() {
         let src = "(N)";
-        let mut parser = Parser::for_str(src);
-        let expr = parser.parse_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let expr = parse_type_expression_no_errors(src);
         let UnresolvedTypeExpression::Variable(path) = expr else {
             panic!("Expected variable");
         };
@@ -476,18 +482,14 @@ mod tests {
     #[test]
     fn parses_minus_type_expression() {
         let src = "-N";
-        let mut parser = Parser::for_str(src);
-        let expr = parser.parse_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let expr = parse_type_expression_no_errors(src);
         assert_eq!(expr.to_string(), "(0 - N)");
     }
 
     #[test]
     fn parse_type_or_type_expression_constant() {
         let src = "42";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Expression(expr) = typ.typ else {
             panic!("Expected expression");
         };
@@ -500,9 +502,7 @@ mod tests {
     #[test]
     fn parse_type_or_type_expression_variable() {
         let src = "foo::Bar";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
             panic!("Expected named type");
         };
@@ -513,9 +513,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_binary() {
         let src = "1 + 2 * 3 + 4";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Expression(expr) = typ.typ else {
             panic!("Expected expression");
         };
@@ -530,9 +528,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_minus() {
         let src = "-N";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Expression(expr) = typ.typ else {
             panic!("Expected expression");
         };
@@ -542,9 +538,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_unit() {
         let src = "()";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Unit = typ.typ else {
             panic!("Expected unit type");
         };
@@ -553,9 +547,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_parenthesized_type() {
         let src = "(Field)";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected parenthesized type");
         };
@@ -567,9 +559,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_parenthesized_constant() {
         let src = "(1)";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Expression(expr) = typ.typ else {
             panic!("Expected expression type");
         };
@@ -579,9 +569,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_tuple_type() {
         let src = "(Field, bool)";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Tuple(types) = typ.typ else {
             panic!("Expected tuple type");
         };
@@ -640,9 +628,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_var_minus_one() {
         let src = "N - 1";
-        let mut parser = Parser::for_str(src);
-        let typ = parser.parse_type_or_type_expression().unwrap();
-        expect_no_errors(&parser.errors);
+        let typ = parse_type_or_type_expression_no_errors(src);
         let UnresolvedTypeData::Expression(expr) = typ.typ else {
             panic!("Expected expression type");
         };

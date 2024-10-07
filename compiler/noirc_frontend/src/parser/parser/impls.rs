@@ -258,7 +258,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ItemVisibility, Pattern, TraitImplItemKind, UnresolvedTypeData},
+        ast::{
+            ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
+        },
         parser::{
             parser::{
                 parse_program,
@@ -268,16 +270,32 @@ mod tests {
         },
     };
 
+    fn parse_type_impl_no_errors(src: &str) -> TypeImpl {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Impl(type_impl) = item.kind else {
+            panic!("Expected type impl");
+        };
+        type_impl
+    }
+
+    fn parse_trait_impl_no_errors(src: &str) -> NoirTraitImpl {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TraitImpl(noir_trait_impl) = item.kind else {
+            panic!("Expected trait impl");
+        };
+        noir_trait_impl
+    }
+
     #[test]
     fn parse_empty_impl() {
         let src = "impl Foo {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Impl(type_impl) = &item.kind else {
-            panic!("Expected type impl");
-        };
+        let type_impl = parse_type_impl_no_errors(src);
         assert_eq!(type_impl.object_type.to_string(), "Foo");
         assert!(type_impl.generics.is_empty());
         assert!(type_impl.methods.is_empty());
@@ -286,13 +304,7 @@ mod tests {
     #[test]
     fn parse_empty_impl_with_generics() {
         let src = "impl <A, B> Foo {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::Impl(type_impl) = &item.kind else {
-            panic!("Expected type impl");
-        };
+        let type_impl = parse_type_impl_no_errors(src);
         assert_eq!(type_impl.object_type.to_string(), "Foo");
         assert_eq!(type_impl.generics.len(), 2);
         assert!(type_impl.methods.is_empty());
@@ -301,13 +313,7 @@ mod tests {
     #[test]
     fn parse_impl_with_methods() {
         let src = "impl Foo { unconstrained fn foo() {} pub comptime fn bar() {} }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Impl(mut type_impl) = item.kind else {
-            panic!("Expected type impl");
-        };
+        let mut type_impl = parse_type_impl_no_errors(src);
         assert_eq!(type_impl.object_type.to_string(), "Foo");
         assert_eq!(type_impl.methods.len(), 2);
 
@@ -333,13 +339,7 @@ mod tests {
             fn foo(self) {}
         }
         ";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Impl(type_impl) = item.kind else {
-            panic!("Expected type impl");
-        };
+        let type_impl = parse_type_impl_no_errors(src);
         let attributes = type_impl.methods[0].0.item.attributes();
         assert_eq!(attributes.secondary.len(), 1);
     }
@@ -347,13 +347,7 @@ mod tests {
     #[test]
     fn parse_impl_with_self_argument() {
         let src = "impl Foo { fn foo(self) {} }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Impl(mut type_impl) = item.kind else {
-            panic!("Expected type impl");
-        };
+        let mut type_impl = parse_type_impl_no_errors(src);
         assert_eq!(type_impl.methods.len(), 1);
 
         let (method, _) = type_impl.methods.remove(0);
@@ -372,13 +366,7 @@ mod tests {
     #[test]
     fn parse_impl_with_mut_self_argument() {
         let src = "impl Foo { fn foo(mut self) {} }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Impl(mut type_impl) = item.kind else {
-            panic!("Expected type impl");
-        };
+        let mut type_impl = parse_type_impl_no_errors(src);
         assert_eq!(type_impl.methods.len(), 1);
 
         let (method, _) = type_impl.methods.remove(0);
@@ -401,13 +389,7 @@ mod tests {
     #[test]
     fn parse_impl_with_reference_mut_self_argument() {
         let src = "impl Foo { fn foo(&mut self) {} }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Impl(mut type_impl) = item.kind else {
-            panic!("Expected type impl");
-        };
+        let mut type_impl = parse_type_impl_no_errors(src);
         assert_eq!(type_impl.methods.len(), 1);
 
         let (method, _) = type_impl.methods.remove(0);
@@ -426,13 +408,7 @@ mod tests {
     #[test]
     fn parse_impl_with_self_argument_followed_by_type() {
         let src = "impl Foo { fn foo(self: Foo) {} }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::Impl(mut type_impl) = item.kind else {
-            panic!("Expected type impl");
-        };
+        let mut type_impl = parse_type_impl_no_errors(src);
         assert_eq!(type_impl.methods.len(), 1);
 
         let (method, _) = type_impl.methods.remove(0);
@@ -478,13 +454,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_impl() {
         let src = "impl Foo for Field {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::TraitImpl(trait_impl) = &item.kind else {
-            panic!("Expected trait impl");
-        };
+        let trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
         assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
         assert!(trait_impl.items.is_empty());
@@ -494,13 +464,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_impl_with_generics() {
         let src = "impl <T> Foo for Field {}";
-        let (module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = &module.items[0];
-        let ItemKind::TraitImpl(trait_impl) = &item.kind else {
-            panic!("Expected trait impl");
-        };
+        let trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
         assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
         assert!(trait_impl.items.is_empty());
@@ -510,13 +474,7 @@ mod tests {
     #[test]
     fn parse_trait_impl_with_function() {
         let src = "impl Foo for Field { fn foo() {} }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::TraitImpl(mut trait_impl) = item.kind else {
-            panic!("Expected trait impl");
-        };
+        let mut trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
         assert_eq!(trait_impl.items.len(), 1);
 
@@ -531,13 +489,7 @@ mod tests {
     #[test]
     fn parse_trait_impl_with_generic_type_args() {
         let src = "impl Foo<i32, X = Field> for Field { }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::TraitImpl(trait_impl) = item.kind else {
-            panic!("Expected trait impl");
-        };
+        let trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
         assert!(!trait_impl.trait_generics.is_empty());
     }
@@ -545,13 +497,7 @@ mod tests {
     #[test]
     fn parse_trait_impl_with_type() {
         let src = "impl Foo for Field { type Foo = i32; }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::TraitImpl(mut trait_impl) = item.kind else {
-            panic!("Expected trait impl");
-        };
+        let mut trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
         assert_eq!(trait_impl.items.len(), 1);
 
@@ -566,13 +512,7 @@ mod tests {
     #[test]
     fn parse_trait_impl_with_let() {
         let src = "impl Foo for Field { let x: Field = 1; }";
-        let (mut module, errors) = parse_program(src);
-        expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
-        let ItemKind::TraitImpl(mut trait_impl) = item.kind else {
-            panic!("Expected trait impl");
-        };
+        let mut trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
         assert_eq!(trait_impl.items.len(), 1);
 

@@ -163,7 +163,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
         parser::{
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
@@ -172,19 +172,31 @@ mod tests {
         },
     };
 
+    fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generics();
+        expect_no_errors(&parser.errors);
+        generics
+    }
+
+    fn parse_generic_type_args_no_errors(src: &str) -> GenericTypeArgs {
+        let mut parser = Parser::for_str(src);
+        let generics = parser.parse_generic_type_args();
+        expect_no_errors(&parser.errors);
+        generics
+    }
+
     #[test]
     fn parses_no_generics() {
         let src = "1";
-        let generics = Parser::for_str(src).parse_generics();
+        let generics = parse_generics_no_errors(src);
         assert!(generics.is_empty());
     }
 
     #[test]
     fn parses_generics() {
         let src = "<A, let B: u32>";
-        let mut parser = Parser::for_str(src);
-        let mut generics = parser.parse_generics();
-        expect_no_errors(&parser.errors);
+        let mut generics = parse_generics_no_errors(src);
         assert_eq!(generics.len(), 2);
 
         let generic = generics.remove(0);
@@ -207,18 +219,14 @@ mod tests {
     #[test]
     fn parses_no_generic_type_args() {
         let src = "1";
-        let mut parser = Parser::for_str(src);
-        let generics = parser.parse_generic_type_args();
-        expect_no_errors(&parser.errors);
+        let generics = parse_generic_type_args_no_errors(src);
         assert!(generics.is_empty());
     }
 
     #[test]
     fn parses_generic_type_args() {
         let src = "<i32, X = Field>";
-        let mut parser = Parser::for_str(src);
-        let generics = parser.parse_generic_type_args();
-        expect_no_errors(&parser.errors);
+        let generics = parse_generic_type_args_no_errors(src);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "i32");
@@ -230,9 +238,7 @@ mod tests {
     #[test]
     fn parses_generic_type_arg_that_is_a_path() {
         let src = "<foo::Bar>";
-        let mut parser = Parser::for_str(src);
-        let generics = parser.parse_generic_type_args();
-        expect_no_errors(&parser.errors);
+        let generics = parse_generic_type_args_no_errors(src);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "foo::Bar");
@@ -242,9 +248,7 @@ mod tests {
     #[test]
     fn parses_generic_type_arg_that_is_an_int() {
         let src = "<1>";
-        let mut parser = Parser::for_str(src);
-        let generics = parser.parse_generic_type_args();
-        expect_no_errors(&parser.errors);
+        let generics = parse_generic_type_args_no_errors(src);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "1");
@@ -266,16 +270,14 @@ mod tests {
     #[test]
     fn parse_arithmetic_generic_on_variable() {
         let src = "<N - 1>";
-        let mut parser = Parser::for_str(src);
-        let generics = parser.parse_generic_type_args();
+        let generics = parse_generic_type_args_no_errors(src);
         assert_eq!(generics.ordered_args[0].to_string(), "(N - 1)");
     }
 
     #[test]
     fn parse_var_with_turbofish_in_generic() {
         let src = "<N<1>>";
-        let mut parser = Parser::for_str(src);
-        let generics = parser.parse_generic_type_args();
+        let generics = parse_generic_type_args_no_errors(src);
         assert_eq!(generics.ordered_args[0].to_string(), "N<1>");
     }
 }
