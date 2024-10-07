@@ -849,26 +849,12 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        // TODO type
-        let (_from_value_size_opt, from_is_polymorphic): (Option<acvm::FieldElement>, bool) = match from_follow_bindings {
-            Type::Integer(..) | Type::FieldElement | Type::Bool => (None, false),
+        // TODO disable type downsizing checks
+        // TODO (Option.., ..) type
+        let from_is_polymorphic = match from_follow_bindings {
+            Type::Integer(..) | Type::FieldElement | Type::Bool => false,
 
-            Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => {
-
-                // TODO cleanup/fix
-                match &*var.borrow() {
-                    TypeBinding::Bound(typ) => {
-                        dbg!("bound: {:?} ;;; {}", &typ, &typ);
-                    }
-                    TypeBinding::Unbound(_id, kind) => {
-                        dbg!("unbound: (kind) {:?} ;;; {}", &kind, &kind);
-                    }
-                }
-
-                // TODO None?
-                (None, true)
-            },
-
+            Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => true,
             Type::TypeVariable(_) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
@@ -878,7 +864,7 @@ impl<'context> Elaborator<'context> {
                     span,
                     reason: "casting from a non-integral type is unsupported".into(),
                 });
-                (None, false)
+                false
             }
             Type::Error => return Type::Error,
             from => {
@@ -891,46 +877,32 @@ impl<'context> Elaborator<'context> {
         // TODO cleanup
         dbg!(&from_value_opt, &from_is_polymorphic);
 
-        // If we have the value itself, that's the size,
-        // otherwise use its type's maximum size
-        let from_size = from_value_opt.or(from_follow_bindings.integral_maximum_size());
-
         // TODO also check minimum size when 'from' is negative 
         // (casting to a smaller value?)
         // TODO get is_polymorphic out of match?
-        match (from_is_polymorphic, from_size, to.integral_maximum_size()) {
+        match (from_is_polymorphic, from_value_opt, to.integral_maximum_size()) {
             // allow casting from unsized polymorphic variables
             (true, None, _) => (),
 
             // allow casting from sized to unsized types
             (_, Some(_), None) => (),
 
-            // disallow casting specific unsized types to sized types
-            (false, None, Some(_)) => {
-                // TODO: lots of usage of this in the stdlib, e.g. (some_field_element as u64)
-                //
-                // let from = from.clone();
-                // let reason = "casting from a max-size type to one with a smaller type is unsupported".into();
-                // self.push_err(TypeCheckError::InvalidCast { from, span, reason });
-                // return Type::Error;
-                ()
-            }
+            // allow casting specific unsized types to sized types
+            (false, None, Some(_)) => (),
 
-            // if both types are specific, check their sizes
-            (_, Some(from_maximum_size), Some(to_maximum_size)) => {
+            // when casting a polymorphic value to a specifically sized type,
+            // check that it fits or throw a warning
+            (true, Some(from_maximum_size), Some(to_maximum_size)) => {
                 if from_maximum_size > to_maximum_size {
-                    // TODO: lots of usage of this in the stdlib
-                    // e.g.
-                    // let high = if crate::field::modulus_num_bits() as u32 > 196 {
-                    //               --------------------------------------- casting from size 18446744073709551615 to a smaller size (4294967295) is unsupported
-                    //
-                    // let from = from.clone();
-                    // let reason = format!("casting from size {} to a smaller size ({}) is unsupported", from_maximum_size, to_maximum_size);
-                    // self.push_err(TypeCheckError::InvalidCast { from, span, reason });
-                    // return Type::Error;
-                    ()
+                    let from = from.clone();
+                    let reason = format!("casting untyped value ({}) to a type with a maximum size ({}) that's smaller than it", from_maximum_size, to_maximum_size);
+                    self.push_err(TypeCheckError::DownsizingCast { from, span, reason });
+                    return Type::Error;
                 }
             }
+
+            // allow casting typed values to other sizes
+            (false, Some(_), Some(_)) => (),
 
             // allow casting from non-polymorphic unsized types
             (false, None, None) => (),

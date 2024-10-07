@@ -54,6 +54,8 @@ pub enum TypeCheckError {
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
     InvalidCast { from: Type, span: Span, reason: String },
+    #[error("Casting value with {from} to a smaller type")]
+    DownsizingCast { from: Type, span: Span, reason: String },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]
@@ -286,6 +288,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::InvalidCast { span, reason, .. } => {
                 Diagnostic::simple_error(error.to_string(), reason.clone(), *span)
+            }
+            TypeCheckError::DownsizingCast { span, reason, .. } => {
+                Diagnostic::simple_warning(error.to_string(), reason.clone(), *span)
             }
 
             TypeCheckError::ExpectedFunction { span, .. }

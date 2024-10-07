@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::IntegerBitSize,
@@ -112,9 +112,11 @@ pub enum Type {
     /// will be and thus needs the full TypeVariable link.
     Forall(GenericTypeVars, Box<Type>),
 
-    /// A type-level integer. Included to let an Array's size type variable
-    /// bind to an integer without special checks to bind it to a non-type.
-    Constant(u32, Kind),
+    /// A type-level integer. Included to let
+    /// 1. an Array's size type variable
+    ///     bind to an integer without special checks to bind it to a non-type.
+    /// 2. values be used at the type level
+    Constant(FieldElement, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -1658,8 +1660,7 @@ impl Type {
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
-                // TODO(https://github.com/noir-lang/noir/pull/6137): replace evaluate_to_u32
-                if let Some(other_value) = other.evaluate_to_u32() {
+                if let Some(other_value) = other.evaluate_to_field_element(kind) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -1829,28 +1830,38 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self) -> Option<u32> {
-        if let Some((binding, _kind)) = self.get_inner_type_variable() {
-            if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                return binding.evaluate_to_u32();
-            }
-        }
-
-        match self.canonicalize() {
-            Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x, _kind) => Some(x),
-            Type::InfixExpr(lhs, op, rhs) => {
-                let lhs_u32 = lhs.evaluate_to_u32()?;
-                let rhs_u32 = rhs.evaluate_to_u32()?;
-                op.function(lhs_u32, rhs_u32, &lhs.infix_kind(&rhs))
-            }
-            _ => None,
-        }
+        self.evaluate_to_field_element(&Kind::u32()).and_then(|field_element| field_element.try_to_u32())
     }
 
     // TODO: implement!
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
-        self.evaluate_to_u32().map(|result| (result as u128).into()).and_then(|result| kind.ensure_value_fits(result))
-
+        todo!()
+        // // self.evaluate_to_u32().map(|result| (result as u128).into()).and_then(|result| kind.ensure_value_fits(result))
+        //
+        // if let Some((binding, _kind)) = self.get_inner_type_variable() {
+        //     if let TypeBinding::Bound(binding) = &*binding.borrow() {
+        //         return binding.evaluate_to_field_element();
+        //     }
+        // }
+        //
+        // match self.canonicalize() {
+        //     // TODO: unused case? (was a patch to use evaluate_to_u32 for array.len())
+        //     // Type::Array(len, _elem) => len.evaluate_to_field_element(),
+        //
+        //     Type::Constant(x, constant_kind) => {
+        //         if kind.unifies(constant_kind) {
+        //             kind.ensure_value_fits(x)
+        //         } else {
+        //             None
+        //         }
+        //     }
+        //     Type::InfixExpr(lhs, op, rhs) => {
+        //         let lhs_value = lhs.evaluate_to_field_element()?;
+        //         let rhs_value = rhs.evaluate_to_field_element()?;
+        //         op.function(lhs_value, rhs_value, &lhs.infix_kind(&rhs))
+        //     }
+        //     _ => None,
+        // }
     }
 
     /// Iterate over the fields of this type.
@@ -2437,13 +2448,38 @@ impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     // TODO(https://github.com/noir-lang/noir/pull/6137): the Kind is included
     // since it'll be needed for size checks
-    pub fn function(self, a: u32, b: u32, _kind: &Kind) -> Option<u32> {
-        match self {
-            BinaryTypeOperator::Addition => a.checked_add(b),
-            BinaryTypeOperator::Subtraction => a.checked_sub(b),
-            BinaryTypeOperator::Multiplication => a.checked_mul(b),
-            BinaryTypeOperator::Division => a.checked_div(b),
-            BinaryTypeOperator::Modulo => a.checked_rem(b),
+    pub fn function(self, a: FieldElement, b: FieldElement, kind: &Kind) -> Option<FieldElement> {
+        match kind.follow_bindings().integral_maximum_size() {
+            None => {
+                match self {
+                    BinaryTypeOperator::Addition => Some(a + b),
+                    BinaryTypeOperator::Subtraction => Some(a - b),
+                    BinaryTypeOperator::Multiplication => Some(a * b),
+                    BinaryTypeOperator::Division => {
+                        if b == FieldElement::zero() {
+                            None
+                        } else {
+                            Some(a / b)
+                        }
+                    }
+                    BinaryTypeOperator::Modulo => None,
+                }
+            }
+            Some(maximum_size) => {
+                let maximum_size = maximum_size.to_i128();
+                let a = a.to_i128();
+                let b = b.to_i128();
+
+                let result = match self {
+                    BinaryTypeOperator::Addition => (a + b) % maximum_size,
+                    BinaryTypeOperator::Subtraction => (a - b) % maximum_size,
+                    BinaryTypeOperator::Multiplication => (a * b) % maximum_size,
+                    BinaryTypeOperator::Division => (a.checked_div(b)?) % maximum_size,
+                    BinaryTypeOperator::Modulo => a.checked_rem(b)?,
+                };
+
+                Some(FieldElement::from(result))
+            }
         }
     }
 
