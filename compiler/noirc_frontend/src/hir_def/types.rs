@@ -1850,7 +1850,6 @@ impl Type {
         }
     }
 
-    // TODO: replace usages outside of array/slice/str with evaluate_to_field_element
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self) -> Option<u32> {
@@ -1859,7 +1858,8 @@ impl Type {
 
     // TODO: implement!
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
-        // self.evaluate_to_u32().map(|result| (result as u128).into()).and_then(|result| kind.ensure_value_fits(result))
+        // TODO
+        dbg!("evaluate_to_field_element", self);
 
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {

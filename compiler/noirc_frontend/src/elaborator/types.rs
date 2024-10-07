@@ -419,6 +419,9 @@ impl<'context> Elaborator<'context> {
 
                 // TODO: support non-u32 generics
                 if kind.unifies(&Kind::u32()) {
+                    // TODO cleanup
+                    dbg!("lookup_generic_or_global_type", &kind);
+
                     Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
                 } else {
                     let error = TypeCheckError::TypeKindMismatch {
@@ -917,8 +920,8 @@ impl<'context> Elaborator<'context> {
                 if from_maximum_size > to_maximum_size {
                     let from = from.clone();
                     let reason = format!("casting untyped value ({}) to a type with a maximum size ({}) that's smaller than it", from_maximum_size, to_maximum_size);
+                    // we warn that the 'to' type is too small for the value
                     self.push_err(TypeCheckError::DownsizingCast { from, span, reason });
-                    return Type::Error;
                 }
             }
 
@@ -927,11 +930,6 @@ impl<'context> Elaborator<'context> {
 
             // allow casting from non-polymorphic unsized types
             (false, None, None) => (),
-        }
-
-        // TODO cleanup
-        if matches!(to, Type::Integer(..) | Type::FieldElement | Type::Bool) {
-            dbg!("check_cast appears successful");
         }
 
         match to {
@@ -1576,6 +1574,9 @@ impl<'context> Elaborator<'context> {
         let (expr_span, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
 
+        // TODO
+        dbg!("type_check_function_body", &body_type, &declared_return_type);
+
         let func_span = self.interner.expr_span(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
             if self
@@ -1611,6 +1612,10 @@ impl<'context> Elaborator<'context> {
                 }
                 error
             });
+
+            // TODO
+            dbg!("after unify_with_coercions", &body_type, &declared_return_type);
+
         }
     }
 

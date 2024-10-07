@@ -363,6 +363,9 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn elaborate_function(&mut self, id: FuncId) {
+        // TODO
+        dbg!("elaborate_function");
+
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");

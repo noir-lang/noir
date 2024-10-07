@@ -675,6 +675,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
+        // TODO
+        dbg!("evaluate_integer", &value, &typ);
+
         if let Type::FieldElement = &typ {
             Ok(Value::Field(value))
         } else if let Type::Integer(sign, bit_size) = &typ {
@@ -902,9 +905,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let lhs_value = self.evaluate(infix.lhs)?;
         let rhs_value = self.evaluate(infix.rhs)?;
 
+        // TODO cleanup
+        dbg!("evaluate_infix", &infix, &lhs_value, &rhs_value);
+
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
-            // TODO cleanup
-            dbg!("evaluate_infix", &infix, &lhs_value, &rhs_value);
+            // // TODO cleanup
+            // dbg!("evaluate_infix", &infix, &lhs_value, &rhs_value);
 
             return self.evaluate_overloaded_infix(infix, lhs_value, rhs_value, id);
         }
@@ -1389,6 +1395,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
+
+        // TODO cleanup
+        dbg!("evaluate_cast", cast);
+
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.elaborator.interner)
     }
@@ -1588,6 +1598,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_assign(&mut self, assign: HirAssignStatement) -> IResult<Value> {
+        // TODO
+        dbg!("evaluate_assign", &assign);
+
         let rhs = self.evaluate(assign.expression)?;
         self.store_lvalue(assign.lvalue, rhs)?;
         Ok(Value::Unit)
@@ -1596,7 +1609,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
         match lvalue {
             HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+
+            // TODO revert
+            // HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type, location } => {
+                // TODO cleanup
+                dbg!("store_lvalue", element_type);
+
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _) => {
                         *value.borrow_mut() = rhs;
@@ -1657,7 +1676,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
                 other => Ok(other),
             },
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+
+            // TODO revert
+            // HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type, location } => {
+                // TODO cleanup
+                dbg!("evaluate_lvalue", element_type);
+
                 match self.evaluate_lvalue(lvalue)? {
                     Value::Pointer(value, _) => Ok(value.borrow().clone()),
                     value => {

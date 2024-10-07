@@ -1986,33 +1986,33 @@ fn numeric_generic_used_in_turbofish() {
 // TODO might want to hold off on this one because
 // it involves array size evaluation outside of array size usage
 //
-// // https://github.com/noir-lang/noir/issues/6125
-// #[test]
-// fn numeric_generic_field_larger_than_u32() {
-//     let src = r#"
-//         global A: Field = 4294967297;
-//         
-//         fn foo<let A: Field>() { }
-//         
-//         fn main() {
-//             let _ = foo::<A>();
-//         }
-//     "#;
-//     let errors = get_program_errors(src);
-//
-//     // TODO: cleanup
-//     dbg!(&errors);
-//     println!();
-//     println!();
-//     println!();
-//
-//     // TODO
-//     assert_eq!(errors.len(), 1);
-//     assert!(matches!(
-//         errors[0].0,
-//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
-//     ));
-// }
+// https://github.com/noir-lang/noir/issues/6125
+#[test]
+fn numeric_generic_field_larger_than_u32() {
+    let src = r#"
+        global A: Field = 4294967297;
+        
+        fn foo<let A: Field>() { }
+        
+        fn main() {
+            let _ = foo::<A>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+
+    // TODO: cleanup
+    dbg!(&errors);
+    println!();
+    println!();
+    println!();
+
+    // TODO
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
 
 // https://github.com/noir-lang/noir/issues/6126
 #[test]
@@ -3162,7 +3162,6 @@ fn impl_missing_associated_type() {
     ));
 }
 
-// TODO currently failing because "1" is implicitly a Field and is casted to an i32
 #[test]
 fn as_trait_path_syntax_resolves_outside_impl() {
     let src = r#"
