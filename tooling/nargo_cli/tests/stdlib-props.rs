@@ -206,6 +206,23 @@ fn test_keccak256() {
 }
 
 #[test]
+#[should_panic] // Remove once fixed
+fn test_keccak256_over_135() {
+    run_hash_proptest(
+        &[135, 150],
+        true,
+        |max_len| {
+            format!(
+                "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
+                    std::hash::keccak256(input, message_size)
+                }}"
+            )
+        },
+        |data| sha3::Keccak256::digest(data).try_into().unwrap(),
+    );
+}
+
+#[test]
 fn test_sha256() {
     run_hash_proptest(
         &[0, 1, 200],
