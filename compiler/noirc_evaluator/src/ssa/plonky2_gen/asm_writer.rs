@@ -6,7 +6,7 @@ use std::{
 };
 
 use codespan_reporting::files::Files;
-use fm::{FileId, FileMap};
+use fm::{FileId, FileMap, PathString};
 use plonky2::iop::{
     target::{BoolTarget, Target},
     wire::Wire,
@@ -576,6 +576,14 @@ impl AsmWriter {
         self.comment(format!("lessthan end (result = {})", BoolTargetDisplay { t: result }));
     }
 
+    fn comment_source_file_name(&mut self, name: PathString) {
+        self.comment(format!("[{}]", name));
+    }
+
+    fn comment_source_line(&mut self, line_number: usize, s: &str) {
+        self.comment(format!("[{}] {}", line_number, s));
+    }
+
     pub fn comment_update_call_stack(&mut self, call_stack: CallStack) {
         if call_stack != self.last_call_stack {
             if let Some(last_loc) = call_stack.last() {
@@ -585,7 +593,7 @@ impl AsmWriter {
                     self.file_map.location(last_loc.file, last_loc.span.end() as usize).unwrap();
 
                 if last_loc.file != self.last_file {
-                    self.comment(format!("[{}]", self.file_map.name(last_loc.file).unwrap()));
+                    self.comment_source_file_name(self.file_map.name(last_loc.file).unwrap());
                     self.last_file = last_loc.file;
                     self.last_line_number_begin = 0;
                     self.last_line_number_end = 0;
@@ -597,13 +605,12 @@ impl AsmWriter {
                     self.last_line_number_end = span_end.line_number;
                     for ln in span_begin.line_number..span_end.line_number + 1 {
                         let lr = self.file_map.line_range(last_loc.file, ln - 1).unwrap();
-                        self.comment(format!(
-                            "[{}] {}",
+                        self.comment_source_line(
                             ln,
                             &self.file_map.source(last_loc.file).unwrap()[lr.start..lr.end]
                                 .to_string()
-                                .trim()
-                        ));
+                                .trim(),
+                        );
                     }
                 }
             }
