@@ -63,7 +63,7 @@ impl Type {
     /// 
     /// Example:
     /// 
-    /// ```rust
+    /// ```noir
     /// comptime {
     ///     let array_type = quote { [Field; 3] }.as_type();
     ///     let (field_type, three_type) = array_type.as_array().unwrap();
