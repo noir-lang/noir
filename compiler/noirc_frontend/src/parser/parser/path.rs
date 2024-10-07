@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
                 let generics = if allow_turbofish
                     && self.tokens_follow(Token::DoubleColon, Token::Less)
                 {
-                    self.next_token();
+                    self.bump();
                     self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
                 } else {
                     None
@@ -138,7 +138,7 @@ impl<'a> Parser<'a> {
                     && matches!(self.next_token.token(), Token::Ident(..))
                 {
                     // Skip the double colons
-                    self.next_token();
+                    self.bump();
                 } else {
                     if allow_trailing_double_colon && self.eat_double_colon() {
                         self.expected_identifier();

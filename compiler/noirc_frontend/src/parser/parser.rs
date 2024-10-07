@@ -163,7 +163,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
-    fn next_token(&mut self) -> SpannedToken {
+    fn bump(&mut self) -> SpannedToken {
         self.previous_token_span = self.current_token_span;
         let next_next_token = self.read_token_internal();
         let next_token = std::mem::replace(&mut self.next_token, next_next_token);
@@ -194,7 +194,7 @@ impl<'a> Parser<'a> {
 
     fn eat_kind(&mut self, kind: TokenKind) -> Option<SpannedToken> {
         if self.token.kind() == kind {
-            Some(self.next_token())
+            Some(self.bump())
         } else {
             None
         }
@@ -203,7 +203,7 @@ impl<'a> Parser<'a> {
     fn eat_keyword(&mut self, keyword: Keyword) -> bool {
         if let Token::Keyword(kw) = self.token.token() {
             if *kw == keyword {
-                self.next_token();
+                self.bump();
                 true
             } else {
                 false
@@ -227,7 +227,7 @@ impl<'a> Parser<'a> {
     fn eat_self(&mut self) -> bool {
         if let Token::Ident(ident) = self.token.token() {
             if ident == "self" {
-                self.next_token();
+                self.bump();
                 return true;
             }
         }
@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
     fn eat_int_type(&mut self) -> Option<IntType> {
         let is_int_type = matches!(self.token.token(), Token::IntType(..));
         if is_int_type {
-            let token = self.next_token();
+            let token = self.bump();
             match token.into_token() {
                 Token::IntType(int_type) => Some(int_type),
                 _ => unreachable!(),
@@ -250,7 +250,7 @@ impl<'a> Parser<'a> {
 
     fn eat_int(&mut self) -> Option<FieldElement> {
         if matches!(self.token.token(), Token::Int(..)) {
-            let token = self.next_token();
+            let token = self.bump();
             match token.into_token() {
                 Token::Int(int) => Some(int),
                 _ => unreachable!(),
@@ -262,7 +262,7 @@ impl<'a> Parser<'a> {
 
     fn eat_bool(&mut self) -> Option<bool> {
         if matches!(self.token.token(), Token::Bool(..)) {
-            let token = self.next_token();
+            let token = self.bump();
             match token.into_token() {
                 Token::Bool(bool) => Some(bool),
                 _ => unreachable!(),
@@ -274,7 +274,7 @@ impl<'a> Parser<'a> {
 
     fn eat_str(&mut self) -> Option<String> {
         if matches!(self.token.token(), Token::Str(..)) {
-            let token = self.next_token();
+            let token = self.bump();
             match token.into_token() {
                 Token::Str(string) => Some(string),
                 _ => unreachable!(),
@@ -286,7 +286,7 @@ impl<'a> Parser<'a> {
 
     fn eat_raw_str(&mut self) -> Option<(String, u8)> {
         if matches!(self.token.token(), Token::RawStr(..)) {
-            let token = self.next_token();
+            let token = self.bump();
             match token.into_token() {
                 Token::RawStr(string, n) => Some((string, n)),
                 _ => unreachable!(),
@@ -298,7 +298,7 @@ impl<'a> Parser<'a> {
 
     fn eat_fmt_str(&mut self) -> Option<String> {
         if matches!(self.token.token(), Token::FmtStr(..)) {
-            let token = self.next_token();
+            let token = self.bump();
             match token.into_token() {
                 Token::FmtStr(string) => Some(string),
                 _ => unreachable!(),
@@ -310,7 +310,7 @@ impl<'a> Parser<'a> {
 
     fn eat_quote(&mut self) -> Option<Tokens> {
         if matches!(self.token.token(), Token::Quote(..)) {
-            let token = self.next_token();
+            let token = self.bump();
             match token.into_token() {
                 Token::Quote(tokens) => Some(tokens),
                 _ => unreachable!(),
@@ -396,7 +396,7 @@ impl<'a> Parser<'a> {
 
     fn eat(&mut self, token: Token) -> bool {
         if self.token.token() == &token {
-            self.next_token();
+            self.bump();
             true
         } else {
             false

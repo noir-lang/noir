@@ -76,8 +76,8 @@ impl<'a> Parser<'a> {
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
         if self.tokens_follow(Token::Ampersand, Token::Keyword(Keyword::Mut)) {
-            self.next_token();
-            self.next_token();
+            self.bump();
+            self.bump();
             Some(UnaryOp::MutableReference)
         } else if self.eat(Token::Minus) {
             Some(UnaryOp::Minus)
@@ -667,7 +667,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        self.next_token();
+        self.bump();
         self.parse_array_literal()
     }
 

@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
         if is_macro_call {
             // Given that we expected '!' '(', it's safe to skip the '!' because the next
             // `self.parse_arguments()` will always return `Some`.
-            self.next_token();
+            self.bump();
         }
 
         self.parse_arguments().map(|arguments| CallArguments { arguments, is_macro_call })

@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
 
             let (semicolon_token, semicolon_span) = if self.at(Token::Semicolon) {
                 let token = self.token.clone();
-                self.next_token();
+                self.bump();
                 let span = token.to_span();
 
                 (Some(token.into_token()), span)
@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
             if semicolon_token.is_some() || self.at(Token::RightBrace) || self.at_eof() {
                 return None;
             } else {
-                self.next_token();
+                self.bump();
             }
         }
     }
@@ -216,8 +216,8 @@ impl<'a> Parser<'a> {
         };
 
         if let Some(operator) = operator {
-            self.next_token();
-            self.next_token();
+            self.bump();
+            self.bump();
             Some(Spanned::from(self.span_since(start_span), operator))
         } else {
             None

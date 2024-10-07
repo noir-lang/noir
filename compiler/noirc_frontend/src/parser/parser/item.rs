@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
 
                 self.expected_label(ParsingRuleLabel::Item);
                 // We'll try parsing an item starting on the next token
-                self.next_token();
+                self.bump();
                 continue;
             };
 
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
                     self.expected_label(label.clone());
 
                     // Try with the next token
-                    self.next_token();
+                    self.bump();
                     continue;
                 }
 

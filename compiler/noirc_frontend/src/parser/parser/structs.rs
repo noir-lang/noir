@@ -91,7 +91,7 @@ impl<'a> Parser<'a> {
             }
 
             self.expected_identifier();
-            self.next_token();
+            self.bump();
         }
 
         self.eat_or_error(Token::Colon);

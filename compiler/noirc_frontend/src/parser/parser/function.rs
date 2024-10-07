@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
                 self.expected_label(ParsingRuleLabel::Pattern);
 
                 // Let's try with the next token
-                self.next_token();
+                self.bump();
                 if self.at_eof() {
                     return None;
                 } else {

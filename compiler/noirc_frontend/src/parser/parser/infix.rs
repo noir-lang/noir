@@ -101,8 +101,8 @@ impl<'a> Parser<'a> {
                 // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
                 // to parse nested generic types. For normal expressions however, it means we have to manually
                 // parse two greater-than tokens as a single right-shift here.
-                parser.next_token();
-                parser.next_token();
+                parser.bump();
+                parser.bump();
                 Some(BinaryOpKind::ShiftRight)
             } else {
                 None
