@@ -193,6 +193,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_array" => type_as_array(arguments, return_type, location),
             "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
+            "type_as_mutable_reference" => {
+                type_as_mutable_reference(arguments, return_type, location)
+            }
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_struct" => type_as_struct(arguments, return_type, location),
@@ -205,6 +208,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
+            "type_is_unit" => type_is_unit(arguments, location),
             "type_of" => type_of(arguments, location),
             "typed_expr_as_function_definition" => {
                 typed_expr_as_function_definition(interner, arguments, return_type, location)
@@ -212,7 +216,15 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "typed_expr_get_type" => {
                 typed_expr_get_type(interner, arguments, return_type, location)
             }
+            "unresolved_type_as_mutable_reference" => {
+                unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
+            }
+            "unresolved_type_as_slice" => {
+                unresolved_type_as_slice(interner, arguments, return_type, location)
+            }
+            "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
+            "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
                 let item = format!("Comptime evaluation for builtin function {name}");
@@ -855,6 +867,21 @@ fn type_as_integer(
     })
 }
 
+// fn as_mutable_reference(self) -> Option<Type>
+fn type_as_mutable_reference(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::MutableReference(typ) = typ {
+            Some(Value::Type(*typ))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_slice(self) -> Option<Type>
 fn type_as_slice(
     arguments: Vec<(Value, Location)>,
@@ -1013,6 +1040,14 @@ fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     Ok(Value::Bool(matches!(typ, Type::FieldElement)))
 }
 
+// fn is_unit(self) -> bool
+fn type_is_unit(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value)?;
+
+    Ok(Value::Bool(matches!(typ, Type::Unit)))
+}
+
 // fn type_of<T>(x: T) -> Type
 fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (value, _) = check_one_argument(arguments, location)?;
@@ -1115,6 +1150,49 @@ fn typed_expr_get_type(
     option(return_type, option_value)
 }
 
+// fn as_mutable_reference(self) -> Option<UnresolvedType>
+fn unresolved_type_as_mutable_reference(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    unresolved_type_as(interner, arguments, return_type, location, |typ| {
+        if let UnresolvedTypeData::MutableReference(typ) = typ {
+            Some(Value::UnresolvedType(typ.typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_slice(self) -> Option<UnresolvedType>
+fn unresolved_type_as_slice(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    unresolved_type_as(interner, arguments, return_type, location, |typ| {
+        if let UnresolvedTypeData::Slice(typ) = typ {
+            Some(Value::UnresolvedType(typ.typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn is_bool(self) -> bool
+fn unresolved_type_is_bool(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(interner, self_argument)?;
+    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Bool)))
+}
+
 // fn is_field(self) -> bool
 fn unresolved_type_is_field(
     interner: &NodeInterner,
@@ -1124,6 +1202,36 @@ fn unresolved_type_is_field(
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
     Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
+}
+
+// fn is_unit(self) -> bool
+fn unresolved_type_is_unit(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(interner, self_argument)?;
+    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Unit)))
+}
+
+// Helper function for implementing the `unresolved_type_as_...` functions.
+fn unresolved_type_as<F>(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(UnresolvedTypeData) -> Option<Value>,
+{
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(interner, value)?;
+
+    let option_value = f(typ);
+
+    option(return_type, option_value)
 }
 
 // fn zeroed<T>() -> T
