@@ -948,7 +948,7 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::InnerAttribute(SecondaryAttribute::Tag(CustomAttribute {
+            &Token::InnerAttribute(SecondaryAttribute::Meta(CustomAttribute {
                 contents: "something".to_string(),
                 span: Span::from(0..13),
                 contents_span: Span::from(3..12),
