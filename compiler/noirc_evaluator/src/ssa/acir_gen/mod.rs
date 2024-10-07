@@ -1303,6 +1303,32 @@ impl<'a> Context<'a> {
         }
     }
 
+    /// Returns the acir value at the provided databus offset
+    fn get_from_call_data(
+        &mut self,
+        offset: &mut AcirVar,
+        call_data_block: BlockId,
+        typ: &Type,
+    ) -> Result<AcirValue, RuntimeError> {
+        match typ {
+            Type::Numeric(_) => {
+                self.array_get_value(&Type::field(), call_data_block, offset)
+            }
+            Type::Array(arc, len) => {
+                let mut result = Vector::new();
+                for _i in 0..*len {
+                    for sub_type in arc.iter() {
+                        let element =
+                            self.get_from_call_data(offset, call_data_block, sub_type)?;
+                        result.push_back(element);
+                    }
+                }
+                Ok(AcirValue::Array(result))
+            }
+            _ => unimplemented!("Unsupported type in databus"),
+        }
+    }
+
     /// Generates a read opcode for the array
     /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array
     fn array_get(
@@ -1324,23 +1350,11 @@ impl<'a> Context<'a> {
             let bus_index = self
                 .acir_context
                 .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
-            let type_size = res_typ.flattened_size();
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            let mut acir_array = Vector::new();
-            for _i in 0..type_size {
-                let read =
-                    self.array_get_value(&Type::field(), call_data_block, &mut current_index)?;
-                acir_array.push_back(read);
-            }
-
-            if acir_array.len() == 1 {
-                self.define_result(dfg, instruction, acir_array[0].clone());
-                return Ok(acir_array[0].clone());
-            } else {
-                let result = AcirValue::Array(acir_array);
-                self.define_result(dfg, instruction, result.clone());
-                return Ok(result);
-            }
+            let result =
+                self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
+            self.define_result(dfg, instruction, result.clone());
+            return Ok(result);
         }
         // Compiler sanity check
         assert!(
