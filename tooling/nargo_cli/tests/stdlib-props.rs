@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::Path};
+use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 use acvm::{acir::native_types::WitnessStack, FieldElement};
 use nargo::{
@@ -11,7 +11,22 @@ use noirc_driver::{
     CompiledProgram,
 };
 use noirc_frontend::hir::Context;
-use proptest::proptest;
+use proptest::prelude::*;
+
+/// Inputs and expected output of a snippet encoded in ABI format.
+#[derive(Debug)]
+struct SnippetInputOutput {
+    inputs: BTreeMap<String, InputValue>,
+    expected_output: InputValue,
+}
+impl SnippetInputOutput {
+    fn new(inputs: Vec<(&str, InputValue)>, output: InputValue) -> Self {
+        Self {
+            inputs: inputs.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+            expected_output: output,
+        }
+    }
+}
 
 /// Compile the main function in a code snippet.
 fn compile_snippet(source: String) -> CompilationResult<CompiledProgram> {
@@ -29,32 +44,34 @@ fn compile_snippet(source: String) -> CompilationResult<CompiledProgram> {
     compile_main(&mut context, root_crate_id, &CompileOptions::default(), None)
 }
 
-fn test_snippet(source: String) {
+fn test_snippet(source: String, strategy: BoxedStrategy<SnippetInputOutput>) {
     let (program, _) = compile_snippet(source).expect("failed to compile");
 
     let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
-    let mut foreign_call_executor = DefaultForeignCallExecutor::new(false, None, None, None);
+    let foreign_call_executor =
+        RefCell::new(DefaultForeignCallExecutor::new(false, None, None, None));
 
-    let input_value = InputValue::Field(10u32.into());
-    let mut input_map = BTreeMap::new();
-    input_map.insert("input".to_string(), input_value);
-    let initial_witness = program.abi.encode(&input_map, None).expect("failed to encode");
+    // Generate multiple input/output
+    proptest!(|(io in strategy)| {
+        let initial_witness = program.abi.encode(&io.inputs, None).expect("failed to encode");
+        let mut foreign_call_executor = foreign_call_executor.borrow_mut();
 
-    let witness_stack: WitnessStack<FieldElement> = execute_program(
-        &program.program,
-        initial_witness,
-        &blackbox_solver,
-        &mut foreign_call_executor,
-    )
-    .expect("failed to execute");
+        let witness_stack: WitnessStack<FieldElement> = execute_program(
+            &program.program,
+            initial_witness,
+            &blackbox_solver,
+            &mut *foreign_call_executor,
+        )
+        .expect("failed to execute");
 
-    let main_witness = witness_stack.peek().expect("should have return value on witness stack");
-    let main_witness = &main_witness.witness;
+        let main_witness = witness_stack.peek().expect("should have return value on witness stack");
+        let main_witness = &main_witness.witness;
 
-    let (_, return_value) = program.abi.decode(main_witness).expect("failed to decode");
-    let return_value = return_value.expect("should decode a return value");
+        let (_, return_value) = program.abi.decode(main_witness).expect("failed to decode");
+        let return_value = return_value.expect("should decode a return value");
 
-    assert_eq!(return_value, InputValue::Field(25u32.into()))
+        prop_assert_eq!(return_value, io.expected_output)
+    });
 }
 
 #[test]
@@ -67,15 +84,25 @@ fn works() {
     // - define proptest! that encodes input and decodes output witness
     // - execute_program
     // - execute with interpreter
-    // - execute as unconstrained
+    // - execute as unconstrained because hashing functions detect it
 
-    let program = "fn main(input: u8) -> pub u8 {
-        let mut x = input;
+    let program = "fn main(init: u32) -> pub u32 {
+        let mut x = init;
         for i in 0 .. 6 {
             x += i;
         }
         x
     }";
 
-    test_snippet(program.to_string());
+    let strategy = any::<u32>()
+        .prop_map(|init| {
+            let init = init / 2;
+            SnippetInputOutput::new(
+                vec![("init", InputValue::Field(init.into()))],
+                InputValue::Field((init + 15).into()),
+            )
+        })
+        .boxed();
+
+    test_snippet(program.to_string(), strategy);
 }

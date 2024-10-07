@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9ec8d82c4b058c7d966c9da59d2b1f382f80917f9c81469e5fdce710e3a95773 # shrinks to io = SnippetInputOutput { inputs: {"init": Field(241)}, expected_output: Field(2⁸) }
