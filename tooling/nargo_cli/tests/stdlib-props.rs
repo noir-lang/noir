@@ -234,8 +234,6 @@ fn test_sha256() {
                 }}"
             )
         },
-        // It's SHA2, not SHA3:
-        // |data| sha3::Sha3_256::digest(data).try_into().expect("result is 256 bits"),
         |data| sha2::Sha256::digest(data).try_into().unwrap(),
     );
 }
