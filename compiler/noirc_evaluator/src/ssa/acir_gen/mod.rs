@@ -1311,15 +1311,12 @@ impl<'a> Context<'a> {
         typ: &Type,
     ) -> Result<AcirValue, RuntimeError> {
         match typ {
-            Type::Numeric(_) => {
-                self.array_get_value(&Type::field(), call_data_block, offset)
-            }
+            Type::Numeric(_) => self.array_get_value(&Type::field(), call_data_block, offset),
             Type::Array(arc, len) => {
                 let mut result = Vector::new();
                 for _i in 0..*len {
                     for sub_type in arc.iter() {
-                        let element =
-                            self.get_from_call_data(offset, call_data_block, sub_type)?;
+                        let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
                         result.push_back(element);
                     }
                 }
@@ -1351,8 +1348,7 @@ impl<'a> Context<'a> {
                 .acir_context
                 .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            let result =
-                self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
+            let result = self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
             self.define_result(dfg, instruction, result.clone());
             return Ok(result);
         }
