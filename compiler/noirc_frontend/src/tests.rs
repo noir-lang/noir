@@ -2063,17 +2063,10 @@ fn cast_256_to_u8_size_checks() {
     "#;
     let errors = get_program_errors(src);
 
-    // TODO: cleanup
-    dbg!(&errors);
-    println!();
-    println!();
-    println!();
-
-    // TODO
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::InvalidCast { .. }),
+        CompilationError::TypeError(TypeCheckError::DownsizingCast { .. }),
     ));
 }
 

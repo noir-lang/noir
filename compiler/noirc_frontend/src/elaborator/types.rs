@@ -412,7 +412,18 @@ impl<'context> Elaborator<'context> {
                     .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
                     .unwrap_or(Kind::u32());
 
-                Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
+                // TODO: support non-u32 generics
+                if kind.unifies(&Kind::u32()) {
+                    Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
+                } else {
+                    let error = TypeCheckError::TypeKindMismatch {
+                        expected_kind: Kind::u32().to_string(),
+                        expr_kind: kind.to_string(),
+                        expr_span: path.span(),
+                    };
+                    self.push_err(error);
+                    None
+                }
             }
             _ => None,
         }

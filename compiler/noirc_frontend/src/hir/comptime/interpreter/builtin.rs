@@ -305,7 +305,7 @@ fn str_as_bytes(
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
     let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len() as u32, Kind::u32())),
+        Box::new(Type::Constant(bytes.len().into(), Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     );
     Ok(Value::Array(bytes, byte_array_type))
@@ -780,8 +780,12 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let limb_count = if let Type::Array(length, _) = return_type {
-        if let Type::Constant(limb_count, _kind) = *length {
-            limb_count
+        if let Type::Constant(limb_count, kind) = *length {
+            if kind.unifies(&Kind::u32()) {
+                limb_count
+            } else {
+                return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+            }
         } else {
             return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
         }
@@ -791,7 +795,7 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
-    let decomposed_integer = vecmap(0..limb_count as usize, |i| match decomposed_integer.get(i) {
+    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
         Some(digit) => Value::U8(*digit),
         None => Value::U8(0),
     });

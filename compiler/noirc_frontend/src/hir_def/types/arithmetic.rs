@@ -220,7 +220,7 @@ impl Type {
                     op = op.inverse()?;
                 }
 
-                let divides_evenly = !lhs.infix_kind(rhs).is_field_element() && l_const.to_i128() % r_const != 0
+                let divides_evenly = !lhs.infix_kind(rhs).is_field_element() && l_const.to_i128() % r_const.to_i128() != 0;
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {

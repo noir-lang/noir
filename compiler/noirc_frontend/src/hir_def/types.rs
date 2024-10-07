@@ -172,6 +172,14 @@ impl Kind {
         matches!(self, Self::Numeric { .. })
     }
 
+    pub(crate) fn is_field_element(&self) -> bool {
+        match self {
+            Kind::Numeric(typ) => typ.is_field_element(),
+            Kind::IntegerOrField => true,
+            _ => false,
+        }
+    }
+
     pub(crate) fn u32() -> Self {
         Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
     }
@@ -720,6 +728,13 @@ impl TypeVariable {
             TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind, Kind::IntegerOrField),
         }
     }
+
+    fn is_field_element(&self) -> bool {
+        match &*self.borrow() {
+            TypeBinding::Bound(binding) => binding.is_field_element(),
+            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(),
+        }
+    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -946,6 +961,15 @@ impl Type {
 
     pub fn is_integer(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(_, _))
+    }
+
+    fn is_field_element(&self) -> bool {
+        match self.follow_bindings() {
+            Type::FieldElement => true,
+            Type::TypeVariable(var) => var.is_field_element(),
+            Type::Constant(_, kind) => kind.is_field_element(),
+            _ => false,
+        }
     }
 
     pub fn is_signed(&self) -> bool {
@@ -1835,33 +1859,39 @@ impl Type {
 
     // TODO: implement!
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
-        todo!()
-        // // self.evaluate_to_u32().map(|result| (result as u128).into()).and_then(|result| kind.ensure_value_fits(result))
-        //
-        // if let Some((binding, _kind)) = self.get_inner_type_variable() {
-        //     if let TypeBinding::Bound(binding) = &*binding.borrow() {
-        //         return binding.evaluate_to_field_element();
-        //     }
-        // }
-        //
-        // match self.canonicalize() {
-        //     // TODO: unused case? (was a patch to use evaluate_to_u32 for array.len())
-        //     // Type::Array(len, _elem) => len.evaluate_to_field_element(),
-        //
-        //     Type::Constant(x, constant_kind) => {
-        //         if kind.unifies(constant_kind) {
-        //             kind.ensure_value_fits(x)
-        //         } else {
-        //             None
-        //         }
-        //     }
-        //     Type::InfixExpr(lhs, op, rhs) => {
-        //         let lhs_value = lhs.evaluate_to_field_element()?;
-        //         let rhs_value = rhs.evaluate_to_field_element()?;
-        //         op.function(lhs_value, rhs_value, &lhs.infix_kind(&rhs))
-        //     }
-        //     _ => None,
-        // }
+        // self.evaluate_to_u32().map(|result| (result as u128).into()).and_then(|result| kind.ensure_value_fits(result))
+
+        if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
+            if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                if kind.unifies(&binding_kind) {
+                    return binding.evaluate_to_field_element(&binding_kind);
+                }
+            }
+        }
+
+        match self.canonicalize() {
+            // TODO: unused case? (was a patch to use evaluate_to_u32 for array.len())
+            // Type::Array(len, _elem) => len.evaluate_to_field_element(),
+
+            Type::Constant(x, constant_kind) => {
+                if kind.unifies(&constant_kind) {
+                    kind.ensure_value_fits(x)
+                } else {
+                    None
+                }
+            }
+            Type::InfixExpr(lhs, op, rhs) => {
+                let infix_kind = lhs.infix_kind(&rhs);
+                if kind.unifies(&infix_kind) {
+                    let lhs_value = lhs.evaluate_to_field_element(&infix_kind)?;
+                    let rhs_value = rhs.evaluate_to_field_element(&infix_kind)?;
+                    op.function(lhs_value, rhs_value, &infix_kind)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     /// Iterate over the fields of this type.
@@ -2373,7 +2403,7 @@ impl Type {
                 }
                 Some(((1u128 << max_bit_size) - 1).into())
             }
-            Type::Bool => Some(FieldElement::from(1u128)),
+            Type::Bool => Some(FieldElement::one()),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -2478,7 +2508,7 @@ impl BinaryTypeOperator {
                     BinaryTypeOperator::Modulo => a.checked_rem(b)?,
                 };
 
-                Some(FieldElement::from(result))
+                Some(result.into())
             }
         }
     }
