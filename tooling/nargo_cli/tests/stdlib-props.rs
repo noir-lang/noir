@@ -85,7 +85,7 @@ fn run_snippet_proptest(
 
     // Generate multiple input/output
     // TODO: Execute with the interpreter as well.
-    proptest!(|(io in strategy)| {
+    proptest!(ProptestConfig::with_cases(100), |(io in strategy)| {
         let initial_witness = program.abi.encode(&io.inputs, None).expect("failed to encode");
         let mut foreign_call_executor = foreign_call_executor.borrow_mut();
 
