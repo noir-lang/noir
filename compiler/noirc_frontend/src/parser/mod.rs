@@ -20,7 +20,7 @@ use crate::token::SecondaryAttribute;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
-pub use parser::{parse_program, parse_result, Parser};
+pub use parser::{parse_program, Parser};
 
 #[derive(Clone, Default)]
 pub struct SortedModule {

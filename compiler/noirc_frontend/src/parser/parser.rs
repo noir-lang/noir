@@ -51,26 +51,6 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     (program, errors)
 }
 
-/// Invokes `f` with the given parser (`f` must be some `parse_*` method of the parser)
-/// and returns the result if the parser has no errors, and if the parser consumed all tokens.
-/// Otherwise returns the list of errors.
-pub fn parse_result<'a, T, F>(mut parser: Parser<'a>, f: F) -> Result<T, Vec<ParserError>>
-where
-    F: FnOnce(&mut Parser<'a>) -> T,
-{
-    let item = f(&mut parser);
-    if !parser.at_eof() {
-        parser.expected_token(Token::EOF);
-        return Err(parser.errors);
-    }
-
-    if parser.errors.is_empty() {
-        Ok(item)
-    } else {
-        Err(parser.errors)
-    }
-}
-
 enum TokenStream<'a> {
     Lexer(Lexer<'a>),
     Tokens(Tokens),
@@ -163,6 +143,39 @@ impl<'a> Parser<'a> {
         } else {
             self.expected_label(ParsingRuleLabel::LValue);
             LValue::Ident(Ident::default())
+        }
+    }
+
+    /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
+    /// and returns the result if the parser has no errors, and if the parser consumed all tokens.
+    /// Otherwise returns the list of errors.
+    pub fn parse_result<T, F>(mut self, parsing_function: F) -> Result<T, Vec<ParserError>>
+    where
+        F: FnOnce(&mut Parser<'a>) -> T,
+    {
+        let item = parsing_function(&mut self);
+        if !self.at_eof() {
+            self.expected_token(Token::EOF);
+            return Err(self.errors);
+        }
+
+        if self.errors.is_empty() {
+            Ok(item)
+        } else {
+            Err(self.errors)
+        }
+    }
+
+    /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
+    /// and returns the result if the parser has no errors, and if the parser consumed all tokens.
+    /// Otherwise returns None.
+    pub fn parse_option<T, F>(self, parsing_function: F) -> Option<T>
+    where
+        F: FnOnce(&mut Parser<'a>) -> Option<T>,
+    {
+        match self.parse_result(parsing_function) {
+            Ok(item) => item,
+            Err(_) => None,
         }
     }
 

@@ -18,7 +18,7 @@ use crate::{
         ImplKind,
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId},
-    parser::{parse_result, Item, Parser},
+    parser::{Item, Parser},
     token::{SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
@@ -261,7 +261,7 @@ impl Value {
                 tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
 
                 let parser = Parser::for_tokens(tokens_to_parse);
-                return match parse_result(parser, Parser::parse_expression_or_error) {
+                return match parser.parse_result(Parser::parse_expression_or_error) {
                     Ok(expr) => Ok(expr),
                     Err(mut errors) => {
                         let error = errors.swap_remove(0);
@@ -546,7 +546,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<Token>>,
     interner: &NodeInterner,
-    f: F,
+    parsing_function: F,
     location: Location,
     rule: &'static str,
 ) -> IResult<T>
@@ -554,7 +554,7 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     let parser = Parser::for_tokens(add_token_spans(tokens.clone(), location.span));
-    match parse_result(parser, f) {
+    match parser.parse_result(parsing_function) {
         Ok(expr) => Ok(expr),
         Err(mut errors) => {
             let error = errors.swap_remove(0);

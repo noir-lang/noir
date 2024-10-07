@@ -260,12 +260,8 @@ impl<'context> Elaborator<'context> {
             return Err((lexing_errors.swap_remove(0).into(), location.file));
         }
 
-        let mut parser = Parser::for_tokens(tokens);
-        let expression = parser.parse_expression();
-        if !parser.errors.is_empty() {
-            return Ok(None);
-        }
-        let Some(expression) = expression else {
+        let Some(expression) = Parser::for_tokens(tokens).parse_option(Parser::parse_expression)
+        else {
             return Ok(None);
         };
 

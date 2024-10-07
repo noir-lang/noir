@@ -7,7 +7,7 @@ use noirc_errors::Location;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::add_token_spans;
 use crate::lexer::Lexer;
-use crate::parser::{parse_result, Parser};
+use crate::parser::Parser;
 use crate::{
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
@@ -422,13 +422,13 @@ pub(super) fn parse_tokens<'a, T, F>(
     quoted: Tokens,
     interner: &NodeInterner,
     location: Location,
-    parser: F,
+    parsing_function: F,
     rule: &'static str,
 ) -> IResult<T>
 where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
-    parse_result(Parser::for_tokens(quoted), parser).map_err(|mut errors| {
+    Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
         let error = errors.swap_remove(0);
         let tokens = tokens_to_string(tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
