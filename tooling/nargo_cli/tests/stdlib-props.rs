@@ -225,7 +225,7 @@ fn fuzz_keccak256_equivalence_over_135() {
 #[test]
 fn fuzz_sha256_equivalence() {
     run_hash_proptest(
-        &[0, 1, 200],
+        &[0, 1, 200, 511, 512],
         true,
         |max_len| {
             format!(
@@ -234,8 +234,6 @@ fn fuzz_sha256_equivalence() {
                 }}"
             )
         },
-        // It's SHA2, not SHA3:
-        // |data| sha3::Sha3_256::digest(data).try_into().expect("result is 256 bits"),
         |data| sha2::Sha256::digest(data).try_into().unwrap(),
     );
 }
