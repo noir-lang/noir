@@ -80,7 +80,11 @@ impl<'a> TokenStream<'a> {
     fn next(&mut self) -> Option<SpannedTokenResult> {
         match self {
             TokenStream::Lexer(lexer) => lexer.next(),
-            TokenStream::Tokens(tokens) => tokens.0.pop().map(Ok),
+            TokenStream::Tokens(tokens) => {
+                // NOTE: `TokenStream::Tokens` is only created via `Parser::for_tokens(tokens)` which
+                // reverses `tokens`. That's why using `pop` here is fine (done for performance reasons).
+                tokens.0.pop().map(Ok)
+            }
         }
     }
 }
