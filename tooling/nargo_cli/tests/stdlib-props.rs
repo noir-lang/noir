@@ -55,8 +55,8 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
 
 /// Compile the main function in a code snippet.
 ///
-/// Use `force_brillig` to test it as an unconstrainted function without having to change the code.
-/// This is useful for methods that use the `runtime::is_uncontrained()` method to change their behaviour.
+/// Use `force_brillig` to test it as an unconstrained function without having to change the code.
+/// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
 fn prepare_and_compile_snippet(
     source: String,
     force_brillig: bool,
