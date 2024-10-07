@@ -225,7 +225,7 @@ fn test_keccak256_over_135() {
 #[test]
 fn test_sha256() {
     run_hash_proptest(
-        &[0, 1, 200],
+        &[0, 1, 200, 511, 512],
         true,
         |max_len| {
             format!(
