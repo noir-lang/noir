@@ -91,16 +91,13 @@ impl<'a> Parser<'a> {
 
     /// ResolvedGeneric = quoted_type
     fn parse_resolved_generic(&mut self) -> Option<UnresolvedGeneric> {
-        if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
-            match token.into_token() {
-                Token::QuotedType(id) => {
-                    return Some(UnresolvedGeneric::Resolved(id, self.previous_token_span));
-                }
-                _ => unreachable!(),
+        let token = self.eat_kind(TokenKind::QuotedType)?;
+        match token.into_token() {
+            Token::QuotedType(id) => {
+                Some(UnresolvedGeneric::Resolved(id, self.previous_token_span))
             }
+            _ => unreachable!(),
         }
-
-        None
     }
 
     /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )
