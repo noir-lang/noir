@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
         self.parse_infix(allow_constructors, Parser::parse_add_or_subtract, |parser| {
             if !parser.next_is(Token::Assign) && parser.eat(Token::ShiftLeft) {
                 Some(BinaryOpKind::ShiftLeft)
-            } else if parser.tokens_follow(Token::Greater, Token::Greater) {
+            } else if parser.at(Token::Greater) && parser.next_is(Token::Greater) {
                 // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
                 // to parse nested generic types. For normal expressions however, it means we have to manually
                 // parse two greater-than tokens as a single right-shift here.

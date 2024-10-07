@@ -124,7 +124,8 @@ impl<'a> Parser<'a> {
                 let span = ident.span();
 
                 let generics = if allow_turbofish
-                    && self.tokens_follow(Token::DoubleColon, Token::Less)
+                    && self.at(Token::DoubleColon)
+                    && self.next_is(Token::Less)
                 {
                     self.bump();
                     self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)

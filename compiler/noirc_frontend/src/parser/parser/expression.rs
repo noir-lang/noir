@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
-        if self.tokens_follow(Token::Ampersand, Token::Keyword(Keyword::Mut)) {
+        if self.at(Token::Ampersand) && self.next_is(Token::Keyword(Keyword::Mut)) {
             self.bump();
             self.bump();
             Some(UnaryOp::MutableReference)
@@ -663,7 +663,7 @@ impl<'a> Parser<'a> {
 
     /// SliceExpression = '&' ArrayLiteral
     fn parse_slice_literal(&mut self) -> Option<ArrayLiteral> {
-        if !self.tokens_follow(Token::Ampersand, Token::LeftBracket) {
+        if !(self.at(Token::Ampersand) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 

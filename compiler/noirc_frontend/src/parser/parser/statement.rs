@@ -208,7 +208,7 @@ impl<'a> Parser<'a> {
                 Token::Pipe => Some(BinaryOpKind::Or),
                 _ => None,
             }
-        } else if self.tokens_follow(Token::Greater, Token::GreaterEqual) {
+        } else if self.at(Token::Greater) && self.next_is(Token::GreaterEqual) {
             // >>=
             Some(BinaryOpKind::ShiftRight)
         } else {

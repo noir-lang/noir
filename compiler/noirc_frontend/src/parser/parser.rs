@@ -427,10 +427,6 @@ impl<'a> Parser<'a> {
         self.next_token.token() == &token
     }
 
-    fn tokens_follow(&self, token: Token, next_token: Token) -> bool {
-        self.at(token) && self.next_is(next_token)
-    }
-
     fn at_eof(&self) -> bool {
         self.token.token() == &Token::EOF
     }

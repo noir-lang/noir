@@ -66,7 +66,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.tokens_follow(Token::Ampersand, Token::Keyword(Keyword::Mut)) {
+        if self.at(Token::Ampersand) && self.next_is(Token::Keyword(Keyword::Mut)) {
             self.bump();
             self.bump();
             if !self.next_is_colon() && self.eat_self() {
