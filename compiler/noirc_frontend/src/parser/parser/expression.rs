@@ -428,6 +428,12 @@ impl<'a> Parser<'a> {
         Some(if self.eat_colon() {
             let expression = self.parse_expression_or_error();
             (ident, expression)
+        } else if self.at(Token::Assign) {
+            // If we find '=' instead of ':', assume the user meant ':`, error and continue
+            self.expected_token(Token::Colon);
+            self.bump();
+            let expression = self.parse_expression_or_error();
+            (ident, expression)
         } else {
             (ident.clone(), ident.into())
         })
@@ -1335,6 +1341,34 @@ mod tests {
         let (name, expr) = constructor.fields.remove(0);
         assert_eq!(name.to_string(), "z");
         assert_eq!(expr.to_string(), "2");
+    }
+
+    #[test]
+    fn parses_constructor_with_fields_recovers_if_assign_instead_of_colon() {
+        let src = "
+        Foo { x = 1, y }
+                ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a : but found =");
+
+        let ExpressionKind::Constructor(mut constructor) = expr.kind else {
+            panic!("Expected constructor");
+        };
+        assert_eq!(constructor.typ.to_string(), "Foo");
+        assert_eq!(constructor.fields.len(), 2);
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(expr.to_string(), "1");
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "y");
+        assert_eq!(expr.to_string(), "y");
     }
 
     #[test]
