@@ -11,9 +11,7 @@ struct StructImplementsSomeTrait {
 
 }
 
-impl SomeTrait<i32> for StructImplementsSomeTrait {
-
-}
+impl SomeTrait<i32> for StructImplementsSomeTrait {}
 
 struct StructDoesNotImplementSomeTrait {
 

@@ -8,13 +8,13 @@ use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
+use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::ImplKind;
 use crate::hir_def::function::FunctionBody;
-use crate::macros_api::UnaryOp;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
@@ -26,17 +26,17 @@ use crate::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
         stmt::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
-            HirPattern,
+            HirPattern, HirStatement,
         },
+        types::Kind,
     },
-    macros_api::{HirLiteral, HirStatement, NodeInterner},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
-    Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
+    Shared, Type, TypeBinding, TypeBindings,
 };
 
 use super::errors::{IResult, InterpreterError};
@@ -61,7 +61,7 @@ pub struct Interpreter<'local, 'interner> {
     /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
-    bound_generics: Vec<HashMap<TypeVariable, Type>>,
+    bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
 }
 
 #[allow(unused)]
@@ -88,7 +88,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, binding) in instantiation_bindings.values_mut() {
+        for (_, kind, binding) in instantiation_bindings.values_mut() {
+            *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
@@ -97,7 +98,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, binding) in impl_bindings.values_mut() {
+        for (_, kind, binding) in impl_bindings.values_mut() {
+            *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
@@ -133,9 +135,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return self.call_special(function, arguments, return_type, location);
         }
 
-        // Wait until after call_special to set the current function so that builtin functions like
-        // `.as_type()` still call the resolver in the caller's scope.
-        let old_function = self.current_function.replace(function);
+        // Don't change the current function scope if we're in a #[use_callers_scope] function.
+        // This will affect where `Expression::resolve`, `Quoted::as_type`, and similar functions resolve.
+        let mut old_function = self.current_function;
+        let modifiers = self.elaborator.interner.function_modifiers(&function);
+        if !modifiers.attributes.has_use_callers_scope() {
+            self.current_function = Some(function);
+        }
+
         let result = self.call_user_defined_function(function, arguments, location);
         self.current_function = old_function;
         result
@@ -246,6 +253,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         closure: HirLambda,
         environment: Vec<Value>,
         arguments: Vec<(Value, Location)>,
+        function_scope: Option<FuncId>,
+        module_scope: ModuleId,
+        call_location: Location,
+    ) -> IResult<Value> {
+        // Set the closure's scope to that of the function it was originally evaluated in
+        let old_module = self.elaborator.replace_module(module_scope);
+        let old_function = std::mem::replace(&mut self.current_function, function_scope);
+
+        let result = self.call_closure_inner(closure, environment, arguments, call_location);
+
+        self.current_function = old_function;
+        self.elaborator.replace_module(old_module);
+        result
+    }
+
+    fn call_closure_inner(
+        &mut self,
+        closure: HirLambda,
+        environment: Vec<Value>,
+        arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
         let previous_state = self.enter_function();
@@ -309,8 +336,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn unbind_generics_from_previous_function(&mut self) {
         if let Some(bindings) = self.bound_generics.last() {
-            for var in bindings.keys() {
-                var.unbind(var.id());
+            for (var, (_, kind)) in bindings {
+                var.unbind(var.id(), kind.clone());
             }
         }
         // Push a new bindings list for the current function
@@ -322,7 +349,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, binding) in bindings {
+            for (var, (binding, _kind)) in bindings {
                 var.force_bind(binding.clone());
             }
         }
@@ -334,12 +361,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .last_mut()
             .expect("remember_bindings called with no bound_generics on the stack");
 
-        for (var, binding) in main_bindings.values() {
-            bound_generics.insert(var.clone(), binding.follow_bindings());
+        for (var, kind, binding) in main_bindings.values() {
+            bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
         }
 
-        for (var, binding) in impl_bindings.values() {
-            bound_generics.insert(var.clone(), binding.follow_bindings());
+        for (var, kind, binding) in impl_bindings.values() {
+            bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
         }
     }
 
@@ -434,7 +461,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
-                entry.insert(argument);
+                match entry.get() {
+                    Value::Pointer(reference, true) => {
+                        *reference.borrow_mut() = argument;
+                    }
+                    _ => {
+                        entry.insert(argument);
+                    }
+                }
                 return Ok(());
             }
         }
@@ -510,8 +544,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::VariableNotInScope { location }
         })?;
 
-        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        if let ImplKind::TraitMethod(method) = ident.impl_kind {
+            let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
             let typ = self.elaborator.interner.id_type(id).follow_bindings();
             let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
@@ -527,12 +561,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 // Avoid resetting the value if it is already known
-                if let Ok(value) = self.lookup(&ident) {
-                    Ok(value)
+                if let Some(value) = &self.elaborator.interner.get_global(*global_id).value {
+                    Ok(value.clone())
                 } else {
-                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
+                    let global_id = *global_id;
+                    let crate_of_global = self.elaborator.interner.get_global(global_id).crate_id;
                     let let_ =
-                        self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
+                        self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
                             || {
                                 let location = self.elaborator.interner.expr_location(&id);
                                 InterpreterError::VariableNotInScope { location }
@@ -542,12 +577,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
-                    self.lookup(&ident)
+
+                    let value = self.lookup(&ident)?;
+                    self.elaborator.interner.get_global_mut(global_id).value = Some(value.clone());
+                    Ok(value)
                 }
             }
-            DefinitionKind::GenericType(type_variable) => {
+            DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_) => None,
+                    TypeBinding::Unbound(_, _) => None,
                     TypeBinding::Bound(binding) => binding.evaluate_to_u32(),
                 };
 
@@ -556,7 +594,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     self.evaluate_integer((value as u128).into(), false, id)
                 } else {
                     let location = self.elaborator.interner.expr_location(&id);
-                    let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
+                    let typ = Type::TypeVariable(type_variable.clone());
                     Err(InterpreterError::NonIntegerArrayLength { typ, location })
                 }
             }
@@ -715,14 +753,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::I64(value))
                 }
             }
-        } else if let Type::TypeVariable(variable, TypeVariableKind::IntegerOrField) = &typ {
-            Ok(Value::Field(value))
-        } else if let Type::TypeVariable(variable, TypeVariableKind::Integer) = &typ {
-            let value: u64 = value
-                .try_to_u64()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
-            Ok(Value::U64(value))
+        } else if let Type::TypeVariable(variable) = &typ {
+            if variable.is_integer_or_field() {
+                Ok(Value::Field(value))
+            } else if variable.is_integer() {
+                let value: u64 = value
+                    .try_to_u64()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
+                Ok(Value::U64(value))
+            } else {
+                Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+            }
         } else {
             Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
         }
@@ -1262,15 +1304,36 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         elaborator.elaborate_expression(expr).0
                     });
                     result = self.evaluate(expr)?;
+
+                    // Macro calls are typed as type variables during type checking.
+                    // Now that we know the type we need to further unify it in case there
+                    // are inconsistencies or the type needs to be known.
+                    // We don't commit any type bindings made this way in case the type of
+                    // the macro result changes across loop iterations.
+                    let expected_type = self.elaborator.interner.id_type(id);
+                    let actual_type = result.get_type();
+                    self.unify_without_binding(&actual_type, &expected_type, location);
                 }
                 Ok(result)
             }
-            Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
+            Value::Closure(closure, env, _, function_scope, module_scope) => {
+                self.call_closure(closure, env, arguments, function_scope, module_scope, location)
+            }
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
             }
         }
+    }
+
+    fn unify_without_binding(&mut self, actual: &Type, expected: &Type, location: Location) {
+        self.elaborator.unify_without_applying_bindings(actual, expected, location.file, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: expected.to_string(),
+                expr_typ: actual.to_string(),
+                expr_span: location.span,
+            }
+        });
     }
 
     fn evaluate_method_call(
@@ -1294,8 +1357,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 struct_def.borrow().id,
                 method_name,
                 false,
+                true,
             ),
-            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name),
+            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name, true),
         };
 
         if let Some(method) = method {
@@ -1447,7 +1511,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
-        Ok(Value::Closure(lambda, environment, typ))
+        let module = self.elaborator.module_id();
+        Ok(Value::Closure(lambda, environment, typ, self.current_function, module))
     }
 
     fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {

@@ -2,17 +2,18 @@ use chumsky::prelude::*;
 
 use super::attributes::{attributes, validate_secondary_attributes};
 use super::doc_comments::outer_doc_comments;
-use super::function::function_return_type;
+use super::function::{function_modifiers, function_return_type};
 use super::path::path_no_turbofish;
+use super::visibility::item_visibility;
 use super::{
     block, expression, fresh_statement, function, function_declaration_parameters, let_statement,
 };
 
 use crate::ast::{
-    Documented, Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem,
-    TraitItem, UnresolvedTraitConstraint, UnresolvedType,
+    Documented, Expression, ItemVisibility, NoirTrait, NoirTraitImpl, Pattern, TraitBound,
+    TraitImplItem, TraitImplItemKind, TraitItem, UnresolvedTraitConstraint, UnresolvedType,
 };
-use crate::macros_api::Pattern;
+use crate::parser::spanned;
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
@@ -41,22 +42,26 @@ pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatementKind> {
         });
 
     attributes()
+        .then(item_visibility())
         .then_ignore(keyword(Keyword::Trait))
         .then(ident())
         .then(function::generics())
         .then(where_clause())
         .then(trait_body_or_error)
-        .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
-            let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatementKind::Trait(NoirTrait {
-                name,
-                generics,
-                where_clause,
-                span,
-                items,
-                attributes,
-            })
-        })
+        .validate(
+            |(((((attributes, visibility), name), generics), where_clause), items), span, emit| {
+                let attributes = validate_secondary_attributes(attributes, span, emit);
+                TopLevelStatementKind::Trait(NoirTrait {
+                    name,
+                    generics,
+                    where_clause,
+                    span,
+                    items,
+                    attributes,
+                    visibility,
+                })
+            },
+        )
 }
 
 fn trait_body() -> impl NoirParser<Vec<Documented<TraitItem>>> {
@@ -100,16 +105,29 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
             }
         });
 
-    keyword(Keyword::Fn)
-        .ignore_then(ident())
+    function_modifiers()
+        .then_ignore(keyword(Keyword::Fn))
+        .then(ident())
         .then(function::generics())
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(trait_function_body_or_semicolon_or_error)
-        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-        })
+        .map(
+            |((((((modifiers, name), generics), parameters), return_type), where_clause), body)| {
+                TraitItem::Function {
+                    name,
+                    generics,
+                    parameters,
+                    return_type,
+                    where_clause,
+                    body,
+                    is_unconstrained: modifiers.0,
+                    visibility: modifiers.1,
+                    is_comptime: modifiers.2,
+                }
+            },
+        )
 }
 
 /// trait_type_declaration: 'type' ident generics
@@ -168,12 +186,12 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatementKind> {
 
 fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>> {
     let function = function::function_definition(true).validate(|mut f, span, emit| {
-        if f.def().is_unconstrained || f.def().visibility != ItemVisibility::Private {
-            emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
+        if f.def().visibility != ItemVisibility::Private {
+            emit(ParserError::with_reason(ParserErrorReason::TraitImplVisibilityIgnored, span));
         }
         // Trait impl functions are always public
         f.def_mut().visibility = ItemVisibility::Public;
-        TraitImplItem::Function(f)
+        TraitImplItemKind::Function(f)
     });
 
     let alias = keyword(Keyword::Type)
@@ -181,11 +199,11 @@ fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>
         .then_ignore(just(Token::Assign))
         .then(parse_type())
         .then_ignore(just(Token::Semicolon))
-        .map(|(name, alias)| TraitImplItem::Type { name, alias });
+        .map(|(name, alias)| TraitImplItemKind::Type { name, alias });
 
     let let_statement = let_statement(expression()).then_ignore(just(Token::Semicolon)).try_map(
         |((pattern, typ), expr), span| match pattern {
-            Pattern::Identifier(ident) => Ok(TraitImplItem::Constant(ident, typ, expr)),
+            Pattern::Identifier(ident) => Ok(TraitImplItemKind::Constant(ident, typ, expr)),
             _ => Err(ParserError::with_reason(
                 ParserErrorReason::PatternInTraitFunctionParameter,
                 span,
@@ -195,7 +213,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>
 
     let item = choice((function, alias, let_statement));
     outer_doc_comments()
-        .then(item)
+        .then(spanned(item).map(|(kind, span)| TraitImplItem { kind, span }))
         .map(|(doc_comments, item)| Documented::new(item, doc_comments))
         .repeated()
 }

@@ -1,9 +1,9 @@
-mod poseidon;
-mod mimc;
-mod poseidon2;
-mod keccak;
-mod sha256;
-mod sha512;
+pub mod poseidon;
+pub mod mimc;
+pub mod poseidon2;
+pub mod keccak;
+pub mod sha256;
+pub mod sha512;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -33,10 +33,10 @@ pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint 
 }
 
 pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
-    __pedersen_hash_with_separator(input, separator)
+    pedersen_hash_with_separator_noir(input, separator)
 }
 
-fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+pub fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let value = __pedersen_commitment_with_separator(input, separator);
     if (value[0] == 0) & (value[1] == 0) {
         EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
@@ -78,7 +78,7 @@ fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u
 pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
 {
-    __pedersen_hash_with_separator(input, 0)
+    pedersen_hash_with_separator_noir(input, 0)
 }
 
 #[foreign(pedersen_hash)]
@@ -88,7 +88,7 @@ fn __pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32)
 fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 #[field(bn254)]
-fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
+pub fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
     __derive_generators(domain_separator_bytes, starting_index)
@@ -96,16 +96,13 @@ fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], st
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<let N: u32, let M: u32>(
-    domain_separator_bytes: [u8; M],
-    starting_index: u32
-) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
-    // Same as from_field but:
-    // does not assert the limbs are 128 bits
-    // does not assert the decomposition does not overflow the EmbeddedCurveScalar
-    fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
+// Same as from_field but:
+// does not assert the limbs are 128 bits
+// does not assert the decomposition does not overflow the EmbeddedCurveScalar
+fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     let (xlo, xhi) = unsafe {
         crate::field::bn254::decompose_hint(scalar)
     };
@@ -135,12 +132,12 @@ pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
-// Generic hashing support. 
+// Generic hashing support.
 // Partially ported and impacted by rust.
 
 // Hash trait shall be implemented per type.
 #[derive_via(derive_hash)]
-trait Hash {
+pub trait Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher;
 }
 
@@ -155,99 +152,97 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
 // TODO: consider making the types generic here ([u8], [Field], etc.)
-trait Hasher{
+pub trait Hasher {
     fn finish(self) -> Field;
-    
+
     fn write(&mut self, input: Field);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-trait BuildHasher<H> where H: Hasher{
+pub trait BuildHasher<H> where H: Hasher {
     fn build_hasher(self) -> H;
 }
 
-struct BuildHasherDefault<H>;
+pub struct BuildHasherDefault<H>;
 
 impl<H> BuildHasher<H> for BuildHasherDefault<H>
-where 
-    H: Hasher + Default
-{
-    fn build_hasher(_self: Self) -> H{
+where
+    H: Hasher + Default {
+    fn build_hasher(_self: Self) -> H {
         H::default()
     }
 }
 
 impl<H> Default for BuildHasherDefault<H>
-where 
-    H: Hasher + Default
-{
-    fn default() -> Self{
-        BuildHasherDefault{}
-    }    
+where
+    H: Hasher + Default {
+    fn default() -> Self {
+        BuildHasherDefault {}
+    }
 }
 
 impl Hash for Field {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self);
     }
 }
 
 impl Hash for u1 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for u8 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for u16 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for u32 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for u64 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for i8 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for i16 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for i32 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for i64 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
 
 impl Hash for bool {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self as Field);
     }
 }
@@ -257,14 +252,14 @@ impl Hash for () {
 }
 
 impl Hash for U128 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         H::write(state, self.lo as Field);
         H::write(state, self.hi as Field);
     }
 }
 
 impl<T, let N: u32> Hash for [T; N] where T: Hash {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         for elem in self {
             elem.hash(state);
         }
@@ -272,7 +267,7 @@ impl<T, let N: u32> Hash for [T; N] where T: Hash {
 }
 
 impl<T> Hash for [T] where T: Hash {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         self.len().hash(state);
         for elem in self {
             elem.hash(state);
@@ -281,14 +276,14 @@ impl<T> Hash for [T] where T: Hash {
 }
 
 impl<A, B> Hash for (A, B) where A: Hash, B: Hash {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         self.0.hash(state);
         self.1.hash(state);
     }
 }
 
 impl<A, B, C> Hash for (A, B, C) where A: Hash, B: Hash, C: Hash {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         self.0.hash(state);
         self.1.hash(state);
         self.2.hash(state);
@@ -296,7 +291,7 @@ impl<A, B, C> Hash for (A, B, C) where A: Hash, B: Hash, C: Hash {
 }
 
 impl<A, B, C, D> Hash for (A, B, C, D) where A: Hash, B: Hash, C: Hash, D: Hash {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         self.0.hash(state);
         self.1.hash(state);
         self.2.hash(state);
@@ -305,7 +300,7 @@ impl<A, B, C, D> Hash for (A, B, C, D) where A: Hash, B: Hash, C: Hash, D: Hash 
 }
 
 impl<A, B, C, D, E> Hash for (A, B, C, D, E) where A: Hash, B: Hash, C: Hash, D: Hash, E: Hash {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher {
         self.0.hash(state);
         self.1.hash(state);
         self.2.hash(state);
@@ -421,4 +416,3 @@ fn assert_pedersen() {
     }
     );
 }
-

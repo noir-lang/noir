@@ -4,7 +4,7 @@ use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
 use crate::collections::bounded_vec::BoundedVec;
 
-// We use load factor α_max = 0.75. 
+// We use load factor alpha_max = 0.75. 
 // Upon exceeding it, assert will fail in order to inform the user 
 // about performance degradation, so that he can adjust the capacity.
 global MAX_LOAD_FACTOR_NUMERATOR = 3;
@@ -30,7 +30,7 @@ global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
 /// 
 /// let two = map.get(1).unwrap();
 /// ```
-struct HashMap<K, V, let N: u32, B> {
+pub struct HashMap<K, V, let N: u32, B> {
     _table: [Slot<K, V>; N],
 
     /// Amount of valid elements in the map.
@@ -50,12 +50,9 @@ struct Slot<K, V> {
     _is_deleted: bool,
 }
 
-impl<K, V> Default for Slot<K, V>{
-    fn default() -> Self{
-        Slot{
-            _key_value: Option::none(),
-            _is_deleted: false
-        }
+impl<K, V> Default for Slot<K, V> {
+    fn default() -> Self {
+        Slot { _key_value: Option::none(), _is_deleted: false }
     }
 }
 
@@ -627,7 +624,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         (hash + (attempt + attempt * attempt) / 2) % N
     }
 
-    // Amount of elements in the table in relation to available slots exceeds α_max. 
+    // Amount of elements in the table in relation to available slots exceeds alpha_max. 
     // To avoid a comparatively more expensive division operation 
     // we conduct cross-multiplication instead.
     // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DEN0MINATOR 
@@ -649,8 +646,7 @@ where
     K: Eq + Hash,
     V: Eq,
     B: BuildHasher<H>,
-    H: Hasher
-{
+    H: Hasher {
     /// Checks if two HashMaps are equal.
     /// 
     /// Example:
@@ -668,22 +664,22 @@ where
     /// assert(map1 == map2);
     /// ```
     fn eq(self, other: HashMap<K, V, N, B>) -> bool {
-// docs:end:eq
+        // docs:end:eq
         let mut equal = false;
 
-        if self.len() == other.len(){
+        if self.len() == other.len() {
             equal = true;
-            for slot in self._table{
+            for slot in self._table {
                 // Not marked as deleted and has key-value.
-                if equal & slot.is_valid(){
+                if equal & slot.is_valid() {
                     let (key, value) = slot.key_value_unchecked();
                     let other_value = other.get(key);
 
-                    if other_value.is_none(){
+                    if other_value.is_none() {
                         equal = false;
-                    }else{
+                    } else {
                         let other_value = other_value.unwrap_unchecked();
-                        if value != other_value{
+                        if value != other_value {
                             equal = false;
                         }
                     }
@@ -699,8 +695,7 @@ where
 impl<K, V, let N: u32, B, H> Default for HashMap<K, V, N, B>
 where
     B: BuildHasher<H> + Default,
-    H: Hasher + Default
-{
+    H: Hasher + Default {
     /// Constructs an empty HashMap.
     /// 
     /// Example:

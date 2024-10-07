@@ -1,6 +1,7 @@
 use chumsky::prelude::*;
 
 use crate::ast::{Documented, NoirStruct, StructField};
+use crate::parser::parser::visibility::item_visibility;
 use crate::{
     parser::{
         parser::{
@@ -30,13 +31,21 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatementKind> {
         .or(just(Semicolon).to(Vec::new()));
 
     attributes()
+        .then(item_visibility())
         .then_ignore(keyword(Struct))
         .then(ident())
         .then(function::generics())
         .then(fields)
-        .validate(|(((attributes, name), generics), fields), span, emit| {
+        .validate(|((((attributes, visibility), name), generics), fields), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatementKind::Struct(NoirStruct { name, attributes, generics, fields, span })
+            TopLevelStatementKind::Struct(NoirStruct {
+                name,
+                attributes,
+                visibility,
+                generics,
+                fields,
+                span,
+            })
         })
 }
 

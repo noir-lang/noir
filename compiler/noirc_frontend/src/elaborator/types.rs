@@ -7,13 +7,15 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedTypeExpression,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
+        Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
+        UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{Interpreter, Value},
+        def_collector::dc_crate::CompilationError,
         def_map::ModuleDefId,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             generics::{Generic, TraitGenerics},
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -21,28 +23,31 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
-            HirPrefixExpression,
+            HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
+            HirMethodReference, HirPrefixExpression, TraitMethod,
         },
         function::{FuncMeta, Parameters},
+        stmt::HirStatement,
         traits::{NamedType, TraitConstraint},
     },
-    macros_api::{
-        HirExpression, HirLiteral, HirStatement, Ident, NodeInterner, Path, PathKind,
-        SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
-    },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ImplSearchErrorKind, TraitId,
+        DefinitionKind, DependencyId, ExprId, GlobalId, ImplSearchErrorKind, NodeInterner, TraitId,
         TraitImplKind, TraitMethodId,
     },
+    token::SecondaryAttribute,
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableKind, UnificationError,
+    UnificationError,
 };
 
 use super::{lints, Elaborator};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 pub const WILDCARD_TYPE: &str = "_";
+
+pub(super) struct TraitPathResolution {
+    pub(super) method: TraitMethod,
+    pub(super) error: Option<PathResolutionError>,
+}
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
@@ -76,45 +81,22 @@ impl<'context> Elaborator<'context> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
-                let mut size = self.convert_expression_type(size);
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = size {
-                    size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let size = self.convert_expression_type(size, &Kind::u32(), span);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 Type::Slice(elem)
             }
-            Expression(expr) => self.convert_expression_type(expr),
+            Expression(expr) => self.convert_expression_type(expr, kind, span),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let mut resolved_size = self.convert_expression_type(size);
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
-                let mut resolved_size = self.convert_expression_type(size);
-                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(
-                        type_var,
-                        name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
-                    );
-                }
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
@@ -148,7 +130,7 @@ impl<'context> Elaborator<'context> {
                 let env = Box::new(self.resolve_type_inner(*env, kind));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
                     _ => {
@@ -191,26 +173,14 @@ impl<'context> Elaborator<'context> {
             _ => (),
         }
 
-        // Check that any types with a type kind match the expected type kind supplied to this function
-        // TODO(https://github.com/noir-lang/noir/issues/5156): make this named generic check more general with `*resolved_kind != kind`
-        // as implicit numeric generics still existing makes this check more challenging to enforce
-        // An example of a more general check that we should switch to:
-        // if resolved_type.kind() != kind.clone() {
-        //     let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-        //         expected_kind: kind.to_string(),
-        //         expr_kind: resolved_type.kind().to_string(),
-        //         expr_span: span.expect("Type should have span"),
-        //     });
-        //     self.errors.push((expected_typ_err, self.file));
-        //     return Type::Error;
-        // }
-        if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
-                let expected_typ_err =
-                    ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
-                self.push_err(expected_typ_err);
-                return Type::Error;
-            }
+        if !kind.unifies(&resolved_type.kind()) {
+            let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
+                expected_kind: kind.to_string(),
+                expr_kind: resolved_type.kind().to_string(),
+                expr_span: span,
+            });
+            self.errors.push((expected_typ_err, self.file));
+            return Type::Error;
         }
 
         resolved_type
@@ -260,7 +230,7 @@ impl<'context> Elaborator<'context> {
                     return self_type;
                 }
             } else if name == WILDCARD_TYPE {
-                return self.interner.next_type_variable();
+                return self.interner.next_type_variable_with_kind(Kind::Any);
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
             if !args.is_empty() {
@@ -363,7 +333,7 @@ impl<'context> Elaborator<'context> {
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
         let ordered =
-            vecmap(ordered_args, |(generic, typ)| self.resolve_type_inner(typ, &generic.kind));
+            vecmap(ordered_args, |(generic, typ)| self.resolve_type_inner(typ, &generic.kind()));
 
         let mut associated = Vec::new();
 
@@ -407,7 +377,7 @@ impl<'context> Elaborator<'context> {
             let expected = required_args.remove(index);
             seen_args.insert(name.0.contents.clone(), name.span());
 
-            let typ = self.resolve_type_inner(typ, &expected.kind);
+            let typ = self.resolve_type_inner(typ, &expected.kind());
             resolved.push(NamedType { name, typ });
         }
 
@@ -426,7 +396,7 @@ impl<'context> Elaborator<'context> {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
-                return Some(Type::NamedGeneric(generic.type_var, generic.name, generic.kind));
+                return Some(Type::NamedGeneric(generic.type_var, generic.name));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
             return Some(typ);
@@ -441,30 +411,49 @@ impl<'context> Elaborator<'context> {
 
                 let reference_location = Location::new(path.span(), self.file);
                 self.interner.add_global_reference(id, reference_location);
+                let kind = self
+                    .interner
+                    .get_global_let_statement(id)
+                    .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
+                    .unwrap_or(Kind::u32());
 
-                Some(Type::Constant(self.eval_global_as_array_length(id, path)))
+                Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
             }
             _ => None,
         }
     }
 
-    pub(super) fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
+    pub(super) fn convert_expression_type(
+        &mut self,
+        length: UnresolvedTypeExpression,
+        expected_kind: &Kind,
+        span: Span,
+    ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
-                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                    Type::Constant(0)
-                })
+                let typ = self.resolve_named_type(path, GenericTypeArgs::default());
+                self.check_kind(typ, expected_kind, span)
             }
-            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::Constant(int, _span) => {
+                Type::Constant(int, expected_kind.clone())
+            }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
-                let lhs = self.convert_expression_type(*lhs);
-                let rhs = self.convert_expression_type(*rhs);
+                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+                let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_span);
+                let rhs = self.convert_expression_type(*rhs, expected_kind, rhs_span);
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        if let Some(result) = op.function(lhs, rhs) {
-                            Type::Constant(result)
+                    (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
+                        if !lhs_kind.unifies(&rhs_kind) {
+                            self.push_err(TypeCheckError::TypeKindMismatch {
+                                expected_kind: lhs_kind.to_string(),
+                                expr_kind: rhs_kind.to_string(),
+                                expr_span: span,
+                            });
+                            return Type::Error;
+                        }
+                        if let Some(result) = op.function(lhs, rhs, &lhs_kind) {
+                            Type::Constant(result, lhs_kind)
                         } else {
                             self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
                             Type::Error
@@ -473,8 +462,23 @@ impl<'context> Elaborator<'context> {
                     (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
                 }
             }
-            UnresolvedTypeExpression::AsTraitPath(path) => self.resolve_as_trait_path(*path),
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                let typ = self.resolve_as_trait_path(*path);
+                self.check_kind(typ, expected_kind, span)
+            }
         }
+    }
+
+    fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
+        if !typ.kind().unifies(expected_kind) {
+            self.push_err(TypeCheckError::TypeKindMismatch {
+                expected_kind: expected_kind.to_string(),
+                expr_kind: typ.kind().to_string(),
+                expr_span: span,
+            });
+            return Type::Error;
+        }
+        typ
     }
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
@@ -523,10 +527,7 @@ impl<'context> Elaborator<'context> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(
-        &mut self,
-        path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
+    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
         let trait_impl = self.current_trait_impl?;
         let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
 
@@ -538,7 +539,10 @@ impl<'context> Elaborator<'context> {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
                 let constraint = the_trait.as_constraint(path.span);
-                return Some((method, constraint, true));
+                return Some(TraitPathResolution {
+                    method: TraitMethod { method_id: method, constraint, assumed: true },
+                    error: None,
+                });
             }
         }
         None
@@ -548,16 +552,18 @@ impl<'context> Elaborator<'context> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method(
-        &mut self,
-        path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
-        let func_id: FuncId = self.lookup(path.clone()).ok()?;
+    fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+        let path_resolution = self.resolve_path(path.clone()).ok()?;
+        let ModuleDefId::FunctionId(func_id) = path_resolution.module_def_id else { return None };
+
         let meta = self.interner.function_meta(&func_id);
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.span);
-        Some((method, constraint, false))
+        Some(TraitPathResolution {
+            method: TraitMethod { method_id: method, constraint, assumed: false },
+            error: path_resolution.error,
+        })
     }
 
     // This resolves a static trait method T::trait_method by iterating over the where clause
@@ -568,13 +574,13 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_method_by_named_generic(
         &mut self,
         path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
+    ) -> Option<TraitPathResolution> {
         if path.segments.len() != 2 {
             return None;
         }
 
         for constraint in self.trait_bounds.clone() {
-            if let Type::NamedGeneric(_, name, _) = &constraint.typ {
+            if let Type::NamedGeneric(_, name) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
                 if path.segments[0].ident.0.contents != name.as_str() {
                     continue;
@@ -582,7 +588,10 @@ impl<'context> Elaborator<'context> {
 
                 let the_trait = self.interner.get_trait(constraint.trait_id);
                 if let Some(method) = the_trait.find_method(path.last_name()) {
-                    return Some((method, constraint, true));
+                    return Some(TraitPathResolution {
+                        method: TraitMethod { method_id: method, constraint, assumed: true },
+                        error: None,
+                    });
                 }
             }
         }
@@ -596,7 +605,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_trait_generic_path(
         &mut self,
         path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
+    ) -> Option<TraitPathResolution> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
@@ -616,7 +625,7 @@ impl<'context> Elaborator<'context> {
 
         let length = stmt.expression;
         let span = self.interner.expr_span(&length);
-        let result = self.try_eval_array_length_id(length, span);
+        let result = try_eval_array_length_id(self.interner, length, span);
 
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
@@ -627,85 +636,6 @@ impl<'context> Elaborator<'context> {
         0
     }
 
-    fn try_eval_array_length_id(
-        &self,
-        rhs: ExprId,
-        span: Span,
-    ) -> Result<u128, Option<ResolverError>> {
-        // Arbitrary amount of recursive calls to try before giving up
-        let fuel = 100;
-        self.try_eval_array_length_id_with_fuel(rhs, span, fuel)
-    }
-
-    fn try_eval_array_length_id_with_fuel(
-        &self,
-        rhs: ExprId,
-        span: Span,
-        fuel: u32,
-    ) -> Result<u128, Option<ResolverError>> {
-        if fuel == 0 {
-            // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
-            // be issued for them after name resolution so issue no error now.
-            return Err(None);
-        }
-
-        match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-                int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
-            }
-            HirExpression::Ident(ident, _) => {
-                let definition = self.interner.definition(ident.id);
-                match definition.kind {
-                    DefinitionKind::Global(global_id) => {
-                        let let_statement = self.interner.get_global_let_statement(global_id);
-                        if let Some(let_statement) = let_statement {
-                            let expression = let_statement.expression;
-                            self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
-                        } else {
-                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
-                        }
-                    }
-                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-                }
-            }
-            HirExpression::Infix(infix) => {
-                let lhs = self.try_eval_array_length_id_with_fuel(infix.lhs, span, fuel - 1)?;
-                let rhs = self.try_eval_array_length_id_with_fuel(infix.rhs, span, fuel - 1)?;
-
-                match infix.operator.kind {
-                    BinaryOpKind::Add => Ok(lhs + rhs),
-                    BinaryOpKind::Subtract => Ok(lhs - rhs),
-                    BinaryOpKind::Multiply => Ok(lhs * rhs),
-                    BinaryOpKind::Divide => Ok(lhs / rhs),
-                    BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
-                    BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
-                    BinaryOpKind::Less => Ok((lhs < rhs) as u128),
-                    BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
-                    BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
-                    BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
-                    BinaryOpKind::And => Ok(lhs & rhs),
-                    BinaryOpKind::Or => Ok(lhs | rhs),
-                    BinaryOpKind::Xor => Ok(lhs ^ rhs),
-                    BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
-                    BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
-                    BinaryOpKind::Modulo => Ok(lhs % rhs),
-                }
-            }
-            HirExpression::Cast(cast) => {
-                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
-                let lhs_value = Value::Field(lhs.into());
-                let evaluated_value =
-                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
-                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
-
-                evaluated_value
-                    .to_u128()
-                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
-            }
-            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-        }
-    }
-
     pub(super) fn unify(
         &mut self,
         actual: &Type,
@@ -714,6 +644,22 @@ impl<'context> Elaborator<'context> {
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
             self.errors.push((make_error().into(), self.file));
+        }
+    }
+
+    /// Do not apply type bindings even after a successful unification.
+    /// This function is used by the interpreter for some comptime code
+    /// which can change types e.g. on each iteration of a for loop.
+    pub fn unify_without_applying_bindings(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        file: fm::FileId,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        let mut bindings = TypeBindings::new();
+        if actual.try_unify(expected, &mut bindings).is_err() {
+            self.errors.push((make_error().into(), file));
         }
     }
 
@@ -754,11 +700,21 @@ impl<'context> Elaborator<'context> {
         typ
     }
 
+    /// Return a fresh integer type variable and log it
+    /// in self.type_variables to default it later.
+    pub(super) fn type_variable_with_kind(&mut self, type_var_kind: Kind) -> Type {
+        let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
+        self.push_type_variable(typ.clone());
+        typ
+    }
+
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
         match &typ.typ {
-            UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
+            UnresolvedTypeData::Unspecified => {
+                self.interner.next_type_variable_with_kind(Kind::Any)
+            }
             _ => self.resolve_type(typ),
         }
     }
@@ -847,7 +803,7 @@ impl<'context> Elaborator<'context> {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function {
-            Type::TypeVariable(binding, TypeVariableKind::Normal) => {
+            Type::TypeVariable(binding) if binding.kind() == Kind::Normal => {
                 if let TypeBinding::Bound(typ) = &*binding.borrow() {
                     return self.bind_function_type(typ.clone(), args, span);
                 }
@@ -858,7 +814,8 @@ impl<'context> Elaborator<'context> {
                 let expected =
                     Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
-                if let Err(error) = binding.try_bind(expected, span) {
+                let expected_kind = expected.kind();
+                if let Err(error) = binding.try_bind(expected, &expected_kind, span) {
                     self.push_err(error);
                 }
                 ret
@@ -878,16 +835,14 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
         match from.follow_bindings() {
-            Type::Integer(..)
-            | Type::FieldElement
-            | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
-            | Type::TypeVariable(_, TypeVariableKind::Integer)
-            | Type::Bool => (),
+            Type::Integer(..) | Type::FieldElement | Type::Bool => (),
 
-            Type::TypeVariable(_, _) => {
+            Type::TypeVariable(var) if var.is_integer() || var.is_integer_or_field() => (),
+
+            Type::TypeVariable(_) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
@@ -935,8 +890,8 @@ impl<'context> Elaborator<'context> {
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (TypeVariable(var, _), other) | (other, TypeVariable(var, _)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
+            (TypeVariable(var), other) | (other, TypeVariable(var)) => {
+                if let TypeBinding::Bound(ref binding) = &*var.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
@@ -1000,14 +955,14 @@ impl<'context> Elaborator<'context> {
             span,
         });
 
-        let use_impl = !lhs_type.is_numeric();
+        let use_impl = !lhs_type.is_numeric_value();
 
         // If this operator isn't valid for fields we have to possibly narrow
-        // TypeVariableKind::IntegerOrField to TypeVariableKind::Integer.
+        // Kind::IntegerOrField to Kind::Integer.
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
-        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
-            let target = Type::polymorphic_integer(self.interner);
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
+            let target = self.polymorphic_integer();
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
@@ -1048,22 +1003,22 @@ impl<'context> Elaborator<'context> {
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int), other) | (other, TypeVariable(int)) => {
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
                     self.unify(
                         rhs_type,
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
                         || TypeCheckError::InvalidShiftSize { span },
                     );
-                    let use_impl = if lhs_type.is_numeric() {
-                        let integer_type = Type::polymorphic_integer(self.interner);
+                    let use_impl = if lhs_type.is_numeric_value() {
+                        let integer_type = self.polymorphic_integer();
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
                         true
                     };
                     return Ok((lhs_type.clone(), use_impl));
                 }
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
+                if let TypeBinding::Bound(ref binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
@@ -1148,21 +1103,21 @@ impl<'context> Elaborator<'context> {
 
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
-                    TypeVariable(int, _) => {
-                        if let TypeBinding::Bound(binding) = &*int.borrow() {
+                    TypeVariable(int) => {
+                        if let TypeBinding::Bound(ref binding) = &*int.borrow() {
                             return self.prefix_operand_type_rules(op, binding, span);
                         }
 
                         // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
-                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
+                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric_value() {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
                             });
                         }
 
-                        Ok((rhs_type.clone(), !rhs_type.is_numeric()))
+                        Ok((rhs_type.clone(), !rhs_type.is_numeric_value()))
                     }
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
@@ -1244,7 +1199,11 @@ impl<'context> Elaborator<'context> {
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
                 the_trait.self_type_typevar.id(),
-                (the_trait.self_type_typevar.clone(), object_type.clone()),
+                (
+                    the_trait.self_type_typevar.clone(),
+                    the_trait.self_type_typevar.kind(),
+                    object_type.clone(),
+                ),
             );
             self.interner.select_impl_for_expression(
                 expr_id,
@@ -1297,11 +1256,13 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         method_name: &str,
         span: Span,
+        has_self_arg: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
             Type::Struct(typ, _args) => {
                 let id = typ.borrow().id;
-                match self.interner.lookup_method(object_type, id, method_name, false) {
+                match self.interner.lookup_method(object_type, id, method_name, false, has_self_arg)
+                {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.push_err(TypeCheckError::UnresolvedMethodCall {
@@ -1323,28 +1284,29 @@ impl<'context> Elaborator<'context> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _, _) => {
+            Type::NamedGeneric(_, _) => {
                 self.lookup_method_in_trait_constraints(object_type, method_name, span)
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, has_self_arg)
                 .map(HirMethodReference::FuncId)
-                .or_else(|| self.lookup_method(&element, method_name, span)),
+                .or_else(|| self.lookup_method(&element, method_name, span, has_self_arg)),
 
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
             // The type variable must be unbound at this point since follow_bindings was called
-            Type::TypeVariable(_, TypeVariableKind::Normal) => {
+            Type::TypeVariable(var) if var.kind() == Kind::Normal => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name) {
+            other => match self.interner.lookup_primitive_method(&other, method_name, has_self_arg)
+            {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     // It could be that this type is a composite type that is bound to a trait,
@@ -1685,9 +1647,9 @@ impl<'context> Elaborator<'context> {
             | Type::Bool
             | Type::Unit
             | Type::Error
-            | Type::TypeVariable(_, _)
-            | Type::Constant(_)
-            | Type::NamedGeneric(_, _, _)
+            | Type::TypeVariable(_)
+            | Type::Constant(..)
+            | Type::NamedGeneric(_, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
@@ -1701,7 +1663,7 @@ impl<'context> Elaborator<'context> {
             }
 
             Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(element_type, found);
@@ -1726,8 +1688,8 @@ impl<'context> Elaborator<'context> {
 
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if struct_type.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1737,8 +1699,8 @@ impl<'context> Elaborator<'context> {
             }
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if alias.borrow().generic_is_numeric(i) {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if alias.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1748,12 +1710,12 @@ impl<'context> Elaborator<'context> {
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
             }
             Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);
@@ -1806,7 +1768,10 @@ impl<'context> Elaborator<'context> {
         for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
             // Avoid binding t = t
             if !arg.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.clone()),
+                );
             }
         }
 
@@ -1825,7 +1790,10 @@ impl<'context> Elaborator<'context> {
 
             // Avoid binding t = t
             if !arg.typ.occurs(param.type_var.id()) {
-                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.typ.clone()));
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.typ.clone()),
+                );
             }
         }
 
@@ -1834,8 +1802,91 @@ impl<'context> Elaborator<'context> {
         // to specify a redundant type annotation.
         if assumed {
             let self_type = the_trait.self_type_typevar.clone();
-            bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
+            let kind = the_trait.self_type_typevar.kind();
+            bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
         }
+    }
+}
+
+pub fn try_eval_array_length_id(
+    interner: &NodeInterner,
+    rhs: ExprId,
+    span: Span,
+) -> Result<u128, Option<ResolverError>> {
+    // Arbitrary amount of recursive calls to try before giving up
+    let fuel = 100;
+    try_eval_array_length_id_with_fuel(interner, rhs, span, fuel)
+}
+
+fn try_eval_array_length_id_with_fuel(
+    interner: &NodeInterner,
+    rhs: ExprId,
+    span: Span,
+    fuel: u32,
+) -> Result<u128, Option<ResolverError>> {
+    if fuel == 0 {
+        // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
+        // be issued for them after name resolution so issue no error now.
+        return Err(None);
+    }
+
+    match interner.expression(&rhs) {
+        HirExpression::Literal(HirLiteral::Integer(int, false)) => {
+            int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+        }
+        HirExpression::Ident(ident, _) => {
+            if let Some(definition) = interner.try_definition(ident.id) {
+                match definition.kind {
+                    DefinitionKind::Global(global_id) => {
+                        let let_statement = interner.get_global_let_statement(global_id);
+                        if let Some(let_statement) = let_statement {
+                            let expression = let_statement.expression;
+                            try_eval_array_length_id_with_fuel(interner, expression, span, fuel - 1)
+                        } else {
+                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                        }
+                    }
+                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                }
+            } else {
+                Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+            }
+        }
+        HirExpression::Infix(infix) => {
+            let lhs = try_eval_array_length_id_with_fuel(interner, infix.lhs, span, fuel - 1)?;
+            let rhs = try_eval_array_length_id_with_fuel(interner, infix.rhs, span, fuel - 1)?;
+
+            match infix.operator.kind {
+                BinaryOpKind::Add => Ok(lhs + rhs),
+                BinaryOpKind::Subtract => Ok(lhs - rhs),
+                BinaryOpKind::Multiply => Ok(lhs * rhs),
+                BinaryOpKind::Divide => Ok(lhs / rhs),
+                BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                BinaryOpKind::And => Ok(lhs & rhs),
+                BinaryOpKind::Or => Ok(lhs | rhs),
+                BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                BinaryOpKind::Modulo => Ok(lhs % rhs),
+            }
+        }
+        HirExpression::Cast(cast) => {
+            let lhs = try_eval_array_length_id_with_fuel(interner, cast.lhs, span, fuel - 1)?;
+            let lhs_value = Value::Field(lhs.into());
+            let evaluated_value =
+                Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
+                    .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+            evaluated_value
+                .to_u128()
+                .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
+        }
+        _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
     }
 }
 

@@ -8,12 +8,11 @@ use lsp_types::{
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        CallExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
-        FunctionReturnType, MethodCallExpression, Statement, Visitor,
+        CallExpression, ConstrainKind, ConstrainStatement, Expression, FunctionReturnType,
+        MethodCallExpression, Statement, Visitor,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    macros_api::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::Item,
     ParsedModule, Type,
 };
@@ -375,39 +374,24 @@ impl<'a> Visitor for SignatureFinder<'a> {
             return false;
         }
 
-        let arguments_span = if let Some(expr) = &constrain_statement.1 {
-            Span::from(constrain_statement.0.span.start()..expr.span.end())
-        } else {
-            constrain_statement.0.span
-        };
+        let kind_len = constrain_statement.kind.to_string().len() as u32;
+        let span = constrain_statement.span;
+        let arguments_span = Span::from(span.start() + kind_len + 1..span.end() - 1);
 
         if !self.includes_span(arguments_span) {
             return false;
         }
 
-        match constrain_statement.2 {
-            ConstrainKind::Assert => {
-                let mut arguments = vec![constrain_statement.0.clone()];
-                if let Some(expr) = &constrain_statement.1 {
-                    arguments.push(expr.clone());
-                }
+        let active_parameter = self.compute_active_parameter(&constrain_statement.arguments);
 
-                let active_parameter = self.compute_active_parameter(&arguments);
+        match constrain_statement.kind {
+            ConstrainKind::Assert => {
                 let signature_information = self.assert_signature_information(active_parameter);
                 self.set_signature_help(signature_information);
             }
             ConstrainKind::AssertEq => {
-                if let ExpressionKind::Infix(infix) = &constrain_statement.0.kind {
-                    let mut arguments = vec![infix.lhs.clone(), infix.rhs.clone()];
-                    if let Some(expr) = &constrain_statement.1 {
-                        arguments.push(expr.clone());
-                    }
-
-                    let active_parameter = self.compute_active_parameter(&arguments);
-                    let signature_information =
-                        self.assert_eq_signature_information(active_parameter);
-                    self.set_signature_help(signature_information);
-                }
+                let signature_information = self.assert_eq_signature_information(active_parameter);
+                self.set_signature_help(signature_information);
             }
             ConstrainKind::Constrain => (),
         }

@@ -6,9 +6,8 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::{
-    ast::{NoirFunction, Visibility},
-    macros_api::UnresolvedTypeData,
+use noirc_frontend::ast::{
+    ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility,
 };
 use noirc_frontend::{
     hir::resolution::errors::Span,
@@ -179,8 +178,12 @@ impl super::FmtVisitor<'_> {
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
-                    let keyword = if module.is_contract { "contract" } else { "mod" };
+                    let visibility = module.visibility;
+                    if visibility != ItemVisibility::Private {
+                        self.push_str(&format!("{visibility} "));
+                    }
 
+                    let keyword = if module.is_contract { "contract" } else { "mod" };
                     self.push_str(&format!("{keyword} {name} "));
 
                     if module.contents.items.is_empty() {
@@ -226,17 +229,58 @@ impl super::FmtVisitor<'_> {
                         self.last_position = span.end();
                     }
                 }
+                ItemKind::TraitImpl(noir_trait_impl) => {
+                    self.format_missing_indent(span.start(), true);
+
+                    if std::mem::take(&mut self.ignore_next_node) {
+                        self.push_str(self.slice(span));
+                        self.last_position = span.end();
+                        continue;
+                    }
+
+                    let before_brace = self.span_before(span, Token::LeftBrace).start();
+                    let slice = self.slice(self.last_position..before_brace).trim();
+                    let after_brace = self.span_after(span, Token::LeftBrace).start();
+                    self.last_position = after_brace;
+
+                    self.push_str(&format!("{slice} "));
+
+                    if noir_trait_impl.items.is_empty() {
+                        self.visit_empty_block((after_brace - 1..span.end()).into());
+                        continue;
+                    } else {
+                        self.push_str("{");
+                        self.indent.block_indent(self.config);
+
+                        for documented_item in noir_trait_impl.items {
+                            let span = documented_item.item.span;
+                            match documented_item.item.kind {
+                                TraitImplItemKind::Function(method) => {
+                                    self.visit_function(span, method);
+                                }
+                                TraitImplItemKind::Constant(..)
+                                | TraitImplItemKind::Type { .. } => {
+                                    self.push_rewrite(self.slice(span).to_string(), span);
+                                    self.last_position = span.end();
+                                }
+                            }
+                        }
+
+                        self.close_block((self.last_position..span.end() - 1).into());
+                        self.last_position = span.end();
+                    }
+                }
                 ItemKind::Import(use_tree, visibility) => {
                     let use_tree = UseTree::from_ast(use_tree);
                     let use_tree = use_tree.rewrite_top_level(self, self.shape(), visibility);
                     self.push_rewrite(use_tree, span);
                     self.last_position = span.end();
                 }
+
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
-                | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)
-                | ItemKind::Global(_)
+                | ItemKind::Global(..)
                 | ItemKind::ModuleDecl(_)
                 | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);

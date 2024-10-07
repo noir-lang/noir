@@ -4,7 +4,9 @@ use noirc_errors::Location;
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
+use crate::node_interner::{
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
+};
 use crate::token::Tokens;
 use crate::Shared;
 
@@ -68,7 +70,14 @@ pub enum ImplKind {
     /// and eventually linked to this id. The boolean indicates whether the impl
     /// is already assumed to exist - e.g. when resolving a path such as `T::default`
     /// when there is a corresponding `T: Default` constraint in scope.
-    TraitMethod(TraitMethodId, TraitConstraint, bool),
+    TraitMethod(TraitMethod),
+}
+
+#[derive(Debug, Clone)]
+pub struct TraitMethod {
+    pub method_id: TraitMethodId,
+    pub constraint: TraitConstraint,
+    pub assumed: bool,
 }
 
 impl Eq for HirIdent {}
@@ -203,6 +212,21 @@ pub enum HirMethodReference {
     TraitMethodId(TraitMethodId, TraitGenerics),
 }
 
+impl HirMethodReference {
+    pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
+        match self {
+            HirMethodReference::FuncId(func_id) => Some(*func_id),
+            HirMethodReference::TraitMethodId(method_id, _) => {
+                let id = interner.trait_method_id(*method_id);
+                match &interner.try_definition(id)?.kind {
+                    DefinitionKind::Function(func_id) => Some(*func_id),
+                    _ => None,
+                }
+            }
+        }
+    }
+}
+
 impl HirMethodCallExpression {
     /// Converts a method call into a function call
     ///
@@ -230,7 +254,7 @@ impl HirMethodCallExpression {
                     trait_generics,
                     span: location.span,
                 };
-                (id, ImplKind::TraitMethod(method_id, constraint, false))
+                (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false }))
             }
         };
         let func_var = HirIdent { location, id, impl_kind };

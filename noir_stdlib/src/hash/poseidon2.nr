@@ -3,7 +3,7 @@ use crate::default::Default;
 
 comptime global RATE: u32 = 3;
 
-struct Poseidon2 {
+pub struct Poseidon2 {
     cache: [Field;3],
     state: [Field;4],
     cache_size: u32,
@@ -20,7 +20,7 @@ impl Poseidon2 {
         }
     }
 
-    fn new(iv: Field) -> Poseidon2 {
+    pub(crate) fn new(iv: Field) -> Poseidon2 {
         let mut result = Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
         result.state[RATE] = iv;
         result
@@ -82,13 +82,13 @@ impl Poseidon2 {
     }
 }
 
-struct Poseidon2Hasher{
+pub struct Poseidon2Hasher{
     _state: [Field],
 }
 
 impl Hasher for Poseidon2Hasher {
     fn finish(self) -> Field {
-        let iv : Field = (self._state.len() as Field)*18446744073709551616;    // iv = (self._state.len() << 64)
+        let iv : Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
         for i in 0..self._state.len() {
             sponge.absorb(self._state[i]);
@@ -96,15 +96,13 @@ impl Hasher for Poseidon2Hasher {
         sponge.squeeze()
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: Field) {
         self._state = self._state.push_back(input);
     }
 }
 
 impl Default for Poseidon2Hasher {
     fn default() -> Self {
-        Poseidon2Hasher {
-            _state: &[],
-        }
+        Poseidon2Hasher { _state: &[] }
     }
 }

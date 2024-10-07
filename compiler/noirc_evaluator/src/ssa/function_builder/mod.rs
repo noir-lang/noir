@@ -420,25 +420,20 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, true, None);
+        self.update_array_reference_count(value, true);
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, false, None);
+        self.update_array_reference_count(value, false);
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
     /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
     /// are ignored outside of unconstrained code.
-    fn update_array_reference_count(
-        &mut self,
-        value: ValueId,
-        increment: bool,
-        load_address: Option<ValueId>,
-    ) {
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
@@ -446,40 +441,16 @@ impl FunctionBuilder {
                 if element.contains_an_array() {
                     let reference = value;
                     let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, increment, Some(reference));
+                    self.update_array_reference_count(value, increment);
                 }
             }
-            typ @ Type::Array(..) | typ @ Type::Slice(..) => {
+            Type::Array(..) | Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                let update_rc = |this: &mut Self, value| {
-                    if increment {
-                        this.insert_inc_rc(value);
-                    } else {
-                        this.insert_dec_rc(value);
-                    }
-                };
-
-                update_rc(self, value);
-                let dfg = &self.current_function.dfg;
-
-                // This is a bit odd, but in brillig the inc_rc instruction operates on
-                // a copy of the array's metadata, so we need to re-store a loaded array
-                // even if there have been no other changes to it.
-                if let Some(address) = load_address {
-                    // If we already have a load from the Type::Reference case, avoid inserting
-                    // another load and rc update.
-                    self.insert_store(address, value);
-                } else if let Value::Instruction { instruction, .. } = &dfg[value] {
-                    let instruction = &dfg[*instruction];
-                    if let Instruction::Load { address } = instruction {
-                        // We can't re-use `value` in case the original address was stored
-                        // to again in the meantime. So introduce another load.
-                        let address = *address;
-                        let new_load = self.insert_load(address, typ);
-                        update_rc(self, new_load);
-                        self.insert_store(address, new_load);
-                    }
+                if increment {
+                    self.insert_inc_rc(value);
+                } else {
+                    self.insert_dec_rc(value);
                 }
             }
         }

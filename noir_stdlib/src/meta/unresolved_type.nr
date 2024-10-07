@@ -24,7 +24,7 @@ impl UnresolvedType {
     /// Returns true if this type refers to the `Field` type.
     #[builtin(unresolved_type_is_field)]
     // docs:start:is_field
-    comptime fn is_field(self) -> bool {}
+    pub comptime fn is_field(self) -> bool {}
     // docs:end:is_field
 
     /// Returns true if this type is the unit `()` type.

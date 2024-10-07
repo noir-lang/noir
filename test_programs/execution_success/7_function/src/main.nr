@@ -82,7 +82,7 @@ fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
     assert(c.0.aa.a == c.1.a);
 }
 
-fn foo<N>(a: [Field; N]) -> [Field; N] {
+fn foo<let N: u32>(a: [Field; N]) -> [Field; N] {
     a
 }
 

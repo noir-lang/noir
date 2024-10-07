@@ -3,8 +3,8 @@ trait LibTrait<N> {
     fn get_constant() -> Field;
 }
 
-global STRUCT_A_LEN: Field = 3;
-global STRUCT_B_LEN: Field = 5;
+global STRUCT_A_LEN: u32 = 3;
+global STRUCT_B_LEN: u32 = 5;
 
 struct StructA;
 struct StructB;

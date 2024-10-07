@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 mod black_box_function_call;
 mod memory_operation;
 
-pub use black_box_function_call::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput};
+pub use black_box_function_call::{
+    BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
+};
 pub use memory_operation::{BlockId, MemOp};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,7 +42,7 @@ pub enum Opcode<F> {
     /// values which define the opcode.
     ///
     /// A general expression of assert-zero opcode is the following:
-    /// ```
+    /// ```text
     /// \sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i +q_c = 0
     /// ```
     ///

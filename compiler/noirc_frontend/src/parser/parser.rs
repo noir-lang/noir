@@ -23,11 +23,15 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::path::as_trait_path;
-use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
+use self::path::{as_trait_path, type_path};
+use self::primitives::{
+    interned_statement, interned_statement_expr, keyword, macro_quote_marker, mutable_reference,
+    variable,
+};
 use self::types::{generic_type_args, maybe_comp_time};
 use attributes::{attributes, inner_attribute, validate_secondary_attributes};
 use doc_comments::{inner_doc_comments, outer_doc_comments};
+use types::interned_unresolved_type;
 pub use types::parse_type;
 use visibility::item_visibility;
 pub use visibility::visibility;
@@ -216,6 +220,7 @@ fn implementation() -> impl NoirParser<TopLevelStatementKind> {
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatementKind> {
     let p = attributes::attributes()
+        .then(item_visibility())
         .then(maybe_comp_time())
         .then(spanned(keyword(Keyword::Mut)).or_not())
         .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
@@ -225,7 +230,9 @@ fn global_declaration() -> impl NoirParser<TopLevelStatementKind> {
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
     p.validate(
-        |(((((attributes, comptime), mutable), mut pattern), r#type), expression), span, emit| {
+        |((((((attributes, visibility), comptime), mutable), mut pattern), r#type), expression),
+         span,
+         emit| {
             let global_attributes =
                 attributes::validate_secondary_attributes(attributes, span, emit);
 
@@ -235,10 +242,19 @@ fn global_declaration() -> impl NoirParser<TopLevelStatementKind> {
                 let span = mut_span.merge(pattern.span());
                 pattern = Pattern::Mutable(Box::new(pattern), span, false);
             }
-            LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
+            (
+                LetStatement {
+                    pattern,
+                    r#type,
+                    comptime,
+                    expression,
+                    attributes: global_attributes,
+                },
+                visibility,
+            )
         },
     )
-    .map(TopLevelStatementKind::Global)
+    .map(|(let_statement, visibility)| TopLevelStatementKind::Global(let_statement, visibility))
 }
 
 /// submodule: 'mod' ident '{' module '}'
@@ -246,14 +262,16 @@ fn submodule(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatementKind> {
     attributes()
+        .then(item_visibility())
         .then_ignore(keyword(Keyword::Mod))
         .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .validate(|((attributes, name), contents), span, emit| {
+        .validate(|(((attributes, visibility), name), contents), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
             TopLevelStatementKind::SubModule(ParsedSubModule {
+                visibility,
                 name,
                 contents,
                 outer_attributes: attributes,
@@ -267,14 +285,16 @@ fn contract(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatementKind> {
     attributes()
+        .then(item_visibility())
         .then_ignore(keyword(Keyword::Contract))
         .then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .validate(|((attributes, name), contents), span, emit| {
+        .validate(|(((attributes, visibility), name), contents), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
             TopLevelStatementKind::SubModule(ParsedSubModule {
+                visibility,
                 name,
                 contents,
                 outer_attributes: attributes,
@@ -286,14 +306,21 @@ fn contract(
 fn type_alias_definition() -> impl NoirParser<TopLevelStatementKind> {
     use self::Keyword::Type;
 
-    let p = ignore_then_commit(keyword(Type), ident());
-    let p = then_commit(p, function::generics());
-    let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, parse_type());
-
-    p.map_with_span(|((name, generics), typ), span| {
-        TopLevelStatementKind::TypeAlias(NoirTypeAlias { name, generics, typ, span })
-    })
+    item_visibility()
+        .then_ignore(keyword(Type))
+        .then(ident())
+        .then(function::generics())
+        .then_ignore(just(Token::Assign))
+        .then(parse_type())
+        .map_with_span(|(((visibility, name), generics), typ), span| {
+            TopLevelStatementKind::TypeAlias(NoirTypeAlias {
+                name,
+                generics,
+                typ,
+                visibility,
+                span,
+            })
+        })
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -408,10 +435,14 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatementKind> {
-    attributes().then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
-        |(attributes, ident), span, emit| {
+    attributes().then(item_visibility()).then_ignore(keyword(Keyword::Mod)).then(ident()).validate(
+        |((attributes, visibility), ident), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-            TopLevelStatementKind::Module(ModuleDeclaration { ident, outer_attributes: attributes })
+            TopLevelStatementKind::Module(ModuleDeclaration {
+                visibility,
+                ident,
+                outer_attributes: attributes,
+            })
         },
     )
 }
@@ -461,7 +492,6 @@ where
         choice((
             assertion::constrain(expr_parser.clone()),
             assertion::assertion(expr_parser.clone()),
-            assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
             if_statement(expr_no_constructors.clone(), statement.clone()),
@@ -511,15 +541,6 @@ where
     keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
 }
 
-pub(super) fn interned_statement() -> impl NoirParser<StatementKind> {
-    token_kind(TokenKind::InternedStatement).map(|token| match token {
-        Token::InternedStatement(id) => StatementKind::Interned(id),
-        _ => {
-            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
-        }
-    })
-}
-
 /// Comptime in an expression position only accepts entire blocks
 fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
@@ -556,8 +577,12 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let_statement(expr_parser)
-        .map(|((pattern, typ), expr)| StatementKind::new_let(pattern, typ, expr))
+    attributes().then(let_statement(expr_parser)).validate(
+        |(attributes, ((pattern, typ), expr)), span, emit| {
+            let attributes = attributes::validate_secondary_attributes(attributes, span, emit);
+            StatementKind::new_let(pattern, typ, expr, attributes)
+        },
+    )
 }
 
 pub fn pattern() -> impl NoirParser<Pattern> {
@@ -1051,9 +1076,15 @@ where
 {
     expr_no_constructors
         .clone()
-        .then_ignore(just(Token::DoubleDot))
+        .then(just(Token::DoubleDot).or(just(Token::DoubleDotEqual)))
         .then(expr_no_constructors.clone())
-        .map(|(start, end)| ForRange::Range(start, end))
+        .map(|((start, dots), end)| {
+            if dots == Token::DoubleDotEqual {
+                ForRange::range_inclusive(start, end)
+            } else {
+                ForRange::range(start, end)
+            }
+        })
         .or(expr_no_constructors.map(ForRange::Array))
 }
 
@@ -1155,8 +1186,10 @@ where
         variable(),
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        type_path(parse_type()),
         macro_quote_marker(),
         interned_expr(),
+        interned_statement_expr(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
@@ -1228,7 +1261,11 @@ fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> 
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-    path(super::parse_type()).then(args).map(ExpressionKind::constructor)
+    let path = path(super::parse_type()).map(UnresolvedType::from_path);
+    let interned_unresolved_type = interned_unresolved_type();
+    let typ = choice((path, interned_unresolved_type));
+
+    typ.then(args).map(ExpressionKind::constructor)
 }
 
 fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>
@@ -1434,15 +1471,21 @@ mod test {
     fn parse_for_loop() {
         parse_all(
             for_loop(expression_no_constructors(expression()), fresh_statement()),
-            vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
+            vec![
+                "for i in x+y..z {}",
+                "for i in 0..100 { foo; bar }",
+                "for i in 90..=100 { foo; bar }",
+            ],
         );
 
         parse_all_failing(
             for_loop(expression_no_constructors(expression()), fresh_statement()),
             vec![
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
-                "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
-                "for i in 0..=100 {}", // Only '..' is supported, there are no inclusive ranges yet
+                "for i in 0...100 {}", // Only '..' is supported
+                "for i in .. {}",      // Range needs needs bounds
+                "for i in ..=10 {}",   // Range needs lower bound
+                "for i in 0.. {}",     // Range needs upper bound
             ],
         );
     }
@@ -1621,24 +1664,20 @@ mod test {
     #[test]
     fn statement_recovery() {
         let cases = vec![
-            Case { source: "let a = 4 + 3", expect: "let a: unspecified = (4 + 3)", errors: 0 },
+            Case { source: "let a = 4 + 3", expect: "let a = (4 + 3)", errors: 0 },
             Case { source: "let a: = 4 + 3", expect: "let a: error = (4 + 3)", errors: 1 },
-            Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
-            Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
-            Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
+            Case { source: "let = 4 + 3", expect: "let $error = (4 + 3)", errors: 1 },
+            Case { source: "let = ", expect: "let $error = Error", errors: 2 },
+            Case { source: "let", expect: "let $error = Error", errors: 3 },
             Case { source: "foo = one two three", expect: "foo = one", errors: 1 },
             Case { source: "constrain", expect: "constrain Error", errors: 2 },
-            Case { source: "assert", expect: "constrain Error", errors: 1 },
+            Case { source: "assert", expect: "assert()", errors: 1 },
             Case { source: "constrain x ==", expect: "constrain (x == Error)", errors: 2 },
-            Case { source: "assert(x ==)", expect: "constrain (x == Error)", errors: 1 },
-            Case { source: "assert(x == x, x)", expect: "constrain (x == x)", errors: 0 },
-            Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
-            Case {
-                source: "assert_eq(x, x, x, x)",
-                expect: "constrain (Error == Error)",
-                errors: 1,
-            },
-            Case { source: "assert_eq(x, x, x)", expect: "constrain (x == x)", errors: 0 },
+            Case { source: "assert(x ==)", expect: "assert((x == Error))", errors: 1 },
+            Case { source: "assert(x == x, x)", expect: "assert((x == x), x)", errors: 0 },
+            Case { source: "assert_eq(x,)", expect: "assert_eq(x)", errors: 0 },
+            Case { source: "assert_eq(x, x, x, x)", expect: "assert_eq(x, x, x, x)", errors: 0 },
+            Case { source: "assert_eq(x, x, x)", expect: "assert_eq(x, x, x)", errors: 0 },
         ];
 
         check_cases_with_errors(&cases[..], fresh_statement());
@@ -1659,7 +1698,7 @@ mod test {
             },
             Case {
                 source: "{ return 123; let foo = 4 + 3; }",
-                expect: concat!("{\n", "    Error\n", "    let foo: unspecified = (4 + 3)\n", "}"),
+                expect: concat!("{\n", "    Error\n", "    let foo = (4 + 3)\n", "}"),
                 errors: 1,
             },
             Case {
@@ -1709,7 +1748,7 @@ mod test {
                 expect: concat!(
                     "{\n",
                     "    if ({\n",
-                    "        let foo: unspecified = (bar { baz: 42 })\n",
+                    "        let foo = (bar { baz: 42 })\n",
                     "        (foo == (bar { baz: 42 }))\n",
                     "    }) {\n",
                     "    }\n",

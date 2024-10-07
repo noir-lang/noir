@@ -79,11 +79,11 @@ fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Fie
     string
 }
 
-fn string_with_generics<N, T>(string: fmtstr<N, T>) -> fmtstr<N, T> {
+fn string_with_generics<let N: u32, T>(string: fmtstr<N, T>) -> fmtstr<N, T> {
     string
 }
 
-fn string_with_partial_generics<N, T>(string: fmtstr<N, (Field, T)>) -> fmtstr<N, (Field, T)> {
+fn string_with_partial_generics<let N: u32, T>(string: fmtstr<N, (Field, T)>) -> fmtstr<N, (Field, T)> {
     string
 }
 

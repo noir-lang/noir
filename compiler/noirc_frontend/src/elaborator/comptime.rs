@@ -6,7 +6,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::Documented,
+    ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -19,13 +19,11 @@ use crate::{
         def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
     },
-    hir_def::expr::HirIdent,
+    hir_def::expr::{HirExpression, HirIdent},
     lexer::Lexer,
-    macros_api::{
-        Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
-    },
-    node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
+    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
     parser::{self, TopLevelStatement, TopLevelStatementKind},
+    token::SecondaryAttribute,
     Type, TypeBindings, UnificationError,
 };
 
@@ -101,6 +99,9 @@ impl<'context> Elaborator<'context> {
 
         elaborator.function_context.push(FunctionContext::default());
         elaborator.scopes.start_function();
+
+        elaborator.local_module = self.local_module;
+        elaborator.file = self.file;
 
         setup(&mut elaborator);
 
@@ -316,7 +317,7 @@ impl<'context> Elaborator<'context> {
         // If the function is varargs, push the type of the last slice element N times
         // to account for N extra arguments.
         let modifiers = interpreter.elaborator.interner.function_modifiers(&function);
-        let is_varargs = modifiers.attributes.is_varargs();
+        let is_varargs = modifiers.attributes.has_varargs();
         let varargs_type = if is_varargs { parameters.pop() } else { None };
 
         let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());
@@ -436,11 +437,12 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatementKind::Global(global) => {
+            TopLevelStatementKind::Global(global, visibility) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     Documented::new(global, item.doc_comments),
+                    visibility,
                     self.file,
                     self.local_module,
                     self.crate_id,

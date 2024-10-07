@@ -74,21 +74,21 @@ impl Type {
     /// ```
     #[builtin(type_as_array)]
     // docs:start:as_array
-    comptime fn as_array(self) -> Option<(Type, Type)> {}
+    pub comptime fn as_array(self) -> Option<(Type, Type)> {}
     // docs:end:as_array
 
     /// If this type is a constant integer (such as the `3` in the array type `[Field; 3]`),
     /// return the numeric constant.
     #[builtin(type_as_constant)]
     // docs:start:as_constant
-    comptime fn as_constant(self) -> Option<u32> {}
+    pub comptime fn as_constant(self) -> Option<u32> {}
     // docs:end:as_constant
 
     /// If this is an integer type, return a boolean which is `true`
     /// if the type is signed, as well as the number of bits of this integer type.
     #[builtin(type_as_integer)]
     // docs:start:as_integer
-    comptime fn as_integer(self) -> Option<(bool, u8)> {}
+    pub comptime fn as_integer(self) -> Option<(bool, u8)> {}
     // docs:end:as_integer
 
     /// If this is a mutable reference type `&mut T`, returns the mutable type `T`.
@@ -100,25 +100,25 @@ impl Type {
     /// If this is a slice type, return the element type of the slice.
     #[builtin(type_as_slice)]
     // docs:start:as_slice
-    comptime fn as_slice(self) -> Option<Type> {}
+    pub comptime fn as_slice(self) -> Option<Type> {}
     // docs:end:as_slice
 
     /// If this is a `str<N>` type, returns the length `N` as a type.
     #[builtin(type_as_str)]
     // docs:start:as_str
-    comptime fn as_str(self) -> Option<Type> {}
+    pub comptime fn as_str(self) -> Option<Type> {}
     // docs:end:as_str
 
     /// If this is a struct type, returns the struct in addition to any generic arguments on this type.
     #[builtin(type_as_struct)]
     // docs:start:as_struct
-    comptime fn as_struct(self) -> Option<(StructDefinition, [Type])> {}
+    pub comptime fn as_struct(self) -> Option<(StructDefinition, [Type])> {}
     // docs:end:as_struct
 
     /// If this is a tuple type, returns each element type of the tuple.
     #[builtin(type_as_tuple)]
     // docs:start:as_tuple
-    comptime fn as_tuple(self) -> Option<[Type]> {}
+    pub comptime fn as_tuple(self) -> Option<[Type]> {}
     // docs:end:as_tuple
 
     /// Retrieves the trait implementation that implements the given
@@ -141,7 +141,7 @@ impl Type {
     /// ```
     #[builtin(type_get_trait_impl)]
     // docs:start:get_trait_impl
-    comptime fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl> {}
+    pub comptime fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl> {}
     // docs:end:get_trait_impl
 
     /// Returns `true` if this type implements the given trait. Note that unlike
@@ -164,19 +164,19 @@ impl Type {
     /// ```
     #[builtin(type_implements)]
     // docs:start:implements
-    comptime fn implements(self, constraint: TraitConstraint) -> bool {}
+    pub comptime fn implements(self, constraint: TraitConstraint) -> bool {}
     // docs:end:implements
 
     /// Returns `true` if this type is `bool`.
     #[builtin(type_is_bool)]
     // docs:start:is_bool
-    comptime fn is_bool(self) -> bool {}
+    pub comptime fn is_bool(self) -> bool {}
     // docs:end:is_bool
 
     /// Returns `true` if this type is `Field`.
     #[builtin(type_is_field)]
     // docs:start:is_field
-    comptime fn is_field(self) -> bool {}
+    pub comptime fn is_field(self) -> bool {}
     // docs:end:is_field
 
     /// Returns `true` if this type is the unit `()` type.
@@ -195,5 +195,14 @@ impl Eq for Type {
     }
 }
 
+impl crate::hash::Hash for Type {
+    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+        state.write(type_hash(self))
+    }
+}
+
 #[builtin(type_eq)]
 comptime fn type_eq(_first: Type, _second: Type) -> bool {}
+
+#[builtin(type_hash)]
+comptime fn type_hash(_typ: Type) -> Field {}

@@ -7,15 +7,18 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
-    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
+    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
+    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
 };
+use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::{NodeInterner, SecondaryAttribute, UnresolvedTypeData};
-use crate::node_interner::{InternedExpressionKind, InternedPattern, InternedStatementKind};
+use crate::node_interner::{
+    InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
+};
 use crate::parser::{ParserError, ParserErrorReason};
-use crate::token::Token;
+use crate::token::{SecondaryAttribute, Token};
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this
@@ -109,6 +112,8 @@ impl StatementKind {
                     // Semicolons are optional for these expressions
                     (ExpressionKind::Block(_), semi, _)
                     | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::Interned(..), semi, _)
+                    | (ExpressionKind::InternedStatement(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
@@ -139,13 +144,14 @@ impl StatementKind {
         pattern: Pattern,
         r#type: UnresolvedType,
         expression: Expression,
+        attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
             r#type,
             expression,
             comptime: false,
-            attributes: vec![],
+            attributes,
         })
     }
 
@@ -291,6 +297,7 @@ pub trait Recoverable {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
+    pub visibility: ItemVisibility,
     pub ident: Ident,
     pub outer_attributes: Vec<SecondaryAttribute>,
 }
@@ -328,9 +335,13 @@ impl Display for UseTree {
 
         match &self.kind {
             UseTreeKind::Path(name, alias) => {
+                if !(self.prefix.segments.is_empty() && self.prefix.kind == PathKind::Plain) {
+                    write!(f, "::")?;
+                }
+
                 write!(f, "{name}")?;
 
-                while let Some(alias) = alias {
+                if let Some(alias) = alias {
                     write!(f, " as {alias}")?;
                 }
 
@@ -385,6 +396,16 @@ pub struct AsTraitPath {
     pub trait_path: Path,
     pub trait_generics: GenericTypeArgs,
     pub impl_item: Ident,
+}
+
+/// A special kind of path in the form `Type::ident::<turbofish>`
+/// Unlike normal paths, the type here can be a primitive type or
+/// interned type.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypePath {
+    pub typ: UnresolvedType,
+    pub item: Ident,
+    pub turbofish: GenericTypeArgs,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -550,13 +571,52 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression, pub Option<Expression>, pub ConstrainKind);
+pub struct ConstrainStatement {
+    pub kind: ConstrainKind,
+    pub arguments: Vec<Expression>,
+    pub span: Span,
+}
+
+impl Display for ConstrainStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
+                f,
+                "{}({})",
+                self.kind,
+                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
+            ),
+            ConstrainKind::Constrain => {
+                write!(f, "constrain {}", &self.arguments[0])
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ConstrainKind {
     Assert,
     AssertEq,
     Constrain,
+}
+
+impl ConstrainKind {
+    pub fn required_arguments_count(&self) -> usize {
+        match self {
+            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
+            ConstrainKind::AssertEq => 2,
+        }
+    }
+}
+
+impl Display for ConstrainKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConstrainKind::Assert => write!(f, "assert"),
+            ConstrainKind::AssertEq => write!(f, "assert_eq"),
+            ConstrainKind::Constrain => write!(f, "constrain"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -620,7 +680,7 @@ impl Pattern {
                 }
                 Some(Expression {
                     kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                        type_name: path.clone(),
+                        typ: UnresolvedType::from_path(path.clone()),
                         fields,
                         struct_type: None,
                     })),
@@ -712,12 +772,56 @@ impl LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForBounds {
+    pub start: Expression,
+    pub end: Expression,
+    pub inclusive: bool,
+}
+
+impl ForBounds {
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// desugaring `start..=end` into `start..end+1` if necessary.
+    ///
+    /// Returns the `start` and `end` expressions.
+    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
+        let end = if self.inclusive {
+            let end_span = self.end.span;
+            let end = ExpressionKind::Infix(Box::new(InfixExpression {
+                lhs: self.end,
+                operator: Spanned::from(end_span, BinaryOpKind::Add),
+                rhs: Expression::new(ExpressionKind::integer(FieldElement::from(1u32)), end_span),
+            }));
+            Expression::new(end, end_span)
+        } else {
+            self.end
+        };
+
+        (self.start, end)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
-    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Range(ForBounds),
     Array(Expression),
 }
 
 impl ForRange {
+    /// Create a half-open range, bounded inclusively below and exclusively above.
+    pub fn range(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: false })
+    }
+
+    /// Create a range bounded inclusively below and above.
+    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: true })
+    }
+
+    /// Create a range over some array.
+    pub fn array(value: Expression) -> Self {
+        Self::Array(value)
+    }
+
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
@@ -759,6 +863,7 @@ impl ForRange {
                         Pattern::Identifier(array_ident.clone()),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         array,
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -803,6 +908,7 @@ impl ForRange {
                         Pattern::Identifier(identifier),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         Expression::new(loop_element, array_span),
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -818,7 +924,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::Range(start_range, end_range),
+                        range: ForRange::range(start_range, end_range),
                         block: new_block,
                         span: for_loop_span,
                     }),
@@ -865,13 +971,11 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
-    }
-}
-
-impl Display for ConstrainStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "constrain {}", self.0)
+        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
+            write!(f, "let {} = {}", self.pattern, self.expression)
+        } else {
+            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+        }
     }
 }
 
@@ -950,7 +1054,14 @@ impl Display for Pattern {
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let range = match &self.range {
-            ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::Range(bounds) => {
+                format!(
+                    "{}{}{}",
+                    bounds.start,
+                    if bounds.inclusive { "..=" } else { ".." },
+                    bounds.end
+                )
+            }
             ForRange::Array(expr) => expr.to_string(),
         };
 
