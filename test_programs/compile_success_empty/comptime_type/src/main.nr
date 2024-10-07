@@ -148,6 +148,14 @@ fn main() {
         // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
         assert_eq(typevar2.as_constant().unwrap(), 10);
         // docs:end:fresh-type-variable-example
+
+        // Check Type::is_unit
+        let unit = quote { () }.as_type();
+        assert(unit.is_unit());
+
+        // Check Type::as_mutable_reference
+        let typ = quote { &mut Field }.as_type();
+        assert_eq(typ.as_mutable_reference().unwrap(), quote { Field }.as_type());
     }
 }
 
