@@ -48,6 +48,9 @@ pub enum TypeCheckError {
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
+    // TODO reference issue
+    #[error("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?}, size checks are being implemented for this case")]
+    EvaluatedGlobalPartialSizeChecks { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -225,6 +228,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_span } => {
                 Diagnostic::simple_error(
                     format!("Expected kind {expected_kind}, found kind {expr_kind}"),
+                    String::new(),
+                    *expr_span,
+                )
+            }
+            TypeCheckError::EvaluatedGlobalPartialSizeChecks { expected_kind, expr_kind, expr_span } => {
+                Diagnostic::simple_warning(
+                    format!("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?}, size checks are being implemented for this case"),
                     String::new(),
                     *expr_span,
                 )

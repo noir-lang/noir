@@ -417,21 +417,16 @@ impl<'context> Elaborator<'context> {
                     .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
                     .unwrap_or(Kind::u32());
 
-                // TODO: support non-u32 generics
-                if kind.unifies(&Kind::u32()) {
-                    // TODO cleanup
-                    dbg!("lookup_generic_or_global_type", &kind);
-
-                    Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
-                } else {
-                    let error = TypeCheckError::TypeKindMismatch {
+                // TODO: make issue to support non-u32 generics here
+                if !kind.unifies(&Kind::u32()) {
+                    let error = TypeCheckError::EvaluatedGlobalPartialSizeChecks {
                         expected_kind: Kind::u32().to_string(),
                         expr_kind: kind.to_string(),
                         expr_span: path.span(),
                     };
                     self.push_err(error);
-                    None
                 }
+                Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
             }
             _ => None,
         }
@@ -1574,9 +1569,6 @@ impl<'context> Elaborator<'context> {
         let (expr_span, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
 
-        // TODO
-        dbg!("type_check_function_body", &body_type, &declared_return_type);
-
         let func_span = self.interner.expr_span(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
             if self
@@ -1612,10 +1604,6 @@ impl<'context> Elaborator<'context> {
                 }
                 error
             });
-
-            // TODO
-            dbg!("after unify_with_coercions", &body_type, &declared_return_type);
-
         }
     }
 

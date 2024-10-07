@@ -115,7 +115,7 @@ pub enum Type {
     /// A type-level integer. Included to let
     /// 1. an Array's size type variable
     ///     bind to an integer without special checks to bind it to a non-type.
-    /// 2. values be used at the type level
+    /// 2. values to be used at the type level
     Constant(FieldElement, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
@@ -162,18 +162,18 @@ pub enum Kind {
 
 impl Kind {
     pub(crate) fn is_error(&self) -> bool {
-        match self {
-            Self::Numeric(typ) => **typ == Type::Error,
+        match self.follow_bindings() {
+            Self::Numeric(typ) => *typ == Type::Error,
             _ => false,
         }
     }
 
     pub(crate) fn is_numeric(&self) -> bool {
-        matches!(self, Self::Numeric { .. })
+        matches!(self.follow_bindings(), Self::Numeric { .. })
     }
 
     pub(crate) fn is_field_element(&self) -> bool {
-        match self {
+        match self.follow_bindings() {
             Kind::Numeric(typ) => typ.is_field_element(),
             Kind::IntegerOrField => true,
             _ => false,
@@ -243,7 +243,7 @@ impl Kind {
     }
 
     fn integral_maximum_size(&self) -> Option<FieldElement> {
-        match self {
+        match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
         }
@@ -713,8 +713,8 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::Integer
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => matches!(binding, Type::Integer(..)),
-            TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind, Kind::Integer),
+            TypeBinding::Bound(binding) => matches!(binding.follow_bindings(), Type::Integer(..)),
+            TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind.follow_bindings(), Kind::Integer),
         }
     }
 
@@ -723,9 +723,9 @@ impl TypeVariable {
     pub fn is_integer_or_field(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => {
-                matches!(binding, Type::Integer(..) | Type::FieldElement)
+                matches!(binding.follow_bindings(), Type::Integer(..) | Type::FieldElement)
             }
-            TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind, Kind::IntegerOrField),
+            TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField),
         }
     }
 
@@ -1856,7 +1856,6 @@ impl Type {
         self.evaluate_to_field_element(&Kind::u32()).and_then(|field_element| field_element.try_to_u32())
     }
 
-    // TODO: implement!
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
         // TODO
         dbg!("evaluate_to_field_element", self);
@@ -2253,21 +2252,12 @@ impl Type {
                 def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            TypeVariable(var) => {
-                let (id, kind) = match &*var.borrow() {
-                    TypeBinding::Bound(typ) => return typ.follow_bindings(),
-                    TypeBinding::Unbound(id, kind) => (*id, kind.follow_bindings()),
-                };
-                TypeVariable(crate::TypeVariable::unbound(id, kind))
+            TypeVariable(var) | NamedGeneric(var, _) => {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
+                    return typ.follow_bindings();
+                }
+                self.clone()
             }
-            NamedGeneric(var, name) => {
-                let (id, kind) = match &*var.borrow() {
-                    TypeBinding::Bound(typ) => return typ.follow_bindings(),
-                    TypeBinding::Unbound(id, kind) => (*id, kind.follow_bindings()),
-                };
-                NamedGeneric(crate::TypeVariable::unbound(id, kind), name.clone())
-            }
-
             Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 let ret = Box::new(ret.follow_bindings());
@@ -2476,8 +2466,6 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
-    // TODO(https://github.com/noir-lang/noir/pull/6137): the Kind is included
-    // since it'll be needed for size checks
     pub fn function(self, a: FieldElement, b: FieldElement, kind: &Kind) -> Option<FieldElement> {
         match kind.follow_bindings().integral_maximum_size() {
             None => {
