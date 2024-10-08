@@ -28,7 +28,7 @@ use crate::{
         },
         function::{FuncMeta, Parameters},
         stmt::HirStatement,
-        traits::{NamedType, TraitConstraint},
+        traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, GlobalId, ImplSearchErrorKind, NodeInterner, TraitId,
@@ -1335,15 +1335,20 @@ impl<'context> Elaborator<'context> {
                 if let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
                 {
-                    for (method_index, method) in the_trait.methods.iter().enumerate() {
-                        if method.name.0.contents == method_name {
-                            let trait_method = TraitMethodId {
-                                trait_id: constraint.trait_bound.trait_id,
-                                method_index,
-                            };
+                    if let Some(method) =
+                        lookup_method_in_trait(the_trait, method_name, &constraint.trait_bound)
+                    {
+                        return Some(method);
+                    }
 
-                            let generics = constraint.trait_bound.trait_generics.clone();
-                            return Some(HirMethodReference::TraitMethodId(trait_method, generics));
+                    // Search in the trait bounds
+                    for trait_bound in &the_trait.trait_bounds {
+                        if let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) {
+                            if let Some(method) =
+                                lookup_method_in_trait(the_trait, method_name, trait_bound)
+                            {
+                                return Some(method);
+                            }
                         }
                     }
                 }
@@ -1812,6 +1817,16 @@ impl<'context> Elaborator<'context> {
             bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
         }
     }
+}
+
+fn lookup_method_in_trait(
+    the_trait: &Trait,
+    method_name: &str,
+    trait_bound: &ResolvedTraitBound,
+) -> Option<HirMethodReference> {
+    let trait_method = the_trait.find_method(method_name)?;
+    let generics = trait_bound.trait_generics.clone();
+    return Some(HirMethodReference::TraitMethodId(trait_method, generics));
 }
 
 pub fn try_eval_array_length_id(

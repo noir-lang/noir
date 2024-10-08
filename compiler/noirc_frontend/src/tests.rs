@@ -3219,3 +3219,27 @@ fn error_if_attribute_not_in_scope() {
         CompilationError::ResolverError(ResolverError::AttributeFunctionNotInScope { .. })
     ));
 }
+
+#[test]
+fn trait_inheritance() {
+    let src = r#"
+        pub trait Foo {
+            fn foo(self) -> Field;
+        }
+
+        pub trait Bar {
+            fn bar(self) -> Field;
+        }
+
+        pub trait Baz: Foo + Bar {
+            fn baz(self) -> Field;
+        }
+
+        pub fn foo<T>(baz: T) -> (Field, Field, Field) where T: Baz {
+            (baz.foo(), baz.bar(), baz.baz())
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}

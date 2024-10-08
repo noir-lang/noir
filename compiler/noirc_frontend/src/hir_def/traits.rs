@@ -72,6 +72,9 @@ pub struct Trait {
     /// match the definition in the trait, we bind this TypeVariable to whatever
     /// the correct Self type is for that particular impl block.
     pub self_type_typevar: TypeVariable,
+
+    /// The resolved trait bounds (for example in `trait Foo: Bar + Baz`, this would be `Bar + Baz`)
+    pub trait_bounds: Vec<ResolvedTraitBound>,
 }
 
 #[derive(Debug)]
@@ -140,6 +143,10 @@ impl PartialEq for Trait {
 impl Trait {
     pub fn set_methods(&mut self, methods: Vec<TraitFunction>) {
         self.methods = methods;
+    }
+
+    pub fn set_trait_bounds(&mut self, trait_bounds: Vec<ResolvedTraitBound>) {
+        self.trait_bounds = trait_bounds;
     }
 
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {

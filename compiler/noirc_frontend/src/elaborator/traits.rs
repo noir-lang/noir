@@ -37,12 +37,13 @@ impl<'context> Elaborator<'context> {
                     this.generics.push(associated_type.clone());
                 }
 
-                this.resolve_trait_bounds(unresolved_trait);
+                let resolved_trait_bounds = this.resolve_trait_bounds(unresolved_trait);
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
+                    trait_def.set_trait_bounds(resolved_trait_bounds);
                 });
             });
 
