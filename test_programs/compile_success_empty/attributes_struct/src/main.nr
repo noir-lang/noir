@@ -1,5 +1,5 @@
-#[some_attribute]
-#[another_attribute]
+#['some_attribute]
+#['another_attribute]
 pub struct SomeStruct {
     a: Field,
     b: Field

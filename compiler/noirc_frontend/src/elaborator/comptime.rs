@@ -158,7 +158,7 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) {
-        if let SecondaryAttribute::Custom(attribute) = attribute {
+        if let SecondaryAttribute::Meta(attribute) = attribute {
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_comptime_attribute_name_on_item(
                     &attribute.contents,
@@ -188,25 +188,45 @@ impl<'context> Elaborator<'context> {
 
         let location = Location::new(attribute_span, self.file);
         let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
-            // Do not issue an error if the attribute is unknown
-            return Ok(());
+            return Err((
+                ResolverError::UnableToParseAttribute {
+                    attribute: attribute.to_string(),
+                    span: attribute_span,
+                }
+                .into(),
+                self.file,
+            ));
         };
 
         // Elaborate the function, rolling back any errors generated in case it is unknown
         let error_count = self.errors.len();
+        let function_string = function.to_string();
         let function = self.elaborate_expression(function).0;
         self.errors.truncate(error_count);
 
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
-            _ => return Ok(()),
+            _ => {
+                return Err((
+                    ResolverError::AttributeFunctionIsNotAPath {
+                        function: function_string,
+                        span: attribute_span,
+                    }
+                    .into(),
+                    self.file,
+                ))
+            }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
-            // If there's no such function, don't return an error.
-            // This preserves backwards compatibility in allowing custom attributes that
-            // do not refer to comptime functions.
-            return Ok(());
+            return Err((
+                ResolverError::AttributeFunctionNotInScope {
+                    name: function_string,
+                    span: attribute_span,
+                }
+                .into(),
+                self.file,
+            ));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {

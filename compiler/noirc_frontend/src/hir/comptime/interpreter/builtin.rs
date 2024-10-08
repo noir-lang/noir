@@ -36,7 +36,7 @@ use crate::{
     hir_def::function::FunctionBody,
     hir_def::{self},
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
-    parser::Parser,
+    parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
@@ -690,23 +690,20 @@ fn quoted_as_expr(
     let argument = check_one_argument(arguments, location)?;
 
     let result =
-        parse(interner, argument.clone(), Parser::parse_expression_or_error, "an expression");
-    if let Ok(expr) = result {
-        return option(return_type, Some(Value::expression(expr.kind)));
-    }
+        parse(interner, argument, Parser::parse_statement_or_expression_or_lvalue, "an expression");
 
-    let result =
-        parse(interner, argument.clone(), Parser::parse_statement_or_error, "an expression");
-    if let Ok(stmt) = result {
-        return option(return_type, Some(Value::statement(stmt.kind)));
-    }
+    let value =
+        result.ok().map(
+            |statement_or_expression_or_lvalue| match statement_or_expression_or_lvalue {
+                StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
+                StatementOrExpressionOrLValue::Statement(statement) => {
+                    Value::statement(statement.kind)
+                }
+                StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
+            },
+        );
 
-    let result = parse(interner, argument, Parser::parse_lvalue_or_error, "an expression");
-    if let Ok(lvalue) = result {
-        return option(return_type, Some(Value::lvalue(lvalue)));
-    }
-
-    option(return_type, None)
+    option(return_type, value)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
@@ -2247,7 +2244,7 @@ fn function_def_add_attribute(
         }
     }
 
-    if let Attribute::Secondary(SecondaryAttribute::Custom(attribute)) = attribute {
+    if let Attribute::Secondary(SecondaryAttribute::Tag(attribute)) = attribute {
         let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
         func_meta.custom_attributes.push(attribute);
     }

@@ -55,10 +55,10 @@ mod tests {
 
     #[test]
     fn parses_inner_attribute() {
-        let src = "#![hello]";
+        let src = "#!['hello]";
         let mut parser = Parser::for_str(src);
-        let Some(SecondaryAttribute::Custom(custom)) = parser.parse_inner_attribute() else {
-            panic!("Expected inner custom attribute");
+        let Some(SecondaryAttribute::Tag(custom)) = parser.parse_inner_attribute() else {
+            panic!("Expected inner tag attribute");
         };
         expect_no_errors(&parser.errors);
         assert_eq!(custom.contents, "hello");
