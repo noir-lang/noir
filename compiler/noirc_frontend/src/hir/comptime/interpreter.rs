@@ -902,13 +902,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let lhs_value = self.evaluate(infix.lhs)?;
         let rhs_value = self.evaluate(infix.rhs)?;
 
-        // TODO cleanup
-        dbg!("evaluate_infix", &infix, &lhs_value, &rhs_value);
-
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
-            // // TODO cleanup
-            // dbg!("evaluate_infix", &infix, &lhs_value, &rhs_value);
-
             return self.evaluate_overloaded_infix(infix, lhs_value, rhs_value, id);
         }
 

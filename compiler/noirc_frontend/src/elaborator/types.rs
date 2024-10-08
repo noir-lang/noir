@@ -639,14 +639,7 @@ impl<'context> Elaborator<'context> {
 
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
-
-            // TODO cleanup
-            // Ok(Err(_cast_err)) => {
-            Ok(Err(cast_err)) => {
-
-                // TODO cleanup
-                dbg!("eval_global_as_array_length (IntegerTooLarge):", self.interner.expression(&length), &cast_err);
-
+            Ok(Err(_cast_err)) => {
                 self.push_err(ResolverError::IntegerTooLarge { span })
             }
             Err(Some(error)) => self.push_err(error),
@@ -855,22 +848,17 @@ impl<'context> Elaborator<'context> {
     pub(super) fn check_cast(&mut self, from_expr_id: &ExprId, from: &Type, to: &Type, span: Span) -> Type {
         let from_follow_bindings = from.follow_bindings();
 
-        // TODO cleanup
-        dbg!(&from_follow_bindings, &to, &self.interner.expression(&from_expr_id));
-
-        // TODO: factor out size checks from type checks?
         let from_value_opt = match self.interner.expression(&from_expr_id) {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => Some(int),
 
-            // TODO
+            // TODO(https://github.com/noir-lang/noir/issues/6247):
+            // handle negative literals
             other => {
                 dbg!("from_value_opt: other", other);
                 None
             }
         };
 
-        // TODO disable type downsizing checks
-        // TODO (Option.., ..) type
         let from_is_polymorphic = match from_follow_bindings {
             Type::Integer(..) | Type::FieldElement | Type::Bool => false,
 
@@ -894,12 +882,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        // TODO cleanup
-        dbg!(&from_value_opt, &from_is_polymorphic);
-
-        // TODO also check minimum size when 'from' is negative 
-        // (casting to a smaller value?)
-        // TODO get is_polymorphic out of match?
+        // TODO(https://github.com/noir-lang/noir/issues/6247):
+        // handle negative literals
         match (from_is_polymorphic, from_value_opt, to.integral_maximum_size()) {
             // allow casting from unsized polymorphic variables
             (true, None, _) => (),
@@ -933,13 +917,7 @@ impl<'context> Elaborator<'context> {
             Type::FieldElement => Type::FieldElement,
             Type::Bool => Type::Bool,
             Type::Error => Type::Error,
-
-            // TODO cleanup
-            // _ => {
-            other => {
-                // TODO cleanup
-                dbg!("check_cast failed type check", other);
-
+            _ => {
                 self.push_err(TypeCheckError::UnsupportedCast { span });
                 Type::Error
             }
@@ -1660,10 +1638,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
             }
             ImplSearchErrorKind::Nested(constraints) => {
-                // TODO cleanup
-                // if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
-                if let Some(error) =
-                    NoMatchingImplFoundError::new(self.interner, constraints.clone(), span)
+                if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
                 {
                     self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
@@ -1914,9 +1889,6 @@ fn try_eval_array_length_id_with_fuel(
 
     match interner.expression(&rhs) {
         HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-            // TODO cleanup
-            dbg!("try_eval_array_length_id_with_fuel: try_into_u128", int, int.try_into_u128());
-
             int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
         }
         HirExpression::Ident(ident, _) => {
@@ -1966,9 +1938,6 @@ fn try_eval_array_length_id_with_fuel(
             let evaluated_value =
                 Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
                     .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
-
-            // TODO cleanup
-            dbg!("try_eval_array_length_id_with_fuel: Cast", &evaluated_value);
 
             evaluated_value
                 .to_u128()
