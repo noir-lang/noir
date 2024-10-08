@@ -23,7 +23,7 @@ fn compute_decomposition(x: Field) -> (Field, Field) {
     (low, high)
 }
 
-unconstrained pub(crate) fn decompose_hint(x: Field) -> (Field, Field) {
+pub(crate) unconstrained fn decompose_hint(x: Field) -> (Field, Field) {
     compute_decomposition(x)
 }
 
