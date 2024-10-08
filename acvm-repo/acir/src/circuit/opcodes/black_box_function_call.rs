@@ -42,6 +42,10 @@ impl<F> FunctionInput<F> {
     pub fn witness(witness: Witness, num_bits: u32) -> FunctionInput<F> {
         FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits }
     }
+
+    pub fn is_constant(&self) -> bool {
+        matches!(self.input, ConstantOrWitnessEnum::Constant(_))
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
