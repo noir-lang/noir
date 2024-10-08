@@ -63,8 +63,6 @@ unconstrained   pub   fn two() {}
 
 unconstrained   pub  comptime   fn two() {}
 
-unconstrained   pub  unconstrained comptime   fn two() {}
-
 /// Documented
 #[test] fn three() {}
 

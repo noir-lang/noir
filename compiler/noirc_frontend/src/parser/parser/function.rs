@@ -489,13 +489,4 @@ mod tests {
         assert!(noir_function.def.is_unconstrained);
         assert_eq!(noir_function.def.visibility, ItemVisibility::Public);
     }
-
-    #[test]
-    fn parse_function_with_unconstrained_before_and_after_visibility() {
-        let src = "unconstrained pub unconstrained fn foo() {}";
-        let noir_function = parse_function_no_error(src);
-        assert_eq!("foo", noir_function.def.name.to_string());
-        assert!(noir_function.def.is_unconstrained);
-        assert_eq!(noir_function.def.visibility, ItemVisibility::Public);
-    }
 }

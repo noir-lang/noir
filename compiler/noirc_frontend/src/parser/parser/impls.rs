@@ -94,7 +94,7 @@ impl<'a> Parser<'a> {
                         attributes,
                         modifiers.visibility,
                         modifiers.comptime.is_some(),
-                        modifiers.is_unconstrained(),
+                        modifiers.unconstrained.is_some(),
                         true, // allow_self
                     );
                     Some((Documented::new(method, doc_comments), parser.span_since(start_span)))
@@ -248,7 +248,7 @@ impl<'a> Parser<'a> {
             attributes,
             ItemVisibility::Public,
             modifiers.comptime.is_some(),
-            modifiers.is_unconstrained(),
+            modifiers.unconstrained.is_some(),
             true, // allow_self
         );
         Some(TraitImplItemKind::Function(noir_function))

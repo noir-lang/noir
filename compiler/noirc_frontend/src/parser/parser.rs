@@ -492,11 +492,7 @@ impl<'a> Parser<'a> {
     }
 
     fn unconstrained_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.unconstrained_before_visibility {
-            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, span);
-        }
-
-        if let Some(span) = modifiers.unconstrained_after_visibility {
+        if let Some(span) = modifiers.unconstrained {
             self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, span);
         }
     }
@@ -526,11 +522,7 @@ impl<'a> Parser<'a> {
     }
 
     fn unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.unconstrained_before_visibility {
-            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, span);
-        }
-
-        if let Some(span) = modifiers.unconstrained_after_visibility {
+        if let Some(span) = modifiers.unconstrained {
             self.push_error(ParserErrorReason::UnconstrainedNotApplicable, span);
         }
     }
