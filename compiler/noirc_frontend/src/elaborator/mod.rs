@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::ast::ItemVisibility;
+use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -510,7 +510,13 @@ impl<'context> Elaborator<'context> {
         let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
-        if let Some(new_constraint) = self.resolve_trait_bound(&trait_bound, generic_type.clone()) {
+        if let Some(resolved_trait_bound) = self.resolve_trait_bound(&trait_bound) {
+            let new_constraint = TraitConstraint {
+                typ: generic_type.clone(),
+                trait_id: resolved_trait_bound.trait_id,
+                trait_generics: resolved_trait_bound.trait_generics,
+                span: resolved_trait_bound.span,
+            };
             trait_constraints.push(new_constraint);
         }
 
@@ -668,14 +674,16 @@ impl<'context> Elaborator<'context> {
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
-        self.resolve_trait_bound(&constraint.trait_bound, typ)
+        let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
+        Some(TraitConstraint {
+            typ,
+            trait_id: trait_bound.trait_id,
+            trait_generics: trait_bound.trait_generics,
+            span: trait_bound.span,
+        })
     }
 
-    pub fn resolve_trait_bound(
-        &mut self,
-        bound: &TraitBound,
-        typ: Type,
-    ) -> Option<TraitConstraint> {
+    pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
         let span = bound.trait_path.span;
@@ -683,7 +691,7 @@ impl<'context> Elaborator<'context> {
         let (ordered, named) = self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
 
         let trait_generics = TraitGenerics { ordered, named };
-        Some(TraitConstraint { typ, trait_id, trait_generics, span })
+        Some(ResolvedTraitBound { trait_id, trait_generics, span })
     }
 
     /// Extract metadata from a NoirFunction

@@ -106,6 +106,13 @@ pub struct TraitConstraint {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedTraitBound {
+    pub trait_id: TraitId,
+    pub trait_generics: TraitGenerics,
+    pub span: Span,
+}
+
 impl TraitConstraint {
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);

@@ -745,7 +745,7 @@ fn quoted_as_trait_constraint(
     )?;
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, |elaborator| {
-            elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
+            elaborator.resolve_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 

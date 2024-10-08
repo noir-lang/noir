@@ -10,7 +10,10 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
-    hir_def::{function::Parameters, traits::TraitFunction},
+    hir_def::{
+        function::Parameters,
+        traits::{ResolvedTraitBound, TraitFunction},
+    },
     node_interner::{FuncId, NodeInterner, ReferenceId, TraitId},
     ResolvedGeneric, Type, TypeBindings,
 };
@@ -34,6 +37,8 @@ impl<'context> Elaborator<'context> {
                     this.generics.push(associated_type.clone());
                 }
 
+                this.resolve_trait_bounds(unresolved_trait);
+
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
@@ -51,6 +56,21 @@ impl<'context> Elaborator<'context> {
         }
 
         self.current_trait = None;
+    }
+
+    fn resolve_trait_bounds(
+        &mut self,
+        unresolved_trait: &UnresolvedTrait,
+    ) -> Vec<ResolvedTraitBound> {
+        let mut resolved_trait_bounds = Vec::new();
+
+        for trait_bound in &unresolved_trait.trait_def.bounds {
+            if let Some(resolved_trait_bound) = self.resolve_trait_bound(trait_bound) {
+                resolved_trait_bounds.push(resolved_trait_bound);
+            }
+        }
+
+        resolved_trait_bounds
     }
 
     fn resolve_trait_methods(
