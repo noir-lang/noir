@@ -210,3 +210,25 @@ fn warns_on_unused_global() {
     assert_eq!(ident.to_string(), "foo");
     assert_eq!(item.item_type(), "global");
 }
+
+#[test]
+fn no_warning_on_inner_struct_when_parent_is_used() {
+    let src = r#" 
+    struct Bar {
+        inner: [Field; 3],
+    }
+
+    struct Foo {
+        a: Field,
+        bar: Bar,
+    }
+
+    fn main(foos: [Foo; 1]) {
+        assert_eq(foos[0].a, 10);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    println!("{errors:?}");
+    assert_eq!(errors.len(), 0);
+}
