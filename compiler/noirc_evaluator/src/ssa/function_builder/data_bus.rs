@@ -122,15 +122,21 @@ impl FunctionBuilder {
             }
             Type::Array(typ, len) => {
                 databus.map.insert(value, databus.index);
-                for i in 0..len {
-                    for (subitem_index, subitem_typ) in typ.iter().enumerate() {
-                        let index = i * typ.len() + subitem_index;
-                        // load each element of the array
-                        let index = self
+
+                let mut index = 0;
+                for _i in 0..len {
+                    for subitem_typ in typ.iter() {
+                        // load each element of the array, and add it to the databus
+                        let index_var = self
                             .current_function
                             .dfg
                             .make_constant(FieldElement::from(index as i128), Type::length_type());
-                        let element = self.insert_array_get(value, index, subitem_typ.clone());
+                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
+                        index += match subitem_typ {
+                            Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
+                            Type::Numeric(_) => 1,
+                            _ => unreachable!("Unsupported type for databus"),
+                        };
                         self.add_to_data_bus(element, databus);
                     }
                 }
