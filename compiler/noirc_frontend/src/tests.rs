@@ -3203,3 +3203,19 @@ fn trait_unconstrained_methods_typechecked_correctly() {
     println!("{errors:?}");
     assert_eq!(errors.len(), 0);
 }
+
+#[test]
+fn error_if_attribute_not_in_scope() {
+    let src = r#"
+        #[not_in_scope]
+        fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::AttributeFunctionNotInScope { .. })
+    ));
+}

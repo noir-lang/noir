@@ -738,6 +738,7 @@ impl Attribute {
         word: &str,
         span: Span,
         contents_span: Span,
+        is_tag: bool,
     ) -> Result<Attribute, LexerErrorKind> {
         let word_segments: Vec<&str> = word
             .split(|c| c == '(' || c == ')')
@@ -757,6 +758,14 @@ impl Attribute {
 
             is_valid.ok_or(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
         };
+
+        if is_tag {
+            return Ok(Attribute::Secondary(SecondaryAttribute::Tag(CustomAttribute {
+                contents: word.to_owned(),
+                span,
+                contents_span,
+            })));
+        }
 
         let attribute = match &word_segments[..] {
             // Primary Attributes
@@ -813,7 +822,7 @@ impl Attribute {
             ["allow", tag] => Attribute::Secondary(SecondaryAttribute::Allow(tag.to_string())),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
+                Attribute::Secondary(SecondaryAttribute::Meta(CustomAttribute {
                     contents: word.to_owned(),
                     span,
                     contents_span,
@@ -922,7 +931,13 @@ pub enum SecondaryAttribute {
     ContractLibraryMethod,
     Export,
     Field(String),
-    Custom(CustomAttribute),
+
+    /// A custom tag attribute: #['foo]
+    Tag(CustomAttribute),
+
+    /// An attribute expected to run a comptime function of the same name: #[foo]
+    Meta(CustomAttribute),
+
     Abi(String),
 
     /// A variable-argument comptime function.
@@ -939,7 +954,7 @@ pub enum SecondaryAttribute {
 
 impl SecondaryAttribute {
     pub(crate) fn as_custom(&self) -> Option<&CustomAttribute> {
-        if let Self::Custom(attribute) = self {
+        if let Self::Tag(attribute) = self {
             Some(attribute)
         } else {
             None
@@ -954,7 +969,8 @@ impl SecondaryAttribute {
             }
             SecondaryAttribute::Export => Some("export".to_string()),
             SecondaryAttribute::Field(_) => Some("field".to_string()),
-            SecondaryAttribute::Custom(custom) => custom.name(),
+            SecondaryAttribute::Tag(custom) => custom.name(),
+            SecondaryAttribute::Meta(custom) => custom.name(),
             SecondaryAttribute::Abi(_) => Some("abi".to_string()),
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
@@ -977,7 +993,8 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Deprecated(Some(ref note)) => {
                 write!(f, r#"#[deprecated("{note}")]"#)
             }
-            SecondaryAttribute::Custom(ref attribute) => write!(f, "#[{}]", attribute.contents),
+            SecondaryAttribute::Tag(ref attribute) => write!(f, "#['{}]", attribute.contents),
+            SecondaryAttribute::Meta(ref attribute) => write!(f, "#[{}]", attribute.contents),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
@@ -1029,7 +1046,8 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(attribute) => &attribute.contents,
+            SecondaryAttribute::Tag(attribute) => &attribute.contents,
+            SecondaryAttribute::Meta(attribute) => &attribute.contents,
             SecondaryAttribute::Field(string)
             | SecondaryAttribute::Abi(string)
             | SecondaryAttribute::Allow(string) => string,

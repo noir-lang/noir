@@ -2242,7 +2242,7 @@ fn function_def_add_attribute(
         }
     }
 
-    if let Attribute::Secondary(SecondaryAttribute::Custom(attribute)) = attribute {
+    if let Attribute::Secondary(SecondaryAttribute::Tag(attribute)) = attribute {
         let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
         func_meta.custom_attributes.push(attribute);
     }

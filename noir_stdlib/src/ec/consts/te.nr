@@ -8,7 +8,8 @@ pub struct BabyJubjub {
 }
 
 #[field(bn254)]
-#[deprecated = "It's recommmended to use the external noir-edwards library (https://github.com/noir-lang/noir-edwards)"]
+// Uncommenting this results in deprecated warnings in the stdlib
+// #[deprecated]
 pub fn baby_jubjub() -> BabyJubjub {
     BabyJubjub {
         // Baby Jubjub (ERC-2494) parameters in affine representation
