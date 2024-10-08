@@ -229,6 +229,5 @@ fn no_warning_on_inner_struct_when_parent_is_used() {
     "#;
 
     let errors = get_program_errors(src);
-    println!("{errors:?}");
     assert_eq!(errors.len(), 0);
 }
