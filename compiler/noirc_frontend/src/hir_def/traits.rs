@@ -101,9 +101,7 @@ pub struct TraitImpl {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: Type,
-    pub trait_id: TraitId,
-    pub trait_generics: TraitGenerics,
-    pub span: Span,
+    pub trait_bound: ResolvedTraitBound,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,11 +115,11 @@ impl TraitConstraint {
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
 
-        for typ in &mut self.trait_generics.ordered {
+        for typ in &mut self.trait_bound.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
         }
 
-        for named in &mut self.trait_generics.named {
+        for named in &mut self.trait_bound.trait_generics.named {
             named.typ = named.typ.substitute(type_bindings);
         }
     }
@@ -176,9 +174,11 @@ impl Trait {
 
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone()),
-            trait_generics: TraitGenerics { ordered, named },
-            trait_id: self.id,
-            span,
+            trait_bound: ResolvedTraitBound {
+                trait_generics: TraitGenerics { ordered, named },
+                trait_id: self.id,
+                span,
+            },
         }
     }
 }

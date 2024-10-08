@@ -433,7 +433,8 @@ impl<'context> Elaborator<'context> {
 
         // Now remove all the `where` clause constraints we added
         for constraint in &func_meta.trait_constraints {
-            self.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+            self.interner
+                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
         }
 
         let func_scope_tree = self.scopes.end_function();
@@ -479,9 +480,9 @@ impl<'context> Elaborator<'context> {
 
             self.verify_trait_constraint(
                 &constraint.typ,
-                constraint.trait_id,
-                &constraint.trait_generics.ordered,
-                &constraint.trait_generics.named,
+                constraint.trait_bound.trait_id,
+                &constraint.trait_bound.trait_generics.ordered,
+                &constraint.trait_bound.trait_generics.named,
                 expr_id,
                 span,
             );
@@ -510,13 +511,8 @@ impl<'context> Elaborator<'context> {
         let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
-        if let Some(resolved_trait_bound) = self.resolve_trait_bound(&trait_bound) {
-            let new_constraint = TraitConstraint {
-                typ: generic_type.clone(),
-                trait_id: resolved_trait_bound.trait_id,
-                trait_generics: resolved_trait_bound.trait_generics,
-                span: resolved_trait_bound.span,
-            };
+        if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
+            let new_constraint = TraitConstraint { typ: generic_type.clone(), trait_bound };
             trait_constraints.push(new_constraint);
         }
 
@@ -675,12 +671,7 @@ impl<'context> Elaborator<'context> {
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
-        Some(TraitConstraint {
-            typ,
-            trait_id: trait_bound.trait_id,
-            trait_generics: trait_bound.trait_generics,
-            span: trait_bound.span,
-        })
+        Some(TraitConstraint { typ, trait_bound })
     }
 
     pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
@@ -951,8 +942,8 @@ impl<'context> Elaborator<'context> {
     fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
         for constraint in &func_meta.trait_constraints {
             let object = constraint.typ.clone();
-            let trait_id = constraint.trait_id;
-            let generics = constraint.trait_generics.clone();
+            let trait_id = constraint.trait_bound.trait_id;
+            let generics = constraint.trait_bound.trait_generics.clone();
 
             if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {

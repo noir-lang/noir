@@ -2725,7 +2725,7 @@ fn trait_def_as_trait_constraint(
     let trait_id = get_trait_def(argument)?;
     let constraint = interner.get_trait(trait_id).as_constraint(location.span);
 
-    Ok(Value::TraitConstraint(trait_id, constraint.trait_generics))
+    Ok(Value::TraitConstraint(trait_id, constraint.trait_bound.trait_generics))
 }
 
 /// Creates a value that holds an `Option`.

@@ -586,7 +586,7 @@ impl<'context> Elaborator<'context> {
                     continue;
                 }
 
-                let the_trait = self.interner.get_trait(constraint.trait_id);
+                let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
                 if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some(TraitPathResolution {
                         method: TraitMethod { method_id: method, constraint, assumed: true },
@@ -1332,13 +1332,17 @@ impl<'context> Elaborator<'context> {
 
         for constraint in &func_meta.trait_constraints {
             if *object_type == constraint.typ {
-                if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
+                if let Some(the_trait) =
+                    self.interner.try_get_trait(constraint.trait_bound.trait_id)
+                {
                     for (method_index, method) in the_trait.methods.iter().enumerate() {
                         if method.name.0.contents == method_name {
-                            let trait_method =
-                                TraitMethodId { trait_id: constraint.trait_id, method_index };
+                            let trait_method = TraitMethodId {
+                                trait_id: constraint.trait_bound.trait_id,
+                                method_index,
+                            };
 
-                            let generics = constraint.trait_generics.clone();
+                            let generics = constraint.trait_bound.trait_generics.clone();
                             return Some(HirMethodReference::TraitMethodId(trait_method, generics));
                         }
                     }
@@ -1762,10 +1766,12 @@ impl<'context> Elaborator<'context> {
         assumed: bool,
         bindings: &mut TypeBindings,
     ) {
-        let the_trait = self.interner.get_trait(constraint.trait_id);
-        assert_eq!(the_trait.generics.len(), constraint.trait_generics.ordered.len());
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        assert_eq!(the_trait.generics.len(), constraint.trait_bound.trait_generics.ordered.len());
 
-        for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
+        for (param, arg) in
+            the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
+        {
             // Avoid binding t = t
             if !arg.occurs(param.type_var.id()) {
                 bindings.insert(
@@ -1776,9 +1782,9 @@ impl<'context> Elaborator<'context> {
         }
 
         let mut associated_types = the_trait.associated_types.clone();
-        assert_eq!(associated_types.len(), constraint.trait_generics.named.len());
+        assert_eq!(associated_types.len(), constraint.trait_bound.trait_generics.named.len());
 
-        for arg in &constraint.trait_generics.named {
+        for arg in &constraint.trait_bound.trait_generics.named {
             let i = associated_types
                 .iter()
                 .position(|typ| *typ.name == arg.name.0.contents)

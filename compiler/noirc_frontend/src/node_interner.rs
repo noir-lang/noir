@@ -24,6 +24,7 @@ use crate::hir::def_map::DefMaps;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
+use crate::hir_def::traits::ResolvedTraitBound;
 use crate::usage_tracker::UnusedItem;
 use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
@@ -1531,9 +1532,11 @@ impl NodeInterner {
             let named = trait_associated_types.to_vec();
             TraitConstraint {
                 typ: object_type.clone(),
-                trait_id,
-                trait_generics: TraitGenerics { ordered, named },
-                span: Span::default(),
+                trait_bound: ResolvedTraitBound {
+                    trait_id,
+                    trait_generics: TraitGenerics { ordered, named },
+                    span: Span::default(),
+                },
             }
         };
 
@@ -1613,9 +1616,11 @@ impl NodeInterner {
 
                 let constraint = TraitConstraint {
                     typ: existing_object_type,
-                    trait_id,
-                    trait_generics,
-                    span: Span::default(),
+                    trait_bound: ResolvedTraitBound {
+                        trait_id,
+                        trait_generics,
+                        span: Span::default(),
+                    },
                 };
                 matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
             }
@@ -1635,8 +1640,8 @@ impl NodeInterner {
             Err(ImplSearchErrorKind::Nested(errors))
         } else {
             let impls = vecmap(matching_impls, |(_, _, constraint)| {
-                let name = &self.get_trait(constraint.trait_id).name;
-                format!("{}: {name}{}", constraint.typ, constraint.trait_generics)
+                let name = &self.get_trait(constraint.trait_bound.trait_id).name;
+                format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
             });
             Err(ImplSearchErrorKind::MultipleMatching(impls))
         }
@@ -1658,20 +1663,22 @@ impl NodeInterner {
             let constraint_type =
                 constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 
-            let trait_generics = vecmap(&constraint.trait_generics.ordered, |generic| {
-                generic.force_substitute(instantiation_bindings).substitute(type_bindings)
-            });
+            let trait_generics =
+                vecmap(&constraint.trait_bound.trait_generics.ordered, |generic| {
+                    generic.force_substitute(instantiation_bindings).substitute(type_bindings)
+                });
 
-            let trait_associated_types = vecmap(&constraint.trait_generics.named, |generic| {
-                let typ = generic.typ.force_substitute(instantiation_bindings);
-                NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
-            });
+            let trait_associated_types =
+                vecmap(&constraint.trait_bound.trait_generics.named, |generic| {
+                    let typ = generic.typ.force_substitute(instantiation_bindings);
+                    NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
+                });
 
             // We can ignore any associated types on the constraint since those should not affect
             // which impl we choose.
             self.lookup_trait_implementation_helper(
                 &constraint_type,
-                constraint.trait_id,
+                constraint.trait_bound.trait_id,
                 &trait_generics,
                 &trait_associated_types,
                 // Use a fresh set of type bindings here since the constraint_type originates from
