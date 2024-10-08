@@ -28,7 +28,7 @@ export default {
         docs: {
           path: process.env.ENV === 'dev' ? 'docs' : 'processed-docs',
           sidebarPath: './sidebars.js',
-          routeBasePath: '/',
+          routeBasePath: '/docs',
           remarkPlugins: [math],
           rehypePlugins: [katex],
           versions: {
