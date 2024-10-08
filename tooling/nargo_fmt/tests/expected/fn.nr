@@ -74,9 +74,11 @@ fn with_unconstrained(x: unconstrained fn() -> ()) {}
 
 pub(crate) fn one() {}
 
-unconstrained pub fn two() {}
+pub unconstrained fn two() {}
 
-unconstrained pub comptime fn two() {}
+pub unconstrained comptime fn two() {}
+
+pub unconstrained comptime fn two() {}
 
 /// Documented
 #[test]

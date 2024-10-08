@@ -188,7 +188,7 @@ impl<'a> Parser<'a> {
                 attributes,
                 modifiers.visibility,
                 modifiers.comptime.is_some(),
-                modifiers.unconstrained.is_some(),
+                modifiers.is_unconstrained(),
                 false, // allow_self
             )));
         }

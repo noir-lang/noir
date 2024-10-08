@@ -136,9 +136,12 @@ impl super::FmtVisitor<'_> {
 
         self.append_comments_if_any(&mut parser, &mut result);
 
+        let mut is_unconstrained = false;
+
         // Then, optionally, the `unconstrained` keyword
+        // (eventually we'll stop accepting this, but we keep it for backwards compatibility)
         if parser.eat_keyword(Keyword::Unconstrained) {
-            result.push_str("unconstrained ");
+            is_unconstrained = true;
         }
 
         self.append_comments_if_any(&mut parser, &mut result);
@@ -151,6 +154,15 @@ impl super::FmtVisitor<'_> {
         }
 
         self.append_comments_if_any(&mut parser, &mut result);
+
+        // Then, optionally, and again, the `unconstrained` keyword
+        if parser.eat_keyword(Keyword::Unconstrained) {
+            is_unconstrained = true;
+        }
+
+        if is_unconstrained {
+            result.push_str("unconstrained ");
+        }
 
         // Then, optionally, the `comptime` keyword
         if parser.eat_keyword(Keyword::Comptime) {

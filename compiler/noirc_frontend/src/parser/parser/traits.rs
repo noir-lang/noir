@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
             .collect();
 
         Some(TraitItem::Function {
-            is_unconstrained: modifiers.unconstrained.is_some(),
+            is_unconstrained: modifiers.is_unconstrained(),
             visibility: modifiers.visibility,
             is_comptime: modifiers.comptime.is_some(),
             name: function.name,
