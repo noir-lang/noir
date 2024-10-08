@@ -6,9 +6,10 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::{ast::{
-    ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility,
-}, token::SecondaryAttribute};
+use noirc_frontend::{
+    ast::{ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility},
+    token::SecondaryAttribute,
+};
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},

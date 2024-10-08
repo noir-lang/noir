@@ -843,8 +843,8 @@ mod tests {
     }
 
     #[test]
-    fn custom_attribute() {
-        let input = r#"#[custom(hello)]"#;
+    fn tag_attribute() {
+        let input = r#"#['custom(hello)]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap();
