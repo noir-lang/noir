@@ -3,7 +3,7 @@ use crate::cmp::Eq;
 
 impl TraitDefinition {
     #[builtin(trait_def_as_trait_constraint)]
-// docs:start:as_trait_constraint
+    // docs:start:as_trait_constraint
     pub comptime fn as_trait_constraint(_self: Self) -> TraitConstraint {}
     // docs:end:as_trait_constraint
 }

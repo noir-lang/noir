@@ -14,7 +14,10 @@ pub(crate) struct Modifiers {
 }
 
 impl<'a> Parser<'a> {
-    /// Modifiers = 'unconstrained'? ItemVisibility 'comptime'? 'mut'?
+    /// Modifiers = ItemVisibility 'unconstrained'? 'comptime'? 'mut'?
+    ///
+    /// NOTE: we also allow `unconstrained` before the visibility for backwards compatibility.
+    /// The formatter will put it after the visibility.
     pub(crate) fn parse_modifiers(&mut self, allow_mutable: bool) -> Modifiers {
         let unconstrained = if self.eat_keyword(Keyword::Unconstrained) {
             Some(self.previous_token_span)
@@ -25,6 +28,16 @@ impl<'a> Parser<'a> {
         let start_span = self.current_token_span;
         let visibility = self.parse_item_visibility();
         let visibility_span = self.span_since(start_span);
+
+        let unconstrained = if unconstrained.is_none() {
+            if self.eat_keyword(Keyword::Unconstrained) {
+                Some(self.previous_token_span)
+            } else {
+                None
+            }
+        } else {
+            unconstrained
+        };
 
         let comptime =
             if self.eat_keyword(Keyword::Comptime) { Some(self.previous_token_span) } else { None };
