@@ -1949,39 +1949,31 @@ fn numeric_generic_used_in_turbofish() {
     assert_no_errors(src);
 }
 
-// TODO this doesn't involve check_cast
-//
-// #[test]
-// fn numeric_generic_u16_array_size() {
-//     let src = r#"
-//     fn len<let N: u32>(_arr: [Field; N]) -> u32 {
-//         N
-//     }
-//
-//     pub fn foo<let N: u16>() -> u32 {
-//         let fields: [Field; N] = [0; N];
-//         len(fields)
-//     }
-//     "#;
-//     let errors = get_program_errors(src);
-//
-//     // TODO: cleanup
-//     dbg!(&errors);
-//     println!();
-//     println!();
-//     println!();
-//
-//     // TODO
-//     assert_eq!(errors.len(), 2);
-//     assert!(matches!(
-//         errors[0].0,
-//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
-//     ));
-//     assert!(matches!(
-//         errors[1].0,
-//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
-//     ));
-// }
+// TODO(https://github.com/noir-lang/noir/issues/6245):
+// allow u16 to be used as an array size
+#[test]
+fn numeric_generic_u16_array_size() {
+    let src = r#"
+    fn len<let N: u32>(_arr: [Field; N]) -> u32 {
+        N
+    }
+
+    pub fn foo<let N: u16>() -> u32 {
+        let fields: [Field; N] = [0; N];
+        len(fields)
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
 
 // TODO(https://github.com/noir-lang/noir/issues/6238):
 // The EvaluatedGlobalPartialSizeChecks warning is a stopgap
@@ -2048,7 +2040,6 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
     ));
 }
 
-// https://github.com/noir-lang/noir/issues/6219
 #[test]
 fn cast_256_to_u8_size_checks() {
     let src = r#"
@@ -2057,7 +2048,6 @@ fn cast_256_to_u8_size_checks() {
         }
     "#;
     let errors = get_program_errors(src);
-
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -2065,57 +2055,18 @@ fn cast_256_to_u8_size_checks() {
     ));
 }
 
-// TODO add negative integer literal checks
-//
-// // https://github.com/noir-lang/noir/issues/6219
-// #[test]
-// fn cast_negative_one_to_u8_size_checks() {
-//     let src = r#"
-//         fn main() {
-//             assert((-1) as u8 != 0);
-//         }
-//     "#;
-//     let errors = get_program_errors(src);
-//
-//     // TODO: cleanup
-//     dbg!(&errors);
-//     println!();
-//     println!();
-//     println!();
-//
-//     // TODO
-//     assert_eq!(errors.len(), 4);
-//     assert!(matches!(
-//         errors[0].0,
-//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
-//     ));
-// }
-
-// TODO add negative integer literal checks
-//
-// // https://github.com/noir-lang/noir/issues/6219
-// #[test]
-// fn cast_negative_one_infix_to_u8_size_checks() {
-//     let src = r#"
-//         fn main() {
-//             assert((0 - 1) as u8 != 0);
-//         }
-//     "#;
-//     let errors = get_program_errors(src);
-//
-//     // TODO: cleanup
-//     dbg!(&errors);
-//     println!();
-//     println!();
-//     println!();
-//
-//     // TODO
-//     assert_eq!(errors.len(), 4);
-//     assert!(matches!(
-//         errors[0].0,
-//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
-//     ));
-// }
+// TODO(https://github.com/noir-lang/noir/issues/6247):
+// add negative integer literal checks
+#[test]
+fn cast_negative_one_to_u8_size_checks() {
+    let src = r#"
+        fn main() {
+            assert((-1) as u8 != 0);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
 
 #[test]
 fn constant_used_with_numeric_generic() {
@@ -3303,29 +3254,29 @@ fn struct_array_len() {
     ));
 }
 
-// TODO separate out feature
-// #[test]
-// fn non_u32_in_array_length() {
-//     let src = r#"
-//         global ARRAY_LEN: u8 = 3;
-//
-//         fn main() {
-//             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-//         }
-//     "#;
-//
-//     let errors = get_program_errors(src);
-//
-//     // TODO cleanup
-//     dbg!(&errors);
-//
-//     assert_eq!(errors.len(), 1);
-//
-//     assert!(matches!(
-//         errors[0].0,
-//         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
-//     ));
-// }
+// TODO(https://github.com/noir-lang/noir/issues/6245):
+// support u16 as an array size
+#[test]
+fn non_u32_as_array_length() {
+    let src = r#"
+        global ARRAY_LEN: u8 = 3;
+
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
+    ));
+}
 
 #[test]
 fn use_non_u32_generic_in_struct() {
