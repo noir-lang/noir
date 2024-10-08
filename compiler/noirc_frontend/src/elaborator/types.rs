@@ -417,7 +417,8 @@ impl<'context> Elaborator<'context> {
                     .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
                     .unwrap_or(Kind::u32());
 
-                // TODO: make issue to support non-u32 generics here
+                // TODO(https://github.com/noir-lang/noir/issues/6238):
+                // support non-u32 generics here
                 if !kind.unifies(&Kind::u32()) {
                     let error = TypeCheckError::EvaluatedGlobalPartialSizeChecks {
                         expected_kind: Kind::u32().to_string(),

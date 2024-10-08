@@ -48,7 +48,7 @@ pub enum TypeCheckError {
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
-    // TODO reference issue
+    // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
     #[error("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?}, size checks are being implemented for this case")]
     EvaluatedGlobalPartialSizeChecks { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
@@ -232,6 +232,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     *expr_span,
                 )
             }
+            // TODO(https://github.com/noir-lang/noir/issues/6238): implement
+            // handling for larger types
             TypeCheckError::EvaluatedGlobalPartialSizeChecks { expected_kind, expr_kind, expr_span } => {
                 Diagnostic::simple_warning(
                     format!("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?}, size checks are being implemented for this case"),

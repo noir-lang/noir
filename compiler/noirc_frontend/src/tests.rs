@@ -1983,7 +1983,8 @@ fn numeric_generic_used_in_turbofish() {
 //     ));
 // }
 
-// TODO reference issue w/ EvaluatedGlobalPartialSizeChecks
+// TODO(https://github.com/noir-lang/noir/issues/6238):
+// The EvaluatedGlobalPartialSizeChecks warning is a stopgap
 // (originally from https://github.com/noir-lang/noir/issues/6125)
 #[test]
 fn numeric_generic_field_larger_than_u32() {
@@ -1997,13 +1998,6 @@ fn numeric_generic_field_larger_than_u32() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO: cleanup
-    dbg!(&errors);
-    println!();
-    println!();
-    println!();
-
     assert_eq!(errors.len(), 2);
     assert!(matches!(
         errors[0].0,
@@ -2015,7 +2009,9 @@ fn numeric_generic_field_larger_than_u32() {
     ));
 }
 
-// https://github.com/noir-lang/noir/issues/6126
+// TODO(https://github.com/noir-lang/noir/issues/6238):
+// The EvaluatedGlobalPartialSizeChecks warning is a stopgap
+// (originally from https://github.com/noir-lang/noir/issues/6126)
 #[test]
 fn numeric_generic_field_arithmetic_larger_than_u32() {
     let src = r#"
@@ -2039,17 +2035,8 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO: cleanup
-    dbg!(&errors);
-    println!();
-    println!();
-    println!();
-
-    // TODO
     assert_eq!(errors.len(), 2);
 
-    // TODO to be removed + reference issue
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
@@ -2226,13 +2213,10 @@ fn numeric_generics_type_kind_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 3);
 
-    // TODO to be removed + reference issue
+    // TODO(https://github.com/noir-lang/noir/issues/6238):
+    // The EvaluatedGlobalPartialSizeChecks warning is a stopgap
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
@@ -2243,7 +2227,7 @@ fn numeric_generics_type_kind_mismatch() {
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 
-    // TODO to be removed + reference issue
+    // TODO(https://github.com/noir-lang/noir/issues/6238): see above
     assert!(matches!(
         errors[2].0,
         CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
@@ -3354,10 +3338,6 @@ fn use_non_u32_generic_in_struct() {
     "#;
 
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 0);
 }
 
