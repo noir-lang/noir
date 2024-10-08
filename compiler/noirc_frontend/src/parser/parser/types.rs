@@ -1,3 +1,5 @@
+use acvm::{AcirField, FieldElement};
+
 use crate::{
     ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
@@ -137,7 +139,7 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr = UnresolvedTypeExpression::Constant(0, self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
             return Some(UnresolvedTypeData::String(expr));
         }
 
@@ -145,7 +147,7 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(0, self.current_token_span)
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
             }
         };
 
@@ -161,7 +163,7 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr = UnresolvedTypeExpression::Constant(0, self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
             let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
         }
@@ -170,7 +172,7 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(0, self.current_token_span)
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
             }
         };
 
