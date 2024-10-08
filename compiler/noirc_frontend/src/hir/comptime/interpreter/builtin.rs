@@ -686,23 +686,21 @@ fn quoted_as_expr(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let result = parse(
-        interner,
-        argument,
-        Parser::parse_statement_or_expression_or_lvalue,
-        "an expression",
-    );
+    let result =
+        parse(interner, argument, Parser::parse_statement_or_expression_or_lvalue, "an expression");
 
-    if let Ok(statement_or_expression_or_lvalue) = result {
-        let value = match statement_or_expression_or_lvalue {
-            StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
-            StatementOrExpressionOrLValue::Statement(statement) => Value::statement(statement.kind),
-            StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
-        };
-        return option(return_type, Some(value));
-    }
+    let value =
+        result.ok().map(
+            |statement_or_expression_or_lvalue| match statement_or_expression_or_lvalue {
+                StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
+                StatementOrExpressionOrLValue::Statement(statement) => {
+                    Value::statement(statement.kind)
+                }
+                StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
+            },
+        );
 
-    option(return_type, None)
+    option(return_type, value)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
