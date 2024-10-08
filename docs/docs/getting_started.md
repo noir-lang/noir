@@ -3,27 +3,32 @@ title: Getting Started
 tags: []
 ---
 
-## A Quick Start with Noirenberg
+## A Quick Start
 
-Noir is a backend-agnostic programming language for writing zero-knowledge proofs. This means you need to pair it with a proving backend. You can visit the [nargo installation](./getting_started/noir_installation.md) page for details on using Noir without any particular backend.
-
-As an example, you can use the convenient binary [noirenberg](https://raw.githubusercontent.com/noir-lang/noirenberg/main/install.sh) script, which installs Noir along with Aztec Lab's [Barretenberg backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg):
+The easiest way to use Noir is through `nargo` (inspired by Rust's `cargo`). You can use `noirup` to quickly install `nargo`:
 
 ```bash
-curl -fsSL noiren.be | bash
+curl -L noirup.dev | bash
+noirup
+```
+
+Since Noir is a backend-agnostic programming language for writing zero-knowledge proofs, we need to pair it with a proving backend.
+
+As an example, we can will use Aztec Lab's [Barretenberg backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg). This is made easy by [`bbup`](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/bbup), which installs Barretenberg's [`bb` CLI tool](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg):
+
+```bash
+curl -L bbup.dev | bash
+bbup
 ```
 
 :::info
 
-It's good practice to inspect what you run. This script is hosted [here](https://raw.githubusercontent.com/AztecProtocol/noirenberg/main/install.sh) and installs [`nvm`](https://github.com/nvm-sh/nvm/tree/master), [`node`](https://nodejs.org/en), and the [`noirenberg`](https://raw.githubusercontent.com/noir-lang/noirenberg/main/npx.ts) binaries.
+_Always_ inspect what you run.
+
+- `noirup.dev` redirects to [this script](https://github.com/noir-lang/noirup/blob/main/install) and adds [this program](https://github.com/noir-lang/noirup/blob/main/noirup) to your path.
+- according to the [bbup documentation](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg/bbup), `bbup.dev` redirects to [this script](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/bbup/install) which adds [this program](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/bbup/bbup.ts) globally, installing `node` if needed.
 
 :::
-
-We now have `noirenberg` ready.  Open a new terminal and run:
-
-```bash
-noirenberg
-```
 
 ## Nargo
 
@@ -73,9 +78,7 @@ You can now see the witness and the compiled circuit in the `target` folder. We'
 
 ## Barretenberg
 
-Barretenberg is a proving backend maintained by [Aztec Labs](https://www.aztec-labs.com/).
-
-Proving backends provide the ability to generate and verify proofs. In this example, `noirenberg` already installed `bb`, Barretenberg's CLI tool. You can read more about it in its [documentation](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/bb/readme.md). Let's use it to prove the valid execution of your Noir program:
+Using the `bb` CLI tool as an example:
 
 ```sh
 bb prove -b ./target/hello_world.json -w ./target/hello-witness.gz -o ./target/proof
