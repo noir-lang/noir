@@ -844,7 +844,7 @@ mod test {
         assert_eq!(instructions.len(), 10);
     }
 
-    // Regression for https://github.com/noir-lang/noir/issues/5756
+    // This test currently fails. It being fixed will address the issue https://github.com/noir-lang/noir/issues/5756
     #[test]
     #[should_panic]
     fn constant_array_deduplication() {
@@ -885,7 +885,7 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, 3);
+        assert_eq!(starting_instruction_count, 2);
 
         let ssa = ssa.fold_constants();
 
