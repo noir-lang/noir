@@ -114,7 +114,7 @@ impl super::FmtVisitor<'_> {
     // This formats the function outer doc comments, attributes, modifiers, and `fn name`.
     fn format_fn_header(&self, src: &str, func: &NoirFunction) -> String {
         let mut result = String::new();
-        let mut lexer = Lexer::new(src).skip_comments(false).into_iter().peekable();
+        let mut lexer = Lexer::new(src).skip_comments(false).peekable();
 
         // First there might be outer doc comments
         while let Some(Ok(token)) = lexer.peek() {
