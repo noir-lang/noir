@@ -217,6 +217,11 @@ impl<'a> Parser<'a> {
 
         Some(if self.eat_colon() {
             (ident, self.parse_pattern_or_error())
+        } else if self.at(Token::Assign) {
+            // If we find '=' instead of ':', assume the user meant ':`, error and continue
+            self.expected_token(Token::Colon);
+            self.bump();
+            (ident, self.parse_pattern_or_error())
         } else {
             (ident.clone(), Pattern::Identifier(ident))
         })
@@ -252,7 +257,8 @@ mod tests {
         ast::Pattern,
         parser::{
             parser::tests::{
-                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
             },
             Parser, ParserErrorReason,
         },
@@ -327,6 +333,34 @@ mod tests {
     fn parses_struct_pattern() {
         let src = "foo::Bar { x: one, y }";
         let pattern = parse_pattern_no_errors(src);
+        let Pattern::Struct(path, mut patterns, _) = pattern else {
+            panic!("Expected a struct pattern")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert_eq!(patterns.len(), 2);
+
+        let (ident, pattern) = patterns.remove(0);
+        assert_eq!(ident.to_string(), "x");
+        assert_eq!(pattern.to_string(), "one");
+
+        let (ident, pattern) = patterns.remove(0);
+        assert_eq!(ident.to_string(), "y");
+        assert_eq!(pattern.to_string(), "y");
+    }
+
+    #[test]
+    fn parses_struct_pattern_recovers_if_assign_instead_of_colon() {
+        let src = "
+        foo::Bar { x = one, y }
+                     ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let pattern = parser.parse_pattern_or_error();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a : but found =");
+
         let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")
         };
