@@ -3,7 +3,7 @@ use modifiers::Modifiers;
 use noirc_errors::Span;
 
 use crate::{
-    ast::{Ident, ItemVisibility, LValue},
+    ast::{Ident, ItemVisibility},
     lexer::{Lexer, SpannedTokenResult},
     token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
@@ -28,6 +28,7 @@ mod parse_many;
 mod path;
 mod pattern;
 mod statement;
+mod statement_or_expression_or_lvalue;
 mod structs;
 mod tests;
 mod traits;
@@ -36,6 +37,8 @@ mod type_expression;
 mod types;
 mod use_tree;
 mod where_clause;
+
+pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -122,28 +125,6 @@ impl<'a> Parser<'a> {
         let items = self.parse_module_items(nested);
 
         ParsedModule { items, inner_doc_comments }
-    }
-
-    /// Parses an LValue. If an LValue can't be parsed, an error is recorded and a default LValue is returned.
-    pub(crate) fn parse_lvalue_or_error(&mut self) -> LValue {
-        let start_span = self.current_token_span;
-
-        if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
-            match token.into_token() {
-                Token::InternedLValue(lvalue) => {
-                    return LValue::Interned(lvalue, self.span_since(start_span));
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        let expr = self.parse_expression_or_error();
-        if let Some(lvalue) = LValue::from_expression(expr) {
-            lvalue
-        } else {
-            self.expected_label(ParsingRuleLabel::LValue);
-            LValue::Ident(Ident::default())
-        }
     }
 
     /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
