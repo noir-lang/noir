@@ -445,7 +445,7 @@ fn compile_contract_inner(
             .secondary
             .iter()
             .filter_map(|attr| {
-                if let SecondaryAttribute::Custom(attribute) = attr {
+                if let SecondaryAttribute::Tag(attribute) = attr {
                     Some(&attribute.contents)
                 } else {
                     None
