@@ -4,7 +4,7 @@ use super::{parse_many::without_separator, Parser};
 
 impl<'a> Parser<'a> {
     /// InnerDocComments = inner_doc_comment*
-    pub fn parse_inner_doc_comments(&mut self) -> Vec<String> {
+    pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<String> {
         self.parse_many("inner doc comments", without_separator(), Self::parse_inner_doc_comment)
     }
 
@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
     }
 
     /// OuterDocComments = outer_doc_comments*
-    pub fn parse_outer_doc_comments(&mut self) -> Vec<String> {
+    pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<String> {
         self.parse_many("outer doc comments", without_separator(), Self::parse_outer_doc_comment)
     }
 
