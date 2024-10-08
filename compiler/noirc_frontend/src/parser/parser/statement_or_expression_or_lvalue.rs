@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
     ) -> StatementOrExpressionOrLValue {
         let start_span = self.current_token_span;
 
-        // First check if it's an interned LVAlue
+        // First check if it's an interned LValue
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {

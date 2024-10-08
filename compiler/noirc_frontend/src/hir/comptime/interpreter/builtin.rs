@@ -688,7 +688,7 @@ fn quoted_as_expr(
 
     let result = parse(
         interner,
-        argument.clone(),
+        argument,
         Parser::parse_statement_or_expression_or_lvalue,
         "an expression",
     );
