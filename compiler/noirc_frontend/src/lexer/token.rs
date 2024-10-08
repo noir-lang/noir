@@ -3,7 +3,6 @@ use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::{
-    ast::Expression,
     lexer::errors::LexerErrorKind,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
@@ -108,10 +107,6 @@ pub enum BorrowedToken<'input> {
     DollarSign,
     /// =
     Assign,
-    /// #[requires
-    Requires,
-    /// #[ensures
-    Ensures,
 
     #[allow(clippy::upper_case_acronyms)]
     EOF,
@@ -232,10 +227,6 @@ pub enum Token {
     Assign,
     /// $
     DollarSign,
-    /// #[requires
-    Requires,
-    /// #[ensures
-    Ensures,
 
     #[allow(clippy::upper_case_acronyms)]
     EOF,
@@ -315,8 +306,6 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
         Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
-        Token::Requires => BorrowedToken::Requires,
-        Token::Ensures => BorrowedToken::Ensures,
     }
 }
 
@@ -448,8 +437,6 @@ impl fmt::Display for Token {
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
             Token::UnquoteMarker(_) => write!(f, "(UnquoteMarker)"),
-            Token::Requires => write!(f, "#[requires"),
-            Token::Ensures => write!(f, "#[ensures"),
         }
     }
 }
@@ -666,13 +653,11 @@ pub struct Attributes {
     pub function: Option<FunctionAttribute>,
     // Each function can have many Secondary Attributes
     pub secondary: Vec<SecondaryAttribute>,
-    // Each function can have many Formal Verification Attributes
-    pub fv_attributes: Vec<FormalVerificationAttribute>,
 }
 
 impl Attributes {
     pub fn empty() -> Self {
-        Self { function: None, secondary: Vec::new(), fv_attributes: Vec::new() }
+        Self { function: None, secondary: Vec::new()}
     }
 
     /// Returns true if one of the secondary attributes is `contract_library_method`
@@ -1025,17 +1010,6 @@ impl CustomAttribute {
             None
         }
     }
-}
-
-/// Formal verification attributes are used for nargo formal-verify.
-/// A function can have many formal verification attributes.
-/// They do not change the `FunctionKind` and thus do not have direct impact on the IR output.
-/// This enum is not used as a Token, it will be used as a field in the structure Attributes which is a part of
-/// the structure FunctionDefinition   
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum FormalVerificationAttribute {
-    Ensures(Expression),
-    Requires(Expression),
 }
 
 impl AsRef<str> for FunctionAttribute {

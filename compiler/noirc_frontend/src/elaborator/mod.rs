@@ -28,7 +28,7 @@ use crate::{
     hir_def::traits::TraitImpl,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::{FuncMeta, FunctionBody, HirFunction, ResolvedFvAttribute},
+        function::{FuncMeta, FunctionBody, HirFunction},
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
@@ -37,7 +37,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, StructId, TraitId, TraitImplId, TypeAliasId,
     },
-    token::{Attributes, CustomAttribute, FormalVerificationAttribute, SecondaryAttribute},
+    token::{CustomAttribute, SecondaryAttribute},
     Shared, Type, TypeVariable,
 };
 
@@ -160,9 +160,6 @@ pub struct Elaborator<'context> {
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
-
-    /// Indicates if we have to elaborate or ignore formal verification attributes.
-    perform_formal_verification: bool,
 }
 
 #[derive(Default)]
@@ -186,7 +183,6 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
-        perform_formal_verification: bool,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -211,7 +207,6 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
-            perform_formal_verification,
         }
     }
 
@@ -226,7 +221,6 @@ impl<'context> Elaborator<'context> {
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
-            context.perform_formal_verification,
         )
     }
 
@@ -341,8 +335,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
-        for (_, id, noir_function) in functions.functions {
-            self.elaborate_function(id, Some(noir_function.attributes()));
+        for (_, id, _) in functions.functions {
+            self.elaborate_function(id);
         }
 
         self.generics.clear();
@@ -369,7 +363,7 @@ impl<'context> Elaborator<'context> {
         self.generics = all_generics;
     }
 
-    pub(crate) fn elaborate_function(&mut self, id: FuncId, attributes: Option<&Attributes>) {
+    pub(crate) fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");
@@ -430,18 +424,6 @@ impl<'context> Elaborator<'context> {
         // Don't verify the return type for builtin functions & trait function declarations
         if !func_meta.is_stub() {
             self.type_check_function_body(body_type.clone(), &func_meta, hir_func.as_expr());
-        }
-
-        if let Some(attr) = attributes {
-            if !attr.fv_attributes.is_empty() && self.perform_formal_verification {
-                self.elaborate_fv_attributes(
-                    attr.fv_attributes.clone(),
-                    &id,
-                    body_type,
-                    &hir_func,
-                    func_meta.location.span,
-                );
-            }
         }
 
         // Default any type variables that still need defaulting and
@@ -844,7 +826,6 @@ impl<'context> Elaborator<'context> {
             self_type: self.self_type.clone(),
             source_file: self.file,
             custom_attributes: attributes,
-            formal_verification_attributes: Vec::new(),
         };
 
         self.interner.push_fn_meta(meta, func_id);
@@ -1540,62 +1521,6 @@ impl<'context> Elaborator<'context> {
             })
     }
 
-    /// Performs semantic analysis on the formal verification attributes discovered by the parser.
-    ///
-    /// # Arguments
-    ///
-    /// * `fv_attributes` - the parsed attributes
-    /// * `func_id` - this is the `FuncId` of the function to which the attributes are attached
-    /// * `body_type` - this is the semantically inferred type of the expression that is the body of the function
-    /// * `hir_func` - this identifies the same expression
-    /// * `func_span` - represents the span in code
-    fn elaborate_fv_attributes(
-        &mut self,
-        fv_attributes: Vec<FormalVerificationAttribute>,
-        func_id: &FuncId,
-        body_type: Type,
-        hir_func: &HirFunction,
-        func_span: Span,
-    ) {
-        for attribute in fv_attributes {
-            match attribute {
-                FormalVerificationAttribute::Ensures(expr_body) => {
-                    self.add_result_variable_to_scope(body_type.clone(), hir_func, func_span);
-                    let expr_span = expr_body.span;
-                    // Type inference happens here:
-                    let (expr_id, typ) = self.elaborate_expression(expr_body.clone());
-                    // Type checking happens here:
-                    self.unify_with_coercions(&typ, &Type::Bool, expr_id, expr_span, || {
-                        TypeCheckError::TypeMismatch {
-                            expected_typ: Type::Bool.to_string(),
-                            expr_typ: typ.to_string(),
-                            expr_span: expr_span,
-                        }
-                    });
-                    // Saving the attributes in the function metadata:
-                    self.interner
-                        .function_meta_mut(func_id)
-                        .formal_verification_attributes
-                        .push(ResolvedFvAttribute::Ensures(expr_id));
-                }
-                FormalVerificationAttribute::Requires(expr_body) => {
-                    let expr_span = expr_body.span;
-                    let (expr_id, typ) = self.elaborate_expression(expr_body);
-                    self.unify_with_coercions(&typ, &Type::Bool, expr_id, expr_span, || {
-                        TypeCheckError::TypeMismatch {
-                            expected_typ: Type::Bool.to_string(),
-                            expr_typ: typ.to_string(),
-                            expr_span: expr_span,
-                        }
-                    });
-                    self.interner
-                        .function_meta_mut(func_id)
-                        .formal_verification_attributes
-                        .push(ResolvedFvAttribute::Requires(expr_id));
-                }
-            }
-        }
-    }
     fn add_result_variable_to_scope(
         &mut self,
         body_type: Type,

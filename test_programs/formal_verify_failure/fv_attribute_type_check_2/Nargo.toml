@@ -1,7 +1,0 @@
-[package]
-name = "fv_attribute_type_check_fail_1"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.34.0"
-
-[dependencies]

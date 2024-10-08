@@ -180,7 +180,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
                     self.elaborate_in_function(None, |elaborator| {
-                        elaborator.elaborate_function(function, None);
+                        elaborator.elaborate_function(function);
                     });
 
                     self.get_function_body(function, location)

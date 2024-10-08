@@ -1,5 +1,5 @@
 use super::{
-    attributes::{all_attributes, split_attributes_in_two, validate_attributes},
+    attributes::{attributes, validate_attributes},
     block, fresh_statement, ident, keyword, maybe_comp_time, nothing, parameter_name_recovery,
     parameter_recovery, parenthesized, parse_type, pattern,
     primitives::token_kind,
@@ -43,7 +43,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
             }
         });
 
-    all_attributes()
+    attributes()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
@@ -58,14 +58,12 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         )
         .validate(|args, span, emit| {
             let (
-                (((all_attributes, (is_unconstrained, visibility, is_comptime)), name), generics),
+                (((attributes, (is_unconstrained, visibility, is_comptime)), name), generics),
                 params_and_others,
             ) = args;
 
-            let (fv_attributes, attributes) = split_attributes_in_two(all_attributes);
-
             // Validate collected attributes, filtering them into function and secondary variants
-            let attributes = validate_attributes(attributes, fv_attributes, span, emit);
+            let attributes = validate_attributes(attributes, span, emit);
             let function_definition = if let Some(params_and_others) = params_and_others {
                 let (
                     ((parameters, (return_visibility, return_type)), where_clause),
@@ -211,10 +209,7 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        parser::parser::test_helpers::*,
-        token::{FormalVerificationAttribute, SecondaryAttribute},
-    };
+    use crate::parser::parser::test_helpers::*;
 
     #[test]
     fn regression_skip_comment() {
@@ -319,85 +314,5 @@ mod test {
         assert_eq!(noir_function.name(), "foo");
         assert_eq!(noir_function.parameters().len(), 1);
         assert!(noir_function.def.body.statements.is_empty());
-    }
-
-    #[test]
-    fn formal_verification_requires_attribute_parses() {
-        let src = r#"#[requires(x > 2)]
-                    fn foo(x: i32) {}"#;
-
-        let function_definition = parse_with(function_definition(false), src).unwrap();
-        let parsed_attributes = &function_definition.attributes().fv_attributes;
-
-        assert_eq!(parsed_attributes.len(), 1, "Missmatching number of attributes.");
-        let FormalVerificationAttribute::Requires(_) = parsed_attributes[0] else {
-            panic!("Expected 'requires', but got {:?}.", parsed_attributes[0]);
-        };
-    }
-
-    #[test]
-    fn formal_verification_both_attributes_parse() {
-        let src = r#"#[requires(x > 2)]
-                    #[ensures(result < 8)]
-                    fn foo(x: i32) {}"#;
-
-        let function_definition = parse_with(function_definition(false), src).unwrap();
-        let parsed_attributes = &function_definition.attributes().fv_attributes;
-
-        assert_eq!(parsed_attributes.len(), 2, "Missmatching number of attributes.");
-        let FormalVerificationAttribute::Requires(_) = parsed_attributes[0] else {
-            panic!("Expected 'requires', but got {:?}.", parsed_attributes[0]);
-        };
-        let FormalVerificationAttribute::Ensures(_) = parsed_attributes[1] else {
-            panic!("Expected 'ensures', but got {:?}.", parsed_attributes[1]);
-        };
-    }
-
-    #[test]
-    fn formal_verification_attributes_cooperate() {
-        let src = r#"#[requires(x > 2)]
-                    #[deprecated]
-                    #[ensures(result < 8)]
-                    #[requires(x < 5)]
-                    fn foo(x: i32) {}"#;
-
-        let function_definition = parse_with(function_definition(false), src).unwrap();
-        let parsed_fv_attributes = &function_definition.attributes().fv_attributes;
-        let parsed_attributes = &function_definition.attributes().secondary;
-
-        // Check that the formal verification attributes are parsed correctly.
-        assert_eq!(parsed_fv_attributes.len(), 3, "Expected 3 formal verification attributes.");
-        let FormalVerificationAttribute::Requires(_) = parsed_fv_attributes[0] else {
-            panic!("Expected 'requires', but got {:?}.", parsed_fv_attributes[0]);
-        };
-        let FormalVerificationAttribute::Ensures(_) = parsed_fv_attributes[1] else {
-            panic!("Expected 'ensures', but got {:?}.", parsed_fv_attributes[1]);
-        };
-        let FormalVerificationAttribute::Requires(_) = parsed_fv_attributes[2] else {
-            panic!("Expected 'requires', but got {:?}.", parsed_fv_attributes[2]);
-        };
-
-        // Check that the other attributes are not botched by this.
-        assert_eq!(parsed_attributes.len(), 1, "Expected 1 secondary attributes.");
-        let SecondaryAttribute::Deprecated(_) = parsed_attributes[0] else {
-            panic!("Expected 'deprecated', but got {:?}.", parsed_attributes[0]);
-        };
-    }
-
-    #[test]
-    fn formal_verification_wrong_attribute_defs() {
-        parse_all_failing(
-            function_definition(false),
-            vec![
-                "#[requires(x > 2) fn foo(x: i32) {}",
-                "#[ensures(result > 5] fn foo(x: i32) {}",
-                "#[ensures result > 5)] fn foo(x: i32) {}",
-                "#[ensures result > 5] fn foo(x: i32) {}",
-                "#[requires] fn foo(x: i32) {}",
-                "#[ensures] fn foo(x: i32) {}",
-                "#[ensures()] fn foo(x: i32) {}",
-                "#[ensures(result > 4)x] fn foo(x: i32) {}",
-            ],
-        );
     }
 }

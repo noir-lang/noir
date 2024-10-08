@@ -167,9 +167,6 @@ pub struct FuncMeta {
 
     /// Custom attributes attached to this function.
     pub custom_attributes: Vec<CustomAttribute>,
-
-    /// Formal verification attributes attached to this function
-    pub formal_verification_attributes: Vec<ResolvedFvAttribute>,
 }
 
 #[derive(Debug, Clone)]
@@ -177,12 +174,6 @@ pub enum FunctionBody {
     Unresolved(FunctionKind, BlockExpression, Span),
     Resolving,
     Resolved,
-}
-
-#[derive(Debug, Clone)]
-pub enum ResolvedFvAttribute {
-    Ensures(ExprId),
-    Requires(ExprId),
 }
 
 impl FuncMeta {

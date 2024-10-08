@@ -303,11 +303,7 @@ impl<'a> Lexer<'a> {
 
         let contents_start = self.position + 1;
         let mut attribute_name = self.eat_while(None, |ch| ch != '(' && ch != ']');
-        if Self::is_fv_attribute(&attribute_name) {
-            return Ok(Self::into_fv_attribute_token(&attribute_name)
-                .unwrap()
-                .into_span(start, self.position));
-        }
+
         attribute_name.push_str(&self.eat_while(None, |ch| ch != ']'));
         let word = attribute_name;
         let contents_end = self.position;
@@ -696,23 +692,11 @@ impl<'a> Lexer<'a> {
         c == '\t' || c == '\n' || c == '\r' || c == ' '
     }
 
-    fn is_fv_attribute(attribute_name: &str) -> bool {
-        attribute_name == "requires" || attribute_name == "ensures"
-    }
-
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
         let start = self.position;
         let whitespace = self.eat_while(initial_char.into(), Self::is_code_whitespace);
         SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
-    }
-
-    fn into_fv_attribute_token(attribute_name: &str) -> Option<Token> {
-        match attribute_name {
-            "requires" => Some(Token::Requires),
-            "ensures" => Some(Token::Ensures),
-            _ => None,
-        }
     }
 }
 
@@ -1435,134 +1419,6 @@ mod tests {
         }
     }
 
-    fn assert_fv_attribute_lexes_to_tokens(attribute_text: &str, expected_tokens: Vec<Token>) {
-        let mut lexer = Lexer::new(attribute_text);
-
-        for token in expected_tokens.into_iter() {
-            let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
-        }
-    }
-
-    #[test]
-    fn ensures_attribute() {
-        let input = "#[ensures(result == 4)]\n";
-        let expected = vec![
-            Token::Ensures,
-            Token::LeftParen,
-            Token::Ident("result".to_string()),
-            Token::Equal,
-            Token::Int(4_i128.into()),
-            Token::RightParen,
-            Token::RightBracket,
-            Token::EOF,
-        ];
-
-        assert_fv_attribute_lexes_to_tokens(input, expected);
-    }
-
-    #[test]
-    fn multiple_attributes() {
-        let input = r#"#[ensures(x)]
-        #[ensures(result > 3)]
-        "#;
-        let expected = vec![
-            Token::Ensures,
-            Token::LeftParen,
-            Token::Ident("x".to_string()),
-            Token::RightParen,
-            Token::RightBracket,
-            Token::Ensures,
-            Token::LeftParen,
-            Token::Ident("result".to_string()),
-            Token::Greater,
-            Token::Int(3_i128.into()),
-            Token::RightParen,
-            Token::RightBracket,
-            Token::EOF,
-        ];
-
-        assert_fv_attribute_lexes_to_tokens(input, expected);
-    }
-    #[test]
-    fn requires_attribute() {
-        let input = "#[requires(x == 6)]\n";
-        let expected = vec![
-            Token::Requires,
-            Token::LeftParen,
-            Token::Ident("x".to_string()),
-            Token::Equal,
-            Token::Int(6_i128.into()),
-            Token::RightParen,
-            Token::RightBracket,
-            Token::EOF,
-        ];
-
-        assert_fv_attribute_lexes_to_tokens(input, expected);
-    }
-
-    #[test]
-    fn new_line_in_fv_attribute_body() {
-        let input = r#"#[requires(x
-        == 6)]
-        "#;
-        let expected = vec![
-            Token::Requires,
-            Token::LeftParen,
-            Token::Ident("x".to_string()),
-            Token::Equal,
-            Token::Int(6_i128.into()),
-            Token::RightParen,
-            Token::RightBracket,
-            Token::EOF,
-        ];
-
-        assert_fv_attribute_lexes_to_tokens(input, expected);
-    }
-
-    #[test]
-    fn array_in_fv_attribute_body() {
-        let input = "#[ensures(result[0])]\n";
-        let expected = vec![
-            Token::Ensures,
-            Token::LeftParen,
-            Token::Ident("result".to_string()),
-            Token::LeftBracket,
-            Token::Int(0_i128.into()),
-            Token::RightBracket,
-            Token::RightParen,
-            Token::RightBracket,
-            Token::EOF,
-        ];
-
-        assert_fv_attribute_lexes_to_tokens(input, expected);
-    }
-
-    #[test]
-    fn multiple_attributes_2() {
-        let input = r#"#[requires(x < 2)]
-        #[ensures(result > 3)]
-        "#;
-        let expected = vec![
-            Token::Requires,
-            Token::LeftParen,
-            Token::Ident("x".to_string()),
-            Token::Less,
-            Token::Int(2_i128.into()),
-            Token::RightParen,
-            Token::RightBracket,
-            Token::Ensures,
-            Token::LeftParen,
-            Token::Ident("result".to_string()),
-            Token::Greater,
-            Token::Int(3_i128.into()),
-            Token::RightParen,
-            Token::RightBracket,
-            Token::EOF,
-        ];
-
-        assert_fv_attribute_lexes_to_tokens(input, expected);
-    }
     #[test]
     fn test_non_ascii_comments() {
         let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
