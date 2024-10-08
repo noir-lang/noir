@@ -184,7 +184,7 @@ impl super::FmtVisitor<'_> {
         result
     }
 
-    fn append_comments_if_any<'a>(&self, parser: &mut Parser<'a>, result: &mut String) {
+    fn append_comments_if_any(&self, parser: &mut Parser, result: &mut String) {
         while let Some(token) = parser.eat_kind(TokenKind::Comment) {
             match token.token() {
                 Token::LineComment(..) => {
