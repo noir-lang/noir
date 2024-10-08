@@ -125,7 +125,7 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `rhs` is expected to already be in canonical form.
-        if l_op.inverse() != Some(op) || l_rhs.canonicalize() != *rhs {
+        if l_op.approx_inverse() != Some(op) || l_rhs.canonicalize() != *rhs {
             return None;
         }
 
@@ -204,7 +204,7 @@ impl Type {
             (Addition | Subtraction, Addition | Subtraction) => {
                 // If l_op is a subtraction we want to inverse the rhs operator.
                 if l_op == Subtraction {
-                    op = op.inverse()?;
+                    op = op.approx_inverse()?;
                 }
                 let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
@@ -213,7 +213,7 @@ impl Type {
             (Multiplication | Division, Multiplication | Division) => {
                 // If l_op is a division we want to inverse the rhs operator.
                 if l_op == Division {
-                    op = op.inverse()?;
+                    op = op.approx_inverse()?;
                 }
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const == 0 || l_const % r_const != 0) {
@@ -236,7 +236,7 @@ impl Type {
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
-            if let Some(inverse) = op_a.inverse() {
+            if let Some(inverse) = op_a.approx_inverse() {
                 if let Some(rhs_a_u32) = rhs_a.evaluate_to_u32() {
                     let rhs_a = Box::new(Type::Constant(rhs_a_u32, lhs_a.infix_kind(rhs_a)));
                     let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
@@ -251,7 +251,7 @@ impl Type {
         }
 
         if let Type::InfixExpr(lhs_b, op_b, rhs_b) = other {
-            if let Some(inverse) = op_b.inverse() {
+            if let Some(inverse) = op_b.approx_inverse() {
                 if let Some(rhs_b_u32) = rhs_b.evaluate_to_u32() {
                     let rhs_b = Box::new(Type::Constant(rhs_b_u32, lhs_b.infix_kind(rhs_b)));
                     let new_self = Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b);

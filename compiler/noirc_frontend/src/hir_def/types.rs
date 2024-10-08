@@ -2371,6 +2371,17 @@ impl BinaryTypeOperator {
         match self {
             BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
             BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),
+            BinaryTypeOperator::Multiplication => None,
+            BinaryTypeOperator::Division => None,
+            BinaryTypeOperator::Modulo => None,
+        }
+    }
+
+    /// Return the operator that will "undo" this operation if applied to the rhs
+    fn approx_inverse(self) -> Option<BinaryTypeOperator> {
+        match self {
+            BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
+            BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),
             BinaryTypeOperator::Multiplication => Some(BinaryTypeOperator::Division),
             BinaryTypeOperator::Division => Some(BinaryTypeOperator::Multiplication),
             BinaryTypeOperator::Modulo => None,
