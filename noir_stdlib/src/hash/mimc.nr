@@ -6,7 +6,9 @@ use crate::default::Default;
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
-#[deprecated]
+//
+// Uncommenting this results in deprecated warnings in the stdlib
+// #[deprecated]
 fn mimc<let N: u32>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Field {
     //round 0
     let mut t = x + k;
