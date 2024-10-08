@@ -9,7 +9,6 @@ use crate::{
 use noirc_frontend::{
     ast::{ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility},
     lexer::Lexer,
-    parser::Parser,
     token::{SecondaryAttribute, TokenKind},
 };
 use noirc_frontend::{
@@ -30,7 +29,7 @@ impl super::FmtVisitor<'_> {
         let func_span = func.span();
 
         let fn_header = self.slice(start..name_span.end());
-        let mut result = self.format_fn_header(fn_header);
+        let mut result = self.format_fn_header(fn_header, &func);
 
         let params_open =
             self.span_before(name_span.end()..func_span.start(), Token::LeftParen).start();
@@ -113,89 +112,127 @@ impl super::FmtVisitor<'_> {
     }
 
     // This formats the function outer doc comments, attributes, modifiers, and `fn name`.
-    fn format_fn_header(&self, src: &str) -> String {
+    fn format_fn_header(&self, src: &str, func: &NoirFunction) -> String {
         let mut result = String::new();
-        let lexer = Lexer::new(src).skip_comments(false);
-        let mut parser = Parser::for_lexer(lexer);
+        let mut lexer = Lexer::new(src).skip_comments(false).into_iter().peekable();
 
         // First there might be outer doc comments
-        while let Some(token) = parser.eat_kind(TokenKind::OuterDocComment) {
-            result.push_str(&token.to_string());
-            result.push('\n');
-            result.push_str(&self.indent.to_string());
+        while let Some(Ok(token)) = lexer.peek() {
+            if token.kind() == TokenKind::OuterDocComment {
+                result.push_str(&token.to_string());
+                result.push('\n');
+                result.push_str(&self.indent.to_string());
+                lexer.next();
+
+                self.append_comments_if_any(&mut lexer, &mut result);
+            } else {
+                break;
+            }
         }
 
         // Then, optionally, attributes
-        while let Some((attribute, _span)) = parser.parse_attribute() {
-            result.push_str(&attribute.to_string());
-            result.push('\n');
-            result.push_str(&self.indent.to_string());
+        while let Some(Ok(token)) = lexer.peek() {
+            if token.kind() == TokenKind::Attribute {
+                result.push_str(&token.to_string());
+                result.push('\n');
+                result.push_str(&self.indent.to_string());
+                lexer.next();
 
-            self.append_comments_if_any(&mut parser, &mut result);
+                self.append_comments_if_any(&mut lexer, &mut result);
+            } else {
+                break;
+            }
         }
 
-        self.append_comments_if_any(&mut parser, &mut result);
-
-        let mut is_unconstrained = false;
+        self.append_comments_if_any(&mut lexer, &mut result);
 
         // Then, optionally, the `unconstrained` keyword
         // (eventually we'll stop accepting this, but we keep it for backwards compatibility)
-        if parser.eat_keyword(Keyword::Unconstrained) {
-            is_unconstrained = true;
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Unconstrained) = token.token() {
+                lexer.next();
+            }
         }
 
-        self.append_comments_if_any(&mut parser, &mut result);
+        self.append_comments_if_any(&mut lexer, &mut result);
 
         // Then the visibility
-        let visibility = parser.parse_item_visibility();
-        if visibility != ItemVisibility::Private {
-            result.push_str(&visibility.to_string());
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Pub) = token.token() {
+                lexer.next();
+                if let Some(Ok(token)) = lexer.peek() {
+                    if let Token::LeftParen = token.token() {
+                        lexer.next(); // Skip '('
+                        lexer.next(); // Skip 'crate'
+                        lexer.next(); // Skip ')'
+                    }
+                }
+            }
+        }
+
+        if func.def.visibility != ItemVisibility::Private {
+            result.push_str(&func.def.visibility.to_string());
             result.push(' ');
         }
 
-        self.append_comments_if_any(&mut parser, &mut result);
+        self.append_comments_if_any(&mut lexer, &mut result);
 
         // Then, optionally, and again, the `unconstrained` keyword
-        if parser.eat_keyword(Keyword::Unconstrained) {
-            is_unconstrained = true;
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Unconstrained) = token.token() {
+                lexer.next();
+            }
         }
 
-        if is_unconstrained {
+        if func.def.is_unconstrained {
             result.push_str("unconstrained ");
         }
 
+        self.append_comments_if_any(&mut lexer, &mut result);
+
         // Then, optionally, the `comptime` keyword
-        if parser.eat_keyword(Keyword::Comptime) {
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Comptime) = token.token() {
+                lexer.next();
+            }
+        }
+
+        if func.def.is_comptime {
             result.push_str("comptime ");
         }
 
-        self.append_comments_if_any(&mut parser, &mut result);
+        self.append_comments_if_any(&mut lexer, &mut result);
 
         // Then the `fn` keyword
-        parser.eat_keyword(Keyword::Fn);
+        lexer.next(); // Skip fn
         result.push_str("fn ");
 
-        self.append_comments_if_any(&mut parser, &mut result);
+        self.append_comments_if_any(&mut lexer, &mut result);
 
         // Then the function name
-        let name = parser.eat_ident().unwrap();
-        result.push_str(&name.0.contents);
+        result.push_str(&func.def.name.0.contents);
 
         result
     }
 
-    fn append_comments_if_any(&self, parser: &mut Parser, result: &mut String) {
-        while let Some(token) = parser.eat_kind(TokenKind::Comment) {
+    fn append_comments_if_any(
+        &self,
+        lexer: &mut std::iter::Peekable<Lexer<'_>>,
+        result: &mut String,
+    ) {
+        while let Some(Ok(token)) = lexer.peek() {
             match token.token() {
                 Token::LineComment(..) => {
                     result.push_str(&token.to_string());
                     result.push('\n');
                     result.push_str(&self.indent.to_string());
+                    lexer.next();
                 }
                 Token::BlockComment(..) => {
                     result.push_str(&token.to_string());
+                    lexer.next();
                 }
-                _ => panic!("Expected a line comment or block comment"),
+                _ => break,
             }
         }
     }
