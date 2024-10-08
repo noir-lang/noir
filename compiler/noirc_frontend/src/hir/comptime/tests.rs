@@ -14,7 +14,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
-use crate::parser::parse_program;
+use crate::parse_program;
 
 fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let file = FileId::default();

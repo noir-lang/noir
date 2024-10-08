@@ -16,7 +16,6 @@ acvm.workspace = true
 codespan-reporting.workspace = true
 codespan.workspace = true
 fm.workspace = true
-chumsky.workspace = true
 noirc_printable_type.workspace = true
 serde.workspace = true
 serde_with = "3.2.0"

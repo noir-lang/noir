@@ -138,6 +138,12 @@ pub enum ResolverError {
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("Type `{typ}` is more private than item `{item}`")]
     TypeIsMorePrivateThenItem { typ: String, item: String, span: Span },
+    #[error("Unable to parse attribute `{attribute}`")]
+    UnableToParseAttribute { attribute: String, span: Span },
+    #[error("Attribute function `{function}` is not a path")]
+    AttributeFunctionIsNotAPath { function: String, span: Span },
+    #[error("Attribute function `{name}` is not in scope")]
+    AttributeFunctionNotInScope { name: String, span: Span },
 }
 
 impl ResolverError {
@@ -542,6 +548,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::TypeIsMorePrivateThenItem { typ, item, span } => {
                 Diagnostic::simple_warning(
                     format!("Type `{typ}` is more private than item `{item}`"),
+                    String::new(),
+                    *span,
+                )
+            },
+            ResolverError::UnableToParseAttribute { attribute, span } => {
+                Diagnostic::simple_error(
+                    format!("Unable to parse attribute `{attribute}`"),
+                    "Attribute should be a function or function call".into(),
+                    *span,
+                )
+            },
+            ResolverError::AttributeFunctionIsNotAPath { function, span } => {
+                Diagnostic::simple_error(
+                    format!("Attribute function `{function}` is not a path"),
+                    "An attribute's function should be a single identifier or a path".into(),
+                    *span,
+                )
+            },
+            ResolverError::AttributeFunctionNotInScope { name, span } => {
+                Diagnostic::simple_error(
+                    format!("Attribute function `{name}` is not in scope"),
                     String::new(),
                     *span,
                 )

@@ -2145,6 +2145,7 @@ impl NodeInterner {
 
     pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+            .expect("Called LValue::from_expression with an invalid expression")
     }
 
     pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {

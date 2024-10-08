@@ -63,6 +63,12 @@ return the numeric constant.
 If this is an integer type, return a boolean which is `true`
 if the type is signed, as well as the number of bits of this integer type.
 
+### as_mutable_reference
+
+#include_code as_mutable_reference noir_stdlib/src/meta/typ.nr rust
+
+If this is a mutable reference type `&mut T`, returns the mutable type `T`.
+
 ### as_slice
 
 #include_code as_slice noir_stdlib/src/meta/typ.nr rust
@@ -145,6 +151,12 @@ fn foo<T>() where T: Default {
 #include_code is_field noir_stdlib/src/meta/typ.nr rust
 
 `true` if this type is `Field`.
+
+### is_unit
+
+#include_code is_unit noir_stdlib/src/meta/typ.nr rust
+
+`true` if this type is the unit `()` type.
 
 ## Trait Implementations
 

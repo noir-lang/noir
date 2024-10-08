@@ -5,7 +5,9 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::hir::comptime::display::tokens_to_string;
+use crate::hir::comptime::value::add_token_spans;
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 use crate::{
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
@@ -14,7 +16,7 @@ use crate::{
     hir::{
         comptime::{
             errors::IResult,
-            value::{add_token_spans, ExprValue, TypedExpr},
+            value::{ExprValue, TypedExpr},
             Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
@@ -25,7 +27,6 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{FuncId, NodeInterner, StructId, TraitId, TraitImplId},
-    parser::NoirParser,
     token::{SecondaryAttribute, Token, Tokens},
     QuotedType, Type,
 };
@@ -402,27 +403,32 @@ pub(super) fn lex(input: &str) -> Vec<Token> {
     tokens
 }
 
-pub(super) fn parse<T>(
+pub(super) fn parse<'a, T, F>(
     interner: &NodeInterner,
     (value, location): (Value, Location),
-    parser: impl NoirParser<T>,
+    parser: F,
     rule: &'static str,
-) -> IResult<T> {
-    let parser = parser.then_ignore(chumsky::primitive::end());
+) -> IResult<T>
+where
+    F: FnOnce(&mut Parser<'a>) -> T,
+{
     let tokens = get_quoted((value, location))?;
     let quoted = add_token_spans(tokens.clone(), location.span);
     parse_tokens(tokens, quoted, interner, location, parser, rule)
 }
 
-pub(super) fn parse_tokens<T>(
+pub(super) fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<Token>>,
     quoted: Tokens,
     interner: &NodeInterner,
     location: Location,
-    parser: impl NoirParser<T>,
+    parsing_function: F,
     rule: &'static str,
-) -> IResult<T> {
-    parser.parse(quoted).map_err(|mut errors| {
+) -> IResult<T>
+where
+    F: FnOnce(&mut Parser<'a>) -> T,
+{
+    Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
         let error = errors.swap_remove(0);
         let tokens = tokens_to_string(tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }

@@ -121,16 +121,24 @@ impl FunctionBuilder {
                 databus.index += 1;
             }
             Type::Array(typ, len) => {
-                assert!(typ.len() == 1, "unsupported composite type");
                 databus.map.insert(value, databus.index);
-                for i in 0..len {
-                    // load each element of the array
-                    let index = self
-                        .current_function
-                        .dfg
-                        .make_constant(FieldElement::from(i as i128), Type::length_type());
-                    let element = self.insert_array_get(value, index, typ[0].clone());
-                    self.add_to_data_bus(element, databus);
+
+                let mut index = 0;
+                for _i in 0..len {
+                    for subitem_typ in typ.iter() {
+                        // load each element of the array, and add it to the databus
+                        let index_var = self
+                            .current_function
+                            .dfg
+                            .make_constant(FieldElement::from(index as i128), Type::length_type());
+                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
+                        index += match subitem_typ {
+                            Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
+                            Type::Numeric(_) => 1,
+                            _ => unreachable!("Unsupported type for databus"),
+                        };
+                        self.add_to_data_bus(element, databus);
+                    }
                 }
             }
             Type::Reference(_) => {

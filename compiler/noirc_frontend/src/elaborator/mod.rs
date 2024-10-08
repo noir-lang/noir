@@ -846,6 +846,9 @@ impl<'context> Elaborator<'context> {
                 for generic in generics {
                     self.mark_parameter_type_as_used(generic);
                 }
+                for (_, typ) in struct_type.borrow().get_fields(generics) {
+                    self.mark_parameter_type_as_used(&typ);
+                }
             }
             Type::Alias(alias_type, generics) => {
                 self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
@@ -871,15 +874,6 @@ impl<'context> Elaborator<'context> {
             | Type::Function(..)
             | Type::Forall(..)
             | Type::Error => (),
-        }
-
-        if let Type::Alias(alias_type, generics) = typ {
-            self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
-            return;
-        }
-
-        if let Type::Struct(struct_type, _generics) = typ {
-            self.mark_struct_as_constructed(struct_type.clone());
         }
     }
 

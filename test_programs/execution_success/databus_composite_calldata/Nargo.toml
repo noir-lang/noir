@@ -1,0 +1,6 @@
+[package]
+name = "databus_composite_calldata"
+type = "bin"
+authors = [""]
+
+[dependencies]

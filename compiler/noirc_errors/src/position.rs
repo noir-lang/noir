@@ -8,7 +8,7 @@ use std::{
 
 pub type Position = u32;
 
-#[derive(PartialOrd, Eq, Ord, Debug, Clone)]
+#[derive(PartialOrd, Eq, Ord, Debug, Clone, Default)]
 pub struct Spanned<T> {
     pub contents: T,
     span: Span,
@@ -118,26 +118,6 @@ impl From<Span> for Range<usize> {
 impl From<Range<u32>> for Span {
     fn from(Range { start, end }: Range<u32>) -> Self {
         Self(ByteSpan::new(start, end))
-    }
-}
-
-impl chumsky::Span for Span {
-    type Context = ();
-
-    type Offset = u32;
-
-    fn new(_context: Self::Context, range: Range<Self::Offset>) -> Self {
-        Span(ByteSpan::from(range))
-    }
-
-    fn context(&self) -> Self::Context {}
-
-    fn start(&self) -> Self::Offset {
-        self.start()
-    }
-
-    fn end(&self) -> Self::Offset {
-        self.end()
     }
 }
 

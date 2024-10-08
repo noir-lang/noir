@@ -301,6 +301,11 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
+        let is_tag = self.peek_char_is('\'');
+        if is_tag {
+            self.next_char();
+        }
+
         let contents_start = self.position + 1;
 
         let word = self.eat_while(None, |ch| ch != ']');
@@ -321,7 +326,7 @@ impl<'a> Lexer<'a> {
         let span = Span::inclusive(start, end);
         let contents_span = Span::inclusive(contents_start, contents_end);
 
-        let attribute = Attribute::lookup_attribute(&word, span, contents_span)?;
+        let attribute = Attribute::lookup_attribute(&word, span, contents_span, is_tag)?;
         if is_inner {
             match attribute {
                 Attribute::Function(attribute) => Err(LexerErrorKind::InvalidInnerAttribute {
@@ -838,17 +843,17 @@ mod tests {
     }
 
     #[test]
-    fn custom_attribute() {
-        let input = r#"#[custom(hello)]"#;
+    fn tag_attribute() {
+        let input = r#"#['custom(hello)]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Tag(CustomAttribute {
                 contents: "custom(hello)".to_string(),
-                span: Span::from(0..16),
-                contents_span: Span::from(2..15)
+                span: Span::from(0..17),
+                contents_span: Span::from(3..16)
             })))
         );
     }
@@ -943,7 +948,7 @@ mod tests {
         let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
-            &Token::InnerAttribute(SecondaryAttribute::Custom(CustomAttribute {
+            &Token::InnerAttribute(SecondaryAttribute::Meta(CustomAttribute {
                 contents: "something".to_string(),
                 span: Span::from(0..13),
                 contents_span: Span::from(3..12),

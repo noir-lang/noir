@@ -309,6 +309,7 @@ impl Expression {
 pub type BinaryOp = Spanned<BinaryOpKind>;
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum BinaryOpKind {
     Add,
     Subtract,
@@ -873,7 +874,7 @@ impl FunctionDefinition {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self.attributes)?;
-        write!(f, "fn {} {}", self.signature(), self.body)
+        write!(f, "{} {}", self.signature(), self.body)
     }
 }
 

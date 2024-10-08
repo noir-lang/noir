@@ -45,7 +45,12 @@ prettytable-rs = "0.10"
 rayon.workspace = true
 thiserror.workspace = true
 tower.workspace = true
-async-lsp = { workspace = true, features = ["client-monitor", "stdio", "tracing", "tokio"] }
+async-lsp = { workspace = true, features = [
+    "client-monitor",
+    "stdio",
+    "tracing",
+    "tokio",
+] }
 const_format.workspace = true
 similar-asserts.workspace = true
 termcolor = "1.1.2"
@@ -75,8 +80,12 @@ fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true
 paste = "1.0.14"
+proptest.workspace = true
+sha2.workspace = true
+sha3.workspace = true
 iai = "0.1.1"
 test-binary = "3.0.2"
+
 
 [[bench]]
 name = "criterion"

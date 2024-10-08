@@ -595,7 +595,7 @@ mod completion_tests {
             vec![simple_completion_item(
                 "lambda_var",
                 CompletionItemKind::VARIABLE,
-                Some("_".to_string()),
+                Some("i32".to_string()),
             )],
         )
         .await;

@@ -1391,7 +1391,7 @@ impl SecondaryAttribute {
     }
 
     pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if let SecondaryAttribute::Custom(custom) = self {
+        if let SecondaryAttribute::Meta(custom) = self {
             custom.accept(target, visitor);
         }
     }

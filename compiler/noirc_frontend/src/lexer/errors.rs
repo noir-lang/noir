@@ -143,10 +143,3 @@ impl<'a> From<&'a LexerErrorKind> for Diagnostic {
         Diagnostic::simple_error(primary, secondary, span)
     }
 }
-
-impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken, Span> {
-    fn from(error: LexerErrorKind) -> Self {
-        let (_, message, span) = error.parts();
-        chumsky::error::Simple::custom(span, message)
-    }
-}
