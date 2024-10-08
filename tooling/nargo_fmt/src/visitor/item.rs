@@ -157,8 +157,10 @@ impl super::FmtVisitor<'_> {
         self.append_comments_if_any(&mut lexer, &mut result);
 
         // Then the visibility
+        let mut has_visibility = false;
         if let Some(Ok(token)) = lexer.peek() {
             if let Token::Keyword(Keyword::Pub) = token.token() {
+                has_visibility = true;
                 lexer.next();
                 if let Some(Ok(token)) = lexer.peek() {
                     if let Token::LeftParen = token.token() {
@@ -170,7 +172,7 @@ impl super::FmtVisitor<'_> {
             }
         }
 
-        if func.def.visibility != ItemVisibility::Private {
+        if has_visibility {
             result.push_str(&func.def.visibility.to_string());
             result.push(' ');
         }
