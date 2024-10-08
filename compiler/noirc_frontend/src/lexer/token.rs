@@ -378,8 +378,16 @@ impl fmt::Display for Token {
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::InnerAttribute(ref a) => write!(f, "#![{a}]"),
-            Token::LineComment(ref s, _style) => write!(f, "//{s}"),
-            Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
+            Token::LineComment(ref s, style) => match style {
+                Some(DocStyle::Inner) => write!(f, "//!{s}"),
+                Some(DocStyle::Outer) => write!(f, "///{s}"),
+                None => write!(f, "//{s}"),
+            },
+            Token::BlockComment(ref s, style) => match style {
+                Some(DocStyle::Inner) => write!(f, "/*!{s}*/"),
+                Some(DocStyle::Outer) => write!(f, "/**{s}*/"),
+                None => write!(f, "/*{s}*/"),
+            },
             Token::Quote(ref stream) => {
                 write!(f, "quote {{")?;
                 for token in stream.0.iter() {
@@ -456,6 +464,7 @@ pub enum TokenKind {
     InternedUnresolvedTypeData,
     InternedPattern,
     UnquoteMarker,
+    Comment,
     OuterDocComment,
     InnerDocComment,
 }
@@ -477,6 +486,7 @@ impl fmt::Display for TokenKind {
             TokenKind::InternedUnresolvedTypeData => write!(f, "interned unresolved type"),
             TokenKind::InternedPattern => write!(f, "interned pattern"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
+            TokenKind::Comment => write!(f, "comment"),
             TokenKind::OuterDocComment => write!(f, "outer doc comment"),
             TokenKind::InnerDocComment => write!(f, "inner doc comment"),
         }
@@ -503,6 +513,7 @@ impl Token {
             Token::InternedLValue(_) => TokenKind::InternedLValue,
             Token::InternedUnresolvedTypeData(_) => TokenKind::InternedUnresolvedTypeData,
             Token::InternedPattern(_) => TokenKind::InternedPattern,
+            Token::LineComment(_, None) | Token::BlockComment(_, None) => TokenKind::Comment,
             Token::LineComment(_, Some(DocStyle::Outer))
             | Token::BlockComment(_, Some(DocStyle::Outer)) => TokenKind::OuterDocComment,
             Token::LineComment(_, Some(DocStyle::Inner))
@@ -635,8 +646,8 @@ impl fmt::Display for TestScope {
         match self {
             TestScope::None => write!(f, ""),
             TestScope::ShouldFailWith { reason } => match reason {
-                Some(failure_reason) => write!(f, "(should_fail_with = ({failure_reason}))"),
-                None => write!(f, "should_fail"),
+                Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
+                None => write!(f, "(should_fail)"),
             },
         }
     }
@@ -991,7 +1002,7 @@ impl fmt::Display for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(None) => write!(f, "#[deprecated]"),
             SecondaryAttribute::Deprecated(Some(ref note)) => {
-                write!(f, r#"#[deprecated("{note}")]"#)
+                write!(f, r#"#[deprecated({note:?})]"#)
             }
             SecondaryAttribute::Tag(ref attribute) => write!(f, "#['{}]", attribute.contents),
             SecondaryAttribute::Meta(ref attribute) => write!(f, "#[{}]", attribute.contents),

@@ -18,11 +18,11 @@ impl<'a> Parser<'a> {
     }
 
     /// Attributes = attribute*
-    pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
+    pub fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
         self.parse_many("attributes", without_separator(), Self::parse_attribute)
     }
 
-    fn parse_attribute(&mut self) -> Option<(Attribute, Span)> {
+    pub fn parse_attribute(&mut self) -> Option<(Attribute, Span)> {
         self.eat_kind(TokenKind::Attribute).map(|token| match token.into_token() {
             Token::Attribute(attribute) => (attribute, self.previous_token_span),
             _ => unreachable!(),

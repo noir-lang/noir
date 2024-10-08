@@ -8,7 +8,9 @@ use crate::{
 };
 use noirc_frontend::{
     ast::{ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility},
-    token::SecondaryAttribute,
+    lexer::Lexer,
+    parser::Parser,
+    token::{SecondaryAttribute, TokenKind},
 };
 use noirc_frontend::{
     hir::resolution::errors::Span,
@@ -27,7 +29,8 @@ impl super::FmtVisitor<'_> {
         let name_span = func.name_ident().span();
         let func_span = func.span();
 
-        let mut result = self.slice(start..name_span.end()).to_owned();
+        let fn_header = self.slice(start..name_span.end());
+        let mut result = self.format_fn_header(fn_header);
 
         let params_open =
             self.span_before(name_span.end()..func_span.start(), Token::LeftParen).start();
@@ -107,6 +110,82 @@ impl super::FmtVisitor<'_> {
         let maybe_comment = self.slice(params_end..func_span.start());
 
         (result.trim_end().to_string(), last_line_contains_single_line_comment(maybe_comment))
+    }
+
+    // This formats the function outer doc comments, attributes, modifiers, and `fn name`.
+    fn format_fn_header(&self, src: &str) -> String {
+        let mut result = String::new();
+        let lexer = Lexer::new(src).skip_comments(false);
+        let mut parser = Parser::for_lexer(lexer);
+
+        // First there might be outer doc comments
+        while let Some(token) = parser.eat_kind(TokenKind::OuterDocComment) {
+            result.push_str(&token.to_string());
+            result.push('\n');
+            result.push_str(&self.indent.to_string());
+        }
+
+        // Then, optionally, attributes
+        while let Some((attribute, _span)) = parser.parse_attribute() {
+            result.push_str(&attribute.to_string());
+            result.push('\n');
+            result.push_str(&self.indent.to_string());
+
+            self.append_comments_if_any(&mut parser, &mut result);
+        }
+
+        self.append_comments_if_any(&mut parser, &mut result);
+
+        // Then, optionally, the `unconstrained` keyword
+        if parser.eat_keyword(Keyword::Unconstrained) {
+            result.push_str("unconstrained ");
+        }
+
+        self.append_comments_if_any(&mut parser, &mut result);
+
+        // Then the visibility
+        let visibility = parser.parse_item_visibility();
+        if visibility != ItemVisibility::Private {
+            result.push_str(&visibility.to_string());
+            result.push(' ');
+        }
+
+        self.append_comments_if_any(&mut parser, &mut result);
+
+        // Then, optionally, the `comptime` keyword
+        if parser.eat_keyword(Keyword::Comptime) {
+            result.push_str("comptime ");
+        }
+
+        self.append_comments_if_any(&mut parser, &mut result);
+
+        // Then the `fn` keyword
+        parser.eat_keyword(Keyword::Fn);
+        result.push_str("fn ");
+
+        self.append_comments_if_any(&mut parser, &mut result);
+
+        // Then the function name
+        let name = parser.eat_ident().unwrap();
+        result.push_str(&name.0.contents);
+
+        result
+    }
+
+    fn append_comments_if_any<'a>(&self, parser: &mut Parser<'a>, result: &mut String) {
+        while let Some(token) = parser.eat_kind(TokenKind::Comment) {
+            match token.token() {
+                Token::LineComment(..) => {
+                    result.push_str(&token.to_string());
+                    result.push('\n');
+                    result.push_str(&self.indent.to_string());
+                }
+                Token::BlockComment(..) => {
+                    result.push_str(&token.to_string());
+                }
+                _ => panic!("Expected a line comment or block comment"),
+            }
+        }
     }
 
     fn format_return_type(

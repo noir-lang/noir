@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_kind(&mut self, kind: TokenKind) -> Option<SpannedToken> {
+    pub fn eat_kind(&mut self, kind: TokenKind) -> Option<SpannedToken> {
         if self.token.kind() == kind {
             Some(self.bump())
         } else {
@@ -198,7 +198,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_keyword(&mut self, keyword: Keyword) -> bool {
+    pub fn eat_keyword(&mut self, keyword: Keyword) -> bool {
         if let Token::Keyword(kw) = self.token.token() {
             if *kw == keyword {
                 self.bump();
@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_ident(&mut self) -> Option<Ident> {
+    pub fn eat_ident(&mut self) -> Option<Ident> {
         if let Some(token) = self.eat_kind(TokenKind::Ident) {
             match token.into_token() {
                 Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_span)),
