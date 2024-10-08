@@ -278,6 +278,7 @@ impl std::fmt::Display for Kind {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum QuotedType {
     Expr,
     Quoted,

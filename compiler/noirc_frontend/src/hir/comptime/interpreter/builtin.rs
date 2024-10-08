@@ -10,7 +10,6 @@ use builtin_helpers::{
     mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
-use chumsky::{chain::Chain, prelude::choice, primitive::just, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -38,7 +37,7 @@ use crate::{
         function::FunctionBody,
     },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
-    parser,
+    parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
@@ -687,15 +686,21 @@ fn quoted_as_expr(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let expr_parser = parser::expression().map(|expr| Value::expression(expr.kind));
-    let statement_parser = parser::fresh_statement().map(Value::statement);
-    let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
-    let parser = choice((expr_parser, statement_parser, lvalue_parser));
-    let parser = parser.then_ignore(just(Token::Semicolon).or_not());
+    let result =
+        parse(interner, argument, Parser::parse_statement_or_expression_or_lvalue, "an expression");
 
-    let expr = parse(interner, argument, parser, "an expression").ok();
+    let value =
+        result.ok().map(
+            |statement_or_expression_or_lvalue| match statement_or_expression_or_lvalue {
+                StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
+                StatementOrExpressionOrLValue::Statement(statement) => {
+                    Value::statement(statement.kind)
+                }
+                StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
+            },
+        );
 
-    option(return_type, expr)
+    option(return_type, value)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
@@ -707,9 +712,13 @@ fn quoted_as_module(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let path =
-        parse(interpreter.elaborator.interner, argument, parser::path_no_turbofish(), "a path")
-            .ok();
+    let path = parse(
+        interpreter.elaborator.interner,
+        argument,
+        Parser::parse_path_no_turbofish_or_error,
+        "a path",
+    )
+    .ok();
     let option_value = path.and_then(|path| {
         let module = interpreter
             .elaborate_in_function(interpreter.current_function, |elaborator| {
@@ -731,7 +740,7 @@ fn quoted_as_trait_constraint(
     let trait_bound = parse(
         interpreter.elaborator.interner,
         argument,
-        parser::trait_bound(),
+        Parser::parse_trait_bound_or_error,
         "a trait constraint",
     )?;
     let bound = interpreter
@@ -750,7 +759,8 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(interpreter.elaborator.interner, argument, parser::parse_type(), "a type")?;
+    let typ =
+        parse(interpreter.elaborator.interner, argument, Parser::parse_type_or_error, "a type")?;
     let typ = interpreter
         .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
@@ -2235,7 +2245,7 @@ fn function_def_add_attribute(
         }
     }
 
-    if let Attribute::Secondary(SecondaryAttribute::Custom(attribute)) = attribute {
+    if let Attribute::Secondary(SecondaryAttribute::Tag(attribute)) = attribute {
         let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
         func_meta.custom_attributes.push(attribute);
     }
@@ -2437,7 +2447,7 @@ fn function_def_set_parameters(
         let parameter_pattern = parse(
             interpreter.elaborator.interner,
             (tuple.pop().unwrap(), parameters_argument_location),
-            parser::pattern(),
+            Parser::parse_pattern_or_error,
             "a pattern",
         )?;
 
@@ -2538,7 +2548,7 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
 
-    let parser = parser::top_level_items();
+    let parser = Parser::parse_top_level_items;
     let top_level_statements =
         parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
 
