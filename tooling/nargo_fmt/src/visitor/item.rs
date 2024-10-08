@@ -6,8 +6,9 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::ast::{
-    ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility,
+use noirc_frontend::{
+    ast::{ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility},
+    token::SecondaryAttribute,
 };
 use noirc_frontend::{
     hir::resolution::errors::Span,
@@ -170,7 +171,9 @@ impl super::FmtVisitor<'_> {
                     }
 
                     for attribute in module.outer_attributes {
-                        self.push_str(&format!("#[{}]\n", attribute.as_ref()));
+                        let is_tag = matches!(attribute, SecondaryAttribute::Tag(_));
+                        let tag = if is_tag { "'" } else { "" };
+                        self.push_str(&format!("#[{tag}{}]\n", attribute.as_ref()));
                         self.push_str(&self.indent.to_string());
                     }
 

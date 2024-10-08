@@ -118,6 +118,8 @@ pub comptime fn make_trait_impl<Env1, Env2>(
 }
 
 mod tests {
+    use crate::meta::derive_via;
+
     // docs:start:quote-example
     comptime fn quote_one() -> Quoted {
         quote { 1 }
