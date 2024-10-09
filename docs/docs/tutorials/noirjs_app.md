@@ -24,7 +24,7 @@ Before we start, we want to make sure we have Node, Nargo and the Barretenberg p
 
 We start by opening a terminal and executing `node --version`. If we don't get an output like `v20.10.0`, that means node is not installed. Let's do that by following the handy [nvm guide](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script).
 
-As for `Nargo`, we can follow the [Nargo guide](../getting_started.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
+As for `Nargo`, we can follow the [Nargo guide](../getting_started/quick_start.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
 
 ```sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
@@ -78,7 +78,7 @@ At this point in the tutorial, your folder structure should look like this:
 ### Node and Vite
 
 If you want to explore Nargo, feel free to go on a side-quest now and follow the steps in the
-[getting started](../getting_started.md) guide. However, we want our app to run on the browser, so we need Vite.
+[getting started](../getting_started/quick_start.md) guide. However, we want our app to run on the browser, so we need Vite.
 
 Vite is a powerful tool to generate static websites. While it provides all kinds of features, let's just go barebones with some good old vanilla JS.
 
