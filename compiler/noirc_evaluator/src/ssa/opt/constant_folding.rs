@@ -855,7 +855,7 @@ mod test {
         // }
         //
         // Here we're checking a situation where two identical arrays are initialized twice, checking that these result in the same `ValueId`.
-        // Previously these would receive separate `ValueId`s resulting in instructions not being properly deduplicated.
+        // Previously, these would receive separate `ValueId`s resulting in instructions not being properly deduplicated.
         let main_id = Id::test_new(0);
 
         // Compiling main
