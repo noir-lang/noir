@@ -10,6 +10,7 @@ use noirc_abi::{
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_driver::CompiledProgram;
 use pprof::criterion::{Output, PProfProfiler};
+use std::hint::black_box;
 use std::path::Path;
 use std::{cell::RefCell, collections::BTreeMap};
 use std::{process::Command, time::Duration};
@@ -128,12 +129,12 @@ fn criterion_selected_tests_execution(c: &mut Criterion) {
                     let (program, initial_witness) =
                         artifacts.as_ref().expect("setup compiled the program");
 
-                    let _witness_stack = nargo::ops::execute_program(
-                        &program.program,
-                        initial_witness.clone(),
+                    let _witness_stack = black_box(nargo::ops::execute_program(
+                        black_box(&program.program),
+                        black_box(initial_witness.clone()),
                         &bn254_blackbox_solver::Bn254BlackBoxSolver,
                         &mut foreign_call_executor,
-                    )
+                    ))
                     .expect("failed to execute program");
                 },
                 criterion::BatchSize::SmallInput,
