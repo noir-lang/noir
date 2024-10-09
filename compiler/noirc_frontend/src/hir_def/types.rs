@@ -172,10 +172,17 @@ impl Kind {
         matches!(self.follow_bindings(), Self::Numeric { .. })
     }
 
-    pub(crate) fn is_field_element(&self) -> bool {
+    pub(crate) fn is_type_level_field_element(&self) -> bool {
+        let type_level = false;
+        self.is_field_element(type_level)
+    }
+
+    /// If value_level, only check for Type::FieldElement,
+    /// else only check for a type-level FieldElement
+    fn is_field_element(&self, value_level: bool) -> bool {
         match self.follow_bindings() {
-            Kind::Numeric(typ) => typ.is_field_element(),
-            Kind::IntegerOrField => true,
+            Kind::Numeric(typ) => typ.is_field_element(value_level),
+            Kind::IntegerOrField => value_level,
             _ => false,
         }
     }
@@ -760,10 +767,12 @@ impl TypeVariable {
         }
     }
 
-    fn is_field_element(&self) -> bool {
+    /// If value_level, only check for Type::FieldElement,
+    /// else only check for a type-level FieldElement
+    fn is_field_element(&self, value_level: bool) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => binding.is_field_element(),
-            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(),
+            TypeBinding::Bound(binding) => binding.is_field_element(value_level),
+            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(value_level),
         }
     }
 }
@@ -994,11 +1003,13 @@ impl Type {
         matches!(self.follow_bindings(), Type::Integer(_, _))
     }
 
-    fn is_field_element(&self) -> bool {
+    /// If value_level, only check for Type::FieldElement,
+    /// else only check for a type-level FieldElement
+    fn is_field_element(&self, value_level: bool) -> bool {
         match self.follow_bindings() {
-            Type::FieldElement => true,
-            Type::TypeVariable(var) => var.is_field_element(),
-            Type::Constant(_, kind) => kind.is_field_element(),
+            Type::FieldElement => value_level,
+            Type::TypeVariable(var) => var.is_field_element(value_level),
+            Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
             _ => false,
         }
     }
@@ -1888,6 +1899,8 @@ impl Type {
             .and_then(|field_element| field_element.try_to_u32())
     }
 
+    // TODO(https://github.com/noir-lang/noir/issues/6260): remove
+    // the unifies checks once all kinds checks are implemented?
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
@@ -2421,7 +2434,7 @@ impl Type {
             Type::Integer(sign, num_bits) => {
                 let mut max_bit_size = num_bits.bit_size();
                 if sign == &Signedness::Signed {
-                    max_bit_size >>= 1;
+                    max_bit_size -= 1;
                 }
                 Some(((1u128 << max_bit_size) - 1).into())
             }
@@ -2436,7 +2449,7 @@ impl Type {
                     TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 }
             }
-            Type::Alias(alias, _args) => alias.borrow().typ.integral_maximum_size(),
+            Type::Alias(alias, args) => alias.borrow().get_type(args).integral_maximum_size(),
             Type::NamedGeneric(binding, _name) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
@@ -2505,16 +2518,15 @@ impl BinaryTypeOperator {
                 BinaryTypeOperator::Division => (b != FieldElement::zero()).then(|| a / b),
                 BinaryTypeOperator::Modulo => None,
             },
-            Some(maximum_size) => {
-                let maximum_size = maximum_size.to_i128();
+            Some(_maximum_size) => {
                 let a = a.to_i128();
                 let b = b.to_i128();
 
                 let result = match self {
-                    BinaryTypeOperator::Addition => (a + b) % maximum_size,
-                    BinaryTypeOperator::Subtraction => (a - b) % maximum_size,
-                    BinaryTypeOperator::Multiplication => (a * b) % maximum_size,
-                    BinaryTypeOperator::Division => (a.checked_div(b)?) % maximum_size,
+                    BinaryTypeOperator::Addition => a.checked_add(b)?,
+                    BinaryTypeOperator::Subtraction => a.checked_sub(b)?,
+                    BinaryTypeOperator::Multiplication => a.checked_mul(b)?,
+                    BinaryTypeOperator::Division => a.checked_div(b)?,
                     BinaryTypeOperator::Modulo => a.checked_rem(b)?,
                 };
 

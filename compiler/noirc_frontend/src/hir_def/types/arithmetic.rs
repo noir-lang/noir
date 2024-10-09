@@ -224,7 +224,7 @@ impl Type {
                     op = op.inverse()?;
                 }
 
-                let divides_evenly = !lhs.infix_kind(rhs).is_field_element()
+                let divides_evenly = !lhs.infix_kind(rhs).is_type_level_field_element()
                     && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
 
                 // If op is a division we need to ensure it divides evenly

@@ -904,31 +904,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return self.evaluate_overloaded_infix(infix, lhs_value, rhs_value, id);
         }
 
-        fn make_error_value(
-            lhs: &Value,
-            rhs: &Value,
-            location: Location,
-            operator: &'static str,
-        ) -> InterpreterError {
-            let lhs = lhs.get_type().into_owned();
-            let rhs = rhs.get_type().into_owned();
-            InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
-        }
-
-        // make_error_value if the result is None
-        fn or_err<T>(
-            lhs_rhs_location: (&Value, &Value, Location),
-            operator: &'static str,
-            result: Option<T>,
-        ) -> IResult<T> {
-            let (lhs, rhs, location) = lhs_rhs_location;
-            result.ok_or(make_error_value(lhs, rhs, location, operator))
-        }
-
+        let lhs_type = lhs_value.get_type().into_owned();
+        let rhs_type = rhs_value.get_type().into_owned();
         let location = self.elaborator.interner.expr_location(&id);
-        let error_ctx = (&lhs_value, &rhs_value, location);
-        let make_error = |lhs: Value, rhs: Value, operator| -> IResult<Value> {
-            Err(make_error_value(&lhs, &rhs, location, operator))
+
+        let error = |operator| {
+            let lhs = lhs_type.clone();
+            let rhs = rhs_type.clone();
+            InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
         };
 
         use InterpreterError::InvalidValuesForBinary;
@@ -936,114 +919,114 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             BinaryOpKind::Add => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs + rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
-                    Ok(Value::I8(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::I8(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
                 (Value::I16(lhs), Value::I16(rhs)) => {
-                    Ok(Value::I16(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::I16(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
                 (Value::I32(lhs), Value::I32(rhs)) => {
-                    Ok(Value::I32(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::I32(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
                 (Value::I64(lhs), Value::I64(rhs)) => {
-                    Ok(Value::I64(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::I64(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
                 (Value::U8(lhs), Value::U8(rhs)) => {
-                    Ok(Value::U8(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::U8(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
                 (Value::U16(lhs), Value::U16(rhs)) => {
-                    Ok(Value::U16(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::U16(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
                 (Value::U32(lhs), Value::U32(rhs)) => {
-                    Ok(Value::U32(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::U32(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
                 (Value::U64(lhs), Value::U64(rhs)) => {
-                    Ok(Value::U64(or_err(error_ctx, "+", lhs.checked_add(rhs))?))
+                    Ok(Value::U64(lhs.checked_add(rhs).ok_or(error("+"))?))
                 }
-                (lhs, rhs) => make_error(lhs, rhs, "+"),
+                (lhs, rhs) => Err(error("+")),
             },
             BinaryOpKind::Subtract => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs - rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
-                    Ok(Value::I8(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::I8(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
                 (Value::I16(lhs), Value::I16(rhs)) => {
-                    Ok(Value::I16(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::I16(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
                 (Value::I32(lhs), Value::I32(rhs)) => {
-                    Ok(Value::I32(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::I32(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
                 (Value::I64(lhs), Value::I64(rhs)) => {
-                    Ok(Value::I64(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::I64(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
                 (Value::U8(lhs), Value::U8(rhs)) => {
-                    Ok(Value::U8(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::U8(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
                 (Value::U16(lhs), Value::U16(rhs)) => {
-                    Ok(Value::U16(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::U16(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
                 (Value::U32(lhs), Value::U32(rhs)) => {
-                    Ok(Value::U32(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::U32(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
                 (Value::U64(lhs), Value::U64(rhs)) => {
-                    Ok(Value::U64(or_err(error_ctx, "-", lhs.checked_sub(rhs))?))
+                    Ok(Value::U64(lhs.checked_sub(rhs).ok_or(error("-"))?))
                 }
-                (lhs, rhs) => make_error(lhs, rhs, "-"),
+                (lhs, rhs) => Err(error("-")),
             },
             BinaryOpKind::Multiply => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs * rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
-                    Ok(Value::I8(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::I8(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
                 (Value::I16(lhs), Value::I16(rhs)) => {
-                    Ok(Value::I16(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::I16(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
                 (Value::I32(lhs), Value::I32(rhs)) => {
-                    Ok(Value::I32(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::I32(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
                 (Value::I64(lhs), Value::I64(rhs)) => {
-                    Ok(Value::I64(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::I64(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
                 (Value::U8(lhs), Value::U8(rhs)) => {
-                    Ok(Value::U8(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::U8(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
                 (Value::U16(lhs), Value::U16(rhs)) => {
-                    Ok(Value::U16(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::U16(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
                 (Value::U32(lhs), Value::U32(rhs)) => {
-                    Ok(Value::U32(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::U32(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
                 (Value::U64(lhs), Value::U64(rhs)) => {
-                    Ok(Value::U64(or_err(error_ctx, "*", lhs.checked_mul(rhs))?))
+                    Ok(Value::U64(lhs.checked_mul(rhs).ok_or(error("*"))?))
                 }
-                (lhs, rhs) => make_error(lhs, rhs, "*"),
+                (lhs, rhs) => Err(error("*")),
             },
             BinaryOpKind::Divide => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs / rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
-                    Ok(Value::I8(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::I8(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
                 (Value::I16(lhs), Value::I16(rhs)) => {
-                    Ok(Value::I16(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::I16(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
                 (Value::I32(lhs), Value::I32(rhs)) => {
-                    Ok(Value::I32(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::I32(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
                 (Value::I64(lhs), Value::I64(rhs)) => {
-                    Ok(Value::I64(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::I64(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
                 (Value::U8(lhs), Value::U8(rhs)) => {
-                    Ok(Value::U8(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::U8(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
                 (Value::U16(lhs), Value::U16(rhs)) => {
-                    Ok(Value::U16(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::U16(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
                 (Value::U32(lhs), Value::U32(rhs)) => {
-                    Ok(Value::U32(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::U32(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
                 (Value::U64(lhs), Value::U64(rhs)) => {
-                    Ok(Value::U64(or_err(error_ctx, "/", lhs.checked_div(rhs))?))
+                    Ok(Value::U64(lhs.checked_div(rhs).ok_or(error("/"))?))
                 }
-                (lhs, rhs) => make_error(lhs, rhs, "/"),
+                (lhs, rhs) => Err(error("/")),
             },
             BinaryOpKind::Equal => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs == rhs)),
@@ -1056,7 +1039,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs == rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, "=="),
+                (lhs, rhs) => Err(error("==")),
             },
             BinaryOpKind::NotEqual => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs != rhs)),
@@ -1069,7 +1052,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs != rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, "!="),
+                (lhs, rhs) => Err(error("!=")),
             },
             BinaryOpKind::Less => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs < rhs)),
@@ -1081,7 +1064,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, "<"),
+                (lhs, rhs) => Err(error("<")),
             },
             BinaryOpKind::LessEqual => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs <= rhs)),
@@ -1093,7 +1076,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, "<="),
+                (lhs, rhs) => Err(error("<=")),
             },
             BinaryOpKind::Greater => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs > rhs)),
@@ -1105,7 +1088,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, ">"),
+                (lhs, rhs) => Err(error(">")),
             },
             BinaryOpKind::GreaterEqual => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs >= rhs)),
@@ -1117,7 +1100,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, ">="),
+                (lhs, rhs) => Err(error(">=")),
             },
             BinaryOpKind::And => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs & rhs)),
@@ -1129,7 +1112,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs & rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs & rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, "&"),
+                (lhs, rhs) => Err(error("&")),
             },
             BinaryOpKind::Or => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs | rhs)),
@@ -1141,7 +1124,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs | rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs | rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, "|"),
+                (lhs, rhs) => Err(error("|")),
             },
             BinaryOpKind::Xor => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs ^ rhs)),
@@ -1153,108 +1136,88 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs ^ rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs ^ rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
-                (lhs, rhs) => make_error(lhs, rhs, "^"),
+                (lhs, rhs) => Err(error("^")),
             },
             BinaryOpKind::ShiftRight => match (lhs_value.clone(), rhs_value.clone()) {
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(or_err(
-                    error_ctx,
-                    ">>",
-                    lhs.checked_shr(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(or_err(
-                    error_ctx,
-                    ">>",
-                    lhs.checked_shr(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(or_err(
-                    error_ctx,
-                    ">>",
-                    lhs.checked_shr(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(or_err(
-                    error_ctx,
-                    ">>",
-                    lhs.checked_shr(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
+                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
                 (Value::U8(lhs), Value::U8(rhs)) => {
-                    Ok(Value::U8(or_err(error_ctx, ">>", lhs.checked_shr(rhs.into()))?))
+                    Ok(Value::U8(lhs.checked_shr(rhs.into()).ok_or(error(">>"))?))
                 }
                 (Value::U16(lhs), Value::U16(rhs)) => {
-                    Ok(Value::U16(or_err(error_ctx, ">>", lhs.checked_shr(rhs.into()))?))
+                    Ok(Value::U16(lhs.checked_shr(rhs.into()).ok_or(error(">>"))?))
                 }
                 (Value::U32(lhs), Value::U32(rhs)) => {
-                    Ok(Value::U32(or_err(error_ctx, ">>", lhs.checked_shr(rhs))?))
+                    Ok(Value::U32(lhs.checked_shr(rhs).ok_or(error(">>"))?))
                 }
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(or_err(
-                    error_ctx,
-                    ">>",
-                    lhs.checked_shr(or_err(error_ctx, ">>", rhs.try_into().ok())?),
-                )?)),
-                (lhs, rhs) => make_error(lhs, rhs, ">>"),
+                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (lhs, rhs) => Err(error(">>")),
             },
             BinaryOpKind::ShiftLeft => match (lhs_value.clone(), rhs_value.clone()) {
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(or_err(
-                    error_ctx,
-                    "<<",
-                    lhs.checked_shl(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(or_err(
-                    error_ctx,
-                    "<<",
-                    lhs.checked_shl(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(or_err(
-                    error_ctx,
-                    "<<",
-                    lhs.checked_shl(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(or_err(
-                    error_ctx,
-                    "<<",
-                    lhs.checked_shl(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
+                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
                 (Value::U8(lhs), Value::U8(rhs)) => {
-                    Ok(Value::U8(or_err(error_ctx, "<<", lhs.checked_shl(rhs.into()))?))
+                    Ok(Value::U8(lhs.checked_shl(rhs.into()).ok_or(error("<<"))?))
                 }
                 (Value::U16(lhs), Value::U16(rhs)) => {
-                    Ok(Value::U16(or_err(error_ctx, "<<", lhs.checked_shl(rhs.into()))?))
+                    Ok(Value::U16(lhs.checked_shl(rhs.into()).ok_or(error("<<"))?))
                 }
                 (Value::U32(lhs), Value::U32(rhs)) => {
-                    Ok(Value::U32(or_err(error_ctx, "<<", lhs.checked_shl(rhs))?))
+                    Ok(Value::U32(lhs.checked_shl(rhs).ok_or(error("<<"))?))
                 }
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(or_err(
-                    error_ctx,
-                    "<<",
-                    lhs.checked_shl(or_err(error_ctx, "<<", rhs.try_into().ok())?),
-                )?)),
-                (lhs, rhs) => make_error(lhs, rhs, "<<"),
+                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (lhs, rhs) => Err(error("<<")),
             },
             BinaryOpKind::Modulo => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::I8(lhs), Value::I8(rhs)) => {
-                    Ok(Value::I8(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::I8(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
                 (Value::I16(lhs), Value::I16(rhs)) => {
-                    Ok(Value::I16(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::I16(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
                 (Value::I32(lhs), Value::I32(rhs)) => {
-                    Ok(Value::I32(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::I32(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
                 (Value::I64(lhs), Value::I64(rhs)) => {
-                    Ok(Value::I64(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::I64(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
                 (Value::U8(lhs), Value::U8(rhs)) => {
-                    Ok(Value::U8(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::U8(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
                 (Value::U16(lhs), Value::U16(rhs)) => {
-                    Ok(Value::U16(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::U16(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
                 (Value::U32(lhs), Value::U32(rhs)) => {
-                    Ok(Value::U32(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::U32(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
                 (Value::U64(lhs), Value::U64(rhs)) => {
-                    Ok(Value::U64(or_err(error_ctx, "%", lhs.checked_rem(rhs))?))
+                    Ok(Value::U64(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
-                (lhs, rhs) => make_error(lhs, rhs, "%"),
+                (lhs, rhs) => Err(error("%")),
             },
         }
     }

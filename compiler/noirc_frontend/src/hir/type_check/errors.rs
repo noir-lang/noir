@@ -49,7 +49,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
     // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
-    #[error("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?}, size checks are being implemented for this case")]
+    #[error("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?} (this warning may become an error in the future)")]
     EvaluatedGlobalPartialSizeChecks { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
@@ -57,7 +57,7 @@ pub enum TypeCheckError {
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
     InvalidCast { from: Type, span: Span, reason: String },
-    #[error("Casting value with type {from} to a smaller type ({to})")]
+    #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, span: Span, reason: String },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, span: Span },
@@ -236,7 +236,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             // handling for larger types
             TypeCheckError::EvaluatedGlobalPartialSizeChecks { expected_kind, expr_kind, expr_span } => {
                 Diagnostic::simple_warning(
-                    format!("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?}, size checks are being implemented for this case"),
+                    format!("Expected type {expected_kind:?} when evaluating globals: found {expr_kind:?} (this warning may become an error in the future)"),
                     String::new(),
                     *expr_span,
                 )
