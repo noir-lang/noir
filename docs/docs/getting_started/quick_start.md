@@ -6,30 +6,31 @@ sidebar_position: 0
 
 ## Installation
 
-The easiest way to use Noir is through `nargo` (inspired by Rust's `cargo`). You can use `noirup` to quickly install `nargo`:
+The easiest way to develop with Noir is using Nargo the CLI tool. It provides you the ability to start new projects, compile, execute and test Noir programs from the terminal.
+
+You can use `noirup` the installation script to quickly install and update Nargo:
 
 ```bash
 curl -L noirup.dev | bash
 noirup
 ```
 
-Since Noir is a backend-agnostic programming language for writing zero-knowledge proofs, we need to pair it with a proving backend.
+After installing Noir, we install a proving backend to work with our Noir programs.
 
-As an example, we can will use Aztec Lab's [Barretenberg backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg). This is made easy by [`bbup`](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/bbup), which installs Barretenberg's [`bb` CLI tool](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg):
+Proving backends provide you the abilities to generate proofs, verify proofs, generate smart contracts and more for your Noir programs.
 
+Different proving backends provide different tools for working with Noir programs, here we will use the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) developed by Aztec Labs as an example.
+
+You can use `bbup` the installation script to quickly install and update BB, Barretenberg's CLI tool:
+
+You can find the full list of proving backends compatible with Noir in Awesome Noir.
 ```bash
 curl -L bbup.dev | bash
 bbup
 ```
 
-:::info
+For the full list of proving backends compatible with Noir, visit [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends).
 
-_Always_ inspect what you run.
-
-- `noirup.dev` redirects to [this script](https://github.com/noir-lang/noirup/blob/main/install) and adds [this program](https://github.com/noir-lang/noirup/blob/main/noirup) to your path.
-- according to the [bbup documentation](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg/bbup), `bbup.dev` redirects to [this script](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/bbup/install) which adds [this program](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/bbup/bbup.ts) globally, installing `node` if needed.
-
-:::
 
 ## Nargo
 
@@ -77,12 +78,13 @@ nargo execute hello-witness
 
 You can now see the witness and the compiled circuit in the `target` folder. We're ready to prove
 
-## Barretenberg
+## Proving backend
+	
+Different proving backends may provide different tools and commands to work with Noir programs. Here Barretenberg's `bb` CLI tool is used as an example:
 
-Using the `bb` CLI tool as an example:
 
 ```sh
-bb prove -b ./target/hello_world.json -w ./target/hello-witness.gz -o ./target/proof
+bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target/proof
 ```
 
 :::tip
