@@ -240,8 +240,7 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
         a: Field,
     }
 
-    fn main() {
-    }
+    fn main() {}
     "#;
     assert_no_errors(src);
 }
@@ -258,8 +257,7 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
         bar: Bar,
     }
 
-    fn main() {
-    }
+    fn main() {}
     "#;
     assert_no_errors(src);
 }
