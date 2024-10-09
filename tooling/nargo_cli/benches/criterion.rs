@@ -1,21 +1,112 @@
 //! Select representative tests to bench with criterion
+use acvm::{acir::native_types::WitnessMap, FieldElement};
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use nargo_cli::cli;
-use noirc_driver::CompileOptions;
+use noirc_abi::{
+    input_parser::{Format, InputValue},
+    Abi, InputMap,
+};
+use noirc_artifacts::program::ProgramArtifact;
+use noirc_driver::CompiledProgram;
 use pprof::criterion::{Output, PProfProfiler};
+use std::path::Path;
+use std::{cell::RefCell, collections::BTreeMap};
 use std::{process::Command, time::Duration};
+
 include!("./utils.rs");
+
+/// Compile the test program in a sub-process
+fn compile_program(test_program_dir: &Path) {
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(&test_program_dir);
+    cmd.arg("compile");
+    cmd.arg("--force");
+    cmd.assert().success();
+}
+
+/// Read the bytecode of the program from the compilation artifacts.
+///
+/// Based on `ExecuteCommand::run`.
+fn read_compiled_program_with_input(dir: &Path) -> (CompiledProgram, WitnessMap<FieldElement>) {
+    let toml_path = nargo_toml::get_package_manifest(dir).expect("failed to read manifest");
+    let workspace = nargo_toml::resolve_workspace_from_toml(
+        &toml_path,
+        nargo_toml::PackageSelection::All,
+        Some(noirc_driver::NOIR_ARTIFACT_VERSION_STRING.to_string()),
+    )
+    .expect("failed to resolve workspace");
+
+    // Assuming there is only one binary package in these tests.
+    let package = workspace
+        .into_iter()
+        .filter(|package| package.is_binary())
+        .last()
+        .expect("no binary packages in the test program");
+
+    let program_artifact_path = workspace.package_build_path(package);
+    let program: CompiledProgram = read_program_from_file(&program_artifact_path).into();
+
+    let (inputs, _) = read_inputs_from_file(
+        &package.root_dir,
+        nargo::constants::PROVER_INPUT_FILE,
+        Format::Toml,
+        &program.abi,
+    );
+
+    let initial_witness =
+        program.abi.encode(&inputs, None).expect("failed to encode input witness");
+
+    (program, initial_witness)
+}
+
+/// Read the bytecode and ABI from the compilation output
+fn read_program_from_file(circuit_path: &Path) -> ProgramArtifact {
+    let file_path = circuit_path.with_extension("json");
+    let input_string = std::fs::read(&file_path).expect("failed to read artifact file");
+    serde_json::from_slice(&input_string).expect("failed to deserialize artifact")
+}
+
+/// Read the inputs from Prover.toml
+fn read_inputs_from_file(
+    path: &Path,
+    file_name: &str,
+    format: Format,
+    abi: &Abi,
+) -> (InputMap, Option<InputValue>) {
+    if abi.is_empty() {
+        return (BTreeMap::new(), None);
+    }
+
+    let file_path = path.join(file_name).with_extension(format.ext());
+    if !file_path.exists() {
+        if abi.parameters.is_empty() {
+            return (BTreeMap::new(), None);
+        } else {
+            panic!("input file doesn't exist: {}", file_path.display());
+        }
+    }
+
+    let input_string = std::fs::read_to_string(file_path).expect("failed to read input file");
+    let mut input_map = format.parse(&input_string, abi).expect("failed to parse input");
+    let return_value = input_map.remove(noirc_abi::MAIN_RETURN_NAME);
+
+    (input_map, return_value)
+}
 
 /// Use the nargo CLI to compile a test program, then benchmark its execution
 /// by executing the command directly from the benchmark, so that we can have
 /// meaningful flamegraphs about the ACVM.
 fn criterion_selected_tests_execution(c: &mut Criterion) {
     for test_program_dir in get_selected_tests() {
-        let mut compiled = false;
         let benchmark_name =
             format!("{}_execute", test_program_dir.file_name().unwrap().to_str().unwrap());
+
+        // The program and its inputs will be passed in the first setup.
+        let artifacts = RefCell::new(None);
+
+        let mut foreign_call_executor =
+            nargo::ops::DefaultForeignCallExecutor::new(false, None, None, None);
 
         c.bench_function(&benchmark_name, |b| {
             b.iter_batched(
@@ -23,31 +114,27 @@ fn criterion_selected_tests_execution(c: &mut Criterion) {
                     // Setup will be called many times to set a batch (which we don't use),
                     // but we can compile it only once, and then the executions will not have to do so.
                     // It is done as a setup so that we only compile the test programs that we filter for.
-                    if !compiled {
-                        compiled = true;
-                        let mut cmd = Command::cargo_bin("nargo").unwrap();
-                        cmd.arg("--program-dir").arg(&test_program_dir);
-                        cmd.arg("compile");
-                        cmd.arg("--force");
-                        cmd.assert().success();
+                    if artifacts.borrow().is_some() {
+                        return;
                     }
+                    compile_program(&test_program_dir);
+                    // Parse the artifacts for use in the benchmark routine
+                    let program_and_input = read_compiled_program_with_input(&test_program_dir);
+                    // Store them for execution
+                    artifacts.replace(Some(program_and_input));
                 },
                 |_| {
-                    let cmd = cli::NargoCli {
-                        command: cli::NargoCommand::Execute(cli::execute_cmd::ExecuteCommand {
-                            witness_name: None,
-                            prover_name: nargo::constants::PROVER_INPUT_FILE.to_string(),
-                            package: None,
-                            workspace: true,
-                            compile_options: CompileOptions {
-                                silence_warnings: true,
-                                ..Default::default()
-                            },
-                            oracle_resolver: None,
-                        }),
-                        config: cli::NargoConfig { program_dir: test_program_dir.clone() },
-                    };
-                    cli::run_cmd(cmd).expect("failed to execute command");
+                    let artifacts = artifacts.borrow();
+                    let (program, initial_witness) =
+                        artifacts.as_ref().expect("setup compiled the program");
+
+                    let _witness_stack = nargo::ops::execute_program(
+                        &program.program,
+                        initial_witness.clone(),
+                        &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                        &mut foreign_call_executor,
+                    )
+                    .expect("failed to execute program");
                 },
                 criterion::BatchSize::SmallInput,
             );
