@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -17,9 +15,7 @@ use noirc_driver::{
 };
 use noirc_evaluator::ssa::plonky2_gen::asm_writer::DebugTraceList;
 use noirc_frontend::graph::CrateName;
-use noirc_frontend::hir::type_check::generics::Generic;
 
-use super::compile_cmd::get_target_width;
 use super::debug_cmd::compile_bin_package_for_debugging;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
