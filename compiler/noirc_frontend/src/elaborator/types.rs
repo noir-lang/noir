@@ -1408,22 +1408,33 @@ impl<'context> Elaborator<'context> {
         starting_trait_id: TraitId,
     ) -> Option<HirMethodReference> {
         if let Some(trait_method) = the_trait.find_method(method_name) {
-            let generics = trait_bound.trait_generics.clone();
-            return Some(HirMethodReference::TraitMethodId(trait_method, generics));
+            return Some(HirMethodReference::TraitMethodId(
+                trait_method,
+                trait_bound.trait_generics.clone(),
+            ));
         }
 
         // Search in the parent traits, if any
-        for trait_bound in &the_trait.trait_bounds {
-            if let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) {
+        for parent_trait_bound in &the_trait.trait_bounds {
+            if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
                 // Avoid looping forever in case there are cycles
                 if the_trait.id == starting_trait_id {
                     continue;
                 }
 
+                let mut bindings = TypeBindings::new();
+                self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+                let parent_trait_bound = ResolvedTraitBound {
+                    trait_generics: parent_trait_bound
+                        .trait_generics
+                        .map(|typ| typ.substitute(&bindings)),
+                    ..*parent_trait_bound
+                };
+
                 if let Some(method) = self.lookup_method_in_trait(
                     the_trait,
                     method_name,
-                    trait_bound,
+                    &parent_trait_bound,
                     starting_trait_id,
                 ) {
                     return Some(method);
@@ -1836,17 +1847,33 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn bind_generics_from_trait_constraint(
-        &mut self,
+        &self,
         constraint: &TraitConstraint,
         assumed: bool,
         bindings: &mut TypeBindings,
     ) {
-        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        assert_eq!(the_trait.generics.len(), constraint.trait_bound.trait_generics.ordered.len());
+        self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
 
-        for (param, arg) in
-            the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
-        {
+        // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
+        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
+        // to specify a redundant type annotation.
+        if assumed {
+            let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+            let self_type = the_trait.self_type_typevar.clone();
+            let kind = the_trait.self_type_typevar.kind();
+            bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+        }
+    }
+
+    pub fn bind_generics_from_trait_bound(
+        &self,
+        trait_bound: &ResolvedTraitBound,
+        bindings: &mut TypeBindings,
+    ) {
+        let the_trait = self.interner.get_trait(trait_bound.trait_id);
+        assert_eq!(the_trait.generics.len(), trait_bound.trait_generics.ordered.len());
+
+        for (param, arg) in the_trait.generics.iter().zip(&trait_bound.trait_generics.ordered) {
             // Avoid binding t = t
             if !arg.occurs(param.type_var.id()) {
                 bindings.insert(
@@ -1857,9 +1884,9 @@ impl<'context> Elaborator<'context> {
         }
 
         let mut associated_types = the_trait.associated_types.clone();
-        assert_eq!(associated_types.len(), constraint.trait_bound.trait_generics.named.len());
+        assert_eq!(associated_types.len(), trait_bound.trait_generics.named.len());
 
-        for arg in &constraint.trait_bound.trait_generics.named {
+        for arg in &trait_bound.trait_generics.named {
             let i = associated_types
                 .iter()
                 .position(|typ| *typ.name == arg.name.0.contents)
@@ -1876,15 +1903,6 @@ impl<'context> Elaborator<'context> {
                     (param.type_var.clone(), param.kind(), arg.typ.clone()),
                 );
             }
-        }
-
-        // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
-        // to specify a redundant type annotation.
-        if assumed {
-            let self_type = the_trait.self_type_typevar.clone();
-            let kind = the_trait.self_type_typevar.kind();
-            bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
         }
     }
 }

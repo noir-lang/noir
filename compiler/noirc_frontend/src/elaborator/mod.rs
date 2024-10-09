@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField};
+use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, TypeBindings};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -973,13 +973,27 @@ impl<'context> Elaborator<'context> {
         if let Some(trait_bounds) =
             self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
         {
-            for trait_bound in trait_bounds {
+            for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if trait_bound.trait_id == starting_trait_id {
+                if parent_trait_bound.trait_id == starting_trait_id {
                     continue;
                 }
 
-                self.add_trait_bound_to_scope(func_meta, object, &trait_bound, starting_trait_id);
+                let mut bindings = TypeBindings::new();
+                self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+                let parent_trait_bound = ResolvedTraitBound {
+                    trait_generics: parent_trait_bound
+                        .trait_generics
+                        .map(|typ| typ.substitute(&bindings)),
+                    ..parent_trait_bound
+                };
+
+                self.add_trait_bound_to_scope(
+                    func_meta,
+                    object,
+                    &parent_trait_bound,
+                    starting_trait_id,
+                );
             }
         }
     }

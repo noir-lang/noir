@@ -3393,7 +3393,27 @@ fn trait_inheritance_with_generics() {
             fn bar(self);
         }
 
-        fn foo<T>(x: T) -> i32 where T: Bar<i32> {
+        pub fn foo<T>(x: T) -> i32 where T: Bar<i32> {
+            x.foo()
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_inheritance_with_generics_2() {
+    let src = r#"
+        pub trait Foo<T> {
+            fn foo(self) -> T;
+        }
+
+        pub trait Bar<T, U>: Foo<T> {
+            fn bar(self) -> (T, U);
+        }
+
+        pub fn foo<T>(x: T) -> i32 where T: Bar<i32, i32> {
             x.foo()
         }
 

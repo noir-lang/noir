@@ -107,6 +107,13 @@ pub struct TraitConstraint {
     pub trait_bound: ResolvedTraitBound,
 }
 
+impl TraitConstraint {
+    pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
+        self.typ = self.typ.substitute(type_bindings);
+        self.trait_bound.apply_bindings(type_bindings);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedTraitBound {
     pub trait_id: TraitId,
@@ -114,15 +121,13 @@ pub struct ResolvedTraitBound {
     pub span: Span,
 }
 
-impl TraitConstraint {
+impl ResolvedTraitBound {
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
-        self.typ = self.typ.substitute(type_bindings);
-
-        for typ in &mut self.trait_bound.trait_generics.ordered {
+        for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
         }
 
-        for named in &mut self.trait_bound.trait_generics.named {
+        for named in &mut self.trait_generics.named {
             named.typ = named.typ.substitute(type_bindings);
         }
     }
