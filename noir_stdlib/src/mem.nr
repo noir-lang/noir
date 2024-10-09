@@ -7,7 +7,7 @@ pub fn zeroed<T>() -> T {}
 /// Transmutes a value of type T to a value of type U.
 ///
 /// This operation is checked in that in a later stage of compilation
-/// both types are asserted to be equal. If not, a compile error is issued.
+/// both types are asserted to be equal. If not, a compilation error is issued.
 ///
 /// This function is useful for types using arithmetic generics for cases
 /// which the compiler otherwise cannot prove as equal during type checking.
