@@ -941,21 +941,34 @@ impl<'context> Elaborator<'context> {
 
     fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
         for constraint in &func_meta.trait_constraints {
-            let object = constraint.typ.clone();
-            let trait_id = constraint.trait_bound.trait_id;
-            let generics = constraint.trait_bound.trait_generics.clone();
+            self.add_trait_bound_to_scope(func_meta, &constraint.typ, &constraint.trait_bound);
+        }
+    }
 
-            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
-                if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
-                    let trait_name = the_trait.name.to_string();
-                    let typ = constraint.typ.clone();
-                    let span = func_meta.location.span;
-                    self.push_err(TypeCheckError::UnneededTraitConstraint {
-                        trait_name,
-                        typ,
-                        span,
-                    });
-                }
+    fn add_trait_bound_to_scope(
+        &mut self,
+        func_meta: &FuncMeta,
+        object: &Type,
+        trait_bound: &ResolvedTraitBound,
+    ) {
+        let trait_id = trait_bound.trait_id;
+        let generics = trait_bound.trait_generics.clone();
+
+        if !self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
+            if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
+                let trait_name = the_trait.name.to_string();
+                let typ = object.clone();
+                let span = func_meta.location.span;
+                self.push_err(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            }
+        }
+
+        // Also add assumed implementations for the parent traits, if any
+        if let Some(trait_bounds) =
+            self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        {
+            for trait_bound in trait_bounds {
+                self.add_trait_bound_to_scope(func_meta, object, &trait_bound);
             }
         }
     }
