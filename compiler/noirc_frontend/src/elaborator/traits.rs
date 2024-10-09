@@ -63,15 +63,8 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<ResolvedTraitBound> {
-        let mut resolved_trait_bounds = Vec::new();
-
-        for trait_bound in &unresolved_trait.trait_def.bounds {
-            if let Some(resolved_trait_bound) = self.resolve_trait_bound(trait_bound) {
-                resolved_trait_bounds.push(resolved_trait_bound);
-            }
-        }
-
-        resolved_trait_bounds
+        let bounds = &unresolved_trait.trait_def.bounds;
+        bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
     }
 
     fn resolve_trait_methods(
