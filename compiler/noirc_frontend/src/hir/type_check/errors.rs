@@ -49,7 +49,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
     // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
-    #[error("expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)")]
+    #[error("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)")]
     EvaluatedGlobalIsntU32 { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
