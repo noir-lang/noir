@@ -2144,13 +2144,13 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
 #[test]
 fn numeric_generics_type_kind_mismatch() {
     let src = r#"
-    fn foo<let N: u32>() -> u64 {
-        N as u64
+    fn foo<let N: u32>() -> u16 {
+        N as u16
     }
 
     global J: u16 = 10;
 
-    fn bar<let N: u16>() -> u64 {
+    fn bar<let N: u16>() -> u16 {
         foo::<J>()
     }
 
