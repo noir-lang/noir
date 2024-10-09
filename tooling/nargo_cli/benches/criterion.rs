@@ -105,8 +105,8 @@ fn criterion_selected_tests_execution(c: &mut Criterion) {
         let benchmark_name =
             format!("{}_execute", test_program_dir.file_name().unwrap().to_str().unwrap());
 
-        // The program and its inputs will be passed in the first setup.
-        let artifacts = RefCell::new(Vec::new());
+        // The program and its inputs will be populated in the first setup.
+        let artifacts = RefCell::new(None);
 
         let mut foreign_call_executor =
             nargo::ops::DefaultForeignCallExecutor::new(false, None, None, None);
@@ -117,19 +117,24 @@ fn criterion_selected_tests_execution(c: &mut Criterion) {
                     // Setup will be called many times to set a batch (which we don't use),
                     // but we can compile it only once, and then the executions will not have to do so.
                     // It is done as a setup so that we only compile the test programs that we filter for.
-                    if !artifacts.borrow().is_empty() {
+                    if artifacts.borrow().is_some() {
                         return;
                     }
                     compile_program(&test_program_dir);
                     // Parse the artifacts for use in the benchmark routine
                     let programs = read_compiled_programs_and_inputs(&test_program_dir);
+                    // Warn, but don't stop, if we haven't found any binary packages.
+                    if programs.is_empty() {
+                        eprintln!("\nWARNING: There is nothing to benchmark in {benchmark_name}");
+                    }
                     // Store them for execution
-                    artifacts.replace(programs);
+                    artifacts.replace(Some(programs));
                 },
                 |_| {
                     let artifacts = artifacts.borrow();
+                    let artifacts = artifacts.as_ref().expect("setup compiled them");
 
-                    for (program, initial_witness) in artifacts.iter() {
+                    for (program, initial_witness) in artifacts {
                         let _witness_stack = black_box(nargo::ops::execute_program(
                             black_box(&program.program),
                             black_box(initial_witness.clone()),
