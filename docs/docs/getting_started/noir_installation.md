@@ -14,7 +14,7 @@ keywords: [
     Direnv
     Uninstalling Nargo
   ]
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 Noirup is the endorsed method for installing Nargo, streamlining the process of fetching binaries or compiling from source. It supports a range of options to cater to your specific needs, from nightly builds and specific versions to compiling from various sources.

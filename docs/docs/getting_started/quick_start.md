@@ -1,9 +1,10 @@
 ---
-title: Getting Started
+title: Quick Start
 tags: []
+sidebar_position: 0
 ---
 
-## A Quick Start
+## Installation
 
 The easiest way to use Noir is through `nargo` (inspired by Rust's `cargo`). You can use `noirup` to quickly install `nargo`:
 

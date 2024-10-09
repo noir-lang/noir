@@ -5,7 +5,7 @@ description:
   file, and how to prove and verify your program.
 keywords:
   [Nargo, Nargo project, Prover.toml, proof verification, private asset transfer]
-sidebar_position: 0
+sidebar_position: 1
 ---
 
 This section breaks down our hello world program from the previous section.
