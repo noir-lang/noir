@@ -112,4 +112,4 @@ head -c 32 ./target/proof | od -An -v -t x1 | tr -d $' \n'
 
 Congratulations, you have now created and verified a proof for your very first Noir program!
 
-In the [next section](./getting_started/project_breakdown.md), we will go into more detail on each step performed.
+In the [next section](./project_breakdown.md), we will go into more detail on each step performed.
