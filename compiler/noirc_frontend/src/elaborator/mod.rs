@@ -941,7 +941,12 @@ impl<'context> Elaborator<'context> {
 
     fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
         for constraint in &func_meta.trait_constraints {
-            self.add_trait_bound_to_scope(func_meta, &constraint.typ, &constraint.trait_bound);
+            self.add_trait_bound_to_scope(
+                func_meta,
+                &constraint.typ,
+                &constraint.trait_bound,
+                constraint.trait_bound.trait_id,
+            );
         }
     }
 
@@ -950,6 +955,7 @@ impl<'context> Elaborator<'context> {
         func_meta: &FuncMeta,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
+        starting_trait_id: TraitId,
     ) {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
@@ -968,7 +974,12 @@ impl<'context> Elaborator<'context> {
             self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
         {
             for trait_bound in trait_bounds {
-                self.add_trait_bound_to_scope(func_meta, object, &trait_bound);
+                // Avoid looping forever in case there are cycles
+                if trait_bound.trait_id == starting_trait_id {
+                    continue;
+                }
+
+                self.add_trait_bound_to_scope(func_meta, object, &trait_bound, starting_trait_id);
             }
         }
     }

@@ -1335,21 +1335,13 @@ impl<'context> Elaborator<'context> {
                 if let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
                 {
-                    if let Some(method) =
-                        lookup_method_in_trait(the_trait, method_name, &constraint.trait_bound)
-                    {
+                    if let Some(method) = self.lookup_method_in_trait(
+                        the_trait,
+                        method_name,
+                        &constraint.trait_bound,
+                        the_trait.id,
+                    ) {
                         return Some(method);
-                    }
-
-                    // Search in the trait bounds
-                    for trait_bound in &the_trait.trait_bounds {
-                        if let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) {
-                            if let Some(method) =
-                                lookup_method_in_trait(the_trait, method_name, trait_bound)
-                            {
-                                return Some(method);
-                            }
-                        }
                     }
                 }
             }
@@ -1360,6 +1352,40 @@ impl<'context> Elaborator<'context> {
             object_type: object_type.clone(),
             span,
         });
+
+        None
+    }
+
+    fn lookup_method_in_trait(
+        &self,
+        the_trait: &Trait,
+        method_name: &str,
+        trait_bound: &ResolvedTraitBound,
+        starting_trait_id: TraitId,
+    ) -> Option<HirMethodReference> {
+        if let Some(trait_method) = the_trait.find_method(method_name) {
+            let generics = trait_bound.trait_generics.clone();
+            return Some(HirMethodReference::TraitMethodId(trait_method, generics));
+        }
+
+        // Search in the parent traits, if any
+        for trait_bound in &the_trait.trait_bounds {
+            if let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) {
+                // Avoid looping forever in case there are cycles
+                if the_trait.id == starting_trait_id {
+                    continue;
+                }
+
+                if let Some(method) = self.lookup_method_in_trait(
+                    the_trait,
+                    method_name,
+                    trait_bound,
+                    starting_trait_id,
+                ) {
+                    return Some(method);
+                }
+            }
+        }
 
         None
     }
@@ -1817,16 +1843,6 @@ impl<'context> Elaborator<'context> {
             bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
         }
     }
-}
-
-fn lookup_method_in_trait(
-    the_trait: &Trait,
-    method_name: &str,
-    trait_bound: &ResolvedTraitBound,
-) -> Option<HirMethodReference> {
-    let trait_method = the_trait.find_method(method_name)?;
-    let generics = trait_bound.trait_generics.clone();
-    Some(HirMethodReference::TraitMethodId(trait_method, generics))
 }
 
 pub fn try_eval_array_length_id(
