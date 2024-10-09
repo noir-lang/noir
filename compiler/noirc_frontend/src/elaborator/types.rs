@@ -1422,15 +1422,8 @@ impl<'context> Elaborator<'context> {
                     continue;
                 }
 
-                let mut bindings = TypeBindings::new();
-                self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
-                let parent_trait_bound = ResolvedTraitBound {
-                    trait_generics: parent_trait_bound
-                        .trait_generics
-                        .map(|typ| typ.substitute(&bindings)),
-                    ..*parent_trait_bound
-                };
-
+                let parent_trait_bound =
+                    self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
                 if let Some(method) = self.lookup_method_in_trait(
                     the_trait,
                     method_name,
@@ -1903,6 +1896,19 @@ impl<'context> Elaborator<'context> {
                     (param.type_var.clone(), param.kind(), arg.typ.clone()),
                 );
             }
+        }
+    }
+
+    pub fn instantiate_parent_trait_bound(
+        &self,
+        trait_bound: &ResolvedTraitBound,
+        parent_trait_bound: &ResolvedTraitBound,
+    ) -> ResolvedTraitBound {
+        let mut bindings = TypeBindings::new();
+        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+        ResolvedTraitBound {
+            trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
+            ..*parent_trait_bound
         }
     }
 }

@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, TypeBindings};
+use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -979,15 +979,8 @@ impl<'context> Elaborator<'context> {
                     continue;
                 }
 
-                let mut bindings = TypeBindings::new();
-                self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
-                let parent_trait_bound = ResolvedTraitBound {
-                    trait_generics: parent_trait_bound
-                        .trait_generics
-                        .map(|typ| typ.substitute(&bindings)),
-                    ..parent_trait_bound
-                };
-
+                let parent_trait_bound =
+                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
                 self.add_trait_bound_to_scope(
                     func_meta,
                     object,
