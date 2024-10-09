@@ -7,13 +7,13 @@ struct Foo<T> {
 trait SomeTrait<T> {
 
 }
-struct StructImplementsSomeTrait {
+pub struct StructImplementsSomeTrait {
 
 }
 
 impl SomeTrait<i32> for StructImplementsSomeTrait {}
 
-struct StructDoesNotImplementSomeTrait {
+pub struct StructDoesNotImplementSomeTrait {
 
 }
 
@@ -160,7 +160,7 @@ fn main() {
 }
 
 // docs:start:implements_example
-fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
+pub fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
     comptime
     {
         let t = quote { T }.as_type();

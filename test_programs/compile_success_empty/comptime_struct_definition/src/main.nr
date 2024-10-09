@@ -1,11 +1,11 @@
 #[my_comptime_fn]
-struct MyType<A, B, C> {
+pub struct MyType<A, B, C> {
     field1: [A; 10],
     field2: (B, C),
 }
 
 #[mutate_struct_fields]
-struct I32AndField {
+pub struct I32AndField {
     z: i8,
 }
 
@@ -26,14 +26,14 @@ comptime fn mutate_struct_fields(s: StructDefinition) {
 
 mod foo {
     #[attr]
-    struct Foo {}
+    pub struct Foo {}
 
     comptime fn attr(s: StructDefinition) {
         assert_eq(s.module().name(), quote { foo });
     }
 
     #[add_generic]
-    struct Bar {}
+    pub struct Bar {}
 
     // docs:start:add-generic-example
     comptime fn add_generic(s: StructDefinition) {

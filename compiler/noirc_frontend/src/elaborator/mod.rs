@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::ast::ItemVisibility;
+use crate::{ast::ItemVisibility, StructField};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -1315,7 +1315,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved: &NoirStruct,
         struct_id: StructId,
-    ) -> Vec<(Ident, Type)> {
+    ) -> Vec<StructField> {
         self.recover_generics(|this| {
             this.current_item = Some(DependencyId::Struct(struct_id));
 
@@ -1327,7 +1327,8 @@ impl<'context> Elaborator<'context> {
             let fields = vecmap(&unresolved.fields, |field| {
                 let ident = &field.item.name;
                 let typ = &field.item.typ;
-                (ident.clone(), this.resolve_type(typ.clone()))
+                let visibility = field.item.visibility;
+                StructField { visibility, name: ident.clone(), typ: this.resolve_type(typ.clone()) }
             });
 
             this.resolving_ids.remove(&struct_id);

@@ -202,14 +202,14 @@ impl<'a> NodeFinder<'a> {
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
-            fields.retain(|(_, (name, _))| name != &used_name.0.contents);
+            fields.retain(|(_, field)| field.name.0.contents != used_name.0.contents);
         }
 
         let self_prefix = false;
-        for (field_index, (field, typ)) in &fields {
+        for (field_index, field) in &fields {
             self.completion_items.push(self.struct_field_completion_item(
-                field,
-                typ,
+                &field.name.0.contents,
+                &field.typ,
                 struct_type.id,
                 *field_index,
                 self_prefix,

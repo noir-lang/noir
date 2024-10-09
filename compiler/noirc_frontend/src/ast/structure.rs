@@ -21,6 +21,7 @@ pub struct NoirStruct {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructField {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub typ: UnresolvedType,
 }
