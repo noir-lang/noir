@@ -1279,8 +1279,8 @@ impl<'context> Elaborator<'context> {
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
 
             if typ.struct_def.is_abi() {
-                for (_field_name, field_type) in &fields {
-                    self.mark_type_as_used(field_type);
+                for field in &fields {
+                    self.mark_type_as_used(&field.typ);
                 }
             }
 
