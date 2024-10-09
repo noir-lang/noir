@@ -28,8 +28,9 @@ use crate::{
             dom::DominatorTree,
             function::{Function, RuntimeType},
             function_inserter::FunctionInserter,
-            instruction::{Instruction, TerminatorInstruction},
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
+            types::Type,
             value::ValueId,
         },
         ssa_gen::Ssa,
@@ -399,7 +400,7 @@ impl<'f> LoopIteration<'f> {
     /// jump to the end of the loop instead.
     fn unroll_loop_iteration(
         mut self,
-        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+        arrays: &mut HashMap<(im::Vector<ValueId>, Type), ValueId>,
     ) -> (BasicBlockId, ValueId) {
         let mut next_blocks = self.unroll_loop_block(arrays);
 
@@ -420,7 +421,7 @@ impl<'f> LoopIteration<'f> {
     /// Unroll a single block in the current iteration of the loop
     fn unroll_loop_block(
         &mut self,
-        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+        arrays: &mut HashMap<(im::Vector<ValueId>, Type), ValueId>,
     ) -> Vec<BasicBlockId> {
         let mut next_blocks = self.unroll_loop_block_helper(arrays);
         next_blocks.retain(|block| {
@@ -433,7 +434,7 @@ impl<'f> LoopIteration<'f> {
     /// Unroll a single block in the current iteration of the loop
     fn unroll_loop_block_helper(
         &mut self,
-        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+        arrays: &mut HashMap<(im::Vector<ValueId>, Type), ValueId>,
     ) -> Vec<BasicBlockId> {
         self.inline_instructions_from_block(arrays);
         self.visited_blocks.insert(self.source_block);
@@ -515,7 +516,7 @@ impl<'f> LoopIteration<'f> {
 
     fn inline_instructions_from_block(
         &mut self,
-        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+        arrays: &mut HashMap<(im::Vector<ValueId>, Type), ValueId>,
     ) {
         let source_block = &self.dfg()[self.source_block];
         let instructions = source_block.instructions().to_vec();
@@ -527,23 +528,8 @@ impl<'f> LoopIteration<'f> {
             // Skip reference count instructions since they are only used for brillig, and brillig code is not unrolled
             match &self.dfg()[instruction] {
                 Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => (),
-                Instruction::MakeArray { elements, .. } => {
-                    let entry = arrays.entry(elements.clone());
-
-                    match entry {
-                        Entry::Occupied(result) => {
-                            let old_result = self.dfg().instruction_results(instruction)[0];
-                            self.inserter.map_value(old_result, *result.get());
-                        }
-                        Entry::Vacant(vacant) => {
-                            let new_instruction = self
-                                .inserter
-                                .push_instruction(instruction, self.insert_block)
-                                .expect("make_array instructions shouldn't be optimized out");
-                            let new_result = self.dfg().instruction_results(new_instruction)[0];
-                            vacant.insert(new_result);
-                        }
-                    }
+                Instruction::MakeArray { elements, typ } => {
+                    self.cache_array(instruction, elements.clone(), typ.clone(), arrays)
                 }
                 _ => {
                     self.inserter.push_instruction(instruction, self.insert_block);
@@ -557,6 +543,36 @@ impl<'f> LoopIteration<'f> {
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
+    }
+
+    /// Cache the result of MakeArray instructions so that we don't duplicate them needlessly
+    /// while unrolling loops.
+    fn cache_array(
+        &mut self,
+        instruction: InstructionId,
+        elements: im::Vector<ValueId>,
+        typ: Type,
+        arrays: &mut HashMap<(im::Vector<ValueId>, Type), ValueId>,
+    ) {
+        let elements: im::Vector<_> =
+            elements.iter().map(|id| self.inserter.resolve(*id)).collect();
+
+        let entry = arrays.entry((elements, typ));
+
+        match entry {
+            Entry::Occupied(result) => {
+                let old_result = self.dfg().instruction_results(instruction)[0];
+                self.inserter.map_value(old_result, *result.get());
+            }
+            Entry::Vacant(vacant) => {
+                let new_instruction = self
+                    .inserter
+                    .push_instruction(instruction, self.insert_block)
+                    .expect("make_array instructions shouldn't be optimized out");
+                let new_result = self.dfg().instruction_results(new_instruction)[0];
+                vacant.insert(new_result);
+            }
+        }
     }
 
     fn dfg(&self) -> &DataFlowGraph {
