@@ -8,18 +8,18 @@ use color_eyre::eyre;
 
 mod fs;
 
-mod check_cmd;
-mod compile_cmd;
-mod dap_cmd;
-mod debug_cmd;
-mod execute_cmd;
-mod export_cmd;
-mod fmt_cmd;
-mod info_cmd;
-mod init_cmd;
-mod lsp_cmd;
-mod new_cmd;
-mod test_cmd;
+pub mod check_cmd;
+pub mod compile_cmd;
+pub mod dap_cmd;
+pub mod debug_cmd;
+pub mod execute_cmd;
+pub mod export_cmd;
+pub mod fmt_cmd;
+pub mod info_cmd;
+pub mod init_cmd;
+pub mod lsp_cmd;
+pub mod new_cmd;
+pub mod test_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -35,25 +35,23 @@ static VERSION_STRING: &str = formatcp!(
 
 #[derive(Parser, Debug)]
 #[command(name="nargo", author, version=VERSION_STRING, about, long_about = None)]
-struct NargoCli {
+pub struct NargoCli {
     #[command(subcommand)]
-    command: NargoCommand,
+    pub command: NargoCommand,
 
     #[clap(flatten)]
-    config: NargoConfig,
+    pub config: NargoConfig,
 }
 
-#[non_exhaustive]
 #[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./")]
-    program_dir: PathBuf,
+    pub program_dir: PathBuf,
 }
 
-#[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
-enum NargoCommand {
+pub enum NargoCommand {
     Check(check_cmd::CheckCommand),
     Fmt(fmt_cmd::FormatCommand),
     #[command(alias = "build")]
@@ -71,9 +69,22 @@ enum NargoCommand {
     Dap(dap_cmd::DapCommand),
 }
 
+/// Parse the command line arguments and execute the command.
 #[cfg(not(feature = "codegen-docs"))]
+pub fn start_cli() -> eyre::Result<()> {
+    run_cmd(NargoCli::parse())
+}
+
+#[cfg(feature = "codegen-docs")]
 pub(crate) fn start_cli() -> eyre::Result<()> {
-    let NargoCli { command, mut config } = NargoCli::parse();
+    let markdown: String = clap_markdown::help_markdown::<NargoCli>();
+    println!("{markdown}");
+    Ok(())
+}
+
+/// Execute the CLI command.
+pub fn run_cmd(cmd: NargoCli) -> eyre::Result<()> {
+    let NargoCli { command, mut config } = cmd;
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
     if !config.program_dir.is_absolute() {
@@ -103,12 +114,5 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 
-    Ok(())
-}
-
-#[cfg(feature = "codegen-docs")]
-pub(crate) fn start_cli() -> eyre::Result<()> {
-    let markdown: String = clap_markdown::help_markdown::<NargoCli>();
-    println!("{markdown}");
     Ok(())
 }

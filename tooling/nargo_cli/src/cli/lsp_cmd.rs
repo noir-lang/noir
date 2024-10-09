@@ -16,7 +16,7 @@ use crate::errors::CliError;
 ///
 /// VS Code Noir Language Support: https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir
 #[derive(Debug, Clone, Args)]
-pub(crate) struct LspCommand;
+pub struct LspCommand;
 
 pub(crate) fn run(_args: LspCommand, _config: NargoConfig) -> Result<(), CliError> {
     use tokio::runtime::Builder;

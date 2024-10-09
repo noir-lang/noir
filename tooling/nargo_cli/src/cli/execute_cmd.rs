@@ -24,30 +24,30 @@ use crate::errors::CliError;
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "e")]
-pub(crate) struct ExecuteCommand {
+pub struct ExecuteCommand {
     /// Write the execution witness to named file
     ///
     /// Defaults to the name of the package being executed.
-    witness_name: Option<String>,
+    pub witness_name: Option<String>,
 
     /// The name of the toml file which contains the inputs for the prover
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
-    prover_name: String,
+    pub prover_name: String,
 
     /// The name of the package to execute
     #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
+    pub package: Option<CrateName>,
 
     /// Execute all packages in the workspace
     #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    pub workspace: bool,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub compile_options: CompileOptions,
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
+    pub oracle_resolver: Option<String>,
 }
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {

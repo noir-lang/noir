@@ -28,17 +28,17 @@ use super::NargoConfig;
 
 /// Exports functions marked with #[export] attribute
 #[derive(Debug, Clone, Args)]
-pub(crate) struct ExportCommand {
+pub struct ExportCommand {
     /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
+    pub package: Option<CrateName>,
 
     /// Compile all packages in the workspace
     #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    pub workspace: bool,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliError> {

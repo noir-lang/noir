@@ -7,25 +7,25 @@ use std::path::PathBuf;
 
 /// Create a Noir project in a new directory.
 #[derive(Debug, Clone, Args)]
-pub(crate) struct NewCommand {
+pub struct NewCommand {
     /// The path to save the new project
-    path: PathBuf,
+    pub path: PathBuf,
 
     /// Name of the package [default: package directory name]
     #[clap(long)]
-    name: Option<CrateName>,
+    pub name: Option<CrateName>,
 
     /// Use a library template
     #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
-    pub(crate) lib: bool,
+    pub lib: bool,
 
     /// Use a binary template [default]
     #[arg(long, conflicts_with = "lib", conflicts_with = "contract")]
-    pub(crate) bin: bool,
+    pub bin: bool,
 
     /// Use a contract template
     #[arg(long, conflicts_with = "lib", conflicts_with = "bin")]
-    pub(crate) contract: bool,
+    pub contract: bool,
 }
 
 pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError> {

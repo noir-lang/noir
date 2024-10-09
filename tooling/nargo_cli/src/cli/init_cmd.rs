@@ -10,22 +10,22 @@ use std::path::PathBuf;
 
 /// Create a Noir project in the current directory.
 #[derive(Debug, Clone, Args)]
-pub(crate) struct InitCommand {
+pub struct InitCommand {
     /// Name of the package [default: current directory name]
     #[clap(long)]
-    name: Option<CrateName>,
+    pub name: Option<CrateName>,
 
     /// Use a library template
     #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
-    pub(crate) lib: bool,
+    pub lib: bool,
 
     /// Use a binary template [default]
     #[arg(long, conflicts_with = "lib", conflicts_with = "contract")]
-    pub(crate) bin: bool,
+    pub bin: bool,
 
     /// Use a contract template
     #[arg(long, conflicts_with = "lib", conflicts_with = "bin")]
-    pub(crate) contract: bool,
+    pub contract: bool,
 }
 
 const BIN_EXAMPLE: &str = include_str!("./noir_template_files/binary.nr");

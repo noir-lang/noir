@@ -17,6 +17,7 @@ workspace = true
 [[bin]]
 name = "nargo"
 path = "src/main.rs"
+required-features = ["build-binary"]
 
 [build-dependencies]
 build-data.workspace = true
@@ -64,8 +65,8 @@ notify-debouncer-full = "0.3.1"
 termion = "3.0.0"
 
 # Logs
-tracing-subscriber.workspace = true
-tracing-appender = "0.2.3"
+tracing-appender = { version = "0.2.3", optional = true }
+tracing-subscriber = { workspace = true, optional = true }
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
@@ -97,3 +98,4 @@ harness = false
 
 [features]
 codegen-docs = ["dep:clap-markdown"]
+build-binary = ["dep:tracing-subscriber", "dep:tracing-appender"]

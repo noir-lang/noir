@@ -23,32 +23,32 @@ use super::NargoConfig;
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "t")]
-pub(crate) struct TestCommand {
+pub struct TestCommand {
     /// If given, only tests with names containing this string will be run
-    test_name: Option<String>,
+    pub test_name: Option<String>,
 
     /// Display output of `println` statements
     #[arg(long)]
-    show_output: bool,
+    pub show_output: bool,
 
     /// Only run tests that match exactly
     #[clap(long)]
-    exact: bool,
+    pub exact: bool,
 
     /// The name of the package to test
     #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
+    pub package: Option<CrateName>,
 
     /// Test all packages in the workspace
     #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    pub workspace: bool,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub compile_options: CompileOptions,
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
+    pub oracle_resolver: Option<String>,
 }
 
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {

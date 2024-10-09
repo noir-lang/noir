@@ -27,24 +27,24 @@ use super::{
 /// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "i")]
-pub(crate) struct InfoCommand {
+pub struct InfoCommand {
     /// The name of the package to detail
     #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
+    pub package: Option<CrateName>,
 
     /// Detail all packages in the workspace
     #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    pub workspace: bool,
 
     /// Output a JSON formatted report. Changes to this format are not currently considered breaking.
     #[clap(long, hide = true)]
-    json: bool,
+    pub json: bool,
 
     #[clap(long, hide = true)]
-    profile_info: bool,
+    pub profile_info: bool,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError> {
