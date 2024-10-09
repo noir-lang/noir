@@ -420,7 +420,7 @@ impl<'context> Elaborator<'context> {
                 // TODO(https://github.com/noir-lang/noir/issues/6238):
                 // support non-u32 generics here
                 if !kind.unifies(&Kind::u32()) {
-                    let error = TypeCheckError::EvaluatedGlobalPartialSizeChecks {
+                    let error = TypeCheckError::EvaluatedGlobalIsntU32 {
                         expected_kind: Kind::u32().to_string(),
                         expr_kind: kind.to_string(),
                         expr_span: path.span(),

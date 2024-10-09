@@ -1973,7 +1973,7 @@ fn numeric_generic_u16_array_size() {
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6238):
-// The EvaluatedGlobalPartialSizeChecks warning is a stopgap
+// The EvaluatedGlobalIsntU32 warning is a stopgap
 // (originally from https://github.com/noir-lang/noir/issues/6125)
 #[test]
 fn numeric_generic_field_larger_than_u32() {
@@ -1990,7 +1990,7 @@ fn numeric_generic_field_larger_than_u32() {
     assert_eq!(errors.len(), 2);
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
     ));
     assert!(matches!(
         errors[1].0,
@@ -1999,7 +1999,7 @@ fn numeric_generic_field_larger_than_u32() {
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6238):
-// The EvaluatedGlobalPartialSizeChecks warning is a stopgap
+// The EvaluatedGlobalIsntU32 warning is a stopgap
 // (originally from https://github.com/noir-lang/noir/issues/6126)
 #[test]
 fn numeric_generic_field_arithmetic_larger_than_u32() {
@@ -2028,7 +2028,7 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
 
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
     ));
 
     assert!(matches!(
@@ -2164,10 +2164,10 @@ fn numeric_generics_type_kind_mismatch() {
     assert_eq!(errors.len(), 3);
 
     // TODO(https://github.com/noir-lang/noir/issues/6238):
-    // The EvaluatedGlobalPartialSizeChecks warning is a stopgap
+    // The EvaluatedGlobalIsntU32 warning is a stopgap
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
     ));
 
     assert!(matches!(
@@ -2178,7 +2178,7 @@ fn numeric_generics_type_kind_mismatch() {
     // TODO(https://github.com/noir-lang/noir/issues/6238): see above
     assert!(matches!(
         errors[2].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
     ));
 }
 
@@ -3265,7 +3265,7 @@ fn non_u32_as_array_length() {
     assert_eq!(errors.len(), 2);
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. })
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. })
     ));
     assert!(matches!(
         errors[1].0,
