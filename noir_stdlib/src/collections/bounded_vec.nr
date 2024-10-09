@@ -554,7 +554,7 @@ mod bounded_vec_tests {
             assert_eq(bounded_vec.storage()[2], 3);
         }
 
-        #[test(should_fail_with="from array out of bounds")]
+        #[test(should_fail_with = "from array out of bounds")]
         fn max_len_lower_then_array_len() {
             let _: BoundedVec<Field, 2> = BoundedVec::from_array([0; 3]);
         }

@@ -188,7 +188,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // For each key-value entry applies mutator function.
     // docs:start:iter_mut
-    unconstrained pub fn iter_mut<H>(
+    pub unconstrained fn iter_mut<H>(
         &mut self,
         f: fn(K, V) -> (K, V)
     )
@@ -210,7 +210,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // For each key applies mutator function.
     // docs:start:iter_keys_mut
-    unconstrained pub fn iter_keys_mut<H>(
+    pub unconstrained fn iter_keys_mut<H>(
         &mut self,
         f: fn(K) -> K
     ) 
@@ -277,7 +277,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    unconstrained pub fn get<H>(
+    pub unconstrained fn get<H>(
         self,
         key: K
     ) -> Option<V>
@@ -309,7 +309,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Insert key-value entry. In case key was already present, value is overridden. 
     // docs:start:insert
-    unconstrained pub fn insert<H>(
+    pub unconstrained fn insert<H>(
         &mut self,
         key: K,
         value: V
@@ -362,7 +362,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Removes a key-value entry. If key is not present, UHashMap remains unchanged.
     // docs:start:remove
-    unconstrained pub fn remove<H>(
+    pub unconstrained fn remove<H>(
         &mut self,
         key: K
     )

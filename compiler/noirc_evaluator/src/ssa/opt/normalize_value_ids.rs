@@ -115,6 +115,11 @@ impl Context {
             terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }
+
+        // Also map the values in the databus
+        let old_databus = &old_function.dfg.data_bus;
+        new_function.dfg.data_bus = old_databus
+            .map_values(|old_value| self.new_ids.map_value(new_function, old_function, old_value));
     }
 }
 

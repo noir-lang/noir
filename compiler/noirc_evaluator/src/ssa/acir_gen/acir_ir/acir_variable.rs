@@ -8,7 +8,9 @@ use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
-use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockId, BlockType, MemOp};
+use acvm::acir::circuit::opcodes::{
+    AcirFunctionId, BlockId, BlockType, ConstantOrWitnessEnum, MemOp,
+};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
@@ -1459,22 +1461,7 @@ impl<F: AcirField> AcirContext<F> {
             }
             _ => (vec![], vec![]),
         };
-        // Allow constant inputs for most blackbox
-        // EmbeddedCurveAdd needs to be fixed first in bb
-        // Poseidon2Permutation requires witness input
-        let allow_constant_inputs = matches!(
-            name,
-            BlackBoxFunc::MultiScalarMul
-                | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::Blake2s
-                | BlackBoxFunc::Blake3
-                | BlackBoxFunc::AND
-                | BlackBoxFunc::XOR
-                | BlackBoxFunc::AES128Encrypt
-                | BlackBoxFunc::EmbeddedCurveAdd
-        );
-        // Convert `AcirVar` to `FunctionInput`
-        let inputs = self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
+        let inputs = self.prepare_inputs_for_black_box_func(inputs, name)?;
         // Call Black box with `FunctionInput`
         let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
         let outputs = self.acir_ir.call_black_box(
@@ -1494,6 +1481,34 @@ impl<F: AcirField> AcirContext<F> {
             self.add_data(AcirVarData::Witness(*witness_index))
         }));
         Ok(results)
+    }
+
+    fn prepare_inputs_for_black_box_func(
+        &mut self,
+        inputs: Vec<AcirValue>,
+        name: BlackBoxFunc,
+    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
+        // Allow constant inputs for most blackbox, but:
+        // - EmbeddedCurveAdd requires all-or-nothing constant inputs
+        // - Poseidon2Permutation requires witness input
+        let allow_constant_inputs = matches!(
+            name,
+            BlackBoxFunc::MultiScalarMul
+                | BlackBoxFunc::Keccakf1600
+                | BlackBoxFunc::Blake2s
+                | BlackBoxFunc::Blake3
+                | BlackBoxFunc::AND
+                | BlackBoxFunc::XOR
+                | BlackBoxFunc::AES128Encrypt
+                | BlackBoxFunc::EmbeddedCurveAdd
+        );
+        // Convert `AcirVar` to `FunctionInput`
+        let mut inputs =
+            self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
+        if name == BlackBoxFunc::EmbeddedCurveAdd {
+            inputs = self.all_or_nothing_for_ec_add(inputs)?;
+        }
+        Ok(inputs)
     }
 
     /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
@@ -1534,6 +1549,41 @@ impl<F: AcirField> AcirContext<F> {
             witnesses.push(single_val_witnesses);
         }
         Ok(witnesses)
+    }
+
+    /// EcAdd has 6 inputs representing the two points to add
+    /// Each point must be either all constant, or all witnesses
+    fn all_or_nothing_for_ec_add(
+        &mut self,
+        inputs: Vec<Vec<FunctionInput<F>>>,
+    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
+        let mut has_constant = false;
+        let mut has_witness = false;
+        let mut result = inputs.clone();
+        for (i, input) in inputs.iter().enumerate() {
+            if input[0].is_constant() {
+                has_constant = true;
+            } else {
+                has_witness = true;
+            }
+            if i % 3 == 2 {
+                if has_constant && has_witness {
+                    // Convert the constants to witness if mixed constant and witness,
+                    for j in i - 2..i + 1 {
+                        if let ConstantOrWitnessEnum::Constant(constant) = inputs[j][0].input() {
+                            let constant = self.add_constant(constant);
+                            let witness_var = self.get_or_create_witness_var(constant)?;
+                            let witness = self.var_to_witness(witness_var)?;
+                            result[j] =
+                                vec![FunctionInput::witness(witness, inputs[j][0].num_bits())];
+                        }
+                    }
+                }
+                has_constant = false;
+                has_witness = false;
+            }
+        }
+        Ok(result)
     }
 
     /// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
