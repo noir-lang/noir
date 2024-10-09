@@ -417,7 +417,17 @@ impl<'context> Elaborator<'context> {
                     .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
                     .unwrap_or(Kind::u32());
 
-                Some(Type::Constant(self.eval_global_as_array_length(id, path), kind))
+                // TODO(https://github.com/noir-lang/noir/issues/6238):
+                // support non-u32 generics here
+                if !kind.unifies(&Kind::u32()) {
+                    let error = TypeCheckError::EvaluatedGlobalIsntU32 {
+                        expected_kind: Kind::u32().to_string(),
+                        expr_kind: kind.to_string(),
+                        expr_span: path.span(),
+                    };
+                    self.push_err(error);
+                }
+                Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
             }
             _ => None,
         }
@@ -833,12 +843,27 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
-        match from.follow_bindings() {
-            Type::Integer(..) | Type::FieldElement | Type::Bool => (),
+    pub(super) fn check_cast(
+        &mut self,
+        from_expr_id: &ExprId,
+        from: &Type,
+        to: &Type,
+        span: Span,
+    ) -> Type {
+        let from_follow_bindings = from.follow_bindings();
 
-            Type::TypeVariable(var) if var.is_integer() || var.is_integer_or_field() => (),
+        let from_value_opt = match self.interner.expression(from_expr_id) {
+            HirExpression::Literal(HirLiteral::Integer(int, false)) => Some(int),
 
+            // TODO(https://github.com/noir-lang/noir/issues/6247):
+            // handle negative literals
+            _ => None,
+        };
+
+        let from_is_polymorphic = match from_follow_bindings {
+            Type::Integer(..) | Type::FieldElement | Type::Bool => false,
+
+            Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => true,
             Type::TypeVariable(_) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
@@ -846,12 +871,31 @@ impl<'context> Elaborator<'context> {
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
+                    reason: "casting from a non-integral type is unsupported".into(),
                 });
+                true
             }
             Type::Error => return Type::Error,
             from => {
-                self.push_err(TypeCheckError::InvalidCast { from, span });
+                let reason = "casting from this type is unsupported".into();
+                self.push_err(TypeCheckError::InvalidCast { from, span, reason });
                 return Type::Error;
+            }
+        };
+
+        // TODO(https://github.com/noir-lang/noir/issues/6247):
+        // handle negative literals
+        // when casting a polymorphic value to a specifically sized type,
+        // check that it fits or throw a warning
+        if let (Some(from_value), Some(to_maximum_size)) =
+            (from_value_opt, to.integral_maximum_size())
+        {
+            if from_is_polymorphic && from_value > to_maximum_size {
+                let from = from.clone();
+                let to = to.clone();
+                let reason = format!("casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it");
+                // we warn that the 'to' type is too small for the value
+                self.push_err(TypeCheckError::DownsizingCast { from, to, span, reason });
             }
         }
 

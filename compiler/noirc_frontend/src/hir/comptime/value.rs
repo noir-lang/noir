@@ -120,7 +120,7 @@ impl Value {
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Value::String(value) => {
-                let length = Type::Constant(value.len() as u32, Kind::u32());
+                let length = Type::Constant(value.len().into(), Kind::u32());
                 Type::String(Box::new(length))
             }
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
