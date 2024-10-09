@@ -26,7 +26,7 @@ use noirc_frontend::{
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
-        resolution::visibility::struct_member_is_visible,
+        resolution::visibility::{method_call_is_visible, struct_member_is_visible},
     },
     hir_def::traits::Trait,
     node_interner::{NodeInterner, ReferenceId, StructId},
@@ -632,6 +632,7 @@ impl<'a> NodeFinder<'a> {
         };
 
         let struct_id = get_type_struct_id(typ);
+        let is_primitive = typ.is_primitive();
 
         for (name, methods) in methods_by_name {
             for (func_id, method_type) in methods.iter() {
@@ -654,6 +655,18 @@ impl<'a> NodeFinder<'a> {
                     ) {
                         continue;
                     }
+                }
+
+                if is_primitive
+                    && !method_call_is_visible(
+                        typ,
+                        func_id,
+                        self.module_id,
+                        self.interner,
+                        self.def_maps,
+                    )
+                {
+                    continue;
                 }
 
                 if name_matches(name, prefix) {

@@ -13,8 +13,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         resolution::{
-            errors::ResolverError, import::PathResolutionError,
-            visibility::struct_member_is_visible,
+            errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
         type_check::{generics::TraitGenerics, TypeCheckError},
     },
@@ -492,45 +491,16 @@ impl<'context> Elaborator<'context> {
     }
 
     fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
-        let modifiers = self.interner.function_modifiers(&func_id);
-        match modifiers.visibility {
-            ItemVisibility::Public => (),
-            ItemVisibility::PublicCrate => {
-                if self.interner.function_module(func_id).krate != self.crate_id {
-                    self.push_err(ResolverError::PathResolutionError(
-                        PathResolutionError::Private(name.clone()),
-                    ));
-                }
-            }
-            ItemVisibility::Private => {
-                // Primitive types can only have impls in the standard library,
-                // so calling a private one outside of their crate is an error.
-                if object_type.is_primitive()
-                    && self.interner.function_module(func_id).krate != self.crate_id
-                {
-                    self.push_err(ResolverError::PathResolutionError(
-                        PathResolutionError::Private(name.clone()),
-                    ));
-                    return;
-                }
-
-                let func_meta = self.interner.function_meta(&func_id);
-                let Some(struct_id) = func_meta.struct_id else {
-                    return;
-                };
-                if struct_member_is_visible(
-                    struct_id,
-                    modifiers.visibility,
-                    self.module_id(),
-                    self.def_maps,
-                ) {
-                    return;
-                }
-
-                self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                    name.clone(),
-                )));
-            }
+        if !method_call_is_visible(
+            object_type,
+            func_id,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        ) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
         }
     }
 
