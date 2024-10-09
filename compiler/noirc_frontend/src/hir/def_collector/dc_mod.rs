@@ -1203,6 +1203,7 @@ pub(crate) fn collect_global(
     let global = global.item;
 
     let name = global.pattern.name_ident().clone();
+    let is_abi = global.attributes.iter().any(|attribute| attribute.is_abi());
 
     let global_id = interner.push_empty_global(
         name.clone(),
@@ -1217,13 +1218,15 @@ pub(crate) fn collect_global(
     // Add the statement to the scope so its path can be looked up later
     let result = def_map.modules[module_id.0].declare_global(name.clone(), visibility, global_id);
 
-    let parent_module_id = ModuleId { krate: crate_id, local_id: module_id };
-    interner.usage_tracker.add_unused_item(
-        parent_module_id,
-        name,
-        UnusedItem::Global(global_id),
-        visibility,
-    );
+    if !is_abi {
+        let parent_module_id = ModuleId { krate: crate_id, local_id: module_id };
+        interner.usage_tracker.add_unused_item(
+            parent_module_id,
+            name,
+            UnusedItem::Global(global_id),
+            visibility,
+        );
+    }
 
     let error = result.err().map(|(first_def, second_def)| {
         let err =
