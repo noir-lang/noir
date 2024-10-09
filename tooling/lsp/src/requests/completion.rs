@@ -26,10 +26,10 @@ use noirc_frontend::{
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
-        resolution::visibility::struct_field_is_visible,
+        resolution::visibility::{method_call_is_visible, struct_member_is_visible},
     },
     hir_def::traits::Trait,
-    node_interner::{NodeInterner, ReferenceId},
+    node_interner::{NodeInterner, ReferenceId, StructId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{CustomAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
@@ -631,6 +631,9 @@ impl<'a> NodeFinder<'a> {
             return;
         };
 
+        let struct_id = get_type_struct_id(typ);
+        let is_primitive = typ.is_primitive();
+
         for (name, methods) in methods_by_name {
             for (func_id, method_type) in methods.iter() {
                 if function_kind == FunctionKind::Any {
@@ -639,6 +642,31 @@ impl<'a> NodeFinder<'a> {
                             continue;
                         }
                     }
+                }
+
+                if let Some(struct_id) = struct_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !struct_member_is_visible(
+                        struct_id,
+                        visibility,
+                        self.module_id,
+                        self.def_maps,
+                    ) {
+                        continue;
+                    }
+                }
+
+                if is_primitive
+                    && !method_call_is_visible(
+                        typ,
+                        func_id,
+                        self.module_id,
+                        self.interner,
+                        self.def_maps,
+                    )
+                {
+                    continue;
                 }
 
                 if name_matches(name, prefix) {
@@ -696,7 +724,8 @@ impl<'a> NodeFinder<'a> {
         for (field_index, (name, visibility, typ)) in
             struct_type.get_fields_with_visibility(generics).iter().enumerate()
         {
-            if !struct_field_is_visible(struct_type, *visibility, self.module_id, self.def_maps) {
+            if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
+            {
                 continue;
             }
 
@@ -1696,6 +1725,18 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             } else {
                 None
             }
+        }
+        _ => None,
+    }
+}
+
+fn get_type_struct_id(typ: &Type) -> Option<StructId> {
+    match typ {
+        Type::Struct(struct_type, _) => Some(struct_type.borrow().id),
+        Type::Alias(type_alias, generics) => {
+            let type_alias = type_alias.borrow();
+            let typ = type_alias.get_type(generics);
+            get_type_struct_id(&typ)
         }
         _ => None,
     }

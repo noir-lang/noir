@@ -1822,6 +1822,37 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_does_not_suggest_private_struct_methods() {
+        let src = r#"
+            mod moo {
+                pub struct Foo {}
+
+                impl Foo {
+                    fn bar(self) {}
+                }
+            }
+
+            fn x(f: moo::Foo) {
+                f.>|<()
+            }
+        "#;
+        assert_completion(src, vec![]).await;
+    }
+
+    #[test]
+    async fn test_does_not_suggest_private_primitive_methods() {
+        let src = r#"
+            fn foo(x: Field) {
+                x.>|<
+            }
+        "#;
+        let items = get_completions(src).await;
+        if items.iter().any(|item| item.label == "__assert_max_bit_size") {
+            panic!("Private method __assert_max_bit_size was suggested");
+        }
+    }
+
+    #[test]
     async fn test_suggests_pub_use() {
         let src = r#"
             mod bar {

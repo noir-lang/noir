@@ -13,7 +13,9 @@ use crate::{
     },
     hir::{
         comptime::{self, InterpreterError},
-        resolution::errors::ResolverError,
+        resolution::{
+            errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
+        },
         type_check::{generics::TraitGenerics, TypeCheckError},
     },
     hir_def::{
@@ -449,6 +451,8 @@ impl<'context> Elaborator<'context> {
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
+                self.check_method_call_visibility(func_id, &object_type, &method_call.method);
+
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
@@ -484,6 +488,20 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Call(function_call), typ)
             }
             None => (HirExpression::Error, Type::Error),
+        }
+    }
+
+    fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
+        if !method_call_is_visible(
+            object_type,
+            func_id,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        ) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
         }
     }
 
