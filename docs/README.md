@@ -28,7 +28,7 @@ yarn build
 ### Local Development
 
 ```
-yarn workspace docs start
+yarn workspace docs dev
 ```
 
 This command starts a local development server and opens up a browser window. Most changes are
