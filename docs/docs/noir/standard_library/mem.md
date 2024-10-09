@@ -46,7 +46,7 @@ This function is useful for cases where the compiler may fails a type check that
 a user knows the two types to be equal. For example, when using arithmetic generics there are cases the compiler
 does not see as equal, such as `[Field; N*(A + B)]` and `[Field; N*A + N*B]`, which users may know to be equal.
 In these cases, `checked_transmute` can be used to cast the value to the desired type while also preserving safety
-by checking this equality later on.
+by checking this equality once `N`, `A`, `B` are fully resolved.
 
 Note that since this safety check is performed after type checking rather than during, no error is issued if the function
 containing `checked_transmute` is never called.
