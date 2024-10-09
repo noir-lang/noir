@@ -28,6 +28,12 @@ yarn build
 ### Local Development
 
 ```
+yarn workspace docs version
+```
+
+This command fetches and compiles the list of documentation versions to build with.
+
+```
 yarn workspace docs dev
 ```
 
