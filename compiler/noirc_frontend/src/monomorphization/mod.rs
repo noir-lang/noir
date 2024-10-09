@@ -1428,7 +1428,7 @@ impl<'interner> Monomorphizer<'interner> {
         let actual = self.interner.id_type(arguments[0]).follow_bindings();
         let expected = self.interner.id_type(expr_id).follow_bindings();
 
-        if actual.try_unify(&expected, &mut TypeBindings::new()).is_err() {
+        if actual.unify(&expected).is_err() {
             Err(MonomorphizationError::CheckedTransmuteFailed { actual, expected, location })
         } else {
             // Evaluate `checked_transmute(arg)` to `{ arg }`
