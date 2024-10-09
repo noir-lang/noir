@@ -1822,6 +1822,24 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_does_not_suggest_private_methods() {
+        let src = r#"
+            mod moo {
+                pub struct Foo {}
+
+                impl Foo {
+                    fn bar(self) {}
+                }
+            }
+
+            fn x(f: moo::Foo) {
+                f.>|<()
+            }
+        "#;
+        assert_completion_excluding_auto_import(src, vec![]).await;
+    }
+
+    #[test]
     async fn test_suggests_pub_use() {
         let src = r#"
             mod bar {
