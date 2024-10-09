@@ -251,7 +251,7 @@ impl Type {
             if let Some(inverse) = op_a.inverse() {
                 let kind = lhs_a.infix_kind(rhs_a);
                 if let Some(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind) {
-                    let rhs_a = Box::new(Type::Constant(rhs_a_value, lhs_a.infix_kind(rhs_a)));
+                    let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
                     let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
 
                     let mut tmp_bindings = bindings.clone();
