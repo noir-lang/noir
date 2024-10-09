@@ -38,7 +38,7 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Point {
+        pub(crate) fn into_group(self) -> curvegroup::Point {
             let Self {x, y} = self;
 
             curvegroup::Point::new(x, y, x * y, 1)
@@ -56,7 +56,7 @@ pub mod affine {
         }
 
         // Map into prime-order subgroup of equivalent Montgomery curve
-        fn into_montcurve(self) -> MPoint {
+        pub(crate) fn into_montcurve(self) -> MPoint {
             if self.is_zero() {
                 MPoint::zero()
             } else {
@@ -133,12 +133,12 @@ pub mod affine {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub(crate) fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             self.into_group().bit_mul(bits, p.into_group()).into_affine()
         }
 
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        pub(crate) fn mul(self, n: Field, p: Point) -> Point {
             self.into_group().mul(n, p.into_group()).into_affine()
         }
 
@@ -252,7 +252,7 @@ pub mod curvegroup {
         }
 
         // Map into prime-order subgroup of equivalent Montgomery curve
-        fn into_montcurve(self) -> MPoint {
+        pub(crate) fn into_montcurve(self) -> MPoint {
             self.into_affine().into_montcurve().into_group()
         }
     }
@@ -341,7 +341,7 @@ pub mod curvegroup {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub(crate) fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {

@@ -36,7 +36,7 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Point {
+        pub(crate) fn into_group(self) -> curvegroup::Point {
             let Self {x, y, infty} = self;
 
             if infty {
@@ -161,7 +161,7 @@ pub mod affine {
         // Simplified Shallue-van de Woestijne-Ulas map-to-curve method; see <https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-16.html#name-simplified-shallue-van-de-w>.
         // First determine non-square z != -1 in Field s.t. g(x) - z irreducible over Field and g(b/(z*a)) is square,
         // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a Field element to a point on curve c.
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub(crate) fn swu_map(self, z: Field, u: Field) -> Point {
             // Check whether curve is admissible
             assert(self.a * self.b != 0);
 
@@ -338,7 +338,7 @@ pub mod curvegroup {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub(crate) fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {

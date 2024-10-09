@@ -40,7 +40,7 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Point {
+        pub(crate) fn into_group(self) -> curvegroup::Point {
             if self.is_zero() {
                 curvegroup::Point::zero()
             } else {
@@ -62,7 +62,7 @@ pub mod affine {
         }
 
         // Map into equivalent Twisted Edwards curve
-        fn into_tecurve(self) -> TEPoint {
+        pub(crate) fn into_tecurve(self) -> TEPoint {
             let Self {x, y, infty} = self;
 
             if infty | (y * (x + 1) == 0) {
@@ -95,7 +95,7 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Curve {
+        pub(crate) fn into_group(self) -> curvegroup::Curve {
             curvegroup::Curve::new(self.j, self.k, self.gen.into_group())
         }
 
@@ -165,7 +165,7 @@ pub mod affine {
         }
 
         // Point mapping from equivalent Short Weierstrass curve
-        fn map_from_swcurve(self, p: SWPoint) -> Point {
+        pub(crate) fn map_from_swcurve(self, p: SWPoint) -> Point {
             let SWPoint {x, y, infty} = p;
             let j = self.j;
             let k = self.k;
@@ -174,7 +174,7 @@ pub mod affine {
         }
 
         // Elligator 2 map-to-curve method; see <https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html#name-elligator-2-method>.
-        fn elligator2_map(self, u: Field) -> Point {
+        pub(crate) fn elligator2_map(self, u: Field) -> Point {
             let j = self.j;
             let k = self.k;
             let z = ZETA; // Non-square Field element required for map
@@ -205,7 +205,7 @@ pub mod affine {
         }
 
         // SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub(crate) fn swu_map(self, z: Field, u: Field) -> Point {
             self.map_from_swcurve(self.into_swcurve().swu_map(z, u))
         }
     }
@@ -269,7 +269,7 @@ pub mod curvegroup {
         }
 
         // Map into equivalent Twisted Edwards curve
-        fn into_tecurve(self) -> TEPoint {
+        pub(crate) fn into_tecurve(self) -> TEPoint {
             self.into_affine().into_tecurve().into_group()
         }
     }
@@ -348,7 +348,7 @@ pub mod curvegroup {
         }
 
         // Conversion to equivalent Short Weierstrass curve
-        fn into_swcurve(self) -> SWCurve {
+        pub(crate) fn into_swcurve(self) -> SWCurve {
             let j = self.j;
             let k = self.k;
             let a0 = (3 - j * j) / (3 * k * k);
@@ -363,17 +363,17 @@ pub mod curvegroup {
         }
 
         // Point mapping from equivalent Short Weierstrass curve
-        fn map_from_swcurve(self, p: SWPoint) -> Point {
+        pub(crate) fn map_from_swcurve(self, p: SWPoint) -> Point {
             self.into_affine().map_from_swcurve(p.into_affine()).into_group()
         }
 
         // Elligator 2 map-to-curve method
-        fn elligator2_map(self, u: Field) -> Point {
+        pub(crate) fn elligator2_map(self, u: Field) -> Point {
             self.into_affine().elligator2_map(u).into_group()
         }
 
         // SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub(crate) fn swu_map(self, z: Field, u: Field) -> Point {
             self.into_affine().swu_map(z, u).into_group()
         }
     }
