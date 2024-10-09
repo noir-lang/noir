@@ -209,7 +209,7 @@ pub struct AsmWriter {
     file_map: FileMap,
     // information, stored, for use with the 'nargo trace --trace-plonky2' feature
     pub debug_trace_list: Option<DebugTraceList>,
-    prev_dsp: Option<DebugTraceSourcePoint>,
+    prev_source_point: Option<DebugTraceSourcePoint>,
 }
 
 impl AsmWriter {
@@ -268,7 +268,7 @@ impl AsmWriter {
             } else {
                 None
             },
-            prev_dsp: None,
+            prev_source_point: None,
         }
     }
 
@@ -619,7 +619,7 @@ impl AsmWriter {
     fn add_debug_trace_source_file_line(&mut self, name: String, line_number: usize) {
         let dtlist = self.debug_trace_list.as_mut().unwrap();
 
-        if let Some(prev_dsp) = &self.prev_dsp {
+        if let Some(prev_dsp) = &self.prev_source_point {
             if let Some(last_range_vec) = dtlist.source_map.get_mut(prev_dsp) {
                 last_range_vec.last_mut().unwrap().end = Some(dtlist.list.len() - 1);
             }
@@ -634,7 +634,7 @@ impl AsmWriter {
                 vec![DebugTraceAsmListIndexRange { start: dtlist.list.len(), end: None }],
             );
         }
-        self.prev_dsp = Some(dsp);
+        self.prev_source_point = Some(dsp);
     }
 
     fn comment_source_file_name(&mut self, name: PathString) {
