@@ -8,7 +8,8 @@ use crate::{
     },
     hir::{
         resolution::{
-            errors::ResolverError, import::PathResolutionError, visibility::struct_field_is_visible,
+            errors::ResolverError, import::PathResolutionError,
+            visibility::struct_member_is_visible,
         },
         type_check::{Source, TypeCheckError},
     },
@@ -508,7 +509,7 @@ impl<'context> Elaborator<'context> {
         visibility: ItemVisibility,
         span: Span,
     ) {
-        if !struct_field_is_visible(struct_type, visibility, self.module_id(), self.def_maps) {
+        if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
                 Ident::new(field_name.to_string(), span),
             )));

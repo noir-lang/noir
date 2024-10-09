@@ -79,7 +79,6 @@ fn verify_msg_block<let N: u32>(
 }
 
 global BLOCK_SIZE = 64;
-global ZERO = 0;
 
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {

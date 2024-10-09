@@ -1041,6 +1041,34 @@ impl Type {
         }
     }
 
+    pub fn is_primitive(&self) -> bool {
+        match self.follow_bindings() {
+            Type::FieldElement
+            | Type::Array(_, _)
+            | Type::Slice(_)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Function(..)
+            | Type::Tuple(..) => true,
+            Type::Alias(alias_type, generics) => {
+                alias_type.borrow().get_type(&generics).is_primitive()
+            }
+            Type::MutableReference(typ) => typ.is_primitive(),
+            Type::Struct(..)
+            | Type::TypeVariable(..)
+            | Type::TraitAsType(..)
+            | Type::NamedGeneric(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+        }
+    }
+
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a Kind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {

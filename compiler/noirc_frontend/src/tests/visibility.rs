@@ -107,6 +107,61 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
 }
 
 #[test]
+fn warns_if_calling_private_struct_method() {
+    let src = r#"
+    mod moo {
+        pub struct Foo {}
+
+        impl Foo {
+            fn bar(self) {
+                let _ = self;
+            }
+        }
+    }
+
+    pub fn method(foo: moo::Foo) {
+        foo.bar()
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "bar");
+}
+
+#[test]
+fn does_not_warn_if_calling_pub_crate_struct_method_from_same_crate() {
+    let src = r#"
+    mod moo {
+        pub struct Foo {}
+
+        impl Foo {
+            pub(crate) fn bar(self) {
+                let _ = self;
+            }
+        }
+    }
+
+    pub fn method(foo: moo::Foo) {
+        foo.bar()
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     let src = r#"
     struct Foo {
