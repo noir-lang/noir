@@ -844,9 +844,7 @@ mod test {
         assert_eq!(instructions.len(), 10);
     }
 
-    // This test currently fails. It being fixed will address the issue https://github.com/noir-lang/noir/issues/5756
     #[test]
-    #[should_panic]
     fn constant_array_deduplication() {
         // fn main f0 {
         //   b0(v0: u64):
@@ -856,8 +854,8 @@ mod test {
         //     v6 = call keccakf1600(v2)
         // }
         //
-        // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
-        // This would result in otherwise identical instructions not being deduplicated.
+        // Here we're checking a situation where two identical arrays are initialized twice, checking that these result in the same `ValueId`.
+        // Previously these would receive separate `ValueId`s resulting in instructions not being properly deduplicated.
         let main_id = Id::test_new(0);
 
         // Compiling main
@@ -887,10 +885,17 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, 2);
+        assert_eq!(starting_instruction_count, 4);
 
         let ssa = ssa.fold_constants();
 
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: u64):
+        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v5 = call keccakf1600(v1)
+        // }
         println!("{ssa}");
 
         let main = ssa.main();
