@@ -3245,6 +3245,26 @@ fn trait_inheritance() {
 }
 
 #[test]
+fn trait_inheritance_with_generics() {
+    let src = r#"
+        trait Foo<T> {
+            fn foo(self) -> T;
+        }
+
+        trait Bar<U>: Foo<U> {
+            fn bar(self);
+        }
+
+        fn foo<T>(x: T) -> i32 where T: Bar<i32> {
+            x.foo()
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn trait_inheritance_dependency_cycle() {
     let src = r#"
         trait Foo: Bar {}
