@@ -57,8 +57,8 @@ pub enum TypeCheckError {
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
     InvalidCast { from: Type, span: Span, reason: String },
-    #[error("Casting value with {from} to a smaller type")]
-    DownsizingCast { from: Type, span: Span, reason: String },
+    #[error("Casting value with type {from} to a smaller type ({to})")]
+    DownsizingCast { from: Type, to: Type, span: Span, reason: String },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]

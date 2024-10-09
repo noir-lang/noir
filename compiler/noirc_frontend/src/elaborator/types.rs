@@ -873,7 +873,7 @@ impl<'context> Elaborator<'context> {
                     span,
                     reason: "casting from a non-integral type is unsupported".into(),
                 });
-                false
+                true
             }
             Type::Error => return Type::Error,
             from => {
@@ -885,32 +885,18 @@ impl<'context> Elaborator<'context> {
 
         // TODO(https://github.com/noir-lang/noir/issues/6247):
         // handle negative literals
-        match (from_is_polymorphic, from_value_opt, to.integral_maximum_size()) {
-            // allow casting from unsized polymorphic variables
-            (true, None, _) => (),
-
-            // allow casting from sized to unsized types
-            (_, Some(_), None) => (),
-
-            // allow casting specific unsized types to sized types
-            (false, None, Some(_)) => (),
-
-            // when casting a polymorphic value to a specifically sized type,
-            // check that it fits or throw a warning
-            (true, Some(from_maximum_size), Some(to_maximum_size)) => {
-                if from_maximum_size > to_maximum_size {
-                    let from = from.clone();
-                    let reason = format!("casting untyped value ({}) to a type with a maximum size ({}) that's smaller than it", from_maximum_size, to_maximum_size);
-                    // we warn that the 'to' type is too small for the value
-                    self.push_err(TypeCheckError::DownsizingCast { from, span, reason });
-                }
+        // when casting a polymorphic value to a specifically sized type,
+        // check that it fits or throw a warning
+        if let (Some(from_value), Some(to_maximum_size)) =
+            (from_value_opt, to.integral_maximum_size())
+        {
+            if from_is_polymorphic && from_value > to_maximum_size {
+                let from = from.clone();
+                let to = to.clone();
+                let reason = format!("casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it");
+                // we warn that the 'to' type is too small for the value
+                self.push_err(TypeCheckError::DownsizingCast { from, to, span, reason });
             }
-
-            // allow casting typed values to other sizes
-            (false, Some(_), Some(_)) => (),
-
-            // allow casting from non-polymorphic unsized types
-            (false, None, None) => (),
         }
 
         match to {

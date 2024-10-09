@@ -114,16 +114,12 @@ fn test_constant_folding<let N: u32>() {
 
     // N - C1 + C2 = N - (C1 - C2)
     let _: W<N - 3 + 2> = W::<N - 1> {};
-    // TODO see PR
-    // [Integer division is not the inverse of integer multiplication](https://github.com/noir-lang/noir/pull/6243)
-    // for more info
-    // // N * C1 / C2 = N * (C1 / C2)
-    // let _: W<N * 10 / 2> = W::<N * 5> {};
-    // TODO see PR
-    // [Integer division is not the inverse of integer multiplication](https://github.com/noir-lang/noir/pull/6243)
-    // for more info
-    // // N / C1 * C2 = N / (C1 / C2)
-    // let _: W<N / 10 * 2> = W::<N / 5> {};
+
+    // N * C1 / C2 = N * (C1 / C2)
+    let _: W<N * 10 / 2> = W::<N * 5> {};
+
+    // N / C1 * C2 = N / (C1 / C2)
+    let _: W<N / 10 * 2> = W::<N / 5> {};
 }
 
 fn test_non_constant_folding<let N: u32, let M: u32>() {
