@@ -80,7 +80,7 @@ fn generate_plonky2_debug_trace_list(
             true,
         );
 
-        let dtl = if let Ok((compiled_program, _)) = &compilation_result {
+        let debug_trace_list = if let Ok((compiled_program, _)) = &compilation_result {
             if let Some(plonky2_circuit) = &compiled_program.plonky2_circuit {
                 plonky2_circuit.debug_trace_list.clone()
             } else {
@@ -97,7 +97,7 @@ fn generate_plonky2_debug_trace_list(
             args.compile_options.silence_warnings,
         )?;
 
-        return Ok(dtl.unwrap());
+        return Ok(debug_trace_list.unwrap());
     }
 
     Err(CliError::Generic(
