@@ -928,9 +928,11 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Unbound(_, _) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u32().unwrap_or_else(|| {
-                        panic!("Non-numeric type variable used in expression expecting a value")
-                    }),
+                    TypeBinding::Bound(binding) => binding
+                        .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()))
+                        .unwrap_or_else(|| {
+                            panic!("Non-numeric type variable used in expression expecting a value")
+                        }),
                 };
                 let location = self.interner.id_location(expr_id);
 
@@ -942,12 +944,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
 
                 let typ = Self::convert_type(&typ, ident.location)?;
-                ast::Expression::Literal(ast::Literal::Integer(
-                    (value as u128).into(),
-                    false,
-                    typ,
-                    location,
-                ))
+                ast::Expression::Literal(ast::Literal::Integer(value, false, typ, location))
             }
         };
 

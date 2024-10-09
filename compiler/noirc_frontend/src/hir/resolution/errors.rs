@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
@@ -125,7 +126,12 @@ pub enum ResolverError {
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
     #[error("Overflow in `{lhs} {op} {rhs}`")]
-    OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
+    OverflowInType {
+        lhs: FieldElement,
+        op: crate::BinaryTypeOperator,
+        rhs: FieldElement,
+        span: Span,
+    },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { span: Span },
     #[error("Comptime-only type `{typ}` cannot be used in runtime code")]

@@ -1,14 +1,11 @@
 use crate::{
-    ast::{
-        Expression, ExpressionKind, GenericTypeArgs, Literal, UnresolvedType, UnresolvedTypeData,
-        UnresolvedTypeExpression,
-    },
-    parser::{labels::ParsingRuleLabel, ParserError, ParserErrorReason},
+    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    parser::{labels::ParsingRuleLabel, ParserError},
     token::Token,
     BinaryTypeOperator,
 };
 
-use acvm::acir::AcirField;
+use acvm::acir::{AcirField, FieldElement};
 use noirc_errors::Span;
 
 use super::{parse_many::separated_by_comma_until_right_paren, Parser};
@@ -119,7 +116,7 @@ impl<'a> Parser<'a> {
         if self.eat(Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(0, start_span);
+                    let lhs = UnresolvedTypeExpression::Constant(FieldElement::zero(), start_span);
                     let op = BinaryTypeOperator::Subtraction;
                     let span = self.span_since(start_span);
                     Some(UnresolvedTypeExpression::BinaryOperation(
@@ -163,20 +160,6 @@ impl<'a> Parser<'a> {
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let Some(int) = self.eat_int() else {
             return None;
-        };
-
-        let int = if let Some(int) = int.try_to_u32() {
-            int
-        } else {
-            let err_expr = Expression {
-                kind: ExpressionKind::Literal(Literal::Integer(int, false)),
-                span: self.previous_token_span,
-            };
-            self.push_error(
-                ParserErrorReason::InvalidTypeExpression(err_expr),
-                self.previous_token_span,
-            );
-            0
         };
 
         Some(UnresolvedTypeExpression::Constant(int, self.previous_token_span))
@@ -267,7 +250,7 @@ impl<'a> Parser<'a> {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(0, start_span);
+                    let lhs = UnresolvedTypeExpression::Constant(FieldElement::zero(), start_span);
                     let op = BinaryTypeOperator::Subtraction;
                     let span = self.span_since(start_span);
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(
@@ -444,7 +427,7 @@ mod tests {
         let UnresolvedTypeExpression::Constant(n, _) = expr else {
             panic!("Expected constant");
         };
-        assert_eq!(n, 42);
+        assert_eq!(n, 42_u32.into());
     }
 
     #[test]
@@ -496,7 +479,7 @@ mod tests {
         let UnresolvedTypeExpression::Constant(n, _) = expr else {
             panic!("Expected constant");
         };
-        assert_eq!(n, 42);
+        assert_eq!(n, 42_u32.into());
     }
 
     #[test]
