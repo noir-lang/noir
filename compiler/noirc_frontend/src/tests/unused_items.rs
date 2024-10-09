@@ -245,3 +245,21 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
+    let src = r#" 
+    struct Bar {
+        field: Field,
+    }
+
+    #[abi(functions)]
+    struct Foo {
+        bar: Bar,
+    }
+
+    fn main() {
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -1277,6 +1277,13 @@ impl<'context> Elaborator<'context> {
             self.local_module = typ.module_id;
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
+
+            if typ.struct_def.is_abi() {
+                for (_field_name, field_type) in &fields {
+                    self.mark_parameter_type_as_used(field_type);
+                }
+            }
+
             let fields_len = fields.len();
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
