@@ -279,7 +279,7 @@ pub(crate) enum Instruction {
 
     /// Creates a new array or slice.
     ///
-    /// `typ` should be an array or slice type with an element type
+    /// `typ` must be an array or slice type with an element type
     /// matching each of the `elements` values' types.
     MakeArray { elements: im::Vector<ValueId>, typ: Type },
 }
