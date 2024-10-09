@@ -1,5 +1,5 @@
 use crate::graph::CrateId;
-use crate::StructType;
+use crate::node_interner::StructId;
 
 use std::collections::BTreeMap;
 
@@ -64,8 +64,8 @@ fn module_is_parent_of_struct_module(
     module_data.is_struct && module_data.parent == Some(current)
 }
 
-pub fn struct_field_is_visible(
-    struct_type: &StructType,
+pub fn struct_member_is_visible(
+    struct_id: StructId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
@@ -73,10 +73,10 @@ pub fn struct_field_is_visible(
     match visibility {
         ItemVisibility::Public => true,
         ItemVisibility::PublicCrate => {
-            struct_type.id.parent_module_id(def_maps).krate == current_module_id.krate
+            struct_id.parent_module_id(def_maps).krate == current_module_id.krate
         }
         ItemVisibility::Private => {
-            let struct_parent_module_id = struct_type.id.parent_module_id(def_maps);
+            let struct_parent_module_id = struct_id.parent_module_id(def_maps);
             if struct_parent_module_id.krate != current_module_id.krate {
                 return false;
             }
