@@ -32,10 +32,12 @@ use crate::{
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
     },
-    hir_def::expr::{HirExpression, HirLiteral},
-    hir_def::function::FunctionBody,
+    hir_def::{
+        expr::{HirExpression, HirLiteral},
+        function::FunctionBody,
+    },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
-    parser::Parser,
+    parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, SecondaryAttribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
@@ -685,23 +687,20 @@ fn quoted_as_expr(
     let argument = check_one_argument(arguments, location)?;
 
     let result =
-        parse(interner, argument.clone(), Parser::parse_expression_or_error, "an expression");
-    if let Ok(expr) = result {
-        return option(return_type, Some(Value::expression(expr.kind)));
-    }
+        parse(interner, argument, Parser::parse_statement_or_expression_or_lvalue, "an expression");
 
-    let result =
-        parse(interner, argument.clone(), Parser::parse_statement_or_error, "an expression");
-    if let Ok(stmt) = result {
-        return option(return_type, Some(Value::statement(stmt.kind)));
-    }
+    let value =
+        result.ok().map(
+            |statement_or_expression_or_lvalue| match statement_or_expression_or_lvalue {
+                StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
+                StatementOrExpressionOrLValue::Statement(statement) => {
+                    Value::statement(statement.kind)
+                }
+                StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
+            },
+        );
 
-    let result = parse(interner, argument, Parser::parse_lvalue_or_error, "an expression");
-    if let Ok(lvalue) = result {
-        return option(return_type, Some(Value::lvalue(lvalue)));
-    }
-
-    option(return_type, None)
+    option(return_type, value)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>

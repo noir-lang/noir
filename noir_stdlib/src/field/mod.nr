@@ -46,7 +46,7 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_be_bits)]
-     // docs:start:to_be_bits
+    // docs:start:to_be_bits
     pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
     // docs:end:to_be_bits
 
