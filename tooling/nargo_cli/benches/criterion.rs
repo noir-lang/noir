@@ -26,10 +26,13 @@ fn compile_program(test_program_dir: &Path) {
     cmd.assert().success();
 }
 
-/// Read the bytecode of the program from the compilation artifacts.
+/// Read the bytecode(s) of the program(s) from the compilation artifacts
+/// from all the binary packages. Pair them up with their respective input.
 ///
 /// Based on `ExecuteCommand::run`.
-fn read_compiled_program_with_input(dir: &Path) -> (CompiledProgram, WitnessMap<FieldElement>) {
+fn read_compiled_programs_and_inputs(
+    dir: &Path,
+) -> Vec<(CompiledProgram, WitnessMap<FieldElement>)> {
     let toml_path = nargo_toml::get_package_manifest(dir).expect("failed to read manifest");
     let workspace = nargo_toml::resolve_workspace_from_toml(
         &toml_path,
@@ -38,27 +41,26 @@ fn read_compiled_program_with_input(dir: &Path) -> (CompiledProgram, WitnessMap<
     )
     .expect("failed to resolve workspace");
 
-    // Assuming there is only one binary package in these tests.
-    let package = workspace
-        .into_iter()
-        .filter(|package| package.is_binary())
-        .last()
-        .expect("no binary packages in the test program");
+    let mut programs = Vec::new();
+    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-    let program_artifact_path = workspace.package_build_path(package);
-    let program: CompiledProgram = read_program_from_file(&program_artifact_path).into();
+    for package in binary_packages {
+        let program_artifact_path = workspace.package_build_path(package);
+        let program: CompiledProgram = read_program_from_file(&program_artifact_path).into();
 
-    let (inputs, _) = read_inputs_from_file(
-        &package.root_dir,
-        nargo::constants::PROVER_INPUT_FILE,
-        Format::Toml,
-        &program.abi,
-    );
+        let (inputs, _) = read_inputs_from_file(
+            &package.root_dir,
+            nargo::constants::PROVER_INPUT_FILE,
+            Format::Toml,
+            &program.abi,
+        );
 
-    let initial_witness =
-        program.abi.encode(&inputs, None).expect("failed to encode input witness");
+        let initial_witness =
+            program.abi.encode(&inputs, None).expect("failed to encode input witness");
 
-    (program, initial_witness)
+        programs.push((program, initial_witness));
+    }
+    programs
 }
 
 /// Read the bytecode and ABI from the compilation output
@@ -104,7 +106,7 @@ fn criterion_selected_tests_execution(c: &mut Criterion) {
             format!("{}_execute", test_program_dir.file_name().unwrap().to_str().unwrap());
 
         // The program and its inputs will be passed in the first setup.
-        let artifacts = RefCell::new(None);
+        let artifacts = RefCell::new(Vec::new());
 
         let mut foreign_call_executor =
             nargo::ops::DefaultForeignCallExecutor::new(false, None, None, None);
@@ -115,27 +117,27 @@ fn criterion_selected_tests_execution(c: &mut Criterion) {
                     // Setup will be called many times to set a batch (which we don't use),
                     // but we can compile it only once, and then the executions will not have to do so.
                     // It is done as a setup so that we only compile the test programs that we filter for.
-                    if artifacts.borrow().is_some() {
+                    if !artifacts.borrow().is_empty() {
                         return;
                     }
                     compile_program(&test_program_dir);
                     // Parse the artifacts for use in the benchmark routine
-                    let program_and_input = read_compiled_program_with_input(&test_program_dir);
+                    let programs = read_compiled_programs_and_inputs(&test_program_dir);
                     // Store them for execution
-                    artifacts.replace(Some(program_and_input));
+                    artifacts.replace(programs);
                 },
                 |_| {
                     let artifacts = artifacts.borrow();
-                    let (program, initial_witness) =
-                        artifacts.as_ref().expect("setup compiled the program");
 
-                    let _witness_stack = black_box(nargo::ops::execute_program(
-                        black_box(&program.program),
-                        black_box(initial_witness.clone()),
-                        &bn254_blackbox_solver::Bn254BlackBoxSolver,
-                        &mut foreign_call_executor,
-                    ))
-                    .expect("failed to execute program");
+                    for (program, initial_witness) in artifacts.iter() {
+                        let _witness_stack = black_box(nargo::ops::execute_program(
+                            black_box(&program.program),
+                            black_box(initial_witness.clone()),
+                            &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                            &mut foreign_call_executor,
+                        ))
+                        .expect("failed to execute program");
+                    }
                 },
                 criterion::BatchSize::SmallInput,
             );
