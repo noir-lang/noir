@@ -822,11 +822,11 @@ mod test {
     fn keep_inc_rc_on_borrowed_array_store() {
         // acir(inline) fn main f0 {
         //     b0():
+        //       v1 = make_array [u32 0, u32 0]
         //       v2 = allocate
-        //       vA = [u32 0, u32 0]
-        //       inc_rc vA
-        //       store VA at v2
-        //       inc_rc vA
+        //       inc_rc v1
+        //       store V1 at v2
+        //       inc_rc v1
         //       jmp b1()
         //     b1():
         //       v3 = load v2
@@ -839,11 +839,11 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let array = builder.insert_make_array(vector![zero, zero], array_type.clone());
+        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(array);
-        builder.insert_store(v2, array);
-        builder.increment_array_reference_count(array);
+        builder.increment_array_reference_count(v1);
+        builder.insert_store(v2, v1);
+        builder.increment_array_reference_count(v1);
 
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![]);
@@ -865,7 +865,7 @@ mod test {
         let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
     }
 
