@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound};
+use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -750,7 +750,7 @@ impl<'context> Elaborator<'context> {
             );
 
             if is_entry_point {
-                self.mark_parameter_type_as_used(&typ);
+                self.mark_type_as_used(&typ);
             }
 
             let pattern = self.elaborate_pattern_and_store_ids(
@@ -831,33 +831,33 @@ impl<'context> Elaborator<'context> {
         self.current_item = None;
     }
 
-    fn mark_parameter_type_as_used(&mut self, typ: &Type) {
+    fn mark_type_as_used(&mut self, typ: &Type) {
         match typ {
-            Type::Array(_n, typ) => self.mark_parameter_type_as_used(typ),
-            Type::Slice(typ) => self.mark_parameter_type_as_used(typ),
+            Type::Array(_n, typ) => self.mark_type_as_used(typ),
+            Type::Slice(typ) => self.mark_type_as_used(typ),
             Type::Tuple(types) => {
                 for typ in types {
-                    self.mark_parameter_type_as_used(typ);
+                    self.mark_type_as_used(typ);
                 }
             }
             Type::Struct(struct_type, generics) => {
                 self.mark_struct_as_constructed(struct_type.clone());
                 for generic in generics {
-                    self.mark_parameter_type_as_used(generic);
+                    self.mark_type_as_used(generic);
                 }
                 for (_, typ) in struct_type.borrow().get_fields(generics) {
-                    self.mark_parameter_type_as_used(&typ);
+                    self.mark_type_as_used(&typ);
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.mark_parameter_type_as_used(&alias_type.borrow().get_type(generics));
+                self.mark_type_as_used(&alias_type.borrow().get_type(generics));
             }
             Type::MutableReference(typ) => {
-                self.mark_parameter_type_as_used(typ);
+                self.mark_type_as_used(typ);
             }
             Type::InfixExpr(left, _op, right) => {
-                self.mark_parameter_type_as_used(left);
-                self.mark_parameter_type_as_used(right);
+                self.mark_type_as_used(left);
+                self.mark_type_as_used(right);
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1276,6 +1276,13 @@ impl<'context> Elaborator<'context> {
             self.local_module = typ.module_id;
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
+
+            if typ.struct_def.is_abi() {
+                for field in &fields {
+                    self.mark_type_as_used(&field.typ);
+                }
+            }
+
             let fields_len = fields.len();
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
@@ -1314,7 +1321,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved: &NoirStruct,
         struct_id: StructId,
-    ) -> Vec<(Ident, Type)> {
+    ) -> Vec<StructField> {
         self.recover_generics(|this| {
             this.current_item = Some(DependencyId::Struct(struct_id));
 
@@ -1326,7 +1333,8 @@ impl<'context> Elaborator<'context> {
             let fields = vecmap(&unresolved.fields, |field| {
                 let ident = &field.item.name;
                 let typ = &field.item.typ;
-                (ident.clone(), this.resolve_type(typ.clone()))
+                let visibility = field.item.visibility;
+                StructField { visibility, name: ident.clone(), typ: this.resolve_type(typ.clone()) }
             });
 
             this.resolving_ids.remove(&struct_id);

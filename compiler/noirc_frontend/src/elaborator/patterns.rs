@@ -4,7 +4,8 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        Expression, ExpressionKind, Ident, Path, Pattern, TypePath, UnresolvedType, ERROR_IDENT,
+        Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath, UnresolvedType,
+        ERROR_IDENT,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -272,7 +273,9 @@ impl<'context> Elaborator<'context> {
         let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field, pattern) in fields {
-            let field_type = expected_type.get_field_type(&field.0.contents).unwrap_or(Type::Error);
+            let (field_type, visibility) = expected_type
+                .get_field_type_and_visibility(&field.0.contents)
+                .unwrap_or((Type::Error, ItemVisibility::Public));
             let resolved = self.elaborate_pattern_mut(
                 pattern,
                 field_type,
@@ -286,6 +289,13 @@ impl<'context> Elaborator<'context> {
             if unseen_fields.contains(&field) {
                 unseen_fields.remove(&field);
                 seen_fields.insert(field.clone());
+
+                self.check_struct_field_visibility(
+                    &struct_type.borrow(),
+                    &field.0.contents,
+                    visibility,
+                    field.span(),
+                );
             } else if seen_fields.contains(&field) {
                 // duplicate field
                 self.push_err(ResolverError::DuplicateField { field: field.clone() });

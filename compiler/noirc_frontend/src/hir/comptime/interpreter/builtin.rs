@@ -19,8 +19,8 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
-        Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
+        Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         Visibility,
     },
     hir::{
@@ -32,10 +32,9 @@ use crate::{
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
     },
-    hir_def::{
-        expr::{HirExpression, HirLiteral},
-        function::FunctionBody,
-    },
+    hir_def::expr::{HirExpression, HirLiteral},
+    hir_def::function::FunctionBody,
+    hir_def::{self},
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, SecondaryAttribute, Token},
@@ -498,9 +497,9 @@ fn struct_def_fields(
 
     let mut fields = im::Vector::new();
 
-    for (name, typ) in struct_def.get_fields_as_written() {
-        let name = Value::Quoted(Rc::new(vec![Token::Ident(name)]));
-        let typ = Value::Type(typ);
+    for field in struct_def.get_fields_as_written() {
+        let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
+        let typ = Value::Type(field.typ);
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
 
@@ -567,7 +566,11 @@ fn struct_def_set_fields(
 
                 match name_tokens.first() {
                     Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                        Ok((Ident::new(name.clone(), field_location.span), typ))
+                        Ok(hir_def::types::StructField {
+                            visibility: ItemVisibility::Public,
+                            name: Ident::new(name.clone(), field_location.span),
+                            typ,
+                        })
                     }
                     _ => {
                         let value = name_value.display(interner).to_string();

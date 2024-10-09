@@ -267,12 +267,16 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
 
 pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     if let Some(toml_path) = find_file_manifest(file_path) {
-        return resolve_workspace_from_toml(
+        match resolve_workspace_from_toml(
             &toml_path,
             PackageSelection::All,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-        )
-        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
+        ) {
+            Ok(workspace) => return Ok(workspace),
+            Err(error) => {
+                eprintln!("Error while processing {:?}: {}", toml_path, error);
+            }
+        }
     }
 
     let Some(parent_folder) = file_path
@@ -285,14 +289,22 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
             file_path
         )));
     };
+
+    let crate_name = match CrateName::from_str(parent_folder) {
+        Ok(name) => name,
+        Err(error) => {
+            eprintln!("{}", error);
+            CrateName::from_str("root").unwrap()
+        }
+    };
+
     let assumed_package = Package {
         version: None,
         compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
         root_dir: PathBuf::from(parent_folder),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from(file_path),
-        name: CrateName::from_str(parent_folder)
-            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?,
+        name: crate_name,
         dependencies: BTreeMap::new(),
         expression_width: None,
     };
@@ -309,7 +321,11 @@ pub(crate) fn workspace_package_for_file<'a>(
     workspace: &'a Workspace,
     file_path: &Path,
 ) -> Option<&'a Package> {
-    workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+    if workspace.is_assumed {
+        workspace.members.first()
+    } else {
+        workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+    }
 }
 
 pub(crate) fn prepare_package<'file_manager, 'parsed_files>(

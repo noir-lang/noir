@@ -1072,6 +1072,22 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_does_not_suggest_private_struct_field() {
+        let src = r#"
+            mod moo {
+                pub struct Some {
+                    property: i32,
+                }
+            }
+
+            fn foo(s: moo::Some) {
+                s.>|<
+            }
+        "#;
+        assert_completion(src, vec![]).await;
+    }
+
+    #[test]
     async fn test_suggests_struct_impl_method() {
         let src = r#"
             struct Some {

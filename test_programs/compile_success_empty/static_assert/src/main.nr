@@ -9,7 +9,7 @@ global GLOBAL_THREE = GLOBAL_ONE + GLOBAL_TWO;
 global GLOBAL_ARRAY_PAIR = [GLOBAL_ONE, GLOBAL_TWO];
 global GLOBAL_SLICE_PAIR = &[GLOBAL_ONE, GLOBAL_TWO];
 
-struct Foo {
+pub struct Foo {
     field: Field,
     array: [Field; 3],
     slice: [Field],

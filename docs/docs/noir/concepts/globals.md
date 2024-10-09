@@ -73,7 +73,7 @@ function performs side-effects like `println`, as these will still occur on each
 
 ### Visibility
 
-By default, like functions, globals are private to the module the exist in. You can use `pub`
+By default, like functions, globals are private to the module they exist in. You can use `pub`
 to make the global public or `pub(crate)` to make it public to just its crate:
 
 ```rust

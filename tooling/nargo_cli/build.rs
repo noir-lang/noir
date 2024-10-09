@@ -240,6 +240,8 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         if !output.status.success() {{
             panic!("`nargo info` failed with: {}", String::from_utf8(output.stderr).unwrap_or_default());
         }}
+
+        nargo.assert().success().stderr(predicate::str::contains("warning:").not());
     
         // `compile_success_empty` tests should be able to compile down to an empty circuit.
         let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
@@ -284,7 +286,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        nargo.assert().success();"#,
+        nargo.assert().success().stderr(predicate::str::contains("warning:").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
