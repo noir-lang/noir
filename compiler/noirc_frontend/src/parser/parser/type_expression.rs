@@ -480,8 +480,7 @@ mod tests {
         let UnresolvedTypeExpression::Constant(n, _) = expr else {
             panic!("Expected constant");
         };
-        let fourty_two = 42_u32.into();
-        assert_eq!(n, fourty_two);
+        assert_eq!(n, 42_u32.into());
     }
 
     #[test]
