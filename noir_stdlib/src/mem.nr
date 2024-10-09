@@ -10,7 +10,7 @@ pub fn zeroed<T>() -> T {}
 /// both types are asserted to be equal. If not, a compilation error is issued.
 ///
 /// This function is useful for types using arithmetic generics for cases
-/// which the compiler otherwise cannot prove as equal during type checking.
+/// which the compiler otherwise cannot prove equal during type checking.
 /// You can use this to obtain a value of the correct type while still asserting
 /// that it is equal to the previous.
 #[builtin(checked_transmute)]
