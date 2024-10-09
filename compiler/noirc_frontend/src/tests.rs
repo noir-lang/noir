@@ -3279,3 +3279,22 @@ fn trait_inheritance_dependency_cycle() {
         CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
     ));
 }
+
+#[test]
+fn trait_inheritance_missing_parent_implementation() {
+    let src = r#"
+        pub trait Foo {}
+
+        pub trait Bar: Foo {}
+
+        pub struct Struct {}
+
+        impl Bar for Struct {}
+
+        fn main() {
+            let _ = Struct {}; // silence Struct never constructed warning
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+}
