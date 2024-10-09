@@ -292,6 +292,7 @@ pub enum DependencyId {
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
+    Trait(TraitId),
     Variable(Location),
 }
 
@@ -2024,6 +2025,10 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
+    pub fn add_trait_dependency(&mut self, dependent: DependencyId, dependency: TraitId) {
+        self.add_dependency(dependent, DependencyId::Trait(dependency));
+    }
+
     pub fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);
@@ -2079,6 +2084,11 @@ impl NodeInterner {
                             push_error(alias.name.to_string(), &scc, i, alias.location);
                             break;
                         }
+                        DependencyId::Trait(trait_id) => {
+                            let the_trait = self.get_trait(trait_id);
+                            push_error(the_trait.name.to_string(), &scc, i, the_trait.location);
+                            break;
+                        }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
                         // Local variables should never be in a dependency cycle, scoping rules
@@ -2107,6 +2117,7 @@ impl NodeInterner {
             DependencyId::Global(id) => {
                 Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
             }
+            DependencyId::Trait(id) => Cow::Owned(self.get_trait(id).name.to_string()),
             DependencyId::Variable(loc) => {
                 unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
             }

@@ -14,7 +14,7 @@ use crate::{
         function::Parameters,
         traits::{ResolvedTraitBound, TraitFunction},
     },
-    node_interner::{FuncId, NodeInterner, ReferenceId, TraitId},
+    node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
     ResolvedGeneric, Type, TypeBindings,
 };
 
@@ -38,6 +38,10 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let resolved_trait_bounds = this.resolve_trait_bounds(unresolved_trait);
+                for bound in &resolved_trait_bounds {
+                    this.interner
+                        .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
+                }
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 

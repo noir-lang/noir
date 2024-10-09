@@ -1826,7 +1826,7 @@ fn lookup_method_in_trait(
 ) -> Option<HirMethodReference> {
     let trait_method = the_trait.find_method(method_name)?;
     let generics = trait_bound.trait_generics.clone();
-    return Some(HirMethodReference::TraitMethodId(trait_method, generics));
+    Some(HirMethodReference::TraitMethodId(trait_method, generics))
 }
 
 pub fn try_eval_array_length_id(

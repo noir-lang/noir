@@ -3243,3 +3243,19 @@ fn trait_inheritance() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn trait_inheritance_dependency_cycle() {
+    let src = r#"
+        trait Foo: Bar {}
+        trait Bar: Foo {}
+        fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    ));
+}
