@@ -23,21 +23,21 @@ use super::NargoConfig;
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "c")]
-pub struct CheckCommand {
+pub(crate) struct CheckCommand {
     /// The name of the package to check
     #[clap(long, conflicts_with = "workspace")]
-    pub package: Option<CrateName>,
+    package: Option<CrateName>,
 
     /// Check all packages in the workspace
     #[clap(long, conflicts_with = "package")]
-    pub workspace: bool,
+    workspace: bool,
 
     /// Force overwrite of existing files
     #[clap(long = "overwrite")]
-    pub allow_overwrite: bool,
+    allow_overwrite: bool,
 
     #[clap(flatten)]
-    pub compile_options: CompileOptions,
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {

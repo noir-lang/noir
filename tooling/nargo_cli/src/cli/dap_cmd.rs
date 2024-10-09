@@ -28,28 +28,28 @@ use super::NargoConfig;
 use noir_debugger::errors::{DapError, LoadError};
 
 #[derive(Debug, Clone, Args)]
-pub struct DapCommand {
+pub(crate) struct DapCommand {
     /// Override the expression width requested by the backend.
     #[arg(long, value_parser = parse_expression_width, default_value = "4")]
-    pub expression_width: ExpressionWidth,
+    expression_width: ExpressionWidth,
 
     #[clap(long)]
-    pub preflight_check: bool,
+    preflight_check: bool,
 
     #[clap(long)]
-    pub preflight_project_folder: Option<String>,
+    preflight_project_folder: Option<String>,
 
     #[clap(long)]
-    pub preflight_package: Option<String>,
+    preflight_package: Option<String>,
 
     #[clap(long)]
-    pub preflight_prover_name: Option<String>,
+    preflight_prover_name: Option<String>,
 
     #[clap(long)]
-    pub preflight_generate_acir: bool,
+    preflight_generate_acir: bool,
 
     #[clap(long)]
-    pub preflight_skip_instrumentation: bool,
+    preflight_skip_instrumentation: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {

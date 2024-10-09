@@ -28,28 +28,28 @@ use crate::errors::CliError;
 
 /// Executes a circuit in debug mode
 #[derive(Debug, Clone, Args)]
-pub struct DebugCommand {
+pub(crate) struct DebugCommand {
     /// Write the execution witness to named file
-    pub witness_name: Option<String>,
+    witness_name: Option<String>,
 
     /// The name of the toml file which contains the inputs for the prover
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
-    pub prover_name: String,
+    prover_name: String,
 
     /// The name of the package to execute
     #[clap(long)]
-    pub package: Option<CrateName>,
+    package: Option<CrateName>,
 
     #[clap(flatten)]
-    pub compile_options: CompileOptions,
+    compile_options: CompileOptions,
 
     /// Force ACIR output (disabling instrumentation)
     #[clap(long)]
-    pub acir_mode: bool,
+    acir_mode: bool,
 
     /// Disable vars debug instrumentation (enabled by default)
     #[clap(long)]
-    pub skip_instrumentation: Option<bool>,
+    skip_instrumentation: Option<bool>,
 }
 
 pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliError> {

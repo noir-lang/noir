@@ -13,10 +13,10 @@ use super::NargoConfig;
 
 /// Format the Noir files in a workspace
 #[derive(Debug, Clone, Args)]
-pub struct FormatCommand {
+pub(crate) struct FormatCommand {
     /// Run noirfmt in check mode
     #[arg(long)]
-    pub check: bool,
+    check: bool,
 }
 
 pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {

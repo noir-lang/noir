@@ -26,21 +26,21 @@ use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
-pub struct CompileCommand {
+pub(crate) struct CompileCommand {
     /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
-    pub package: Option<CrateName>,
+    package: Option<CrateName>,
 
     /// Compile all packages in the workspace.
     #[clap(long, conflicts_with = "package")]
-    pub workspace: bool,
+    workspace: bool,
 
     #[clap(flatten)]
-    pub compile_options: CompileOptions,
+    compile_options: CompileOptions,
 
     /// Watch workspace and recompile on changes.
     #[clap(long, hide = true)]
-    pub watch: bool,
+    watch: bool,
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
