@@ -8,7 +8,8 @@ use crate::{
     },
     hir::{
         resolution::{
-            errors::ResolverError, import::PathResolutionError, visibility::struct_member_is_visible,
+            errors::ResolverError, import::PathResolutionError,
+            visibility::struct_member_is_visible,
         },
         type_check::{Source, TypeCheckError},
     },
