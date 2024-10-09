@@ -126,7 +126,12 @@ pub enum ResolverError {
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
     #[error("Overflow in `{lhs} {op} {rhs}`")]
-    OverflowInType { lhs: FieldElement, op: crate::BinaryTypeOperator, rhs: FieldElement, span: Span },
+    OverflowInType {
+        lhs: FieldElement,
+        op: crate::BinaryTypeOperator,
+        rhs: FieldElement,
+        span: Span,
+    },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { span: Span },
     #[error("Comptime-only type `{typ}` cannot be used in runtime code")]

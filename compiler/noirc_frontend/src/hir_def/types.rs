@@ -250,12 +250,14 @@ impl Kind {
     }
 
     /// Ensure the given value fits in self.integral_maximum_size()
-    pub(crate) fn ensure_value_fits<T: Clone + Into<FieldElement>>(&self, value: T) -> Option<T> {
+    pub(crate) fn ensure_value_fits<T>(&self, value: T) -> Option<T>
+    where
+        for<'a> &'a FieldElement: From<&'a T>,
+    {
         match self.integral_maximum_size() {
             None => Some(value),
             Some(maximum_size) => {
-                // TODO possible to avoid clone, e.g. get by ref and return a bool?
-                if value.clone().into() <= maximum_size {
+                if <&T as Into<&FieldElement>>::into(&value) <= &maximum_size {
                     Some(value)
                 } else {
                     None
@@ -715,7 +717,9 @@ impl TypeVariable {
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => matches!(binding.follow_bindings(), Type::Integer(..)),
-            TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind.follow_bindings(), Kind::Integer),
+            TypeBinding::Unbound(_, type_var_kind) => {
+                matches!(type_var_kind.follow_bindings(), Kind::Integer)
+            }
         }
     }
 
@@ -726,7 +730,9 @@ impl TypeVariable {
             TypeBinding::Bound(binding) => {
                 matches!(binding.follow_bindings(), Type::Integer(..) | Type::FieldElement)
             }
-            TypeBinding::Unbound(_, type_var_kind) => matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField),
+            TypeBinding::Unbound(_, type_var_kind) => {
+                matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField)
+            }
         }
     }
 
@@ -1854,13 +1860,11 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self) -> Option<u32> {
-        self.evaluate_to_field_element(&Kind::u32()).and_then(|field_element| field_element.try_to_u32())
+        self.evaluate_to_field_element(&Kind::u32())
+            .and_then(|field_element| field_element.try_to_u32())
     }
 
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
-        // TODO
-        dbg!("evaluate_to_field_element", self);
-
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
@@ -1870,9 +1874,6 @@ impl Type {
         }
 
         match self.canonicalize() {
-            // TODO: unused case? (was a patch to use evaluate_to_u32 for array.len())
-            // Type::Array(len, _elem) => len.evaluate_to_field_element(),
-
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x)
@@ -2406,11 +2407,9 @@ impl Type {
                 }
             }
             Type::Alias(alias, _args) => alias.borrow().typ.integral_maximum_size(),
-            Type::NamedGeneric(binding, _name) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => typ.integral_maximum_size(),
-                    TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
-                }
+            Type::NamedGeneric(binding, _name) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.integral_maximum_size(),
+                TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
             },
             Type::MutableReference(typ) => typ.integral_maximum_size(),
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs).integral_maximum_size(),
@@ -2469,21 +2468,19 @@ impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(self, a: FieldElement, b: FieldElement, kind: &Kind) -> Option<FieldElement> {
         match kind.follow_bindings().integral_maximum_size() {
-            None => {
-                match self {
-                    BinaryTypeOperator::Addition => Some(a + b),
-                    BinaryTypeOperator::Subtraction => Some(a - b),
-                    BinaryTypeOperator::Multiplication => Some(a * b),
-                    BinaryTypeOperator::Division => {
-                        if b == FieldElement::zero() {
-                            None
-                        } else {
-                            Some(a / b)
-                        }
+            None => match self {
+                BinaryTypeOperator::Addition => Some(a + b),
+                BinaryTypeOperator::Subtraction => Some(a - b),
+                BinaryTypeOperator::Multiplication => Some(a * b),
+                BinaryTypeOperator::Division => {
+                    if b == FieldElement::zero() {
+                        None
+                    } else {
+                        Some(a / b)
                     }
-                    BinaryTypeOperator::Modulo => None,
                 }
-            }
+                BinaryTypeOperator::Modulo => None,
+            },
             Some(maximum_size) => {
                 let maximum_size = maximum_size.to_i128();
                 let a = a.to_i128();

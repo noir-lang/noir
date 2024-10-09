@@ -19,8 +19,8 @@ pub use visitor::Visitor;
 pub use expression::*;
 pub use function::*;
 
-pub use docs::*;
 use acvm::FieldElement;
+pub use docs::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
@@ -427,7 +427,8 @@ impl UnresolvedTypeExpression {
             },
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
-                let lhs = Box::new(UnresolvedTypeExpression::Constant(FieldElement::zero(), expr.span));
+                let lhs =
+                    Box::new(UnresolvedTypeExpression::Constant(FieldElement::zero(), expr.span));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
                 let op = BinaryTypeOperator::Subtraction;
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))

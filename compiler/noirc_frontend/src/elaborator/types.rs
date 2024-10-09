@@ -640,7 +640,7 @@ impl<'context> Elaborator<'context> {
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
             Ok(Err(_cast_err)) => {
-                self.push_err(ResolverError::IntegerTooLarge { span })
+                self.push_err(ResolverError::IntegerTooLarge { span });
             }
             Err(Some(error)) => self.push_err(error),
             Err(None) => (),
@@ -845,18 +845,21 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn check_cast(&mut self, from_expr_id: &ExprId, from: &Type, to: &Type, span: Span) -> Type {
+    pub(super) fn check_cast(
+        &mut self,
+        from_expr_id: &ExprId,
+        from: &Type,
+        to: &Type,
+        span: Span,
+    ) -> Type {
         let from_follow_bindings = from.follow_bindings();
 
-        let from_value_opt = match self.interner.expression(&from_expr_id) {
+        let from_value_opt = match self.interner.expression(from_expr_id) {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => Some(int),
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals
-            other => {
-                dbg!("from_value_opt: other", other);
-                None
-            }
+            _ => None,
         };
 
         let from_is_polymorphic = match from_follow_bindings {

@@ -61,7 +61,11 @@ impl Type {
         // Maps each term to the number of times that term was used.
         let mut sorted = BTreeMap::new();
 
-        let zero_value = if op == BinaryTypeOperator::Addition { FieldElement::zero() } else { FieldElement::one() };
+        let zero_value = if op == BinaryTypeOperator::Addition {
+            FieldElement::zero()
+        } else {
+            FieldElement::one()
+        };
         let mut constant = zero_value;
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
@@ -220,7 +224,8 @@ impl Type {
                     op = op.inverse()?;
                 }
 
-                let divides_evenly = !lhs.infix_kind(rhs).is_field_element() && l_const.to_i128() % r_const.to_i128() != 0;
+                let divides_evenly = !lhs.infix_kind(rhs).is_field_element()
+                    && l_const.to_i128() % r_const.to_i128() != 0;
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {

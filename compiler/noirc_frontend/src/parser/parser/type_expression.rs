@@ -1,8 +1,5 @@
 use crate::{
-    ast::{
-        GenericTypeArgs, UnresolvedType, UnresolvedTypeData,
-        UnresolvedTypeExpression,
-    },
+    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{labels::ParsingRuleLabel, ParserError},
     token::Token,
     BinaryTypeOperator,

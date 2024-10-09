@@ -139,7 +139,8 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr = UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            let expr =
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
             return Some(UnresolvedTypeData::String(expr));
         }
 
@@ -163,7 +164,8 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr = UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            let expr =
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
             let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
         }

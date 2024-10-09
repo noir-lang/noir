@@ -817,10 +817,11 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
-    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
-        Some(digit) => Value::U8(*digit),
-        None => Value::U8(0),
-    });
+    let decomposed_integer =
+        vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
+            Some(digit) => Value::U8(*digit),
+            None => Value::U8(0),
+        });
     Ok(Value::Array(
         decomposed_integer.into(),
         Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),

@@ -2180,8 +2180,6 @@ fn numeric_generics_type_kind_mismatch() {
         errors[2].0,
         CompilationError::TypeError(TypeCheckError::EvaluatedGlobalPartialSizeChecks { .. }),
     ));
-
-
 }
 
 #[test]
