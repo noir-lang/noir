@@ -14,7 +14,7 @@
 //! program that will need to be removed by a later simplify cfg pass.
 //! Note also that unrolling is skipped for Brillig runtime and as a result
 //! we remove reference count instructions because they are only used by Brillig bytecode
-use std::collections::HashSet;
+use std::collections::{hash_map::Entry, HashSet};
 
 use acvm::acir::AcirField;
 
@@ -250,8 +250,12 @@ fn unroll_loop(
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
+    // To avoid duplicating large array values from make_array instructions we
+    // keep track of each and deduplicate them as we go.
+    let mut arrays = HashMap::default();
+
     while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
-        let (last_block, last_value) = context.unroll_loop_iteration();
+        let (last_block, last_value) = context.unroll_loop_iteration(&mut arrays);
         unroll_into = last_block;
         jump_value = last_value;
     }
@@ -317,7 +321,7 @@ fn unroll_loop_header<'a>(
     // Insert the current value of the loop induction variable into our context.
     let first_param = source_block.parameters()[0];
     context.inserter.try_map_value(first_param, induction_value);
-    context.inline_instructions_from_block();
+    context.inline_instructions_from_block(&mut Default::default());
 
     match context.dfg()[fresh_block].unwrap_terminator() {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
@@ -393,15 +397,18 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
-        let mut next_blocks = self.unroll_loop_block();
+    fn unroll_loop_iteration(
+        mut self,
+        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+    ) -> (BasicBlockId, ValueId) {
+        let mut next_blocks = self.unroll_loop_block(arrays);
 
         while let Some(block) = next_blocks.pop() {
             self.insert_block = block;
             self.source_block = self.get_original_block(block);
 
             if !self.visited_blocks.contains(&self.source_block) {
-                let mut blocks = self.unroll_loop_block();
+                let mut blocks = self.unroll_loop_block(arrays);
                 next_blocks.append(&mut blocks);
             }
         }
@@ -411,8 +418,11 @@ impl<'f> LoopIteration<'f> {
     }
 
     /// Unroll a single block in the current iteration of the loop
-    fn unroll_loop_block(&mut self) -> Vec<BasicBlockId> {
-        let mut next_blocks = self.unroll_loop_block_helper();
+    fn unroll_loop_block(
+        &mut self,
+        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+    ) -> Vec<BasicBlockId> {
+        let mut next_blocks = self.unroll_loop_block_helper(arrays);
         next_blocks.retain(|block| {
             let b = self.get_original_block(*block);
             self.loop_.blocks.contains(&b)
@@ -421,8 +431,11 @@ impl<'f> LoopIteration<'f> {
     }
 
     /// Unroll a single block in the current iteration of the loop
-    fn unroll_loop_block_helper(&mut self) -> Vec<BasicBlockId> {
-        self.inline_instructions_from_block();
+    fn unroll_loop_block_helper(
+        &mut self,
+        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+    ) -> Vec<BasicBlockId> {
+        self.inline_instructions_from_block(arrays);
         self.visited_blocks.insert(self.source_block);
 
         match self.inserter.function.dfg[self.insert_block].unwrap_terminator() {
@@ -500,7 +513,10 @@ impl<'f> LoopIteration<'f> {
         self.original_blocks.get(&block).copied().unwrap_or(block)
     }
 
-    fn inline_instructions_from_block(&mut self) {
+    fn inline_instructions_from_block(
+        &mut self,
+        arrays: &mut HashMap<im::Vector<ValueId>, ValueId>,
+    ) {
         let source_block = &self.dfg()[self.source_block];
         let instructions = source_block.instructions().to_vec();
 
@@ -509,11 +525,29 @@ impl<'f> LoopIteration<'f> {
         // of the new induction variable value.
         for instruction in instructions {
             // Skip reference count instructions since they are only used for brillig, and brillig code is not unrolled
-            if !matches!(
-                self.dfg()[instruction],
-                Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
-            ) {
-                self.inserter.push_instruction(instruction, self.insert_block);
+            match &self.dfg()[instruction] {
+                Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => (),
+                Instruction::MakeArray { elements, .. } => {
+                    let entry = arrays.entry(elements.clone());
+
+                    match entry {
+                        Entry::Occupied(result) => {
+                            let old_result = self.dfg().instruction_results(instruction)[0];
+                            self.inserter.map_value(old_result, *result.get());
+                        }
+                        Entry::Vacant(vacant) => {
+                            let new_instruction = self
+                                .inserter
+                                .push_instruction(instruction, self.insert_block)
+                                .expect("make_array instructions shouldn't be optimized out");
+                            let new_result = self.dfg().instruction_results(new_instruction)[0];
+                            vacant.insert(new_result);
+                        }
+                    }
+                }
+                _ => {
+                    self.inserter.push_instruction(instruction, self.insert_block);
+                }
             }
         }
         let mut terminator = self.dfg()[self.source_block]

@@ -174,11 +174,11 @@ impl Context {
 
         if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
+            results.iter().all(|result| !self.value_is_used(&function.dfg, *result))
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+            as_witness_id == Some(func) && !self.value_is_used(&function.dfg, arguments[0])
         } else {
             // If the instruction has side effects we should never remove it.
             false
@@ -194,12 +194,18 @@ impl Context {
 
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
+        let value_id = dfg.resolve(value_id);
         if matches!(
-            &dfg[dfg.resolve(value_id)],
+            &dfg[value_id],
             Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. }
         ) {
             self.used_values.insert(value_id);
         }
+    }
+
+    fn value_is_used(&self, dfg: &DataFlowGraph, value: ValueId) -> bool {
+        let value = dfg.resolve(value);
+        self.used_values.contains(&value)
     }
 
     fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
@@ -213,7 +219,7 @@ impl Context {
             };
 
             // This could be more efficient if we have to remove multiple instructions in a single block
-            if !self.used_values.contains(&value) {
+            if !self.used_values.contains(&dfg.resolve(value)) {
                 dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
             }
         }
