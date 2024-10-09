@@ -2511,13 +2511,7 @@ impl BinaryTypeOperator {
                 BinaryTypeOperator::Addition => Some(a + b),
                 BinaryTypeOperator::Subtraction => Some(a - b),
                 BinaryTypeOperator::Multiplication => Some(a * b),
-                BinaryTypeOperator::Division => {
-                    if b == FieldElement::zero() {
-                        None
-                    } else {
-                        Some(a / b)
-                    }
-                }
+                BinaryTypeOperator::Division => (b != FieldElement::zero()).then(|| a / b),
                 BinaryTypeOperator::Modulo => None,
             },
             Some(maximum_size) => {
