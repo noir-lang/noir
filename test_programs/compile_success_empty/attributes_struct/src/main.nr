@@ -1,6 +1,6 @@
 #['some_attribute]
 #['another_attribute]
-struct SomeStruct {
+pub struct SomeStruct {
     a: Field,
     b: Field
 }
@@ -11,7 +11,7 @@ fn main() {}
 
 #[abi(something)]
 #[add_attribute]
-struct Foo {
+pub struct Foo {
 
 }
 
