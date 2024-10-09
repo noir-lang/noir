@@ -250,19 +250,10 @@ impl Kind {
     }
 
     /// Ensure the given value fits in self.integral_maximum_size()
-    pub(crate) fn ensure_value_fits<T>(&self, value: T) -> Option<T>
-    where
-        for<'a> &'a FieldElement: From<&'a T>,
-    {
+    fn ensure_value_fits(&self, value: FieldElement) -> Option<FieldElement> {
         match self.integral_maximum_size() {
             None => Some(value),
-            Some(maximum_size) => {
-                if <&T as Into<&FieldElement>>::into(&value) <= &maximum_size {
-                    Some(value)
-                } else {
-                    None
-                }
-            }
+            Some(maximum_size) => (value <= maximum_size).then_some(value),
         }
     }
 }
