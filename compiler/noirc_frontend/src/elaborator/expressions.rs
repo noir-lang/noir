@@ -451,7 +451,7 @@ impl<'context> Elaborator<'context> {
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
-                self.check_method_call_visibility(func_id, &method_call.method);
+                self.check_method_call_visibility(func_id, &object_type, &method_call.method);
 
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
@@ -491,7 +491,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn check_method_call_visibility(&mut self, func_id: FuncId, name: &Ident) {
+    fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
         let modifiers = self.interner.function_modifiers(&func_id);
         match modifiers.visibility {
             ItemVisibility::Public => (),
@@ -503,6 +503,17 @@ impl<'context> Elaborator<'context> {
                 }
             }
             ItemVisibility::Private => {
+                // Primitive types can only have impls in the standard library,
+                // so calling a private one outside of their crate is an error.
+                if object_type.is_primitive()
+                    && self.interner.function_module(func_id).krate != self.crate_id
+                {
+                    self.push_err(ResolverError::PathResolutionError(
+                        PathResolutionError::Private(name.clone()),
+                    ));
+                    return;
+                }
+
                 let func_meta = self.interner.function_meta(&func_id);
                 let Some(struct_id) = func_meta.struct_id else {
                     return;
