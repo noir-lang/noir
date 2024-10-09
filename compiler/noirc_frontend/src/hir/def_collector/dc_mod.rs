@@ -1013,12 +1013,14 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    interner.usage_tracker.add_unused_item(
-        parent_module_id,
-        name.clone(),
-        UnusedItem::Struct(id),
-        visibility,
-    );
+    if !unresolved.struct_def.is_abi() {
+        interner.usage_tracker.add_unused_item(
+            parent_module_id,
+            name.clone(),
+            UnusedItem::Struct(id),
+            visibility,
+        );
+    }
 
     if let Err((first_def, second_def)) = result {
         let error = DefCollectorErrorKind::Duplicate {

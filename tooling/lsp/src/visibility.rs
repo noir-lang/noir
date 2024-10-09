@@ -5,7 +5,7 @@ use noirc_frontend::{
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, ModuleId},
-        resolution::import::can_reference_module_id,
+        resolution::visibility::can_reference_module_id,
     },
 };
 

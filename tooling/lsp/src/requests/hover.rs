@@ -137,11 +137,11 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&struct_type.name.0.contents);
     format_generics(&struct_type.generics, &mut string);
     string.push_str(" {\n");
-    for (field_name, field_type) in struct_type.get_fields_as_written() {
+    for field in struct_type.get_fields_as_written() {
         string.push_str("        ");
-        string.push_str(&field_name);
+        string.push_str(&field.name.0.contents);
         string.push_str(": ");
-        string.push_str(&format!("{}", field_type));
+        string.push_str(&format!("{}", field.typ));
         string.push_str(",\n");
     }
     string.push_str("    }");
@@ -158,7 +158,7 @@ fn format_struct_member(
 ) -> String {
     let struct_type = args.interner.get_struct(id);
     let struct_type = struct_type.borrow();
-    let (field_name, field_type) = struct_type.field_at(field_index);
+    let field = struct_type.field_at(field_index);
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Struct(id), args, &mut string) {
@@ -167,10 +167,10 @@ fn format_struct_member(
     string.push_str(&struct_type.name.0.contents);
     string.push('\n');
     string.push_str("    ");
-    string.push_str(&field_name.0.contents);
+    string.push_str(&field.name.0.contents);
     string.push_str(": ");
-    string.push_str(&format!("{}", field_type));
-    string.push_str(&go_to_type_links(field_type, args.interner, args.files));
+    string.push_str(&format!("{}", field.typ));
+    string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
 
     append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
 

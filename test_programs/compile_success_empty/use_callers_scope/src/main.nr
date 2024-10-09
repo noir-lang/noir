@@ -1,7 +1,7 @@
 #[bar::struct_attr]
-struct Foo {}
+pub struct Foo {}
 
-struct Bar {}
+pub struct Bar {}
 
 #[bar::fn_attr]
 fn main() {}

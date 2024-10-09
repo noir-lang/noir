@@ -97,8 +97,8 @@ impl<'a> InlayHintCollector<'a> {
                     ReferenceId::StructMember(struct_id, field_index) => {
                         let struct_type = self.interner.get_struct(struct_id);
                         let struct_type = struct_type.borrow();
-                        let (_field_name, field_type) = struct_type.field_at(field_index);
-                        self.push_type_hint(lsp_location, field_type, false);
+                        let field = struct_type.field_at(field_index);
+                        self.push_type_hint(lsp_location, &field.typ, false);
                     }
                     ReferenceId::Module(_)
                     | ReferenceId::Struct(_)

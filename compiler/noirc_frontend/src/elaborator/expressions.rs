@@ -7,9 +7,9 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression, Lambda,
-        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression, StatementKind,
-        UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
+        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
+        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -549,7 +549,7 @@ impl<'context> Elaborator<'context> {
         let generics = struct_generics.clone();
 
         let fields = constructor.fields;
-        let field_types = r#type.borrow().get_fields(&struct_generics);
+        let field_types = r#type.borrow().get_fields_with_visibility(&struct_generics);
         let fields =
             self.resolve_constructor_expr_fields(struct_type.clone(), field_types, fields, span);
         let expr = HirExpression::Constructor(HirConstructorExpression {
@@ -577,7 +577,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_constructor_expr_fields(
         &mut self,
         struct_type: Shared<StructType>,
-        field_types: Vec<(String, Type)>,
+        field_types: Vec<(String, ItemVisibility, Type)>,
         fields: Vec<(Ident, Expression)>,
         span: Span,
     ) -> Vec<(Ident, ExprId)> {
@@ -589,10 +589,11 @@ impl<'context> Elaborator<'context> {
             let expected_field_with_index = field_types
                 .iter()
                 .enumerate()
-                .find(|(_, (name, _))| name == &field_name.0.contents);
-            let expected_index = expected_field_with_index.map(|(index, _)| index);
+                .find(|(_, (name, _, _))| name == &field_name.0.contents);
+            let expected_index_and_visibility =
+                expected_field_with_index.map(|(index, (_, visibility, _))| (index, visibility));
             let expected_type =
-                expected_field_with_index.map(|(_, (_, typ))| typ).unwrap_or(&Type::Error);
+                expected_field_with_index.map(|(_, (_, _, typ))| typ).unwrap_or(&Type::Error);
 
             let field_span = field.span;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -619,11 +620,21 @@ impl<'context> Elaborator<'context> {
                 });
             }
 
-            if let Some(expected_index) = expected_index {
+            if let Some((index, visibility)) = expected_index_and_visibility {
+                let struct_type = struct_type.borrow();
+                let field_span = field_name.span();
+                let field_name = &field_name.0.contents;
+                self.check_struct_field_visibility(
+                    &struct_type,
+                    field_name,
+                    *visibility,
+                    field_span,
+                );
+
                 self.interner.add_struct_member_reference(
-                    struct_type.borrow().id,
-                    expected_index,
-                    Location::new(field_name.span(), self.file),
+                    struct_type.id,
+                    index,
+                    Location::new(field_span, self.file),
                 );
             }
 

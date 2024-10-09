@@ -5,9 +5,9 @@ use crate::cmp::Eq;
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
 /// x and y denotes the Weierstrass coordinates of the point, if is_infinite is false.
 pub struct EmbeddedCurvePoint {
-    x: Field,
-    y: Field,
-    is_infinite: bool
+    pub x: Field,
+    pub y: Field,
+    pub is_infinite: bool
 }
 
 impl EmbeddedCurvePoint {
@@ -57,8 +57,8 @@ impl Eq for EmbeddedCurvePoint {
 /// By definition, the scalar field of the embedded curve is base field of the proving system curve.
 /// It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.
 pub struct EmbeddedCurveScalar {
-    lo: Field,
-    hi: Field,
+    pub lo: Field,
+    pub hi: Field,
 }
 
 impl EmbeddedCurveScalar {
