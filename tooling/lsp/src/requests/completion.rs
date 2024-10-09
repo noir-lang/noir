@@ -24,10 +24,12 @@ use noirc_frontend::{
         UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
-    hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+    hir::{
+        def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+        resolution::visibility::struct_field_is_visible,
+    },
     hir_def::traits::Trait,
-    node_interner::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{CustomAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
@@ -691,16 +693,24 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, typ)) in struct_type.get_fields(generics).iter().enumerate() {
-            if name_matches(name, prefix) {
-                self.completion_items.push(self.struct_field_completion_item(
-                    name,
-                    typ,
-                    struct_type.id,
-                    field_index,
-                    self_prefix,
-                ));
+        for (field_index, (name, visibility, typ)) in
+            struct_type.get_fields_with_visibility(generics).iter().enumerate()
+        {
+            if !struct_field_is_visible(struct_type, *visibility, self.module_id, self.def_maps) {
+                continue;
             }
+
+            if !name_matches(name, prefix) {
+                continue;
+            }
+
+            self.completion_items.push(self.struct_field_completion_item(
+                name,
+                typ,
+                struct_type.id,
+                field_index,
+                self_prefix,
+            ));
         }
     }
 
