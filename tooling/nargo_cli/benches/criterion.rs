@@ -20,7 +20,7 @@ include!("./utils.rs");
 /// Compile the test program in a sub-process
 fn compile_program(test_program_dir: &Path) {
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(&test_program_dir);
+    cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile");
     cmd.arg("--force");
     cmd.assert().success();
@@ -64,7 +64,7 @@ fn read_compiled_program_with_input(dir: &Path) -> (CompiledProgram, WitnessMap<
 /// Read the bytecode and ABI from the compilation output
 fn read_program_from_file(circuit_path: &Path) -> ProgramArtifact {
     let file_path = circuit_path.with_extension("json");
-    let input_string = std::fs::read(&file_path).expect("failed to read artifact file");
+    let input_string = std::fs::read(file_path).expect("failed to read artifact file");
     serde_json::from_slice(&input_string).expect("failed to deserialize artifact")
 }
 
