@@ -639,9 +639,7 @@ impl<'context> Elaborator<'context> {
 
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
-            Ok(Err(_cast_err)) => {
-                self.push_err(ResolverError::IntegerTooLarge { span });
-            }
+            Ok(Err(_cast_err)) => self.push_err(ResolverError::IntegerTooLarge { span }),
             Err(Some(error)) => self.push_err(error),
             Err(None) => (),
         }
