@@ -823,9 +823,10 @@ mod test {
         // acir(inline) fn main f0 {
         //     b0():
         //       v2 = allocate
-        //       inc_rc [u32 0, u32 0]
-        //       store [u32 0, u32 0] at v2
-        //       inc_rc [u32 0, u32 0]
+        //       vA = [u32 0, u32 0]
+        //       inc_rc vA
+        //       store VA at v2
+        //       inc_rc vA
         //       jmp b1()
         //     b1():
         //       v3 = load v2
@@ -857,7 +858,7 @@ mod test {
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
 
         // We expect the output to be unchanged

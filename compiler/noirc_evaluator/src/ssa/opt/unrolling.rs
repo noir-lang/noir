@@ -529,7 +529,7 @@ impl<'f> LoopIteration<'f> {
             match &self.dfg()[instruction] {
                 Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => (),
                 Instruction::MakeArray { elements, typ } => {
-                    self.cache_array(instruction, elements.clone(), typ.clone(), arrays)
+                    self.cache_array(instruction, elements.clone(), typ.clone(), arrays);
                 }
                 _ => {
                     self.inserter.push_instruction(instruction, self.insert_block);
