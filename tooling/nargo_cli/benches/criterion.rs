@@ -2,32 +2,58 @@
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use paste::paste;
+use nargo_cli::cli;
+use noirc_driver::CompileOptions;
 use pprof::criterion::{Output, PProfProfiler};
 use std::{process::Command, time::Duration};
 include!("./utils.rs");
 
-macro_rules! criterion_command {
-    ($command_name:tt, $command_string:expr) => {
-        paste! {
-            fn [<criterion_selected_tests_ $command_name>](c: &mut Criterion) {
-                let test_program_dirs = get_selected_tests();
-                for test_program_dir in test_program_dirs {
-                    let mut cmd = Command::cargo_bin("nargo").unwrap();
-                    cmd.arg("--program-dir").arg(&test_program_dir);
-                    cmd.arg($command_string);
-                    cmd.arg("--force");
+/// Use the nargo CLI to compile a test program, then benchmark its execution
+/// by executing the command directly from the benchmark, so that we can have
+/// meaningful flamegraphs about the ACVM.
+fn criterion_selected_tests_execution(c: &mut Criterion) {
+    for test_program_dir in get_selected_tests() {
+        let mut compiled = false;
+        let benchmark_name =
+            format!("{}_execute", test_program_dir.file_name().unwrap().to_str().unwrap());
 
-                    let benchmark_name = format!("{}_{}", test_program_dir.file_name().unwrap().to_str().unwrap(), $command_string);
-                    c.bench_function(&benchmark_name, |b| {
-                        b.iter(|| cmd.assert().success())
-                    });
-                }
-            }
-        }
-    };
+        c.bench_function(&benchmark_name, |b| {
+            b.iter_batched(
+                || {
+                    // Setup will be called many times to set a batch (which we don't use),
+                    // but we can compile it only once, and then the executions will not have to do so.
+                    // It is done as a setup so that we only compile the test programs that we filter for.
+                    if !compiled {
+                        compiled = true;
+                        let mut cmd = Command::cargo_bin("nargo").unwrap();
+                        cmd.arg("--program-dir").arg(&test_program_dir);
+                        cmd.arg("compile");
+                        cmd.arg("--force");
+                        cmd.assert().success();
+                    }
+                },
+                |_| {
+                    let cmd = cli::NargoCli {
+                        command: cli::NargoCommand::Execute(cli::execute_cmd::ExecuteCommand {
+                            witness_name: None,
+                            prover_name: nargo::constants::PROVER_INPUT_FILE.to_string(),
+                            package: None,
+                            workspace: true,
+                            compile_options: CompileOptions {
+                                silence_warnings: true,
+                                ..Default::default()
+                            },
+                            oracle_resolver: None,
+                        }),
+                        config: cli::NargoConfig { program_dir: test_program_dir.clone() },
+                    };
+                    cli::run_cmd(cmd).expect("failed to execute command");
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+    }
 }
-criterion_command!(execution, "execute");
 
 criterion_group! {
     name = execution_benches;
