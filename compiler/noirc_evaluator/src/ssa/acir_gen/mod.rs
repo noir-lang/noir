@@ -1596,13 +1596,6 @@ impl<'a> Context<'a> {
         match array_typ {
             Type::Array(_, _) | Type::Slice(_) => {
                 match &dfg[array_id] {
-                    // Value::Array { array, .. } => {
-                    //     for (i, value) in array.iter().enumerate() {
-                    //         flat_elem_type_sizes.push(
-                    //             self.flattened_slice_size(*value, dfg) + flat_elem_type_sizes[i],
-                    //         );
-                    //     }
-                    // }
                     Value::Instruction { .. } | Value::Param { .. } => {
                         // An instruction representing the slice means it has been processed previously during ACIR gen.
                         // Use the previously defined result of an array operation to fetch the internal type information.
@@ -1735,13 +1728,6 @@ impl<'a> Context<'a> {
     fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
         let mut size = 0;
         match &dfg[array_id] {
-            // Value::Array { array, .. } => {
-            //     // The array is going to be the flattened outer array
-            //     // Flattened slice size from SSA value does not need to be multiplied by the len
-            //     for value in array {
-            //         size += self.flattened_slice_size(*value, dfg);
-            //     }
-            // }
             Value::NumericConstant { .. } => {
                 size += 1;
             }
