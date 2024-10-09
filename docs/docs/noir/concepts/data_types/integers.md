@@ -149,8 +149,20 @@ fn wrapping_mul<T>(x: T, y: T) -> T;
 Example of how it is used:
 
 ```rust
-
 fn main(x: u8, y: u8) -> pub u8 {
     std::wrapping_add(x, y)
+}
+```
+
+### Associated constants
+
+The minimum and maximum values of each unsigned and signed integer types are available as associated constants. The sizes in terms of bits are also available.
+
+```rust
+fn main() {
+    let x: u8 = u8::MAX;
+    let y: u8 = u8::MIN;
+    let z = x + y;
+    assert (z == u8::MAX);
 }
 ```
