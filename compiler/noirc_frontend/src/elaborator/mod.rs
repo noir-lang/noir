@@ -1053,13 +1053,8 @@ impl<'context> Elaborator<'context> {
                 )
                 .is_err()
             {
-                let mut the_trait = parent_trait.name.to_string();
-                if !parent_trait_bound.trait_generics.is_empty() {
-                    the_trait.push('<');
-                    the_trait.push_str(&parent_trait_bound.trait_generics.to_string());
-                    the_trait.push('>');
-                }
-
+                let the_trait =
+                    format!("{}{}", parent_trait.name, parent_trait_bound.trait_generics);
                 self.push_err(ResolverError::TraitNotImplemented {
                     the_trait,
                     typ: trait_impl.object_type.to_string(),
