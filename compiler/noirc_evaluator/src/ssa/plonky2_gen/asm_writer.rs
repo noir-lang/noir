@@ -16,7 +16,10 @@ use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 
-use crate::{debug_trace::{AsmListIndexRange, DebugTraceList, SourcePoint}, ssa::ir::dfg::CallStack};
+use crate::{
+    debug_trace::{AsmListIndexRange, DebugTraceList, SourcePoint},
+    ssa::ir::dfg::CallStack,
+};
 
 use super::config::P2Builder;
 use super::config::P2Field;
