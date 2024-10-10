@@ -622,6 +622,8 @@ impl AsmWriter {
         if let Some(prev_dsp) = &self.prev_source_point {
             if let Some(last_range_vec) = dtlist.source_map.get_mut(prev_dsp) {
                 last_range_vec.last_mut().unwrap().end = Some(dtlist.list.len() - 1);
+            } else {
+                panic!("No entry found for the previous plonky2 asm list index range");
             }
         }
 
