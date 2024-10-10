@@ -11,7 +11,7 @@ use crate::token::Tokens;
 use crate::Shared;
 
 use super::stmt::HirPattern;
-use super::traits::TraitConstraint;
+use super::traits::{ResolvedTraitBound, TraitConstraint};
 use super::types::{StructType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
@@ -250,9 +250,11 @@ impl HirMethodCallExpression {
                 let id = interner.trait_method_id(method_id);
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_id: method_id.trait_id,
-                    trait_generics,
-                    span: location.span,
+                    trait_bound: ResolvedTraitBound {
+                        trait_id: method_id.trait_id,
+                        trait_generics,
+                        span: location.span,
+                    },
                 };
                 (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false }))
             }

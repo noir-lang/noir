@@ -4,6 +4,7 @@ mod bound_checks;
 mod imports;
 mod name_shadowing;
 mod references;
+mod traits;
 mod turbofish;
 mod unused_items;
 mod visibility;

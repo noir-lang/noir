@@ -26,7 +26,7 @@ use crate::{
             HirPrefixExpression,
         },
         stmt::HirStatement,
-        traits::TraitConstraint,
+        traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::Tokens,
@@ -743,9 +743,11 @@ impl<'context> Elaborator<'context> {
                     // that implements the trait.
                     let constraint = TraitConstraint {
                         typ: operand_type.clone(),
-                        trait_id: trait_id.trait_id,
-                        trait_generics: TraitGenerics::default(),
-                        span,
+                        trait_bound: ResolvedTraitBound {
+                            trait_id: trait_id.trait_id,
+                            trait_generics: TraitGenerics::default(),
+                            span,
+                        },
                     };
                     self.push_trait_constraint(constraint, expr_id);
                     self.type_check_operator_method(expr_id, trait_id, operand_type, span);

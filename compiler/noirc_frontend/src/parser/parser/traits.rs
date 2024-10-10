@@ -11,7 +11,7 @@ use super::parse_many::without_separator;
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    /// Trait = 'trait' identifier Generics WhereClause TraitBody
+    /// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
     pub(crate) fn parse_trait(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
@@ -26,12 +26,14 @@ impl<'a> Parser<'a> {
         };
 
         let generics = self.parse_generics();
+        let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
         let where_clause = self.parse_where_clause();
         let items = self.parse_trait_body();
 
         NoirTrait {
             name,
             generics,
+            bounds,
             where_clause,
             span: self.span_since(start_span),
             items,
@@ -180,6 +182,7 @@ fn empty_trait(
     NoirTrait {
         name: Ident::default(),
         generics: Vec::new(),
+        bounds: Vec::new(),
         where_clause: Vec::new(),
         span,
         items: Vec::new(),
@@ -291,5 +294,17 @@ mod tests {
             panic!("Expected function");
         };
         assert!(body.is_some());
+    }
+
+    #[test]
+    fn parse_trait_inheirtance() {
+        let src = "trait Foo: Bar + Baz {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.bounds.len(), 2);
+
+        assert_eq!(noir_trait.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait.bounds[1].to_string(), "Baz");
+
+        assert_eq!(noir_trait.to_string(), "trait Foo: Bar + Baz {\n}");
     }
 }

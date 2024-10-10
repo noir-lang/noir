@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use thiserror::Error;
 
 use crate::{
@@ -150,6 +150,14 @@ pub enum ResolverError {
     AttributeFunctionIsNotAPath { function: String, span: Span },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, span: Span },
+    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}")]
+    TraitNotImplemented {
+        impl_trait: String,
+        missing_trait: String,
+        type_missing_trait: String,
+        span: Span,
+        missing_trait_location: Location,
+    },
 }
 
 impl ResolverError {
@@ -578,6 +586,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     String::new(),
                     *span,
                 )
+            },
+            ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, span, missing_trait_location} => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    format!("The trait bound `{typ}: {the_trait}` is not satisfied"), 
+                    format!("The trait `{the_trait}` is not implemented for `{typ}")
+                    , *span);
+                diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
+                diagnostic
             },
         }
     }

@@ -18,6 +18,7 @@ use super::{Documented, GenericTypeArgs, ItemVisibility};
 pub struct NoirTrait {
     pub name: Ident,
     pub generics: UnresolvedGenerics,
+    pub bounds: Vec<TraitBound>,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<Documented<TraitItem>>,
@@ -134,7 +135,12 @@ impl Display for NoirTrait {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
         let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
 
-        writeln!(f, "trait {}{} {{", self.name, generics)?;
+        write!(f, "trait {}{}", self.name, generics)?;
+        if !self.bounds.is_empty() {
+            let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
+            write!(f, ": {}", bounds)?;
+        }
+        writeln!(f, " {{")?;
 
         for item in self.items.iter() {
             let item = item.to_string();
