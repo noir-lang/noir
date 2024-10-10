@@ -99,7 +99,9 @@ impl<'a> SliceCapacityTracker<'a> {
                             let slice_contents = arguments[argument_index];
 
                             if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
-                                let new_capacity = *contents_capacity - 1;
+                                // We use a saturating sub here as calling `pop_front` or `pop_back`
+                                // on a zero-length slice would otherwise underflow.
+                                let new_capacity = contents_capacity.saturating_sub(1);
                                 slice_sizes.insert(result_slice, new_capacity);
                             }
                         }
