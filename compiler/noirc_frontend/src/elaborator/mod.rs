@@ -1037,6 +1037,9 @@ impl<'context> Elaborator<'context> {
             return;
         }
 
+        let impl_trait = the_trait.name.to_string();
+        let the_trait_file = the_trait.location.file;
+
         let mut bindings = TypeBindings::new();
         for (param, arg) in the_trait.generics.iter().zip(trait_impl.resolved_trait_generics.iter())
         {
@@ -1076,12 +1079,14 @@ impl<'context> Elaborator<'context> {
                 )
                 .is_err()
             {
-                let the_trait =
+                let missing_trait =
                     format!("{}{}", parent_trait.name, parent_trait_bound.trait_generics);
                 self.push_err(ResolverError::TraitNotImplemented {
-                    the_trait,
-                    typ: trait_impl.object_type.to_string(),
+                    impl_trait: impl_trait.clone(),
+                    missing_trait,
+                    type_missing_trait: trait_impl.object_type.to_string(),
                     span: trait_impl.object_type.span,
+                    missing_trait_location: Location::new(parent_trait_bound.span, the_trait_file),
                 });
             }
         }

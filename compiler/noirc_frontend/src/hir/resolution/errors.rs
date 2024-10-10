@@ -1,6 +1,8 @@
 use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{
+    reporter::CustomLabel, CustomDiagnostic as Diagnostic, DiagnosticKind, FileDiagnostic, Location,
+};
 use thiserror::Error;
 
 use crate::{
@@ -150,8 +152,14 @@ pub enum ResolverError {
     AttributeFunctionIsNotAPath { function: String, span: Span },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, span: Span },
-    #[error("The trait `{the_trait}` is not implemented for `{typ}")]
-    TraitNotImplemented { the_trait: String, typ: String, span: Span },
+    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}")]
+    TraitNotImplemented {
+        impl_trait: String,
+        missing_trait: String,
+        type_missing_trait: String,
+        span: Span,
+        missing_trait_location: Location,
+    },
 }
 
 impl ResolverError {
@@ -581,12 +589,19 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
-            ResolverError::TraitNotImplemented { the_trait, typ, span} => {
-                Diagnostic::simple_error(
-                    format!("The trait `{the_trait}` is not implemented for `{typ}"),
-                    String::new(),
-                    *span,
-                )
+            ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, span, missing_trait_location} => {
+                Diagnostic {
+                    message: format!("The trait bound `{typ}: {the_trait}` is not satisfied"),
+                    secondaries: vec![
+                        CustomLabel { message: format!("The trait `{the_trait}` is not implemented for `{typ}"), span: *span, file: None },
+                        CustomLabel { message: format!("required by this bound in `{impl_trait}"), span: missing_trait_location.span, file: Some(missing_trait_location.file) },
+                    ],
+                    notes: Vec::new(),
+                    kind: DiagnosticKind::Error,
+                    deprecated: false,
+                    unnecessary: false,
+                    call_stack: Vec::new(),
+                }
             },
         }
     }
