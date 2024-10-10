@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField};
+use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, TypeBindings};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -1033,6 +1033,22 @@ impl<'context> Elaborator<'context> {
             return;
         };
 
+        if the_trait.trait_bounds.is_empty() {
+            return;
+        }
+
+        let mut bindings = TypeBindings::new();
+        for (param, arg) in the_trait.generics.iter().zip(trait_impl.resolved_trait_generics.iter())
+        {
+            // Avoid binding t = t
+            if !arg.occurs(param.type_var.id()) {
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.clone()),
+                );
+            }
+        }
+
         // Note: we only check if the immediate parents are implemented, we don't check recursively.
         // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
         // do the same check for the parent, so this trait's parents parents will be checked, so the
@@ -1041,6 +1057,13 @@ impl<'context> Elaborator<'context> {
             let Some(parent_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id)
             else {
                 continue;
+            };
+
+            let parent_trait_bound = ResolvedTraitBound {
+                trait_generics: parent_trait_bound
+                    .trait_generics
+                    .map(|typ| typ.substitute(&bindings)),
+                ..parent_trait_bound
             };
 
             if self
