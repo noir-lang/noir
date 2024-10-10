@@ -6,6 +6,8 @@ sidebar_position: 0
 
 ## Installation
 
+### Noir
+
 The easiest way to develop with Noir is using Nargo the CLI tool. It provides you the ability to start new projects, compile, execute and test Noir programs from the terminal.
 
 You can use `noirup` the installation script to quickly install and update Nargo:
@@ -14,6 +16,8 @@ You can use `noirup` the installation script to quickly install and update Nargo
 curl -L noirup.dev | bash
 noirup
 ```
+
+### Proving backend
 
 After installing Noir, we install a proving backend to work with our Noir programs.
 
@@ -60,8 +64,8 @@ To learn more about private and public values, check the [Data Types](./noir/con
 We can now use `nargo` to generate a _Prover.toml_ file, where our input values will be specified:
 
 ```sh
+cd hello_world
 nargo check
-```
 
 Let's feed some valid values into this file:
 
@@ -73,10 +77,14 @@ y = "2"
 We're now ready to compile and execute our Noir program. By default the `nargo execute` command will do both, and generate the `witness` that we need to feed to our proving backend:
 
 ```sh
-nargo execute hello-witness
+nargo execute
 ```
 
-You can now see the witness and the compiled circuit in the `target` folder. We're ready to prove
+The witness corresponding to this execution will then be written to the file _./target/witness-name.gz_.
+
+The command also automatically compiles your Noir program if it was not already / was edited, which you may notice the compiled artifacts being written to the file _./target/hello_world.json_.
+
+With circuit compiled and witness generated, we're ready to prove.
 
 ## Proving backend
 	
