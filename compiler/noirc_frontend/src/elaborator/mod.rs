@@ -1002,6 +1002,8 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
+        self.check_parent_traits_are_implemented(&trait_impl);
+
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
@@ -1016,6 +1018,55 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
+    }
+
+    fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
+        let Some(trait_id) = trait_impl.trait_id else {
+            return;
+        };
+
+        let Some(object_type) = &trait_impl.resolved_object_type else {
+            return;
+        };
+
+        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            return;
+        };
+
+        // Note: we only check if the immediate parents are implemented, we don't check recursively.
+        // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
+        // do the same check for the parent, so this trait's parents parents will be checked, so the
+        // recursion is guaranteed.
+        for parent_trait_bound in the_trait.trait_bounds.clone() {
+            let Some(parent_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id)
+            else {
+                continue;
+            };
+
+            if self
+                .interner
+                .try_lookup_trait_implementation(
+                    object_type,
+                    parent_trait_bound.trait_id,
+                    &parent_trait_bound.trait_generics.ordered,
+                    &parent_trait_bound.trait_generics.named,
+                )
+                .is_err()
+            {
+                let mut the_trait = parent_trait.name.to_string();
+                if !parent_trait_bound.trait_generics.is_empty() {
+                    the_trait.push('<');
+                    the_trait.push_str(&parent_trait_bound.trait_generics.to_string());
+                    the_trait.push('>');
+                }
+
+                self.push_err(ResolverError::TraitNotImplemented {
+                    the_trait,
+                    typ: trait_impl.object_type.to_string(),
+                    span: trait_impl.object_type.span,
+                });
+            }
+        }
     }
 
     fn collect_impls(

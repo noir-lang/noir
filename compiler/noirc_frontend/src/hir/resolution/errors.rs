@@ -150,6 +150,8 @@ pub enum ResolverError {
     AttributeFunctionIsNotAPath { function: String, span: Span },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, span: Span },
+    #[error("The trait `{the_trait}` is not implemented for `{typ}")]
+    TraitNotImplemented { the_trait: String, typ: String, span: Span },
 }
 
 impl ResolverError {
@@ -575,6 +577,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::AttributeFunctionNotInScope { name, span } => {
                 Diagnostic::simple_error(
                     format!("Attribute function `{name}` is not in scope"),
+                    String::new(),
+                    *span,
+                )
+            },
+            ResolverError::TraitNotImplemented { the_trait, typ, span} => {
+                Diagnostic::simple_error(
+                    format!("The trait `{the_trait}` is not implemented for `{typ}"),
                     String::new(),
                     *span,
                 )

@@ -3455,4 +3455,14 @@ fn trait_inheritance_missing_parent_implementation() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::TraitNotImplemented {
+        the_trait, typ, ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0].0);
+    };
+
+    assert_eq!(the_trait, "Foo");
+    assert_eq!(typ, "Struct");
 }
