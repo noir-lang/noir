@@ -464,6 +464,32 @@ Since we have an impl for our own type, the behavior of this code will not chang
 to provide its own `impl Default for Foo`. The downside of this pattern is that it requires extra wrapping and
 unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
 
+### Supertraits
+
+Sometimes, you might need one trait to use another trait’s functionality( like the "inheritance" in other languages ). In this case, you need to rely on the dependent trait also being implemented. The trait you rely on is a supertrait of the trait you’re implementing.
+
+```rust
+trait Person {
+    fn name(self) -> String;
+}
+
+// Person is a supertrait of Student.
+// Implementing Student requires you to also impl Person.
+trait Student: Person {
+    fn university(self) -> String;
+}
+
+trait Programmer {
+    fn fav_language(self) -> String;
+}
+
+// CompSciStudent (computer science student) is a subtrait of both Programmer 
+// and Student. Implementing CompSciStudent requires you to impl both supertraits.
+trait CompSciStudent: Programmer + Student {
+    fn git_username(self) -> String;
+}
+```
+
 ### Visibility
 
 By default, like functions, traits are private to the module they exist in. You can use `pub`
