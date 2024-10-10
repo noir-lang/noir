@@ -7,7 +7,8 @@ sidebar_position: 3
 
 When using TypeScript, it is extra work to interpret Noir program outputs in a type-safe way. Third party libraries may exist for popular Noir programs, but they are either hard to find or unmaintained.
 
-Now you can generate TypeScript bindings for your Noir programs in two steps: 
+Now you can generate TypeScript bindings for your Noir programs in two steps:
+
 1. Exporting Noir functions using `nargo export`
 2. Using the TypeScript module `noir_codegen` to generate TypeScript binding
 
@@ -33,7 +34,8 @@ yarn add @noir-lang/noir_codegen -D
 ```
 
 ### Nargo library
-Make sure you have Nargo, v0.25.0 or greater, installed. If you don't, follow the [installation guide](../getting_started/installation/index.md). 
+
+Make sure you have Nargo, v0.25.0 or greater, installed. If you don't, follow the [installation guide](../getting_started/noir_installation.md).
 
 If you're in a new project, make a `circuits` folder and create a new Noir library:
 
