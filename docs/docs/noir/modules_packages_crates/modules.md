@@ -212,7 +212,7 @@ In this example, the module `some_module` re-exports two public names defined in
 
 ### Visibility
 
-By default, like functions, modules are private to the module (or crate) the exist in. You can use `pub`
+By default, like functions, modules are private to the module (or crate) they exist in. You can use `pub`
 to make the module public or `pub(crate)` to make it public to just its crate:
 
 ```rust

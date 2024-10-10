@@ -85,7 +85,7 @@ trait Deserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
-struct PublicStorage {}
+pub struct PublicStorage {}
 
 impl PublicStorage {
     fn read<T, let N: u32>() -> T where T: Deserialize<N> {
@@ -102,10 +102,10 @@ impl PublicStorage {
 // Check that we can thread numeric generics into nested structs
 // and also that we can handle nested structs with numeric generics
 // which are declared after the parent struct
-struct NestedNumeric<let N: u32> {
+pub struct NestedNumeric<let N: u32> {
     a: Field,
     b: InnerNumeric<N>
 }
-struct InnerNumeric<let N: u32> {
+pub struct InnerNumeric<let N: u32> {
     inner: [u32; N],
 }

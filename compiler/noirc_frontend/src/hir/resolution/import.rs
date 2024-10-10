@@ -12,6 +12,7 @@ use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 
 use super::errors::ResolverError;
+use super::visibility::can_reference_module_id;
 
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
@@ -169,7 +170,7 @@ fn resolve_path_to_ns(
                     import_path,
                     import_directive.module_id,
                     def_maps,
-                    true,
+                    true, // plain or crate
                     usage_tracker,
                     path_references,
                 );
@@ -199,7 +200,7 @@ fn resolve_path_to_ns(
                 import_path,
                 import_directive.module_id,
                 def_maps,
-                true,
+                true, // plain or crate
                 usage_tracker,
                 path_references,
             )
@@ -224,7 +225,7 @@ fn resolve_path_to_ns(
                     import_path,
                     parent_module_id,
                     def_maps,
-                    false,
+                    false, // plain or crate
                     usage_tracker,
                     path_references,
                 )
@@ -253,7 +254,7 @@ fn resolve_path_from_crate_root(
         import_path,
         starting_mod,
         def_maps,
-        false,
+        true, // plain or crate
         usage_tracker,
         path_references,
     )
@@ -266,7 +267,7 @@ fn resolve_name_in_module(
     import_path: &[PathSegment],
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    plain: bool,
+    plain_or_crate: bool,
     usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
@@ -331,9 +332,9 @@ fn resolve_name_in_module(
         };
 
         warning = warning.or_else(|| {
-            // If the path is plain, the first segment will always refer to
+            // If the path is plain or crate, the first segment will always refer to
             // something that's visible from the current module.
-            if (plain && index == 0)
+            if (plain_or_crate && index == 0)
                 || can_reference_module_id(
                     def_maps,
                     importing_crate,
@@ -423,62 +424,4 @@ fn resolve_external_dep(
         usage_tracker,
         path_references,
     )
-}
-
-// Returns false if the given private function is being called from a non-child module, or
-// if the given pub(crate) function is being called from another crate. Otherwise returns true.
-pub fn can_reference_module_id(
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    importing_crate: CrateId,
-    current_module: LocalModuleId,
-    target_module: ModuleId,
-    visibility: ItemVisibility,
-) -> bool {
-    // Note that if the target module is in a different crate from the current module then we will either
-    // return true as the target module is public or return false as it is private without looking at the `CrateDefMap` in either case.
-    let same_crate = target_module.krate == importing_crate;
-    let target_crate_def_map = &def_maps[&target_module.krate];
-
-    match visibility {
-        ItemVisibility::Public => true,
-        ItemVisibility::PublicCrate => same_crate,
-        ItemVisibility::Private => {
-            same_crate
-                && (module_descendent_of_target(
-                    target_crate_def_map,
-                    target_module.local_id,
-                    current_module,
-                ) || module_is_parent_of_struct_module(
-                    target_crate_def_map,
-                    current_module,
-                    target_module.local_id,
-                ))
-        }
-    }
-}
-
-// Returns true if `current` is a (potentially nested) child module of `target`.
-// This is also true if `current == target`.
-fn module_descendent_of_target(
-    def_map: &CrateDefMap,
-    target: LocalModuleId,
-    current: LocalModuleId,
-) -> bool {
-    if current == target {
-        return true;
-    }
-
-    def_map.modules[current.0]
-        .parent
-        .map_or(false, |parent| module_descendent_of_target(def_map, target, parent))
-}
-
-/// Returns true if `target` is a struct and its parent is `current`.
-fn module_is_parent_of_struct_module(
-    def_map: &CrateDefMap,
-    current: LocalModuleId,
-    target: LocalModuleId,
-) -> bool {
-    let module_data = &def_map.modules[target.0];
-    module_data.is_struct && module_data.parent == Some(current)
 }

@@ -3,11 +3,14 @@ use noirc_errors::{Location, Span, Spanned};
 use crate::{
     ast::{
         AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
-        ExpressionKind, ForLoopStatement, ForRange, InfixExpression, LValue, LetStatement, Path,
-        Statement, StatementKind,
+        ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, ItemVisibility, LValue,
+        LetStatement, Path, Statement, StatementKind,
     },
     hir::{
-        resolution::errors::ResolverError,
+        resolution::{
+            errors::ResolverError, import::PathResolutionError,
+            visibility::struct_member_is_visible,
+        },
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -18,7 +21,7 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
-    Type,
+    StructType, Type,
 };
 
 use super::{lints, Elaborator};
@@ -439,9 +442,11 @@ impl<'context> Elaborator<'context> {
         match &lhs_type {
             Type::Struct(s, args) => {
                 let s = s.borrow();
-                if let Some((field, index)) = s.get_field(field_name, args) {
+                if let Some((field, visibility, index)) = s.get_field(field_name, args) {
                     let reference_location = Location::new(span, self.file);
                     self.interner.add_struct_member_reference(s.id, index, reference_location);
+
+                    self.check_struct_field_visibility(&s, field_name, visibility, span);
 
                     return Some((field, index));
                 }
@@ -495,6 +500,20 @@ impl<'context> Elaborator<'context> {
         }
 
         None
+    }
+
+    pub(super) fn check_struct_field_visibility(
+        &mut self,
+        struct_type: &StructType,
+        field_name: &str,
+        visibility: ItemVisibility,
+        span: Span,
+    ) {
+        if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                Ident::new(field_name.to_string(), span),
+            )));
+        }
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {

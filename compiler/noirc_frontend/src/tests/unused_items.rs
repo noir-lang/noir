@@ -210,3 +210,67 @@ fn warns_on_unused_global() {
     assert_eq!(ident.to_string(), "foo");
     assert_eq!(item.item_type(), "global");
 }
+
+#[test]
+fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
+    let src = r#"
+    contract foo {
+        #[abi(notes)]
+        global bar = 1;
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_warning_on_inner_struct_when_parent_is_used() {
+    let src = r#" 
+    struct Bar {
+        inner: [Field; 3],
+    }
+
+    struct Foo {
+        a: Field,
+        bar: Bar,
+    }
+
+    fn main(foos: [Foo; 1]) {
+        assert_eq(foos[0].a, 10);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn no_warning_on_struct_if_it_has_an_abi_attribute() {
+    let src = r#" 
+    #[abi(functions)]
+    struct Foo {
+        a: Field,
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
+    let src = r#" 
+    struct Bar {
+        field: Field,
+    }
+
+    #[abi(functions)]
+    struct Foo {
+        bar: Bar,
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

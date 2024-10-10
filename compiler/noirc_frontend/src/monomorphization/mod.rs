@@ -928,9 +928,11 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Unbound(_, _) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u32().unwrap_or_else(|| {
-                        panic!("Non-numeric type variable used in expression expecting a value")
-                    }),
+                    TypeBinding::Bound(binding) => binding
+                        .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()))
+                        .unwrap_or_else(|| {
+                            panic!("Non-numeric type variable used in expression expecting a value")
+                        }),
                 };
                 let location = self.interner.id_location(expr_id);
 
@@ -942,12 +944,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
 
                 let typ = Self::convert_type(&typ, ident.location)?;
-                ast::Expression::Literal(ast::Literal::Integer(
-                    (value as u128).into(),
-                    false,
-                    typ,
-                    location,
-                ))
+                ast::Expression::Literal(ast::Literal::Integer(value, false, typ, location))
             }
         };
 
@@ -1289,7 +1286,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let call = self
-            .try_evaluate_call(&func, &id, &return_type)
+            .try_evaluate_call(&func, &id, &call.arguments, &arguments, &return_type)?
             .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }));
 
         if !block_expressions.is_empty() {
@@ -1371,13 +1368,15 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         func: &ast::Expression,
         expr_id: &node_interner::ExprId,
+        arguments: &[node_interner::ExprId],
+        argument_values: &[ast::Expression],
         result_type: &ast::Type,
-    ) -> Option<ast::Expression> {
+    ) -> Result<Option<ast::Expression>, MonomorphizationError> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
                 // TODO(#1736): Move this builtin to the SSA pass
                 let location = self.interner.expr_location(expr_id);
-                return match opcode.as_str() {
+                return Ok(match opcode.as_str() {
                     "modulus_num_bits" => {
                         let bits = (FieldElement::max_num_bits() as u128).into();
                         let typ =
@@ -1406,11 +1405,35 @@ impl<'interner> Monomorphizer<'interner> {
                         let bytes = FieldElement::modulus().to_bytes_le();
                         Some(self.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
                     }
+                    "checked_transmute" => {
+                        Some(self.checked_transmute(*expr_id, arguments, argument_values)?)
+                    }
                     _ => None,
-                };
+                });
             }
         }
-        None
+        Ok(None)
+    }
+
+    fn checked_transmute(
+        &mut self,
+        expr_id: node_interner::ExprId,
+        arguments: &[node_interner::ExprId],
+        argument_values: &[ast::Expression],
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let location = self.interner.expr_location(&expr_id);
+        let actual = self.interner.id_type(arguments[0]).follow_bindings();
+        let expected = self.interner.id_type(expr_id).follow_bindings();
+
+        if actual.unify(&expected).is_err() {
+            Err(MonomorphizationError::CheckedTransmuteFailed { actual, expected, location })
+        } else {
+            // Evaluate `checked_transmute(arg)` to `{ arg }`
+            // in case the user did `&mut checked_transmute(arg)`. Wrapping the
+            // arg in a block prevents mutating the original argument.
+            let argument = argument_values[0].clone();
+            Ok(ast::Expression::Block(vec![argument]))
+        }
     }
 
     fn modulus_slice_literal(

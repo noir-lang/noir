@@ -12,16 +12,16 @@ pub mod affine {
     // Curve specification
     pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
-        a: Field,
-        b: Field,
+        pub a: Field,
+        pub b: Field,
         // Generator as point in Cartesian coordinates
-        gen: Point
+        pub gen: Point
     }
     // Point in Cartesian coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        infty: bool // Indicator for point at infinity
+        pub x: Field,
+        pub y: Field,
+        pub infty: bool // Indicator for point at infinity
     }
 
     impl Point {
@@ -36,7 +36,7 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Point {
+        pub fn into_group(self) -> curvegroup::Point {
             let Self {x, y, infty} = self;
 
             if infty {
@@ -52,7 +52,7 @@ pub mod affine {
         }
 
         // Negation
-        fn negate(self) -> Self {
+        pub fn negate(self) -> Self {
             let Self {x, y, infty} = self;
             Self { x, y: 0 - y, infty }
         }
@@ -82,7 +82,7 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Curve {
+        pub fn into_group(self) -> curvegroup::Curve {
             let Curve{a, b, gen} = self;
 
             curvegroup::Curve { a, b, gen: gen.into_group() }
@@ -100,7 +100,7 @@ pub mod affine {
         }
 
         // Mixed point addition, i.e. first argument in affine, second in CurveGroup coordinates.
-        fn mixed_add(self, p1: Point, p2: curvegroup::Point) -> curvegroup::Point {
+        pub fn mixed_add(self, p1: Point, p2: curvegroup::Point) -> curvegroup::Point {
             if p1.is_zero() {
                 p2
             } else if p2.is_zero() {
@@ -133,7 +133,7 @@ pub mod affine {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             self.into_group().bit_mul(bits, p.into_group()).into_affine()
         }
 
@@ -161,7 +161,7 @@ pub mod affine {
         // Simplified Shallue-van de Woestijne-Ulas map-to-curve method; see <https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-16.html#name-simplified-shallue-van-de-w>.
         // First determine non-square z != -1 in Field s.t. g(x) - z irreducible over Field and g(b/(z*a)) is square,
         // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a Field element to a point on curve c.
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub fn swu_map(self, z: Field, u: Field) -> Point {
             // Check whether curve is admissible
             assert(self.a * self.b != 0);
 
@@ -196,16 +196,16 @@ pub mod curvegroup {
     // Curve specification
     pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
-        a: Field,
-        b: Field,
+        pub a: Field,
+        pub b: Field,
         // Generator as point in Cartesian coordinates
-        gen: Point
+        pub gen: Point
     }
     // Point in three-dimensional Jacobian coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        z: Field // z = 0 corresponds to point at infinity.
+        pub x: Field,
+        pub y: Field,
+        pub z: Field // z = 0 corresponds to point at infinity.
     }
 
     impl Point {
@@ -236,7 +236,7 @@ pub mod curvegroup {
         }
 
         // Negation
-        fn negate(self) -> Self {
+        pub fn negate(self) -> Self {
             let Self {x, y, z} = self;
             Self { x, y: 0 - y, z }
         }
@@ -338,7 +338,7 @@ pub mod curvegroup {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -363,7 +363,7 @@ pub mod curvegroup {
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
+        pub fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -379,7 +379,7 @@ pub mod curvegroup {
         }
 
         // Simplified SWU map-to-curve method
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub fn swu_map(self, z: Field, u: Field) -> Point {
             self.into_affine().swu_map(z, u).into_group()
         }
     }

@@ -105,7 +105,7 @@ type Bad2 = Bad1;
 //   ^^^^^^^^^^^ 'Bad2' recursively depends on itself: Bad2 -> Bad1 -> Bad2
 ```
 
-By default, like functions, type aliases are private to the module the exist in. You can use `pub`
+By default, like functions, type aliases are private to the module they exist in. You can use `pub`
 to make the type alias public or `pub(crate)` to make it public to just its crate:
 
 ```rust

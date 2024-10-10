@@ -61,15 +61,22 @@ impl<'a> Parser<'a> {
     fn parse_struct_field(&mut self) -> Option<Documented<StructField>> {
         let mut doc_comments;
         let name;
+        let mut visibility;
 
         // Loop until we find an identifier, skipping anything that's not one
         loop {
             let doc_comments_start_span = self.current_token_span;
             doc_comments = self.parse_outer_doc_comments();
 
+            visibility = self.parse_item_visibility();
+
             if let Some(ident) = self.eat_ident() {
                 name = ident;
                 break;
+            }
+
+            if visibility != ItemVisibility::Private {
+                self.expected_identifier();
             }
 
             if !doc_comments.is_empty() {
@@ -97,7 +104,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon);
 
         let typ = self.parse_type_or_error();
-        Some(Documented::new(StructField { name, typ }, doc_comments))
+        Some(Documented::new(StructField { visibility, name, typ }, doc_comments))
     }
 
     fn empty_struct(

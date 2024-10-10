@@ -417,7 +417,7 @@ impl HirArrayLiteral {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
                     Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer((*length as u128).into(), false);
+                        let literal = Literal::Integer(*length, false);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, span))
                     }
