@@ -16,7 +16,7 @@ use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 
-use crate::ssa::ir::dfg::CallStack;
+use crate::{debug_trace::{DebugTraceAsmListIndexRange, DebugTraceList, DebugTraceSourcePoint}, ssa::ir::dfg::CallStack};
 
 use super::config::P2Builder;
 use super::config::P2Field;
@@ -171,30 +171,6 @@ struct U32TargetDisplay {
 impl Display for U32TargetDisplay {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", TargetDisplay { t: self.t.0 })
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-pub struct DebugTraceSourcePoint {
-    pub file: String,
-    pub line_number: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DebugTraceAsmListIndexRange {
-    pub start: usize,
-    pub end: Option<usize>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DebugTraceList {
-    pub list: Vec<String>,
-    pub source_map: HashMap<DebugTraceSourcePoint, Vec<DebugTraceAsmListIndexRange>>,
-}
-
-impl DebugTraceList {
-    pub fn new() -> DebugTraceList {
-        DebugTraceList { list: vec![], source_map: HashMap::new() }
     }
 }
 

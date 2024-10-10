@@ -11,4 +11,6 @@ pub mod ssa;
 
 pub mod brillig;
 
+pub mod debug_trace;
+
 pub use ssa::create_program;

@@ -13,7 +13,7 @@ use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_evaluator::ssa::plonky2_gen::asm_writer::DebugTraceList;
+use noirc_evaluator::debug_trace::DebugTraceList;
 use noirc_frontend::graph::CrateName;
 
 use super::debug_cmd::compile_bin_package_for_debugging;

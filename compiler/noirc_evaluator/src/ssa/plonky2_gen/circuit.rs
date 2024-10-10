@@ -1,6 +1,6 @@
-use super::asm_writer::DebugTraceList;
 use super::config::{P2CircuitData, P2Field, P2ProofWithPublicInputs};
 use super::noir_to_plonky2_field;
+use crate::debug_trace::DebugTraceList;
 use crate::errors::{Plonky2GenError, Plonky2VerifyError};
 use acvm::acir::native_types::WitnessMap;
 use acvm::FieldElement;
