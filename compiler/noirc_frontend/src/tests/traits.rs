@@ -85,6 +85,22 @@ fn trait_inheritance_with_generics_3() {
 }
 
 #[test]
+fn trait_inheritance_with_generics_4() {
+    let src = r#"
+        trait Foo { type A; }
+
+        trait Bar<B>: Foo<A = B> {}
+
+        impl Foo for () { type A = i32; }
+
+        impl Bar<i32> for () {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn trait_inheritance_dependency_cycle() {
     let src = r#"
         trait Foo: Bar {}
