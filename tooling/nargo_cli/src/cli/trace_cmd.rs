@@ -171,7 +171,7 @@ pub(crate) fn trace_program(
     crate_name: &CrateName,
     inputs_map: &InputMap,
     trace_dir: &str,
-    debug_trace_list: Option<DebugTraceList>,
+    _debug_trace_list: Option<DebugTraceList>,
 ) -> Result<(), CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
