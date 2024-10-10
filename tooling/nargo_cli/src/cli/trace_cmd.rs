@@ -81,13 +81,18 @@ fn generate_plonky2_debug_trace_list(
         true,
     );
 
+    // We need to get the debug trace list (if it exists), before calling report_errors(),
+    // because after that, the compilation_result variable gets moved and is no longer accessible.
     let debug_trace_list = if let Ok((compiled_program, _)) = &compilation_result {
         if let Some(plonky2_circuit) = &compiled_program.plonky2_circuit {
             plonky2_circuit.debug_trace_list.clone()
         } else {
+            // We don't return Err() here, because it doesn't explain to the user *why* the compilation failed
+            // to produce a plonky 2 circuit. Better call report_errors, which will give the user a more useful error list.
             None
         }
     } else {
+        // Compilation result returned an Err? Again, better call report_errors, instead of failing here.
         None
     };
 
@@ -98,6 +103,10 @@ fn generate_plonky2_debug_trace_list(
         args.compile_options.silence_warnings,
     )?;
 
+    // Intentionally asserts that debug_trace_list has some value here, otherwise it's an internal compiler error,
+    // and the panic, caused by unwrap() is justified.
+    // If a debug_trace_list hasn't been produced, due to errors in the program,
+    // the previous call to report_errors should have returned an error value and we wouldn't have reached this point.
     Ok(debug_trace_list.unwrap())
 }
 
