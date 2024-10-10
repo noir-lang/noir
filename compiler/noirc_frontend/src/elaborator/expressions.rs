@@ -1,3 +1,4 @@
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use regex::Regex;
@@ -12,7 +13,9 @@ use crate::{
     },
     hir::{
         comptime::{self, InterpreterError},
-        resolution::errors::ResolverError,
+        resolution::{
+            errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
+        },
         type_check::{generics::TraitGenerics, TypeCheckError},
     },
     hir_def::{
@@ -161,7 +164,7 @@ impl<'context> Elaborator<'context> {
                 (Lit(int), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len() as u32, Kind::u32());
+                let len = Type::Constant(str.len().into(), Kind::u32());
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(str) => self.elaborate_fmt_string(str, span),
@@ -203,7 +206,7 @@ impl<'context> Elaborator<'context> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len() as u32, Kind::u32());
+                let length = Type::Constant(elements.len().into(), Kind::u32());
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -211,7 +214,7 @@ impl<'context> Elaborator<'context> {
                 let length =
                     UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(0, span)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), span)
                     });
 
                 let length = self.convert_expression_type(length, &Kind::u32(), span);
@@ -267,7 +270,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        let len = Type::Constant(str.len() as u32, Kind::u32());
+        let len = Type::Constant(str.len().into(), Kind::u32());
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
@@ -448,6 +451,8 @@ impl<'context> Elaborator<'context> {
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
+                self.check_method_call_visibility(func_id, &object_type, &method_call.method);
+
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
@@ -483,6 +488,20 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Call(function_call), typ)
             }
             None => (HirExpression::Error, Type::Error),
+        }
+    }
+
+    fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
+        if !method_call_is_visible(
+            object_type,
+            func_id,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        ) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
         }
     }
 
@@ -676,7 +695,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_cast(&mut self, cast: CastExpression, span: Span) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
         let r#type = self.resolve_type(cast.r#type);
-        let result = self.check_cast(&lhs_type, &r#type, span);
+        let result = self.check_cast(&lhs, &lhs_type, &r#type, span);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }

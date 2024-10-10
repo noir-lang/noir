@@ -1946,6 +1946,125 @@ fn numeric_generic_used_in_turbofish() {
     assert_no_errors(src);
 }
 
+// TODO(https://github.com/noir-lang/noir/issues/6245):
+// allow u16 to be used as an array size
+#[test]
+fn numeric_generic_u16_array_size() {
+    let src = r#"
+    fn len<let N: u32>(_arr: [Field; N]) -> u32 {
+        N
+    }
+
+    pub fn foo<let N: u16>() -> u32 {
+        let fields: [Field; N] = [0; N];
+        len(fields)
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/6238):
+// The EvaluatedGlobalIsntU32 warning is a stopgap
+// (originally from https://github.com/noir-lang/noir/issues/6125)
+#[test]
+fn numeric_generic_field_larger_than_u32() {
+    let src = r#"
+        global A: Field = 4294967297;
+        
+        fn foo<let A: Field>() { }
+        
+        fn main() {
+            let _ = foo::<A>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::IntegerTooLarge { .. })
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/6238):
+// The EvaluatedGlobalIsntU32 warning is a stopgap
+// (originally from https://github.com/noir-lang/noir/issues/6126)
+#[test]
+fn numeric_generic_field_arithmetic_larger_than_u32() {
+    let src = r#"
+        struct Foo<let F: Field> {}
+
+        impl<let F: Field> Foo<F> {
+            fn size(self) -> Field {
+                F
+            }
+        }
+        
+        // 2^32 - 1
+        global A: Field = 4294967295;
+        
+        fn foo<let A: Field>() -> Foo<A + A> {
+            Foo {}
+        }
+        
+        fn main() {
+            let _ = foo::<A>().size();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    ));
+
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
+    ));
+}
+
+#[test]
+fn cast_256_to_u8_size_checks() {
+    let src = r#"
+        fn main() {
+            assert(256 as u8 == 0);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::DownsizingCast { .. }),
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/6247):
+// add negative integer literal checks
+#[test]
+fn cast_negative_one_to_u8_size_checks() {
+    let src = r#"
+        fn main() {
+            assert((-1) as u8 != 0);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
 #[test]
 fn constant_used_with_numeric_generic() {
     let src = r#"
@@ -2042,10 +2161,24 @@ fn numeric_generics_type_kind_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 3);
+
+    // TODO(https://github.com/noir-lang/noir/issues/6238):
+    // The EvaluatedGlobalIsntU32 warning is a stopgap
     assert!(matches!(
         errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    ));
+
+    assert!(matches!(
+        errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+
+    // TODO(https://github.com/noir-lang/noir/issues/6238): see above
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
     ));
 }
 
@@ -3116,8 +3249,10 @@ fn struct_array_len() {
     ));
 }
 
+// TODO(https://github.com/noir-lang/noir/issues/6245):
+// support u16 as an array size
 #[test]
-fn non_u32_in_array_length() {
+fn non_u32_as_array_length() {
     let src = r#"
         global ARRAY_LEN: u8 = 3;
 
@@ -3127,10 +3262,13 @@ fn non_u32_in_array_length() {
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
+    assert_eq!(errors.len(), 2);
     assert!(matches!(
         errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
     ));
 }
@@ -3185,17 +3323,17 @@ fn trait_unconstrained_methods_typechecked_correctly() {
                 self
             }
 
-            unconstrained fn foo(self) -> u64;
+            unconstrained fn foo(self) -> Field;
         }
 
-        impl Foo for Field {
-            unconstrained fn foo(self) -> u64 {
-                self as u64
+        impl Foo for u64 {
+            unconstrained fn foo(self) -> Field {
+                self as Field
             }
         }
 
         unconstrained fn main() {
-            assert_eq(2.foo() as Field, 2.identity());
+            assert_eq(2.foo(), 2.identity() as Field);
         }
     "#;
 
@@ -3218,4 +3356,35 @@ fn error_if_attribute_not_in_scope() {
         errors[0].0,
         CompilationError::ResolverError(ResolverError::AttributeFunctionNotInScope { .. })
     ));
+}
+
+#[test]
+fn arithmetic_generics_rounding_pass() {
+    let src = r#"
+        fn main() {
+            // 3/2*2 = 2
+            round::<3, 2>([1, 2]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail() {
+    let src = r#"
+        fn main() {
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            round::<3, 2>([1, 2, 3]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
 }

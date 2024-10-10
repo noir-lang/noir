@@ -1,10 +1,11 @@
 use crate::graph::CrateId;
-use crate::StructType;
+use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::Type;
 
 use std::collections::BTreeMap;
 
 use crate::ast::ItemVisibility;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleId};
 
 // Returns false if the given private function is being called from a non-child module, or
 // if the given pub(crate) function is being called from another crate. Otherwise returns true.
@@ -64,8 +65,8 @@ fn module_is_parent_of_struct_module(
     module_data.is_struct && module_data.parent == Some(current)
 }
 
-pub fn struct_field_is_visible(
-    struct_type: &StructType,
+pub fn struct_member_is_visible(
+    struct_id: StructId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
@@ -73,10 +74,10 @@ pub fn struct_field_is_visible(
     match visibility {
         ItemVisibility::Public => true,
         ItemVisibility::PublicCrate => {
-            struct_type.id.parent_module_id(def_maps).krate == current_module_id.krate
+            struct_id.parent_module_id(def_maps).krate == current_module_id.krate
         }
         ItemVisibility::Private => {
-            let struct_parent_module_id = struct_type.id.parent_module_id(def_maps);
+            let struct_parent_module_id = struct_id.parent_module_id(def_maps);
             if struct_parent_module_id.krate != current_module_id.krate {
                 return false;
             }
@@ -91,6 +92,50 @@ pub fn struct_field_is_visible(
                 struct_parent_module_id.local_id,
                 current_module_id.local_id,
             )
+        }
+    }
+}
+
+pub fn method_call_is_visible(
+    object_type: &Type,
+    func_id: FuncId,
+    current_module: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> bool {
+    let modifiers = interner.function_modifiers(&func_id);
+    match modifiers.visibility {
+        ItemVisibility::Public => true,
+        ItemVisibility::PublicCrate => {
+            if object_type.is_primitive() {
+                current_module.krate.is_stdlib()
+            } else {
+                interner.function_module(func_id).krate == current_module.krate
+            }
+        }
+        ItemVisibility::Private => {
+            if object_type.is_primitive() {
+                let func_module = interner.function_module(func_id);
+                can_reference_module_id(
+                    def_maps,
+                    current_module.krate,
+                    current_module.local_id,
+                    func_module,
+                    modifiers.visibility,
+                )
+            } else {
+                let func_meta = interner.function_meta(&func_id);
+                if let Some(struct_id) = func_meta.struct_id {
+                    struct_member_is_visible(
+                        struct_id,
+                        modifiers.visibility,
+                        current_module,
+                        def_maps,
+                    )
+                } else {
+                    true
+                }
+            }
         }
     }
 }
