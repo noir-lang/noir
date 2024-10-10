@@ -539,7 +539,7 @@ impl<'a> ModCollector<'a> {
                                 name: Rc::new(name.to_string()),
                                 type_var: TypeVariable::unbound(
                                     type_variable_id,
-                                    Kind::Numeric(Box::new(typ)),
+                                    Kind::numeric(typ),
                                 ),
                                 span: name.span(),
                             });

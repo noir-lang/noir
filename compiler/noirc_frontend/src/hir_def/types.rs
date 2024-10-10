@@ -5,6 +5,9 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 use acvm::{AcirField, FieldElement};
 
 use crate::{
@@ -161,6 +164,11 @@ pub enum Kind {
 }
 
 impl Kind {
+    // Kind::Numeric constructor helper
+    pub fn numeric(typ: Type) -> Kind {
+        Kind::Numeric(Box::new(typ))
+    }
+
     pub(crate) fn is_error(&self) -> bool {
         match self.follow_bindings() {
             Self::Numeric(typ) => *typ == Type::Error,
@@ -188,7 +196,7 @@ impl Kind {
     }
 
     pub(crate) fn u32() -> Self {
-        Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
+        Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
     }
 
     pub(crate) fn follow_bindings(&self) -> Self {
@@ -197,7 +205,7 @@ impl Kind {
             Self::Normal => Self::Normal,
             Self::Integer => Self::Integer,
             Self::IntegerOrField => Self::IntegerOrField,
-            Self::Numeric(typ) => Self::Numeric(Box::new(typ.follow_bindings())),
+            Self::Numeric(typ) => Self::numeric(typ.follow_bindings()),
         }
     }
 
@@ -649,6 +657,7 @@ impl<T> Shared<T> {
 
 /// A restricted subset of binary operators useable on
 /// type level integers for use in the array length positions of types.
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BinaryTypeOperator {
     Addition,
@@ -1382,7 +1391,7 @@ impl Type {
         if self_kind.unifies(&other_kind) {
             self_kind
         } else {
-            Kind::Numeric(Box::new(Type::Error))
+            Kind::numeric(Type::Error)
         }
     }
 
