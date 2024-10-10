@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
-use acvm::{acir::native_types::WitnessStack, FieldElement};
+use acvm::{acir::native_types::WitnessStack, AcirField, FieldElement};
+use iter_extended::vecmap;
 use nargo::{
     ops::{execute_program, DefaultForeignCallExecutor},
     parse_all,
@@ -252,6 +253,48 @@ fn fuzz_sha512_equivalence() {
         },
         |data| sha2::Sha512::digest(data).try_into().unwrap(),
     );
+}
+
+#[test]
+fn fuzz_poseidon2_equivalence() {
+    use bn254_blackbox_solver::poseidon_hash;
+
+    for max_len in [0, 1, 4, 511, 512] {
+        let source = format!(
+            "fn main(input: [Field; {max_len}], message_size: u32) -> pub Field {{
+                std::hash::poseidon2::Poseidon2::hash(input, message_size)
+            }}"
+        );
+
+        // The actual input length can be up to the maximum.
+        let strategy = (0..=max_len)
+            .prop_flat_map(|len: usize| {
+                // Generate Field elements from random 32 byte vectors.
+                let field = prop::collection::vec(any::<u8>(), 32)
+                    .prop_map(|bytes| FieldElement::from_be_bytes_reduce(&bytes));
+
+                prop::collection::vec(field, len)
+            })
+            .prop_map(move |mut msg| {
+                // The output hash is a single field element.
+                let output = poseidon_hash(&msg).expect("failed to hash");
+
+                // The input has to be padded to the maximum length.
+                let msg_size = msg.len();
+                msg.resize(max_len, FieldElement::from(0u64));
+
+                let inputs = vec![
+                    ("input", InputValue::Vec(vecmap(msg, InputValue::Field))),
+                    ("message_size", InputValue::Field(FieldElement::from(msg_size))),
+                ];
+
+                SnippetInputOutput::new(inputs, InputValue::Field(output))
+                    .with_description(format!("max_len = {max_len}"))
+            })
+            .boxed();
+
+        run_snippet_proptest(source.clone(), false, strategy);
+    }
 }
 
 fn bytes_input(bytes: &[u8]) -> InputValue {
