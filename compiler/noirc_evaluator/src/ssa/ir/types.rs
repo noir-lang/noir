@@ -148,6 +148,13 @@ impl Type {
         }
     }
 
+    pub(crate) fn array_size(&self) -> usize {
+        match self {
+            Type::Array(_, size) => *size,
+            other => panic!("array_size: Expected array, found {other}"),
+        }
+    }
+
     pub(crate) fn contains_slice_element(&self) -> bool {
         match self {
             Type::Array(elements, _) => {
@@ -173,9 +180,31 @@ impl Type {
         }
     }
 
+    pub(crate) fn flatten(self) -> Vec<Type> {
+        match self {
+            Type::Array(elements, _) => {
+                elements.iter().flat_map(|elem| elem.clone().flatten()).collect()
+            }
+            Type::Slice(_) => {
+                unimplemented!("ICE: cannot flatten slice");
+            }
+            Type::Function
+            | Type::Reference(_)
+            | Type::Numeric(_) => vec![self],
+        }
+    }
+
     pub(crate) fn is_nested_slice(&self) -> bool {
         if let Type::Slice(element_types) | Type::Array(element_types, _) = self {
             element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn is_nested_array(&self) -> bool {
+        if let Type::Array(element_types, _) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_an_array())
         } else {
             false
         }

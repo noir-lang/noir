@@ -4,7 +4,7 @@ mod value;
 
 pub(crate) use program::Ssa;
 
-use context::SharedContext;
+use context::{LValue, NestedArrayIndex, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::ast::{UnaryOp, Visibility};
@@ -298,8 +298,8 @@ impl<'a> FunctionContext<'a> {
                 // which is important for Brillig's copy on write optimization. This has no
                 // effect in ACIR code.
                 self.builder.increment_array_reference_count(element);
-                array.push_back(element);
-                // array.extend(self.codegen_array_helper(element));
+                // array.push_back(element);
+                array.extend(self.codegen_array_helper(element));
             });
         }
 
@@ -316,7 +316,45 @@ impl<'a> FunctionContext<'a> {
                 flat_elements.extend(self.codegen_array_helper(value))
             }
         } else {
+            // let types_and_size = match self.builder.current_function.dfg.type_of_value(element) {
+            //     Type::Array(element_types, size) => Some((element_types, size)),
+            //     _ => None,
+            // };
+
+            // if let Some((element_types, size)) = types_and_size {
+                // for i in 0..size {
+                //     let offset = self.builder.numeric_constant(i, Type::unsigned(SSA_WORD_SIZE));
+                //     // let result = self.builder.insert_array_get(element, offset, element_types[0].clone());
+                //     for element_type in element_types.iter() {
+                //         Self::map_type(element_type, |typ| {
+                //             let offset = self.make_offset(base_index, field_index);
+                //             field_index += 1; 
+                //             let array_type = &self.builder.type_of_value(array);
+                //             match array_type {
+                //                 Type::Slice(_) => {
+                //                     self.codegen_slice_access_check(index, length);
+                //                 }
+                //                 Type::Array(..) => {
+                //                     // Nothing needs to done to prepare an array access on an array
+                //                 }
+                //                 _ => unreachable!("must have array or slice but got {array_type}"),
+                //             }
+                //             // Reference counting in brillig relies on us incrementing reference
+                //             // counts when nested arrays/slices are constructed or indexed. This
+                //             // has no effect in ACIR code.
+                //             let result = self.builder.insert_array_get(array, offset, typ);
+                //             // self.builder.increment_array_reference_count(result);
+                //             // result.into()
+                //             flat_elements.push_back(result);
+                //         });
+                //     }
+                // }
+            // } else {
+            //     flat_elements.push_back(element);
+            // }
+
             flat_elements.push_back(element);
+
         }
 
         flat_elements
@@ -397,6 +435,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
+        dbg!(index.clone());
         let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
         // Slices are represented as a tuple in the form: (length, slice contents).
@@ -414,6 +453,25 @@ impl<'a> FunctionContext<'a> {
             index.location,
             slice_length,
         )
+    }
+
+    fn extract_ident_from_expr(
+        &mut self,
+        expr: &Expression,
+        indices: &mut Vec<NestedArrayIndex>,
+    ) {
+        match expr {
+            ast::Expression::Ident(ident) => {
+                
+            }
+            ast::Expression::ExtractTupleField(tuple, field_index) => {
+
+            }
+            ast::Expression::Index(index) => {
+
+            }
+            _ => unreachable!("ICE: Expected Ident, ExtractTupleField, or Index, but got {expr}"),
+        }
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -626,6 +684,7 @@ impl<'a> FunctionContext<'a> {
         tuple: &Expression,
         field_index: usize,
     ) -> Result<Values, RuntimeError> {
+        dbg!(field_index.clone());
         let tuple = self.codegen_expression(tuple)?;
         Ok(Self::get_field(tuple, field_index))
     }
@@ -750,16 +809,114 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let lhs = self.extract_current_value(&assign.lvalue)?;
         let rhs = self.codegen_expression(&assign.expression)?;
+        let extracted_ident = self.extract_ident(&assign.lvalue)?;
+        dbg!(extracted_ident.clone());
+        match extracted_ident.clone() {
+            LValue::Dereference { reference } => {
+                let value = &reference.flatten()[0];
+                let array_id = value.clone().eval(self);
+                let typ = match value {
+                    value::Value::Normal(_) => panic!("Expected mutable value"),
+                    value::Value::Mutable(_, typ) => typ,
+                };
+                let is_nested_array = typ.is_nested_array();
+                dbg!(is_nested_array);
+                let mut indices = Vec::new();
+                self.build_lvalue_index(&assign.lvalue, &mut indices)?;
+                dbg!(indices.clone());
+                let flattened_index = self.build_nested_lvalue_index(typ, &mut indices);
+                let array = self.assign_lvalue_index_no_offset(rhs, array_id, flattened_index, Location::dummy());
+                // let array = self.builder.insert_array_set(array_id, index, value);
+                self.assign_new_value(extracted_ident, array.into());
+            }
+            _ => panic!("Expect only a dereference here"),
+        }
 
-        rhs.clone().for_each(|value| {
-            let value = value.eval(self);
-            self.builder.increment_array_reference_count(value);
-        });
-
-        self.assign_new_value(lhs, rhs);
+        println!("{}", self.builder.current_function);
         Ok(Self::unit_value())
+    }
+    
+    // Old codegen_assign
+    // fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
+    //     let lhs = self.extract_current_value(&assign.lvalue)?;
+    //     let rhs = self.codegen_expression(&assign.expression)?;
+
+    //     rhs.clone().for_each(|value| {
+    //         let value = value.eval(self);
+    //         self.builder.increment_array_reference_count(value);
+    //     });
+
+    //     self.assign_new_value(lhs, rhs);
+    //     Ok(Self::unit_value())
+    // }
+
+    fn build_nested_lvalue_index(
+        &mut self,
+        typ: &Type,
+        indices: &mut Vec<NestedArrayIndex>,
+    ) -> ValueId {
+        let mut result_index = ValueId::new(0);
+        // let flat_array = typ.clone().flatten();
+        // dbg!(flat_array.clone());
+        let mut current_types = vec![typ.clone()];
+        let first_index = indices.pop().unwrap();
+        match first_index {
+            NestedArrayIndex::Constant(field_index) => {
+                todo!()
+            }
+            NestedArrayIndex::Value(value) => {
+                let current_typ = current_types[0].clone();
+                // let offset = current_typ.flattened_size() / current_typ.array_size();
+                let elements = current_typ.element_types().to_vec();
+                let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
+                dbg!(offset);
+                let offset = self.builder.numeric_constant(offset, Type::unsigned(SSA_WORD_SIZE));
+                let value = self.make_array_index(value);
+                let new_index = self.builder.insert_binary(value, BinaryOp::Mul, offset);
+                result_index = new_index;
+
+                current_types = elements;
+            }
+            _ => todo!(),
+        }
+        while let Some(index) = indices.pop() {
+            dbg!(index.clone());
+            match index {
+                NestedArrayIndex::Constant(field_index) => {
+                    let offset = (current_types[0..field_index]).iter().fold(0, |acc, typ| acc + typ.flattened_size());
+                    dbg!(offset);
+                    let offset = self.builder.numeric_constant(offset, Type::unsigned(SSA_WORD_SIZE));
+                    let new_index = self.builder.insert_binary(result_index, BinaryOp::Add, offset);
+                    result_index = new_index;
+
+                    current_types = vec![current_types[field_index].clone()];
+                }
+                NestedArrayIndex::Value(value) => {
+                    // let current_typ = current_types[0].clone();
+                    // let offset = current_typ.flattened_size() / current_typ.array_size();
+                    if value.to_usize() == 40 {
+                        dbg!(current_types.clone());
+                        dbg!(result_index);
+                    }
+                    let elements = current_types[0].clone().element_types().to_vec();
+                    let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
+                    dbg!(offset);
+                    let offset = self.builder.numeric_constant(offset, Type::unsigned(SSA_WORD_SIZE));
+                    let value = self.make_array_index(value);
+                    let new_index = self.builder.insert_binary(value, BinaryOp::Mul, offset);
+                    let new_index = self.builder.insert_binary(result_index, BinaryOp::Add, new_index);
+                    result_index = new_index;
+
+                    current_types = elements;
+                }
+                _ => {},
+            }
+        }
+        if result_index.to_usize() == 0 {
+            panic!("ahh");
+        }
+        result_index
     }
 
     fn codegen_semi(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {

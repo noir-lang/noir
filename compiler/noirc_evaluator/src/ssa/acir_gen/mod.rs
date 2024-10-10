@@ -1193,7 +1193,7 @@ impl<'a> Context<'a> {
         let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
+        // let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
         let predicate_index = if dfg.is_safe_index(index, array_id) {
             index_var
@@ -1462,7 +1462,8 @@ impl<'a> Context<'a> {
             result_block_id = self.block_id(result_id);
             self.copy_dynamic_array(block_id, result_block_id, array_len)?;
         }
-
+        dbg!(result_block_id);
+        dbg!(store_value.clone());
         self.array_set_value(&store_value, result_block_id, &mut var_index)?;
 
         let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {

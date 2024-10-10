@@ -869,6 +869,8 @@ impl<'block> BrilligBlock<'block> {
         mutable: bool,
     ) {
         assert!(index_register.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+        dbg!(source_variable);
+        dbg!(destination_variable);
         match (source_variable, destination_variable) {
             (
                 BrilligVariable::BrilligArray(source_array),
@@ -1576,7 +1578,7 @@ impl<'block> BrilligBlock<'block> {
                         value_id,
                         dfg,
                     );
-
+                    dbg!(new_variable.clone());
                     // Initialize the variable
                     match new_variable {
                         BrilligVariable::BrilligArray(brillig_array) => {

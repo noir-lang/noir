@@ -140,7 +140,8 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
-        for (id, mutable, _, typ) in parameters {
+        for (id, mutable, name, typ) in parameters {
+            dbg!(name.clone());
             self.add_parameter_to_scope(*id, typ, *mutable);
         }
     }
@@ -823,6 +824,61 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    pub(super) fn extract_ident(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<LValue, RuntimeError> {
+        let res = match lvalue {
+            ast::LValue::Ident(ident) => {
+                let (variable, should_auto_deref) = self.ident_lvalue(ident);
+                if should_auto_deref {
+                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
+                    // Ok((dereferenced, LValue::Dereference { reference: variable }))
+                    LValue::Dereference { reference: variable }
+                } else {
+                    // Ok((variable.clone(), LValue::Ident))
+                    LValue::Ident
+                }
+            }
+            ast::LValue::Index { array, index, element_type, location } => {
+                self.extract_ident(array)?
+            }
+            ast::LValue::MemberAccess { object, field_index } => {
+                self.extract_ident(object)?
+            }
+            ast::LValue::Dereference { reference, element_type } => {
+                self.extract_ident(reference)?
+            }
+        };
+        Ok(res)
+    }
+
+    // Indices will be built in reverse order
+    pub(super) fn build_lvalue_index(
+        &mut self,
+        lvalue: &ast::LValue,
+        indices: &mut Vec<NestedArrayIndex>,
+    ) -> Result<(), RuntimeError> {
+        match lvalue {
+            ast::LValue::Ident(ident) => {}
+            ast::LValue::Index { array, index, element_type, location } => {
+                // indices.push(LValueIndex::Test(*index.to_owned()));
+                let index = self.codegen_non_tuple_expression(index)?;
+                indices.push(NestedArrayIndex::Value(index));
+                self.build_lvalue_index(array, indices)?;
+            }
+            ast::LValue::MemberAccess { object, field_index } => {
+                // TODO: compute the accurate field index
+                indices.push(NestedArrayIndex::Constant(*field_index));
+                self.build_lvalue_index(object, indices)?;
+            }
+            ast::LValue::Dereference { reference, element_type } => {
+                self.build_lvalue_index(reference, indices)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Assigns a new value to the given LValue.
     /// The LValue can be created via a previous call to extract_current_value.
     /// This method recurs on the given LValue to create a new value to assign an allocation
@@ -832,8 +888,13 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
-                array = self.assign_lvalue_index(new_value, array, index, location);
-                self.assign_new_value(*array_lvalue, array.into());
+                // let array = if !matches!(array_lvalue.as_ref(), LValue::Dereference { .. }) {
+                //     self.assign_lvalue_index(new_value, array, index, location).into()
+                // } else {
+                //     new_value
+                // };
+                let array = self.assign_lvalue_index(new_value, array, index, location).into();
+                self.assign_new_value(*array_lvalue, array);
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
@@ -846,7 +907,13 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(*slice_lvalue, new_slice);
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
-                let new_object = Self::replace_field(old_object, index, new_value);
+                // let new_object = Self::replace_field(old_object, index, new_value);
+                // let new_object = if !matches!(object_lvalue.as_ref(), LValue::Dereference { .. }) {
+                //     Self::replace_field(old_object, index, new_value)
+                // } else {
+                //     new_value
+                // };
+                let new_object= Self::replace_field(old_object, index, new_value);
                 self.assign_new_value(*object_lvalue, new_object);
             }
             LValue::Dereference { reference } => {
@@ -875,6 +942,30 @@ impl<'a> FunctionContext<'a> {
             let value = value.eval(self);
             array = self.builder.insert_array_set(array, index, value);
             index = self.builder.insert_binary(index, BinaryOp::Add, one);
+        });
+        array
+    }
+
+    pub(super) fn assign_lvalue_index_no_offset(
+        &mut self,
+        new_value: Values,
+        mut array: ValueId,
+        index: ValueId,
+        location: Location,
+    ) -> ValueId {
+        let index = self.make_array_index(index);
+        // let element_size =
+        //     self.builder.numeric_constant(self.element_size(array), Type::unsigned(SSA_WORD_SIZE));
+
+        // // The actual base index is the user's index * the array element type's size
+        // let mut index =
+        //     self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
+        // let one = self.builder.numeric_constant(FieldElement::one(), Type::unsigned(SSA_WORD_SIZE));
+
+        new_value.for_each(|value| {
+            let value = value.eval(self);
+            array = self.builder.insert_array_set(array, index, value);
+            // index = self.builder.insert_binary(index, BinaryOp::Add, one);
         });
         array
     }
@@ -996,6 +1087,13 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(super) enum NestedArrayIndex {
+    Value(ValueId),
+    Constant(usize),
+    Test(ast::Expression),
+}
+
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
@@ -1037,7 +1135,7 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum LValue {
     Ident,
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
