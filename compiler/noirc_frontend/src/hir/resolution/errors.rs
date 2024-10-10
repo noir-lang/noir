@@ -1,8 +1,6 @@
 use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{
-    reporter::CustomLabel, CustomDiagnostic as Diagnostic, DiagnosticKind, FileDiagnostic, Location,
-};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use thiserror::Error;
 
 use crate::{
@@ -590,18 +588,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 )
             },
             ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, span, missing_trait_location} => {
-                Diagnostic {
-                    message: format!("The trait bound `{typ}: {the_trait}` is not satisfied"),
-                    secondaries: vec![
-                        CustomLabel { message: format!("The trait `{the_trait}` is not implemented for `{typ}"), span: *span, file: None },
-                        CustomLabel { message: format!("required by this bound in `{impl_trait}"), span: missing_trait_location.span, file: Some(missing_trait_location.file) },
-                    ],
-                    notes: Vec::new(),
-                    kind: DiagnosticKind::Error,
-                    deprecated: false,
-                    unnecessary: false,
-                    call_stack: Vec::new(),
-                }
+                let mut diagnostic = Diagnostic::simple_error(
+                    format!("The trait bound `{typ}: {the_trait}` is not satisfied"), 
+                    format!("The trait `{the_trait}` is not implemented for `{typ}")
+                    , *span);
+                diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
+                diagnostic
             },
         }
     }
