@@ -194,6 +194,7 @@
         "stdlib",
         "structs",
         "subexpression",
+        "subtrait",
         "subshell",
         "subtyping",
         "supertrait",
