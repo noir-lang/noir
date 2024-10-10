@@ -9,7 +9,7 @@ pub struct DebugTraceSourcePoint {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DebugTraceAsmListIndexRange {
+pub struct AsmListIndexRange {
     pub start: usize,
     pub end: Option<usize>,
 }
@@ -17,7 +17,7 @@ pub struct DebugTraceAsmListIndexRange {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DebugTraceList {
     pub list: Vec<String>,
-    pub source_map: HashMap<DebugTraceSourcePoint, Vec<DebugTraceAsmListIndexRange>>,
+    pub source_map: HashMap<DebugTraceSourcePoint, Vec<AsmListIndexRange>>,
 }
 
 impl DebugTraceList {

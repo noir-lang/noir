@@ -16,7 +16,7 @@ use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 
-use crate::{debug_trace::{DebugTraceAsmListIndexRange, DebugTraceList, DebugTraceSourcePoint}, ssa::ir::dfg::CallStack};
+use crate::{debug_trace::{AsmListIndexRange, DebugTraceList, DebugTraceSourcePoint}, ssa::ir::dfg::CallStack};
 
 use super::config::P2Builder;
 use super::config::P2Field;
@@ -605,11 +605,11 @@ impl AsmWriter {
 
         let dsp = DebugTraceSourcePoint { file: name, line_number };
         if let Some(line_list) = dtlist.source_map.get_mut(&dsp) {
-            line_list.push(DebugTraceAsmListIndexRange { start: dtlist.list.len(), end: None });
+            line_list.push(AsmListIndexRange { start: dtlist.list.len(), end: None });
         } else {
             dtlist.source_map.insert(
                 dsp.clone(),
-                vec![DebugTraceAsmListIndexRange { start: dtlist.list.len(), end: None }],
+                vec![AsmListIndexRange { start: dtlist.list.len(), end: None }],
             );
         }
         self.prev_source_point = Some(dsp);
