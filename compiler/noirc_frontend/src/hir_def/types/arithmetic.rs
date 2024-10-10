@@ -113,7 +113,7 @@ impl Type {
     /// Precondition: `lhs & rhs are in canonical form`
     ///
     /// - Simplifies `(N +/- M) -/+ M` to `N`
-    /// - Simplifies `(N */÷ M) ÷/* M` to `N`
+    /// - Simplifies `(N * M) ÷ M` to `N`
     fn try_simplify_non_constants_in_lhs(
         lhs: &Type,
         op: BinaryTypeOperator,
@@ -125,7 +125,10 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `rhs` is expected to already be in canonical form.
-        if l_op.approx_inverse() != Some(op) || l_rhs.canonicalize() != *rhs {
+        if l_op.approx_inverse() != Some(op)
+            || l_op == BinaryTypeOperator::Division
+            || l_rhs.canonicalize() != *rhs
+        {
             return None;
         }
 
@@ -191,7 +194,8 @@ impl Type {
     /// Precondition: `lhs & rhs are in canonical form`
     ///
     /// - Simplifies `(N +/- C1) +/- C2` to `N +/- (C1 +/- C2)` if C1 and C2 are constants.
-    /// - Simplifies `(N */÷ C1) */÷ C2` to `N */÷ (C1 */÷ C2)` if C1 and C2 are constants.
+    /// - Simplifies `(N * C1) ÷ C2` to `N * (C1 ÷ C2)` if C1 and C2 are constants which divide
+    ///   without a remainder.
     fn try_simplify_partial_constants(
         lhs: &Type,
         mut op: BinaryTypeOperator,
@@ -204,19 +208,15 @@ impl Type {
             (Addition | Subtraction, Addition | Subtraction) => {
                 // If l_op is a subtraction we want to inverse the rhs operator.
                 if l_op == Subtraction {
-                    op = op.approx_inverse()?;
+                    op = op.inverse()?;
                 }
                 let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::InfixExpr(l_type, l_op, Box::new(constant)))
             }
-            (Multiplication | Division, Multiplication | Division) => {
-                // If l_op is a division we want to inverse the rhs operator.
-                if l_op == Division {
-                    op = op.approx_inverse()?;
-                }
-                // If op is a division we need to ensure it divides evenly
-                if op == Division && (r_const == 0 || l_const % r_const != 0) {
+            (Multiplication, Division) => {
+                // We need to ensure the result divides evenly to preserve integer division semantics
+                if r_const == 0 || l_const % r_const != 0 {
                     None
                 } else {
                     let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;

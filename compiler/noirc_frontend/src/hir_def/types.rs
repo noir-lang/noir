@@ -1643,7 +1643,7 @@ impl Type {
                         Err(UnificationError)
                     }
                 } else if let InfixExpr(lhs, op, rhs) = other {
-                    if let Some(inverse) = op.inverse() {
+                    if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
                         let new_type = InfixExpr(
                             Box::new(Constant(*value, kind.clone())),
