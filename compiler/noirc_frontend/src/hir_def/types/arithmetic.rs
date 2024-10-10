@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use acvm::{AcirField, FieldElement};
+
 use crate::{BinaryTypeOperator, Type, TypeBindings, UnificationError};
 
 impl Type {
@@ -15,13 +17,15 @@ impl Type {
     pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
-                // evaluate_to_u32 also calls canonicalize so if we just called
-                // `self.evaluate_to_u32()` we'd get infinite recursion.
+                let kind = lhs.infix_kind(&rhs);
+                // evaluate_to_field_element also calls canonicalize so if we just called
+                // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
                 if let (Some(lhs_u32), Some(rhs_u32)) =
-                    (lhs.evaluate_to_u32(), rhs.evaluate_to_u32())
+                    (lhs.evaluate_to_field_element(&kind), rhs.evaluate_to_field_element(&kind))
                 {
-                    if let Some(result) = op.function(lhs_u32, rhs_u32) {
-                        return Type::Constant(result, lhs.infix_kind(&rhs));
+                    let kind = lhs.infix_kind(&rhs);
+                    if let Some(result) = op.function(lhs_u32, rhs_u32, &kind) {
+                        return Type::Constant(result, kind);
                     }
                 }
 
@@ -57,7 +61,11 @@ impl Type {
         // Maps each term to the number of times that term was used.
         let mut sorted = BTreeMap::new();
 
-        let zero_value = if op == BinaryTypeOperator::Addition { 0 } else { 1 };
+        let zero_value = if op == BinaryTypeOperator::Addition {
+            FieldElement::zero()
+        } else {
+            FieldElement::one()
+        };
         let mut constant = zero_value;
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
@@ -68,7 +76,7 @@ impl Type {
                     queue.push(*rhs);
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
-                    if let Some(result) = op.function(constant, new_constant) {
+                    if let Some(result) = op.function(constant, new_constant, &new_constant_kind) {
                         constant = result;
                     } else {
                         let constant = Type::Constant(new_constant, new_constant_kind);
@@ -112,7 +120,7 @@ impl Type {
     /// Precondition: `lhs & rhs are in canonical form`
     ///
     /// - Simplifies `(N +/- M) -/+ M` to `N`
-    /// - Simplifies `(N */÷ M) ÷/* M` to `N`
+    /// - Simplifies `(N * M) ÷ M` to `N`
     fn try_simplify_non_constants_in_lhs(
         lhs: &Type,
         op: BinaryTypeOperator,
@@ -124,7 +132,10 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `rhs` is expected to already be in canonical form.
-        if l_op.inverse() != Some(op) || l_rhs.canonicalize() != *rhs {
+        if l_op.approx_inverse() != Some(op)
+            || l_op == BinaryTypeOperator::Division
+            || l_rhs.canonicalize() != *rhs
+        {
             return None;
         }
 
@@ -174,14 +185,15 @@ impl Type {
     fn parse_partial_constant_expr(
         lhs: &Type,
         rhs: &Type,
-    ) -> Option<(Box<Type>, BinaryTypeOperator, u32, u32)> {
-        let rhs = rhs.evaluate_to_u32()?;
+    ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
+        let kind = lhs.infix_kind(rhs);
+        let rhs = rhs.evaluate_to_field_element(&kind)?;
 
         let Type::InfixExpr(l_type, l_op, l_rhs) = lhs.follow_bindings() else {
             return None;
         };
 
-        let l_rhs = l_rhs.evaluate_to_u32()?;
+        let l_rhs = l_rhs.evaluate_to_field_element(&kind)?;
         Some((l_type, l_op, l_rhs, rhs))
     }
 
@@ -190,7 +202,8 @@ impl Type {
     /// Precondition: `lhs & rhs are in canonical form`
     ///
     /// - Simplifies `(N +/- C1) +/- C2` to `N +/- (C1 +/- C2)` if C1 and C2 are constants.
-    /// - Simplifies `(N */÷ C1) */÷ C2` to `N */÷ (C1 */÷ C2)` if C1 and C2 are constants.
+    /// - Simplifies `(N * C1) ÷ C2` to `N * (C1 ÷ C2)` if C1 and C2 are constants which divide
+    ///   without a remainder.
     fn try_simplify_partial_constants(
         lhs: &Type,
         mut op: BinaryTypeOperator,
@@ -205,20 +218,20 @@ impl Type {
                 if l_op == Subtraction {
                     op = op.inverse()?;
                 }
-                let result = op.function(l_const, r_const)?;
+                let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::InfixExpr(l_type, l_op, Box::new(constant)))
             }
-            (Multiplication | Division, Multiplication | Division) => {
-                // If l_op is a division we want to inverse the rhs operator.
-                if l_op == Division {
-                    op = op.inverse()?;
-                }
+            (Multiplication, Division) => {
+                // We need to ensure the result divides evenly to preserve integer division semantics
+                let divides_evenly = !lhs.infix_kind(rhs).is_type_level_field_element()
+                    && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
+
                 // If op is a division we need to ensure it divides evenly
-                if op == Division && (r_const == 0 || l_const % r_const != 0) {
+                if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {
                     None
                 } else {
-                    let result = op.function(l_const, r_const)?;
+                    let result = op.function(l_const, r_const, &lhs.infix_kind(rhs))?;
                     let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
                     Some(Type::InfixExpr(l_type, l_op, constant))
                 }
@@ -235,9 +248,10 @@ impl Type {
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
-            if let Some(inverse) = op_a.inverse() {
-                if let Some(rhs_a_u32) = rhs_a.evaluate_to_u32() {
-                    let rhs_a = Box::new(Type::Constant(rhs_a_u32, lhs_a.infix_kind(rhs_a)));
+            if let Some(inverse) = op_a.approx_inverse() {
+                let kind = lhs_a.infix_kind(rhs_a);
+                if let Some(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind) {
+                    let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
                     let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
 
                     let mut tmp_bindings = bindings.clone();
@@ -250,9 +264,10 @@ impl Type {
         }
 
         if let Type::InfixExpr(lhs_b, op_b, rhs_b) = other {
-            if let Some(inverse) = op_b.inverse() {
-                if let Some(rhs_b_u32) = rhs_b.evaluate_to_u32() {
-                    let rhs_b = Box::new(Type::Constant(rhs_b_u32, lhs_b.infix_kind(rhs_b)));
+            if let Some(inverse) = op_b.approx_inverse() {
+                let kind = lhs_b.infix_kind(rhs_b);
+                if let Some(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind) {
+                    let rhs_b = Box::new(Type::Constant(rhs_b_value, kind));
                     let new_self = Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b);
 
                     let mut tmp_bindings = bindings.clone();

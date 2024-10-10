@@ -7,14 +7,13 @@ use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
+        ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
         MethodCallExpression, Pattern, PrefixExpression, Statement, StatementKind, UnresolvedType,
         UnresolvedTypeData,
     },
     hir_def::traits::TraitConstraint,
-    macros_api::NodeInterner,
-    node_interner::InternedStatementKind,
+    node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, Token},
     Type,
 };
@@ -268,6 +267,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Dot
             | Token::DoubleColon
             | Token::DoubleDot
+            | Token::DoubleDotEqual
             | Token::Caret
             | Token::Pound
             | Token::Pipe
@@ -714,10 +714,13 @@ fn remove_interned_in_statement_kind(
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
             range: match for_loop.range {
-                ForRange::Range(from, to) => ForRange::Range(
-                    remove_interned_in_expression(interner, from),
-                    remove_interned_in_expression(interner, to),
-                ),
+                ForRange::Range(ForBounds { start, end, inclusive }) => {
+                    ForRange::Range(ForBounds {
+                        start: remove_interned_in_expression(interner, start),
+                        end: remove_interned_in_expression(interner, end),
+                        inclusive,
+                    })
+                }
                 ForRange::Array(expr) => {
                     ForRange::Array(remove_interned_in_expression(interner, expr))
                 }

@@ -8,14 +8,13 @@ use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::ImplKind;
 use crate::hir_def::function::FunctionBody;
-use crate::macros_api::UnaryOp;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
@@ -27,17 +26,17 @@ use crate::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
         stmt::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
-            HirPattern,
+            HirPattern, HirStatement,
         },
+        types::Kind,
     },
-    macros_api::{HirLiteral, HirStatement, NodeInterner},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
-    Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
+    Shared, Type, TypeBinding, TypeBindings,
 };
 
 use super::errors::{IResult, InterpreterError};
@@ -62,7 +61,7 @@ pub struct Interpreter<'local, 'interner> {
     /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
-    bound_generics: Vec<HashMap<TypeVariable, Type>>,
+    bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
 }
 
 #[allow(unused)]
@@ -89,7 +88,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, binding) in instantiation_bindings.values_mut() {
+        for (_, kind, binding) in instantiation_bindings.values_mut() {
+            *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
@@ -98,7 +98,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, binding) in impl_bindings.values_mut() {
+        for (_, kind, binding) in impl_bindings.values_mut() {
+            *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
@@ -335,8 +336,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn unbind_generics_from_previous_function(&mut self) {
         if let Some(bindings) = self.bound_generics.last() {
-            for var in bindings.keys() {
-                var.unbind(var.id());
+            for (var, (_, kind)) in bindings {
+                var.unbind(var.id(), kind.clone());
             }
         }
         // Push a new bindings list for the current function
@@ -348,7 +349,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, binding) in bindings {
+            for (var, (binding, _kind)) in bindings {
                 var.force_bind(binding.clone());
             }
         }
@@ -360,12 +361,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .last_mut()
             .expect("remember_bindings called with no bound_generics on the stack");
 
-        for (var, binding) in main_bindings.values() {
-            bound_generics.insert(var.clone(), binding.follow_bindings());
+        for (var, kind, binding) in main_bindings.values() {
+            bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
         }
 
-        for (var, binding) in impl_bindings.values() {
-            bound_generics.insert(var.clone(), binding.follow_bindings());
+        for (var, kind, binding) in impl_bindings.values() {
+            bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
         }
     }
 
@@ -543,8 +544,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::VariableNotInScope { location }
         })?;
 
-        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        if let ImplKind::TraitMethod(method) = ident.impl_kind {
+            let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
             let typ = self.elaborator.interner.id_type(id).follow_bindings();
             let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
@@ -582,18 +583,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(value)
                 }
             }
-            DefinitionKind::GenericType(type_variable) => {
+            DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_) => None,
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u32(),
+                    TypeBinding::Unbound(_, _) => None,
+                    TypeBinding::Bound(binding) => {
+                        binding.evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()))
+                    }
                 };
 
                 if let Some(value) = value {
                     let typ = self.elaborator.interner.id_type(id);
-                    self.evaluate_integer((value as u128).into(), false, id)
+                    self.evaluate_integer(value, false, id)
                 } else {
                     let location = self.elaborator.interner.expr_location(&id);
-                    let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
+                    let typ = Type::TypeVariable(type_variable.clone());
                     Err(InterpreterError::NonIntegerArrayLength { typ, location })
                 }
             }
@@ -752,14 +755,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::I64(value))
                 }
             }
-        } else if let Type::TypeVariable(variable, TypeVariableKind::IntegerOrField) = &typ {
-            Ok(Value::Field(value))
-        } else if let Type::TypeVariable(variable, TypeVariableKind::Integer) = &typ {
-            let value: u64 = value
-                .try_to_u64()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
-            Ok(Value::U64(value))
+        } else if let Type::TypeVariable(variable) = &typ {
+            if variable.is_integer_or_field() {
+                Ok(Value::Field(value))
+            } else if variable.is_integer() {
+                let value: u64 = value
+                    .try_to_u64()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
+                Ok(Value::U64(value))
+            } else {
+                Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+            }
         } else {
             Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
         }
@@ -890,71 +897,138 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_infix(&mut self, infix: HirInfixExpression, id: ExprId) -> IResult<Value> {
-        let lhs = self.evaluate(infix.lhs)?;
-        let rhs = self.evaluate(infix.rhs)?;
+        let lhs_value = self.evaluate(infix.lhs)?;
+        let rhs_value = self.evaluate(infix.rhs)?;
 
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
-            return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
+            return self.evaluate_overloaded_infix(infix, lhs_value, rhs_value, id);
         }
 
-        let make_error = |this: &mut Self, lhs: Value, rhs: Value, operator| {
-            let location = this.elaborator.interner.expr_location(&id);
-            let lhs = lhs.get_type().into_owned();
-            let rhs = rhs.get_type().into_owned();
-            Err(InvalidValuesForBinary { lhs, rhs, location, operator })
+        let lhs_type = lhs_value.get_type().into_owned();
+        let rhs_type = rhs_value.get_type().into_owned();
+        let location = self.elaborator.interner.expr_location(&id);
+
+        let error = |operator| {
+            let lhs = lhs_type.clone();
+            let rhs = rhs_type.clone();
+            InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
         };
 
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
-            BinaryOpKind::Add => match (lhs, rhs) {
+            BinaryOpKind::Add => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs + rhs)),
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs + rhs)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs + rhs)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs + rhs)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs + rhs)),
-                (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs + rhs)),
-                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs + rhs)),
-                (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs + rhs)),
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs + rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "+"),
+                (Value::I8(lhs), Value::I8(rhs)) => {
+                    Ok(Value::I8(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (Value::I16(lhs), Value::I16(rhs)) => {
+                    Ok(Value::I16(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (Value::I32(lhs), Value::I32(rhs)) => {
+                    Ok(Value::I32(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (Value::I64(lhs), Value::I64(rhs)) => {
+                    Ok(Value::I64(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (Value::U8(lhs), Value::U8(rhs)) => {
+                    Ok(Value::U8(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (Value::U16(lhs), Value::U16(rhs)) => {
+                    Ok(Value::U16(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (Value::U32(lhs), Value::U32(rhs)) => {
+                    Ok(Value::U32(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (Value::U64(lhs), Value::U64(rhs)) => {
+                    Ok(Value::U64(lhs.checked_add(rhs).ok_or(error("+"))?))
+                }
+                (lhs, rhs) => Err(error("+")),
             },
-            BinaryOpKind::Subtract => match (lhs, rhs) {
+            BinaryOpKind::Subtract => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs - rhs)),
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs - rhs)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs - rhs)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs - rhs)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs - rhs)),
-                (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs - rhs)),
-                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs - rhs)),
-                (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs - rhs)),
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs - rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "-"),
+                (Value::I8(lhs), Value::I8(rhs)) => {
+                    Ok(Value::I8(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (Value::I16(lhs), Value::I16(rhs)) => {
+                    Ok(Value::I16(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (Value::I32(lhs), Value::I32(rhs)) => {
+                    Ok(Value::I32(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (Value::I64(lhs), Value::I64(rhs)) => {
+                    Ok(Value::I64(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (Value::U8(lhs), Value::U8(rhs)) => {
+                    Ok(Value::U8(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (Value::U16(lhs), Value::U16(rhs)) => {
+                    Ok(Value::U16(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (Value::U32(lhs), Value::U32(rhs)) => {
+                    Ok(Value::U32(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (Value::U64(lhs), Value::U64(rhs)) => {
+                    Ok(Value::U64(lhs.checked_sub(rhs).ok_or(error("-"))?))
+                }
+                (lhs, rhs) => Err(error("-")),
             },
-            BinaryOpKind::Multiply => match (lhs, rhs) {
+            BinaryOpKind::Multiply => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs * rhs)),
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs * rhs)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs * rhs)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs * rhs)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs * rhs)),
-                (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs * rhs)),
-                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs * rhs)),
-                (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs * rhs)),
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs * rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "*"),
+                (Value::I8(lhs), Value::I8(rhs)) => {
+                    Ok(Value::I8(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (Value::I16(lhs), Value::I16(rhs)) => {
+                    Ok(Value::I16(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (Value::I32(lhs), Value::I32(rhs)) => {
+                    Ok(Value::I32(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (Value::I64(lhs), Value::I64(rhs)) => {
+                    Ok(Value::I64(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (Value::U8(lhs), Value::U8(rhs)) => {
+                    Ok(Value::U8(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (Value::U16(lhs), Value::U16(rhs)) => {
+                    Ok(Value::U16(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (Value::U32(lhs), Value::U32(rhs)) => {
+                    Ok(Value::U32(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (Value::U64(lhs), Value::U64(rhs)) => {
+                    Ok(Value::U64(lhs.checked_mul(rhs).ok_or(error("*"))?))
+                }
+                (lhs, rhs) => Err(error("*")),
             },
-            BinaryOpKind::Divide => match (lhs, rhs) {
+            BinaryOpKind::Divide => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs / rhs)),
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs / rhs)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs / rhs)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs / rhs)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs / rhs)),
-                (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs / rhs)),
-                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs / rhs)),
-                (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs / rhs)),
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs / rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "/"),
+                (Value::I8(lhs), Value::I8(rhs)) => {
+                    Ok(Value::I8(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (Value::I16(lhs), Value::I16(rhs)) => {
+                    Ok(Value::I16(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (Value::I32(lhs), Value::I32(rhs)) => {
+                    Ok(Value::I32(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (Value::I64(lhs), Value::I64(rhs)) => {
+                    Ok(Value::I64(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (Value::U8(lhs), Value::U8(rhs)) => {
+                    Ok(Value::U8(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (Value::U16(lhs), Value::U16(rhs)) => {
+                    Ok(Value::U16(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (Value::U32(lhs), Value::U32(rhs)) => {
+                    Ok(Value::U32(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (Value::U64(lhs), Value::U64(rhs)) => {
+                    Ok(Value::U64(lhs.checked_div(rhs).ok_or(error("/"))?))
+                }
+                (lhs, rhs) => Err(error("/")),
             },
-            BinaryOpKind::Equal => match (lhs, rhs) {
+            BinaryOpKind::Equal => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs == rhs)),
@@ -965,9 +1039,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs == rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "=="),
+                (lhs, rhs) => Err(error("==")),
             },
-            BinaryOpKind::NotEqual => match (lhs, rhs) {
+            BinaryOpKind::NotEqual => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs != rhs)),
@@ -978,9 +1052,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs != rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "!="),
+                (lhs, rhs) => Err(error("!=")),
             },
-            BinaryOpKind::Less => match (lhs, rhs) {
+            BinaryOpKind::Less => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs < rhs)),
@@ -990,9 +1064,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "<"),
+                (lhs, rhs) => Err(error("<")),
             },
-            BinaryOpKind::LessEqual => match (lhs, rhs) {
+            BinaryOpKind::LessEqual => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
@@ -1002,9 +1076,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "<="),
+                (lhs, rhs) => Err(error("<=")),
             },
-            BinaryOpKind::Greater => match (lhs, rhs) {
+            BinaryOpKind::Greater => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs > rhs)),
@@ -1014,9 +1088,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, ">"),
+                (lhs, rhs) => Err(error(">")),
             },
-            BinaryOpKind::GreaterEqual => match (lhs, rhs) {
+            BinaryOpKind::GreaterEqual => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
@@ -1026,9 +1100,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, ">="),
+                (lhs, rhs) => Err(error(">=")),
             },
-            BinaryOpKind::And => match (lhs, rhs) {
+            BinaryOpKind::And => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs & rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs & rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs & rhs)),
@@ -1038,9 +1112,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs & rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs & rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "&"),
+                (lhs, rhs) => Err(error("&")),
             },
-            BinaryOpKind::Or => match (lhs, rhs) {
+            BinaryOpKind::Or => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs | rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs | rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs | rhs)),
@@ -1050,9 +1124,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs | rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs | rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "|"),
+                (lhs, rhs) => Err(error("|")),
             },
-            BinaryOpKind::Xor => match (lhs, rhs) {
+            BinaryOpKind::Xor => match (lhs_value.clone(), rhs_value.clone()) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs ^ rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs ^ rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs ^ rhs)),
@@ -1062,40 +1136,88 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs ^ rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs ^ rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "^"),
+                (lhs, rhs) => Err(error("^")),
             },
-            BinaryOpKind::ShiftRight => match (lhs, rhs) {
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs >> rhs)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs >> rhs)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs >> rhs)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs >> rhs)),
-                (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs >> rhs)),
-                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs >> rhs)),
-                (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs >> rhs)),
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs >> rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, ">>"),
+            BinaryOpKind::ShiftRight => match (lhs_value.clone(), rhs_value.clone()) {
+                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (Value::U8(lhs), Value::U8(rhs)) => {
+                    Ok(Value::U8(lhs.checked_shr(rhs.into()).ok_or(error(">>"))?))
+                }
+                (Value::U16(lhs), Value::U16(rhs)) => {
+                    Ok(Value::U16(lhs.checked_shr(rhs.into()).ok_or(error(">>"))?))
+                }
+                (Value::U32(lhs), Value::U32(rhs)) => {
+                    Ok(Value::U32(lhs.checked_shr(rhs).ok_or(error(">>"))?))
+                }
+                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(
+                    lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
+                )),
+                (lhs, rhs) => Err(error(">>")),
             },
-            BinaryOpKind::ShiftLeft => match (lhs, rhs) {
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs << rhs)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs << rhs)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs << rhs)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs << rhs)),
-                (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs << rhs)),
-                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs << rhs)),
-                (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs << rhs)),
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs << rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "<<"),
+            BinaryOpKind::ShiftLeft => match (lhs_value.clone(), rhs_value.clone()) {
+                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (Value::U8(lhs), Value::U8(rhs)) => {
+                    Ok(Value::U8(lhs.checked_shl(rhs.into()).ok_or(error("<<"))?))
+                }
+                (Value::U16(lhs), Value::U16(rhs)) => {
+                    Ok(Value::U16(lhs.checked_shl(rhs.into()).ok_or(error("<<"))?))
+                }
+                (Value::U32(lhs), Value::U32(rhs)) => {
+                    Ok(Value::U32(lhs.checked_shl(rhs).ok_or(error("<<"))?))
+                }
+                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(
+                    lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
+                )),
+                (lhs, rhs) => Err(error("<<")),
             },
-            BinaryOpKind::Modulo => match (lhs, rhs) {
-                (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs % rhs)),
-                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs % rhs)),
-                (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs % rhs)),
-                (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs % rhs)),
-                (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs % rhs)),
-                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs % rhs)),
-                (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs % rhs)),
-                (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs % rhs)),
-                (lhs, rhs) => make_error(self, lhs, rhs, "%"),
+            BinaryOpKind::Modulo => match (lhs_value.clone(), rhs_value.clone()) {
+                (Value::I8(lhs), Value::I8(rhs)) => {
+                    Ok(Value::I8(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (Value::I16(lhs), Value::I16(rhs)) => {
+                    Ok(Value::I16(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (Value::I32(lhs), Value::I32(rhs)) => {
+                    Ok(Value::I32(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (Value::I64(lhs), Value::I64(rhs)) => {
+                    Ok(Value::I64(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (Value::U8(lhs), Value::U8(rhs)) => {
+                    Ok(Value::U8(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (Value::U16(lhs), Value::U16(rhs)) => {
+                    Ok(Value::U16(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (Value::U32(lhs), Value::U32(rhs)) => {
+                    Ok(Value::U32(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (Value::U64(lhs), Value::U64(rhs)) => {
+                    Ok(Value::U64(lhs.checked_rem(rhs).ok_or(error("%"))?))
+                }
+                (lhs, rhs) => Err(error("%")),
             },
         }
     }
@@ -1633,7 +1755,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
                 other => Ok(other),
             },
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type, location } => {
                 match self.evaluate_lvalue(lvalue)? {
                     Value::Pointer(value, _) => Ok(value.borrow().clone()),
                     value => {

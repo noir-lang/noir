@@ -1,4 +1,4 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 
 trait TraitWithGenerics<A, B> {
     fn foo(self) -> (A, B);

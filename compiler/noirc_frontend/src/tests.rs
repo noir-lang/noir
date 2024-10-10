@@ -30,16 +30,13 @@ use crate::hir::Context;
 use crate::node_interner::{NodeInterner, StmtId};
 
 use crate::hir::def_collector::dc_crate::DefCollector;
+use crate::hir::def_map::{CrateDefMap, LocalModuleId};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
 use crate::monomorphization::monomorphize;
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
-use crate::ParsedModule;
-use crate::{
-    hir::def_map::{CrateDefMap, LocalModuleId},
-    parse_program,
-};
+use crate::{parse_program, ParsedModule};
 use fm::FileManager;
 use noirc_arena::Arena;
 
@@ -90,7 +87,8 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             location,
             Vec::new(),
             inner_attributes.clone(),
-            false,
+            false, // is contract
+            false, // is struct
         ));
 
         let def_map = CrateDefMap {
@@ -1072,6 +1070,18 @@ fn resolve_for_expr() {
 }
 
 #[test]
+fn resolve_for_expr_incl() {
+    let src = r#"
+        fn main(x : u64) {
+            for i in 1..=20 {
+                let _z = x + i;
+            };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn resolve_call_expr() {
     let src = r#"
         fn main(x : Field) {
@@ -1586,9 +1596,7 @@ fn struct_numeric_generic_in_struct() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::UnsupportedNumericGenericType { .. }
-        ),
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType(_)),
     ));
 }
 
@@ -1641,7 +1649,6 @@ fn bool_generic_as_loop_bound() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 3);
-
     assert!(matches!(
         errors[0].0,
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
@@ -1706,7 +1713,7 @@ fn normal_generic_as_array_length() {
 #[test]
 fn numeric_generic_as_param_type() {
     let src = r#"
-    pub fn foo<let I: Field>(x: I) -> I {
+    pub fn foo<let I: u32>(x: I) -> I {
         let _q: I = 5;
         x
     }
@@ -1728,6 +1735,68 @@ fn numeric_generic_as_param_type() {
     assert!(matches!(
         errors[2].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_unused_param_type() {
+    let src = r#"
+    pub fn foo<let I: u32>(_x: I) { }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_unused_trait_fn_param_type() {
+    let src = r#"
+    trait Foo {
+        fn foo<let I: u32>(_x: I) { }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // Foo is unused
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_return_type() {
+    let src = r#"
+    // std::mem::zeroed() without stdlib
+    trait Zeroed {
+        fn zeroed<T>(self) -> T;
+    }
+
+    fn foo<T, let I: Field>(x: T) -> I where T: Zeroed {
+        x.zeroed()
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    // Error from the return type
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    // foo is unused
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
     ));
 }
 
@@ -1877,6 +1946,125 @@ fn numeric_generic_used_in_turbofish() {
     assert_no_errors(src);
 }
 
+// TODO(https://github.com/noir-lang/noir/issues/6245):
+// allow u16 to be used as an array size
+#[test]
+fn numeric_generic_u16_array_size() {
+    let src = r#"
+    fn len<let N: u32>(_arr: [Field; N]) -> u32 {
+        N
+    }
+
+    pub fn foo<let N: u16>() -> u32 {
+        let fields: [Field; N] = [0; N];
+        len(fields)
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/6238):
+// The EvaluatedGlobalIsntU32 warning is a stopgap
+// (originally from https://github.com/noir-lang/noir/issues/6125)
+#[test]
+fn numeric_generic_field_larger_than_u32() {
+    let src = r#"
+        global A: Field = 4294967297;
+        
+        fn foo<let A: Field>() { }
+        
+        fn main() {
+            let _ = foo::<A>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::IntegerTooLarge { .. })
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/6238):
+// The EvaluatedGlobalIsntU32 warning is a stopgap
+// (originally from https://github.com/noir-lang/noir/issues/6126)
+#[test]
+fn numeric_generic_field_arithmetic_larger_than_u32() {
+    let src = r#"
+        struct Foo<let F: Field> {}
+
+        impl<let F: Field> Foo<F> {
+            fn size(self) -> Field {
+                F
+            }
+        }
+        
+        // 2^32 - 1
+        global A: Field = 4294967295;
+        
+        fn foo<let A: Field>() -> Foo<A + A> {
+            Foo {}
+        }
+        
+        fn main() {
+            let _ = foo::<A>().size();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    ));
+
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
+    ));
+}
+
+#[test]
+fn cast_256_to_u8_size_checks() {
+    let src = r#"
+        fn main() {
+            assert(256 as u8 == 0);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::DownsizingCast { .. }),
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/6247):
+// add negative integer literal checks
+#[test]
+fn cast_negative_one_to_u8_size_checks() {
+    let src = r#"
+        fn main() {
+            assert((-1) as u8 != 0);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
 #[test]
 fn constant_used_with_numeric_generic() {
     let src = r#"
@@ -1973,10 +2161,24 @@ fn numeric_generics_type_kind_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 3);
+
+    // TODO(https://github.com/noir-lang/noir/issues/6238):
+    // The EvaluatedGlobalIsntU32 warning is a stopgap
     assert!(matches!(
         errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    ));
+
+    assert!(matches!(
+        errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
+    ));
+
+    // TODO(https://github.com/noir-lang/noir/issues/6238): see above
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
     ));
 }
 
@@ -2383,23 +2585,6 @@ fn impl_not_found_for_inner_impl() {
         &errors[0].0,
         CompilationError::TypeError(TypeCheckError::NoMatchingImplFound { .. })
     ));
-}
-
-#[test]
-fn no_super() {
-    let src = "use super::some_func;";
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NoSuper(span),
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(span.start(), 4);
-    assert_eq!(span.end(), 9);
 }
 
 #[test]
@@ -3036,7 +3221,38 @@ fn infer_globals_to_u32_from_type_use() {
 }
 
 #[test]
-fn non_u32_in_array_length() {
+fn struct_array_len() {
+    let src = r#"
+        struct Array<T, let N: u32> {
+            inner: [T; N],
+        }
+
+        impl<T, let N: u32> Array<T, N> {
+            pub fn len(self) -> u32 {
+                N as u32
+            }
+        }
+
+        fn main(xs: [Field; 2]) {
+            let ys = Array {
+                inner: xs,
+            };
+            assert(ys.len() == 2);
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/6245):
+// support u16 as an array size
+#[test]
+fn non_u32_as_array_length() {
     let src = r#"
         global ARRAY_LEN: u8 = 3;
 
@@ -3046,10 +3262,13 @@ fn non_u32_in_array_length() {
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
+    assert_eq!(errors.len(), 2);
     assert!(matches!(
         errors[0].0,
+        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
     ));
 }
@@ -3084,7 +3303,8 @@ fn use_numeric_generic_in_trait_method() {
         }
 
         fn main() {
-            let _ = Bar{}.foo([1,2,3]);
+            let bytes: [u8; 3] = [1,2,3];
+            let _ = Bar{}.foo(bytes);
         }
     "#;
 
@@ -3103,21 +3323,68 @@ fn trait_unconstrained_methods_typechecked_correctly() {
                 self
             }
 
-            unconstrained fn foo(self) -> u64;
+            unconstrained fn foo(self) -> Field;
         }
 
-        impl Foo for Field {
-            unconstrained fn foo(self) -> u64 {
-                self as u64
+        impl Foo for u64 {
+            unconstrained fn foo(self) -> Field {
+                self as Field
             }
         }
 
         unconstrained fn main() {
-            assert_eq(2.foo() as Field, 2.identity());
+            assert_eq(2.foo(), 2.identity() as Field);
         }
     "#;
 
     let errors = get_program_errors(src);
     println!("{errors:?}");
     assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn error_if_attribute_not_in_scope() {
+    let src = r#"
+        #[not_in_scope]
+        fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::AttributeFunctionNotInScope { .. })
+    ));
+}
+
+#[test]
+fn arithmetic_generics_rounding_pass() {
+    let src = r#"
+        fn main() {
+            // 3/2*2 = 2
+            round::<3, 2>([1, 2]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail() {
+    let src = r#"
+        fn main() {
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            round::<3, 2>([1, 2, 3]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
 }

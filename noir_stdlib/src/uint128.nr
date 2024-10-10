@@ -4,8 +4,8 @@ use crate::cmp::{Eq, Ord, Ordering};
 global pow64 : Field = 18446744073709551616; //2^64;
 global pow63 : Field = 9223372036854775808; // 2^63;
 pub struct U128 {
-    lo: Field,
-    hi: Field,
+    pub(crate) lo: Field,
+    pub(crate) hi: Field,
 }
 
 impl U128 {
@@ -98,7 +98,7 @@ impl U128 {
         ((ascii >= 65) & (ascii <= 90)) // Between 'A' and 'Z'
     }
 
-    fn decode_ascii(ascii: u8) -> Field {
+    pub(crate) fn decode_ascii(ascii: u8) -> Field {
         (if ascii < 58 {
             ascii - 48
         } else {
