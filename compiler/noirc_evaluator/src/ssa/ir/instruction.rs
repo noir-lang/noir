@@ -630,9 +630,9 @@ impl Instruction {
                 }
             }
             Instruction::ArraySet { array, index, value, .. } => {
-                let array = dfg.get_array_constant(*array);
-                let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, element_type)), Some(index)) = (array, index) {
+                let array_const = dfg.get_array_constant(*array);
+                let index_const = dfg.get_numeric_constant(*index);
+                if let (Some((array, element_type)), Some(index)) = (array_const, index_const) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
@@ -641,7 +641,8 @@ impl Instruction {
                         return SimplifiedTo(new_array);
                     }
                 }
-                None
+
+                try_optimize_array_set_from_previous_get(dfg, *array, *index, *value)
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if bit_size == max_bit_size {
@@ -814,6 +815,98 @@ fn try_optimize_array_get_from_previous_set(
             return SimplifyResult::SimplifiedTo(array[index]);
         }
     }
+    SimplifyResult::None
+}
+
+/// If we have an array set whose value is from an array get on the same array at the same index,
+/// we can simplify that array set to the array we were looking to perform an array set upon.
+///
+/// Simple case:
+/// v3 = array_get v1, index v2
+/// v5 = array_set v1, index v2, value v3
+///
+/// If we could not immediately simplify the array set from its value, we can try to follow
+/// the array set backwards in the case we have constant indices:
+///
+/// v3 = array_get v1, index 1
+/// v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
+/// v7 = array_set mut v5, index 1, value v3
+///
+/// We want to optimize `v7` to `v5`. We see that `v3` comes from an array get to `v1`. We follow `v5` backwards and see an array set
+/// to `v1` and see that the previous array set occurs to a different constant index.
+///
+/// For each array_set:
+/// - If the index is non-constant we fail the optimization since any index may be changed.
+/// - If the index is constant and is our target index, we conservatively fail the optimization.
+/// - Otherwise, we check the array value of the `array_set`. We will refer to this array as array'.
+///   In the case above, array' is `v1` from `v5 = array set ...`
+///   - If the original `array_set` value comes from an `array_get`, check the array in that `array_get` against array'.
+///   - If the two values are equal we can simplify.
+///     - Continuing the example above, as we have `v3 = array_get v1, index 1`, `v1` is
+///       what we want to check against array'. We now know we can simplify `v7` to `v5` as it is unchanged.
+///   - If they are not equal, recur marking the current `array_set` array as the new array id to use in the checks
+fn try_optimize_array_set_from_previous_get(
+    dfg: &DataFlowGraph,
+    mut array_id: ValueId,
+    target_index: ValueId,
+    target_value: ValueId,
+) -> SimplifyResult {
+    let array_from_get = match &dfg[target_value] {
+        Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+            Instruction::ArrayGet { array, index } => {
+                if *array == array_id && *index == target_index {
+                    // If array and index match from the value, we can immediately simplify
+                    return SimplifyResult::SimplifiedTo(array_id);
+                } else if *index == target_index {
+                    *array
+                } else {
+                    return SimplifyResult::None;
+                }
+            }
+            _ => return SimplifyResult::None,
+        },
+        _ => return SimplifyResult::None,
+    };
+
+    // At this point we have determined that the value we are writing in the `array_set` instruction
+    // comes from an `array_get` from the same index at which we want to write it at.
+    // It's possible that we're acting on the same array where other indices have been mutated in between
+    // the `array_get` and `array_set` (resulting in the `array_id` not matching).
+    //
+    // We then inspect the set of `array_set`s which which led to the current array the `array_set` is acting on.
+    // If we can work back to the array on which the `array_get` was reading from without having another `array_set`
+    // act on the same index then we can be sure that the new `array_set` can be removed without affecting the final result.
+    let Some(target_index) = dfg.get_numeric_constant(target_index) else {
+        return SimplifyResult::None;
+    };
+
+    let original_array_id = array_id;
+    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    let max_tries = 5;
+    for _ in 0..max_tries {
+        match &dfg[array_id] {
+            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+                Instruction::ArraySet { array, index, .. } => {
+                    let Some(index) = dfg.get_numeric_constant(*index) else {
+                        return SimplifyResult::None;
+                    };
+
+                    if index == target_index {
+                        return SimplifyResult::None;
+                    }
+
+                    if *array == array_from_get {
+                        return SimplifyResult::SimplifiedTo(original_array_id);
+                    }
+
+                    array_id = *array; // recur
+                }
+                _ => return SimplifyResult::None,
+            },
+            _ => return SimplifyResult::None,
+        }
+    }
+
     SimplifyResult::None
 }
 

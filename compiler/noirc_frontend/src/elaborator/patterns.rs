@@ -3,19 +3,21 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::{TypePath, UnresolvedType, ERROR_IDENT},
+    ast::{
+        Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath, UnresolvedType,
+        ERROR_IDENT,
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirIdent, HirMethodReference, ImplKind},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
     },
-    macros_api::{Expression, ExpressionKind, HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    ResolvedGeneric, Shared, StructType, Type, TypeBindings,
+    Kind, ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -271,7 +273,9 @@ impl<'context> Elaborator<'context> {
         let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field, pattern) in fields {
-            let field_type = expected_type.get_field_type(&field.0.contents).unwrap_or(Type::Error);
+            let (field_type, visibility) = expected_type
+                .get_field_type_and_visibility(&field.0.contents)
+                .unwrap_or((Type::Error, ItemVisibility::Public));
             let resolved = self.elaborate_pattern_mut(
                 pattern,
                 field_type,
@@ -285,6 +289,13 @@ impl<'context> Elaborator<'context> {
             if unseen_fields.contains(&field) {
                 unseen_fields.remove(&field);
                 seen_fields.insert(field.clone());
+
+                self.check_struct_field_visibility(
+                    &struct_type.borrow(),
+                    &field.0.contents,
+                    visibility,
+                    field.span(),
+                );
             } else if seen_fields.contains(&field) {
                 // duplicate field
                 self.push_err(ResolverError::DuplicateField { field: field.clone() });
@@ -488,7 +499,7 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<Type> {
         let generics_with_types = generics.iter().zip(turbofish_generics);
         vecmap(generics_with_types, |(generic, unresolved_type)| {
-            self.resolve_type_inner(unresolved_type, &generic.kind)
+            self.resolve_type_inner(unresolved_type, &generic.kind())
         })
     }
 
@@ -524,11 +535,15 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_variable(&mut self, path: Path) -> HirIdent {
-        if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path) {
+        if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
+            if let Some(error) = trait_path_resolution.error {
+                self.push_err(error);
+            }
+
             HirIdent {
                 location: Location::new(path.span, self.file),
-                id: self.interner.trait_method_id(method),
-                impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
+                id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
+                impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
             }
         } else {
             // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -557,13 +572,14 @@ impl<'context> Elaborator<'context> {
 
                         self.interner.add_global_reference(global_id, hir_ident.location);
                     }
-                    DefinitionKind::GenericType(_) => {
+                    DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
                         // Initialize numeric generics to a polymorphic integer type in case
                         // they're used in expressions. We must do this here since type_check_variable
                         // does not check definition kinds and otherwise expects parameters to
                         // already be typed.
                         if self.interner.definition_type(hir_ident.id) == Type::Error {
-                            let typ = Type::polymorphic_integer_or_field(self.interner);
+                            let type_var_kind = Kind::Numeric(numeric_typ.clone());
+                            let typ = self.type_variable_with_kind(type_var_kind);
                             self.interner.push_definition_type(hir_ident.id, typ);
                         }
                     }
@@ -593,8 +609,12 @@ impl<'context> Elaborator<'context> {
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
-            self.bind_generics_from_trait_constraint(constraint, *assumed, &mut bindings);
+        if let ImplKind::TraitMethod(method) = &ident.impl_kind {
+            self.bind_generics_from_trait_constraint(
+                &method.constraint,
+                method.assumed,
+                &mut bindings,
+            );
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
@@ -632,18 +652,18 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
-            constraint.apply_bindings(&bindings);
-            if assumed {
-                let trait_generics = constraint.trait_generics.clone();
-                let object_type = constraint.typ;
+        if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
+            method.constraint.apply_bindings(&bindings);
+            if method.assumed {
+                let trait_generics = method.constraint.trait_generics.clone();
+                let object_type = method.constraint.typ;
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);
             } else {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(constraint, expr_id);
+                self.push_trait_constraint(method.constraint, expr_id);
             }
         }
 
@@ -729,7 +749,7 @@ impl<'context> Elaborator<'context> {
                 let mut constraint =
                     self.interner.get_trait(method_id.trait_id).as_constraint(span);
                 constraint.trait_generics = generics;
-                ImplKind::TraitMethod(method_id, constraint, false)
+                ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }
         };
 

@@ -26,7 +26,7 @@ impl Neg for MyType {
     }
 }
 
-fn neg_at_comptime() {
+pub fn neg_at_comptime() {
     comptime
     {
         let value = MyType { value: 1 };

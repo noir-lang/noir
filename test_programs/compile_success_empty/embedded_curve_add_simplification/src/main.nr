@@ -1,4 +1,4 @@
-use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
+use std::embedded_curve_ops::EmbeddedCurvePoint;
 
 fn main() {
     let zero = EmbeddedCurvePoint::point_at_infinity();

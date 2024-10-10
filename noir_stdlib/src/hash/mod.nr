@@ -1,9 +1,9 @@
-mod poseidon;
-mod mimc;
-mod poseidon2;
-mod keccak;
-mod sha256;
-mod sha512;
+pub mod poseidon;
+pub mod mimc;
+pub mod poseidon2;
+pub mod keccak;
+pub mod sha256;
+pub mod sha512;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -36,7 +36,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     pedersen_hash_with_separator_noir(input, separator)
 }
 
-fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+pub fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     pedersen_commitment_with_separator_noir(input, separator)
 }
 
@@ -76,14 +76,8 @@ pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
     pedersen_hash_with_separator_noir(input, 0)
 }
 
-#[foreign(pedersen_hash)]
-fn __pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {}
-
-#[foreign(pedersen_commitment)]
-fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> [Field; 2] {}
-
 #[field(bn254)]
-fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
+pub fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
     __derive_generators(domain_separator_bytes, starting_index)
@@ -91,16 +85,13 @@ fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], st
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<let N: u32, let M: u32>(
-    domain_separator_bytes: [u8; M],
-    starting_index: u32
-) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
-    // Same as from_field but:
-    // does not assert the limbs are 128 bits
-    // does not assert the decomposition does not overflow the EmbeddedCurveScalar
-    fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
+// Same as from_field but:
+// does not assert the limbs are 128 bits
+// does not assert the decomposition does not overflow the EmbeddedCurveScalar
+fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     let (xlo, xhi) = unsafe {
         crate::field::bn254::decompose_hint(scalar)
     };
@@ -414,4 +405,3 @@ fn assert_pedersen() {
     }
     );
 }
-

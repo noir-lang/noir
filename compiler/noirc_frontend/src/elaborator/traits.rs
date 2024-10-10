@@ -5,16 +5,14 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+        BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
+        ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
     hir_def::{function::Parameters, traits::TraitFunction},
-    macros_api::{
-        BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        NodeInterner, NoirFunction, UnresolvedType,
-    },
-    node_interner::{FuncId, ReferenceId, TraitId},
-    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
+    node_interner::{FuncId, NodeInterner, ReferenceId, TraitId},
+    ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;
@@ -81,8 +79,7 @@ impl<'context> Elaborator<'context> {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
                     let self_typevar = the_trait.self_type_typevar.clone();
-                    let self_type =
-                        Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
+                    let self_type = Type::TypeVariable(self_typevar.clone());
                     let name_span = the_trait.name.span();
 
                     this.add_existing_generic(
@@ -92,7 +89,6 @@ impl<'context> Elaborator<'context> {
                             name: Rc::new("Self".to_owned()),
                             type_var: self_typevar,
                             span: name_span,
-                            kind: Kind::Normal,
                         },
                     );
                     this.self_type = Some(self_type.clone());
@@ -281,11 +277,12 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, kind, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), kind.clone());
-            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
+            let trait_fn_kind = trait_fn_generic.kind();
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);

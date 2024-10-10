@@ -1,2 +1,2 @@
-struct MyStruct5 {
+pub struct MyStruct5 {
 }

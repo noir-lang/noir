@@ -2,12 +2,14 @@ use crate::ec::tecurve::affine::Point as TEPoint;
 use crate::ec::tecurve::affine::Curve as TECurve;
 
 pub struct BabyJubjub {
-    curve: TECurve,
-    base8: TEPoint,
-    suborder: Field,
+    pub curve: TECurve,
+    pub base8: TEPoint,
+    pub suborder: Field,
 }
 
 #[field(bn254)]
+// Uncommenting this results in deprecated warnings in the stdlib
+// #[deprecated]
 pub fn baby_jubjub() -> BabyJubjub {
     BabyJubjub {
         // Baby Jubjub (ERC-2494) parameters in affine representation

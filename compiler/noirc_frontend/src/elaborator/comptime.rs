@@ -1,12 +1,11 @@
 use std::{collections::BTreeMap, fmt::Display};
 
-use chumsky::Parser;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::Documented,
+    ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -19,13 +18,11 @@ use crate::{
         def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
     },
-    hir_def::expr::HirIdent,
+    hir_def::expr::{HirExpression, HirIdent},
     lexer::Lexer,
-    macros_api::{
-        Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
-    },
-    node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement, TopLevelStatementKind},
+    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
+    parser::{Item, ItemKind, Parser},
+    token::SecondaryAttribute,
     Type, TypeBindings, UnificationError,
 };
 
@@ -161,7 +158,7 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) {
-        if let SecondaryAttribute::Custom(attribute) = attribute {
+        if let SecondaryAttribute::Meta(attribute) = attribute {
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_comptime_attribute_name_on_item(
                     &attribute.contents,
@@ -191,25 +188,45 @@ impl<'context> Elaborator<'context> {
 
         let location = Location::new(attribute_span, self.file);
         let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
-            // Do not issue an error if the attribute is unknown
-            return Ok(());
+            return Err((
+                ResolverError::UnableToParseAttribute {
+                    attribute: attribute.to_string(),
+                    span: attribute_span,
+                }
+                .into(),
+                self.file,
+            ));
         };
 
         // Elaborate the function, rolling back any errors generated in case it is unknown
         let error_count = self.errors.len();
+        let function_string = function.to_string();
         let function = self.elaborate_expression(function).0;
         self.errors.truncate(error_count);
 
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
-            _ => return Ok(()),
+            _ => {
+                return Err((
+                    ResolverError::AttributeFunctionIsNotAPath {
+                        function: function_string,
+                        span: attribute_span,
+                    }
+                    .into(),
+                    self.file,
+                ))
+            }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
-            // If there's no such function, don't return an error.
-            // This preserves backwards compatibility in allowing custom attributes that
-            // do not refer to comptime functions.
-            return Ok(());
+            return Err((
+                ResolverError::AttributeFunctionNotInScope {
+                    name: function_string,
+                    span: attribute_span,
+                }
+                .into(),
+                self.file,
+            ));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {
@@ -263,9 +280,10 @@ impl<'context> Elaborator<'context> {
             return Err((lexing_errors.swap_remove(0).into(), location.file));
         }
 
-        let expression = parser::expression()
-            .parse(tokens)
-            .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
+        let Some(expression) = Parser::for_tokens(tokens).parse_option(Parser::parse_expression)
+        else {
+            return Ok(None);
+        };
 
         let (mut func, mut arguments) = match expression.kind {
             ExpressionKind::Call(call) => (*call.func, call.arguments),
@@ -372,7 +390,7 @@ impl<'context> Elaborator<'context> {
 
     fn add_items(
         &mut self,
-        items: Vec<TopLevelStatement>,
+        items: Vec<Item>,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
@@ -383,12 +401,12 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn add_item(
         &mut self,
-        item: TopLevelStatement,
+        item: Item,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
         match item.kind {
-            TopLevelStatementKind::Function(function) => {
+            ItemKind::Function(function) => {
                 let module_id = self.module_id();
 
                 if let Some(id) = dc_mod::collect_function(
@@ -409,7 +427,7 @@ impl<'context> Elaborator<'context> {
                     });
                 }
             }
-            TopLevelStatementKind::TraitImpl(mut trait_impl) => {
+            ItemKind::TraitImpl(mut trait_impl) => {
                 let (methods, associated_types, associated_constants) =
                     dc_mod::collect_trait_impl_items(
                         self.interner,
@@ -439,11 +457,12 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatementKind::Global(global) => {
+            ItemKind::Global(global, visibility) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     Documented::new(global, item.doc_comments),
+                    visibility,
                     self.file,
                     self.local_module,
                     self.crate_id,
@@ -454,7 +473,7 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error);
                 }
             }
-            TopLevelStatementKind::Struct(struct_def) => {
+            ItemKind::Struct(struct_def) => {
                 if let Some((type_id, the_struct)) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
@@ -467,20 +486,17 @@ impl<'context> Elaborator<'context> {
                     generated_items.types.insert(type_id, the_struct);
                 }
             }
-            TopLevelStatementKind::Impl(r#impl) => {
+            ItemKind::Impl(r#impl) => {
                 let module = self.module_id();
                 dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
             }
 
-            // Assume that an error has already been issued
-            TopLevelStatementKind::Error => (),
-
-            TopLevelStatementKind::Module(_)
-            | TopLevelStatementKind::Import(..)
-            | TopLevelStatementKind::Trait(_)
-            | TopLevelStatementKind::TypeAlias(_)
-            | TopLevelStatementKind::SubModule(_)
-            | TopLevelStatementKind::InnerAttribute(_) => {
+            ItemKind::ModuleDecl(_)
+            | ItemKind::Import(..)
+            | ItemKind::Trait(_)
+            | ItemKind::TypeAlias(_)
+            | ItemKind::Submodules(_)
+            | ItemKind::InnerAttribute(_) => {
                 let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());

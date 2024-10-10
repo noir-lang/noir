@@ -16,7 +16,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::Function,
+        function::{Function, RuntimeType},
         instruction::{BinaryOp, Instruction, Intrinsic},
         types::Type,
         value::Value,
@@ -29,23 +29,30 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_enable_side_effects(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            remove_enable_side_effects(function);
+            function.remove_enable_side_effects();
         }
         self
     }
 }
 
-fn remove_enable_side_effects(function: &mut Function) {
-    let mut context = Context::default();
-    context.block_queue.push(function.entry_block());
-
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
+impl Function {
+    pub(crate) fn remove_enable_side_effects(&mut self) {
+        if matches!(self.runtime(), RuntimeType::Brillig) {
+            // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
+            return;
         }
 
-        context.visited_blocks.insert(block);
-        context.remove_enable_side_effects_in_block(function, block);
+        let mut context = Context::default();
+        context.block_queue.push(self.entry_block());
+
+        while let Some(block) = context.block_queue.pop() {
+            if context.visited_blocks.contains(&block) {
+                continue;
+            }
+
+            context.visited_blocks.insert(block);
+            context.remove_enable_side_effects_in_block(self, block);
+        }
     }
 }
 

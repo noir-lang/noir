@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{Ident, ItemVisibility},
     hir::def_map::ModuleId,
-    macros_api::StructId,
-    node_interner::{FuncId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -14,6 +13,7 @@ pub enum UnusedItem {
     Struct(StructId),
     Trait(TraitId),
     TypeAlias(TypeAliasId),
+    Global(GlobalId),
 }
 
 impl UnusedItem {
@@ -24,6 +24,7 @@ impl UnusedItem {
             UnusedItem::Struct(_) => "struct",
             UnusedItem::Trait(_) => "trait",
             UnusedItem::TypeAlias(_) => "type alias",
+            UnusedItem::Global(_) => "global",
         }
     }
 }

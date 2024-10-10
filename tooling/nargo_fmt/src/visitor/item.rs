@@ -7,8 +7,9 @@ use crate::{
     visitor::expr::{format_seq, NewlineMode},
 };
 use noirc_frontend::{
-    ast::{NoirFunction, TraitImplItemKind, Visibility},
-    macros_api::UnresolvedTypeData,
+    ast::{ItemVisibility, NoirFunction, TraitImplItemKind, UnresolvedTypeData, Visibility},
+    lexer::Lexer,
+    token::{SecondaryAttribute, TokenKind},
 };
 use noirc_frontend::{
     hir::resolution::errors::Span,
@@ -27,7 +28,8 @@ impl super::FmtVisitor<'_> {
         let name_span = func.name_ident().span();
         let func_span = func.span();
 
-        let mut result = self.slice(start..name_span.end()).to_owned();
+        let fn_header = self.slice(start..name_span.end());
+        let mut result = self.format_fn_header(fn_header, &func);
 
         let params_open =
             self.span_before(name_span.end()..func_span.start(), Token::LeftParen).start();
@@ -109,6 +111,134 @@ impl super::FmtVisitor<'_> {
         (result.trim_end().to_string(), last_line_contains_single_line_comment(maybe_comment))
     }
 
+    // This formats the function outer doc comments, attributes, modifiers, and `fn name`.
+    fn format_fn_header(&self, src: &str, func: &NoirFunction) -> String {
+        let mut result = String::new();
+        let mut lexer = Lexer::new(src).skip_comments(false).peekable();
+
+        // First there might be outer doc comments
+        while let Some(Ok(token)) = lexer.peek() {
+            if token.kind() == TokenKind::OuterDocComment {
+                result.push_str(&token.to_string());
+                result.push('\n');
+                result.push_str(&self.indent.to_string());
+                lexer.next();
+
+                self.append_comments_if_any(&mut lexer, &mut result);
+            } else {
+                break;
+            }
+        }
+
+        // Then, optionally, attributes
+        while let Some(Ok(token)) = lexer.peek() {
+            if token.kind() == TokenKind::Attribute {
+                result.push_str(&token.to_string());
+                result.push('\n');
+                result.push_str(&self.indent.to_string());
+                lexer.next();
+
+                self.append_comments_if_any(&mut lexer, &mut result);
+            } else {
+                break;
+            }
+        }
+
+        self.append_comments_if_any(&mut lexer, &mut result);
+
+        // Then, optionally, the `unconstrained` keyword
+        // (eventually we'll stop accepting this, but we keep it for backwards compatibility)
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Unconstrained) = token.token() {
+                lexer.next();
+            }
+        }
+
+        self.append_comments_if_any(&mut lexer, &mut result);
+
+        // Then the visibility
+        let mut has_visibility = false;
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Pub) = token.token() {
+                has_visibility = true;
+                lexer.next();
+                if let Some(Ok(token)) = lexer.peek() {
+                    if let Token::LeftParen = token.token() {
+                        lexer.next(); // Skip '('
+                        lexer.next(); // Skip 'crate'
+                        lexer.next(); // Skip ')'
+                    }
+                }
+            }
+        }
+
+        if has_visibility {
+            result.push_str(&func.def.visibility.to_string());
+            result.push(' ');
+        }
+
+        self.append_comments_if_any(&mut lexer, &mut result);
+
+        // Then, optionally, and again, the `unconstrained` keyword
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Unconstrained) = token.token() {
+                lexer.next();
+            }
+        }
+
+        if func.def.is_unconstrained {
+            result.push_str("unconstrained ");
+        }
+
+        self.append_comments_if_any(&mut lexer, &mut result);
+
+        // Then, optionally, the `comptime` keyword
+        if let Some(Ok(token)) = lexer.peek() {
+            if let Token::Keyword(Keyword::Comptime) = token.token() {
+                lexer.next();
+            }
+        }
+
+        if func.def.is_comptime {
+            result.push_str("comptime ");
+        }
+
+        self.append_comments_if_any(&mut lexer, &mut result);
+
+        // Then the `fn` keyword
+        lexer.next(); // Skip fn
+        result.push_str("fn ");
+
+        self.append_comments_if_any(&mut lexer, &mut result);
+
+        // Then the function name
+        result.push_str(&func.def.name.0.contents);
+
+        result
+    }
+
+    fn append_comments_if_any(
+        &self,
+        lexer: &mut std::iter::Peekable<Lexer<'_>>,
+        result: &mut String,
+    ) {
+        while let Some(Ok(token)) = lexer.peek() {
+            match token.token() {
+                Token::LineComment(..) => {
+                    result.push_str(&token.to_string());
+                    result.push('\n');
+                    result.push_str(&self.indent.to_string());
+                    lexer.next();
+                }
+                Token::BlockComment(..) => {
+                    result.push_str(&token.to_string());
+                    lexer.next();
+                }
+                _ => break,
+            }
+        }
+    }
+
     fn format_return_type(
         &self,
         span: Span,
@@ -171,7 +301,9 @@ impl super::FmtVisitor<'_> {
                     }
 
                     for attribute in module.outer_attributes {
-                        self.push_str(&format!("#[{}]\n", attribute.as_ref()));
+                        let is_tag = matches!(attribute, SecondaryAttribute::Tag(_));
+                        let tag = if is_tag { "'" } else { "" };
+                        self.push_str(&format!("#[{tag}{}]\n", attribute.as_ref()));
                         self.push_str(&self.indent.to_string());
                     }
 
@@ -179,8 +311,12 @@ impl super::FmtVisitor<'_> {
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
-                    let keyword = if module.is_contract { "contract" } else { "mod" };
+                    let visibility = module.visibility;
+                    if visibility != ItemVisibility::Private {
+                        self.push_str(&format!("{visibility} "));
+                    }
 
+                    let keyword = if module.is_contract { "contract" } else { "mod" };
                     self.push_str(&format!("{keyword} {name} "));
 
                     if module.contents.items.is_empty() {
@@ -273,10 +409,11 @@ impl super::FmtVisitor<'_> {
                     self.push_rewrite(use_tree, span);
                     self.last_position = span.end();
                 }
+
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
                 | ItemKind::TypeAlias(_)
-                | ItemKind::Global(_)
+                | ItemKind::Global(..)
                 | ItemKind::ModuleDecl(_)
                 | ItemKind::InnerAttribute(_) => {
                     self.push_rewrite(self.slice(span).to_string(), span);
