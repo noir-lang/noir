@@ -54,6 +54,7 @@ mod unquote;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
+use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 
@@ -1041,16 +1042,11 @@ impl<'context> Elaborator<'context> {
         let the_trait_file = the_trait.location.file;
 
         let mut bindings = TypeBindings::new();
-        for (param, arg) in the_trait.generics.iter().zip(trait_impl.resolved_trait_generics.iter())
-        {
-            // Avoid binding t = t
-            if !arg.occurs(param.type_var.id()) {
-                bindings.insert(
-                    param.type_var.id(),
-                    (param.type_var.clone(), param.kind(), arg.clone()),
-                );
-            }
-        }
+        bind_ordered_generics(
+            &the_trait.generics,
+            &trait_impl.resolved_trait_generics,
+            &mut bindings,
+        );
 
         // Note: we only check if the immediate parents are implemented, we don't check recursively.
         // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll

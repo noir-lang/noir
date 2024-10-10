@@ -1864,17 +1864,8 @@ impl<'context> Elaborator<'context> {
         bindings: &mut TypeBindings,
     ) {
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
-        assert_eq!(the_trait.generics.len(), trait_bound.trait_generics.ordered.len());
 
-        for (param, arg) in the_trait.generics.iter().zip(&trait_bound.trait_generics.ordered) {
-            // Avoid binding t = t
-            if !arg.occurs(param.type_var.id()) {
-                bindings.insert(
-                    param.type_var.id(),
-                    (param.type_var.clone(), param.kind(), arg.clone()),
-                );
-            }
-        }
+        bind_ordered_generics(&the_trait.generics, &trait_bound.trait_generics.ordered, bindings);
 
         let mut associated_types = the_trait.associated_types.clone();
         assert_eq!(associated_types.len(), trait_bound.trait_generics.named.len());
@@ -1909,6 +1900,22 @@ impl<'context> Elaborator<'context> {
         ResolvedTraitBound {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
             ..*parent_trait_bound
+        }
+    }
+}
+
+pub(crate) fn bind_ordered_generics(
+    generics: &[ResolvedGeneric],
+    types: &[Type],
+    bindings: &mut TypeBindings,
+) {
+    assert_eq!(generics.len(), types.len());
+
+    for (param, arg) in generics.iter().zip(types) {
+        // Avoid binding t = t
+        if !arg.occurs(param.type_var.id()) {
+            bindings
+                .insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
         }
     }
 }
