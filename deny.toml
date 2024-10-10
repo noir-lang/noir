@@ -7,7 +7,7 @@ yanked = "warn"
 
 ignore = [
     "RUSTSEC-2020-0168", # mach unmaintained
-    "RUSTSEC-2020-0016"  # net2 unmaintained
+    "RUSTSEC-2020-0016", # net2 unmaintained
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -58,7 +58,7 @@ allow = [
     # bitmaps 2.1.0, im 15.1.0
     "MPL-2.0",
     # Boost Software License
-    "BSL-1.0"
+    "BSL-1.0",
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
@@ -101,7 +101,4 @@ unknown-git = "deny"
 #
 # crates.io rejects git dependencies so anything depending on these is unpublishable and you'll ruin my day
 # when I find out.
-allow-git = [
-    "https://github.com/jfecher/chumsky",
-    "https://github.com/noir-lang/clap-markdown",
-]
+allow-git = ["https://github.com/noir-lang/clap-markdown"]

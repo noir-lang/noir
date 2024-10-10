@@ -359,7 +359,7 @@ mod tests {
         let pattern = parser.parse_pattern_or_error();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a : but found =");
+        assert_eq!(error.to_string(), "Expected a ':' but found '='");
 
         let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")
