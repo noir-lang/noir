@@ -68,7 +68,6 @@ pub(super) fn simplify_call(
                     let result_array = constant_to_radix(endian, field, 2, limb_count, dfg);
                     SimplifyResult::SimplifiedTo(result_array)
                 }
-
             } else {
                 SimplifyResult::None
             }
