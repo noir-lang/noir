@@ -19,8 +19,8 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
-        Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
+        Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         Visibility,
     },
     hir::{
@@ -32,10 +32,9 @@ use crate::{
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
     },
-    hir_def::{
-        expr::{HirExpression, HirLiteral},
-        function::FunctionBody,
-    },
+    hir_def::expr::{HirExpression, HirLiteral},
+    hir_def::function::FunctionBody,
+    hir_def::{self},
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, SecondaryAttribute, Token},
@@ -316,7 +315,7 @@ fn str_as_bytes(
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
     let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len() as u32, Kind::u32())),
+        Box::new(Type::Constant(bytes.len().into(), Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     );
     Ok(Value::Array(bytes, byte_array_type))
@@ -498,9 +497,9 @@ fn struct_def_fields(
 
     let mut fields = im::Vector::new();
 
-    for (name, typ) in struct_def.get_fields_as_written() {
-        let name = Value::Quoted(Rc::new(vec![Token::Ident(name)]));
-        let typ = Value::Type(typ);
+    for field in struct_def.get_fields_as_written() {
+        let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
+        let typ = Value::Type(field.typ);
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
 
@@ -567,7 +566,11 @@ fn struct_def_set_fields(
 
                 match name_tokens.first() {
                     Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                        Ok((Ident::new(name.clone(), field_location.span), typ))
+                        Ok(hir_def::types::StructField {
+                            visibility: ItemVisibility::Public,
+                            name: Ident::new(name.clone(), field_location.span),
+                            typ,
+                        })
                     }
                     _ => {
                         let value = name_value.display(interner).to_string();
@@ -802,8 +805,12 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let limb_count = if let Type::Array(length, _) = return_type {
-        if let Type::Constant(limb_count, _kind) = *length {
-            limb_count
+        if let Type::Constant(limb_count, kind) = *length {
+            if kind.unifies(&Kind::u32()) {
+                limb_count
+            } else {
+                return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+            }
         } else {
             return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
         }
@@ -813,10 +820,11 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
-    let decomposed_integer = vecmap(0..limb_count as usize, |i| match decomposed_integer.get(i) {
-        Some(digit) => Value::U8(*digit),
-        None => Value::U8(0),
-    });
+    let decomposed_integer =
+        vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
+            Some(digit) => Value::U8(*digit),
+            None => Value::U8(0),
+        });
     Ok(Value::Array(
         decomposed_integer.into(),
         Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),

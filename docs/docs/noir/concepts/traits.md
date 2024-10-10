@@ -466,7 +466,7 @@ unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
 
 ### Visibility
 
-By default, like functions, traits are private to the module the exist in. You can use `pub`
+By default, like functions, traits are private to the module they exist in. You can use `pub`
 to make the trait public or `pub(crate)` to make it public to just its crate:
 
 ```rust

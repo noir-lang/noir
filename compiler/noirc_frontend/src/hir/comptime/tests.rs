@@ -79,6 +79,23 @@ fn interpreter_works() {
 }
 
 #[test]
+fn interpreter_type_checking_works() {
+    let program = "comptime fn main() -> pub u8 { 3 }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(3u8));
+}
+
+#[test]
+fn let_statement_works() {
+    let program = "comptime fn main() -> pub i8 {
+        let x = 4;
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::I8(4));
+}
+
+#[test]
 fn mutation_works() {
     let program = "comptime fn main() -> pub i8 {
         let mut x = 3;
@@ -277,5 +294,5 @@ fn generic_functions() {
     }
     ";
     let result = interpret(program);
-    assert!(matches!(result, Value::U8(2)));
+    assert_eq!(result, Value::U8(2));
 }

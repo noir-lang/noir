@@ -1,3 +1,4 @@
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use regex::Regex;
@@ -6,13 +7,15 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression, Lambda,
-        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression, StatementKind,
-        UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
+        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
+        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
-        resolution::errors::ResolverError,
+        resolution::{
+            errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
+        },
         type_check::{generics::TraitGenerics, TypeCheckError},
     },
     hir_def::{
@@ -161,7 +164,7 @@ impl<'context> Elaborator<'context> {
                 (Lit(int), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len() as u32, Kind::u32());
+                let len = Type::Constant(str.len().into(), Kind::u32());
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(str) => self.elaborate_fmt_string(str, span),
@@ -203,7 +206,7 @@ impl<'context> Elaborator<'context> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len() as u32, Kind::u32());
+                let length = Type::Constant(elements.len().into(), Kind::u32());
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -211,7 +214,7 @@ impl<'context> Elaborator<'context> {
                 let length =
                     UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(0, span)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), span)
                     });
 
                 let length = self.convert_expression_type(length, &Kind::u32(), span);
@@ -267,7 +270,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        let len = Type::Constant(str.len() as u32, Kind::u32());
+        let len = Type::Constant(str.len().into(), Kind::u32());
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
@@ -448,6 +451,8 @@ impl<'context> Elaborator<'context> {
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
+                self.check_method_call_visibility(func_id, &object_type, &method_call.method);
+
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
@@ -483,6 +488,20 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Call(function_call), typ)
             }
             None => (HirExpression::Error, Type::Error),
+        }
+    }
+
+    fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
+        if !method_call_is_visible(
+            object_type,
+            func_id,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        ) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
         }
     }
 
@@ -548,7 +567,7 @@ impl<'context> Elaborator<'context> {
         let generics = struct_generics.clone();
 
         let fields = constructor.fields;
-        let field_types = r#type.borrow().get_fields(&struct_generics);
+        let field_types = r#type.borrow().get_fields_with_visibility(&struct_generics);
         let fields =
             self.resolve_constructor_expr_fields(struct_type.clone(), field_types, fields, span);
         let expr = HirExpression::Constructor(HirConstructorExpression {
@@ -576,7 +595,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_constructor_expr_fields(
         &mut self,
         struct_type: Shared<StructType>,
-        field_types: Vec<(String, Type)>,
+        field_types: Vec<(String, ItemVisibility, Type)>,
         fields: Vec<(Ident, Expression)>,
         span: Span,
     ) -> Vec<(Ident, ExprId)> {
@@ -588,10 +607,11 @@ impl<'context> Elaborator<'context> {
             let expected_field_with_index = field_types
                 .iter()
                 .enumerate()
-                .find(|(_, (name, _))| name == &field_name.0.contents);
-            let expected_index = expected_field_with_index.map(|(index, _)| index);
+                .find(|(_, (name, _, _))| name == &field_name.0.contents);
+            let expected_index_and_visibility =
+                expected_field_with_index.map(|(index, (_, visibility, _))| (index, visibility));
             let expected_type =
-                expected_field_with_index.map(|(_, (_, typ))| typ).unwrap_or(&Type::Error);
+                expected_field_with_index.map(|(_, (_, _, typ))| typ).unwrap_or(&Type::Error);
 
             let field_span = field.span;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -618,11 +638,21 @@ impl<'context> Elaborator<'context> {
                 });
             }
 
-            if let Some(expected_index) = expected_index {
+            if let Some((index, visibility)) = expected_index_and_visibility {
+                let struct_type = struct_type.borrow();
+                let field_span = field_name.span();
+                let field_name = &field_name.0.contents;
+                self.check_struct_field_visibility(
+                    &struct_type,
+                    field_name,
+                    *visibility,
+                    field_span,
+                );
+
                 self.interner.add_struct_member_reference(
-                    struct_type.borrow().id,
-                    expected_index,
-                    Location::new(field_name.span(), self.file),
+                    struct_type.id,
+                    index,
+                    Location::new(field_span, self.file),
                 );
             }
 
@@ -665,7 +695,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_cast(&mut self, cast: CastExpression, span: Span) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
         let r#type = self.resolve_type(cast.r#type);
-        let result = self.check_cast(&lhs_type, &r#type, span);
+        let result = self.check_cast(&lhs, &lhs_type, &r#type, span);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }

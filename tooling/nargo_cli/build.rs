@@ -69,6 +69,16 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
+
+/// Some tests are expected to have warnings
+/// These should be fixed and removed from this list.
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
+    // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
+    "brillig_cast",
+    // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
+    "macros_in_comptime",
+];
+
 /// Discovers all test directories for the given `test_sub_dir` (if it exists) and returns an
 /// iterator over pairs of the test name and the path to the directory that contains the test. If
 /// there are no tests returns an empty iterator.
@@ -252,13 +262,21 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        let assert_zero_opcodes = r#"
+        let mut assert_zero_opcodes = r#"
         let output = nargo.output().expect("Failed to execute command");
 
         if !output.status.success() {{
             panic!("`nargo info` failed with: {}", String::from_utf8(output.stderr).unwrap_or_default());
         }}
-    
+        "#.to_string();
+
+        if !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str()) {
+            assert_zero_opcodes += r#"
+            nargo.assert().success().stderr(predicate::str::contains("warning:").not());
+            "#;
+        }
+
+        assert_zero_opcodes += r#"
         // `compile_success_empty` tests should be able to compile down to an empty circuit.
         let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
             panic!("JSON was not well-formatted {:?}\n\n{:?}", e, std::str::from_utf8(&output.stdout))
@@ -302,7 +320,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        nargo.assert().success();"#,
+        nargo.assert().success().stderr(predicate::str::contains("warning:").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();

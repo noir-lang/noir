@@ -997,6 +997,10 @@ impl SecondaryAttribute {
             _ => false,
         }
     }
+
+    pub(crate) fn is_abi(&self) -> bool {
+        matches!(self, SecondaryAttribute::Abi(_))
+    }
 }
 
 impl fmt::Display for SecondaryAttribute {
