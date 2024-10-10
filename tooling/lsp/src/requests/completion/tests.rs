@@ -149,8 +149,8 @@ mod completion_tests {
     async fn test_use_second_segment() {
         let src = r#"
             mod foo {
-                mod bar {}
-                mod baz {}
+                pub mod bar {}
+                pub mod baz {}
             }
             use foo::>|<
         "#;
@@ -163,8 +163,8 @@ mod completion_tests {
     async fn test_use_second_segment_after_typing() {
         let src = r#"
             mod foo {
-                mod bar {}
-                mod brave {}
+                pub mod bar {}
+                pub mod brave {}
             }
             use foo::ba>|<
         "#;
@@ -239,7 +239,7 @@ mod completion_tests {
     async fn test_use_in_tree_after_letter() {
         let src = r#"
             mod foo {
-                mod bar {}
+                pub mod bar {}
             }
             use foo::{b>|<}
         "#;
@@ -251,8 +251,8 @@ mod completion_tests {
     async fn test_use_in_tree_after_colons() {
         let src = r#"
             mod foo {
-                mod bar {
-                    mod baz {}
+                pub mod bar {
+                    pub mod baz {}
                 }
             }
             use foo::{bar::>|<}
@@ -265,8 +265,8 @@ mod completion_tests {
     async fn test_use_in_tree_after_colons_after_another_segment() {
         let src = r#"
             mod foo {
-                mod bar {}
-                mod qux {}
+                pub mod bar {}
+                pub mod qux {}
             }
             use foo::{bar, q>|<}
         "#;
@@ -350,7 +350,7 @@ mod completion_tests {
     async fn test_complete_path_after_colons_shows_submodule() {
         let src = r#"
           mod foo {
-            mod bar {}
+            pub mod bar {}
           }
 
           fn main() {
@@ -364,7 +364,7 @@ mod completion_tests {
     async fn test_complete_path_after_colons_and_letter_shows_submodule() {
         let src = r#"
           mod foo {
-            mod qux {}
+            pub mod qux {}
           }
 
           fn main() {
@@ -595,7 +595,7 @@ mod completion_tests {
             vec![simple_completion_item(
                 "lambda_var",
                 CompletionItemKind::VARIABLE,
-                Some("_".to_string()),
+                Some("i32".to_string()),
             )],
         )
         .await;
@@ -1069,6 +1069,22 @@ mod completion_tests {
             }
         "#;
         assert_completion(src, vec![field_completion_item("bar", "i32")]).await;
+    }
+
+    #[test]
+    async fn test_does_not_suggest_private_struct_field() {
+        let src = r#"
+            mod moo {
+                pub struct Some {
+                    property: i32,
+                }
+            }
+
+            fn foo(s: moo::Some) {
+                s.>|<
+            }
+        "#;
+        assert_completion(src, vec![]).await;
     }
 
     #[test]
@@ -1575,7 +1591,7 @@ mod completion_tests {
     async fn test_auto_import_suggests_modules_too() {
         let src = r#"
             mod foo {
-                mod barbaz {
+                pub mod barbaz {
                     fn hello_world() {}
                 }
             }
@@ -1806,11 +1822,42 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_does_not_suggest_private_struct_methods() {
+        let src = r#"
+            mod moo {
+                pub struct Foo {}
+
+                impl Foo {
+                    fn bar(self) {}
+                }
+            }
+
+            fn x(f: moo::Foo) {
+                f.>|<()
+            }
+        "#;
+        assert_completion(src, vec![]).await;
+    }
+
+    #[test]
+    async fn test_does_not_suggest_private_primitive_methods() {
+        let src = r#"
+            fn foo(x: Field) {
+                x.>|<
+            }
+        "#;
+        let items = get_completions(src).await;
+        if items.iter().any(|item| item.label == "__assert_max_bit_size") {
+            panic!("Private method __assert_max_bit_size was suggested");
+        }
+    }
+
+    #[test]
     async fn test_suggests_pub_use() {
         let src = r#"
             mod bar {
-                mod baz {
-                    mod coco {}
+                pub mod baz {
+                    pub mod coco {}
                 }
 
                 pub use baz::coco;
@@ -1827,8 +1874,8 @@ mod completion_tests {
     async fn test_auto_import_suggests_pub_use_for_module() {
         let src = r#"
             mod bar {
-                mod baz {
-                    mod coco {}
+                pub mod baz {
+                    pub mod coco {}
                 }
 
                 pub use baz::coco as foobar;
@@ -2270,5 +2317,57 @@ mod completion_tests {
             )],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_does_not_auto_import_private_global() {
+        let src = r#"mod moo {
+            global foobar = 1;
+        }
+
+        fn main() {
+            fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
+    }
+
+    #[test]
+    async fn test_does_not_auto_import_private_type_alias() {
+        let src = r#"mod moo {
+            type foobar = i32;
+        }
+
+        fn main() {
+            fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
+    }
+
+    #[test]
+    async fn test_does_not_auto_import_private_trait() {
+        let src = r#"mod moo {
+            trait Foobar {}
+        }
+
+        fn main() {
+            Fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
+    }
+
+    #[test]
+    async fn test_does_not_auto_import_private_module() {
+        let src = r#"mod moo {
+            mod foobar {}
+        }
+
+        fn main() {
+            fooba>|<
+        }"#;
+
+        assert_completion(src, Vec::new()).await;
     }
 }

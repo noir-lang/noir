@@ -11,6 +11,7 @@ pub enum MonomorphizationError {
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
 }
 
 impl MonomorphizationError {
@@ -21,6 +22,7 @@ impl MonomorphizationError {
             | MonomorphizationError::InternalError { location, .. }
             | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
+            | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.get_location(),
         }
@@ -44,6 +46,9 @@ impl MonomorphizationError {
             }
             MonomorphizationError::UnknownConstant { .. } => {
                 "Could not resolve constant".to_string()
+            }
+            MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
+                format!("checked_transmute failed: `{actual}` != `{expected}`")
             }
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();

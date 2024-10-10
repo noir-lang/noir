@@ -26,6 +26,9 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
+    /// True if this module is actually a struct
+    pub is_struct: bool,
+
     pub attributes: Vec<SecondaryAttribute>,
 }
 
@@ -36,6 +39,7 @@ impl ModuleData {
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
+        is_struct: bool,
     ) -> ModuleData {
         let mut attributes = outer_attributes;
         attributes.extend(inner_attributes);
@@ -47,6 +51,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
+            is_struct,
             attributes,
         }
     }
@@ -135,9 +140,10 @@ impl ModuleData {
     pub fn declare_child_module(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         child_id: ModuleId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, child_id.into(), None)
+        self.declare(name, visibility, child_id.into(), None)
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {

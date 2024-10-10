@@ -11,13 +11,12 @@ use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    Documented, FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItemKind,
-    TraitItem, TypeImpl,
+    Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
+    ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern,
+    TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType, UnresolvedTypeData,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::macros_api::{Expression, NodeInterner, StructId, UnresolvedType, UnresolvedTypeData};
-use crate::node_interner::{ModuleAttributes, ReferenceId};
+use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, StructId};
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{
@@ -82,6 +81,7 @@ pub fn collect_defs(
         collector.def_collector.imports.push(ImportDirective {
             visibility: import.visibility,
             module_id: collector.module_id,
+            self_type_module_id: None,
             path: import.path,
             alias: import.alias,
             is_prelude: false,
@@ -357,7 +357,12 @@ impl<'a> ModCollector<'a> {
             if context.def_interner.is_in_lsp_mode() {
                 let parent_module_id = ModuleId { krate, local_id: self.module_id };
                 let name = name.to_string();
-                context.def_interner.register_type_alias(type_alias_id, name, parent_module_id);
+                context.def_interner.register_type_alias(
+                    type_alias_id,
+                    name,
+                    visibility,
+                    parent_module_id,
+                );
             }
         }
         errors
@@ -381,11 +386,13 @@ impl<'a> ModCollector<'a> {
             let trait_id = match self.push_child_module(
                 context,
                 &name,
+                ItemVisibility::Public,
                 Location::new(name.span(), self.file_id),
                 Vec::new(),
                 Vec::new(),
                 false,
-                false,
+                false, // is contract
+                false, // is struct
             ) {
                 Ok(module_id) => TraitId(ModuleId { krate, local_id: module_id.local_id }),
                 Err(error) => {
@@ -530,8 +537,10 @@ impl<'a> ModCollector<'a> {
 
                             associated_types.push(ResolvedGeneric {
                                 name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(type_variable_id),
-                                kind: Kind::Numeric(Box::new(typ)),
+                                type_var: TypeVariable::unbound(
+                                    type_variable_id,
+                                    Kind::Numeric(Box::new(typ)),
+                                ),
                                 span: name.span(),
                             });
                         }
@@ -555,8 +564,7 @@ impl<'a> ModCollector<'a> {
                             let type_variable_id = context.def_interner.next_type_variable_id();
                             associated_types.push(ResolvedGeneric {
                                 name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(type_variable_id),
-                                kind: Kind::Normal,
+                                type_var: TypeVariable::unbound(type_variable_id, Kind::Normal),
                                 span: name.span(),
                             });
                         }
@@ -588,7 +596,12 @@ impl<'a> ModCollector<'a> {
 
             if context.def_interner.is_in_lsp_mode() {
                 let parent_module_id = ModuleId { krate, local_id: self.module_id };
-                context.def_interner.register_trait(trait_id, name.to_string(), parent_module_id);
+                context.def_interner.register_trait(
+                    trait_id,
+                    name.to_string(),
+                    visibility,
+                    parent_module_id,
+                );
             }
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
@@ -612,11 +625,13 @@ impl<'a> ModCollector<'a> {
             match self.push_child_module(
                 context,
                 &submodule.name,
+                submodule.visibility,
                 Location::new(submodule.name.span(), file_id),
                 submodule.outer_attributes.clone(),
                 submodule.contents.inner_attributes.clone(),
                 true,
                 submodule.is_contract,
+                false, // is struct
             ) {
                 Ok(child) => {
                     self.collect_attributes(
@@ -711,11 +726,13 @@ impl<'a> ModCollector<'a> {
         match self.push_child_module(
             context,
             &mod_decl.ident,
+            mod_decl.visibility,
             Location::new(Span::empty(0), child_file_id),
             mod_decl.outer_attributes.clone(),
             ast.inner_attributes.clone(),
             true,
-            false,
+            false, // is contract
+            false, // is struct
         ) {
             Ok(child_mod_id) => {
                 self.collect_attributes(
@@ -761,22 +778,26 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
+        visibility: ItemVisibility,
         mod_location: Location,
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
         add_to_parent_scope: bool,
         is_contract: bool,
+        is_struct: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
         push_child_module(
             &mut context.def_interner,
             &mut self.def_collector.def_map,
             self.module_id,
             mod_name,
+            visibility,
             mod_location,
             outer_attributes,
             inner_attributes,
             add_to_parent_scope,
             is_contract,
+            is_struct,
         )
     }
 
@@ -806,11 +827,13 @@ fn push_child_module(
     def_map: &mut CrateDefMap,
     parent: LocalModuleId,
     mod_name: &Ident,
+    visibility: ItemVisibility,
     mod_location: Location,
     outer_attributes: Vec<SecondaryAttribute>,
     inner_attributes: Vec<SecondaryAttribute>,
     add_to_parent_scope: bool,
     is_contract: bool,
+    is_struct: bool,
 ) -> Result<ModuleId, DefCollectorErrorKind> {
     // Note: the difference between `location` and `mod_location` is:
     // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
@@ -820,8 +843,14 @@ fn push_child_module(
     // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
-    let new_module =
-        ModuleData::new(Some(parent), location, outer_attributes, inner_attributes, is_contract);
+    let new_module = ModuleData::new(
+        Some(parent),
+        location,
+        outer_attributes,
+        inner_attributes,
+        is_contract,
+        is_struct,
+    );
 
     let module_id = def_map.modules.insert(new_module);
     let modules = &mut def_map.modules;
@@ -840,7 +869,7 @@ fn push_child_module(
     // the struct name.
     if add_to_parent_scope {
         if let Err((first_def, second_def)) =
-            modules[parent.0].declare_child_module(mod_name.to_owned(), mod_id)
+            modules[parent.0].declare_child_module(mod_name.to_owned(), visibility, mod_id)
         {
             let err = DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::Module,
@@ -860,7 +889,7 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            interner.register_module(mod_id, mod_name.0.contents.clone());
+            interner.register_module(mod_id, visibility, mod_name.0.contents.clone());
         }
     }
 
@@ -952,11 +981,13 @@ pub fn collect_struct(
         def_map,
         module_id,
         &name,
+        ItemVisibility::Public,
         location,
         Vec::new(),
         Vec::new(),
-        false,
-        false,
+        false, // add to parent scope
+        false, // is contract
+        true,  // is struct
     ) {
         Ok(module_id) => {
             interner.new_struct(&unresolved, resolved_generics, krate, module_id.local_id, file_id)
@@ -982,12 +1013,14 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    interner.usage_tracker.add_unused_item(
-        parent_module_id,
-        name.clone(),
-        UnusedItem::Struct(id),
-        visibility,
-    );
+    if !unresolved.struct_def.is_abi() {
+        interner.usage_tracker.add_unused_item(
+            parent_module_id,
+            name.clone(),
+            UnusedItem::Struct(id),
+            visibility,
+        );
+    }
 
     if let Err((first_def, second_def)) = result {
         let error = DefCollectorErrorKind::Duplicate {
@@ -1170,6 +1203,7 @@ pub(crate) fn collect_global(
     let global = global.item;
 
     let name = global.pattern.name_ident().clone();
+    let is_abi = global.attributes.iter().any(|attribute| attribute.is_abi());
 
     let global_id = interner.push_empty_global(
         name.clone(),
@@ -1184,13 +1218,15 @@ pub(crate) fn collect_global(
     // Add the statement to the scope so its path can be looked up later
     let result = def_map.modules[module_id.0].declare_global(name.clone(), visibility, global_id);
 
-    let parent_module_id = ModuleId { krate: crate_id, local_id: module_id };
-    interner.usage_tracker.add_unused_item(
-        parent_module_id,
-        name,
-        UnusedItem::Global(global_id),
-        visibility,
-    );
+    if !is_abi {
+        let parent_module_id = ModuleId { krate: crate_id, local_id: module_id };
+        interner.usage_tracker.add_unused_item(
+            parent_module_id,
+            name,
+            UnusedItem::Global(global_id),
+            visibility,
+        );
+    }
 
     let error = result.err().map(|(first_def, second_def)| {
         let err =
@@ -1200,7 +1236,7 @@ pub(crate) fn collect_global(
 
     interner.set_doc_comments(ReferenceId::Global(global_id), doc_comments);
 
-    let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
+    let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global, visibility };
     (global, error)
 }
 

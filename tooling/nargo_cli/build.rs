@@ -59,6 +59,15 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
+/// Some tests are expected to have warnings
+/// These should be fixed and removed from this list.
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
+    // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
+    "brillig_cast",
+    // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
+    "macros_in_comptime",
+];
+
 fn read_test_cases(
     test_data_dir: &Path,
     test_sub_dir: &str,
@@ -81,7 +90,6 @@ fn read_test_cases(
 
 fn generate_test_case(
     test_file: &mut File,
-    test_type: &str,
     test_name: &str,
     test_dir: &std::path::Display,
     test_content: &str,
@@ -90,7 +98,7 @@ fn generate_test_case(
         test_file,
         r#"
 #[test]
-fn {test_type}_{test_name}() {{
+fn test_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
@@ -105,12 +113,19 @@ fn {test_type}_{test_name}() {{
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -122,7 +137,6 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         if !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
             generate_test_case(
                 test_file,
-                test_type,
                 &format!("{test_name}_brillig"),
                 &test_dir,
                 r#"
@@ -132,17 +146,25 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             );
         }
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -151,17 +173,25 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "noir_test_success";
     let test_cases = read_test_cases(test_data_dir, "noir_test_success");
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -170,16 +200,24 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
         nargo.assert().success();"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "noir_test_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -188,21 +226,38 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
         nargo.assert().failure();"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_empty";
     let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        let assert_zero_opcodes = r#"
+        let mut assert_zero_opcodes = r#"
         let output = nargo.output().expect("Failed to execute command");
 
         if !output.status.success() {{
             panic!("`nargo info` failed with: {}", String::from_utf8(output.stderr).unwrap_or_default());
         }}
-    
+        "#.to_string();
+
+        if !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str()) {
+            assert_zero_opcodes += r#"
+            nargo.assert().success().stderr(predicate::str::contains("warning:").not());
+            "#;
+        }
+
+        assert_zero_opcodes += r#"
         // `compile_success_empty` tests should be able to compile down to an empty circuit.
         let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
             panic!("JSON was not well-formatted {:?}\n\n{:?}", e, std::str::from_utf8(&output.stdout))
@@ -213,7 +268,6 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             &format!(
@@ -224,36 +278,52 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             ),
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_contract";
     let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        nargo.assert().success();"#,
+        nargo.assert().success().stderr(predicate::str::contains("warning:").not());"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 /// Generate tests for checking that the contract compiles and there are no "bugs" in stderr
 fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_no_bug";
     let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"
@@ -261,17 +331,25 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_failure";
     let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
         generate_test_case(
             test_file,
-            test_type,
             &test_name,
             &test_dir,
             r#"nargo.arg("compile").arg("--force");
@@ -279,4 +357,5 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
         nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
+    writeln!(test_file, "}}").unwrap();
 }

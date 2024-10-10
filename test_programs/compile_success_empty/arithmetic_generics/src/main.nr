@@ -97,7 +97,7 @@ fn mul_add<let N: u32, let M: u32, let P: u32>() -> Equiv<W<N * (M + P)>, (), W<
 }
 
 // (N + 1) * N == N * N + N
-fn demo_proof<let N: u32>() -> Equiv<W<(N * (N + 1))>, (Equiv<W<N>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>), W<N>, (Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>, Equiv<W<N>, (), W<N>, ()>)> {
+pub fn demo_proof<let N: u32>() -> Equiv<W<(N * (N + 1))>, (Equiv<W<N>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>), W<N>, (Equiv<W<(N * (N + 1))>, (Equiv<W<(N * (N + 1))>, (), W<N>, ()>, Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>), W<N>, (Equiv<W<(N * (N + 1))>, (), W<(N * (N + 1))>, ()>, Equiv<W<(N * (N + 1))>, (), W<N>, ()>)>, Equiv<W<N>, (), W<N>, ()>)> {
     let p1: Equiv<W<(N + 1) * N>, (), W<N * (N + 1)>, ()> = mul_comm();
     let p2: Equiv<W<N * (N + 1)>, (), W<N * N + N>, ()> = mul_add::<N, N, 1>();
     let p3_sub: Equiv<W<N>, (), W<N>, ()> = mul_one_r();
@@ -117,9 +117,12 @@ fn test_constant_folding<let N: u32>() {
 
     // N * C1 / C2 = N * (C1 / C2)
     let _: W<N * 10 / 2> = W::<N * 5> {};
-
+    // This case is invalid due to integer division
+    // If N does not divide evenly with 10 then we cannot simplify it.
+    // e.g. 15 / 10 * 2 = 2 versus 15 / 5 = 3
+    //
     // N / C1 * C2 = N / (C1 / C2)
-    let _: W<N / 10 * 2> = W::<N / 5> {};
+    // let _: W<N / 10 * 2> = W::<N / 5> {};
 }
 
 fn test_non_constant_folding<let N: u32, let M: u32>() {
@@ -131,7 +134,9 @@ fn test_non_constant_folding<let N: u32, let M: u32>() {
 
     // N * M / M = N
     let _: W<N * M / M> = W::<N> {};
-
+    // This case is not true due to integer division rounding!
+    // Consider 5 / 2 * 2 which should equal 4, not 5
+    //
     // N / M * M = N
-    let _: W<N / M * M> = W::<N> {};
+    // let _: W<N / M * M> = W::<N> {};
 }
