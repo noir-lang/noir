@@ -292,6 +292,23 @@ fn file_diagnostic_to_diagnostic(
         });
     }
 
+    for frame in diagnostic.call_stack.into_iter().rev() {
+        let Some(path) = fm.path(frame.file) else {
+            continue;
+        };
+        let Ok(uri) = Url::from_file_path(path) else {
+            continue;
+        };
+        let Some(range) = byte_span_to_range(files, file_id, frame.span.into()) else {
+            continue;
+        };
+
+        related_information.push(DiagnosticRelatedInformation {
+            location: lsp_types::Location { uri, range },
+            message: "Error originated here".to_string(),
+        });
+    }
+
     Some(Diagnostic {
         range,
         severity: Some(severity),
