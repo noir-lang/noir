@@ -2366,7 +2366,8 @@ dependencies = [
 [[package]]
 name = "light-poseidon"
 version = "0.2.0"
-source = "git+https://github.com/Lightprotocol/light-poseidon.git?tag=v0.2.0#be8e0b58e8a6b932fc75252745db016fbff5a258"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9a85a9752c549ceb7578064b4ed891179d20acd85f27318573b64d2d7ee7ee"
 dependencies = [
  "ark-bn254",
  "ark-ff",

@@ -86,7 +86,7 @@ sha2.workspace = true
 sha3.workspace = true
 iai = "0.1.1"
 test-binary = "3.0.2"
-light-poseidon = { git = "https://github.com/Lightprotocol/light-poseidon.git", tag = "v0.2.0" }
+light-poseidon = "0.2.0"
 
 
 [[bench]]
