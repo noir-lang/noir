@@ -117,9 +117,12 @@ fn test_constant_folding<let N: u32>() {
 
     // N * C1 / C2 = N * (C1 / C2)
     let _: W<N * 10 / 2> = W::<N * 5> {};
-
+    // This case is invalid due to integer division
+    // If N does not divide evenly with 10 then we cannot simplify it.
+    // e.g. 15 / 10 * 2 = 2 versus 15 / 5 = 3
+    //
     // N / C1 * C2 = N / (C1 / C2)
-    let _: W<N / 10 * 2> = W::<N / 5> {};
+    // let _: W<N / 10 * 2> = W::<N / 5> {};
 }
 
 fn test_non_constant_folding<let N: u32, let M: u32>() {
@@ -131,7 +134,9 @@ fn test_non_constant_folding<let N: u32, let M: u32>() {
 
     // N * M / M = N
     let _: W<N * M / M> = W::<N> {};
-
+    // This case is not true due to integer division rounding!
+    // Consider 5 / 2 * 2 which should equal 4, not 5
+    //
     // N / M * M = N
-    let _: W<N / M * M> = W::<N> {};
+    // let _: W<N / M * M> = W::<N> {};
 }
