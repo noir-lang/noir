@@ -60,9 +60,15 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                let result_array = constant_to_radix(endian, field, 2, limb_count, dfg);
+                if FieldElement::from(2u128).pow(&limb_count.into()) <= field {
+                    // `field` cannot be represented as `limb_count` bits.
+                    // defer error to acir_gen.
+                    SimplifyResult::None
+                } else {
+                    let result_array = constant_to_radix(endian, field, 2, limb_count, dfg);
+                    SimplifyResult::SimplifiedTo(result_array)
+                }
 
-                SimplifyResult::SimplifiedTo(result_array)
             } else {
                 SimplifyResult::None
             }
@@ -80,9 +86,14 @@ pub(super) fn simplify_call(
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
 
-                let result_array = constant_to_radix(endian, field, radix, limb_count, dfg);
-
-                SimplifyResult::SimplifiedTo(result_array)
+                if FieldElement::from(radix).pow(&limb_count.into()) <= field {
+                    // `field` cannot be represented as `limb_count` limbs of `radix`.
+                    // defer error to acir_gen.
+                    SimplifyResult::None
+                } else {
+                    let result_array = constant_to_radix(endian, field, radix, limb_count, dfg);
+                    SimplifyResult::SimplifiedTo(result_array)
+                }
             } else {
                 SimplifyResult::None
             }
