@@ -259,14 +259,13 @@ fn fuzz_sha512_equivalence() {
 fn fuzz_poseidon2_equivalence() {
     use bn254_blackbox_solver::poseidon_hash;
 
-    for max_len in [0, 1, 4, 511, 512] {
+    for max_len in [0, 1, 3, 4, 511, 512] {
         let source = format!(
             "fn main(input: [Field; {max_len}], message_size: u32) -> pub Field {{
                 std::hash::poseidon2::Poseidon2::hash(input, message_size)
             }}"
         );
 
-        // The actual input length can be up to the maximum.
         let strategy = (0..=max_len)
             .prop_flat_map(|len: usize| {
                 // Generate Field elements from random 32 byte vectors.
@@ -277,7 +276,7 @@ fn fuzz_poseidon2_equivalence() {
             })
             .prop_map(move |mut msg| {
                 // The output hash is a single field element.
-                let output = poseidon_hash(&msg).expect("failed to hash");
+                let output = poseidon_hash(&msg, msg.len() < max_len).expect("failed to hash");
 
                 // The input has to be padded to the maximum length.
                 let msg_size = msg.len();
