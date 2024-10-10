@@ -120,7 +120,7 @@ impl Type {
     /// Precondition: `lhs & rhs are in canonical form`
     ///
     /// - Simplifies `(N +/- M) -/+ M` to `N`
-    /// - Simplifies `(N */÷ M) ÷/* M` to `N`
+    /// - Simplifies `(N * M) ÷ M` to `N`
     fn try_simplify_non_constants_in_lhs(
         lhs: &Type,
         op: BinaryTypeOperator,
@@ -132,7 +132,10 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `rhs` is expected to already be in canonical form.
-        if l_op.inverse() != Some(op) || l_rhs.canonicalize() != *rhs {
+        if l_op.approx_inverse() != Some(op)
+            || l_op == BinaryTypeOperator::Division
+            || l_rhs.canonicalize() != *rhs
+        {
             return None;
         }
 
@@ -199,7 +202,8 @@ impl Type {
     /// Precondition: `lhs & rhs are in canonical form`
     ///
     /// - Simplifies `(N +/- C1) +/- C2` to `N +/- (C1 +/- C2)` if C1 and C2 are constants.
-    /// - Simplifies `(N */÷ C1) */÷ C2` to `N */÷ (C1 */÷ C2)` if C1 and C2 are constants.
+    /// - Simplifies `(N * C1) ÷ C2` to `N * (C1 ÷ C2)` if C1 and C2 are constants which divide
+    ///   without a remainder.
     fn try_simplify_partial_constants(
         lhs: &Type,
         mut op: BinaryTypeOperator,
@@ -218,12 +222,8 @@ impl Type {
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::InfixExpr(l_type, l_op, Box::new(constant)))
             }
-            (Multiplication | Division, Multiplication | Division) => {
-                // If l_op is a division we want to inverse the rhs operator.
-                if l_op == Division {
-                    op = op.inverse()?;
-                }
-
+            (Multiplication, Division) => {
+                // We need to ensure the result divides evenly to preserve integer division semantics
                 let divides_evenly = !lhs.infix_kind(rhs).is_type_level_field_element()
                     && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
 
@@ -248,7 +248,7 @@ impl Type {
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
-            if let Some(inverse) = op_a.inverse() {
+            if let Some(inverse) = op_a.approx_inverse() {
                 let kind = lhs_a.infix_kind(rhs_a);
                 if let Some(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind) {
                     let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
@@ -264,7 +264,7 @@ impl Type {
         }
 
         if let Type::InfixExpr(lhs_b, op_b, rhs_b) = other {
-            if let Some(inverse) = op_b.inverse() {
+            if let Some(inverse) = op_b.approx_inverse() {
                 let kind = lhs_b.infix_kind(rhs_b);
                 if let Some(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind) {
                     let rhs_b = Box::new(Type::Constant(rhs_b_value, kind));

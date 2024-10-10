@@ -4,6 +4,7 @@ mod bound_checks;
 mod imports;
 mod name_shadowing;
 mod references;
+mod traits;
 mod turbofish;
 mod unused_items;
 mod visibility;
@@ -3359,110 +3360,32 @@ fn error_if_attribute_not_in_scope() {
 }
 
 #[test]
-fn trait_inheritance() {
+fn arithmetic_generics_rounding_pass() {
     let src = r#"
-        pub trait Foo {
-            fn foo(self) -> Field;
-        }
-
-        pub trait Bar {
-            fn bar(self) -> Field;
-        }
-
-        pub trait Baz: Foo + Bar {
-            fn baz(self) -> Field;
-        }
-
-        pub fn foo<T>(baz: T) -> (Field, Field, Field) where T: Baz {
-            (baz.foo(), baz.bar(), baz.baz())
-        }
-
-        fn main() {}
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn trait_inheritance_with_generics() {
-    let src = r#"
-        trait Foo<T> {
-            fn foo(self) -> T;
-        }
-
-        trait Bar<U>: Foo<U> {
-            fn bar(self);
-        }
-
-        pub fn foo<T>(x: T) -> i32 where T: Bar<i32> {
-            x.foo()
-        }
-
-        fn main() {}
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn trait_inheritance_with_generics_2() {
-    let src = r#"
-        pub trait Foo<T> {
-            fn foo(self) -> T;
-        }
-
-        pub trait Bar<T, U>: Foo<T> {
-            fn bar(self) -> (T, U);
-        }
-
-        pub fn foo<T>(x: T) -> i32 where T: Bar<i32, i32> {
-            x.foo()
-        }
-
-        fn main() {}
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn trait_inheritance_dependency_cycle() {
-    let src = r#"
-        trait Foo: Bar {}
-        trait Bar: Foo {}
-        fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
-    ));
-}
-
-#[test]
-fn trait_inheritance_missing_parent_implementation() {
-    let src = r#"
-        pub trait Foo {}
-
-        pub trait Bar: Foo {}
-
-        pub struct Struct {}
-
-        impl Bar for Struct {}
-
         fn main() {
-            let _ = Struct {}; // silence Struct never constructed warning
+            // 3/2*2 = 2
+            round::<3, 2>([1, 2]);
         }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
     "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail() {
+    let src = r#"
+        fn main() {
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            round::<3, 2>([1, 2, 3]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::TraitNotImplemented {
-        the_trait, typ, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0].0);
-    };
-
-    assert_eq!(the_trait, "Foo");
-    assert_eq!(typ, "Struct");
 }
