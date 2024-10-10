@@ -60,7 +60,7 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                if limb_count <= field.num_bits() {
+                if limb_count < field.num_bits() {
                     // `field` cannot be represented as `limb_count` bits.
                     // defer error to acir_gen.
                     SimplifyResult::None
@@ -86,7 +86,7 @@ pub(super) fn simplify_call(
                 };
 
                 let limb_bit_size = u32::BITS - (radix - 1).leading_zeros();
-                if limb_bit_size * limb_count <= field.num_bits() {
+                if limb_bit_size * limb_count < field.num_bits() {
                     // `field` cannot be represented as `limb_count` limbs of `radix`.
                     // defer error to acir_gen.
                     SimplifyResult::None
