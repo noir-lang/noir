@@ -1867,27 +1867,8 @@ impl<'context> Elaborator<'context> {
 
         bind_ordered_generics(&the_trait.generics, &trait_bound.trait_generics.ordered, bindings);
 
-        let mut associated_types = the_trait.associated_types.clone();
-        assert_eq!(associated_types.len(), trait_bound.trait_generics.named.len());
-
-        for arg in &trait_bound.trait_generics.named {
-            let i = associated_types
-                .iter()
-                .position(|typ| *typ.name == arg.name.0.contents)
-                .unwrap_or_else(|| {
-                    unreachable!("Expected to find associated type named {}", arg.name)
-                });
-
-            let param = associated_types.swap_remove(i);
-
-            // Avoid binding t = t
-            if !arg.typ.occurs(param.type_var.id()) {
-                bindings.insert(
-                    param.type_var.id(),
-                    (param.type_var.clone(), param.kind(), arg.typ.clone()),
-                );
-            }
-        }
+        let associated_types = the_trait.associated_types.clone();
+        bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
     }
 
     pub fn instantiate_parent_trait_bound(
@@ -1905,18 +1886,39 @@ impl<'context> Elaborator<'context> {
 }
 
 pub(crate) fn bind_ordered_generics(
-    generics: &[ResolvedGeneric],
-    types: &[Type],
+    params: &[ResolvedGeneric],
+    args: &[Type],
     bindings: &mut TypeBindings,
 ) {
-    assert_eq!(generics.len(), types.len());
+    assert_eq!(params.len(), args.len());
 
-    for (param, arg) in generics.iter().zip(types) {
-        // Avoid binding t = t
-        if !arg.occurs(param.type_var.id()) {
-            bindings
-                .insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
-        }
+    for (param, arg) in params.iter().zip(args) {
+        bind_generic(param, arg, bindings);
+    }
+}
+
+pub(crate) fn bind_named_generics(
+    mut params: Vec<ResolvedGeneric>,
+    args: &[NamedType],
+    bindings: &mut TypeBindings,
+) {
+    assert_eq!(params.len(), args.len());
+
+    for arg in args {
+        let i = params
+            .iter()
+            .position(|typ| *typ.name == arg.name.0.contents)
+            .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
+
+        let param = params.swap_remove(i);
+        bind_generic(&param, &arg.typ, bindings);
+    }
+}
+
+fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
+    // Avoid binding t = t
+    if !arg.occurs(param.type_var.id()) {
+        bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
     }
 }
 
