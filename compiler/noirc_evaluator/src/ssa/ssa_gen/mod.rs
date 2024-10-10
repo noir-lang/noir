@@ -291,7 +291,7 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        self.builder.array_constant(array, typ).into()
+        self.builder.insert_make_array(array, typ).into()
     }
 
     fn codegen_block(&mut self, block: &[Expression]) -> Result<Values, RuntimeError> {

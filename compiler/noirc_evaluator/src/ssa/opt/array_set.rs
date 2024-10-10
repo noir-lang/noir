@@ -232,10 +232,10 @@ mod tests {
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 5);
         let zero = builder.field_constant(0u128);
         let array_constant =
-            builder.array_constant(vector![zero, zero, zero, zero, zero], array_type.clone());
+            builder.insert_make_array(vector![zero, zero, zero, zero, zero], array_type.clone());
         let nested_array_type = Type::Array(Arc::new(vec![array_type.clone()]), 2);
         let nested_array_constant = builder
-            .array_constant(vector![array_constant, array_constant], nested_array_type.clone());
+            .insert_make_array(vector![array_constant, array_constant], nested_array_type.clone());
 
         let v3 = builder.insert_allocate(array_type.clone());
 

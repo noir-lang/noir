@@ -174,11 +174,11 @@ impl Context {
 
         if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
+            results.iter().all(|result| !self.value_is_used(&function.dfg, *result))
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+            as_witness_id == Some(func) && !self.value_is_used(&function.dfg, arguments[0])
         } else {
             // If the instruction has side effects we should never remove it.
             false
@@ -192,30 +192,20 @@ impl Context {
         });
     }
 
-    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
-    /// results as used.
+    /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
         let value_id = dfg.resolve(value_id);
-        match &dfg[value_id] {
-            Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::Array { array, .. } => {
-                self.used_values.insert(value_id);
-                for elem in array {
-                    self.mark_used_instruction_results(dfg, *elem);
-                }
-            }
-            Value::Param { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::NumericConstant { .. } => {
-                self.used_values.insert(value_id);
-            }
-            _ => {
-                // Does not comprise of any instruction results
-            }
+        if matches!(
+            &dfg[value_id],
+            Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. }
+        ) {
+            self.used_values.insert(value_id);
         }
+    }
+
+    fn value_is_used(&self, dfg: &DataFlowGraph, value: ValueId) -> bool {
+        let value = dfg.resolve(value);
+        self.used_values.contains(&value)
     }
 
     fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
@@ -229,7 +219,7 @@ impl Context {
             };
 
             // This could be more efficient if we have to remove multiple instructions in a single block
-            if !self.used_values.contains(&value) {
+            if !self.used_values.contains(&dfg.resolve(value)) {
                 dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
             }
         }
@@ -832,10 +822,11 @@ mod test {
     fn keep_inc_rc_on_borrowed_array_store() {
         // acir(inline) fn main f0 {
         //     b0():
+        //       v1 = make_array [u32 0, u32 0]
         //       v2 = allocate
-        //       inc_rc [u32 0, u32 0]
-        //       store [u32 0, u32 0] at v2
-        //       inc_rc [u32 0, u32 0]
+        //       inc_rc v1
+        //       store V1 at v2
+        //       inc_rc v1
         //       jmp b1()
         //     b1():
         //       v3 = load v2
@@ -848,11 +839,11 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let array = builder.array_constant(vector![zero, zero], array_type.clone());
+        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(array);
-        builder.insert_store(v2, array);
-        builder.increment_array_reference_count(array);
+        builder.increment_array_reference_count(v1);
+        builder.insert_store(v2, v1);
+        builder.increment_array_reference_count(v1);
 
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![]);
@@ -867,14 +858,14 @@ mod test {
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
     }
 
