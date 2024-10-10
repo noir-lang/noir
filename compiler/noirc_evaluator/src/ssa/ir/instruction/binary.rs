@@ -1,6 +1,8 @@
 use acvm::{acir::AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
+use crate::ssa::ir::value::Value;
+
 use super::{
     DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
 };
@@ -171,7 +173,6 @@ impl Binary {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
-
                 if operand_type == Type::bool() {
                     // Simplify forms of `(boolean == true)` into `boolean`
                     if lhs_is_one {
@@ -293,7 +294,139 @@ impl Binary {
                 }
             }
         };
-        SimplifyResult::None
+
+        self.simplify_using_previous_instruction(dfg)
+    }
+
+    /// This method inspects the precursor instruction for binary instructions with a constant argument,
+    /// where possible it will then combine the constants within the two instructions in order to flatten both operations.
+    ///
+    /// # Example
+    ///
+    /// Consider a program consisting of the instruction
+    ///
+    /// ```md
+    /// v1 = add v0, u32 1
+    /// ```
+    ///
+    /// If we insert the instruction defined as
+    ///
+    /// ```md
+    /// v2 = lt v1, u32 9
+    /// ```
+    ///
+    /// this can be automatically simplified to instead be
+    ///
+    /// ```md
+    /// v2 = lt v0, u32 8
+    /// ```
+    fn simplify_using_previous_instruction(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
+        // We make some assumptions about the shape of binary instructions for simplicity, namely that any constant arguments are in the `rhs` term.
+        // This allows us to define the following structure for the pair of binary instructions.
+        let ((inner_lhs, inner_rhs, inner_operator), outer_rhs, outer_operator): (
+            (ValueId, FieldElement, BinaryOp),
+            FieldElement,
+            BinaryOp,
+        ) = match (&dfg[self.lhs], &dfg[self.rhs]) {
+            (
+                Value::Instruction { instruction, .. },
+                Value::NumericConstant { constant: outer_constant, .. },
+            ) => {
+                let Instruction::Binary(Binary { lhs, rhs, operator }) = dfg[*instruction].clone()
+                else {
+                    return SimplifyResult::None;
+                };
+
+                let Value::NumericConstant { constant: inner_constant, .. } = dfg[rhs].clone()
+                else {
+                    return SimplifyResult::None;
+                };
+
+                ((lhs, inner_constant, operator), *outer_constant, self.operator)
+            }
+
+            _ => return SimplifyResult::None,
+        };
+
+        let typ = dfg.type_of_value(inner_lhs);
+
+        match outer_operator {
+            BinaryOp::Add => {
+                let Some((new_const, new_typ)) = (match inner_operator {
+                    BinaryOp::Add => {
+                        eval_constant_binary_op(outer_rhs, inner_rhs, BinaryOp::Add, typ.clone())
+                    }
+                    // We ensure that the new constant must be positive for simplicity.
+                    // This can be relaxed to generate a `BinaryOp::Sub` instruction instead.
+                    BinaryOp::Sub if outer_rhs >= inner_rhs => {
+                        eval_constant_binary_op(outer_rhs, inner_rhs, BinaryOp::Sub, typ.clone())
+                    }
+                    _ => None,
+                }) else {
+                    return SimplifyResult::None;
+                };
+                assert_eq!(typ, new_typ, "ICE: instruction type changed");
+
+                let new_const = dfg.make_constant(new_const, typ);
+                SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                    BinaryOp::Add,
+                    inner_lhs,
+                    new_const,
+                ))
+            }
+
+            BinaryOp::Sub => {
+                let Some((new_const, new_typ)) = (match inner_operator {
+                    // We ensure that the new constant must be positive for simplicity.
+                    // This can be relaxed to generate a `BinaryOp::Add` instruction instead.
+                    BinaryOp::Add if outer_rhs >= inner_rhs => {
+                        eval_constant_binary_op(outer_rhs, inner_rhs, BinaryOp::Sub, typ.clone())
+                    }
+                    BinaryOp::Sub => {
+                        eval_constant_binary_op(outer_rhs, inner_rhs, BinaryOp::Add, typ.clone())
+                    }
+                    _ => None,
+                }) else {
+                    return SimplifyResult::None;
+                };
+                assert_eq!(typ, new_typ, "ICE: instruction type changed");
+
+                let new_const = dfg.make_constant(new_const, typ);
+                SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                    BinaryOp::Sub,
+                    inner_lhs,
+                    new_const,
+                ))
+            }
+
+            BinaryOp::Lt => {
+                if inner_operator != BinaryOp::Add {
+                    return SimplifyResult::None;
+                }
+
+                if outer_rhs < inner_rhs {
+                    // Skip if performing subtraction would result in an underflow.
+                    return SimplifyResult::None;
+                }
+
+                let Some((new_const, new_typ)) =
+                    eval_constant_binary_op(outer_rhs, inner_rhs, BinaryOp::Sub, typ.clone())
+                else {
+                    return SimplifyResult::None;
+                };
+                assert_eq!(typ, new_typ, "ICE: instruction type changed");
+
+                let new_const = dfg.make_constant(new_const, typ);
+                SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                    BinaryOp::Lt,
+                    inner_lhs,
+                    new_const,
+                ))
+            }
+
+            // We can implement more of these optimizations however we only do this for a subset currently
+            _ => SimplifyResult::None,
+        }
     }
 }
 
@@ -459,8 +592,14 @@ impl BinaryOp {
 mod test {
     use proptest::prelude::*;
 
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{instruction::Instruction, map::Id, types::Type},
+    };
+
     use super::{
         convert_signed_integer_to_field_element, try_convert_field_element_to_signed_integer,
+        BinaryOp,
     };
 
     proptest! {
@@ -473,5 +612,53 @@ mod test {
 
             prop_assert_eq!(int, recovered_int);
         }
+    }
+
+    #[test]
+    fn cross_instruction_lt_optimization() {
+        let main_id = Id::test_new(0);
+
+        // We construct the program
+        //
+        // fn main f0 {
+        //   b0(v0: u32):
+        //     v4 = add v0, u32 1
+        //     v5 = lt v1, u32 9
+        // }
+        //
+        // We want to test that the calculation of `v5` is rewritten to not depend on `v4` as we can combine the
+        // two constants into a new constant.
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::length_type());
+
+        let one = builder.numeric_constant(1u128, Type::length_type());
+        let eight = builder.numeric_constant(8u128, Type::length_type());
+        let nine = builder.numeric_constant(9u128, Type::length_type());
+
+        let v4 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let _v5 = builder.insert_binary(v4, BinaryOp::Lt, nine);
+
+        let ssa = builder.finish();
+
+        // Expected constructed SSA:
+        //
+        // fn main f0 {
+        //   b0(v0: u32):
+        //     v4 = add v0, u32 1
+        //     v5 = lt v0, u32 8
+        // }
+        //
+        // We preserve `v4` as this should be removed by the DIE optimization pass.
+
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+
+        assert_eq!(&main.dfg[instructions[0]], &Instruction::binary(BinaryOp::Add, v0, one));
+
+        assert_eq!(&main.dfg[instructions[1]], &Instruction::binary(BinaryOp::Lt, v0, eight));
     }
 }
