@@ -163,6 +163,6 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a ; but found end of input");
+        assert_eq!(error.to_string(), "Expected a ';' but found end of input");
     }
 }
