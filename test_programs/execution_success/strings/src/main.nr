@@ -37,6 +37,9 @@ fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Fie
     // Single digit & odd length hex literals are valid
     assert(hex_as_field == 0x041);
     assert(hex_as_field != 0x1);
+
+    let s = String::from(message);
+    println(s);
 }
 
 #[test]
