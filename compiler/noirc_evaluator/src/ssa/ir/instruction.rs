@@ -118,15 +118,15 @@ impl Intrinsic {
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
+            // These imply a check that the slice is non-empty and should fail otherwise.
+            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
+
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
-            | Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
             | Intrinsic::SliceInsert
-            | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
             | Intrinsic::AsField
