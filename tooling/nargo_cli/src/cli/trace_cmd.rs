@@ -63,43 +63,42 @@ fn generate_plonky2_debug_trace_list(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
-    for package in binary_packages {
-        let compilation_result = compile_program(
-            &workspace_file_manager,
-            &parsed_files,
-            &workspace,
-            package,
-            &args.compile_options,
-            None,
-            true,
-            true,
-        );
+    let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
+        return Err(CliError::Generic(
+            "No matching binary packages found in workspace. Only binary packages can be debugged."
+                .to_string(),
+        ));
+    };
 
-        let debug_trace_list = if let Ok((compiled_program, _)) = &compilation_result {
-            if let Some(plonky2_circuit) = &compiled_program.plonky2_circuit {
-                plonky2_circuit.debug_trace_list.clone()
-            } else {
-                None
-            }
+    let compilation_result = compile_program(
+        &workspace_file_manager,
+        &parsed_files,
+        &workspace,
+        package,
+        &args.compile_options,
+        None,
+        true,
+        true,
+    );
+
+    let debug_trace_list = if let Ok((compiled_program, _)) = &compilation_result {
+        if let Some(plonky2_circuit) = &compiled_program.plonky2_circuit {
+            plonky2_circuit.debug_trace_list.clone()
         } else {
             None
-        };
+        }
+    } else {
+        None
+    };
 
-        let _compiled_program = report_errors(
-            compilation_result,
-            &workspace_file_manager,
-            args.compile_options.deny_warnings,
-            args.compile_options.silence_warnings,
-        )?;
+    let _compiled_program = report_errors(
+        compilation_result,
+        &workspace_file_manager,
+        args.compile_options.deny_warnings,
+        args.compile_options.silence_warnings,
+    )?;
 
-        return Ok(debug_trace_list.unwrap());
-    }
-
-    Err(CliError::Generic(
-        "No matching binary packages found in workspace. Only binary packages can be debugged."
-            .to_string(),
-    ))
+    Ok(debug_trace_list.unwrap())
 }
 
 pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliError> {
