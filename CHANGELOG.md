@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.36.0](https://github.com/noir-lang/noir/compare/v0.35.0...v0.36.0) (2024-10-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Integer division is not the inverse of integer multiplication ([#6243](https://github.com/noir-lang/noir/issues/6243))
+* kind size checks ([#6137](https://github.com/noir-lang/noir/issues/6137))
+* Change tag attributes to require a ' prefix ([#6235](https://github.com/noir-lang/noir/issues/6235))
+
+### Features
+
+* Add `checked_transmute` ([#6262](https://github.com/noir-lang/noir/issues/6262)) ([2618061](https://github.com/noir-lang/noir/commit/2618061ee88e47fb063904d50af7a4eea26d3db9))
+* Add more `Type` and `UnresolvedType` methods ([#5994](https://github.com/noir-lang/noir/issues/5994)) ([8236cbd](https://github.com/noir-lang/noir/commit/8236cbdff60c1aaf41fc53142b6f0f9ea2fc2fa8))
+* Allow `unconstrained` after visibility ([#6246](https://github.com/noir-lang/noir/issues/6246)) ([f6dfbcf](https://github.com/noir-lang/noir/commit/f6dfbcf057efc95141b36499152dbd0b919a31b3))
+* Don't crash LSP when there are errors resolving the workspace ([#6257](https://github.com/noir-lang/noir/issues/6257)) ([7cc7197](https://github.com/noir-lang/noir/commit/7cc7197bf7b2e41c07e8d1979f7e9d45c676d11b))
+* Don't suggest private struct fields in LSP ([#6256](https://github.com/noir-lang/noir/issues/6256)) ([2a727b3](https://github.com/noir-lang/noir/commit/2a727b3f7f7fb84ab88b0d08e1ab29ae012a8c4f))
+* Handwritten parser ([#6180](https://github.com/noir-lang/noir/issues/6180)) ([c4273a0](https://github.com/noir-lang/noir/commit/c4273a0c8f8b751a3dbe097e070e4e7b2c8ec438))
+* Inclusive for loop ([#6200](https://github.com/noir-lang/noir/issues/6200)) ([bd861f2](https://github.com/noir-lang/noir/commit/bd861f282144056ecb52954fa9f6fd8db918e093))
+* Kind size checks ([#6137](https://github.com/noir-lang/noir/issues/6137)) ([6e40f62](https://github.com/noir-lang/noir/commit/6e40f628a87ab4b5e9e817b7b3a790920dc01683))
+* Optimize `Quoted::as_expr` by parsing just once ([#6237](https://github.com/noir-lang/noir/issues/6237)) ([a4fcd00](https://github.com/noir-lang/noir/commit/a4fcd0017e019f05b5a4d6b97c50b75f9e560210))
+* **perf:** Flamegraphs for test program execution benchmarks ([#6253](https://github.com/noir-lang/noir/issues/6253)) ([c186791](https://github.com/noir-lang/noir/commit/c186791636c2afb2d3763bccee956298039feed2))
+* **perf:** Follow array sets backwards in array set from get optimization ([#6208](https://github.com/noir-lang/noir/issues/6208)) ([999071b](https://github.com/noir-lang/noir/commit/999071b80e61a37cb994a4e359eabbac27cd53f1))
+* Recover from '=' instead of ':' in struct constructor/pattern ([#6236](https://github.com/noir-lang/noir/issues/6236)) ([9a12f31](https://github.com/noir-lang/noir/commit/9a12f31e909bbd4d4f0538704b3f40ea654fabaf))
+* Remove byte decomposition in `compute_decomposition` ([#6159](https://github.com/noir-lang/noir/issues/6159)) ([a8bcae2](https://github.com/noir-lang/noir/commit/a8bcae215bf19356226ad052710c94b64da90ffa))
+* Slightly improve "unexpected token" error message ([#6279](https://github.com/noir-lang/noir/issues/6279)) ([8232bfa](https://github.com/noir-lang/noir/commit/8232bfaf0a88dcba5a6949489b81d78c3413c5bc))
+* **test:** Fuzz poseidon hases against an external library ([#6273](https://github.com/noir-lang/noir/issues/6273)) ([8d8ea89](https://github.com/noir-lang/noir/commit/8d8ea8963c5e4e23bd387aa729e09d3a9553a698))
+* **test:** Fuzz test poseidon2 hash equivalence ([#6265](https://github.com/noir-lang/noir/issues/6265)) ([f61ba03](https://github.com/noir-lang/noir/commit/f61ba037c6726e19be4f894d9447fe396df95417))
+* **test:** Fuzz test stdlib hash functions ([#6233](https://github.com/noir-lang/noir/issues/6233)) ([1a2ca46](https://github.com/noir-lang/noir/commit/1a2ca46af0d1c05813dbe28670a2bc39b79e4c9f))
+* Visibility for impl functions ([#6179](https://github.com/noir-lang/noir/issues/6179)) ([1b26440](https://github.com/noir-lang/noir/commit/1b26440889379f491315cd9d088537b1898d57c5))
+* Visibility for struct fields ([#6221](https://github.com/noir-lang/noir/issues/6221)) ([fc1c7ab](https://github.com/noir-lang/noir/commit/fc1c7ab6ee7be7c9d57fab5b2efe252c613f326b))
+
+
+### Bug Fixes
+
+* Add missing visibility for auto-import names ([#6205](https://github.com/noir-lang/noir/issues/6205)) ([c3cb38a](https://github.com/noir-lang/noir/commit/c3cb38a7c4de6fc321b367eda3fca6d06e76b77a))
+* Address inactive public key check in `verify_signature_noir` ([#6270](https://github.com/noir-lang/noir/issues/6270)) ([e4325aa](https://github.com/noir-lang/noir/commit/e4325aace424d5c4552c92cdb360974fdd294048))
+* Change tag attributes to require a ' prefix ([#6235](https://github.com/noir-lang/noir/issues/6235)) ([b43dcb2](https://github.com/noir-lang/noir/commit/b43dcb2b30ce090c393990b2192411f9b3dc6a9e))
+* Check for Schnorr null signature ([#6226](https://github.com/noir-lang/noir/issues/6226)) ([2430920](https://github.com/noir-lang/noir/commit/24309200f600ad20a51d9f2c6c53849466fccda4))
+* Don't warn on unuse global if it has an abi annotation ([#6258](https://github.com/noir-lang/noir/issues/6258)) ([e13f617](https://github.com/noir-lang/noir/commit/e13f61741d17ed2e03ff26cb858cb3d243e67c88))
+* Don't warn on unused struct that has an abi annotation ([#6254](https://github.com/noir-lang/noir/issues/6254)) ([8a31632](https://github.com/noir-lang/noir/commit/8a316324a971a10d46392d7c64125d1d6ac9d557))
+* Don't warn twice when referring to private item ([#6216](https://github.com/noir-lang/noir/issues/6216)) ([619c545](https://github.com/noir-lang/noir/commit/619c5451b152d62e01d3c4c1da7e13ff6502f915))
+* **frontend:** Do not warn when a nested struct is provided as input to main ([#6239](https://github.com/noir-lang/noir/issues/6239)) ([9dfe223](https://github.com/noir-lang/noir/commit/9dfe223e4dc168351c5cceb9d1abda326141b014))
+* Handle dfg databus in SSA normalization ([#6249](https://github.com/noir-lang/noir/issues/6249)) ([9d8bee5](https://github.com/noir-lang/noir/commit/9d8bee5b4e9308a812b1f93c3a48ddd11971ac17))
+* Handle nested arrays in calldata ([#6232](https://github.com/noir-lang/noir/issues/6232)) ([0ab8f5e](https://github.com/noir-lang/noir/commit/0ab8f5e3c32af05a3c158562c0fcf9729741e0ab))
+* Homogeneous input points for EC ADD ([#6241](https://github.com/noir-lang/noir/issues/6241)) ([f6a7306](https://github.com/noir-lang/noir/commit/f6a7306436ea1a37ec7f3b884721b50467e9a063))
+* Integer division is not the inverse of integer multiplication ([#6243](https://github.com/noir-lang/noir/issues/6243)) ([1cd2587](https://github.com/noir-lang/noir/commit/1cd2587bf67143832f76f90c25aecca1a46b1284))
+* Panic on composite types within databus ([#6225](https://github.com/noir-lang/noir/issues/6225)) ([29bd125](https://github.com/noir-lang/noir/commit/29bd125314b58e2eac23742ff1de022a97dcc60a))
+* Visibility for impl methods ([#6261](https://github.com/noir-lang/noir/issues/6261)) ([70cbeb4](https://github.com/noir-lang/noir/commit/70cbeb4322a0b11c1c167ab27bf0408d04fe7b7d))
+
 ## [0.35.0](https://github.com/noir-lang/noir/compare/v0.34.0...v0.35.0) (2024-10-03)
 
 
