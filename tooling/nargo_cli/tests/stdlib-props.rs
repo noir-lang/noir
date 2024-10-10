@@ -259,7 +259,8 @@ fn fuzz_sha512_equivalence() {
 fn fuzz_poseidon2_equivalence() {
     use bn254_blackbox_solver::poseidon_hash;
 
-    for max_len in [0, 1, 100] {
+    // Test empty, small, then around the RATE value, then bigger inputs.
+    for max_len in [0, 1, 3, 4, 100] {
         let source = format!(
             "fn main(input: [Field; {max_len}], message_size: u32) -> pub Field {{
                 std::hash::poseidon2::Poseidon2::hash(input, message_size)
