@@ -464,9 +464,9 @@ Since we have an impl for our own type, the behavior of this code will not chang
 to provide its own `impl Default for Foo`. The downside of this pattern is that it requires extra wrapping and
 unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
 
-### Supertraits
+### Trait Inheritance
 
-Sometimes, you might need one trait to use another trait’s functionality( like the "inheritance" in other languages ). In this case, you need to rely on the dependent trait also being implemented. The trait you rely on is a supertrait of the trait you’re implementing.
+Sometimes, you might need one trait to use another trait’s functionality (like "inheritance" in some other languages). In this case, you can specify this relationship by listing any child traits after the parent trait's name and a colon. Now, whenever the parent trait is implemented it will require the child traits to be implemented as well. A parent trait is also called a "super trait."
 
 ```rust
 trait Person {
