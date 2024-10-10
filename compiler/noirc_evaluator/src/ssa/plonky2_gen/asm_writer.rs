@@ -16,7 +16,7 @@ use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 
-use crate::{debug_trace::{AsmListIndexRange, DebugTraceList, DebugTraceSourcePoint}, ssa::ir::dfg::CallStack};
+use crate::{debug_trace::{AsmListIndexRange, DebugTraceList, SourcePoint}, ssa::ir::dfg::CallStack};
 
 use super::config::P2Builder;
 use super::config::P2Field;
@@ -185,7 +185,7 @@ pub struct AsmWriter {
     file_map: FileMap,
     // information, stored, for use with the 'nargo trace --trace-plonky2' feature
     pub debug_trace_list: Option<DebugTraceList>,
-    prev_source_point: Option<DebugTraceSourcePoint>,
+    prev_source_point: Option<SourcePoint>,
 }
 
 impl AsmWriter {
@@ -603,7 +603,7 @@ impl AsmWriter {
             }
         }
 
-        let dsp = DebugTraceSourcePoint { file: name, line_number };
+        let dsp = SourcePoint { file: name, line_number };
         if let Some(line_list) = dtlist.source_map.get_mut(&dsp) {
             line_list.push(AsmListIndexRange { start: dtlist.list.len(), end: None });
         } else {

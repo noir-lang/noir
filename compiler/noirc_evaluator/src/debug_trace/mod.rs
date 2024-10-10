@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-pub struct DebugTraceSourcePoint {
+pub struct SourcePoint {
     pub file: String,
     pub line_number: usize,
 }
@@ -17,7 +17,7 @@ pub struct AsmListIndexRange {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DebugTraceList {
     pub list: Vec<String>,
-    pub source_map: HashMap<DebugTraceSourcePoint, Vec<AsmListIndexRange>>,
+    pub source_map: HashMap<SourcePoint, Vec<AsmListIndexRange>>,
 }
 
 impl DebugTraceList {
