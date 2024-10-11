@@ -856,10 +856,7 @@ impl NodeInterner {
 
         // To guarantee equivalence with the former method of looping through all globals
         // and returning the first match, do not overwrite an existing entry.
-        let local_and_ident = (local_id, ident.clone());
-        if !self.globals_by_local_and_ident.contains_key(&local_and_ident) {
-            self.globals_by_local_and_ident.insert(local_and_ident, id);
-        }
+        self.globals_by_local_and_ident.entry((local_id, ident.clone())).or_insert(id);
 
         self.globals.push(GlobalInfo {
             id,
