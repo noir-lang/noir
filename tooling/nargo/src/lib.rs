@@ -95,6 +95,11 @@ fn insert_all_files_for_package_into_file_manager(
 
         let path = entry.into_path();
 
+        // Avoid reading the source if the file is already there
+        if file_manager.has_file(&path) {
+            continue;
+        }
+
         let source = if let Some(src) = overrides.get(path.as_path()) {
             src.to_string()
         } else {
