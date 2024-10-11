@@ -23,6 +23,8 @@ fn compile_program(test_program_dir: &Path) {
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile");
     cmd.arg("--force");
+    cmd.arg("--expression-width");
+    cmd.arg("1");
     cmd.assert().success();
 }
 
