@@ -138,7 +138,7 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
         w if w >= MIN_EXPRESSION_WIDTH => Ok(ExpressionWidth::Bounded { width }),
         _ => Err(Error::new(
             ErrorKind::InvalidInput,
-            format!("minimum value is {MIN_EXPRESSION_WIDTH}"),
+            format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
         )),
     }
 }
