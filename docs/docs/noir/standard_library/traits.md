@@ -331,3 +331,9 @@ Implementations:
 impl<T> Append for [T]
 impl Append for Quoted
 ```
+
+### `std::num::IntConstants`
+
+Useful associated constants of each unsigned and signed integer types.
+
+#include_code int-constants noir_stdlib/src/num.nr rust
