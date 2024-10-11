@@ -6,11 +6,12 @@ use crate::{
     insert_all_files_for_workspace_into_file_manager, PackageCacheData, WorkspaceCacheData,
 };
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileManager, FileMap};
+use fm::{FileId, FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
 use lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use noirc_driver::check_crate;
-use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use noirc_errors::reporter::CustomLabel;
+use noirc_errors::{DiagnosticKind, FileDiagnostic, Location};
 
 use crate::types::{
     notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
@@ -196,17 +197,13 @@ fn publish_diagnostics(
     for file_diagnostic in file_diagnostics.into_iter() {
         let file_id = file_diagnostic.file_id;
         let path = fm.path(file_id).expect("file must exist to have emitted diagnostic");
-        let Ok(uri) = Url::from_file_path(path) else {
-            continue;
-        };
-
-        let Some(diagnostic) =
-            file_diagnostic_to_diagnostic(file_diagnostic, files, fm, uri.clone())
-        else {
-            continue;
-        };
-
-        diagnostics_per_url.entry(uri).or_default().push(diagnostic);
+        if let Ok(uri) = Url::from_file_path(path) {
+            if let Some(diagnostic) =
+                file_diagnostic_to_diagnostic(file_diagnostic, files, fm, uri.clone())
+            {
+                diagnostics_per_url.entry(uri).or_default().push(diagnostic);
+            }
+        }
     }
 
     let new_files_with_errors: HashSet<_> = diagnostics_per_url.keys().cloned().collect();
@@ -265,49 +262,19 @@ fn file_diagnostic_to_diagnostic(
         tags.push(DiagnosticTag::DEPRECATED);
     }
 
-    let mut related_information = Vec::new();
-
-    for secondary in diagnostic.secondaries {
-        let secondary_file = secondary.file.unwrap_or(file_id);
-        let Some(path) = fm.path(secondary_file) else {
-            continue;
-        };
-        let Ok(uri) = Url::from_file_path(path) else {
-            continue;
-        };
-        let Some(range) = byte_span_to_range(files, file_id, secondary.span.into()) else {
-            continue;
-        };
-
-        related_information.push(DiagnosticRelatedInformation {
-            location: lsp_types::Location { uri, range },
-            message: secondary.message,
-        });
-    }
-
-    for note in diagnostic.notes {
-        related_information.push(DiagnosticRelatedInformation {
-            location: lsp_types::Location { uri: uri.clone(), range },
-            message: note,
-        });
-    }
-
-    for frame in diagnostic.call_stack.into_iter().rev() {
-        let Some(path) = fm.path(frame.file) else {
-            continue;
-        };
-        let Ok(uri) = Url::from_file_path(path) else {
-            continue;
-        };
-        let Some(range) = byte_span_to_range(files, file_id, frame.span.into()) else {
-            continue;
-        };
-
-        related_information.push(DiagnosticRelatedInformation {
-            location: lsp_types::Location { uri, range },
-            message: "Error originated here".to_string(),
-        });
-    }
+    let secondaries = diagnostic
+        .secondaries
+        .into_iter()
+        .filter_map(|secondary| secondary_to_related_information(secondary, file_id, files, fm));
+    let notes = diagnostic.notes.into_iter().map(|message| DiagnosticRelatedInformation {
+        location: lsp_types::Location { uri: uri.clone(), range },
+        message,
+    });
+    let call_stack = diagnostic
+        .call_stack
+        .into_iter()
+        .filter_map(|frame| call_stack_frame_to_related_information(frame, files, fm));
+    let related_information: Vec<_> = secondaries.chain(notes).chain(call_stack).collect();
 
     Some(Diagnostic {
         range,
@@ -320,6 +287,34 @@ fn file_diagnostic_to_diagnostic(
             Some(related_information)
         },
         ..Default::default()
+    })
+}
+
+fn secondary_to_related_information(
+    secondary: CustomLabel,
+    file_id: FileId,
+    files: &FileMap,
+    fm: &FileManager,
+) -> Option<DiagnosticRelatedInformation> {
+    let secondary_file = secondary.file.unwrap_or(file_id);
+    let path = fm.path(secondary_file)?;
+    let uri = Url::from_file_path(path).ok()?;
+    let range = byte_span_to_range(files, file_id, secondary.span.into())?;
+    let message = secondary.message;
+    Some(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
+}
+
+fn call_stack_frame_to_related_information(
+    frame: Location,
+    files: &FileMap,
+    fm: &FileManager,
+) -> Option<DiagnosticRelatedInformation> {
+    let path = fm.path(frame.file)?;
+    let uri = Url::from_file_path(path).ok()?;
+    let range = byte_span_to_range(files, frame.file, frame.span.into())?;
+    Some(DiagnosticRelatedInformation {
+        location: lsp_types::Location { uri, range },
+        message: "Error originated here".to_string(),
     })
 }
 
