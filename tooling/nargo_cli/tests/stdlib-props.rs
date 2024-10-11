@@ -305,7 +305,14 @@ fn fuzz_poseidon_equivalence() {
     for len in 1..light_poseidon::MAX_X5_LEN {
         let source = format!(
             "fn main(input: [Field; {len}]) -> pub Field {{
-                std::hash::poseidon::bn254::hash_{len}(input)
+                let h1 = std::hash::poseidon::bn254::hash_{len}(input);
+                let h2 = {{
+                    let mut hasher = std::hash::poseidon::PoseidonHasher::default();
+                    input.hash(&mut hasher);
+                    hasher.finish()
+                }};
+                assert_eq(h1, h2);
+                h1
             }}"
         );
 
