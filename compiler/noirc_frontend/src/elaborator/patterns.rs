@@ -655,7 +655,7 @@ impl<'context> Elaborator<'context> {
         if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
             if method.assumed {
-                let trait_generics = method.constraint.trait_generics.clone();
+                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);
@@ -748,7 +748,7 @@ impl<'context> Elaborator<'context> {
             HirMethodReference::TraitMethodId(method_id, generics) => {
                 let mut constraint =
                     self.interner.get_trait(method_id.trait_id).as_constraint(span);
-                constraint.trait_generics = generics;
+                constraint.trait_bound.trait_generics = generics;
                 ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }
         };
