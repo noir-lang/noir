@@ -181,7 +181,6 @@ pub struct NodeInterner {
     // NOTE: currently only used for checking repeat globals and restricting their scope to a module
     globals: Vec<GlobalInfo>,
     global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
-    globals_by_local_and_ident: HashMap<(LocalModuleId, Ident), GlobalId>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -661,7 +660,6 @@ impl Default for NodeInterner {
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
             global_attributes: HashMap::default(),
-            globals_by_local_and_ident: HashMap::default(),
             struct_methods: HashMap::default(),
             primitive_methods: HashMap::default(),
             type_alias_ref: Vec::new(),
@@ -853,10 +851,6 @@ impl NodeInterner {
         let name = ident.to_string();
         let definition_id =
             self.push_definition(name, mutable, comptime, DefinitionKind::Global(id), location);
-
-        // To guarantee equivalence with the former method of looping through all globals
-        // and returning the first match, do not overwrite an existing entry.
-        self.globals_by_local_and_ident.entry((local_id, ident.clone())).or_insert(id);
 
         self.globals.push(GlobalInfo {
             id,
@@ -1270,14 +1264,6 @@ impl NodeInterner {
 
     pub fn get_all_globals(&self) -> &[GlobalInfo] {
         &self.globals
-    }
-
-    pub fn find_global_by_local_and_ident(
-        &self,
-        local_id: LocalModuleId,
-        ident: Ident,
-    ) -> Option<GlobalId> {
-        self.globals_by_local_and_ident.get(&(local_id, ident)).cloned()
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.

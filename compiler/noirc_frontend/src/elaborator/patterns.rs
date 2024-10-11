@@ -331,8 +331,8 @@ impl<'context> Elaborator<'context> {
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
-        if definition.is_global() {
-            return self.add_global_variable_decl(name, definition);
+        if let DefinitionKind::Global(global_id) = definition {
+            return self.add_global_variable_decl(name, global_id);
         }
 
         let location = Location::new(name.span(), self.file);
@@ -377,44 +377,19 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn add_global_variable_decl(
-        &mut self,
-        name: Ident,
-        definition: DefinitionKind,
-    ) -> HirIdent {
-        let comptime = self.in_comptime_context();
+    pub fn add_global_variable_decl(&mut self, name: Ident, global_id: GlobalId) -> HirIdent {
         let scope = self.scopes.get_mut_scope();
-
-        // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
-        // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global statement.
-        // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global. The check below prevents this error.
-        let global_id =
-            self.interner.find_global_by_local_and_ident(self.local_module, name.clone());
-
-        let (ident, resolver_meta) = if let Some(id) = global_id {
-            // Sanity check that we're referring to the same global.
-            assert_eq!(definition, DefinitionKind::Global(id));
-            let global = self.interner.get_global(id);
-            let hir_ident = HirIdent::non_trait_method(global.definition_id, global.location);
-            let ident = hir_ident.clone();
-            let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
-            (hir_ident, resolver_meta)
-        } else {
-            let location = Location::new(name.span(), self.file);
-            let name = name.0.contents.clone();
-            let id = self.interner.push_definition(name, false, comptime, definition, location);
-            let ident = HirIdent::non_trait_method(id, location);
-            let resolver_meta =
-                ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
-            (ident, resolver_meta)
-        };
+        let global = self.interner.get_global(global_id);
+        let ident = HirIdent::non_trait_method(global.definition_id, global.location);
+        let resolver_meta =
+            ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
 
         let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
-                name: name.0.contents.clone(),
-                first_span: old_global_value.ident.location.span,
                 second_span: name.span(),
+                name: name.0.contents,
+                first_span: old_global_value.ident.location.span,
             });
         }
         ident
