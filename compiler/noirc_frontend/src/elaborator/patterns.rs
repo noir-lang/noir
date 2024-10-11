@@ -392,6 +392,8 @@ impl<'context> Elaborator<'context> {
             self.interner.find_global_by_local_and_ident(self.local_module, name.clone());
 
         let (ident, resolver_meta) = if let Some(id) = global_id {
+            // Sanity check that we're referring to the same global.
+            assert_eq!(definition, DefinitionKind::Global(id));
             let global = self.interner.get_global(id);
             let hir_ident = HirIdent::non_trait_method(global.definition_id, global.location);
             let ident = hir_ident.clone();
