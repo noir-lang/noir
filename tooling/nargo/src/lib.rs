@@ -110,7 +110,7 @@ fn insert_all_files_for_package_into_file_manager(
         file_manager.add_file_with_source(path.as_path(), source);
     }
 
-    insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
+    insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager, overrides);
 }
 
 // Inserts all files for the dependencies of the package into the file manager
@@ -118,15 +118,12 @@ fn insert_all_files_for_package_into_file_manager(
 fn insert_all_files_for_packages_dependencies_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
+    overrides: &HashMap<&std::path::Path, &str>,
 ) {
     for (_, dep) in package.dependencies.iter() {
         match dep {
             Dependency::Local { package } | Dependency::Remote { package } => {
-                insert_all_files_for_package_into_file_manager(
-                    package,
-                    file_manager,
-                    &HashMap::new(),
-                );
+                insert_all_files_for_package_into_file_manager(package, file_manager, overrides);
             }
         }
     }
