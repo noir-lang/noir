@@ -37,7 +37,6 @@ impl<'context> Elaborator<'context> {
             None,
             &mut Vec::new(),
             warn_if_unused,
-            None,
         )
     }
 
@@ -50,7 +49,6 @@ impl<'context> Elaborator<'context> {
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
-        global_id: Option<GlobalId>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -59,7 +57,6 @@ impl<'context> Elaborator<'context> {
             None,
             created_ids,
             warn_if_unused,
-            global_id,
         )
     }
 
@@ -72,7 +69,6 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
-        global_id: Option<GlobalId>,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
@@ -82,9 +78,7 @@ impl<'context> Elaborator<'context> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let ident = if let Some(global_id) = global_id {
-                    // Sanity check that we don't have conflicting globals.
-                    assert_eq!(definition, DefinitionKind::Global(global_id));
+                let ident = if let DefinitionKind::Global(global_id) = definition {
                     // Globals don't need to be added to scope, they're already in the def_maps
                     let id = self.interner.get_global(global_id).definition_id;
                     let location = Location::new(name.span(), self.file);
@@ -114,7 +108,6 @@ impl<'context> Elaborator<'context> {
                     Some(span),
                     new_definitions,
                     warn_if_unused,
-                    global_id,
                 );
                 let location = Location::new(span, self.file);
                 HirPattern::Mutable(Box::new(pattern), location)
@@ -146,7 +139,6 @@ impl<'context> Elaborator<'context> {
                         mutable,
                         new_definitions,
                         warn_if_unused,
-                        global_id,
                     )
                 });
                 let location = Location::new(span, self.file);
@@ -170,7 +162,6 @@ impl<'context> Elaborator<'context> {
                     mutable,
                     new_definitions,
                     warn_if_unused,
-                    global_id,
                 )
             }
         }
@@ -285,7 +276,6 @@ impl<'context> Elaborator<'context> {
                 mutable,
                 new_definitions,
                 true, // warn_if_unused
-                None,
             );
 
             if unseen_fields.contains(&field) {
