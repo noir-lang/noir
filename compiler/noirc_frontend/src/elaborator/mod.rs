@@ -760,7 +760,6 @@ impl<'context> Elaborator<'context> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
-                None,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
