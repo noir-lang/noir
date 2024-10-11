@@ -21,6 +21,7 @@ fn main(mut x: [Foo; 1], y: pub Field) {
     if y == 3 {
         x[y - 3].b[y - 1] = 5000;
     }
+    // println(x[y - 3].b[y - 1]);
     assert(x[y - 3].b[y - 1] == 5000);
     // let foo_parent_one = FooParent { array: [0, 1, 2], foos: x };
     // let foo_parent_two = FooParent { array: [3, 4, 5], foos: x };

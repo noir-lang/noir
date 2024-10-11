@@ -1193,6 +1193,7 @@ impl<'a> Context<'a> {
         let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
         let index_var = self.convert_numeric_value(index, dfg)?;
+        // NOTE: Only need when not treating nested arrays as a single flat memory
         // let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
         let predicate_index = if dfg.is_safe_index(index, array_id) {
@@ -1316,7 +1317,7 @@ impl<'a> Context<'a> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-
+        dbg!(res_typ.clone());
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         if let Some(call_data) =
             self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array))
@@ -1343,7 +1344,13 @@ impl<'a> Context<'a> {
             "ICE: Nested slice result found during ACIR generation"
         );
         let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
-
+        dbg!(value.clone());
+        if res_typ.is_nested_array() {
+            // TODO: can probably move this entire conversion to a method on `AcirValue`
+            let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<Vector<_>>();
+            value = AcirValue::Array(flat_value);
+        }
+        
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
             if let (Type::Numeric(numeric_type), AcirType::NumericType(num)) =

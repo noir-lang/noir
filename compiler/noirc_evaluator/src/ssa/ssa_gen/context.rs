@@ -836,7 +836,7 @@ impl<'a> FunctionContext<'a> {
                     // Ok((dereferenced, LValue::Dereference { reference: variable }))
                     LValue::Dereference { reference: variable }
                 } else {
-                    // Ok((variable.clone(), LValue::Ident))
+                    // LValue::Dereference { reference: variable }
                     LValue::Ident
                 }
             }
@@ -996,6 +996,35 @@ impl<'a> FunctionContext<'a> {
                 )
             }
         }
+    }
+
+    pub(super) fn extract_ident_from_expr(
+        &mut self,
+        expr: &ast::Expression,
+        indices: &mut Vec<NestedArrayIndex>,
+    ) -> Result<Values, RuntimeError> {
+        Ok(match expr {
+            ast::Expression::Ident(ident) => {
+                let (variable, should_auto_deref) = self.ident_lvalue(ident);
+                if should_auto_deref {
+                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
+                    dereferenced
+                } else {
+                    variable
+                }
+            }
+            ast::Expression::ExtractTupleField(tuple, field_index) => {
+                indices.push(NestedArrayIndex::Constant(*field_index));
+                self.extract_ident_from_expr(tuple, indices)?
+            }
+            ast::Expression::Index(index) => {
+                // TODO: we have to account for location data
+                let index_value = self.codegen_non_tuple_expression(&index.index)?;
+                indices.push(NestedArrayIndex::Value(index_value));
+                self.extract_ident_from_expr(&index.collection, indices)?
+            }
+            _ => unreachable!("ICE: Expected Ident, ExtractTupleField, or Index, but got {expr}"),
+        })
     }
 
     /// Increments the reference count of all parameters. Returns the entry block of the function.

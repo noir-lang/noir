@@ -643,9 +643,11 @@ impl<'block> BrilligBlock<'block> {
                     result_ids[0],
                     dfg,
                 );
-
+                let destination_typ = dfg.type_of_value(result_ids[0]);
+                dbg!(destination_typ.is_nested_array());
+                dbg!(destination_variable.clone());
                 let array_variable = self.convert_ssa_value(*array, dfg);
-
+                dbg!(array_variable.clone());
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
                 if !dfg.is_safe_index(*index, *array) {

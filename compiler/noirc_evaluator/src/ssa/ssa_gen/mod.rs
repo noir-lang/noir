@@ -435,9 +435,15 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        dbg!(index.clone());
-        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // dbg!(index.clone());
+        let mut indices = Vec::new();
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
+        indices.push(NestedArrayIndex::Value(index_value));
+
+        let array_or_slice = self.extract_ident_from_expr(&index.collection, &mut indices)?.into_value_list(self);
+        // let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+
+        // let index_value = self.codegen_non_tuple_expression(&index.index)?;
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         let (array, slice_length) = if array_or_slice.len() > 1 {
@@ -446,33 +452,72 @@ impl<'a> FunctionContext<'a> {
             (array_or_slice[0], None)
         };
 
-        self.codegen_array_index(
-            array,
-            index_value,
-            &index.element_type,
-            index.location,
-            slice_length,
-        )
+        let typ = self.builder.current_function.dfg.type_of_value(array);
+        dbg!(indices.clone());
+        let flattened_index = self.build_nested_lvalue_index(&typ, &mut indices).unwrap();
+        // TODO: need to switch this to map type
+        // let element_type = Self::convert_type(&index.element_type);
+        let flattened_index = self.make_array_index(flattened_index);
+        // TODO: need to map_type here
+        // dbg!(element_type.clone());
+        dbg!(index.element_type.clone());
+        // let value = self.builder.insert_array_get(array, index, element_type).into();
+        // Ok(value)
+        let mut field_index = 0u128;
+        Ok(Self::map_type(&index.element_type, |typ| {
+            dbg!(typ.clone());
+            let flat_typ = typ.clone().flatten();
+            dbg!(flat_typ.clone());
+            let offset = self.make_offset(flattened_index, field_index);
+            field_index += 1;
+
+            let array_type = &self.builder.type_of_value(array);
+            // TODO: add back slice check
+            // match array_type {
+            //     Type::Slice(_) => {
+            //         self.codegen_slice_access_check(index, length);
+            //     }
+            //     Type::Array(..) => {
+            //         // Nothing needs to done to prepare an array access on an array
+            //     }
+            //     _ => unreachable!("must have array or slice but got {array_type}"),
+            // }
+
+            // Reference counting in brillig relies on us incrementing reference
+            // counts when nested arrays/slices are constructed or indexed. This
+            // has no effect in ACIR code.
+            let result = self.builder.insert_array_get(array, offset, typ);
+            self.builder.increment_array_reference_count(result);
+            result.into()
+        }))
+        // self.codegen_array_index(
+        //     array,
+        //     index_value,
+        //     &index.element_type,
+        //     index.location,
+        //     slice_length,
+        // )
     }
 
-    fn extract_ident_from_expr(
-        &mut self,
-        expr: &Expression,
-        indices: &mut Vec<NestedArrayIndex>,
-    ) {
-        match expr {
-            ast::Expression::Ident(ident) => {
-                
-            }
-            ast::Expression::ExtractTupleField(tuple, field_index) => {
+    // fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
+    //     let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+    //     let index_value = self.codegen_non_tuple_expression(&index.index)?;
+    //     // Slices are represented as a tuple in the form: (length, slice contents).
+    //     // Thus, slices require two value ids for their representation.
+    //     let (array, slice_length) = if array_or_slice.len() > 1 {
+    //         (array_or_slice[1], Some(array_or_slice[0]))
+    //     } else {
+    //         (array_or_slice[0], None)
+    //     };
 
-            }
-            ast::Expression::Index(index) => {
-
-            }
-            _ => unreachable!("ICE: Expected Ident, ExtractTupleField, or Index, but got {expr}"),
-        }
-    }
+    //     self.codegen_array_index(
+    //         array,
+    //         index_value,
+    //         &index.element_type,
+    //         index.location,
+    //         slice_length,
+    //     )
+    // }
 
     /// This is broken off from codegen_index so that it can also be
     /// used to codegen a LValue::Index.
@@ -826,9 +871,13 @@ impl<'a> FunctionContext<'a> {
                 self.build_lvalue_index(&assign.lvalue, &mut indices)?;
                 dbg!(indices.clone());
                 let flattened_index = self.build_nested_lvalue_index(typ, &mut indices);
-                let array = self.assign_lvalue_index_no_offset(rhs, array_id, flattened_index, Location::dummy());
-                // let array = self.builder.insert_array_set(array_id, index, value);
-                self.assign_new_value(extracted_ident, array.into());
+                let new_value = if let Some(flattened_index) = flattened_index {
+                    // TODO: track accurate location data
+                    self.assign_lvalue_index_no_offset(rhs, array_id, flattened_index, Location::dummy()).into()
+                } else {
+                    rhs
+                };
+                self.assign_new_value(extracted_ident, new_value);
             }
             _ => panic!("Expect only a dereference here"),
         }
@@ -855,12 +904,14 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         typ: &Type,
         indices: &mut Vec<NestedArrayIndex>,
-    ) -> ValueId {
+    ) -> Option<ValueId> {
         let mut result_index = ValueId::new(0);
         // let flat_array = typ.clone().flatten();
         // dbg!(flat_array.clone());
         let mut current_types = vec![typ.clone()];
-        let first_index = indices.pop().unwrap();
+        let Some(first_index) = indices.pop() else {
+            return None
+        };
         match first_index {
             NestedArrayIndex::Constant(field_index) => {
                 todo!()
@@ -916,7 +967,7 @@ impl<'a> FunctionContext<'a> {
         if result_index.to_usize() == 0 {
             panic!("ahh");
         }
-        result_index
+        Some(result_index)
     }
 
     fn codegen_semi(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
