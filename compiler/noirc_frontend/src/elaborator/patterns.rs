@@ -83,6 +83,8 @@ impl<'context> Elaborator<'context> {
                     (_, other) => other,
                 };
                 let ident = if let Some(global_id) = global_id {
+                    // Sanity check that we don't have conflicting globals.
+                    assert_eq!(definition, DefinitionKind::Global(global_id));
                     // Globals don't need to be added to scope, they're already in the def_maps
                     let id = self.interner.get_global(global_id).definition_id;
                     let location = Location::new(name.span(), self.file);
