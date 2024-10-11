@@ -292,6 +292,7 @@ pub enum DependencyId {
     Function(FuncId),
     Alias(TypeAliasId),
     Variable(Location),
+    Attribute(FuncId),
 }
 
 /// A reference to a module, struct, trait, etc., mainly used by the LSP code
@@ -2071,6 +2072,11 @@ impl NodeInterner {
                             push_error(alias.name.to_string(), &scc, i, alias.location);
                             break;
                         }
+                        DependencyId::Attribute(id) => {
+                            let name = self.function_name(&id).to_string();
+                            let location = self.function_meta(&id).location;
+                            push_error(name, &scc, i, location)
+                        }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
                         // Local variables should never be in a dependency cycle, scoping rules
@@ -2092,7 +2098,7 @@ impl NodeInterner {
     fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
         let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
             DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
-            DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
+            DependencyId::Function(id) | DependencyId::Attribute(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
                 Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
             }

@@ -831,6 +831,8 @@ impl Attribute {
             ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             ["use_callers_scope"] => Attribute::Secondary(SecondaryAttribute::UseCallersScope),
             ["allow", tag] => Attribute::Secondary(SecondaryAttribute::Allow(tag.to_string())),
+            ["run_before", f] => Attribute::Secondary(SecondaryAttribute::RunBefore(f.to_string())),
+            ["run_after", f] => Attribute::Secondary(SecondaryAttribute::RunAfter(f.to_string())),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Meta(CustomAttribute {
@@ -961,6 +963,12 @@ pub enum SecondaryAttribute {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    /// Specifies this attribute should run before the attribute specified as an argument
+    RunBefore(String),
+
+    /// Specifies this attribute should run after the attribute specified as an argument
+    RunAfter(String),
 }
 
 impl SecondaryAttribute {
@@ -986,6 +994,8 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
             SecondaryAttribute::Allow(_) => Some("allow".to_string()),
+            SecondaryAttribute::RunBefore(_) => Some("run_before".to_string()),
+            SecondaryAttribute::RunAfter(_) => Some("run_after".to_string()),
         }
     }
 
@@ -1017,6 +1027,8 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
             SecondaryAttribute::UseCallersScope => write!(f, "#[use_callers_scope]"),
             SecondaryAttribute::Allow(ref k) => write!(f, "#[allow(#{k})]"),
+            SecondaryAttribute::RunBefore(attr) => write!(f, "#[run_before({attr})]"),
+            SecondaryAttribute::RunAfter(attr) => write!(f, "#[run_after({attr})]"),
         }
     }
 }
@@ -1065,6 +1077,8 @@ impl AsRef<str> for SecondaryAttribute {
             SecondaryAttribute::Meta(attribute) => &attribute.contents,
             SecondaryAttribute::Field(string)
             | SecondaryAttribute::Abi(string)
+            | SecondaryAttribute::RunBefore(string)
+            | SecondaryAttribute::RunAfter(string)
             | SecondaryAttribute::Allow(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",

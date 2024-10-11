@@ -28,6 +28,10 @@ pub comptime fn unquote(code: Quoted) -> Quoted {
 pub comptime fn type_of<T>(x: T) -> Type {}
 // docs:end:type_of
 
+/// Stub function used so that other attributes can specify if they
+/// want to run before or after any attributes without a stage annotation.
+pub comptime fn default_stage() {}
+
 // docs:start:derive_example
 // These are needed for the unconstrained hashmap we're using to store derive functions
 use crate::collections::umap::UHashMap;
@@ -46,6 +50,7 @@ comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHas
 // handler registered for the given trait, calling it, and appending the result.
 // docs:start:derive
 #[varargs]
+#[run_before(default_stage)]
 pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted {
     // docs:end:derive
     let mut result = quote {};
@@ -67,6 +72,7 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
 // docs:start:derive_via
 // To register a handler for a trait, just add it to our handlers map
 // docs:start:derive_via_signature
+#[run_before(derive)]
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     // docs:end:derive_via_signature
     HANDLERS.insert(t, f);
