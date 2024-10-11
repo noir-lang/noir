@@ -386,13 +386,8 @@ impl<'context> Elaborator<'context> {
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global. The check below prevents this error.
-        let mut global_id = None;
-        let global = self.interner.get_all_globals();
-        for global_info in global {
-            if global_info.local_id == self.local_module && global_info.ident == name {
-                global_id = Some(global_info.id);
-            }
-        }
+        let global_id =
+            self.interner.find_global_by_local_and_ident(self.local_module, name.clone());
 
         let (ident, resolver_meta) = if let Some(id) = global_id {
             let global = self.interner.get_global(id);
