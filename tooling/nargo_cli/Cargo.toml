@@ -77,6 +77,7 @@ time = "^0.3.35" # stanm: this is a dependency of tracing-appender and earlier
 tokio-util = { version = "0.7.8", features = ["compat"] }
 
 [dev-dependencies]
+ark-bn254.workspace = true
 tempfile.workspace = true
 dirs.workspace = true
 assert_cmd = "2.0.8"
@@ -91,6 +92,7 @@ sha2.workspace = true
 sha3.workspace = true
 iai = "0.1.1"
 test-binary = "3.0.2"
+light-poseidon = "0.2.0"
 
 
 [[bench]]

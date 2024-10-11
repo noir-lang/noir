@@ -442,7 +442,7 @@ mod tests {
         assert_eq!(noir_function.parameters().len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a pattern but found 1");
+        assert_eq!(error.to_string(), "Expected a pattern but found '1'");
     }
 
     #[test]
@@ -478,7 +478,7 @@ mod tests {
         assert_eq!(noir_function.parameters().len(), 2);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found ,");
+        assert_eq!(error.to_string(), "Expected a type but found ','");
     }
 
     #[test]

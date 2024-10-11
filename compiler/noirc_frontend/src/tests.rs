@@ -3357,3 +3357,34 @@ fn error_if_attribute_not_in_scope() {
         CompilationError::ResolverError(ResolverError::AttributeFunctionNotInScope { .. })
     ));
 }
+
+#[test]
+fn arithmetic_generics_rounding_pass() {
+    let src = r#"
+        fn main() {
+            // 3/2*2 = 2
+            round::<3, 2>([1, 2]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail() {
+    let src = r#"
+        fn main() {
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            round::<3, 2>([1, 2, 3]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+}

@@ -178,12 +178,17 @@ impl ParserError {
 
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token_to_string = |token: &Token| match token {
+            Token::EOF => token.to_string(),
+            _ => format!("'{}'", token),
+        };
+
         let reason_str: String = if self.reason.is_none() {
             "".to_string()
         } else {
             format!("\nreason: {}", Diagnostic::from(self))
         };
-        let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
+        let mut expected = vecmap(&self.expected_tokens, token_to_string);
         expected.append(&mut vecmap(&self.expected_labels, |label| format!("{label}")));
 
         if expected.is_empty() {
@@ -196,7 +201,7 @@ impl std::fmt::Display for ParserError {
                 "Expected a{} {} but found {}{}",
                 if vowel { "n" } else { "" },
                 first,
-                self.found,
+                token_to_string(&self.found),
                 reason_str
             )
         } else {
