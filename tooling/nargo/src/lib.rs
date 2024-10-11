@@ -127,7 +127,6 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
                     file_manager,
                     &HashMap::new(),
                 );
-                insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
             }
         }
     }
