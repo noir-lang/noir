@@ -13,7 +13,10 @@ pub mod ops;
 pub mod package;
 pub mod workspace;
 
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    path::PathBuf,
+};
 
 use fm::{FileManager, FILE_EXTENSION};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
@@ -59,8 +62,14 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     file_manager: &mut FileManager,
     overrides: &HashMap<&std::path::Path, &str>,
 ) {
+    let mut processed_entry_paths = HashSet::new();
     for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(package, file_manager, overrides);
+        insert_all_files_for_package_into_file_manager(
+            package,
+            file_manager,
+            overrides,
+            &mut processed_entry_paths,
+        );
     }
 }
 // We will pre-populate the file manager with all the files in the package
@@ -73,7 +82,13 @@ fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
     overrides: &HashMap<&std::path::Path, &str>,
+    processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
+    if processed_entry_paths.contains(&package.entry_path) {
+        return;
+    }
+    processed_entry_paths.insert(package.entry_path.clone());
+
     // Start off at the entry path and read all files in the parent directory.
     let entry_path_parent = package
         .entry_path
@@ -110,7 +125,12 @@ fn insert_all_files_for_package_into_file_manager(
         file_manager.add_file_with_source(path.as_path(), source);
     }
 
-    insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager, overrides);
+    insert_all_files_for_packages_dependencies_into_file_manager(
+        package,
+        file_manager,
+        overrides,
+        processed_entry_paths,
+    );
 }
 
 // Inserts all files for the dependencies of the package into the file manager
@@ -119,11 +139,17 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
     overrides: &HashMap<&std::path::Path, &str>,
+    processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     for (_, dep) in package.dependencies.iter() {
         match dep {
             Dependency::Local { package } | Dependency::Remote { package } => {
-                insert_all_files_for_package_into_file_manager(package, file_manager, overrides);
+                insert_all_files_for_package_into_file_manager(
+                    package,
+                    file_manager,
+                    overrides,
+                    processed_entry_paths,
+                );
             }
         }
     }
