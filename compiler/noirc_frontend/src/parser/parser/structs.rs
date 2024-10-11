@@ -272,6 +272,6 @@ mod tests {
         assert_eq!(noir_struct.fields.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found 42");
+        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
     }
 }

@@ -5,20 +5,18 @@ global PLO: Field = 53438638232309528389504892708671455233;
 global PHI: Field = 64323764613183177041862057485226039389;
 
 pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
+global TWO_POW_64: Field = 0x10000000000000000;
 
 // Decomposes a single field into two 16 byte fields.
-fn compute_decomposition(x: Field) -> (Field, Field) {
-    let x_bytes: [u8; 32] = x.to_le_bytes();
+fn compute_decomposition(mut x: Field) -> (Field, Field) {
+    // Here's we're taking advantage of truncating 64 bit limbs from the input field
+    // and then subtracting them from the input such the field division is equivalent to integer division.
+    let low_lower_64 = (x as u64) as Field;
+    x = (x - low_lower_64) / TWO_POW_64;
+    let low_upper_64 = (x as u64) as Field;
 
-    let mut low: Field = 0;
-    let mut high: Field = 0;
-
-    let mut offset = 1;
-    for i in 0..16 {
-        low += (x_bytes[i] as Field) * offset;
-        high += (x_bytes[i + 16] as Field) * offset;
-        offset *= 256;
-    }
+    let high = (x - low_upper_64) / TWO_POW_64;
+    let low = low_upper_64 * TWO_POW_64 + low_lower_64;
 
     (low, high)
 }
