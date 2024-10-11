@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display, cmp::Ordering};
+use std::{collections::BTreeMap, fmt::Display};
 
 use fm::FileId;
 use iter_extended::vecmap;
@@ -576,19 +576,31 @@ impl<'context> Elaborator<'context> {
         self.run_attributes_on_modules(module_attributes, &mut attributes_to_run);
 
         // sort
+        // Use bellman_ford to determine path costs to a start node
+        // - anything running before the start node has its edge and edge cost reversed
+        let stages = petgraph::algo::bellman_ford(graph, start);
+
+        // -1:  O   O
+        //       ^ ^
+        //  0:    O     let this be the start node
+        //       ^ ^
+        //  1:  O   O
+        //           ^
+        //  2:        O
+
+        // -1:  O   O
+        //       v v    edge cost both -1
+        //  0:    O
+        //       ^ ^    edge cost both 1
+        //  1:  O   O
+        //           ^  edge cost is 1
+        //  2:        O
+
         attributes_to_run.sort_by(|(l_fn, ..), (r_fn, ..)| {
             let l_fn = DependencyId::Attribute(*l_fn);
             let r_fn = DependencyId::Attribute(*r_fn);
             self.interner.dependency_graph.depe
         });
-
-        // -1:  O   O
-        //       ^ ^
-        //  0:    O
-        //       ^ ^
-        //  1:  O   O
-        //           ^
-        //  2:        O
 
         // run
         let generated_items = CollectedItems::default();
