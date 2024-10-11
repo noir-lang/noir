@@ -854,10 +854,17 @@ impl NodeInterner {
         let definition_id =
             self.push_definition(name, mutable, comptime, DefinitionKind::Global(id), location);
 
+        // To guarantee equivalence with the former method of looping through all globals
+        // and returning the first match, do not overwrite an existing entry.
+        let local_and_ident = (local_id, ident.clone());
+        if !self.globals_by_local_and_ident.contains_key(&local_and_ident) {
+            self.globals_by_local_and_ident.insert(local_and_ident, id);
+        }
+
         self.globals.push(GlobalInfo {
             id,
             definition_id,
-            ident: ident.clone(),
+            ident,
             local_id,
             crate_id,
             let_statement,
@@ -865,7 +872,6 @@ impl NodeInterner {
             value: None,
         });
         self.global_attributes.insert(id, attributes);
-        self.globals_by_local_and_ident.insert((local_id, ident), id);
         id
     }
 
