@@ -1,5 +1,5 @@
 [package]
-name = "regression_test_5462"
+name = "regression_5462"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.35.0"
