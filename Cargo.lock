@@ -2540,9 +2540,9 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
- "tempfile",
  "thiserror",
  "tracing",
+ "walkdir",
 ]
 
 [[package]]
