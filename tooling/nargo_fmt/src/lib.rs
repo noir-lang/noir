@@ -20,18 +20,46 @@
 /// in both placement and content during the formatting process.
 mod config;
 pub mod errors;
-mod items;
-mod rewrite;
-mod utils;
-mod visitor;
+mod formatter;
 
+use formatter::Formatter;
 use noirc_frontend::ParsedModule;
-use visitor::FmtVisitor;
 
 pub use config::Config;
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
-    let mut fmt = FmtVisitor::new(source, config);
-    fmt.visit_file(parsed_module);
-    fmt.finish()
+    let mut formatter = Formatter::new(source, config);
+    formatter.format_program(parsed_module);
+    formatter.buffer
+}
+
+#[cfg(test)]
+pub(crate) fn assert_format(src: &str, expected: &str) {
+    assert_format_with_config(src, expected, Config::default());
+}
+
+#[cfg(test)]
+pub(crate) fn assert_format_with_max_width(src: &str, expected: &str, max_width: usize) {
+    let config = Config { max_width, ..Config::default() };
+    assert_format_with_config(src, expected, config);
+}
+
+#[cfg(test)]
+pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Config) {
+    use noirc_frontend::parser;
+
+    let (parsed_module, errors) = parser::parse_program(src);
+    if !errors.is_empty() {
+        panic!("Expected no errors, got: {:?}", errors);
+    }
+    let result = format(src, parsed_module, &config);
+    similar_asserts::assert_eq!(result, expected);
+
+    let src = &result;
+    let (parsed_module, errors) = parser::parse_program(src);
+    if !errors.is_empty() {
+        panic!("Expected no errors in idempotent check, got: {:?}", errors);
+    }
+    let result = format(src, parsed_module, &config);
+    similar_asserts::assert_eq!(result, expected, "idempotent check failed");
 }
