@@ -45,6 +45,12 @@ impl<'a> Formatter<'a> {
 
             // If there's no where clause the left brace goes on the same line as the function signature
             if func.def.where_clause.is_empty() {
+                // There might still be a where keyword that we'll remove
+                if formatter.token == Token::Keyword(Keyword::Where) {
+                    formatter.bump();
+                    formatter.skip_comments_and_whitespace();
+                }
+
                 formatter.write_left_brace();
             }
         }));
@@ -318,6 +324,16 @@ mod tests {
     fn format_function_return_visibility() {
         let src = "fn  foo( )  ->  pub   Field  {  }";
         let expected = "fn foo() -> pub Field {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_empty_where_clause() {
+        let src = "mod foo { fn  foo( )  where    {  } } ";
+        let expected = "mod foo {
+    fn foo() {}
+}
+";
         assert_format(src, expected);
     }
 
