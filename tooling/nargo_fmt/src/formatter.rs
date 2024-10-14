@@ -162,11 +162,13 @@ impl<'a> Formatter<'a> {
         write_lines: bool,
     ) -> SkipCommentsAndWhitespaceResult {
         let mut number_of_newlines = 0;
+        let mut passed_whitespace = false;
         let mut wrote_comment = false;
         loop {
             match &self.token {
                 Token::Whitespace(whitespace) => {
                     number_of_newlines = whitespace.chars().filter(|char| *char == '\n').count();
+                    passed_whitespace = whitespace.ends_with(' ');
                     self.bump();
                 }
                 Token::LineComment(_, None) => {
@@ -184,6 +186,7 @@ impl<'a> Formatter<'a> {
                     number_of_newlines = 1;
                     self.bump();
                     wrote_comment = true;
+                    passed_whitespace = false;
                 }
                 Token::BlockComment(_, None) => {
                     if number_of_newlines > 1 && write_lines {
@@ -192,12 +195,13 @@ impl<'a> Formatter<'a> {
                     } else if number_of_newlines > 0 {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
-                    } else {
+                    } else if passed_whitespace {
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
                     self.write_current_token();
                     self.bump();
                     wrote_comment = true;
+                    passed_whitespace = false;
                 }
                 _ => break,
             }

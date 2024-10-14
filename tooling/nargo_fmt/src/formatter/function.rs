@@ -450,6 +450,13 @@ unit: ()
     }
 
     #[test]
+    fn format_function_with_block_comment_in_params() {
+        let src = "fn main(/* test */) {}";
+        let expected = "fn main(/* test */) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_function_with_body() {
         let src = "fn main() { 1; 2; 3 }";
         let expected = "fn main() {

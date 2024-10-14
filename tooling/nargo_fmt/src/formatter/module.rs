@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn format_module_declaration_with_block_comments() {
         let src = "  mod/*a*/ foo /*b*/ ; ";
-        let expected = "mod /*a*/ foo /*b*/;\n";
+        let expected = "mod/*a*/ foo /*b*/;\n";
         assert_format(src, expected);
     }
 
