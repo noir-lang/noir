@@ -133,6 +133,10 @@ impl TraitGenerics {
             vecmap(&self.named, |named| NamedType { name: named.name.clone(), typ: f(&named.typ) });
         TraitGenerics { ordered, named }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.ordered.is_empty() && self.named.is_empty()
+    }
 }
 
 impl std::fmt::Display for TraitGenerics {

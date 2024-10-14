@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, StructField};
+use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, TypeBindings};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -54,6 +54,7 @@ mod unquote;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
+use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 
@@ -433,7 +434,8 @@ impl<'context> Elaborator<'context> {
 
         // Now remove all the `where` clause constraints we added
         for constraint in &func_meta.trait_constraints {
-            self.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+            self.interner
+                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
         }
 
         let func_scope_tree = self.scopes.end_function();
@@ -479,9 +481,9 @@ impl<'context> Elaborator<'context> {
 
             self.verify_trait_constraint(
                 &constraint.typ,
-                constraint.trait_id,
-                &constraint.trait_generics.ordered,
-                &constraint.trait_generics.named,
+                constraint.trait_bound.trait_id,
+                &constraint.trait_bound.trait_generics.ordered,
+                &constraint.trait_bound.trait_generics.named,
                 expr_id,
                 span,
             );
@@ -510,7 +512,8 @@ impl<'context> Elaborator<'context> {
         let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
-        if let Some(new_constraint) = self.resolve_trait_bound(&trait_bound, generic_type.clone()) {
+        if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
+            let new_constraint = TraitConstraint { typ: generic_type.clone(), trait_bound };
             trait_constraints.push(new_constraint);
         }
 
@@ -668,14 +671,11 @@ impl<'context> Elaborator<'context> {
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
-        self.resolve_trait_bound(&constraint.trait_bound, typ)
+        let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
+        Some(TraitConstraint { typ, trait_bound })
     }
 
-    pub fn resolve_trait_bound(
-        &mut self,
-        bound: &TraitBound,
-        typ: Type,
-    ) -> Option<TraitConstraint> {
+    pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
         let span = bound.trait_path.span;
@@ -683,7 +683,7 @@ impl<'context> Elaborator<'context> {
         let (ordered, named) = self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
 
         let trait_generics = TraitGenerics { ordered, named };
-        Some(TraitConstraint { typ, trait_id, trait_generics, span })
+        Some(ResolvedTraitBound { trait_id, trait_generics, span })
     }
 
     /// Extract metadata from a NoirFunction
@@ -760,7 +760,6 @@ impl<'context> Elaborator<'context> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
-                None,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
@@ -942,21 +941,52 @@ impl<'context> Elaborator<'context> {
 
     fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
         for constraint in &func_meta.trait_constraints {
-            let object = constraint.typ.clone();
-            let trait_id = constraint.trait_id;
-            let generics = constraint.trait_generics.clone();
+            self.add_trait_bound_to_scope(
+                func_meta,
+                &constraint.typ,
+                &constraint.trait_bound,
+                constraint.trait_bound.trait_id,
+            );
+        }
+    }
 
-            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
-                if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
-                    let trait_name = the_trait.name.to_string();
-                    let typ = constraint.typ.clone();
-                    let span = func_meta.location.span;
-                    self.push_err(TypeCheckError::UnneededTraitConstraint {
-                        trait_name,
-                        typ,
-                        span,
-                    });
+    fn add_trait_bound_to_scope(
+        &mut self,
+        func_meta: &FuncMeta,
+        object: &Type,
+        trait_bound: &ResolvedTraitBound,
+        starting_trait_id: TraitId,
+    ) {
+        let trait_id = trait_bound.trait_id;
+        let generics = trait_bound.trait_generics.clone();
+
+        if !self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
+            if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
+                let trait_name = the_trait.name.to_string();
+                let typ = object.clone();
+                let span = func_meta.location.span;
+                self.push_err(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            }
+        }
+
+        // Also add assumed implementations for the parent traits, if any
+        if let Some(trait_bounds) =
+            self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        {
+            for parent_trait_bound in trait_bounds {
+                // Avoid looping forever in case there are cycles
+                if parent_trait_bound.trait_id == starting_trait_id {
+                    continue;
                 }
+
+                let parent_trait_bound =
+                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
+                self.add_trait_bound_to_scope(
+                    func_meta,
+                    object,
+                    &parent_trait_bound,
+                    starting_trait_id,
+                );
             }
         }
     }
@@ -972,6 +1002,8 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
+        self.check_parent_traits_are_implemented(&trait_impl);
+
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
@@ -986,6 +1018,73 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
+    }
+
+    fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
+        let Some(trait_id) = trait_impl.trait_id else {
+            return;
+        };
+
+        let Some(object_type) = &trait_impl.resolved_object_type else {
+            return;
+        };
+
+        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            return;
+        };
+
+        if the_trait.trait_bounds.is_empty() {
+            return;
+        }
+
+        let impl_trait = the_trait.name.to_string();
+        let the_trait_file = the_trait.location.file;
+
+        let mut bindings = TypeBindings::new();
+        bind_ordered_generics(
+            &the_trait.generics,
+            &trait_impl.resolved_trait_generics,
+            &mut bindings,
+        );
+
+        // Note: we only check if the immediate parents are implemented, we don't check recursively.
+        // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
+        // do the same check for the parent, so this trait's parents parents will be checked, so the
+        // recursion is guaranteed.
+        for parent_trait_bound in the_trait.trait_bounds.clone() {
+            let Some(parent_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id)
+            else {
+                continue;
+            };
+
+            let parent_trait_bound = ResolvedTraitBound {
+                trait_generics: parent_trait_bound
+                    .trait_generics
+                    .map(|typ| typ.substitute(&bindings)),
+                ..parent_trait_bound
+            };
+
+            if self
+                .interner
+                .try_lookup_trait_implementation(
+                    object_type,
+                    parent_trait_bound.trait_id,
+                    &parent_trait_bound.trait_generics.ordered,
+                    &parent_trait_bound.trait_generics.named,
+                )
+                .is_err()
+            {
+                let missing_trait =
+                    format!("{}{}", parent_trait.name, parent_trait_bound.trait_generics);
+                self.push_err(ResolverError::TraitNotImplemented {
+                    impl_trait: impl_trait.clone(),
+                    missing_trait,
+                    type_missing_trait: trait_impl.object_type.to_string(),
+                    span: trait_impl.object_type.span,
+                    missing_trait_location: Location::new(parent_trait_bound.span, the_trait_file),
+                });
+            }
+        }
     }
 
     fn collect_impls(
