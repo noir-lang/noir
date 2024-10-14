@@ -37,8 +37,10 @@ impl<'a> Formatter<'a> {
             UnresolvedTypeData::FormatString(_unresolved_type_expression, _unresolved_type) => {
                 todo!("Format format string type")
             }
-            UnresolvedTypeData::Parenthesized(_unresolved_type) => {
-                todo!("Format parenthesized type")
+            UnresolvedTypeData::Parenthesized(typ) => {
+                self.write_left_paren();
+                self.format_type(*typ);
+                self.write_right_paren();
             }
             UnresolvedTypeData::Named(path, generic_type_args, _) => {
                 self.format_path(path);
@@ -147,6 +149,13 @@ mod tests {
     fn format_mutable_reference_type() {
         let src = " &  mut  Field ";
         let expected = "&mut Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_parenthesized_type() {
+        let src = " ( Field )";
+        let expected = "(Field)";
         assert_format_type(src, expected);
     }
 }
