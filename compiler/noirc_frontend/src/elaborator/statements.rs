@@ -110,7 +110,6 @@ impl<'context> Elaborator<'context> {
             definition,
             &mut Vec::new(),
             warn_if_unused,
-            global_id,
         );
 
         let attributes = let_stmt.attributes;
