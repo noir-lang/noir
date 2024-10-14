@@ -147,8 +147,13 @@ impl<'a> Formatter<'a> {
                 Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => {
                     if text_chunk.has_newlines {
                         for (index, line) in text_chunk.string.lines().enumerate() {
-                            if index > 0 {
+                            // Don't indent the first line (it should already be indented).
+                            // Also don't indent if the current line already has a space as the last char
+                            // (it means it's already indented)
+                            if index > 0 && !self.buffer.ends_with(' ') {
                                 self.write_line();
+                                // Only indent if the line doesn't start with a space. When that happens
+                                // it's likely a block comment part that we don't want to modify.
                                 if !line.starts_with(' ') {
                                     self.write_indentation();
                                 }

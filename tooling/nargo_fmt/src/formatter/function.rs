@@ -425,4 +425,18 @@ mod tests {
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_function_with_line_comment_on_top_of_parameter() {
+        let src = "fn main(
+// hello
+unit: ()
+) {}";
+        let expected = "fn main(
+    // hello
+    unit: (),
+) {}
+";
+        assert_format(src, expected);
+    }
 }
