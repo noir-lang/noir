@@ -21,6 +21,7 @@ impl TextChunk {
 pub(crate) enum Chunk {
     Text(TextChunk),
     TextIfMultiline(TextChunk),
+    Chunks(Chunks),
     Line,
     SpaceOrLine,
     IncreaseIndentation,
@@ -31,6 +32,7 @@ impl Chunk {
     pub(crate) fn width(&self) -> usize {
         match self {
             Chunk::Text(chunk) => chunk.width,
+            Chunk::Chunks(chunks) => chunks.width(),
             Chunk::SpaceOrLine => 1,
             Chunk::Line
             | Chunk::IncreaseIndentation
@@ -42,6 +44,7 @@ impl Chunk {
     pub(crate) fn has_newlines(&self) -> bool {
         match self {
             Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => text_chunk.has_newlines,
+            Chunk::Chunks(chunks) => chunks.has_newlines(),
             Chunk::Line
             | Chunk::SpaceOrLine
             | Chunk::IncreaseIndentation
@@ -53,37 +56,56 @@ impl Chunk {
 #[derive(Debug)]
 pub(crate) struct Chunks {
     chunks: Vec<Chunk>,
+    one_chunk_per_line: bool,
 }
 
 impl Chunks {
     pub(crate) fn new() -> Self {
-        Self { chunks: Vec::new() }
+        Self { chunks: Vec::new(), one_chunk_per_line: true }
+    }
+
+    pub(crate) fn with_multiple_chunks_per_line(self) -> Self {
+        Self { one_chunk_per_line: false, ..self }
     }
 
     pub(crate) fn text(&mut self, chunk: TextChunk) {
         if chunk.width > 0 {
-            self.chunks.push(Chunk::Text(chunk));
+            if let Some(Chunk::Text(text_chunk)) = self.chunks.last_mut() {
+                text_chunk.string.push_str(&chunk.string);
+                text_chunk.width += chunk.width;
+                text_chunk.has_newlines |= chunk.has_newlines;
+            } else {
+                self.push(Chunk::Text(chunk));
+            }
         }
     }
 
     pub(crate) fn text_if_multiline(&mut self, chunk: TextChunk) {
-        self.chunks.push(Chunk::TextIfMultiline(chunk));
+        self.push(Chunk::TextIfMultiline(chunk));
+    }
+
+    pub(crate) fn chunks(&mut self, chunks: Chunks) {
+        self.push(Chunk::Chunks(chunks));
     }
 
     pub(crate) fn line(&mut self) {
-        self.chunks.push(Chunk::Line);
+        self.push(Chunk::Line);
     }
 
     pub(crate) fn space_or_line(&mut self) {
-        self.chunks.push(Chunk::SpaceOrLine);
+        self.push(Chunk::SpaceOrLine);
     }
 
     pub(crate) fn increase_indentation(&mut self) {
-        self.chunks.push(Chunk::IncreaseIndentation);
+        self.push(Chunk::IncreaseIndentation);
     }
 
     pub(crate) fn decrease_indentation(&mut self) {
-        self.chunks.push(Chunk::DecreaseIndentation);
+        self.push(Chunk::DecreaseIndentation);
+    }
+
+    pub(crate) fn push(&mut self, chunk: Chunk) {
+        self.chunks.push(chunk);
     }
 
     pub(crate) fn width(&self) -> usize {
@@ -109,8 +131,7 @@ impl<'a> Formatter<'a> {
         self.current_line_width = previous_line_length;
         self.indentation = previous_indentation;
 
-        let string =
-            std::mem::replace(&mut self.buffer, previous_buffer).trim_end_matches(' ').to_string();
+        let string = std::mem::replace(&mut self.buffer, previous_buffer);
         TextChunk::new(string)
     }
 
@@ -132,6 +153,7 @@ impl<'a> Formatter<'a> {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) => self.write(&text_chunk.string),
+                Chunk::Chunks(chunks) => self.format_chunks_in_one_line(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
                 Chunk::TextIfMultiline(..)
                 | Chunk::Line
@@ -142,7 +164,26 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunks_in_multiple_lines(&mut self, chunks: Chunks) {
+        let mut last_was_space_or_line = false;
+
         for chunk in chunks.chunks {
+            if last_was_space_or_line {
+                if chunks.one_chunk_per_line {
+                    self.write_line_without_skipping_whitespace_and_comments();
+                    self.write_indentation();
+                } else {
+                    // "+ 1" because we still need to add a space before the next chunk
+                    if self.current_line_width + chunk.width() + 1 > self.config.max_width {
+                        self.write_line_without_skipping_whitespace_and_comments();
+                        self.write_indentation();
+                    } else {
+                        self.write_space();
+                    }
+                }
+            }
+
+            last_was_space_or_line = false;
+
             match chunk {
                 Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => {
                     if text_chunk.has_newlines {
@@ -151,7 +192,7 @@ impl<'a> Formatter<'a> {
                             // Also don't indent if the current line already has a space as the last char
                             // (it means it's already indented)
                             if index > 0 && !self.buffer.ends_with(' ') {
-                                self.write_line();
+                                self.write_line_without_skipping_whitespace_and_comments();
                                 // Only indent if the line doesn't start with a space. When that happens
                                 // it's likely a block comment part that we don't want to modify.
                                 if !line.starts_with(' ') {
@@ -164,9 +205,13 @@ impl<'a> Formatter<'a> {
                         self.write(&text_chunk.string)
                     }
                 }
-                Chunk::Line | Chunk::SpaceOrLine => {
-                    self.write_line();
+                Chunk::Chunks(chunks) => self.format_chunks(chunks),
+                Chunk::Line => {
+                    self.write_line_without_skipping_whitespace_and_comments();
                     self.write_indentation();
+                }
+                Chunk::SpaceOrLine => {
+                    last_was_space_or_line = true;
                 }
                 Chunk::IncreaseIndentation => {
                     self.increase_indentation();

@@ -3,14 +3,19 @@ use noirc_frontend::{
     token::Token,
 };
 
-use super::Formatter;
+use super::{
+    chunks::{Chunks, TextChunk},
+    Formatter,
+};
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_expression(&mut self, expression: Expression) {
-        self.skip_comments_and_whitespace();
+    pub(super) fn format_expression(&mut self, expression: Expression, chunks: &mut Chunks) {
+        chunks.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        }));
 
         match expression.kind {
-            ExpressionKind::Literal(literal) => self.format_literal(literal),
+            ExpressionKind::Literal(literal) => self.format_literal(literal, chunks),
             ExpressionKind::Block(_block_expression) => todo!("Format block"),
             ExpressionKind::Prefix(_prefix_expression) => todo!("Format prefix"),
             ExpressionKind::Index(_index_expression) => todo!("Format index"),
@@ -40,62 +45,96 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_literal(&mut self, literal: Literal) {
+    fn format_literal(&mut self, literal: Literal, chunks: &mut Chunks) {
         match literal {
-            Literal::Unit => {
-                self.write_left_paren();
-                self.write_right_paren();
-            }
+            Literal::Unit => chunks.text(self.chunk(|formatter| {
+                formatter.write_left_paren();
+                formatter.write_right_paren();
+            })),
             Literal::Bool(_)
             | Literal::Integer(..)
             | Literal::Str(_)
             | Literal::FmtStr(_)
-            | Literal::RawStr(..) => {
-                self.write_current_token();
-                self.bump();
-            }
-            Literal::Array(array_literal) => self.format_array_literal(array_literal),
+            | Literal::RawStr(..) => chunks.text(self.chunk(|formatter| {
+                formatter.write_current_token();
+                formatter.bump();
+            })),
+            Literal::Array(array_literal) => chunks.chunks(self.format_array_literal(
+                array_literal,
+                false, // is slice
+            )),
             Literal::Slice(array_literal) => {
-                self.write_token(Token::Ampersand);
-                self.format_array_literal(array_literal);
+                chunks.chunks(self.format_array_literal(
+                    array_literal,
+                    true, // is slice
+                ))
             }
         }
     }
 
-    fn format_array_literal(&mut self, literal: ArrayLiteral) {
-        self.write_left_bracket();
+    fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> Chunks {
+        let mut chunks = Chunks::new().with_multiple_chunks_per_line();
+
+        chunks.text(self.chunk(|formatter| {
+            if is_slice {
+                formatter.write_token(Token::Ampersand);
+            }
+            formatter.write_left_bracket();
+        }));
+
+        chunks.increase_indentation();
+        chunks.line();
+
         match literal {
             ArrayLiteral::Standard(exprs) => {
                 for (index, expr) in exprs.into_iter().enumerate() {
                     if index > 0 {
-                        self.write_comma();
-                        self.write_space();
+                        chunks.text(self.chunk(|formatter| {
+                            formatter.write_comma();
+                            formatter.skip_comments_and_whitespace();
+                        }));
+                        chunks.space_or_line();
                     }
-                    self.format_expression(expr);
+                    self.format_expression(expr, &mut chunks)
                 }
 
-                self.skip_comments_and_whitespace();
+                let chunk = self.chunk(|formatter| {
+                    formatter.skip_comments_and_whitespace();
 
-                // Trailing comma
-                if self.token == Token::Comma {
-                    self.bump();
-                    self.skip_comments_and_whitespace();
-                }
+                    // Trailing comma
+                    if formatter.token == Token::Comma {
+                        formatter.bump();
+                        formatter.skip_comments_and_whitespace();
+                    }
+                });
+
+                // Make sure to put a trailing comma before the last parameter comments, if there were any
+                chunks.text_if_multiline(TextChunk::new(",".to_string()));
+                chunks.text(chunk);
             }
+
             ArrayLiteral::Repeated { repeated_element, length } => {
-                self.format_expression(*repeated_element);
-                self.write_semicolon();
-                self.write_space();
-                self.format_expression(*length);
+                self.format_expression(*repeated_element, &mut chunks);
+                chunks.text(self.chunk(|formatter| {
+                    formatter.write_semicolon();
+                    formatter.write_space();
+                }));
+                self.format_expression(*length, &mut chunks);
             }
         }
-        self.write_right_bracket();
+
+        chunks.decrease_indentation();
+        chunks.line();
+
+        chunks.text(self.chunk(|formatter| formatter.write_right_bracket()));
+
+        chunks
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_format;
+    use crate::{assert_format, assert_format_with_max_width};
 
     #[test]
     fn format_unit() {
@@ -158,5 +197,41 @@ mod tests {
         let src = "global x = [ 1 ; 3 ] ;";
         let expected = "global x = [1; 3];\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_long_array_in_global() {
+        let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;";
+        let expected = "global x =
+    [1, 2, 3, 4, 5];
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
+    #[test]
+    fn format_long_array_in_global_2() {
+        let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;
+
+global y = 1;
+        ";
+        let expected = "global x =
+    [1, 2, 3, 4, 5];
+
+global y = 1;
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
+    #[test]
+    fn format_very_long_array_in_global() {
+        let src = "global x = [ 1 , 2 , 3 , 4, 5, 6, 789, 123, 234, 345] ;";
+        let expected = "global x =
+    [
+        1, 2, 3, 4, 5, 6,
+        789, 123, 234,
+        345,
+    ];
+";
+        assert_format_with_max_width(src, expected, 25);
     }
 }

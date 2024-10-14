@@ -3,7 +3,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::Formatter;
+use super::{chunks::Chunks, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_global(
@@ -11,23 +11,41 @@ impl<'a> Formatter<'a> {
         let_statement: LetStatement,
         visibility: ItemVisibility,
     ) {
-        self.write_indentation();
-        self.format_item_visibility(visibility);
-        self.write_keyword(Keyword::Global);
-        self.write_space();
-        self.format_pattern(let_statement.pattern);
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_indentation();
+        }));
 
-        if let_statement.r#type.typ != UnresolvedTypeData::Unspecified {
-            self.write_token(Token::Colon);
-            self.write_space();
-            self.format_type(let_statement.r#type);
-        }
+        chunks.text(self.chunk(|formatter| {
+            formatter.format_item_visibility(visibility);
+            formatter.write_keyword(Keyword::Global);
+            formatter.write_space();
+            formatter.format_pattern(let_statement.pattern);
 
-        self.write_space();
-        self.write_token(Token::Assign);
-        self.write_space();
-        self.format_expression(let_statement.expression);
-        self.write_semicolon();
+            if let_statement.r#type.typ != UnresolvedTypeData::Unspecified {
+                formatter.write_token(Token::Colon);
+                formatter.write_space();
+                formatter.format_type(let_statement.r#type);
+            }
+
+            formatter.write_space();
+            formatter.write_token(Token::Assign);
+        }));
+
+        chunks.increase_indentation();
+        chunks.space_or_line();
+        self.format_expression(let_statement.expression, &mut chunks);
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_semicolon();
+        }));
+        chunks.decrease_indentation();
+
+        // dbg!(&chunks);
+
+        // dbg!(&self.buffer);
+        self.format_chunks(chunks);
+        // dbg!(&self.buffer);
+
         self.write_line();
     }
 }
