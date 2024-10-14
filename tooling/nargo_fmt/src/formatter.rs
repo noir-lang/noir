@@ -24,6 +24,7 @@ mod type_expression;
 mod types;
 mod visibility;
 
+#[derive(Debug)]
 pub(crate) struct SkipCommentsAndWhitespaceResult {
     pub(crate) wrote_comment: bool,
 }

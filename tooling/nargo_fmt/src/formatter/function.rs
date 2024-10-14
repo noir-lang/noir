@@ -1,7 +1,7 @@
 use noirc_frontend::{
     ast::{
         FunctionReturnType, ItemVisibility, NoirFunction, Param, TraitBound,
-        UnresolvedTraitConstraint,
+        UnresolvedTraitConstraint, Visibility,
     },
     token::{Keyword, Token},
 };
@@ -22,45 +22,35 @@ impl<'a> Formatter<'a> {
         self.format_generics(func.def.generics);
         self.write_left_paren();
 
-        let has_parameters = !func.def.parameters.is_empty();
-
-        let mut chunks = Chunks::new();
-        chunks.increase_indentation();
-        chunks.line();
-
-        self.format_function_parameters(func.def.parameters, &mut chunks);
-
-        chunks.text(self.chunk(|formatter| {
-            formatter.write_right_paren();
-            formatter.write_space();
-
-            match func.def.return_type {
-                FunctionReturnType::Default(..) => (),
-                FunctionReturnType::Ty(typ) => {
-                    formatter.write_token(Token::Arrow);
-                    formatter.write_space();
-                    formatter.format_visibility(func.def.return_visibility);
-                    formatter.format_type(typ);
-                    formatter.write_space();
-                }
-            }
-
-            // If there's no where clause the left brace goes on the same line as the function signature
-            if func.def.where_clause.is_empty() {
-                // There might still be a where keyword that we'll remove
-                if formatter.token == Token::Keyword(Keyword::Where) {
-                    formatter.bump();
-                    formatter.skip_comments_and_whitespace();
-                }
-
-                formatter.write_left_brace();
-            }
-        }));
-
-        if has_parameters {
-            self.format_chunks(chunks);
+        // When the function has no parameters we can format everything in a single line
+        if func.def.parameters.is_empty() {
+            self.increase_indentation();
+            self.skip_comments_and_whitespace();
+            self.decrease_indentation();
+            self.format_function_right_paren_until_left_brace(
+                func.def.return_type,
+                func.def.return_visibility,
+                &func.def.where_clause,
+            );
         } else {
-            self.format_chunks_in_one_line(chunks);
+            let mut chunks = Chunks::new();
+            chunks.increase_indentation();
+            chunks.line();
+
+            self.format_function_parameters(func.def.parameters, &mut chunks);
+
+            chunks.decrease_indentation();
+            chunks.line();
+
+            chunks.text(self.chunk(|formatter| {
+                formatter.format_function_right_paren_until_left_brace(
+                    func.def.return_type,
+                    func.def.return_visibility,
+                    &func.def.where_clause,
+                );
+            }));
+
+            self.format_chunks(chunks);
         }
 
         self.format_function_where_clause(func.def.where_clause);
@@ -108,8 +98,6 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_function_parameters(&mut self, parameters: Vec<Param>, chunks: &mut Chunks) {
-        let has_parameters = !parameters.is_empty();
-
         for (index, param) in parameters.into_iter().enumerate() {
             if index > 0 {
                 chunks.text(self.chunk(|formatter| {
@@ -139,14 +127,49 @@ impl<'a> Formatter<'a> {
         });
 
         // Make sure to put a trailing comma before the last parameter comments, if there were any
-        if has_parameters {
-            chunks.text_if_multiline(TextChunk::new(",".to_string()));
-        }
+        chunks.text_if_multiline(TextChunk::new(",".to_string()));
 
         chunks.text(chunk);
+    }
 
-        chunks.decrease_indentation();
-        chunks.line();
+    fn format_function_right_paren_until_left_brace(
+        &mut self,
+        return_type: FunctionReturnType,
+        visibility: Visibility,
+        where_clause: &[UnresolvedTraitConstraint],
+    ) {
+        self.write_right_paren();
+        self.format_function_return_type(return_type, visibility);
+        self.skip_comments_and_whitespace();
+
+        // If there's no where clause the left brace goes on the same line as the function signature
+        if where_clause.is_empty() {
+            // There might still be a where keyword that we'll remove
+            if self.token == Token::Keyword(Keyword::Where) {
+                self.bump();
+                self.skip_comments_and_whitespace();
+            }
+
+            self.write_space();
+            self.write_left_brace();
+        }
+    }
+
+    fn format_function_return_type(
+        &mut self,
+        return_type: FunctionReturnType,
+        visibility: Visibility,
+    ) {
+        match return_type {
+            FunctionReturnType::Default(..) => (),
+            FunctionReturnType::Ty(typ) => {
+                self.write_space();
+                self.write_token(Token::Arrow);
+                self.write_space();
+                self.format_visibility(visibility);
+                self.format_type(typ);
+            }
+        }
     }
 
     fn format_function_where_clause(&mut self, constraints: Vec<UnresolvedTraitConstraint>) {
@@ -257,10 +280,12 @@ mod tests {
     #[test]
     fn format_function_when_some_args_are_multiline_because_of_line_comments_2() {
         let src = "fn  foo ( a: i32, // comment
+        // another
          b: i32 // another comment
          )  { }  ";
         let expected = "fn foo(
     a: i32, // comment
+    // another
     b: i32, // another comment
 ) {}
 ";
@@ -384,6 +409,19 @@ mod tests {
         let expected = "fn main()
 // hello
 {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_line_comment_in_parameters() {
+        let src = "fn main(
+        // hello
+        )
+    {}";
+        let expected = "fn main(
+    // hello
+) {}
 ";
         assert_format(src, expected);
     }

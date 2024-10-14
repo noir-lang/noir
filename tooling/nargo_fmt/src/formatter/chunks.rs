@@ -145,7 +145,19 @@ impl<'a> Formatter<'a> {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => {
-                    self.write(&text_chunk.string)
+                    if text_chunk.has_newlines {
+                        for (index, line) in text_chunk.string.lines().enumerate() {
+                            if index > 0 {
+                                self.write_line();
+                                if !line.starts_with(' ') {
+                                    self.write_indentation();
+                                }
+                            }
+                            self.write(line);
+                        }
+                    } else {
+                        self.write(&text_chunk.string)
+                    }
                 }
                 Chunk::Line | Chunk::SpaceOrLine => {
                     self.write_line();
