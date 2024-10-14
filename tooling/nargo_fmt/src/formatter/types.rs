@@ -55,7 +55,29 @@ impl<'a> Formatter<'a> {
                 self.write_space();
                 self.format_type(*typ);
             }
-            UnresolvedTypeData::Tuple(_vec) => todo!("Format tuple type"),
+            UnresolvedTypeData::Tuple(types) => {
+                let types_len = types.len();
+
+                self.write_left_paren();
+                for (index, typ) in types.into_iter().enumerate() {
+                    if index > 0 {
+                        self.write_comma();
+                        self.write_space();
+                    }
+                    self.format_type(typ);
+                }
+
+                self.skip_comments_and_whitespace();
+                if self.token == Token::Comma {
+                    if types_len == 1 {
+                        self.write_comma();
+                    } else {
+                        self.bump();
+                    }
+                }
+
+                self.write_right_paren();
+            }
             UnresolvedTypeData::Function(args, return_type, env, unconstrained) => {
                 if unconstrained {
                     self.write_keyword(Keyword::Unconstrained);
@@ -213,6 +235,20 @@ mod tests {
     fn format_function_type_with_env() {
         let src = "  fn  [ Env ] ( ) -> Field ";
         let expected = "fn[Env]() -> Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_tuple_type_one_type() {
+        let src = " ( Field , )";
+        let expected = "(Field,)";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_tuple_type_two_types() {
+        let src = " ( Field ,  i32 , )";
+        let expected = "(Field, i32)";
         assert_format_type(src, expected);
     }
 }
