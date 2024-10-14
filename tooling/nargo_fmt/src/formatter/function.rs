@@ -64,7 +64,16 @@ impl<'a> Formatter<'a> {
                 self.write_indentation();
             }
         } else {
-            panic!("Missing formatting function body");
+            self.increase_indentation();
+            self.write_line();
+
+            for statement in func.def.body.statements {
+                self.format_statement(statement);
+                self.write_line();
+            }
+
+            self.decrease_indentation();
+            self.write_line();
         }
 
         self.write_right_brace();
@@ -436,6 +445,18 @@ unit: ()
     // hello
     unit: (),
 ) {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body() {
+        let src = "fn main() { 1; 2; 3 }";
+        let expected = "fn main() {
+    1;
+    2;
+    3
+}
 ";
         assert_format(src, expected);
     }

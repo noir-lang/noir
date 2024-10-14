@@ -19,6 +19,7 @@ mod item;
 mod module;
 mod path;
 mod pattern;
+mod statement;
 mod structs;
 mod type_expression;
 mod types;
