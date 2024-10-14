@@ -1,5 +1,8 @@
 use noirc_frontend::{
-    ast::{FunctionReturnType, NoirFunction},
+    ast::{
+        FunctionReturnType, ItemVisibility, NoirFunction, Param, TraitBound,
+        UnresolvedTraitConstraint,
+    },
     token::{Keyword, Token},
 };
 
@@ -12,7 +15,61 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_function(&mut self, func: NoirFunction) {
         self.format_attributes();
         self.write_indentation();
+        self.format_function_modifiers(func.def.visibility);
+        self.write_keyword(Keyword::Fn);
+        self.write_space();
+        self.write_identifier(func.def.name);
+        self.format_generics(func.def.generics);
+        self.write_left_paren();
 
+        let mut chunks = Chunks::new();
+        chunks.increase_indentation();
+        chunks.line();
+
+        self.format_function_parameters(func.def.parameters, &mut chunks);
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+            formatter.write_space();
+
+            match func.def.return_type {
+                FunctionReturnType::Default(..) => (),
+                FunctionReturnType::Ty(typ) => {
+                    formatter.write_token(Token::Arrow);
+                    formatter.write_space();
+                    formatter.format_visibility(func.def.return_visibility);
+                    formatter.format_type(typ);
+                    formatter.write_space();
+                }
+            }
+
+            // If there's no where clause the left brace goes on the same line as the function signature
+            if func.def.where_clause.is_empty() {
+                formatter.write_left_brace();
+            }
+        }));
+
+        self.format_chunks(chunks);
+
+        self.format_function_where_clause(func.def.where_clause);
+
+        if func.def.body.is_empty() {
+            self.increase_indentation();
+            let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
+            self.decrease_indentation();
+            if skip_result.wrote_comment {
+                self.write_line();
+                self.write_indentation();
+            }
+        } else {
+            panic!("Missing formatting function body");
+        }
+
+        self.write_right_brace();
+        self.write_line();
+    }
+
+    fn format_function_modifiers(&mut self, visibility: ItemVisibility) {
         // For backwards compatibility, unconstrained might come before visibility.
         // We'll remember this but put it after the visibility.
         let unconstrained = if self.token == Token::Keyword(Keyword::Unconstrained) {
@@ -23,7 +80,7 @@ impl<'a> Formatter<'a> {
             false
         };
 
-        self.format_item_visibility(func.def.visibility);
+        self.format_item_visibility(visibility);
 
         if unconstrained {
             self.write("unconstrained ");
@@ -36,18 +93,10 @@ impl<'a> Formatter<'a> {
             self.write_keyword(Keyword::Comptime);
             self.write_space();
         }
+    }
 
-        self.write_keyword(Keyword::Fn);
-        self.write_space();
-        self.write_identifier(func.def.name);
-        self.format_generics(func.def.generics);
-        self.write_left_paren();
-
-        let mut chunks = Chunks::new();
-        chunks.increase_indentation();
-        chunks.line();
-
-        for (index, param) in func.def.parameters.into_iter().enumerate() {
+    fn format_function_parameters(&mut self, parameters: Vec<Param>, chunks: &mut Chunks) {
+        for (index, param) in parameters.into_iter().enumerate() {
             if index > 0 {
                 chunks.text(self.chunk(|formatter| {
                     formatter.write_comma();
@@ -81,41 +130,62 @@ impl<'a> Formatter<'a> {
 
         chunks.decrease_indentation();
         chunks.line();
+    }
 
-        chunks.text(self.chunk(|formatter| {
-            formatter.write_right_paren();
-            formatter.write_space();
-
-            match func.def.return_type {
-                FunctionReturnType::Default(..) => (),
-                FunctionReturnType::Ty(typ) => {
-                    formatter.write_token(Token::Arrow);
-                    formatter.write_space();
-                    formatter.format_visibility(func.def.return_visibility);
-                    formatter.format_type(typ);
-                    formatter.write_space();
-                }
-            }
-
-            formatter.write_left_brace();
-        }));
-
-        self.format_chunks(chunks);
-
-        if func.def.body.is_empty() {
-            self.increase_indentation();
-            let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
-            self.decrease_indentation();
-            if skip_result.wrote_comment {
-                self.write_line();
-                self.write_indentation();
-            }
-        } else {
-            panic!("Missing formatting function body");
+    fn format_function_where_clause(&mut self, constraints: Vec<UnresolvedTraitConstraint>) {
+        if constraints.is_empty() {
+            // TODO: there might still be a `where` token
+            return;
         }
 
-        self.write_right_brace();
+        self.skip_comments_and_whitespace();
         self.write_line();
+        self.write_indentation();
+        self.write_keyword(Keyword::Where);
+        self.increase_indentation();
+
+        // If we have `where F: Foo + Bar`, that's actually parsed as two constraints: `F: Foo` and `F: Bar`.
+        // To format it we'll have to skip the second type `F` if we find a `+` token.
+        let mut write_type = true;
+
+        for constraint in constraints {
+            if write_type {
+                self.write_line();
+                self.write_indentation();
+                self.format_type(constraint.typ);
+                self.write_token(Token::Colon);
+                self.write_space();
+            }
+
+            self.format_trait_bound(constraint.trait_bound);
+            self.skip_comments_and_whitespace();
+
+            if self.token == Token::Plus {
+                self.write_space();
+                self.write_token(Token::Plus);
+                self.write_space();
+                write_type = false;
+                continue;
+            }
+
+            write_type = true;
+
+            if self.token == Token::Comma {
+                self.write_token(Token::Comma);
+            } else {
+                self.write(",")
+            }
+        }
+
+        self.decrease_indentation();
+        self.write_line();
+        self.write_indentation();
+        self.write_left_brace();
+    }
+
+    fn format_trait_bound(&mut self, trait_bound: TraitBound) {
+        self.format_path(trait_bound.trait_path);
+        // TODO: generics
     }
 }
 
@@ -248,6 +318,34 @@ mod tests {
     fn format_function_return_visibility() {
         let src = "fn  foo( )  ->  pub   Field  {  }";
         let expected = "fn foo() -> pub Field {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_where_clause() {
+        let src = "mod foo { fn  foo( )  where  T : Foo , U :  Bar   {  } } ";
+        let expected = "mod foo {
+    fn foo()
+    where
+        T: Foo,
+        U: Bar,
+    {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_where_clause_multiple_bounds() {
+        let src = "mod foo { fn  foo( )  where  T : Foo+Bar , U :  Baz  +  Qux   {  } } ";
+        let expected = "mod foo {
+    fn foo()
+    where
+        T: Foo + Bar,
+        U: Baz + Qux,
+    {}
+}
+";
         assert_format(src, expected);
     }
 }
