@@ -20,6 +20,7 @@ mod module;
 mod path;
 mod pattern;
 mod structs;
+mod type_expression;
 mod types;
 mod visibility;
 
@@ -89,6 +90,14 @@ impl<'a> Formatter<'a> {
 
     fn write_right_brace(&mut self) {
         self.write_token(Token::RightBrace);
+    }
+
+    fn write_left_bracket(&mut self) {
+        self.write_token(Token::LeftBracket);
+    }
+
+    fn write_right_bracket(&mut self) {
+        self.write_token(Token::RightBracket);
     }
 
     fn write_comma(&mut self) {

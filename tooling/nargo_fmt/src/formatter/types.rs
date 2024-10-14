@@ -21,8 +21,13 @@ impl<'a> Formatter<'a> {
                 self.write_current_token();
                 self.bump();
             }
-            UnresolvedTypeData::Array(_unresolved_type_expression, _unresolved_type) => {
-                todo!("Format array type")
+            UnresolvedTypeData::Array(type_expr, typ) => {
+                self.write_left_bracket();
+                self.format_type(*typ);
+                self.write_semicolon();
+                self.write_space();
+                self.format_type_expression(type_expr);
+                self.write_right_bracket();
             }
             UnresolvedTypeData::Slice(_unresolved_type) => todo!("Format slice type"),
             UnresolvedTypeData::Expression(_unresolved_type_expression) => {
@@ -113,6 +118,20 @@ mod tests {
     fn format_named_type() {
         let src = " foo :: bar :: Baz ";
         let expected = "foo::bar::Baz";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_array_type_with_constant() {
+        let src = " [ Field ; 1 ] ";
+        let expected = "[Field; 1]";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_array_type_with_var() {
+        let src = " [ Field ; LEN ] ";
+        let expected = "[Field; LEN]";
         assert_format_type(src, expected);
     }
 }
