@@ -144,7 +144,10 @@ impl<'a> Formatter<'a> {
                     self.bump();
                 }
                 Token::LineComment(_, None) => {
-                    if number_of_newlines > 0 {
+                    if number_of_newlines > 1 && writing_line {
+                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                        self.write_indentation();
+                    } else if number_of_newlines > 0 {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else {
@@ -157,7 +160,10 @@ impl<'a> Formatter<'a> {
                     wrote_comment = true;
                 }
                 Token::BlockComment(_, None) => {
-                    if number_of_newlines > 0 {
+                    if number_of_newlines > 1 && writing_line {
+                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                        self.write_indentation();
+                    } else if number_of_newlines > 0 {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else {
@@ -172,13 +178,7 @@ impl<'a> Formatter<'a> {
         }
 
         if number_of_newlines > 1 && writing_line {
-            if self.buffer.ends_with("\n\n") {
-                // Nothing
-            } else if self.buffer.ends_with("\n") {
-                self.write("\n")
-            } else {
-                self.write("\n\n");
-            }
+            self.write_multiple_lines_without_skipping_whitespace_and_comments();
         }
 
         SkipCommentsAndWhitespaceResult { wrote_comment }
@@ -194,6 +194,16 @@ impl<'a> Formatter<'a> {
     fn write_line_without_skipping_whitespace_and_comments(&mut self) {
         if !self.buffer.ends_with('\n') {
             self.write("\n");
+        }
+    }
+
+    fn write_multiple_lines_without_skipping_whitespace_and_comments(&mut self) {
+        if self.buffer.ends_with("\n\n") {
+            // Nothing
+        } else if self.buffer.ends_with("\n") {
+            self.write("\n")
+        } else {
+            self.write("\n\n");
         }
     }
 

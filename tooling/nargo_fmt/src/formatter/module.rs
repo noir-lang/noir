@@ -31,7 +31,7 @@ impl<'a> Formatter<'a> {
         if parsed_module_is_empty(&submodule.contents) {
             self.write_left_brace();
             self.increase_indentation();
-            let skip_result = self.skip_comments_and_whitespace();
+            let skip_result = self.skip_comments_and_whitespace_impl(true);
             self.decrease_indentation();
             if skip_result.wrote_comment {
                 self.write_line();
@@ -177,6 +177,26 @@ mod bar {
     mod bar {
         // world
     }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn keeps_spaces_between_comments() {
+        let src = "  mod  foo { 
+
+// hello
+
+// world
+
+} ";
+        let expected = "mod foo {
+
+    // hello
+
+    // world
+
 }
 ";
         assert_format(src, expected);
