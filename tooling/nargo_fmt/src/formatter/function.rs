@@ -57,10 +57,10 @@ impl<'a> Formatter<'a> {
             }
 
             chunks.text(self.chunk(|formatter| {
-                // TODO: visibility
                 formatter.format_pattern(param.pattern);
                 formatter.write_token(Token::Colon);
                 formatter.write_space();
+                formatter.format_visibility(param.visibility);
                 formatter.format_type(param.typ);
             }));
         }
@@ -91,6 +91,7 @@ impl<'a> Formatter<'a> {
                 FunctionReturnType::Ty(typ) => {
                     formatter.write_token(Token::Arrow);
                     formatter.write_space();
+                    formatter.format_visibility(func.def.return_visibility);
                     formatter.format_type(typ);
                     formatter.write_space();
                 }
@@ -207,6 +208,34 @@ mod tests {
     fn format_function_return_type() {
         let src = "fn  foo( )  ->   Field  {  }";
         let expected = "fn foo() -> Field {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_parameter_pub_visibility() {
+        let src = "fn  foo( x : pub u8 ) {  }";
+        let expected = "fn foo(x: pub u8) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_parameter_calldata_visibility() {
+        let src = "fn  foo( x :  call_data ( 1 )  u8 ) {  }";
+        let expected = "fn foo(x: call_data(1) u8) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_parameter_return_data_visibility() {
+        let src = "fn  foo( x :  return_data   u8 ) {  }";
+        let expected = "fn foo(x: return_data u8) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_return_visibility() {
+        let src = "fn  foo( )  ->  pub   Field  {  }";
+        let expected = "fn foo() -> pub Field {}\n";
         assert_format(src, expected);
     }
 }
