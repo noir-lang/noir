@@ -42,9 +42,7 @@ impl<'a> Formatter<'a> {
             }
             UnresolvedTypeData::Named(path, generic_type_args, _) => {
                 self.format_path(path);
-                if !generic_type_args.is_empty() {
-                    todo!("Format named type generics");
-                }
+                self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::TraitAsType(_path, _generic_type_args) => {
                 todo!("Format trait as type")
@@ -121,6 +119,13 @@ mod tests {
     fn format_named_type() {
         let src = " foo :: bar :: Baz ";
         let expected = "foo::bar::Baz";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_named_type_with_generics() {
+        let src = " foo :: bar < A,  B  =  Field , C = i32 , D , >";
+        let expected = "foo::bar<A, B = Field, C = i32, D>";
         assert_format_type(src, expected);
     }
 

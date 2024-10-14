@@ -860,6 +860,7 @@ fn remove_interned_in_generic_type_args(
         named_args: vecmap(args.named_args, |(name, typ)| {
             (name, remove_interned_in_unresolved_type(interner, typ))
         }),
+        kinds: args.kinds,
     }
 }
 
