@@ -15,7 +15,6 @@ impl<'a> Formatter<'a> {
         self.write_keyword(Keyword::Struct);
         self.write_space();
         self.write_identifier(noir_struct.name);
-        self.skip_comments_and_whitespace();
         self.format_generics(noir_struct.generics);
         self.skip_comments_and_whitespace();
 

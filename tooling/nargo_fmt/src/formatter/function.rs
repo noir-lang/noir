@@ -40,7 +40,7 @@ impl<'a> Formatter<'a> {
         self.write_keyword(Keyword::Fn);
         self.write_space();
         self.write_identifier(func.def.name);
-        // TODO: generics
+        self.format_generics(func.def.generics);
         self.write_left_paren();
 
         let mut chunks = Chunks::new();
@@ -182,6 +182,13 @@ mod tests {
     fn format_function_with_unconstrained_before_pub() {
         let src = "unconstrained pub  fn  foo ( ) {  }";
         let expected = "pub unconstrained fn foo() {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_generics() {
+        let src = "fn  foo < A, B, >( ) {  }";
+        let expected = "fn foo<A, B>() {}\n";
         assert_format(src, expected);
     }
 }
