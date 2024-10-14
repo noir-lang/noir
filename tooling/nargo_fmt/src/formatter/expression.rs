@@ -39,17 +39,67 @@ impl<'a> Formatter<'a> {
 
     fn format_literal(&mut self, literal: Literal) {
         match literal {
-            Literal::Array(_array_literal) => todo!("Format array"),
-            Literal::Slice(_array_literal) => todo!("Format slice"),
-            Literal::Bool(_) => todo!("Format bool"),
-            Literal::Integer(..) => {
+            Literal::Unit => {
+                self.write_left_paren();
+                self.write_right_paren();
+            }
+            Literal::Bool(_)
+            | Literal::Integer(..)
+            | Literal::Str(_)
+            | Literal::FmtStr(_)
+            | Literal::RawStr(..) => {
                 self.write_current_token();
                 self.bump();
             }
-            Literal::Str(_) => todo!("Format str"),
-            Literal::RawStr(_, _) => todo!("Format raw str"),
-            Literal::FmtStr(_) => todo!("Format fmtstr"),
-            Literal::Unit => todo!("Format unit"),
+            Literal::Array(_array_literal) => todo!("Format array"),
+            Literal::Slice(_array_literal) => todo!("Format slice"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::assert_format;
+
+    #[test]
+    fn format_unit() {
+        let src = "global x =  ( ) ;";
+        let expected = "global x = ();\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_false() {
+        let src = "global x =  false ;";
+        let expected = "global x = false;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_true() {
+        let src = "global x =  true ;";
+        let expected = "global x = true;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_integer() {
+        let src = "global x =  42 ;";
+        let expected = "global x = 42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_string() {
+        let src = "global x =  \"hello\" ;";
+        let expected = "global x = \"hello\";\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_fmtstr() {
+        let src = "global x =  f\"hello\" ;";
+        let expected = "global x = f\"hello\";\n";
+        assert_format(src, expected);
     }
 }
