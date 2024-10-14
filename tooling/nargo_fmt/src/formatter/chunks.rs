@@ -128,7 +128,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_chunks_in_one_line(&mut self, chunks: Chunks) {
+    pub(super) fn format_chunks_in_one_line(&mut self, chunks: Chunks) {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) => self.write(&text_chunk.string),
@@ -141,7 +141,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_chunks_in_multiple_lines(&mut self, chunks: Chunks) {
+    pub(super) fn format_chunks_in_multiple_lines(&mut self, chunks: Chunks) {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => {

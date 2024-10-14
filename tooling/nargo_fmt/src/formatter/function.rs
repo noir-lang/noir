@@ -22,6 +22,8 @@ impl<'a> Formatter<'a> {
         self.format_generics(func.def.generics);
         self.write_left_paren();
 
+        let has_parameters = !func.def.parameters.is_empty();
+
         let mut chunks = Chunks::new();
         chunks.increase_indentation();
         chunks.line();
@@ -55,7 +57,11 @@ impl<'a> Formatter<'a> {
             }
         }));
 
-        self.format_chunks(chunks);
+        if has_parameters {
+            self.format_chunks(chunks);
+        } else {
+            self.format_chunks_in_one_line(chunks);
+        }
 
         self.format_function_where_clause(func.def.where_clause);
 
@@ -102,6 +108,8 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_function_parameters(&mut self, parameters: Vec<Param>, chunks: &mut Chunks) {
+        let has_parameters = !parameters.is_empty();
+
         for (index, param) in parameters.into_iter().enumerate() {
             if index > 0 {
                 chunks.text(self.chunk(|formatter| {
@@ -131,7 +139,10 @@ impl<'a> Formatter<'a> {
         });
 
         // Make sure to put a trailing comma before the last parameter comments, if there were any
-        chunks.text_if_multiline(TextChunk::new(",".to_string()));
+        if has_parameters {
+            chunks.text_if_multiline(TextChunk::new(",".to_string()));
+        }
+
         chunks.text(chunk);
 
         chunks.decrease_indentation();
@@ -361,6 +372,18 @@ mod tests {
         U: Baz + Qux,
     {}
 }
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_comment_after_parameters() {
+        let src = "fn main()
+        // hello 
+    {}";
+        let expected = "fn main()
+// hello
+{}
 ";
         assert_format(src, expected);
     }
