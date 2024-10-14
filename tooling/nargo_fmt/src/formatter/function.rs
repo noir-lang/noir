@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::NoirFunction,
+    ast::{FunctionReturnType, NoirFunction},
     token::{Keyword, Token},
 };
 
@@ -85,6 +85,17 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
             formatter.write_space();
+
+            match func.def.return_type {
+                FunctionReturnType::Default(..) => (),
+                FunctionReturnType::Ty(typ) => {
+                    formatter.write_token(Token::Arrow);
+                    formatter.write_space();
+                    formatter.format_type(typ);
+                    formatter.write_space();
+                }
+            }
+
             formatter.write_left_brace();
         }));
 
@@ -189,6 +200,13 @@ mod tests {
     fn format_function_generics() {
         let src = "fn  foo < A, B, >( ) {  }";
         let expected = "fn foo<A, B>() {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_return_type() {
+        let src = "fn  foo( )  ->   Field  {  }";
+        let expected = "fn foo() -> Field {}\n";
         assert_format(src, expected);
     }
 }
