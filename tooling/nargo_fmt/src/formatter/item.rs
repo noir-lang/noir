@@ -12,12 +12,12 @@ impl<'a> Formatter<'a> {
         }
 
         match item.kind {
-            ItemKind::Import(_use_tree, _item_visibility) => todo!(),
+            ItemKind::Import(_use_tree, _item_visibility) => todo!("Format import"),
             ItemKind::Function(noir_function) => self.format_function(noir_function),
             ItemKind::Struct(noir_struct) => self.format_struct(noir_struct),
-            ItemKind::Trait(_noir_trait) => todo!(),
-            ItemKind::TraitImpl(_noir_trait_impl) => todo!(),
-            ItemKind::Impl(_type_impl) => todo!(),
+            ItemKind::Trait(_noir_trait) => todo!("Format trait"),
+            ItemKind::TraitImpl(_noir_trait_impl) => todo!("Format trait impl"),
+            ItemKind::Impl(_type_impl) => todo!("Format impl"),
             ItemKind::TypeAlias(noir_type_alias) => self.format_type_alias(noir_type_alias),
             ItemKind::Global(let_statement, visibility) => {
                 self.format_global(let_statement, visibility)

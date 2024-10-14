@@ -1,4 +1,3 @@
-use chunks::TextChunk;
 use noirc_frontend::{
     ast::Ident,
     lexer::Lexer,
@@ -18,6 +17,7 @@ mod generics;
 mod global;
 mod item;
 mod module;
+mod path;
 mod pattern;
 mod structs;
 mod types;

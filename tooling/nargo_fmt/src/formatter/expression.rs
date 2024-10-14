@@ -8,46 +8,48 @@ impl<'a> Formatter<'a> {
 
         match expression.kind {
             ExpressionKind::Literal(literal) => self.format_literal(literal),
-            ExpressionKind::Block(block_expression) => todo!(),
-            ExpressionKind::Prefix(prefix_expression) => todo!(),
-            ExpressionKind::Index(index_expression) => todo!(),
-            ExpressionKind::Call(call_expression) => todo!(),
-            ExpressionKind::MethodCall(method_call_expression) => todo!(),
-            ExpressionKind::Constructor(constructor_expression) => todo!(),
-            ExpressionKind::MemberAccess(member_access_expression) => todo!(),
-            ExpressionKind::Cast(cast_expression) => todo!(),
-            ExpressionKind::Infix(infix_expression) => todo!(),
-            ExpressionKind::If(if_expression) => todo!(),
-            ExpressionKind::Variable(path) => todo!(),
-            ExpressionKind::Tuple(vec) => todo!(),
-            ExpressionKind::Lambda(lambda) => todo!(),
-            ExpressionKind::Parenthesized(expression) => todo!(),
-            ExpressionKind::Quote(tokens) => todo!(),
-            ExpressionKind::Unquote(expression) => todo!(),
-            ExpressionKind::Comptime(block_expression, span) => todo!(),
-            ExpressionKind::Unsafe(block_expression, span) => todo!(),
-            ExpressionKind::AsTraitPath(as_trait_path) => todo!(),
-            ExpressionKind::TypePath(type_path) => todo!(),
-            ExpressionKind::Resolved(expr_id) => todo!(),
-            ExpressionKind::Interned(interned_expression_kind) => todo!(),
-            ExpressionKind::InternedStatement(interned_statement_kind) => todo!(),
-            ExpressionKind::Error => todo!(),
+            ExpressionKind::Block(_block_expression) => todo!("Format block"),
+            ExpressionKind::Prefix(_prefix_expression) => todo!("Format prefix"),
+            ExpressionKind::Index(_index_expression) => todo!("Format index"),
+            ExpressionKind::Call(_call_expression) => todo!("Format call"),
+            ExpressionKind::MethodCall(_method_call_expression) => todo!("Format method call"),
+            ExpressionKind::Constructor(_constructor_expression) => todo!("Format constructor"),
+            ExpressionKind::MemberAccess(_member_access_expression) => {
+                todo!("Format member access")
+            }
+            ExpressionKind::Cast(_cast_expression) => todo!("Format cast"),
+            ExpressionKind::Infix(_infix_expression) => todo!("Format infix"),
+            ExpressionKind::If(_if_expression) => todo!("Format if"),
+            ExpressionKind::Variable(_path) => todo!("Format variable"),
+            ExpressionKind::Tuple(_vec) => todo!("Format tuple"),
+            ExpressionKind::Lambda(_lambda) => todo!("Format lambda"),
+            ExpressionKind::Parenthesized(_expression) => todo!("Format parenthesized"),
+            ExpressionKind::Quote(_tokens) => todo!("Format quote"),
+            ExpressionKind::Unquote(_expression) => todo!("Format unquote"),
+            ExpressionKind::Comptime(_block_expression, _span) => todo!("Format comptime"),
+            ExpressionKind::Unsafe(_block_expression, _span) => todo!("Format unsafe"),
+            ExpressionKind::AsTraitPath(_as_trait_path) => todo!("Format as trait path"),
+            ExpressionKind::TypePath(_type_path) => todo!("Format type path"),
+            ExpressionKind::Resolved(..)
+            | ExpressionKind::Interned(..)
+            | ExpressionKind::InternedStatement(..)
+            | ExpressionKind::Error => unreachable!("Should not be present in the AST"),
         }
     }
 
     fn format_literal(&mut self, literal: Literal) {
         match literal {
-            Literal::Array(array_literal) => todo!(),
-            Literal::Slice(array_literal) => todo!(),
-            Literal::Bool(_) => todo!(),
+            Literal::Array(_array_literal) => todo!("Format array"),
+            Literal::Slice(_array_literal) => todo!("Format slice"),
+            Literal::Bool(_) => todo!("Format bool"),
             Literal::Integer(..) => {
                 self.write_current_token();
                 self.bump();
             }
-            Literal::Str(_) => todo!(),
-            Literal::RawStr(_, _) => todo!(),
-            Literal::FmtStr(_) => todo!(),
-            Literal::Unit => todo!(),
+            Literal::Str(_) => todo!("Format str"),
+            Literal::RawStr(_, _) => todo!("Format raw str"),
+            Literal::FmtStr(_) => todo!("Format fmtstr"),
+            Literal::Unit => todo!("Format unit"),
         }
     }
 }

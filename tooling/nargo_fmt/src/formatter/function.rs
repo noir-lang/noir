@@ -102,6 +102,18 @@ impl<'a> Formatter<'a> {
 
         self.format_chunks(chunks);
 
+        if func.def.body.is_empty() {
+            self.increase_indentation();
+            let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
+            self.decrease_indentation();
+            if skip_result.wrote_comment {
+                self.write_line();
+                self.write_indentation();
+            }
+        } else {
+            panic!("Missing formatting function body");
+        }
+
         self.write_right_brace();
         self.write_line();
     }

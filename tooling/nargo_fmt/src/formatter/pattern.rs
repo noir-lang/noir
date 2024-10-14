@@ -8,10 +8,12 @@ impl<'a> Formatter<'a> {
 
         match pattern {
             Pattern::Identifier(ident) => self.write_identifier(ident),
-            Pattern::Mutable(pattern, span, _) => todo!(),
-            Pattern::Tuple(vec, span) => todo!(),
-            Pattern::Struct(path, vec, span) => todo!(),
-            Pattern::Interned(interned_pattern, span) => todo!(),
+            Pattern::Mutable(_pattern, _span, _) => todo!("Format mutable pattern"),
+            Pattern::Tuple(_vec, _span) => todo!("Format tuple pattern"),
+            Pattern::Struct(_path, _vec, _span) => todo!("Format struct pattern"),
+            Pattern::Interned(..) => {
+                unreachable!("Should not be present in the AST")
+            }
         }
     }
 }
