@@ -1,4 +1,7 @@
-use noirc_frontend::ast::{Expression, ExpressionKind, Literal};
+use noirc_frontend::{
+    ast::{ArrayLiteral, Expression, ExpressionKind, Literal},
+    token::Token,
+};
 
 use super::Formatter;
 
@@ -51,9 +54,42 @@ impl<'a> Formatter<'a> {
                 self.write_current_token();
                 self.bump();
             }
-            Literal::Array(_array_literal) => todo!("Format array"),
-            Literal::Slice(_array_literal) => todo!("Format slice"),
+            Literal::Array(array_literal) => self.format_array_literal(array_literal),
+            Literal::Slice(array_literal) => {
+                self.write_token(Token::Ampersand);
+                self.format_array_literal(array_literal);
+            }
         }
+    }
+
+    fn format_array_literal(&mut self, literal: ArrayLiteral) {
+        self.write_left_bracket();
+        match literal {
+            ArrayLiteral::Standard(exprs) => {
+                for (index, expr) in exprs.into_iter().enumerate() {
+                    if index > 0 {
+                        self.write_comma();
+                        self.write_space();
+                    }
+                    self.format_expression(expr);
+                }
+
+                self.skip_comments_and_whitespace();
+
+                // Trailing comma
+                if self.token == Token::Comma {
+                    self.bump();
+                    self.skip_comments_and_whitespace();
+                }
+            }
+            ArrayLiteral::Repeated { repeated_element, length } => {
+                self.format_expression(*repeated_element);
+                self.write_semicolon();
+                self.write_space();
+                self.format_expression(*length);
+            }
+        }
+        self.write_right_bracket();
     }
 }
 
@@ -100,6 +136,27 @@ mod tests {
     fn format_fmtstr() {
         let src = "global x =  f\"hello\" ;";
         let expected = "global x = f\"hello\";\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_standard_array() {
+        let src = "global x = [ 1 , 2 , 3 , ] ;";
+        let expected = "global x = [1, 2, 3];\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_standard_slice() {
+        let src = "global x = & [ 1 , 2 , 3 , ] ;";
+        let expected = "global x = &[1, 2, 3];\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_repeated_array() {
+        let src = "global x = [ 1 ; 3 ] ;";
+        let expected = "global x = [1; 3];\n";
         assert_format(src, expected);
     }
 }
