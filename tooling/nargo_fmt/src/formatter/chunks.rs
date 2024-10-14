@@ -155,7 +155,7 @@ impl<'a> Formatter<'a> {
                     self.increase_indentation();
                 }
                 Chunk::DecreaseIndentation => {
-                    self.deincrease_indentation();
+                    self.decrease_indentation();
                 }
             }
         }

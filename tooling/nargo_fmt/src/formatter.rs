@@ -20,6 +20,10 @@ mod structs;
 mod types;
 mod visibility;
 
+pub(crate) struct SkipCommentsAndWhitespaceResult {
+    pub(crate) wrote_comment: bool,
+}
+
 pub(crate) struct Formatter<'a> {
     config: &'a Config,
     lexer: Lexer<'a>,
@@ -46,13 +50,13 @@ impl<'a> Formatter<'a> {
 
     pub(crate) fn format_program(&mut self, parsed_module: ParsedModule) {
         self.format_parsed_module(parsed_module);
-        self.write_line();
     }
 
     fn format_parsed_module(&mut self, parsed_module: ParsedModule) {
         for item in parsed_module.items {
             self.format_item(item);
         }
+        self.write_line();
     }
 
     fn write_identifier(&mut self, ident: Ident) {
@@ -121,14 +125,18 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn skip_comments_and_whitespace(&mut self) {
+    fn skip_comments_and_whitespace(&mut self) -> SkipCommentsAndWhitespaceResult {
         self.skip_comments_and_whitespace_impl(
             false, // writing newline
-        );
+        )
     }
 
-    fn skip_comments_and_whitespace_impl(&mut self, writing_line: bool) {
+    fn skip_comments_and_whitespace_impl(
+        &mut self,
+        writing_line: bool,
+    ) -> SkipCommentsAndWhitespaceResult {
         let mut number_of_newlines = 0;
+        let mut wrote_comment = false;
         loop {
             match &self.token {
                 Token::Whitespace(whitespace) => {
@@ -146,6 +154,7 @@ impl<'a> Formatter<'a> {
                     self.write_line_without_skipping_whitespace_and_comments();
                     number_of_newlines = 1;
                     self.bump();
+                    wrote_comment = true;
                 }
                 Token::BlockComment(_, None) => {
                     if number_of_newlines > 0 {
@@ -156,6 +165,7 @@ impl<'a> Formatter<'a> {
                     }
                     self.write_current_token();
                     self.bump();
+                    wrote_comment = true;
                 }
                 _ => break,
             }
@@ -170,6 +180,8 @@ impl<'a> Formatter<'a> {
                 self.write("\n\n");
             }
         }
+
+        SkipCommentsAndWhitespaceResult { wrote_comment }
     }
 
     fn write_line(&mut self) {
@@ -205,7 +217,7 @@ impl<'a> Formatter<'a> {
         self.indentation += 1;
     }
 
-    fn deincrease_indentation(&mut self) {
+    fn decrease_indentation(&mut self) {
         self.indentation -= 1;
     }
 

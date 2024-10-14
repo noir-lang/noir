@@ -53,7 +53,7 @@ impl<'a> Formatter<'a> {
         }
 
         self.write_line();
-        self.deincrease_indentation();
+        self.decrease_indentation();
         self.write_indentation();
         self.write_right_brace();
     }

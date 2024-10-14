@@ -15,29 +15,39 @@ impl<'a> Formatter<'a> {
         self.write_space();
         self.write_identifier(module_declaration.ident);
         self.write_semicolon();
+        self.write_line();
     }
 
     pub(super) fn format_submodule(&mut self, submodule: ParsedSubModule) {
         if !submodule.outer_attributes.is_empty() {
             self.format_attributes();
         }
+        self.write_indentation();
         self.format_item_visibility(submodule.visibility);
         self.write_keyword(Keyword::Mod);
         self.write_space();
         self.write_identifier(submodule.name);
         self.write_space();
-        self.write_left_brace();
         if parsed_module_is_empty(&submodule.contents) {
-            self.skip_comments_and_whitespace();
+            self.write_left_brace();
+            self.increase_indentation();
+            let skip_result = self.skip_comments_and_whitespace();
+            self.decrease_indentation();
+            if skip_result.wrote_comment {
+                self.write_line();
+                self.write_indentation();
+            }
+            self.write_right_brace();
         } else {
+            self.write_left_brace();
             self.increase_indentation();
             self.write_line();
             self.format_parsed_module(submodule.contents);
-            self.write_line();
-            self.deincrease_indentation();
+            self.decrease_indentation();
             self.write_indentation();
+            self.write_right_brace();
         }
-        self.write_right_brace();
+        self.write_line();
     }
 }
 
@@ -149,6 +159,24 @@ mod bar;
 pub mod foo { /* one */
     /* two */
     mod bar;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_multiple_modules() {
+        let src = "  mod  foo { 
+// hello
+mod bar {
+// world
+}
+} ";
+        let expected = "mod foo {
+    // hello
+    mod bar {
+        // world
+    }
 }
 ";
         assert_format(src, expected);
