@@ -12,8 +12,10 @@ mod alias;
 mod attribute;
 mod chunks;
 mod doc_comments;
+mod expression;
 mod function;
 mod generics;
+mod global;
 mod item;
 mod module;
 mod pattern;
@@ -54,6 +56,10 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_parsed_module(&mut self, parsed_module: ParsedModule) {
+        if !parsed_module.inner_doc_comments.is_empty() {
+            self.format_inner_doc_comments();
+        }
+
         for item in parsed_module.items {
             self.format_item(item);
         }

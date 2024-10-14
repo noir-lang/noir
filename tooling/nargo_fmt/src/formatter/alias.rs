@@ -17,8 +17,7 @@ impl<'a> Formatter<'a> {
         self.write_token(Token::Assign);
         self.write_space();
         self.format_type(type_alias.typ);
-        self.skip_comments_and_whitespace();
-        self.write_token(Token::Semicolon);
+        self.write_semicolon();
         self.write_line();
     }
 }
