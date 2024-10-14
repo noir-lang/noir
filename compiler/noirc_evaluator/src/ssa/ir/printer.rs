@@ -13,6 +13,7 @@ use super::{
     dfg::DataFlowGraph,
     function::Function,
     instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
+    types::Type,
     value::{Value, ValueId},
 };
 
@@ -70,10 +71,6 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, .. } => {
-            let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
-        }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
         }
@@ -208,6 +205,21 @@ fn display_instruction_inner(
                 "if {then_condition} then {then_value} else if {else_condition} then {else_value}"
             )
         }
+        Instruction::MakeArray { elements, typ } => {
+            match typ {
+                Type::Array(..) => write!(f, "make_array [")?,
+                _ => write!(f, "make_slice [")?,
+            }
+
+            for (i, element) in elements.iter().enumerate() {
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", show(*element))?;
+            }
+
+            writeln!(f, "]")
+        }
     }
 }
 
@@ -220,13 +232,9 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
         .then_some(())
         .and_then(|()| {
-            let Value::Array { array: values, .. } = &dfg[values[0]] else {
-                return None;
-            };
-            let fields: Option<Vec<_>> =
-                values.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-
-            fields
+            let (values, _) = &dfg.get_array_constant(values[0])?;
+            let values = values.iter().map(|value_id| dfg.get_numeric_constant(*value_id));
+            values.collect::<Option<Vec<_>>>()
         })
         .map(|fields| {
             fields

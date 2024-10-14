@@ -321,7 +321,7 @@ mod test {
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::{Value, ValueId},
+            value::ValueId,
         },
     };
     use acvm::{acir::AcirField, FieldElement};
@@ -498,7 +498,8 @@ mod test {
         // fn main f0 {
         //   b0(v0: Field):
         //     v1 = add v0, Field 1
-        //     return [v1]
+        //     v2 = make_array [v1]
+        //     return v2
         // }
         //
         // After constructing this IR, we run constant folding with no expected benefit, but to
@@ -512,14 +513,14 @@ mod test {
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
 
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 1);
-        let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
-        builder.terminate_with_return(vec![arr]);
+        let v2 = builder.insert_make_array(vec![v1].into(), array_type);
+        builder.terminate_with_return(vec![v2]);
 
         let ssa = builder.finish().fold_constants();
         let main = ssa.main();
         let entry_block_id = main.entry_block();
         let entry_block = &main.dfg[entry_block_id];
-        assert_eq!(entry_block.instructions().len(), 1);
+        assert_eq!(entry_block.instructions().len(), 2);
         let new_add_instr = entry_block.instructions().first().unwrap();
         let new_add_instr_result = main.dfg.instruction_results(*new_add_instr)[0];
         assert_ne!(new_add_instr_result, v1);
@@ -528,10 +529,8 @@ mod test {
             TerminatorInstruction::Return { return_values, .. } => return_values[0],
             _ => unreachable!("Should have terminator instruction"),
         };
-        let return_element = match &main.dfg[return_value_id] {
-            Value::Array { array, .. } => array[0],
-            _ => unreachable!("Return type should be array"),
-        };
+        let return_element = main.dfg.get_array_constant(return_value_id).unwrap().0[0];
+
         // The return element is expected to refer to the new add instruction result.
         assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
     }
@@ -717,10 +716,11 @@ mod test {
         // fn main f0 {
         //   b0(v0: u1, v1: u64):
         //     enable_side_effects_if v0
-        //     v2 = array_get [Field 0, Field 1], index v1
-        //     v3 = not v0
-        //     enable_side_effects_if v3
-        //     v4 = array_get [Field 0, Field 1], index v1
+        //     v2 = make_array [Field 0, Field 1]
+        //     v3 = array_get v2, index v1
+        //     v4 = not v0
+        //     enable_side_effects_if v4
+        //     v5 = array_get v2, index v1
         // }
         //
         // We want to make sure after constant folding both array_gets remain since they are
@@ -740,20 +740,20 @@ mod test {
         let one = builder.field_constant(1u128);
 
         let typ = Type::Array(Arc::new(vec![Type::field()]), 2);
-        let array = builder.array_constant(vec![zero, one].into(), typ);
+        let v2 = builder.insert_make_array(vec![zero, one].into(), typ);
 
-        let _v2 = builder.insert_array_get(array, v1, Type::field());
-        let v3 = builder.insert_not(v0);
+        let _v3 = builder.insert_array_get(v2, v1, Type::field());
+        let v4 = builder.insert_not(v0);
 
-        builder.insert_enable_side_effects_if(v3);
-        let _v4 = builder.insert_array_get(array, v1, Type::field());
+        builder.insert_enable_side_effects_if(v4);
+        let _v5 = builder.insert_array_get(v2, v1, Type::field());
 
         // Expected output is unchanged
         let ssa = builder.finish();
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, 5);
+        assert_eq!(starting_instruction_count, 6);
 
         let ssa = ssa.fold_constants();
         let main = ssa.main();
@@ -844,18 +844,18 @@ mod test {
         assert_eq!(instructions.len(), 10);
     }
 
-    // This test currently fails. It being fixed will address the issue https://github.com/noir-lang/noir/issues/5756
     #[test]
-    #[should_panic]
     fn constant_array_deduplication() {
         // fn main f0 {
         //   b0(v0: u64):
-        //     v5 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
-        //     v6 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
+        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v5 = call keccakf1600(v1)
+        //     v6 = call keccakf1600(v2)
         // }
         //
-        // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
-        // This would result in otherwise identical instructions not being deduplicated.
+        // Here we're checking a situation where two identical arrays are initialized twice, checking that these result in the same `ValueId`.
+        // Previously, these would receive separate `ValueId`s resulting in instructions not being properly deduplicated.
         let main_id = Id::test_new(0);
 
         // Compiling main
@@ -868,15 +868,15 @@ mod test {
             v0, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
             zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
         ];
-        let array1 = builder.array_constant(array_contents.clone().into(), typ.clone());
-        let array2 = builder.array_constant(array_contents.into(), typ.clone());
+        let v1 = builder.insert_make_array(array_contents.clone().into(), typ.clone());
+        let v2 = builder.insert_make_array(array_contents.into(), typ.clone());
 
-        assert_eq!(array1, array2, "arrays were assigned different value ids");
+        assert_ne!(v1, v2, "arrays were not assigned different value ids");
 
         let keccakf1600 =
             builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");
-        let _v10 = builder.insert_call(keccakf1600, vec![array1], vec![typ.clone()]);
-        let _v11 = builder.insert_call(keccakf1600, vec![array2], vec![typ.clone()]);
+        let _v10 = builder.insert_call(keccakf1600, vec![v1], vec![typ.clone()]);
+        let _v11 = builder.insert_call(keccakf1600, vec![v2], vec![typ.clone()]);
 
         let ssa = builder.finish();
 
@@ -885,15 +885,22 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, 2);
+        assert_eq!(starting_instruction_count, 4);
 
         let ssa = ssa.fold_constants();
 
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: u64):
+        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v5 = call keccakf1600(v1)
+        // }
         println!("{ssa}");
 
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let ending_instruction_count = instructions.len();
-        assert_eq!(ending_instruction_count, 1);
+        assert_eq!(ending_instruction_count, 2);
     }
 }
