@@ -16,7 +16,7 @@ impl<'a> Formatter<'a> {
             ItemKind::Trait(_noir_trait) => todo!(),
             ItemKind::TraitImpl(_noir_trait_impl) => todo!(),
             ItemKind::Impl(_type_impl) => todo!(),
-            ItemKind::TypeAlias(_noir_type_alias) => todo!(),
+            ItemKind::TypeAlias(noir_type_alias) => self.format_type_alias(noir_type_alias),
             ItemKind::Global(_let_statement, _item_visibility) => todo!(),
             ItemKind::ModuleDecl(module_declaration) => {
                 self.format_module_declaration(module_declaration)

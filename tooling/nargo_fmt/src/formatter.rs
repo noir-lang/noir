@@ -8,6 +8,7 @@ use noirc_frontend::{
 
 use crate::Config;
 
+mod alias;
 mod attribute;
 mod chunks;
 mod doc_comments;
