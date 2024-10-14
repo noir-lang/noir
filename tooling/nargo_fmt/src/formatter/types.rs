@@ -1,6 +1,6 @@
 use noirc_frontend::{
     ast::{UnresolvedType, UnresolvedTypeData},
-    token::Keyword,
+    token::{Keyword, Token},
 };
 
 use super::Formatter;
@@ -49,8 +49,11 @@ impl<'a> Formatter<'a> {
             UnresolvedTypeData::TraitAsType(_path, _generic_type_args) => {
                 todo!("Format trait as type")
             }
-            UnresolvedTypeData::MutableReference(_unresolved_type) => {
-                todo!("Format mutable reference")
+            UnresolvedTypeData::MutableReference(typ) => {
+                self.write_token(Token::Ampersand);
+                self.write_keyword(Keyword::Mut);
+                self.write_space();
+                self.format_type(*typ);
             }
             UnresolvedTypeData::Tuple(_vec) => todo!("Format tuple type"),
             UnresolvedTypeData::Function(_vec, _unresolved_type, _unresolved_type1, _) => {
@@ -132,6 +135,13 @@ mod tests {
     fn format_array_type_with_var() {
         let src = " [ Field ; LEN ] ";
         let expected = "[Field; LEN]";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_mutable_reference_type() {
+        let src = " &  mut  Field ";
+        let expected = "&mut Field";
         assert_format_type(src, expected);
     }
 }
