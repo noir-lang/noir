@@ -127,13 +127,21 @@ impl<'a> Formatter<'a> {
 
     fn skip_comments_and_whitespace(&mut self) -> SkipCommentsAndWhitespaceResult {
         self.skip_comments_and_whitespace_impl(
-            false, // writing newline
+            false, // write lines
+        )
+    }
+
+    fn skip_comments_and_whitespace_writing_lines_if_found(
+        &mut self,
+    ) -> SkipCommentsAndWhitespaceResult {
+        self.skip_comments_and_whitespace_impl(
+            true, // write lines
         )
     }
 
     fn skip_comments_and_whitespace_impl(
         &mut self,
-        writing_line: bool,
+        write_lines: bool,
     ) -> SkipCommentsAndWhitespaceResult {
         let mut number_of_newlines = 0;
         let mut wrote_comment = false;
@@ -144,7 +152,7 @@ impl<'a> Formatter<'a> {
                     self.bump();
                 }
                 Token::LineComment(_, None) => {
-                    if number_of_newlines > 1 && writing_line {
+                    if number_of_newlines > 1 && write_lines {
                         self.write_multiple_lines_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else if number_of_newlines > 0 {
@@ -160,7 +168,7 @@ impl<'a> Formatter<'a> {
                     wrote_comment = true;
                 }
                 Token::BlockComment(_, None) => {
-                    if number_of_newlines > 1 && writing_line {
+                    if number_of_newlines > 1 && write_lines {
                         self.write_multiple_lines_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else if number_of_newlines > 0 {
@@ -177,7 +185,7 @@ impl<'a> Formatter<'a> {
             }
         }
 
-        if number_of_newlines > 1 && writing_line {
+        if number_of_newlines > 1 && write_lines {
             self.write_multiple_lines_without_skipping_whitespace_and_comments();
         }
 
