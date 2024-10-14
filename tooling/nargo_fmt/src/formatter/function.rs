@@ -12,8 +12,31 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_function(&mut self, func: NoirFunction) {
         self.format_attributes();
         self.write_indentation();
+
+        // For backwards compatibility, unconstrained might come before visibility.
+        // We'll remember this but put it after the visibility.
+        let unconstrained = if self.token == Token::Keyword(Keyword::Unconstrained) {
+            self.bump();
+            self.skip_comments_and_whitespace();
+            true
+        } else {
+            false
+        };
+
         self.format_item_visibility(func.def.visibility);
-        // TODO: comptime, unconstrained
+
+        if unconstrained {
+            self.write("unconstrained ");
+        } else if self.token == Token::Keyword(Keyword::Unconstrained) {
+            self.write_keyword(Keyword::Unconstrained);
+            self.write_space();
+        }
+
+        if self.token == Token::Keyword(Keyword::Comptime) {
+            self.write_keyword(Keyword::Comptime);
+            self.write_space();
+        }
+
         self.write_keyword(Keyword::Fn);
         self.write_space();
         self.write_identifier(func.def.name);
@@ -145,6 +168,20 @@ mod tests {
         comment */,
     b: i32,
 ) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_modifiers() {
+        let src = "pub  unconstrained  comptime  fn  foo ( ) {  }";
+        let expected = "pub unconstrained comptime fn foo() {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_unconstrained_before_pub() {
+        let src = "unconstrained pub  fn  foo ( ) {  }";
+        let expected = "pub unconstrained fn foo() {}\n";
         assert_format(src, expected);
     }
 }
