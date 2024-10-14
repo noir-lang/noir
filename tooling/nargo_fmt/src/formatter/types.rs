@@ -56,8 +56,44 @@ impl<'a> Formatter<'a> {
                 self.format_type(*typ);
             }
             UnresolvedTypeData::Tuple(_vec) => todo!("Format tuple type"),
-            UnresolvedTypeData::Function(_vec, _unresolved_type, _unresolved_type1, _) => {
-                todo!("Format function type")
+            UnresolvedTypeData::Function(args, return_type, env, unconstrained) => {
+                if unconstrained {
+                    self.write_keyword(Keyword::Unconstrained);
+                    self.write_space();
+                }
+
+                self.write_keyword(Keyword::Fn);
+                self.skip_comments_and_whitespace();
+
+                if self.token == Token::LeftBracket {
+                    self.write_left_bracket();
+                    self.format_type(*env);
+                    self.write_right_bracket();
+                }
+
+                self.write_left_paren();
+                for (index, arg) in args.into_iter().enumerate() {
+                    if index > 0 {
+                        self.write_comma();
+                        self.write_space();
+                    }
+                    self.format_type(arg);
+                }
+
+                self.skip_comments_and_whitespace();
+                // Remove trailing comma if there's one
+                if self.token == Token::Comma {
+                    self.bump();
+                }
+
+                self.write_right_paren();
+                self.skip_comments_and_whitespace();
+                if self.token == Token::Arrow {
+                    self.write_space();
+                    self.write_token(Token::Arrow);
+                    self.write_space();
+                    self.format_type(*return_type);
+                }
             }
             UnresolvedTypeData::Quoted(_quoted_type) => todo!("Format quoted type"),
             UnresolvedTypeData::AsTraitPath(_as_trait_path) => todo!("Format as trait path"),
@@ -156,6 +192,27 @@ mod tests {
     fn format_parenthesized_type() {
         let src = " ( Field )";
         let expected = "(Field)";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_simple_function_type() {
+        let src = " fn ( ) -> Field ";
+        let expected = "fn() -> Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_function_type_with_args_and_unconstrained() {
+        let src = "  unconstrained  fn  (  Field , i32 , ) -> Field ";
+        let expected = "unconstrained fn(Field, i32) -> Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_function_type_with_env() {
+        let src = "  fn  [ Env ] ( ) -> Field ";
+        let expected = "fn[Env]() -> Field";
         assert_format_type(src, expected);
     }
 }
