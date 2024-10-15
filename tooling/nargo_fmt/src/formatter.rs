@@ -1,7 +1,8 @@
 use noirc_frontend::{
     ast::Ident,
+    hir::resolution::errors::Span,
     lexer::Lexer,
-    token::{Keyword, Token},
+    token::{Keyword, SpannedToken, Token},
     ParsedModule,
 };
 
@@ -32,8 +33,10 @@ pub(crate) struct SkipCommentsAndWhitespaceResult {
 
 pub(crate) struct Formatter<'a> {
     config: &'a Config,
+    source: &'a str,
     lexer: Lexer<'a>,
     token: Token,
+    token_span: Span,
     indentation: usize,
     current_line_width: usize,
     pub(crate) buffer: String,
@@ -44,8 +47,10 @@ impl<'a> Formatter<'a> {
         let lexer = Lexer::new(source).skip_comments(false).skip_whitespaces(false);
         let mut formatter = Self {
             config,
+            source,
             lexer,
             token: Token::EOF,
+            token_span: Default::default(),
             indentation: 0,
             current_line_width: 0,
             buffer: String::new(),
@@ -130,6 +135,10 @@ impl<'a> Formatter<'a> {
 
     fn write_current_token_trimming_end(&mut self) {
         self.write(&self.token.to_string().trim_end());
+    }
+
+    fn write_current_token_as_in_source(&mut self) {
+        self.write(&self.source[self.token_span.start() as usize..self.token_span.end() as usize]);
     }
 
     fn write_space(&mut self) {
@@ -306,19 +315,20 @@ impl<'a> Formatter<'a> {
 
     fn bump(&mut self) -> Token {
         let next_token = self.read_token_internal();
-        std::mem::replace(&mut self.token, next_token)
+        self.token_span = next_token.to_span();
+        std::mem::replace(&mut self.token, next_token.into_token())
     }
 
-    fn read_token_internal(&mut self) -> Token {
+    fn read_token_internal(&mut self) -> SpannedToken {
         loop {
             let token = self.lexer.next();
             if let Some(token) = token {
                 match token {
-                    Ok(token) => return token.into_token(),
+                    Ok(token) => return token,
                     Err(..) => panic!("Expected lexer not to error"),
                 }
             } else {
-                return Token::EOF;
+                return SpannedToken::new(Token::EOF, Default::default());
             }
         }
     }

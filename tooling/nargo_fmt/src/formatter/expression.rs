@@ -60,7 +60,7 @@ impl<'a> Formatter<'a> {
             | Literal::Str(_)
             | Literal::FmtStr(_)
             | Literal::RawStr(..) => chunks.text(self.chunk(|formatter| {
-                formatter.write_current_token();
+                formatter.write_current_token_as_in_source();
                 formatter.bump();
             })),
             Literal::Array(array_literal) => chunks.group(self.format_array_literal(
@@ -177,6 +177,13 @@ mod tests {
     fn format_integer() {
         let src = "global x =  42 ;";
         let expected = "global x = 42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_hex_integer() {
+        let src = "global x =  0xff ;";
+        let expected = "global x = 0xff;\n";
         assert_format(src, expected);
     }
 
