@@ -46,8 +46,11 @@ impl<'a> Formatter<'a> {
                 self.format_path(path);
                 self.format_generic_type_args(generic_type_args);
             }
-            UnresolvedTypeData::TraitAsType(_path, _generic_type_args) => {
-                todo!("Format trait as type")
+            UnresolvedTypeData::TraitAsType(path, generic_type_args) => {
+                self.write_keyword(Keyword::Impl);
+                self.write_space();
+                self.format_path(path);
+                self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::MutableReference(typ) => {
                 self.write_token(Token::Ampersand);
@@ -249,6 +252,13 @@ mod tests {
     fn format_tuple_type_two_types() {
         let src = " ( Field ,  i32 , )";
         let expected = "(Field, i32)";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_trait_as_type() {
+        let src = " impl Foo < Bar > ";
+        let expected = "impl Foo<Bar>";
         assert_format_type(src, expected);
     }
 }
