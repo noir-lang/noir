@@ -209,11 +209,7 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_left_bracket();
         }));
-        chunks.increase_indentation();
-        chunks.line();
         self.format_expression(index.index, &mut chunks);
-        chunks.decrease_indentation();
-        chunks.line();
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_bracket();
         }));
@@ -460,6 +456,17 @@ global y = 1;
         let src = "global x = foo [ bar ] ;";
         let expected = "global x = foo[bar];\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_long_index() {
+        let src = "global x = foo [ bar [ baz [ qux [ one [ two ]]]] ] ; global y = 1;";
+        let expected = "global x =
+    foo[bar[baz[qux[
+        one[two]]]]];
+global y = 1;
+";
+        assert_format_with_max_width(src, expected, 25);
     }
 
     #[test]

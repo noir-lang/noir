@@ -179,6 +179,14 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunks(&mut self, chunks: Chunks) {
+        let previous_indentation = self.indentation;
+
+        self.format_chunks_impl(chunks);
+
+        self.indentation = previous_indentation;
+    }
+
+    pub(super) fn format_chunks_impl(&mut self, chunks: Chunks) {
         if chunks.has_newlines() {
             self.format_chunks_in_multiple_lines(chunks);
         } else {
@@ -234,6 +242,16 @@ impl<'a> Formatter<'a> {
                     if text_chunk.has_newlines {
                         self.write_chunk_lines(&text_chunk.string);
                     } else {
+                        // If we didn't exceed the max width, but this chunk will, insert a newline,
+                        // increase indentation and indent (the indentation will be undone
+                        // after `format_chunks` finishes)
+                        if self.current_line_width <= self.config.max_width
+                            && self.current_line_width + text_chunk.width > self.config.max_width
+                        {
+                            self.write_line_without_skipping_whitespace_and_comments();
+                            self.increase_indentation();
+                            self.write_indentation();
+                        }
                         self.write(&text_chunk.string)
                     }
                 }
@@ -247,7 +265,7 @@ impl<'a> Formatter<'a> {
                     self.write_line_without_skipping_whitespace_and_comments();
                     self.write_indentation();
                 }
-                Chunk::Group(chunks) => self.format_chunks(chunks),
+                Chunk::Group(group) => self.format_chunks_impl(group),
                 Chunk::Line { two } => {
                     if two {
                         self.write_multiple_lines_without_skipping_whitespace_and_comments();
@@ -267,6 +285,11 @@ impl<'a> Formatter<'a> {
                 }
             }
         }
+
+        // while increased_indentations > 0 {
+        //     self.decrease_indentation();
+        //     increased_indentations -= 1;
+        // }
     }
 
     fn write_chunk_lines(&mut self, string: &str) {
