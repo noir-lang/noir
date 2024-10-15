@@ -13,10 +13,7 @@ impl<'a> Formatter<'a> {
     ) {
         let mut chunks = Chunks::new();
         chunks.text(self.chunk(|formatter| {
-            formatter.write_indentation();
-        }));
-
-        chunks.text(self.chunk(|formatter| {
+            // formatter.write_indentation();
             formatter.format_item_visibility(visibility);
             formatter.write_keyword(Keyword::Global);
             formatter.write_space();
@@ -40,6 +37,7 @@ impl<'a> Formatter<'a> {
         }));
         chunks.decrease_indentation();
 
+        self.write_indentation();
         self.format_chunks(chunks);
 
         self.write_line();

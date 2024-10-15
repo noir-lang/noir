@@ -34,7 +34,6 @@ impl<'a> Formatter<'a> {
 
                 let doc_comments = documented_method.doc_comments;
                 let method = documented_method.item;
-
                 if !doc_comments.is_empty() {
                     self.format_outer_doc_comments();
                 }

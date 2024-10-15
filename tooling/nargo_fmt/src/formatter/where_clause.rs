@@ -53,7 +53,7 @@ impl<'a> Formatter<'a> {
         self.write_indentation();
     }
 
-    fn format_trait_bound(&mut self, trait_bound: TraitBound) {
+    pub(super) fn format_trait_bound(&mut self, trait_bound: TraitBound) {
         self.format_path(trait_bound.trait_path);
         // TODO: generics
     }

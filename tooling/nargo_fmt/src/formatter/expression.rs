@@ -232,6 +232,22 @@ mod tests {
     }
 
     #[test]
+    fn format_long_array_in_global_in_mod() {
+        let src = "mod moo { mod bar { global x = [ 1 , 2 , 3 , 4, 5, ] ; } }";
+        let expected = "mod moo {
+    mod bar {
+        global x =
+            [
+                1, 2, 3,
+                4, 5,
+            ];
+    }
+}
+";
+        assert_format_with_max_width(src, expected, 25);
+    }
+
+    #[test]
     fn format_long_array_in_global_2() {
         let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;
 

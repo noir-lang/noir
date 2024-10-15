@@ -1,5 +1,8 @@
 use noirc_frontend::{
-    ast::{BlockExpression, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility},
+    ast::{
+        BlockExpression, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
+        UnresolvedGenerics, UnresolvedTraitConstraint, Visibility,
+    },
     token::{Keyword, Token},
 };
 
@@ -8,44 +11,71 @@ use super::{
     Formatter,
 };
 
+pub(super) struct FunctionToFormat {
+    pub(super) visibility: ItemVisibility,
+    pub(super) name: Ident,
+    pub(super) generics: UnresolvedGenerics,
+    pub(super) parameters: Vec<Param>,
+    pub(super) return_type: FunctionReturnType,
+    pub(super) return_visibility: Visibility,
+    pub(super) where_clause: Vec<UnresolvedTraitConstraint>,
+    pub(super) body: Option<BlockExpression>,
+}
+
 impl<'a> Formatter<'a> {
     pub(super) fn format_function(&mut self, func: NoirFunction) {
-        let has_where_clause = !func.def.where_clause.is_empty();
+        self.format_function_impl(FunctionToFormat {
+            visibility: func.def.visibility,
+            name: func.def.name,
+            generics: func.def.generics,
+            parameters: func.def.parameters,
+            return_type: func.def.return_type,
+            return_visibility: func.def.return_visibility,
+            where_clause: func.def.where_clause,
+            body: Some(func.def.body),
+        });
+        self.write_line();
+    }
+
+    pub(super) fn format_function_impl(&mut self, func: FunctionToFormat) {
+        let has_where_clause = !func.where_clause.is_empty();
 
         self.format_attributes();
         self.write_indentation();
-        self.format_function_modifiers(func.def.visibility);
+        self.format_function_modifiers(func.visibility);
         self.write_keyword(Keyword::Fn);
         self.write_space();
-        self.write_identifier(func.def.name);
-        self.format_generics(func.def.generics);
+        self.write_identifier(func.name);
+        self.format_generics(func.generics);
         self.write_left_paren();
 
         // When the function has no parameters we can format everything in a single line
-        if func.def.parameters.is_empty() {
+        if func.parameters.is_empty() {
             self.increase_indentation();
             self.skip_comments_and_whitespace();
             self.decrease_indentation();
-            self.format_function_right_paren_until_left_brace(
-                func.def.return_type,
-                func.def.return_visibility,
+            self.format_function_right_paren_until_left_brace_or_semicolon(
+                func.return_type,
+                func.return_visibility,
                 has_where_clause,
+                func.body.is_none(), // semicolon
             );
         } else {
             let mut chunks = Chunks::new();
             chunks.increase_indentation();
             chunks.line();
 
-            self.format_function_parameters(func.def.parameters, &mut chunks);
+            self.format_function_parameters(func.parameters, &mut chunks);
 
             chunks.decrease_indentation();
             chunks.line();
 
             chunks.text(self.chunk(|formatter| {
-                formatter.format_function_right_paren_until_left_brace(
-                    func.def.return_type,
-                    func.def.return_visibility,
+                formatter.format_function_right_paren_until_left_brace_or_semicolon(
+                    func.return_type,
+                    func.return_visibility,
                     has_where_clause,
+                    func.body.is_none(), // semicolon
                 );
             }));
 
@@ -53,15 +83,17 @@ impl<'a> Formatter<'a> {
         }
 
         if has_where_clause {
-            self.format_where_clause(func.def.where_clause);
+            self.format_where_clause(func.where_clause);
             self.write_left_brace();
         }
-        self.format_function_body(func.def.body);
-        self.write_right_brace();
-        self.write_line();
+
+        if let Some(body) = func.body {
+            self.format_function_body(body);
+            self.write_right_brace();
+        }
     }
 
-    fn format_function_modifiers(&mut self, visibility: ItemVisibility) {
+    pub(super) fn format_function_modifiers(&mut self, visibility: ItemVisibility) {
         // For backwards compatibility, unconstrained might come before visibility.
         // We'll remember this but put it after the visibility.
         let unconstrained = if self.token == Token::Keyword(Keyword::Unconstrained) {
@@ -87,7 +119,11 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_function_parameters(&mut self, parameters: Vec<Param>, chunks: &mut Chunks) {
+    pub(super) fn format_function_parameters(
+        &mut self,
+        parameters: Vec<Param>,
+        chunks: &mut Chunks,
+    ) {
         for (index, param) in parameters.into_iter().enumerate() {
             if index > 0 {
                 chunks.text(self.chunk(|formatter| {
@@ -127,11 +163,12 @@ impl<'a> Formatter<'a> {
         chunks.text(chunk);
     }
 
-    fn format_function_right_paren_until_left_brace(
+    pub(super) fn format_function_right_paren_until_left_brace_or_semicolon(
         &mut self,
         return_type: FunctionReturnType,
         visibility: Visibility,
         has_where_clause: bool,
+        semicolon: bool,
     ) {
         self.write_right_paren();
         self.format_function_return_type(return_type, visibility);
@@ -145,8 +182,12 @@ impl<'a> Formatter<'a> {
                 self.skip_comments_and_whitespace();
             }
 
-            self.write_space();
-            self.write_left_brace();
+            if semicolon {
+                self.write_semicolon();
+            } else {
+                self.write_space();
+                self.write_left_brace();
+            }
         }
     }
 
@@ -167,7 +208,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_function_body(&mut self, body: BlockExpression) {
+    pub(super) fn format_function_body(&mut self, body: BlockExpression) {
         if body.is_empty() {
             self.increase_indentation();
             let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();

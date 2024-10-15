@@ -23,6 +23,7 @@ mod path;
 mod pattern;
 mod statement;
 mod structs;
+mod traits;
 mod type_expression;
 mod types;
 mod visibility;
