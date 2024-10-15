@@ -37,7 +37,12 @@ impl<'a> Formatter<'a> {
             UnresolvedTypeData::Expression(_unresolved_type_expression) => {
                 todo!("Format expression type")
             }
-            UnresolvedTypeData::String(_unresolved_type_expression) => todo!("Format string type"),
+            UnresolvedTypeData::String(type_expr) => {
+                self.write_keyword(Keyword::String);
+                self.write_token(Token::Less);
+                self.format_type_expression(type_expr);
+                self.write_token(Token::Greater);
+            }
             UnresolvedTypeData::FormatString(_unresolved_type_expression, _unresolved_type) => {
                 todo!("Format format string type")
             }
@@ -270,6 +275,13 @@ mod tests {
     fn format_trait_as_type() {
         let src = " impl Foo < Bar > ";
         let expected = "impl Foo<Bar>";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_string_type() {
+        let src = "str < 6 >";
+        let expected = "str<6>";
         assert_format_type(src, expected);
     }
 }
