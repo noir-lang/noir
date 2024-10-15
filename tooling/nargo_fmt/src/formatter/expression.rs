@@ -10,9 +10,7 @@ use super::{
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_expression(&mut self, expression: Expression, chunks: &mut Chunks) {
-        chunks.text(self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
-        }));
+        chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
 
         match expression.kind {
             ExpressionKind::Literal(literal) => self.format_literal(literal, chunks),
@@ -91,8 +89,8 @@ impl<'a> Formatter<'a> {
                     if index > 0 {
                         chunks.text(self.chunk(|formatter| {
                             formatter.write_comma();
-                            formatter.skip_comments_and_whitespace();
                         }));
+                        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
                         chunks.space_or_line();
                     }
                     self.format_expression(expr, &mut chunks)
@@ -233,5 +231,78 @@ global y = 1;
     ];
 ";
         assert_format_with_max_width(src, expected, 25);
+    }
+
+    #[test]
+    fn format_array_in_global_with_line_comments() {
+        let src = "global x = [ // hello
+        1 , 2 ] ;";
+        let expected = "global x =
+    [
+        // hello
+        1, 2,
+    ];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_line_comments_2() {
+        let src = "global x = [ // hello
+         [ 1 , 2 ]  ] ;";
+        let expected = "global x =
+    [
+        // hello
+        [1, 2],
+    ];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_line_comments_3() {
+        let src = "global x =
+    [ 
+        // hello
+        [1, 2],  
+    ];
+";
+        let expected = "global x =
+    [
+        // hello
+        [1, 2],
+    ];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_line_comments_4() {
+        let src = "global x =
+    [
+        1, // world 
+        2, 3,
+    ];
+";
+        let expected = "global x =
+    [
+        1, // world
+        2, 3,
+    ];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_block_comments() {
+        let src = "global x = [ /* hello */
+        1 , 2 ] ;";
+        let expected = "global x =
+    [
+        /* hello */
+        1, 2,
+    ];
+";
+        assert_format_with_max_width(src, expected, 20);
     }
 }

@@ -164,11 +164,26 @@ impl<'a> Formatter<'a> {
         let mut number_of_newlines = 0;
         let mut passed_whitespace = false;
         let mut wrote_comment = false;
+        let mut last_was_block_comment = false;
         loop {
             match &self.token {
                 Token::Whitespace(whitespace) => {
                     number_of_newlines = whitespace.chars().filter(|char| *char == '\n').count();
                     passed_whitespace = whitespace.ends_with(' ');
+
+                    if last_was_block_comment && number_of_newlines > 0 {
+                        if number_of_newlines > 1 {
+                            self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                        } else {
+                            self.write_line_without_skipping_whitespace_and_comments();
+                        }
+                        self.write_indentation();
+                        number_of_newlines = 0;
+                        passed_whitespace = false;
+                    }
+
+                    last_was_block_comment = false;
+
                     self.bump();
                 }
                 Token::LineComment(_, None) => {
@@ -187,6 +202,7 @@ impl<'a> Formatter<'a> {
                     self.bump();
                     wrote_comment = true;
                     passed_whitespace = false;
+                    last_was_block_comment = false;
                 }
                 Token::BlockComment(_, None) => {
                     if number_of_newlines > 1 && write_lines {
@@ -202,6 +218,7 @@ impl<'a> Formatter<'a> {
                     self.bump();
                     wrote_comment = true;
                     passed_whitespace = false;
+                    last_was_block_comment = true;
                 }
                 _ => break,
             }
@@ -221,9 +238,12 @@ impl<'a> Formatter<'a> {
         self.write_line_without_skipping_whitespace_and_comments();
     }
 
-    fn write_line_without_skipping_whitespace_and_comments(&mut self) {
-        if !self.buffer.ends_with('\n') {
+    fn write_line_without_skipping_whitespace_and_comments(&mut self) -> bool {
+        if !self.buffer.ends_with('\n') && !self.buffer.ends_with(' ') {
             self.write("\n");
+            true
+        } else {
+            false
         }
     }
 
@@ -238,6 +258,10 @@ impl<'a> Formatter<'a> {
     }
 
     fn write_indentation(&mut self) {
+        if self.buffer.ends_with(' ') {
+            return;
+        }
+
         for _ in 0..self.indentation {
             self.write("    ");
         }

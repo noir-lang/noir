@@ -40,11 +40,7 @@ impl<'a> Formatter<'a> {
         }));
         chunks.decrease_indentation();
 
-        // dbg!(&chunks);
-
-        // dbg!(&self.buffer);
         self.format_chunks(chunks);
-        // dbg!(&self.buffer);
 
         self.write_line();
     }

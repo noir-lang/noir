@@ -53,6 +53,10 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
         panic!("Expected no errors, got: {:?}", errors);
     }
     let result = format(src, parsed_module, &config);
+    if result != expected {
+        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, result);
+    }
+
     similar_asserts::assert_eq!(result, expected);
 
     let src = &result;
@@ -61,5 +65,8 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
         panic!("Expected no errors in idempotent check, got: {:?}", errors);
     }
     let result = format(src, parsed_module, &config);
+    if result != expected {
+        println!("Expected (idempotent):\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, result);
+    }
     similar_asserts::assert_eq!(result, expected, "idempotent check failed");
 }

@@ -111,8 +111,8 @@ impl<'a> Formatter<'a> {
             if index > 0 {
                 chunks.text(self.chunk(|formatter| {
                     formatter.write_comma();
-                    formatter.skip_comments_and_whitespace();
                 }));
+                chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
                 chunks.space_or_line();
             }
 

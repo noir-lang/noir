@@ -19,19 +19,33 @@ impl TextChunk {
 
 #[derive(Debug)]
 pub(crate) enum Chunk {
+    /// A text chunk. It might contain leading comments.
     Text(TextChunk),
+    /// A text chunk that should only be written if we decide to format chunks in multiple lines.
     TextIfMultiline(TextChunk),
+    /// A trailing comment (happens at the end of a line, and always after something else have been written).
+    TrailingComment(TextChunk),
+    /// A leading comment. Happens at the beginning of a line.
+    LeadingComment(TextChunk),
+    /// A group of chunks.
     Chunks(Chunks),
+    /// Write a line if we decide to format chunks in multiple lines, otherwise do nothing.
     Line,
+    /// Writes a space if we can write a group in one line, otherwise writes a line.
+    /// However, a space might be written if `one_chunk_per_line` of a Chunks object is set to false.
     SpaceOrLine,
+    /// Command to increase the current indentation.
     IncreaseIndentation,
+    /// Command to decrease the current indentation.
     DecreaseIndentation,
 }
 
 impl Chunk {
     pub(crate) fn width(&self) -> usize {
         match self {
-            Chunk::Text(chunk) => chunk.width,
+            Chunk::Text(chunk) | Chunk::TrailingComment(chunk) | Chunk::LeadingComment(chunk) => {
+                chunk.width
+            }
             Chunk::Chunks(chunks) => chunks.width(),
             Chunk::SpaceOrLine => 1,
             Chunk::Line
@@ -43,7 +57,10 @@ impl Chunk {
 
     pub(crate) fn has_newlines(&self) -> bool {
         match self {
-            Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => text_chunk.has_newlines,
+            Chunk::Text(chunk)
+            | Chunk::TextIfMultiline(chunk)
+            | Chunk::TrailingComment(chunk)
+            | Chunk::LeadingComment(chunk) => chunk.has_newlines,
             Chunk::Chunks(chunks) => chunks.has_newlines(),
             Chunk::Line
             | Chunk::SpaceOrLine
@@ -77,6 +94,18 @@ impl Chunks {
             } else {
                 self.push(Chunk::Text(chunk));
             }
+        }
+    }
+
+    pub(crate) fn trailing_comment(&mut self, chunk: TextChunk) {
+        if chunk.width > 0 {
+            self.push(Chunk::TrailingComment(chunk));
+        }
+    }
+
+    pub(crate) fn leading_comment(&mut self, chunk: TextChunk) {
+        if chunk.width > 0 {
+            self.push(Chunk::LeadingComment(chunk));
         }
     }
 
@@ -135,6 +164,12 @@ impl<'a> Formatter<'a> {
         TextChunk::new(string)
     }
 
+    pub(super) fn skip_comments_and_whitespace_chunk(&mut self) -> TextChunk {
+        self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        })
+    }
+
     pub(super) fn format_chunks(&mut self, chunks: Chunks) {
         if chunks.has_newlines() {
             self.format_chunks_in_multiple_lines(chunks);
@@ -156,6 +191,8 @@ impl<'a> Formatter<'a> {
                 Chunk::Chunks(chunks) => self.format_chunks_in_one_line(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
                 Chunk::TextIfMultiline(..)
+                | Chunk::TrailingComment(..)
+                | Chunk::LeadingComment(..)
                 | Chunk::Line
                 | Chunk::IncreaseIndentation
                 | Chunk::DecreaseIndentation => (),
@@ -187,23 +224,20 @@ impl<'a> Formatter<'a> {
             match chunk {
                 Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => {
                     if text_chunk.has_newlines {
-                        for (index, line) in text_chunk.string.lines().enumerate() {
-                            // Don't indent the first line (it should already be indented).
-                            // Also don't indent if the current line already has a space as the last char
-                            // (it means it's already indented)
-                            if index > 0 && !self.buffer.ends_with(' ') {
-                                self.write_line_without_skipping_whitespace_and_comments();
-                                // Only indent if the line doesn't start with a space. When that happens
-                                // it's likely a block comment part that we don't want to modify.
-                                if !line.starts_with(' ') {
-                                    self.write_indentation();
-                                }
-                            }
-                            self.write(line);
-                        }
+                        self.write_chunk_lines(&text_chunk.string);
                     } else {
                         self.write(&text_chunk.string)
                     }
+                }
+                Chunk::TrailingComment(text_chunk) => {
+                    self.write_chunk_lines(&text_chunk.string);
+                    self.write_line_without_skipping_whitespace_and_comments();
+                    self.write_indentation();
+                }
+                Chunk::LeadingComment(text_chunk) => {
+                    self.write_chunk_lines(&text_chunk.string.trim());
+                    self.write_line_without_skipping_whitespace_and_comments();
+                    self.write_indentation();
                 }
                 Chunk::Chunks(chunks) => self.format_chunks(chunks),
                 Chunk::Line => {
@@ -219,6 +253,30 @@ impl<'a> Formatter<'a> {
                 Chunk::DecreaseIndentation => {
                     self.decrease_indentation();
                 }
+            }
+        }
+    }
+
+    fn write_chunk_lines(&mut self, string: &str) {
+        for (index, line) in string.lines().enumerate() {
+            // Don't indent the first line (it should already be indented).
+            // Also don't indent if the current line already has a space as the last char
+            // (it means it's already indented)
+            if index > 0 && !self.buffer.ends_with(' ') {
+                self.write_line_without_skipping_whitespace_and_comments();
+                // Only indent if the line doesn't start with a space. When that happens
+                // it's likely a block comment part that we don't want to modify.
+                if !line.starts_with(' ') {
+                    self.write_indentation();
+                }
+            }
+
+            // If we already have a space in the buffer and the line starts with a space,
+            // don't repeat that space.
+            if self.buffer.ends_with(' ') && line.starts_with(' ') {
+                self.write(line.trim_start());
+            } else {
+                self.write(line);
             }
         }
     }
