@@ -1648,9 +1648,9 @@ impl<'context> Elaborator<'context> {
         func_id: FuncId,
         func_name: String,
         func_span: Span,
-        expr_id: ExprId,
+        body_id: ExprId,
     ) {
-        if !self.can_return_without_recursing(func_id, expr_id) {
+        if !self.can_return_without_recursing(func_id, body_id) {
             self.push_err(CompilationError::ResolverError(ResolverError::UnconditionalRecursion {
                 name: func_name,
                 span: func_span,
