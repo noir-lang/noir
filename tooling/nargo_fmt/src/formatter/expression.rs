@@ -33,7 +33,7 @@ impl<'a> Formatter<'a> {
                     formatter.format_path(path);
                 }));
             }
-            ExpressionKind::Tuple(_vec) => todo!("Format tuple"),
+            ExpressionKind::Tuple(exprs) => chunks.group(self.format_tuple(exprs)),
             ExpressionKind::Lambda(_lambda) => todo!("Format lambda"),
             ExpressionKind::Parenthesized(_expression) => todo!("Format parenthesized"),
             ExpressionKind::Quote(_tokens) => todo!("Format quote"),
@@ -86,53 +86,90 @@ impl<'a> Formatter<'a> {
             formatter.write_left_bracket();
         }));
 
-        chunks.increase_indentation();
-        chunks.line();
-
         match literal {
             ArrayLiteral::Standard(exprs) => {
-                for (index, expr) in exprs.into_iter().enumerate() {
-                    if index > 0 {
-                        chunks.text(self.chunk(|formatter| {
-                            formatter.write_comma();
-                        }));
-                        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
-                        chunks.space_or_line();
-                    }
-                    self.format_expression(expr, &mut chunks)
-                }
-
-                let chunk = self.chunk(|formatter| {
-                    formatter.skip_comments_and_whitespace();
-
-                    // Trailing comma
-                    if formatter.token == Token::Comma {
-                        formatter.bump();
-                        formatter.skip_comments_and_whitespace();
-                    }
-                });
-
-                // Make sure to put a trailing comma before the last parameter comments, if there were any
-                chunks.text_if_multiline(TextChunk::new(",".to_string()));
-                chunks.text(chunk);
+                self.format_expressions_separated_by_comma(
+                    exprs,
+                    false, // force trailing comma
+                    &mut chunks,
+                );
             }
-
             ArrayLiteral::Repeated { repeated_element, length } => {
+                chunks.increase_indentation();
+                chunks.line();
+
                 self.format_expression(*repeated_element, &mut chunks);
                 chunks.text(self.chunk(|formatter| {
                     formatter.write_semicolon();
                     formatter.write_space();
                 }));
                 self.format_expression(*length, &mut chunks);
+
+                chunks.decrease_indentation();
+                chunks.line();
             }
         }
-
-        chunks.decrease_indentation();
-        chunks.line();
 
         chunks.text(self.chunk(|formatter| formatter.write_right_bracket()));
 
         chunks
+    }
+
+    fn format_tuple(&mut self, exprs: Vec<Expression>) -> Chunks {
+        let mut chunks = Chunks::new().with_multiple_chunks_per_line();
+        let force_trailing_comma = exprs.len() == 1;
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_left_paren();
+        }));
+
+        self.format_expressions_separated_by_comma(exprs, force_trailing_comma, &mut chunks);
+
+        chunks.text(self.chunk(|formatter| formatter.write_right_paren()));
+
+        chunks
+    }
+
+    fn format_expressions_separated_by_comma(
+        &mut self,
+        exprs: Vec<Expression>,
+        force_trailing_comma: bool,
+        mut chunks: &mut Chunks,
+    ) {
+        chunks.increase_indentation();
+        chunks.line();
+
+        for (index, expr) in exprs.into_iter().enumerate() {
+            if index > 0 {
+                chunks.text(self.chunk(|formatter| {
+                    formatter.write_comma();
+                }));
+                chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                chunks.space_or_line();
+            }
+            self.format_expression(expr, &mut chunks)
+        }
+
+        let chunk = self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+
+            // Trailing comma
+            if formatter.token == Token::Comma {
+                formatter.bump();
+                formatter.skip_comments_and_whitespace();
+            }
+        });
+
+        // Make sure to put a trailing comma before the last parameter comments, if there were any
+        if force_trailing_comma {
+            chunks.text(TextChunk::new(",".to_string()));
+        } else {
+            chunks.text_if_multiline(TextChunk::new(",".to_string()));
+        }
+        chunks.text(chunk);
+
+        chunks.decrease_indentation();
+        chunks.line();
     }
 
     fn format_cast(&mut self, cast_expression: CastExpression) -> Chunks {
@@ -358,6 +395,20 @@ global y = 1;
     fn format_variable() {
         let src = "global x =  y ;";
         let expected = "global x = y;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_tuple() {
+        let src = "global x = ( 1 , 2 , 3 , ) ;";
+        let expected = "global x = (1, 2, 3);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_tuple_length_one() {
+        let src = "global x = ( 1 , ) ;";
+        let expected = "global x = (1,);\n";
         assert_format(src, expected);
     }
 }
