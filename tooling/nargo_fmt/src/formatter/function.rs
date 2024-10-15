@@ -99,10 +99,15 @@ impl<'a> Formatter<'a> {
 
             chunks.text(self.chunk(|formatter| {
                 formatter.format_pattern(param.pattern);
-                formatter.write_token(Token::Colon);
-                formatter.write_space();
-                formatter.format_visibility(param.visibility);
-                formatter.format_type(param.typ);
+                formatter.skip_comments_and_whitespace();
+
+                // There might not be a colon if the parameter is self
+                if formatter.token == Token::Colon {
+                    formatter.write_token(Token::Colon);
+                    formatter.write_space();
+                    formatter.format_visibility(param.visibility);
+                    formatter.format_type(param.typ);
+                }
             }));
         }
 

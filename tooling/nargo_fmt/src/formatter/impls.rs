@@ -95,7 +95,12 @@ pub fn foo () { 1 }
 
 /// world
 pub ( crate ) fn bar () {
-} } }";
+    }
+
+fn one(self) {}
+fn two(mut self) {}
+fn three(&mut self) {}
+ } }";
         let expected = "mod moo {
     impl Foo {
         /// hello
@@ -105,6 +110,10 @@ pub ( crate ) fn bar () {
 
         /// world
         pub(crate) fn bar() {}
+
+        fn one(self) {}
+        fn two(mut self) {}
+        fn three(&mut self) {}
     }
 }
 ";

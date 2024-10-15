@@ -9,6 +9,13 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_pattern(&mut self, pattern: Pattern) {
         self.skip_comments_and_whitespace();
 
+        // Special case: `&mut self` (this is reflected in the param type, not the pattern)
+        if self.token == Token::Ampersand {
+            self.write_token(Token::Ampersand);
+            self.write_keyword(Keyword::Mut);
+            self.write_space();
+        }
+
         match pattern {
             Pattern::Identifier(ident) => self.write_identifier(ident),
             Pattern::Mutable(pattern, _span, _) => {
