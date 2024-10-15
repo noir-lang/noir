@@ -60,6 +60,11 @@ impl<'a> Formatter<'a> {
     }
 
     pub(crate) fn format_program(&mut self, parsed_module: ParsedModule) {
+        self.skip_comments_and_whitespace_impl(
+            false, // write lines
+            true,  // at beginning
+        );
+
         self.format_parsed_module(parsed_module);
     }
 
@@ -155,6 +160,7 @@ impl<'a> Formatter<'a> {
     fn skip_comments_and_whitespace(&mut self) -> SkipCommentsAndWhitespaceResult {
         self.skip_comments_and_whitespace_impl(
             false, // write lines
+            false, // at beginning
         )
     }
 
@@ -162,13 +168,15 @@ impl<'a> Formatter<'a> {
         &mut self,
     ) -> SkipCommentsAndWhitespaceResult {
         self.skip_comments_and_whitespace_impl(
-            true, // write lines
+            true,  // write lines
+            false, // at beginning
         )
     }
 
     fn skip_comments_and_whitespace_impl(
         &mut self,
         write_lines: bool,
+        at_beginning: bool,
     ) -> SkipCommentsAndWhitespaceResult {
         let mut number_of_newlines = 0;
         let mut passed_whitespace = false;
@@ -214,7 +222,9 @@ impl<'a> Formatter<'a> {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else {
-                        self.write_space_without_skipping_whitespace_and_comments();
+                        if !(at_beginning && self.buffer.is_empty()) {
+                            self.write_space_without_skipping_whitespace_and_comments();
+                        }
                     }
                     self.write_current_token_trimming_end();
                     self.write_line_without_skipping_whitespace_and_comments();
@@ -261,7 +271,8 @@ impl<'a> Formatter<'a> {
 
     fn write_line(&mut self) {
         self.skip_comments_and_whitespace_impl(
-            true, // writing newline
+            true,  // writing newline
+            false, // at beginning
         );
         self.write_line_without_skipping_whitespace_and_comments();
     }

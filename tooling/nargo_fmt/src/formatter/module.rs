@@ -224,4 +224,16 @@ mod bar {
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn comment_with_leading_space() {
+        let src = "    // comment
+        // hello
+mod  foo ; ";
+        let expected = "// comment
+// hello
+mod foo;
+";
+        assert_format(src, expected);
+    }
 }
