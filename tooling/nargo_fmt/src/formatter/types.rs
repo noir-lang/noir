@@ -135,7 +135,10 @@ impl<'a> Formatter<'a> {
                     self.format_type(*return_type);
                 }
             }
-            UnresolvedTypeData::Quoted(_quoted_type) => todo!("Format quoted type"),
+            UnresolvedTypeData::Quoted(..) => {
+                self.write_current_token();
+                self.bump();
+            }
             UnresolvedTypeData::AsTraitPath(_as_trait_path) => todo!("Format as trait path"),
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)
@@ -295,6 +298,13 @@ mod tests {
     fn format_fmtstr_type() {
         let src = "fmtstr < 6, ( ) >";
         let expected = "fmtstr<6, ()>";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_quoted_type() {
+        let src = " Expr ";
+        let expected = "Expr";
         assert_format_type(src, expected);
     }
 }
