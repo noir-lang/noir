@@ -117,10 +117,12 @@ impl Chunks {
         self.push(Chunk::Group(chunks));
     }
 
+    /// Append one line to this chunk.
     pub(crate) fn line(&mut self) {
         self.lines(false)
     }
 
+    /// Append one or two lines to this chunk.
     pub(crate) fn lines(&mut self, two: bool) {
         self.push(Chunk::Line { two });
     }
