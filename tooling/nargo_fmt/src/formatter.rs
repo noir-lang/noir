@@ -18,6 +18,7 @@ mod generics;
 mod global;
 mod impls;
 mod item;
+mod lvalue;
 mod module;
 mod path;
 mod pattern;

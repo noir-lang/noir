@@ -39,7 +39,23 @@ impl<'a> Formatter<'a> {
             StatementKind::Expression(expression) => {
                 self.format_expression(expression, &mut chunks);
             }
-            StatementKind::Assign(_assign_statement) => todo!("Format assign statement"),
+            StatementKind::Assign(assign_statement) => {
+                let mut group = Chunks::new();
+                group.text(self.chunk(|formatter| {
+                    formatter.format_lvalue(assign_statement.lvalue);
+                    formatter.write_space();
+                    formatter.write_token(Token::Assign);
+                }));
+                group.increase_indentation();
+                group.space_or_line();
+                self.format_expression(assign_statement.expression, &mut group);
+                group.text(self.chunk(|formatter| {
+                    formatter.write_semicolon();
+                }));
+                group.decrease_indentation();
+
+                chunks.group(group);
+            }
             StatementKind::For(_for_loop_statement) => todo!("Format for loop statement"),
             StatementKind::Break => {
                 chunks.text(self.chunk(|formatter| {
@@ -128,6 +144,16 @@ mod tests {
         let src = " fn foo() { let  x  :  Field  =  1 ; } ";
         let expected = "fn foo() {
     let x: Field = 1;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_assign() {
+        let src = " fn foo() { x  =  2 ; } ";
+        let expected = "fn foo() {
+    x = 2;
 }
 ";
         assert_format(src, expected);
