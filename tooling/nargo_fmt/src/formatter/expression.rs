@@ -1,6 +1,6 @@
 use noirc_frontend::{
-    ast::{ArrayLiteral, Expression, ExpressionKind, Literal},
-    token::Token,
+    ast::{ArrayLiteral, CastExpression, Expression, ExpressionKind, Literal},
+    token::{Keyword, Token},
 };
 
 use super::{
@@ -23,7 +23,9 @@ impl<'a> Formatter<'a> {
             ExpressionKind::MemberAccess(_member_access_expression) => {
                 todo!("Format member access")
             }
-            ExpressionKind::Cast(_cast_expression) => todo!("Format cast"),
+            ExpressionKind::Cast(cast_expression) => {
+                chunks.chunks(self.format_cast(*cast_expression));
+            }
             ExpressionKind::Infix(_infix_expression) => todo!("Format infix"),
             ExpressionKind::If(_if_expression) => todo!("Format if"),
             ExpressionKind::Variable(_path) => todo!("Format variable"),
@@ -126,6 +128,18 @@ impl<'a> Formatter<'a> {
 
         chunks.text(self.chunk(|formatter| formatter.write_right_bracket()));
 
+        chunks
+    }
+
+    fn format_cast(&mut self, cast_expression: CastExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+        self.format_expression(cast_expression.lhs, &mut chunks);
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_space();
+            formatter.write_keyword(Keyword::As);
+            formatter.write_space();
+            formatter.format_type(cast_expression.r#type);
+        }));
         chunks
     }
 }
@@ -304,5 +318,12 @@ global y = 1;
     ];
 ";
         assert_format_with_max_width(src, expected, 20);
+    }
+
+    #[test]
+    fn format_cast() {
+        let src = "global x =  1  as  u8 ;";
+        let expected = "global x = 1 as u8;\n";
+        assert_format(src, expected);
     }
 }
