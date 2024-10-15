@@ -179,8 +179,6 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunks(&mut self, chunks: Chunks) {
-        dbg!(&chunks);
-
         if chunks.has_newlines() {
             self.format_chunks_in_multiple_lines(chunks);
         } else {
