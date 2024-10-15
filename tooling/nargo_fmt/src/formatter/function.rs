@@ -223,7 +223,7 @@ impl<'a> Formatter<'a> {
         } else {
             let mut chunks = Chunks::new();
             chunks.increase_indentation();
-            chunks.force_line();
+            chunks.line();
 
             let statements_len = body.statements.len();
 
@@ -232,10 +232,10 @@ impl<'a> Formatter<'a> {
                 if index == statements_len - 1 {
                     chunks.decrease_indentation();
                 }
-                chunks.force_line();
+                chunks.line();
             }
 
-            self.format_chunks(chunks);
+            self.format_chunks_in_multiple_lines(chunks);
         }
     }
 

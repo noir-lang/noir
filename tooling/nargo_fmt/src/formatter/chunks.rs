@@ -34,8 +34,6 @@ pub(crate) enum Chunk {
     /// Writes a space if we can write a group in one line, otherwise writes a line.
     /// However, a space might be written if `one_chunk_per_line` of a Chunks object is set to false.
     SpaceOrLine,
-    /// Forces a line to be written.
-    ForceLine,
     /// Command to increase the current indentation.
     IncreaseIndentation,
     /// Command to decrease the current indentation.
@@ -51,7 +49,6 @@ impl Chunk {
             Chunk::Chunks(chunks) => chunks.width(),
             Chunk::SpaceOrLine => 1,
             Chunk::Line
-            | Chunk::ForceLine
             | Chunk::IncreaseIndentation
             | Chunk::DecreaseIndentation
             | Chunk::TextIfMultiline(..) => 0,
@@ -69,7 +66,6 @@ impl Chunk {
             | Chunk::SpaceOrLine
             | Chunk::IncreaseIndentation
             | Chunk::DecreaseIndentation => false,
-            Chunk::ForceLine => true,
         }
     }
 }
@@ -123,10 +119,6 @@ impl Chunks {
 
     pub(crate) fn line(&mut self) {
         self.push(Chunk::Line);
-    }
-
-    pub(crate) fn force_line(&mut self) {
-        self.push(Chunk::ForceLine);
     }
 
     pub(crate) fn space_or_line(&mut self) {
@@ -204,7 +196,6 @@ impl<'a> Formatter<'a> {
                 | Chunk::Line
                 | Chunk::IncreaseIndentation
                 | Chunk::DecreaseIndentation => (),
-                Chunk::ForceLine => unreachable!("Should not format ForceLine chunk in one line"),
             }
         }
     }
@@ -249,7 +240,7 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 }
                 Chunk::Chunks(chunks) => self.format_chunks(chunks),
-                Chunk::Line | Chunk::ForceLine => {
+                Chunk::Line => {
                     self.write_line_without_skipping_whitespace_and_comments();
                     self.write_indentation();
                 }
