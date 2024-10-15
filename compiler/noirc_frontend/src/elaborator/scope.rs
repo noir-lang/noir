@@ -86,12 +86,7 @@ impl<'context> Elaborator<'context> {
         let resolver = StandardPathResolver::new(module_id, self_type_module_id);
 
         if !self.interner.lsp_mode {
-            return resolver.resolve(
-                self.def_maps,
-                path,
-                &mut self.interner.usage_tracker,
-                &mut None,
-            );
+            return resolver.resolve(self.def_maps, path, &mut self.usage_tracker, &mut None);
         }
 
         let last_segment = path.last_ident();
@@ -102,7 +97,7 @@ impl<'context> Elaborator<'context> {
         let path_resolution = resolver.resolve(
             self.def_maps,
             path.clone(),
-            &mut self.interner.usage_tracker,
+            &mut self.usage_tracker,
             &mut Some(&mut references),
         );
 

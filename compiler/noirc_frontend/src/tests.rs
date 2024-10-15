@@ -3562,3 +3562,24 @@ fn alias_in_let_pattern() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn use_type_alias_in_method_call() {
+    let src = r#"
+        pub struct Foo {
+        }
+
+        impl Foo {
+            fn new() {
+                Foo {}
+            }
+        }
+
+        type Bar = Foo;
+
+        fn main() {
+            Bar::new();
+        }
+    "#;
+    assert_no_errors(src);
+}

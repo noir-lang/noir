@@ -354,7 +354,7 @@ impl DefCollector {
                     crate_id,
                     &collected_import,
                     &context.def_maps,
-                    &mut context.def_interner.usage_tracker,
+                    &mut context.usage_tracker,
                     &mut Some(&mut references),
                 );
 
@@ -376,7 +376,7 @@ impl DefCollector {
                     crate_id,
                     &collected_import,
                     &context.def_maps,
-                    &mut context.def_interner.usage_tracker,
+                    &mut context.usage_tracker,
                     &mut None,
                 )
             };
@@ -421,7 +421,7 @@ impl DefCollector {
                                 krate: crate_id,
                                 local_id: resolved_import.module_scope,
                             };
-                            context.def_interner.usage_tracker.add_unused_item(
+                            context.usage_tracker.add_unused_item(
                                 module_id,
                                 name.clone(),
                                 UnusedItem::Import,
@@ -501,7 +501,7 @@ impl DefCollector {
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        let unused_imports = context.def_interner.unused_items().iter();
+        let unused_imports = context.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
@@ -561,7 +561,7 @@ fn inject_prelude(
             ModuleId { krate: crate_id, local_id: crate_root },
             None,
             path,
-            &mut context.def_interner.usage_tracker,
+            &mut context.usage_tracker,
             &mut None,
         ) {
             assert!(errors.is_empty(), "Tried to add private item to prelude");

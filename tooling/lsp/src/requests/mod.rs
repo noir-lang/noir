@@ -18,6 +18,7 @@ use nargo_fmt::Config;
 
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::def_map::CrateDefMap;
+use noirc_frontend::usage_tracker::UsageTracker;
 use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
@@ -416,6 +417,7 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     crate_name: String,
     dependencies: &'a Vec<Dependency>,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    usage_tracker: &'a UsageTracker,
 }
 
 pub(crate) fn process_request<F, T>(
@@ -452,6 +454,7 @@ where
     let file_manager = &workspace_cache_data.file_manager;
     let interner = &package_cache_data.node_interner;
     let def_maps = &package_cache_data.def_maps;
+    let usage_tracker = &package_cache_data.usage_tracker;
     let crate_graph = &package_cache_data.crate_graph;
     let crate_id = package_cache_data.crate_id;
 
@@ -472,6 +475,7 @@ where
         crate_name: package.name.to_string(),
         dependencies: &crate_graph[crate_id].dependencies,
         def_maps,
+        usage_tracker,
     }))
 }
 
@@ -506,14 +510,17 @@ where
 
     let interner;
     let def_maps;
+    let usage_tracker;
     if let Some(package_cache) = state.package_cache.get(&package.root_dir) {
         interner = &package_cache.node_interner;
         def_maps = &package_cache.def_maps;
+        usage_tracker = &package_cache.usage_tracker;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
         let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
         interner = &context.def_interner;
         def_maps = &context.def_maps;
+        usage_tracker = &context.usage_tracker;
     }
 
     let files = workspace_file_manager.as_file_map();
@@ -533,6 +540,7 @@ where
         crate_name: package.name.to_string(),
         dependencies: &context.crate_graph[crate_id].dependencies,
         def_maps,
+        usage_tracker,
     }))
 }
 
