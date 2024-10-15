@@ -116,6 +116,8 @@ impl<'a> Formatter<'a> {
                     chunks.increase_indentation();
                     chunks.space_or_line();
                     self.format_expression(default_value, &mut chunks);
+                    chunks.decrease_indentation();
+                    chunks.decrease_indentation();
                 }
 
                 chunks.text(self.chunk(|formatter| {

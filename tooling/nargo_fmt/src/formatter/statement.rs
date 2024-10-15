@@ -1,6 +1,6 @@
 use noirc_frontend::{
-    ast::{Statement, StatementKind},
-    token::Keyword,
+    ast::{Statement, StatementKind, UnresolvedTypeData},
+    token::{Keyword, Token},
 };
 
 use super::{chunks::Chunks, Formatter};
@@ -10,7 +10,31 @@ impl<'a> Formatter<'a> {
         chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
 
         match statement.kind {
-            StatementKind::Let(_let_statement) => todo!("Format let statement"),
+            StatementKind::Let(let_statement) => {
+                let mut group = Chunks::new();
+
+                group.text(self.chunk(|formatter| {
+                    formatter.write_keyword(Keyword::Let);
+                    formatter.write_space();
+                    formatter.format_pattern(let_statement.pattern);
+                    if let_statement.r#type.typ != UnresolvedTypeData::Unspecified {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(let_statement.r#type);
+                    }
+                    formatter.write_space();
+                    formatter.write_token(Token::Assign);
+                }));
+                group.increase_indentation();
+                group.space_or_line();
+                self.format_expression(let_statement.expression, &mut group);
+                group.text(self.chunk(|formatter| {
+                    formatter.write_semicolon();
+                }));
+                group.decrease_indentation();
+
+                chunks.group(group);
+            }
             StatementKind::Constrain(_constrain_statement) => todo!("Format constrain statement"),
             StatementKind::Expression(expression) => {
                 self.format_expression(expression, &mut chunks);
@@ -84,6 +108,26 @@ mod tests {
         let src = " fn foo() { continue  ; } ";
         let expected = "fn foo() {
     continue;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_no_type() {
+        let src = " fn foo() { let  x  =  1 ; } ";
+        let expected = "fn foo() {
+    let x = 1;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_type() {
+        let src = " fn foo() { let  x  :  Field  =  1 ; } ";
+        let expected = "fn foo() {
+    let x: Field = 1;
 }
 ";
         assert_format(src, expected);
