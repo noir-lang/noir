@@ -81,7 +81,7 @@ impl<'a> Formatter<'a> {
         }));
 
         chunks.increase_indentation();
-        chunks.line();
+        chunks.line(self.two_newlines_or_more_follow());
 
         match literal {
             ArrayLiteral::Standard(exprs) => {
@@ -122,7 +122,7 @@ impl<'a> Formatter<'a> {
         }
 
         chunks.decrease_indentation();
-        chunks.line();
+        chunks.line(self.two_newlines_or_more_follow());
 
         chunks.text(self.chunk(|formatter| formatter.write_right_bracket()));
 

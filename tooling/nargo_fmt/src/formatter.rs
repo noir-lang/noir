@@ -242,6 +242,14 @@ impl<'a> Formatter<'a> {
         SkipCommentsAndWhitespaceResult { wrote_comment }
     }
 
+    fn two_newlines_or_more_follow(&mut self) -> bool {
+        let Token::Whitespace(whitespace) = &self.token else {
+            return false;
+        };
+
+        whitespace.chars().filter(|char| *char == '\n').count() > 1
+    }
+
     fn write_line(&mut self) {
         self.skip_comments_and_whitespace_impl(
             true, // writing newline

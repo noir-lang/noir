@@ -29,8 +29,8 @@ pub(crate) enum Chunk {
     LeadingComment(TextChunk),
     /// A group of chunks.
     Chunks(Chunks),
-    /// Write a line if we decide to format chunks in multiple lines, otherwise do nothing.
-    Line,
+    /// Write a line (or two) if we decide to format chunks in multiple lines, otherwise do nothing.
+    Line { two: bool },
     /// Writes a space if we can write a group in one line, otherwise writes a line.
     /// However, a space might be written if `one_chunk_per_line` of a Chunks object is set to false.
     SpaceOrLine,
@@ -48,7 +48,7 @@ impl Chunk {
             }
             Chunk::Chunks(chunks) => chunks.width(),
             Chunk::SpaceOrLine => 1,
-            Chunk::Line
+            Chunk::Line { .. }
             | Chunk::IncreaseIndentation
             | Chunk::DecreaseIndentation
             | Chunk::TextIfMultiline(..) => 0,
@@ -62,7 +62,7 @@ impl Chunk {
             | Chunk::TrailingComment(chunk)
             | Chunk::LeadingComment(chunk) => chunk.has_newlines,
             Chunk::Chunks(chunks) => chunks.has_newlines(),
-            Chunk::Line
+            Chunk::Line { .. }
             | Chunk::SpaceOrLine
             | Chunk::IncreaseIndentation
             | Chunk::DecreaseIndentation => false,
@@ -117,8 +117,8 @@ impl Chunks {
         self.push(Chunk::Chunks(chunks));
     }
 
-    pub(crate) fn line(&mut self) {
-        self.push(Chunk::Line);
+    pub(crate) fn line(&mut self, two: bool) {
+        self.push(Chunk::Line { two });
     }
 
     pub(crate) fn space_or_line(&mut self) {
@@ -193,7 +193,7 @@ impl<'a> Formatter<'a> {
                 Chunk::TextIfMultiline(..)
                 | Chunk::TrailingComment(..)
                 | Chunk::LeadingComment(..)
-                | Chunk::Line
+                | Chunk::Line { .. }
                 | Chunk::IncreaseIndentation
                 | Chunk::DecreaseIndentation => (),
             }
@@ -240,8 +240,12 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 }
                 Chunk::Chunks(chunks) => self.format_chunks(chunks),
-                Chunk::Line => {
-                    self.write_line_without_skipping_whitespace_and_comments();
+                Chunk::Line { two } => {
+                    if two {
+                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                    } else {
+                        self.write_line_without_skipping_whitespace_and_comments();
+                    }
                     self.write_indentation();
                 }
                 Chunk::SpaceOrLine => {

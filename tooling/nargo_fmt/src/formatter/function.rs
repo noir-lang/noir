@@ -35,12 +35,12 @@ impl<'a> Formatter<'a> {
         } else {
             let mut chunks = Chunks::new();
             chunks.increase_indentation();
-            chunks.line();
+            chunks.line(self.two_newlines_or_more_follow());
 
             self.format_function_parameters(func.def.parameters, &mut chunks);
 
             chunks.decrease_indentation();
-            chunks.line();
+            chunks.line(self.two_newlines_or_more_follow());
 
             chunks.text(self.chunk(|formatter| {
                 formatter.format_function_right_paren_until_left_brace(
@@ -223,7 +223,7 @@ impl<'a> Formatter<'a> {
         } else {
             let mut chunks = Chunks::new();
             chunks.increase_indentation();
-            chunks.line();
+            chunks.line(self.two_newlines_or_more_follow());
 
             let statements_len = body.statements.len();
 
@@ -232,7 +232,7 @@ impl<'a> Formatter<'a> {
                 if index == statements_len - 1 {
                     chunks.decrease_indentation();
                 }
-                chunks.line();
+                chunks.line(self.two_newlines_or_more_follow());
             }
 
             self.format_chunks_in_multiple_lines(chunks);
@@ -483,6 +483,26 @@ unit: ()
         let expected = "fn main() {
     /* foo */
     1
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_newlines() {
+        let src = "fn main() { 
+        1; 
+        
+        2; 
+        
+        3 
+        }";
+        let expected = "fn main() {
+    1;
+
+    2;
+
+    3
 }
 ";
         assert_format(src, expected);
