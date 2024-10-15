@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{UnresolvedType, UnresolvedTypeData},
+    ast::{AsTraitPath, UnresolvedType, UnresolvedTypeData},
     token::{Keyword, Token},
 };
 
@@ -34,8 +34,8 @@ impl<'a> Formatter<'a> {
                 self.format_type(*typ);
                 self.write_right_bracket();
             }
-            UnresolvedTypeData::Expression(_unresolved_type_expression) => {
-                todo!("Format expression type")
+            UnresolvedTypeData::Expression(type_expr) => {
+                self.format_type_expression(type_expr);
             }
             UnresolvedTypeData::String(type_expr) => {
                 self.write_keyword(Keyword::String);
@@ -139,12 +139,28 @@ impl<'a> Formatter<'a> {
                 self.write_current_token();
                 self.bump();
             }
-            UnresolvedTypeData::AsTraitPath(_as_trait_path) => todo!("Format as trait path"),
+            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+                self.format_as_trait_path(*as_trait_path)
+            }
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)
             | UnresolvedTypeData::Error => unreachable!("Should not be present in the AST"),
             UnresolvedTypeData::Unspecified => panic!("Unspecified type should have been handled"),
         }
+    }
+
+    fn format_as_trait_path(&mut self, as_trait_path: AsTraitPath) {
+        self.write_token(Token::Less);
+        self.format_type(as_trait_path.typ);
+        self.write_space();
+        self.write_keyword(Keyword::As);
+        self.write_space();
+        self.format_path(as_trait_path.trait_path);
+        self.format_generic_type_args(as_trait_path.trait_generics);
+        self.write_token(Token::Greater);
+        self.write_token(Token::DoubleColon);
+        self.skip_comments_and_whitespace();
+        self.write_identifier(as_trait_path.impl_item);
     }
 }
 
@@ -305,6 +321,13 @@ mod tests {
     fn format_quoted_type() {
         let src = " Expr ";
         let expected = "Expr";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_as_trait_path_type() {
+        let src = " < Field as foo :: Bar> :: baz ";
+        let expected = "<Field as foo::Bar>::baz";
         assert_format_type(src, expected);
     }
 }
