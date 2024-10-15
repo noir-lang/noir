@@ -29,7 +29,11 @@ impl<'a> Formatter<'a> {
                 self.format_type_expression(type_expr);
                 self.write_right_bracket();
             }
-            UnresolvedTypeData::Slice(_unresolved_type) => todo!("Format slice type"),
+            UnresolvedTypeData::Slice(typ) => {
+                self.write_left_bracket();
+                self.format_type(*typ);
+                self.write_right_bracket();
+            }
             UnresolvedTypeData::Expression(_unresolved_type_expression) => {
                 todo!("Format expression type")
             }
@@ -203,6 +207,13 @@ mod tests {
     fn format_array_type_with_var() {
         let src = " [ Field ; LEN ] ";
         let expected = "[Field; LEN]";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_slice_type() {
+        let src = " [ Field  ] ";
+        let expected = "[Field]";
         assert_format_type(src, expected);
     }
 
