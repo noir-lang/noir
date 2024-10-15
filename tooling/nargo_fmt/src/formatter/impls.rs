@@ -27,9 +27,11 @@ impl<'a> Formatter<'a> {
             self.increase_indentation();
             self.write_line();
 
-            let methods_len = type_impl.methods.len();
-
             for (index, (documented_method, _span)) in type_impl.methods.into_iter().enumerate() {
+                if index > 0 {
+                    self.write_line();
+                }
+
                 let doc_comments = documented_method.doc_comments;
                 let method = documented_method.item;
 
@@ -37,12 +39,10 @@ impl<'a> Formatter<'a> {
                     self.format_outer_doc_comments();
                 }
                 self.format_function(method);
-                if index == methods_len - 1 {
-                    self.decrease_indentation();
-                }
-                self.write_line();
             }
 
+            self.decrease_indentation();
+            self.write_line();
             self.write_indentation();
         }
 
