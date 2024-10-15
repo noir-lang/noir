@@ -181,17 +181,29 @@ impl<'a> Formatter<'a> {
             chunks.increase_indentation();
             chunks.line();
 
-            let statements_len = body.statements.len();
-
             for (index, statement) in body.statements.into_iter().enumerate() {
-                self.format_statement(statement, &mut chunks);
-                if index == statements_len - 1 {
-                    chunks.decrease_indentation();
-                    chunks.line();
-                } else {
-                    chunks.lines(self.two_newlines_or_more_follow());
+                if index > 0 {
+                    let count = self.following_newlines_count();
+                    if count > 0 {
+                        // If newlines follow, we first add a line, then add the comment chunk
+                        chunks.lines(count > 1);
+                        chunks.text(self.skip_comments_and_whitespace_chunk());
+                    } else {
+                        // Otherwise, add the comment first as it's a trailing comment
+                        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                        chunks.line();
+                    }
                 }
+
+                self.format_statement(statement, &mut chunks);
             }
+
+            chunks.text(self.chunk(|formatter| {
+                formatter.skip_comments_and_whitespace();
+            }));
+
+            chunks.decrease_indentation();
+            chunks.line();
 
             self.format_chunks_in_multiple_lines(chunks);
         }
@@ -470,6 +482,68 @@ unit: ()
     fn main() {
         1
     }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_one_expr_trailing_comment() {
+        let src = "mod moo { fn main() { 1   // yes
+        } }";
+        let expected = "mod moo {
+    fn main() {
+        1 // yes
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_one_expr_semicolon_trailing_comment() {
+        let src = "mod moo { fn main() { 1  ; // yes
+        } }";
+        let expected = "mod moo {
+    fn main() {
+        1; // yes
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_many_exprs_trailing_comments() {
+        let src = "mod moo { fn main() { 1  ; // yes
+        2 ; // no
+        3 // maybe
+        } }";
+        let expected = "mod moo {
+    fn main() {
+        1; // yes
+        2; // no
+        3 // maybe
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_block_comment_after_two_newlines() {
+        let src = "fn foo() {
+    1;
+
+    /* world */
+    2
+}
+";
+        let expected = "fn foo() {
+    1;
+
+    /* world */
+    2
 }
 ";
         assert_format(src, expected);
