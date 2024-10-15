@@ -3391,7 +3391,7 @@ fn arithmetic_generics_rounding_fail() {
 }
 
 #[test]
-fn unconditional_recursion() {
+fn unconditional_recursion_fail() {
     let srcs = vec![
         r#"
         fn main() {
@@ -3435,5 +3435,25 @@ fn unconditional_recursion() {
                 panic!("Expected an 'unconditional recursion' error, got {:?}; src = {src}", error);
             };
         }
+    }
+}
+
+#[test]
+fn unconditional_recursion_pass() {
+    let srcs = vec![
+        r#"
+        fn main() {
+            if false { main(); }
+        }
+        "#,
+        r#"
+        fn main(i: u64) -> pub u64 {
+            if i == 0 { 0 } else { i + main(i-1) }
+        }
+        "#,
+    ];
+
+    for src in srcs {
+        assert_no_errors(src);
     }
 }
