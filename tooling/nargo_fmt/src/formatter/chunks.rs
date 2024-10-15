@@ -158,12 +158,14 @@ impl<'a> Formatter<'a> {
         F: FnOnce(&mut Formatter<'a>),
     {
         let previous_buffer = std::mem::take(&mut self.buffer);
-        let previous_line_length = self.current_line_width;
+        let previous_line_width = self.current_line_width;
         let previous_indentation = self.indentation;
+        self.current_line_width = 0;
+        self.indentation = 0;
 
         f(self);
 
-        self.current_line_width = previous_line_length;
+        self.current_line_width = previous_line_width;
         self.indentation = previous_indentation;
 
         let string = std::mem::replace(&mut self.buffer, previous_buffer);

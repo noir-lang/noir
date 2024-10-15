@@ -1,8 +1,5 @@
 use noirc_frontend::{
-    ast::{
-        BlockExpression, FunctionReturnType, ItemVisibility, NoirFunction, Param, TraitBound,
-        UnresolvedTraitConstraint, Visibility,
-    },
+    ast::{BlockExpression, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility},
     token::{Keyword, Token},
 };
 
@@ -13,6 +10,8 @@ use super::{
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_function(&mut self, func: NoirFunction) {
+        let has_where_clause = !func.def.where_clause.is_empty();
+
         self.format_attributes();
         self.write_indentation();
         self.format_function_modifiers(func.def.visibility);
@@ -30,7 +29,7 @@ impl<'a> Formatter<'a> {
             self.format_function_right_paren_until_left_brace(
                 func.def.return_type,
                 func.def.return_visibility,
-                &func.def.where_clause,
+                has_where_clause,
             );
         } else {
             let mut chunks = Chunks::new();
@@ -46,14 +45,17 @@ impl<'a> Formatter<'a> {
                 formatter.format_function_right_paren_until_left_brace(
                     func.def.return_type,
                     func.def.return_visibility,
-                    &func.def.where_clause,
+                    has_where_clause,
                 );
             }));
 
             self.format_chunks(chunks);
         }
 
-        self.format_function_where_clause(func.def.where_clause);
+        if has_where_clause {
+            self.format_where_clause(func.def.where_clause);
+            self.write_left_brace();
+        }
         self.format_function_body(func.def.body);
         self.write_right_brace();
         self.write_line();
@@ -124,14 +126,14 @@ impl<'a> Formatter<'a> {
         &mut self,
         return_type: FunctionReturnType,
         visibility: Visibility,
-        where_clause: &[UnresolvedTraitConstraint],
+        has_where_clause: bool,
     ) {
         self.write_right_paren();
         self.format_function_return_type(return_type, visibility);
         self.skip_comments_and_whitespace();
 
         // If there's no where clause the left brace goes on the same line as the function signature
-        if where_clause.is_empty() {
+        if !has_where_clause {
             // There might still be a where keyword that we'll remove
             if self.token == Token::Keyword(Keyword::Where) {
                 self.bump();
@@ -158,57 +160,6 @@ impl<'a> Formatter<'a> {
                 self.format_type(typ);
             }
         }
-    }
-
-    fn format_function_where_clause(&mut self, constraints: Vec<UnresolvedTraitConstraint>) {
-        if constraints.is_empty() {
-            // TODO: there might still be a `where` token
-            return;
-        }
-
-        self.skip_comments_and_whitespace();
-        self.write_line();
-        self.write_indentation();
-        self.write_keyword(Keyword::Where);
-        self.increase_indentation();
-
-        // If we have `where F: Foo + Bar`, that's actually parsed as two constraints: `F: Foo` and `F: Bar`.
-        // To format it we'll have to skip the second type `F` if we find a `+` token.
-        let mut write_type = true;
-
-        for constraint in constraints {
-            if write_type {
-                self.write_line();
-                self.write_indentation();
-                self.format_type(constraint.typ);
-                self.write_token(Token::Colon);
-                self.write_space();
-            }
-
-            self.format_trait_bound(constraint.trait_bound);
-            self.skip_comments_and_whitespace();
-
-            if self.token == Token::Plus {
-                self.write_space();
-                self.write_token(Token::Plus);
-                self.write_space();
-                write_type = false;
-                continue;
-            }
-
-            write_type = true;
-
-            if self.token == Token::Comma {
-                self.write_token(Token::Comma);
-            } else {
-                self.write(",")
-            }
-        }
-
-        self.decrease_indentation();
-        self.write_line();
-        self.write_indentation();
-        self.write_left_brace();
     }
 
     fn format_function_body(&mut self, body: BlockExpression) {
@@ -239,11 +190,6 @@ impl<'a> Formatter<'a> {
 
             self.format_chunks_in_multiple_lines(chunks);
         }
-    }
-
-    fn format_trait_bound(&mut self, trait_bound: TraitBound) {
-        self.format_path(trait_bound.trait_path);
-        // TODO: generics
     }
 }
 
@@ -507,6 +453,18 @@ unit: ()
     2;
 
     3
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_one_expr() {
+        let src = "mod moo { fn main() { 1 } }";
+        let expected = "mod moo {
+    fn main() {
+        1
+    }
 }
 ";
         assert_format(src, expected);

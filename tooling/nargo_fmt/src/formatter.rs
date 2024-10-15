@@ -16,6 +16,7 @@ mod expression;
 mod function;
 mod generics;
 mod global;
+mod impls;
 mod item;
 mod module;
 mod path;
@@ -25,6 +26,7 @@ mod structs;
 mod type_expression;
 mod types;
 mod visibility;
+mod where_clause;
 
 #[derive(Debug)]
 pub(crate) struct SkipCommentsAndWhitespaceResult {

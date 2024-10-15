@@ -17,7 +17,7 @@ impl<'a> Formatter<'a> {
             ItemKind::Struct(noir_struct) => self.format_struct(noir_struct),
             ItemKind::Trait(_noir_trait) => todo!("Format trait"),
             ItemKind::TraitImpl(_noir_trait_impl) => todo!("Format trait impl"),
-            ItemKind::Impl(_type_impl) => todo!("Format impl"),
+            ItemKind::Impl(type_impl) => self.format_impl(type_impl),
             ItemKind::TypeAlias(noir_type_alias) => self.format_type_alias(noir_type_alias),
             ItemKind::Global(let_statement, visibility) => {
                 self.format_global(let_statement, visibility)
