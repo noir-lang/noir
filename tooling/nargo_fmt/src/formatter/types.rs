@@ -43,8 +43,14 @@ impl<'a> Formatter<'a> {
                 self.format_type_expression(type_expr);
                 self.write_token(Token::Greater);
             }
-            UnresolvedTypeData::FormatString(_unresolved_type_expression, _unresolved_type) => {
-                todo!("Format format string type")
+            UnresolvedTypeData::FormatString(type_expr, typ) => {
+                self.write_keyword(Keyword::FormatString);
+                self.write_token(Token::Less);
+                self.format_type_expression(type_expr);
+                self.write_comma();
+                self.write_space();
+                self.format_type(*typ);
+                self.write_token(Token::Greater);
             }
             UnresolvedTypeData::Parenthesized(typ) => {
                 self.write_left_paren();
@@ -282,6 +288,13 @@ mod tests {
     fn format_string_type() {
         let src = "str < 6 >";
         let expected = "str<6>";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_fmtstr_type() {
+        let src = "fmtstr < 6, ( ) >";
+        let expected = "fmtstr<6, ()>";
         assert_format_type(src, expected);
     }
 }
