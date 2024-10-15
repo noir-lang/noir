@@ -47,6 +47,7 @@ impl<'a> Formatter<'a> {
         }
 
         self.write_right_brace();
+        self.write_line();
     }
 }
 
