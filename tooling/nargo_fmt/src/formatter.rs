@@ -84,6 +84,8 @@ impl<'a> Formatter<'a> {
     }
 
     fn write_identifier(&mut self, ident: Ident) {
+        self.skip_comments_and_whitespace();
+
         // TODO: check that the ident matches
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);

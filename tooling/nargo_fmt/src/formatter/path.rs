@@ -29,7 +29,6 @@ impl<'a> Formatter<'a> {
             if index > 0 {
                 self.write_token(Token::DoubleColon);
             }
-            self.skip_comments_and_whitespace();
             self.write_identifier(segment.ident);
 
             if let Some(..) = segment.generics {

@@ -1,16 +1,28 @@
-use noirc_frontend::ast::LValue;
+use noirc_frontend::{ast::LValue, token::Token};
 
-use super::Formatter;
+use super::{chunks::Chunks, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_lvalue(&mut self, lvalue: LValue) {
         match lvalue {
             LValue::Ident(ident) => self.write_identifier(ident),
-            LValue::MemberAccess { object: _, field_name: _, span: _ } => {
-                todo!("Format lvalue member access")
+            LValue::MemberAccess { object, field_name, span: _ } => {
+                self.format_lvalue(*object);
+                self.write_token(Token::Dot);
+                self.write_identifier(field_name);
             }
-            LValue::Index { array: _, index: _, span: _ } => todo!("Format lvalue index"),
-            LValue::Dereference(_lvalue, _span) => todo!("Format lvalue dereference"),
+            LValue::Index { array, index, span: _ } => {
+                self.format_lvalue(*array);
+                self.write_left_bracket();
+                let mut chunks = Chunks::new();
+                self.format_expression(index, &mut chunks);
+                self.format_chunks(chunks);
+                self.write_right_bracket();
+            }
+            LValue::Dereference(lvalue, _span) => {
+                self.write_token(Token::Star);
+                self.format_lvalue(*lvalue);
+            }
             LValue::Interned(..) => {
                 unreachable!("Should not be present in the AST")
             }

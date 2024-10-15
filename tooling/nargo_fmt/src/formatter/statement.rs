@@ -180,6 +180,36 @@ mod tests {
     }
 
     #[test]
+    fn format_assign_to_member() {
+        let src = " fn foo() { x . y  =  2 ; } ";
+        let expected = "fn foo() {
+    x.y = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_assign_to_index() {
+        let src = " fn foo() { x [ y ]  =  2 ; } ";
+        let expected = "fn foo() {
+    x[y] = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_assign_to_dereference() {
+        let src = " fn foo() { * x  =  2 ; } ";
+        let expected = "fn foo() {
+    *x = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_op_assign() {
         let src = " fn foo() { x  + =  2 ; } ";
         let expected = "fn foo() {

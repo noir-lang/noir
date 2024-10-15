@@ -159,7 +159,6 @@ impl<'a> Formatter<'a> {
         self.format_generic_type_args(as_trait_path.trait_generics);
         self.write_token(Token::Greater);
         self.write_token(Token::DoubleColon);
-        self.skip_comments_and_whitespace();
         self.write_identifier(as_trait_path.impl_item);
     }
 }
