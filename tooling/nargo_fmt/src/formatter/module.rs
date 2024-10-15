@@ -24,7 +24,11 @@ impl<'a> Formatter<'a> {
         }
         self.write_indentation();
         self.format_item_visibility(submodule.visibility);
-        self.write_keyword(Keyword::Mod);
+        if submodule.is_contract {
+            self.write_keyword(Keyword::Contract);
+        } else {
+            self.write_keyword(Keyword::Mod);
+        }
         self.write_space();
         self.write_identifier(submodule.name);
         self.write_space();
@@ -114,6 +118,13 @@ mod foo;\n";
     fn format_empty_submodule() {
         let src = "mod foo {    }";
         let expected = "mod foo {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_subcontract() {
+        let src = "contract foo {    }";
+        let expected = "contract foo {}\n";
         assert_format(src, expected);
     }
 
