@@ -177,14 +177,25 @@ impl<'a> Formatter<'a> {
                         } else {
                             self.write_line_without_skipping_whitespace_and_comments();
                         }
-                        self.write_indentation();
+
+                        self.bump();
+
+                        // Only indent for what's coming next if it's a comment
+                        // (otherwise a closing brace must come and we wouldn't want to indent that)
+                        if matches!(
+                            &self.token,
+                            Token::LineComment(_, None) | Token::BlockComment(_, None),
+                        ) {
+                            self.write_indentation();
+                        }
+
                         number_of_newlines = 0;
                         passed_whitespace = false;
+                    } else {
+                        self.bump();
                     }
 
                     last_was_block_comment = false;
-
-                    self.bump();
                 }
                 Token::LineComment(_, None) => {
                     if number_of_newlines > 1 && write_lines {

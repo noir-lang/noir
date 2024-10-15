@@ -165,6 +165,18 @@ pub mod foo { /* one */
     }
 
     #[test]
+    fn format_submodule_with_block_comment_2() {
+        let src = "mod foo {
+        /* one */
+}";
+        let expected = "mod foo {
+    /* one */
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_multiple_modules() {
         let src = "  mod  foo { 
 // hello

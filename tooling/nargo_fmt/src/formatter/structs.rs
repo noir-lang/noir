@@ -140,4 +140,17 @@ y: Field
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_empty_struct_with_block_comments() {
+        let src = " struct Foo {
+        /* hello */
+    }
+        ";
+        let expected = "struct Foo {
+    /* hello */
+}
+";
+        assert_format(src, expected);
+    }
 }
