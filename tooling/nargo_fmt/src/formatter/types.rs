@@ -149,7 +149,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_as_trait_path(&mut self, as_trait_path: AsTraitPath) {
+    pub(super) fn format_as_trait_path(&mut self, as_trait_path: AsTraitPath) {
         self.write_token(Token::Less);
         self.format_type(as_trait_path.typ);
         self.write_space();

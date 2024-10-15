@@ -40,7 +40,9 @@ impl<'a> Formatter<'a> {
             ExpressionKind::Unquote(_expression) => todo!("Format unquote"),
             ExpressionKind::Comptime(_block_expression, _span) => todo!("Format comptime"),
             ExpressionKind::Unsafe(_block_expression, _span) => todo!("Format unsafe"),
-            ExpressionKind::AsTraitPath(_as_trait_path) => todo!("Format as trait path"),
+            ExpressionKind::AsTraitPath(as_trait_path) => {
+                chunks.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)))
+            }
             ExpressionKind::TypePath(_type_path) => todo!("Format type path"),
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)
@@ -409,6 +411,13 @@ global y = 1;
     fn format_tuple_length_one() {
         let src = "global x = ( 1 , ) ;";
         let expected = "global x = (1,);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_as_trait_path() {
+        let src = "global x = < i32 as foo > :: bar ;";
+        let expected = "global x = <i32 as foo>::bar;\n";
         assert_format(src, expected);
     }
 }
