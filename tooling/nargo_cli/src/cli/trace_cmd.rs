@@ -107,7 +107,7 @@ fn generate_plonky2_debug_trace_list(
     // and the panic, caused by unwrap() is justified.
     // If a debug_trace_list hasn't been produced, due to errors in the program,
     // the previous call to report_errors should have returned an error value and we wouldn't have reached this point.
-    Ok(debug_trace_list.unwrap())
+    Ok(debug_trace_list.expect("report_errors did not produce error when it should have"))
 }
 
 pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliError> {
