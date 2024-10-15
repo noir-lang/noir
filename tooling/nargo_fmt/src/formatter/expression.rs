@@ -1,5 +1,8 @@
 use noirc_frontend::{
-    ast::{ArrayLiteral, CastExpression, Expression, ExpressionKind, Literal},
+    ast::{
+        ArrayLiteral, CastExpression, Expression, ExpressionKind, IndexExpression, Literal,
+        PrefixExpression,
+    },
     token::{Keyword, Token},
 };
 
@@ -15,8 +18,12 @@ impl<'a> Formatter<'a> {
         match expression.kind {
             ExpressionKind::Literal(literal) => self.format_literal(literal, chunks),
             ExpressionKind::Block(_block_expression) => todo!("Format block"),
-            ExpressionKind::Prefix(_prefix_expression) => todo!("Format prefix"),
-            ExpressionKind::Index(_index_expression) => todo!("Format index"),
+            ExpressionKind::Prefix(prefix_expression) => {
+                chunks.group(self.format_prefix(*prefix_expression));
+            }
+            ExpressionKind::Index(index_expression) => {
+                chunks.group(self.format_index(*index_expression))
+            }
             ExpressionKind::Call(_call_expression) => todo!("Format call"),
             ExpressionKind::MethodCall(_method_call_expression) => todo!("Format method call"),
             ExpressionKind::Constructor(_constructor_expression) => todo!("Format constructor"),
@@ -182,6 +189,33 @@ impl<'a> Formatter<'a> {
             formatter.write_keyword(Keyword::As);
             formatter.write_space();
             formatter.format_type(cast_expression.r#type);
+        }));
+        chunks
+    }
+
+    fn format_prefix(&mut self, prefix: PrefixExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_current_token();
+            formatter.bump();
+        }));
+        self.format_expression(prefix.rhs, &mut chunks);
+        chunks
+    }
+
+    fn format_index(&mut self, index: IndexExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+        self.format_expression(index.collection, &mut chunks);
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_left_bracket();
+        }));
+        chunks.increase_indentation();
+        chunks.line();
+        self.format_expression(index.index, &mut chunks);
+        chunks.decrease_indentation();
+        chunks.line();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_bracket();
         }));
         chunks
     }
@@ -418,6 +452,20 @@ global y = 1;
     fn format_as_trait_path() {
         let src = "global x = < i32 as foo > :: bar ;";
         let expected = "global x = <i32 as foo>::bar;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_index() {
+        let src = "global x = foo [ bar ] ;";
+        let expected = "global x = foo[bar];\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_prefix() {
+        let src = "global x = - a ;";
+        let expected = "global x = -a;\n";
         assert_format(src, expected);
     }
 }
