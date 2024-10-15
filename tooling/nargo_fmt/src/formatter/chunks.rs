@@ -117,7 +117,11 @@ impl Chunks {
         self.push(Chunk::Group(chunks));
     }
 
-    pub(crate) fn line(&mut self, two: bool) {
+    pub(crate) fn line(&mut self) {
+        self.lines(false)
+    }
+
+    pub(crate) fn lines(&mut self, two: bool) {
         self.push(Chunk::Line { two });
     }
 

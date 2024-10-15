@@ -28,7 +28,11 @@ impl<'a> Formatter<'a> {
             }
             ExpressionKind::Infix(_infix_expression) => todo!("Format infix"),
             ExpressionKind::If(_if_expression) => todo!("Format if"),
-            ExpressionKind::Variable(_path) => todo!("Format variable"),
+            ExpressionKind::Variable(path) => {
+                chunks.text(self.chunk(|formatter| {
+                    formatter.format_path(path);
+                }));
+            }
             ExpressionKind::Tuple(_vec) => todo!("Format tuple"),
             ExpressionKind::Lambda(_lambda) => todo!("Format lambda"),
             ExpressionKind::Parenthesized(_expression) => todo!("Format parenthesized"),
@@ -83,7 +87,7 @@ impl<'a> Formatter<'a> {
         }));
 
         chunks.increase_indentation();
-        chunks.line(self.two_newlines_or_more_follow());
+        chunks.line();
 
         match literal {
             ArrayLiteral::Standard(exprs) => {
@@ -124,7 +128,7 @@ impl<'a> Formatter<'a> {
         }
 
         chunks.decrease_indentation();
-        chunks.line(self.two_newlines_or_more_follow());
+        chunks.line();
 
         chunks.text(self.chunk(|formatter| formatter.write_right_bracket()));
 
@@ -324,6 +328,13 @@ global y = 1;
     fn format_cast() {
         let src = "global x =  1  as  u8 ;";
         let expected = "global x = 1 as u8;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_variable() {
+        let src = "global x =  y ;";
+        let expected = "global x = y;\n";
         assert_format(src, expected);
     }
 }
