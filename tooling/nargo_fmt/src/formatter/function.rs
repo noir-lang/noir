@@ -1,6 +1,6 @@
 use noirc_frontend::{
     ast::{
-        FunctionReturnType, ItemVisibility, NoirFunction, Param, TraitBound,
+        BlockExpression, FunctionReturnType, ItemVisibility, NoirFunction, Param, TraitBound,
         UnresolvedTraitConstraint, Visibility,
     },
     token::{Keyword, Token},
@@ -54,28 +54,7 @@ impl<'a> Formatter<'a> {
         }
 
         self.format_function_where_clause(func.def.where_clause);
-
-        if func.def.body.is_empty() {
-            self.increase_indentation();
-            let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
-            self.decrease_indentation();
-            if skip_result.wrote_comment {
-                self.write_line();
-                self.write_indentation();
-            }
-        } else {
-            self.increase_indentation();
-            self.write_line();
-
-            for statement in func.def.body.statements {
-                self.format_statement(statement);
-                self.write_line();
-            }
-
-            self.decrease_indentation();
-            self.write_line();
-        }
-
+        self.format_function_body(func.def.body);
         self.write_right_brace();
         self.write_line();
     }
@@ -230,6 +209,34 @@ impl<'a> Formatter<'a> {
         self.write_line();
         self.write_indentation();
         self.write_left_brace();
+    }
+
+    fn format_function_body(&mut self, body: BlockExpression) {
+        if body.is_empty() {
+            self.increase_indentation();
+            let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
+            self.decrease_indentation();
+            if skip_result.wrote_comment {
+                self.write_line();
+                self.write_indentation();
+            }
+        } else {
+            let mut chunks = Chunks::new();
+            chunks.increase_indentation();
+            chunks.force_line();
+
+            let statements_len = body.statements.len();
+
+            for (index, statement) in body.statements.into_iter().enumerate() {
+                self.format_statement(statement, &mut chunks);
+                if index == statements_len - 1 {
+                    chunks.decrease_indentation();
+                }
+                chunks.force_line();
+            }
+
+            self.format_chunks(chunks);
+        }
     }
 
     fn format_trait_bound(&mut self, trait_bound: TraitBound) {
@@ -463,6 +470,19 @@ unit: ()
     1;
     2;
     3
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_and_block_comment() {
+        let src = "fn main() { 
+        /* foo */ 
+        1 }";
+        let expected = "fn main() {
+    /* foo */
+    1
 }
 ";
         assert_format(src, expected);
