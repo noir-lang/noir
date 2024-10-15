@@ -28,7 +28,7 @@ pub(crate) enum Chunk {
     /// A leading comment. Happens at the beginning of a line.
     LeadingComment(TextChunk),
     /// A group of chunks.
-    Chunks(Chunks),
+    Group(Chunks),
     /// Write a line (or two) if we decide to format chunks in multiple lines, otherwise do nothing.
     Line { two: bool },
     /// Writes a space if we can write a group in one line, otherwise writes a line.
@@ -46,7 +46,7 @@ impl Chunk {
             Chunk::Text(chunk) | Chunk::TrailingComment(chunk) | Chunk::LeadingComment(chunk) => {
                 chunk.width
             }
-            Chunk::Chunks(chunks) => chunks.width(),
+            Chunk::Group(chunks) => chunks.width(),
             Chunk::SpaceOrLine => 1,
             Chunk::Line { .. }
             | Chunk::IncreaseIndentation
@@ -61,7 +61,7 @@ impl Chunk {
             | Chunk::TextIfMultiline(chunk)
             | Chunk::TrailingComment(chunk)
             | Chunk::LeadingComment(chunk) => chunk.has_newlines,
-            Chunk::Chunks(chunks) => chunks.has_newlines(),
+            Chunk::Group(chunks) => chunks.has_newlines(),
             Chunk::Line { .. }
             | Chunk::SpaceOrLine
             | Chunk::IncreaseIndentation
@@ -113,8 +113,8 @@ impl Chunks {
         self.push(Chunk::TextIfMultiline(chunk));
     }
 
-    pub(crate) fn chunks(&mut self, chunks: Chunks) {
-        self.push(Chunk::Chunks(chunks));
+    pub(crate) fn group(&mut self, chunks: Chunks) {
+        self.push(Chunk::Group(chunks));
     }
 
     pub(crate) fn line(&mut self, two: bool) {
@@ -188,7 +188,7 @@ impl<'a> Formatter<'a> {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) => self.write(&text_chunk.string),
-                Chunk::Chunks(chunks) => self.format_chunks_in_one_line(chunks),
+                Chunk::Group(chunks) => self.format_chunks_in_one_line(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
                 Chunk::TextIfMultiline(..)
                 | Chunk::TrailingComment(..)
@@ -239,7 +239,7 @@ impl<'a> Formatter<'a> {
                     self.write_line_without_skipping_whitespace_and_comments();
                     self.write_indentation();
                 }
-                Chunk::Chunks(chunks) => self.format_chunks(chunks),
+                Chunk::Group(chunks) => self.format_chunks(chunks),
                 Chunk::Line { two } => {
                     if two {
                         self.write_multiple_lines_without_skipping_whitespace_and_comments();

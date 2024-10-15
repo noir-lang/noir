@@ -24,7 +24,7 @@ impl<'a> Formatter<'a> {
                 todo!("Format member access")
             }
             ExpressionKind::Cast(cast_expression) => {
-                chunks.chunks(self.format_cast(*cast_expression));
+                chunks.group(self.format_cast(*cast_expression));
             }
             ExpressionKind::Infix(_infix_expression) => todo!("Format infix"),
             ExpressionKind::If(_if_expression) => todo!("Format if"),
@@ -59,12 +59,12 @@ impl<'a> Formatter<'a> {
                 formatter.write_current_token();
                 formatter.bump();
             })),
-            Literal::Array(array_literal) => chunks.chunks(self.format_array_literal(
+            Literal::Array(array_literal) => chunks.group(self.format_array_literal(
                 array_literal,
                 false, // is slice
             )),
             Literal::Slice(array_literal) => {
-                chunks.chunks(self.format_array_literal(
+                chunks.group(self.format_array_literal(
                     array_literal,
                     true, // is slice
                 ))
