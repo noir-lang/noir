@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{Statement, StatementKind, UnresolvedTypeData},
+    ast::{ExpressionKind, Statement, StatementKind, UnresolvedTypeData},
     token::{Keyword, Token},
 };
 
@@ -41,14 +41,34 @@ impl<'a> Formatter<'a> {
             }
             StatementKind::Assign(assign_statement) => {
                 let mut group = Chunks::new();
+                let mut is_op_assign = false;
+
                 group.text(self.chunk(|formatter| {
                     formatter.format_lvalue(assign_statement.lvalue);
                     formatter.write_space();
-                    formatter.write_token(Token::Assign);
+                    if formatter.token == Token::Assign {
+                        formatter.write_token(Token::Assign);
+                    } else {
+                        while formatter.token != Token::Assign {
+                            formatter.write_current_token();
+                            formatter.bump();
+                            formatter.skip_comments_and_whitespace();
+                        }
+                        formatter.write_token(Token::Assign);
+                        is_op_assign = true;
+                    }
                 }));
                 group.increase_indentation();
                 group.space_or_line();
-                self.format_expression(assign_statement.expression, &mut group);
+
+                if is_op_assign {
+                    let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
+                        panic!("Expected an infix expression for op assign");
+                    };
+                    self.format_expression(infix.rhs, &mut group);
+                } else {
+                    self.format_expression(assign_statement.expression, &mut group);
+                }
                 group.text(self.chunk(|formatter| {
                     formatter.write_semicolon();
                 }));
@@ -154,6 +174,16 @@ mod tests {
         let src = " fn foo() { x  =  2 ; } ";
         let expected = "fn foo() {
     x = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_op_assign() {
+        let src = " fn foo() { x  + =  2 ; } ";
+        let expected = "fn foo() {
+    x += 2;
 }
 ";
         assert_format(src, expected);
