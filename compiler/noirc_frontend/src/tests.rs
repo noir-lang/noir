@@ -3389,3 +3389,51 @@ fn arithmetic_generics_rounding_fail() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 }
+
+#[test]
+fn unconditional_recursion() {
+    let srcs = vec![
+        r#"
+        fn main() {
+            main()
+        }
+        "#,
+        r#"
+        fn main() -> pub bool {
+            if main() { true } else { false }
+        }
+        "#,
+        r#"
+        fn main() -> pub bool {
+            if true { main() } else { main() }
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            main() + main()
+        }
+        "#,
+        r#"
+        fn main() -> pub bool {
+            let _ = main();
+            true
+        }
+        "#,
+    ];
+
+    for src in srcs {
+        let errors = get_program_errors(src);
+        assert!(
+            !errors.is_empty(),
+            "expected 'unconditional recursion' error, got nothing; src = {src}"
+        );
+
+        for (error, _) in errors {
+            let CompilationError::ResolverError(ResolverError::UnconditionalRecursion { .. }) =
+                error
+            else {
+                panic!("Expected an 'unconditional recursion' error, got {:?}; src = {src}", error);
+            };
+        }
+    }
+}
