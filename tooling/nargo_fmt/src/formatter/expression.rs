@@ -646,7 +646,7 @@ impl<'a> Formatter<'a> {
                 if count > 0 {
                     // If newlines follow, we first add a line, then add the comment chunk
                     chunks.lines(count > 1);
-                    chunks.text(self.skip_comments_and_whitespace_chunk());
+                    chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
                 } else {
                     // Otherwise, add the comment first as it's a trailing comment
                     chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());

@@ -549,4 +549,23 @@ unit: ()
         let expected = "fn foo() {}\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_comment_on_top_of_let_followed_by_statement() {
+        let src = "fn foo() {
+    1;
+
+    // Comment
+    let x = 1;
+}
+";
+        let expected = "fn foo() {
+    1;
+
+    // Comment
+    let x = 1;
+}
+";
+        assert_format(src, expected);
+    }
 }
