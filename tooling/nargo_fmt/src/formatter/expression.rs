@@ -2,7 +2,7 @@ use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstructorExpression, Expression, ExpressionKind, IndexExpression, InfixExpression,
-        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression, UnaryOp,
     },
     token::{Keyword, Token},
 };
@@ -322,8 +322,17 @@ impl<'a> Formatter<'a> {
     fn format_prefix(&mut self, prefix: PrefixExpression) -> Chunks {
         let mut chunks = Chunks::new();
         chunks.text(self.chunk(|formatter| {
-            formatter.write_current_token();
-            formatter.bump();
+            if let UnaryOp::MutableReference = prefix.operator {
+                formatter.write_current_token();
+                formatter.bump();
+                formatter.skip_comments_and_whitespace();
+                formatter.write_current_token();
+                formatter.bump();
+                formatter.write_space();
+            } else {
+                formatter.write_current_token();
+                formatter.bump();
+            }
         }));
         self.format_expression(prefix.rhs, &mut chunks);
         chunks
@@ -541,6 +550,13 @@ mod tests {
     fn format_negative_integer() {
         let src = "global x =  - 42 ;";
         let expected = "global x = -42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_ref_mut_integer() {
+        let src = "global x = & mut 42 ;";
+        let expected = "global x = &mut 42;\n";
         assert_format(src, expected);
     }
 
