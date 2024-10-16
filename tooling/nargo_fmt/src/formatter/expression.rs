@@ -82,11 +82,16 @@ impl<'a> Formatter<'a> {
                 formatter.write_left_paren();
                 formatter.write_right_paren();
             })),
-            Literal::Bool(_)
-            | Literal::Integer(..)
-            | Literal::Str(_)
-            | Literal::FmtStr(_)
-            | Literal::RawStr(..) => chunks.text(self.chunk(|formatter| {
+            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::RawStr(..) => chunks
+                .text(self.chunk(|formatter| {
+                    formatter.write_current_token_as_in_source();
+                    formatter.bump();
+                })),
+            Literal::Integer(..) => chunks.text(self.chunk(|formatter| {
+                if formatter.token == Token::Minus {
+                    formatter.write_token(Token::Minus);
+                    formatter.skip_comments_and_whitespace();
+                }
                 formatter.write_current_token_as_in_source();
                 formatter.bump();
             })),
@@ -529,6 +534,13 @@ mod tests {
     fn format_integer() {
         let src = "global x =  42 ;";
         let expected = "global x = 42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_negative_integer() {
+        let src = "global x =  - 42 ;";
+        let expected = "global x = -42;\n";
         assert_format(src, expected);
     }
 
