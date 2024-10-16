@@ -147,6 +147,32 @@ impl Chunks {
     pub(crate) fn has_newlines(&self) -> bool {
         self.force_multiple_lines || self.chunks.iter().any(|chunk| chunk.has_newlines())
     }
+
+    /// Before writing a Chunks object in multiple lines, create a new one where `TextIfMultiline`
+    /// is turned into `Text`. Because Chunks will glue two consecutive `Text`s together, if we
+    /// have two chunks `Text("123"), TextIfMultiline(",")`, we'll consider the entire string "123,"
+    /// when deciding whether we can still write in the current line or not.
+    pub(crate) fn prepare_for_multiple_lines(self) -> Chunks {
+        let mut chunks = Chunks {
+            chunks: Vec::new(),
+            one_chunk_per_line: self.one_chunk_per_line,
+            force_multiple_lines: self.force_multiple_lines,
+        };
+
+        for chunk in self.chunks {
+            match chunk {
+                Chunk::Text(chunk) | Chunk::TextIfMultiline(chunk) => chunks.text(chunk),
+                Chunk::TrailingComment(chunk) => chunks.trailing_comment(chunk),
+                Chunk::LeadingComment(chunk) => chunks.leading_comment(chunk),
+                Chunk::Group(group) => chunks.group(group),
+                Chunk::Line { two } => chunks.lines(two),
+                Chunk::SpaceOrLine => chunks.space_or_line(),
+                Chunk::IncreaseIndentation => chunks.increase_indentation(),
+                Chunk::DecreaseIndentation => chunks.decrease_indentation(),
+            }
+        }
+        chunks
+    }
 }
 
 impl<'a> Formatter<'a> {
@@ -214,6 +240,8 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunks_in_multiple_lines(&mut self, chunks: Chunks) {
+        let chunks = chunks.prepare_for_multiple_lines();
+
         let mut last_was_space_or_line = false;
 
         for chunk in chunks.chunks {

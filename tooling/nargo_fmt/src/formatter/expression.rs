@@ -798,9 +798,9 @@ mod tests {
         let expected = "mod moo {
     mod bar {
         global x = [
-            1, 2, 3, 4, 5
-                ,
-            ];
+            1, 2, 3, 4,
+            5,
+        ];
     }
 }
 ";
