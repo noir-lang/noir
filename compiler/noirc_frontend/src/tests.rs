@@ -3470,6 +3470,18 @@ fn unconditional_recursion_pass() {
             if i == 0 { 0 } else { i + main(i-1) }
         }
         "#,
+        // Only immediate self-recursion is detected.
+        r#"
+        fn main() {
+            foo();
+        }
+        fn foo() {
+            bar();
+        }
+        fn bar() {
+            foo();
+        }
+        "#,
     ];
 
     for src in srcs {
