@@ -794,6 +794,24 @@ global y = 1;
         assert_format(src, expected);
     }
 
+    // TODO: this is not ideal
+    #[test]
+    fn format_method_call_chain() {
+        let src = "global x =  bar . baz ( 1, 2 ) . qux ( 1 , 2, 3) . one ( 5, 6)  ;";
+        let expected = "global x =
+    bar.baz(1, 2)
+        .qux(
+            1,
+            2,
+            3,
+        ).one(
+            5,
+            6,
+        );
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
     #[test]
     fn format_member_access() {
         let src = "global x =  bar . baz   ;";
