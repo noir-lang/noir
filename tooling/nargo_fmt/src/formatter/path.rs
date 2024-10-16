@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{Path, PathKind},
+    ast::{Path, PathKind, UnresolvedType},
     token::{Keyword, Token},
 };
 
@@ -31,9 +31,29 @@ impl<'a> Formatter<'a> {
             }
             self.write_identifier(segment.ident);
 
-            if let Some(..) = segment.generics {
-                todo!("Format path generics");
+            if let Some(generics) = segment.generics {
+                self.format_turbofish(generics);
             }
         }
+    }
+
+    fn format_turbofish(&mut self, generics: Vec<UnresolvedType>) {
+        self.write_token(Token::DoubleColon);
+        self.write_token(Token::Less);
+        for (index, typ) in generics.into_iter().enumerate() {
+            if index > 0 {
+                self.write_comma();
+                self.write_space();
+            }
+            self.format_type(typ);
+        }
+
+        // Skip trailing comma, if any
+        self.skip_comments_and_whitespace();
+        if self.token == Token::Comma {
+            self.bump();
+        }
+
+        self.write_token(Token::Greater);
     }
 }
