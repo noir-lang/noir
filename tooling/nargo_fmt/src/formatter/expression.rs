@@ -819,6 +819,17 @@ global y = 1;
         assert_format(src, expected);
     }
 
+    // TODO: this is not ideal
+    #[test]
+    fn format_long_member_access() {
+        let src = "global x =  foo . bar . baz . qux . this_is_a_long_name   ;";
+        let expected = "global x =
+    foo.bar.baz.qux
+        .this_is_a_long_name;
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
     #[test]
     fn format_parenthesized() {
         let src = "global x =  ( 1 )   ;";
