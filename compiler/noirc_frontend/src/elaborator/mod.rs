@@ -1690,16 +1690,16 @@ impl<'context> Elaborator<'context> {
             HirExpression::Infix(e) => check(e.lhs) || check(e.rhs),
             HirExpression::Index(e) => check(e.collection) || check(e.index),
             HirExpression::MemberAccess(e) => check(e.lhs),
-            HirExpression::Call(e) => check(e.func) || e.arguments.iter().cloned().any(check),
+            HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
             HirExpression::MethodCall(e) => {
-                check(e.object) || e.arguments.iter().cloned().any(check)
+                check(e.object) && e.arguments.iter().cloned().all(check)
             }
             HirExpression::Cast(e) => check(e.lhs),
             HirExpression::If(e) => {
                 check(e.condition)
                     && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
             }
-            HirExpression::Tuple(e) => e.iter().cloned().any(check),
+            HirExpression::Tuple(e) => e.iter().cloned().all(check),
             HirExpression::Lambda(e) => check(e.body),
             HirExpression::Unsafe(b) => check_block(b),
             HirExpression::Literal(_)

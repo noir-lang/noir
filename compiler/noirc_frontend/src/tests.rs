@@ -3419,6 +3419,25 @@ fn unconditional_recursion_fail() {
             true
         }
         "#,
+        r#"
+        fn main(a: u64, b: u64) -> pub u64 {
+            main(a + b, main(a, b))
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            foo(1, main())
+        }
+        fn foo(a: u64, b: u64) -> u64 { 
+            a + b
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            let (a, b) = (main(), main());
+            a + b
+        }
+        "#,
     ];
 
     for src in srcs {
