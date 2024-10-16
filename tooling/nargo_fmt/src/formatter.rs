@@ -28,6 +28,7 @@ mod trait_impl;
 mod traits;
 mod type_expression;
 mod types;
+mod use_tree;
 mod visibility;
 mod where_clause;
 

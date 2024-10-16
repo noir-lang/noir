@@ -12,7 +12,9 @@ impl<'a> Formatter<'a> {
         }
 
         match item.kind {
-            ItemKind::Import(_use_tree, _item_visibility) => todo!("Format import"),
+            ItemKind::Import(use_tree, item_visibility) => {
+                self.format_import(use_tree, item_visibility)
+            }
             ItemKind::Function(noir_function) => self.format_function(noir_function),
             ItemKind::Struct(noir_struct) => self.format_struct(noir_struct),
             ItemKind::Trait(noir_trait) => self.format_trait(noir_trait),
