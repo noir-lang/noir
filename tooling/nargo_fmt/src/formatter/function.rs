@@ -119,6 +119,7 @@ impl<'a> Formatter<'a> {
         self.format_items_separated_by_comma(
             parameters,
             false, // force trailing comma
+            false, // surround with spaces
             chunks,
             |formatter, param, chunks| {
                 chunks.text(formatter.chunk(|formatter| {

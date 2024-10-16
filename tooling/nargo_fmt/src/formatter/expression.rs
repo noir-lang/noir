@@ -1,8 +1,8 @@
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression, Expression,
-        ExpressionKind, IndexExpression, InfixExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, PrefixExpression,
+        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
+        ConstructorExpression, Expression, ExpressionKind, IndexExpression, InfixExpression,
+        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression,
     },
     token::{Keyword, Token},
 };
@@ -33,7 +33,9 @@ impl<'a> Formatter<'a> {
             ExpressionKind::MethodCall(method_call) => {
                 chunks.group(self.format_method_call(*method_call))
             }
-            ExpressionKind::Constructor(_constructor_expression) => todo!("Format constructor"),
+            ExpressionKind::Constructor(constructor) => {
+                chunks.group(self.format_constructor(*constructor));
+            }
             ExpressionKind::MemberAccess(member_access) => {
                 chunks.group(self.format_member_access(*member_access));
             }
@@ -192,6 +194,7 @@ impl<'a> Formatter<'a> {
         self.format_items_separated_by_comma(
             exprs,
             force_trailing_comma,
+            false, // surround with spaces
             chunks,
             |formatter, expr, chunks| {
                 formatter.format_expression(expr, chunks);
@@ -203,13 +206,18 @@ impl<'a> Formatter<'a> {
         &mut self,
         items: Vec<Item>,
         force_trailing_comma: bool,
+        surround_with_spaces: bool,
         mut chunks: &mut Chunks,
         mut format_item: F,
     ) where
         F: FnMut(&mut Self, Item, &mut Chunks),
     {
         chunks.increase_indentation();
-        chunks.line();
+        if surround_with_spaces {
+            chunks.space_or_line();
+        } else {
+            chunks.line();
+        }
 
         for (index, expr) in items.into_iter().enumerate() {
             if index > 0 {
@@ -241,7 +249,44 @@ impl<'a> Formatter<'a> {
         chunks.text(chunk);
 
         chunks.decrease_indentation();
-        chunks.line();
+        if surround_with_spaces {
+            chunks.space_or_line();
+        } else {
+            chunks.line();
+        }
+    }
+
+    fn format_constructor(&mut self, constructor: ConstructorExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.format_type(constructor.typ);
+            formatter.write_space();
+            formatter.write_left_brace();
+        }));
+
+        if constructor.fields.is_empty() {
+            self.format_empty_block_contents();
+        } else {
+            self.format_items_separated_by_comma(
+                constructor.fields,
+                false, // force trailing comma
+                true,  // surround with spaces
+                &mut chunks,
+                |formatter, (name, value), chunks| {
+                    chunks.text(formatter.chunk(|formatter| {
+                        formatter.write_identifier(name);
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                    }));
+                    formatter.format_expression(value, chunks);
+                },
+            );
+        }
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_brace();
+        }));
+
+        chunks
     }
 
     fn format_member_access(&mut self, member_access: MemberAccessExpression) -> Chunks {
@@ -854,6 +899,20 @@ global y = 1;
         2
     };
 ";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_constructor() {
+        let src = "global x = Foo { } ;";
+        let expected = "global x = Foo {};\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_constructor() {
+        let src = "global x = Foo { one: 1 , two : 2 , } ;";
+        let expected = "global x = Foo { one: 1, two: 2 };\n";
         assert_format(src, expected);
     }
 }
