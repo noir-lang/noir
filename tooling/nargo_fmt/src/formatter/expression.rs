@@ -379,10 +379,16 @@ impl<'a> Formatter<'a> {
                 |formatter, (name, value), chunks| {
                     chunks.text(formatter.chunk(|formatter| {
                         formatter.write_identifier(name);
-                        formatter.write_token(Token::Colon);
-                        formatter.write_space();
+                        formatter.skip_comments_and_whitespace();
                     }));
-                    formatter.format_expression(value, chunks);
+
+                    if formatter.token == Token::Colon {
+                        chunks.text(formatter.chunk(|formatter| {
+                            formatter.write_token(Token::Colon);
+                            formatter.write_space();
+                        }));
+                        formatter.format_expression(value, chunks);
+                    }
                 },
             );
         }
@@ -1138,8 +1144,8 @@ global y = 1;
 
     #[test]
     fn format_constructor() {
-        let src = "global x = Foo { one: 1 , two : 2 , } ;";
-        let expected = "global x = Foo { one: 1, two: 2 };\n";
+        let src = "global x = Foo { one: 1 , two : 2 , three } ;";
+        let expected = "global x = Foo { one: 1, two: 2, three };\n";
         assert_format(src, expected);
     }
 
