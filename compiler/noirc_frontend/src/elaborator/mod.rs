@@ -10,6 +10,7 @@ use crate::{
         stmt::HirStatement,
         traits::ResolvedTraitBound,
     },
+    node_interner::DefinitionId,
     StructField, TypeBindings,
 };
 use crate::{
@@ -458,7 +459,7 @@ impl<'context> Elaborator<'context> {
             FunctionKind::Normal | FunctionKind::Recursive => {
                 self.check_for_unbounded_recursion(
                     id,
-                    self.interner.definition(func_meta.name.id).name.to_string(),
+                    self.interner.definition_name(func_meta.name.id).to_string(),
                     func_meta.name.location.span,
                     hir_func.as_expr(),
                 );
@@ -1679,10 +1680,14 @@ impl<'context> Elaborator<'context> {
 
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(ident, _) => {
+                if ident.id == DefinitionId::dummy_id() {
+                    return true;
+                }
                 let definition = self.interner.definition(ident.id);
-                match definition.kind {
-                    DefinitionKind::Function(id) => func_id != id,
-                    _ => true,
+                if let DefinitionKind::Function(id) = definition.kind {
+                    func_id != id
+                } else {
+                    true
                 }
             }
             HirExpression::Block(b) => check_block(b),
