@@ -2,7 +2,7 @@ use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstructorExpression, Expression, ExpressionKind, IndexExpression, InfixExpression,
-        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression, UnaryOp,
+        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
     },
     token::{Keyword, Token},
 };
@@ -73,7 +73,9 @@ impl<'a> Formatter<'a> {
             ExpressionKind::AsTraitPath(as_trait_path) => {
                 chunks.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)))
             }
-            ExpressionKind::TypePath(_type_path) => todo!("Format type path"),
+            ExpressionKind::TypePath(type_path) => {
+                chunks.group(self.format_type_path(type_path));
+            }
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)
             | ExpressionKind::InternedStatement(..)
@@ -206,6 +208,20 @@ impl<'a> Formatter<'a> {
             formatter.write_space();
         }));
         chunks.group(self.format_block_expression(block, force_multiple_lines));
+        chunks
+    }
+
+    pub(super) fn format_type_path(&mut self, type_path: TypePath) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.format_type(type_path.typ);
+            formatter.write_token(Token::DoubleColon);
+            formatter.write_identifier(type_path.item);
+            if !type_path.turbofish.is_empty() {
+                formatter.write_token(Token::DoubleColon);
+                formatter.format_generic_type_args(type_path.turbofish);
+            }
+        }));
         chunks
     }
 
@@ -980,6 +996,20 @@ global y = 1;
     fn format_constructor() {
         let src = "global x = Foo { one: 1 , two : 2 , } ;";
         let expected = "global x = Foo { one: 1, two: 2 };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_type_path() {
+        let src = "global x = Field :: max  ;";
+        let expected = "global x = Field::max;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_type_path_with_turbofish() {
+        let src = "global x = Field :: max :: < i32 > ;";
+        let expected = "global x = Field::max::<i32>;\n";
         assert_format(src, expected);
     }
 }
