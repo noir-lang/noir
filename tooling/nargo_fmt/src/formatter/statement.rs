@@ -114,6 +114,11 @@ impl<'a> Formatter<'a> {
 
     fn format_comptime_statement(&mut self, statement: Statement) -> Chunks {
         let mut chunks = Chunks::new();
+
+        // A comptime statement can be a let, a block or a for.
+        // We always want to force multiple lines except for let.
+        chunks.force_multiple_lines = !matches!(statement.kind, StatementKind::Let(..));
+
         chunks.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::Comptime);
             formatter.write_space();
@@ -295,6 +300,19 @@ mod tests {
         let src = " fn foo() { { 1 ; 2 } } ";
         let expected = "fn foo() {
     {
+        1;
+        2
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comptime_block_statement() {
+        let src = " fn foo() { comptime { 1 ; 2 } } ";
+        let expected = "fn foo() {
+    comptime {
         1;
         2
     }
