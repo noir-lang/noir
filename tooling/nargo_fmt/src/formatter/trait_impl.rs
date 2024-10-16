@@ -1,0 +1,210 @@
+use noirc_frontend::{
+    ast::{
+        FunctionDefinition, ItemVisibility, NoirFunction, NoirTraitImpl, TraitImplItem,
+        TraitImplItemKind, UnresolvedTypeData,
+    },
+    token::{Keyword, Token},
+};
+
+use super::{chunks::Chunks, Formatter};
+
+impl<'a> Formatter<'a> {
+    pub(super) fn format_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
+        let has_where_clause = !trait_impl.where_clause.is_empty();
+
+        self.write_indentation();
+        self.write_keyword(Keyword::Impl);
+        self.write_space();
+        self.format_path(trait_impl.trait_name);
+        self.format_generic_type_args(trait_impl.trait_generics);
+        self.write_space();
+        self.write_keyword(Keyword::For);
+        self.write_space();
+        self.format_type(trait_impl.object_type);
+
+        if has_where_clause {
+            self.format_where_clause(trait_impl.where_clause);
+        } else {
+            self.write_space();
+        }
+        self.write_left_brace();
+
+        if trait_impl.items.is_empty() {
+            self.format_empty_block_contents();
+        } else {
+            self.increase_indentation();
+            self.write_line();
+
+            for (index, documented_item) in trait_impl.items.into_iter().enumerate() {
+                if index > 0 {
+                    self.write_line();
+                }
+
+                let doc_comments = documented_item.doc_comments;
+                let item = documented_item.item;
+                if !doc_comments.is_empty() {
+                    self.format_outer_doc_comments();
+                }
+                self.format_trait_impl_item(item);
+            }
+
+            self.decrease_indentation();
+            self.write_line();
+            self.write_indentation();
+        }
+
+        self.write_right_brace();
+        self.write_line();
+    }
+
+    fn format_trait_impl_item(&mut self, item: TraitImplItem) {
+        match item.kind {
+            TraitImplItemKind::Function(noir_function) => {
+                // Trait impl functions are public, but there's no `pub` keyword in the source code,
+                // so to format it we pass a private one.
+                let def =
+                    FunctionDefinition { visibility: ItemVisibility::Private, ..noir_function.def };
+                let noir_function = NoirFunction { def, ..noir_function };
+                self.format_function(noir_function);
+            }
+            TraitImplItemKind::Constant(name, typ, value) => {
+                let mut chunks = Chunks::new();
+                chunks.text(self.chunk(|formatter| {
+                    formatter.write_keyword(Keyword::Let);
+                    formatter.write_space();
+                    formatter.write_identifier(name);
+
+                    if typ.typ != UnresolvedTypeData::Unspecified {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(typ);
+                    }
+                }));
+
+                chunks.text(self.chunk(|formatter| {
+                    formatter.write_space();
+                    formatter.write_token(Token::Assign);
+                }));
+                chunks.increase_indentation();
+                chunks.space_or_line();
+                self.format_expression(value, &mut chunks);
+                chunks.decrease_indentation();
+                chunks.decrease_indentation();
+
+                chunks.text(self.chunk(|formatter| {
+                    formatter.write_semicolon();
+                }));
+
+                self.write_indentation();
+                self.format_chunks(chunks);
+            }
+            TraitImplItemKind::Type { name, alias } => {
+                self.write_indentation();
+                self.write_keyword(Keyword::Type);
+                self.write_space();
+                self.write_identifier(name);
+                self.write_space();
+                self.write_token(Token::Assign);
+                self.write_space();
+                self.format_type(alias);
+                self.write_semicolon();
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::assert_format;
+
+    #[test]
+    fn format_empty_trait_impl() {
+        let src = " mod moo { impl  Foo  for  Bar {  } }";
+        let expected = "mod moo {
+    impl Foo for Bar {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_trait_impl_with_generics() {
+        let src = " mod moo { impl  Foo < T >   for  Bar {  } }";
+        let expected = "mod moo {
+    impl Foo<T> for Bar {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_trait_impl_with_where_clause() {
+        let src = " mod moo { impl  Foo < T >   for  Bar  where  T : Baz {  } }";
+        let expected = "mod moo {
+    impl Foo<T> for Bar
+    where
+        T: Baz,
+    {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_impl_function() {
+        let src = " mod moo { impl  Foo  for  Bar {  
+        /// Some doc comment
+fn foo ( ) { }
+         } }";
+        let expected = "mod moo {
+    impl Foo for Bar {
+        /// Some doc comment
+        fn foo() {}
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_impl_constant_without_type() {
+        let src = " mod moo { impl  Foo  for  Bar {  
+            let X =42 ;
+         } }";
+        let expected = "mod moo {
+    impl Foo for Bar {
+        let X = 42;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_impl_constant_with_type() {
+        let src = " mod moo { impl  Foo  for  Bar {  
+            let X : i32=42 ;
+         } }";
+        let expected = "mod moo {
+    impl Foo for Bar {
+        let X: i32 = 42;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_impl_type() {
+        let src = " mod moo { impl  Foo  for  Bar {  
+            type  X  =  i32 ;
+         } }";
+        let expected = "mod moo {
+    impl Foo for Bar {
+        type X = i32;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+}

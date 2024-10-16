@@ -24,6 +24,7 @@ mod path;
 mod pattern;
 mod statement;
 mod structs;
+mod trait_impl;
 mod traits;
 mod type_expression;
 mod types;
