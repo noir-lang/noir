@@ -1,8 +1,8 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression, Expression,
-        ExpressionKind, IndexExpression, InfixExpression, Literal, MethodCallExpression,
-        PrefixExpression,
+        ExpressionKind, IndexExpression, InfixExpression, Literal, MemberAccessExpression,
+        MethodCallExpression, PrefixExpression,
     },
     token::{Keyword, Token},
 };
@@ -34,8 +34,8 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_method_call(*method_call))
             }
             ExpressionKind::Constructor(_constructor_expression) => todo!("Format constructor"),
-            ExpressionKind::MemberAccess(_member_access_expression) => {
-                todo!("Format member access")
+            ExpressionKind::MemberAccess(member_access) => {
+                chunks.group(self.format_member_access(*member_access));
             }
             ExpressionKind::Cast(cast_expression) => {
                 chunks.group(self.format_cast(*cast_expression));
@@ -190,6 +190,19 @@ impl<'a> Formatter<'a> {
 
         chunks.decrease_indentation();
         chunks.line();
+    }
+
+    fn format_member_access(&mut self, member_access: MemberAccessExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        self.format_expression(member_access.lhs, &mut chunks);
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_token(Token::Dot);
+            formatter.write_identifier(member_access.rhs);
+        }));
+
+        chunks
     }
 
     fn format_cast(&mut self, cast_expression: CastExpression) -> Chunks {
@@ -709,6 +722,13 @@ global y = 1;
     fn format_method_call() {
         let src = "global x =  bar . baz ( 1, 2 )  ;";
         let expected = "global x = bar.baz(1, 2);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_member_access() {
+        let src = "global x =  bar . baz   ;";
+        let expected = "global x = bar.baz;\n";
         assert_format(src, expected);
     }
 }
