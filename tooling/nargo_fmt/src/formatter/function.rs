@@ -540,4 +540,13 @@ unit: ()
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_function_with_empty_body_multiple_lines() {
+        let src = "fn foo() {
+
+        }";
+        let expected = "fn foo() {}\n";
+        assert_format(src, expected);
+    }
 }

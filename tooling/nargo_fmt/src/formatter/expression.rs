@@ -662,12 +662,23 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_empty_block_contents(&mut self) {
-        self.increase_indentation();
-        let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
-        self.decrease_indentation();
-        if skip_result.wrote_comment {
-            self.write_line();
-            self.write_indentation();
+        let mut chunks = Chunks::new();
+        chunks.increase_indentation();
+        let chunk = self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace_writing_lines_if_found();
+        });
+
+        if chunk.string.trim().is_empty() {
+            // We only found whitespace until the next non-whitespace-non-comment token,
+            // so there's nothing to write.
+            return;
+        } else {
+            // There were comments, so we have to write those indented, then write
+            // a final newline in case we found a `//` comment.
+            chunks.text(chunk);
+            chunks.decrease_indentation();
+            chunks.line();
+            self.format_chunks(chunks);
         }
     }
 }
