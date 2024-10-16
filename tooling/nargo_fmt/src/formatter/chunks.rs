@@ -263,7 +263,7 @@ impl<'a> Formatter<'a> {
             last_was_space_or_line = false;
 
             match chunk {
-                Chunk::Text(text_chunk) | Chunk::TextIfMultiline(text_chunk) => {
+                Chunk::Text(text_chunk) => {
                     if text_chunk.has_newlines {
                         self.write_chunk_lines(&text_chunk.string);
                     } else {
@@ -308,6 +308,11 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::DecreaseIndentation => {
                     self.decrease_indentation();
+                }
+                Chunk::TextIfMultiline(..) => {
+                    unreachable!(
+                        "TextIfMultiline should have been removed by `prepare_for_multiple_lines`"
+                    )
                 }
             }
         }
