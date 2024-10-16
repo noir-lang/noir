@@ -1,7 +1,8 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression, Expression,
-        ExpressionKind, IndexExpression, InfixExpression, Literal, PrefixExpression,
+        ExpressionKind, IndexExpression, InfixExpression, Literal, MethodCallExpression,
+        PrefixExpression,
     },
     token::{Keyword, Token},
 };
@@ -29,7 +30,9 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_index_expression(*index_expression))
             }
             ExpressionKind::Call(call) => chunks.group(self.format_call(*call)),
-            ExpressionKind::MethodCall(_method_call_expression) => todo!("Format method call"),
+            ExpressionKind::MethodCall(method_call) => {
+                chunks.group(self.format_method_call(*method_call))
+            }
             ExpressionKind::Constructor(_constructor_expression) => todo!("Format constructor"),
             ExpressionKind::MemberAccess(_member_access_expression) => {
                 todo!("Format member access")
@@ -260,6 +263,31 @@ impl<'a> Formatter<'a> {
         }));
         self.format_expressions_separated_by_comma(
             call.arguments,
+            false, // force trailing comma
+            &mut chunks,
+        );
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+        }));
+
+        chunks
+    }
+
+    fn format_method_call(&mut self, method_call: MethodCallExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        self.format_expression(method_call.object, &mut chunks);
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_token(Token::Dot);
+            formatter.write_identifier(method_call.method_name);
+            if method_call.is_macro_call {
+                formatter.write_token(Token::Bang);
+            }
+            formatter.write_left_paren();
+        }));
+        self.format_expressions_separated_by_comma(
+            method_call.arguments,
             false, // force trailing comma
             &mut chunks,
         );
@@ -674,6 +702,13 @@ global y = 1;
     fn format_call() {
         let src = "global x =  foo :: bar ( 1, 2 )  ;";
         let expected = "global x = foo::bar(1, 2);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_method_call() {
+        let src = "global x =  bar . baz ( 1, 2 )  ;";
+        let expected = "global x = bar.baz(1, 2);\n";
         assert_format(src, expected);
     }
 }
