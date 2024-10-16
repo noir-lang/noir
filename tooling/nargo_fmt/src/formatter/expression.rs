@@ -51,7 +51,9 @@ impl<'a> Formatter<'a> {
             }
             ExpressionKind::Tuple(exprs) => chunks.group(self.format_tuple(exprs)),
             ExpressionKind::Lambda(_lambda) => todo!("Format lambda"),
-            ExpressionKind::Parenthesized(_expression) => todo!("Format parenthesized"),
+            ExpressionKind::Parenthesized(expression) => {
+                chunks.group(self.format_parenthesized_expression(*expression));
+            }
             ExpressionKind::Quote(_tokens) => todo!("Format quote"),
             ExpressionKind::Unquote(_expression) => todo!("Format unquote"),
             ExpressionKind::Comptime(_block_expression, _span) => todo!("Format comptime"),
@@ -147,6 +149,18 @@ impl<'a> Formatter<'a> {
 
         chunks.text(self.chunk(|formatter| formatter.write_right_paren()));
 
+        chunks
+    }
+
+    fn format_parenthesized_expression(&mut self, expr: Expression) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_left_paren();
+        }));
+        self.format_expression(expr, &mut chunks);
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+        }));
         chunks
     }
 
@@ -765,6 +779,13 @@ global y = 1;
     fn format_member_access() {
         let src = "global x =  bar . baz   ;";
         let expected = "global x = bar.baz;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_parenthesized() {
+        let src = "global x =  ( 1 )   ;";
+        let expected = "global x = (1);\n";
         assert_format(src, expected);
     }
 }
