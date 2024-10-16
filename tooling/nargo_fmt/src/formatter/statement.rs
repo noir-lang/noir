@@ -210,6 +210,16 @@ mod tests {
     }
 
     #[test]
+    fn format_assign_with_parentheses() {
+        let src = " fn foo() { ( array[0] )[1] = 2; } ";
+        let expected = "fn foo() {
+    (array[0])[1] = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_op_assign() {
         let src = " fn foo() { x  + =  2 ; } ";
         let expected = "fn foo() {

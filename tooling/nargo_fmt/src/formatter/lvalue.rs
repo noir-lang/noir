@@ -4,6 +4,11 @@ use super::{chunks::Chunks, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_lvalue(&mut self, lvalue: LValue) {
+        // Parenthesized lvalues exist but are not represented in the AST
+        while let Token::LeftParen = self.token {
+            self.write_left_paren();
+        }
+
         match lvalue {
             LValue::Ident(ident) => self.write_identifier(ident),
             LValue::MemberAccess { object, field_name, span: _ } => {
@@ -26,6 +31,13 @@ impl<'a> Formatter<'a> {
             LValue::Interned(..) => {
                 unreachable!("Should not be present in the AST")
             }
+        }
+
+        self.skip_comments_and_whitespace();
+
+        // Parenthesized lvalues exist but are not represented in the AST
+        while let Token::RightParen = self.token {
+            self.write_right_paren();
         }
     }
 }
