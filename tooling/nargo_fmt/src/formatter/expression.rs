@@ -58,7 +58,12 @@ impl<'a> Formatter<'a> {
             }
             ExpressionKind::Quote(_tokens) => todo!("Format quote"),
             ExpressionKind::Unquote(_expression) => todo!("Format unquote"),
-            ExpressionKind::Comptime(_block_expression, _span) => todo!("Format comptime"),
+            ExpressionKind::Comptime(block_expression, _span) => {
+                chunks.group(self.format_comptime_expression(
+                    block_expression,
+                    false, // force multiple lines
+                ));
+            }
             ExpressionKind::Unsafe(block_expression, _span) => {
                 chunks.group(self.format_unsafe_expression(
                     block_expression,
@@ -173,6 +178,20 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));
+        chunks
+    }
+
+    pub(super) fn format_comptime_expression(
+        &mut self,
+        block: BlockExpression,
+        force_multiple_lines: bool,
+    ) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Comptime);
+            formatter.write_space();
+        }));
+        chunks.group(self.format_block_expression(block, force_multiple_lines));
         chunks
     }
 
@@ -923,6 +942,26 @@ global y = 1;
         let src = "global x = unsafe { 1; 2  } ;";
         let expected = "global x =
     unsafe {
+        1;
+        2
+    };
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comptime_one_expression() {
+        let src = "global x = comptime { 1  } ;";
+        let expected = "global x = comptime { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    // TODO: this is not ideal
+    #[test]
+    fn format_comptime_two_expressions() {
+        let src = "global x = comptime { 1; 2  } ;";
+        let expected = "global x =
+    comptime {
         1;
         2
     };

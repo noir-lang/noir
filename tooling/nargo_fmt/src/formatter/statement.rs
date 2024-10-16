@@ -412,6 +412,18 @@ mod tests {
     }
 
     #[test]
+    fn format_comptime_statement_one_statement() {
+        let src = " fn foo() { comptime { 1  } } ";
+        let expected = "fn foo() {
+    comptime {
+        1
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_comptime_block_statement() {
         let src = " fn foo() { comptime { 1 ; 2 } } ";
         let expected = "fn foo() {
