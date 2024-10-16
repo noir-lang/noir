@@ -1,7 +1,7 @@
 use noirc_frontend::{
     ast::{
-        AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        Statement, StatementKind, UnresolvedTypeData,
+        AssignStatement, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
+        ForLoopStatement, ForRange, LetStatement, Statement, StatementKind, UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -16,7 +16,9 @@ impl<'a> Formatter<'a> {
             StatementKind::Let(let_statement) => {
                 chunks.group(self.format_let_statement(let_statement));
             }
-            StatementKind::Constrain(_constrain_statement) => todo!("Format constrain statement"),
+            StatementKind::Constrain(constrain_statement) => {
+                chunks.group(self.format_constrain_statement(constrain_statement))
+            }
             StatementKind::Expression(expression) => match expression.kind {
                 ExpressionKind::Block(block) => chunks.group(self.format_block_expression(
                     block, true, // force multiple lines
@@ -75,6 +77,36 @@ impl<'a> Formatter<'a> {
             formatter.write_semicolon();
         }));
         chunks.decrease_indentation();
+
+        chunks
+    }
+
+    fn format_constrain_statement(&mut self, constrain_statement: ConstrainStatement) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        let keyword = match constrain_statement.kind {
+            ConstrainKind::Assert => Keyword::Assert,
+            ConstrainKind::AssertEq => Keyword::AssertEq,
+            ConstrainKind::Constrain => {
+                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
+            }
+        };
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_keyword(keyword);
+            formatter.write_left_paren();
+        }));
+
+        self.format_expressions_separated_by_comma(
+            constrain_statement.arguments,
+            false, // force trailing comma
+            &mut chunks,
+        );
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+            formatter.write_semicolon();
+        }));
 
         chunks
     }
@@ -420,6 +452,26 @@ mod tests {
     }
 }
 ";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_assert() {
+        let src = r#" fn foo() {  assert ( true , "hello" ) ;  } "#;
+        let expected = r#"fn foo() {
+    assert(true, "hello");
+}
+"#;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_assert_eq() {
+        let src = r#" fn foo() {  assert ( 1 , 2 , "hello" ) ;  } "#;
+        let expected = r#"fn foo() {
+    assert(1, 2, "hello");
+}
+"#;
         assert_format(src, expected);
     }
 }

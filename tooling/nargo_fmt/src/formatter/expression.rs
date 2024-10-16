@@ -147,7 +147,7 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    fn format_expressions_separated_by_comma(
+    pub(super) fn format_expressions_separated_by_comma(
         &mut self,
         exprs: Vec<Expression>,
         force_trailing_comma: bool,
