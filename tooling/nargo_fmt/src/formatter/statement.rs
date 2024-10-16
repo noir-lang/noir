@@ -23,6 +23,11 @@ impl<'a> Formatter<'a> {
                 ExpressionKind::Block(block) => chunks.group(self.format_block_expression(
                     block, true, // force multiple lines
                 )),
+                ExpressionKind::Unsafe(block, _) => {
+                    chunks.group(self.format_unsafe_expression(
+                        block, true, // force multiple lines
+                    ));
+                }
                 _ => self.format_expression(expression, &mut chunks),
             },
             StatementKind::Assign(assign_statement) => {
@@ -388,6 +393,18 @@ mod tests {
     {
         1;
         2
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unsafe_statement() {
+        let src = " fn foo() { unsafe { 1  } } ";
+        let expected = "fn foo() {
+    unsafe {
+        1
     }
 }
 ";

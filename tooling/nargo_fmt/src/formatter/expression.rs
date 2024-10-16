@@ -58,7 +58,10 @@ impl<'a> Formatter<'a> {
             ExpressionKind::Unquote(_expression) => todo!("Format unquote"),
             ExpressionKind::Comptime(_block_expression, _span) => todo!("Format comptime"),
             ExpressionKind::Unsafe(block_expression, _span) => {
-                chunks.group(self.format_unsafe_expression(block_expression));
+                chunks.group(self.format_unsafe_expression(
+                    block_expression,
+                    false, // force multiple lines
+                ));
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
                 chunks.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)))
@@ -166,15 +169,17 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    fn format_unsafe_expression(&mut self, block: BlockExpression) -> Chunks {
+    pub(super) fn format_unsafe_expression(
+        &mut self,
+        block: BlockExpression,
+        force_multiple_lines: bool,
+    ) -> Chunks {
         let mut chunks = Chunks::new();
         chunks.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));
-        chunks.group(self.format_block_expression(
-            block, false, // force multiple lines
-        ));
+        chunks.group(self.format_block_expression(block, force_multiple_lines));
         chunks
     }
 
