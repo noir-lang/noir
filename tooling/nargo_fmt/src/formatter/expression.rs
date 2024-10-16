@@ -1,8 +1,9 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
-        ConstructorExpression, Expression, ExpressionKind, IndexExpression, InfixExpression,
-        Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
+        ConstructorExpression, Expression, ExpressionKind, IfExpression, IndexExpression,
+        InfixExpression, Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        TypePath, UnaryOp,
     },
     token::{Keyword, Token},
 };
@@ -45,7 +46,12 @@ impl<'a> Formatter<'a> {
             ExpressionKind::Infix(infix_expression) => {
                 chunks.group(self.format_infix_expression(*infix_expression))
             }
-            ExpressionKind::If(_if_expression) => todo!("Format if"),
+            ExpressionKind::If(if_expression) => {
+                chunks.group(self.format_if_expression(
+                    *if_expression,
+                    false, // force multiple lines
+                ));
+            }
             ExpressionKind::Variable(path) => {
                 chunks.text(self.chunk(|formatter| {
                     formatter.format_path(path);
@@ -392,6 +398,56 @@ impl<'a> Formatter<'a> {
         }));
 
         self.format_expression(infix.rhs, &mut chunks);
+
+        chunks
+    }
+
+    fn format_if_expression(
+        &mut self,
+        if_expression: IfExpression,
+        mut force_multiple_lines: bool,
+    ) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::If);
+            formatter.write_space();
+        }));
+
+        self.format_expression(if_expression.condition, &mut chunks);
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_space();
+        }));
+
+        let ExpressionKind::Block(consequence_block) = if_expression.consequence.kind else {
+            panic!("Expected if expression consequence to be a block");
+        };
+
+        let alternative_block = if_expression.alternative.map(|alternative| {
+            let ExpressionKind::Block(alternative_block) = alternative.kind else {
+                panic!("Expected if expression alternative to be a block");
+            };
+            alternative_block
+        });
+
+        if let Some(alternative_block) = &alternative_block {
+            if alternative_block.statements.len() > 1 {
+                force_multiple_lines = true;
+            }
+        }
+
+        chunks.group(self.format_block_expression(consequence_block, force_multiple_lines));
+
+        if let Some(alternative_block) = alternative_block {
+            chunks.text(self.chunk(|formatter| {
+                formatter.write_space();
+                formatter.write_keyword(Keyword::Else);
+                formatter.write_space();
+            }));
+
+            chunks.group(self.format_block_expression(alternative_block, force_multiple_lines));
+        }
 
         chunks
     }
@@ -1010,6 +1066,48 @@ global y = 1;
     fn format_type_path_with_turbofish() {
         let src = "global x = Field :: max :: < i32 > ;";
         let expected = "global x = Field::max::<i32>;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_if_expression_without_else_one_expression() {
+        let src = "global x = if  1   {   2   } ;";
+        let expected = "global x = if 1 { 2 };\n";
+        assert_format(src, expected);
+    }
+
+    // TODO: this is not ideal
+    #[test]
+    fn format_if_expression_without_else_two_expressions() {
+        let src = "global x = if  1   {   2; 3   } ;";
+        let expected = "global x =
+    if 1 {
+        2;
+        3
+    };
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_if_expression_with_else() {
+        let src = "global x = if  1   {   2   }  else  {  3  };";
+        let expected = "global x = if 1 { 2 } else { 3 };\n";
+        assert_format(src, expected);
+    }
+
+    // TODO: this is not ideal
+    #[test]
+    fn format_if_expression_with_else_multiple_exprs() {
+        let src = "global x = if  1   {   2   }  else  {  3; 4  };";
+        let expected = "global x =
+    if 1 {
+        2
+    } else {
+        3;
+        4
+    };
+";
         assert_format(src, expected);
     }
 }
