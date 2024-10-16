@@ -1,12 +1,12 @@
 use noirc_frontend::{
     ast::{
-        FunctionDefinition, ItemVisibility, NoirFunction, NoirTraitImpl, TraitImplItem,
-        TraitImplItemKind, UnresolvedTypeData,
+        FunctionDefinition, ItemVisibility, NoirFunction, NoirTraitImpl, Pattern, TraitImplItem,
+        TraitImplItemKind,
     },
     token::{Keyword, Token},
 };
 
-use super::{chunks::Chunks, Formatter};
+use super::Formatter;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
@@ -68,32 +68,8 @@ impl<'a> Formatter<'a> {
                 self.format_function(noir_function);
             }
             TraitImplItemKind::Constant(name, typ, value) => {
-                let mut chunks = Chunks::new();
-                chunks.text(self.chunk(|formatter| {
-                    formatter.write_keyword(Keyword::Let);
-                    formatter.write_space();
-                    formatter.write_identifier(name);
-
-                    if typ.typ != UnresolvedTypeData::Unspecified {
-                        formatter.write_token(Token::Colon);
-                        formatter.write_space();
-                        formatter.format_type(typ);
-                    }
-                }));
-
-                chunks.text(self.chunk(|formatter| {
-                    formatter.write_space();
-                    formatter.write_token(Token::Assign);
-                }));
-                chunks.increase_indentation();
-                chunks.space_or_line();
-                self.format_expression(value, &mut chunks);
-                chunks.decrease_indentation();
-                chunks.decrease_indentation();
-
-                chunks.text(self.chunk(|formatter| {
-                    formatter.write_semicolon();
-                }));
+                let pattern = Pattern::Identifier(name);
+                let chunks = self.format_let_or_global(Keyword::Let, pattern, typ, Some(value));
 
                 self.write_indentation();
                 self.format_chunks(chunks);

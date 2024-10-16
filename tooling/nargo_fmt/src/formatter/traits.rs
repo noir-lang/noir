@@ -3,7 +3,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{chunks::Chunks, function::FunctionToFormat, Formatter};
+use super::{function::FunctionToFormat, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {
@@ -98,31 +98,8 @@ impl<'a> Formatter<'a> {
                 self.format_function_impl(func);
             }
             TraitItem::Constant { name, typ, default_value } => {
-                let mut chunks = Chunks::new();
-                chunks.text(self.chunk(|formatter| {
-                    formatter.write_keyword(Keyword::Let);
-                    formatter.write_space();
-                    formatter.write_identifier(name);
-                    formatter.write_token(Token::Colon);
-                    formatter.write_space();
-                    formatter.format_type(typ);
-                }));
-
-                if let Some(default_value) = default_value {
-                    chunks.text(self.chunk(|formatter| {
-                        formatter.write_space();
-                        formatter.write_token(Token::Assign);
-                    }));
-                    chunks.increase_indentation();
-                    chunks.space_or_line();
-                    self.format_expression(default_value, &mut chunks);
-                    chunks.decrease_indentation();
-                    chunks.decrease_indentation();
-                }
-
-                chunks.text(self.chunk(|formatter| {
-                    formatter.write_semicolon();
-                }));
+                let pattern = Pattern::Identifier(name);
+                let chunks = self.format_let_or_global(Keyword::Let, pattern, typ, default_value);
 
                 self.write_indentation();
                 self.format_chunks(chunks);

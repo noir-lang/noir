@@ -1,7 +1,8 @@
 use noirc_frontend::{
     ast::{
         AssignStatement, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, LetStatement, Statement, StatementKind, UnresolvedTypeData,
+        ForLoopStatement, ForRange, LetStatement, Pattern, Statement, StatementKind,
+        UnresolvedType, UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -67,27 +68,51 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_let_statement(&mut self, let_statement: LetStatement) -> Chunks {
+        self.format_let_or_global(
+            Keyword::Let,
+            let_statement.pattern,
+            let_statement.r#type,
+            Some(let_statement.expression),
+        )
+    }
+
+    pub(super) fn format_let_or_global(
+        &mut self,
+        keyword: Keyword,
+        pattern: Pattern,
+        typ: UnresolvedType,
+        value: Option<Expression>,
+    ) -> Chunks {
         let mut chunks = Chunks::new();
 
         chunks.text(self.chunk(|formatter| {
-            formatter.write_keyword(Keyword::Let);
+            formatter.write_keyword(keyword);
             formatter.write_space();
-            formatter.format_pattern(let_statement.pattern);
-            if let_statement.r#type.typ != UnresolvedTypeData::Unspecified {
+            formatter.format_pattern(pattern);
+            if typ.typ != UnresolvedTypeData::Unspecified {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();
-                formatter.format_type(let_statement.r#type);
+                formatter.format_type(typ);
             }
-            formatter.write_space();
-            formatter.write_token(Token::Assign);
         }));
-        chunks.increase_indentation();
-        chunks.space_or_line();
-        self.format_expression(let_statement.expression, &mut chunks);
-        chunks.text(self.chunk(|formatter| {
-            formatter.write_semicolon();
-        }));
-        chunks.decrease_indentation();
+
+        if let Some(value) = value {
+            chunks.text(self.chunk(|formatter| {
+                formatter.write_space();
+                formatter.write_token(Token::Assign);
+            }));
+            chunks.increase_indentation();
+            chunks.space_or_line();
+            self.format_expression(value, &mut chunks);
+            chunks.text(self.chunk(|formatter| {
+                formatter.write_semicolon();
+            }));
+            chunks.decrease_indentation();
+        } else {
+            chunks.text(self.chunk(|formatter| {
+                formatter.write_semicolon();
+            }));
+        }
 
         chunks
     }
