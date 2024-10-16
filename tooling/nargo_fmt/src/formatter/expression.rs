@@ -391,6 +391,16 @@ impl<'a> Formatter<'a> {
             chunks.line();
         }
     }
+
+    pub(super) fn format_empty_block_contents(&mut self) {
+        self.increase_indentation();
+        let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
+        self.decrease_indentation();
+        if skip_result.wrote_comment {
+            self.write_line();
+            self.write_indentation();
+        }
+    }
 }
 
 #[cfg(test)]

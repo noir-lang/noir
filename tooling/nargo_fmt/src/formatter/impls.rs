@@ -20,9 +20,7 @@ impl<'a> Formatter<'a> {
         self.write_left_brace();
 
         if type_impl.methods.is_empty() {
-            self.increase_indentation();
-            self.skip_comments_and_whitespace();
-            self.decrease_indentation();
+            self.format_empty_block_contents();
         } else {
             self.increase_indentation();
             self.write_line();

@@ -210,13 +210,7 @@ impl<'a> Formatter<'a> {
 
     pub(super) fn format_function_body(&mut self, body: BlockExpression) {
         if body.is_empty() {
-            self.increase_indentation();
-            let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
-            self.decrease_indentation();
-            if skip_result.wrote_comment {
-                self.write_line();
-                self.write_indentation();
-            }
+            self.format_empty_block_contents();
         } else {
             let mut chunks = Chunks::new();
             self.format_non_empty_block_expression_contents(

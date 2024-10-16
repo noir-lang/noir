@@ -27,35 +27,42 @@ impl<'a> Formatter<'a> {
         // A case like `struct Foo { ... }`
         self.write_space();
         self.write_left_brace();
-        self.increase_indentation();
-        self.write_line();
 
-        for documented_field in noir_struct.fields {
-            let doc_comments = documented_field.doc_comments;
-            if !doc_comments.is_empty() {
-                self.format_outer_doc_comments();
-            }
-
-            let field = documented_field.item;
-            self.write_indentation();
-            self.format_item_visibility(field.visibility);
-            self.write_identifier(field.name);
-            self.write_token(Token::Colon);
-            self.write_space();
-            self.format_type(field.typ);
-            self.skip_comments_and_whitespace();
-
-            if self.token == Token::Comma {
-                self.bump();
-            }
-            self.write(",");
+        if noir_struct.fields.is_empty() {
+            self.format_empty_block_contents();
+        } else {
+            self.increase_indentation();
             self.write_line();
+
+            for documented_field in noir_struct.fields {
+                let doc_comments = documented_field.doc_comments;
+                if !doc_comments.is_empty() {
+                    self.format_outer_doc_comments();
+                }
+
+                let field = documented_field.item;
+                self.write_indentation();
+                self.format_item_visibility(field.visibility);
+                self.write_identifier(field.name);
+                self.write_token(Token::Colon);
+                self.write_space();
+                self.format_type(field.typ);
+                self.skip_comments_and_whitespace();
+
+                if self.token == Token::Comma {
+                    self.bump();
+                }
+                self.write(",");
+                self.write_line();
+            }
+
+            self.write_line();
+            self.decrease_indentation();
+            self.write_indentation();
         }
 
-        self.write_line();
-        self.decrease_indentation();
-        self.write_indentation();
         self.write_right_brace();
+        self.write_line();
     }
 }
 
@@ -149,6 +156,31 @@ y: Field
         ";
         let expected = "struct Foo {
     /* hello */
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_two_structs() {
+        let src = " struct Foo { } struct Bar {}
+        ";
+        let expected = "struct Foo {}
+struct Bar {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_struct_with_just_comments() {
+        let src = " mod foo { struct Foo {
+// hello
+    } }
+        ";
+        let expected = "mod foo {
+    struct Foo {
+        // hello
+    }
 }
 ";
         assert_format(src, expected);
