@@ -72,17 +72,14 @@ impl Chunk {
 
 #[derive(Debug)]
 pub(crate) struct Chunks {
-    chunks: Vec<Chunk>,
-    one_chunk_per_line: bool,
+    pub(crate) chunks: Vec<Chunk>,
+    pub(crate) one_chunk_per_line: bool,
+    pub(crate) force_multiple_lines: bool,
 }
 
 impl Chunks {
     pub(crate) fn new() -> Self {
-        Self { chunks: Vec::new(), one_chunk_per_line: true }
-    }
-
-    pub(crate) fn with_multiple_chunks_per_line(self) -> Self {
-        Self { one_chunk_per_line: false, ..self }
+        Self { chunks: Vec::new(), one_chunk_per_line: true, force_multiple_lines: false }
     }
 
     pub(crate) fn text(&mut self, chunk: TextChunk) {
@@ -187,7 +184,7 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunks_impl(&mut self, chunks: Chunks) {
-        if chunks.has_newlines() {
+        if chunks.force_multiple_lines || chunks.has_newlines() {
             self.format_chunks_in_multiple_lines(chunks);
         } else {
             let chunks_width = chunks.width();
@@ -204,11 +201,13 @@ impl<'a> Formatter<'a> {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) => self.write(&text_chunk.string),
+                Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
+                    self.write(&text_chunk.string);
+                    self.write(" ");
+                }
                 Chunk::Group(chunks) => self.format_chunks_in_one_line(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
                 Chunk::TextIfMultiline(..)
-                | Chunk::TrailingComment(..)
-                | Chunk::LeadingComment(..)
                 | Chunk::Line { .. }
                 | Chunk::IncreaseIndentation
                 | Chunk::DecreaseIndentation => (),

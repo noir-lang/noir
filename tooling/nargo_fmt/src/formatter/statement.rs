@@ -17,9 +17,10 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_let_statement(let_statement));
             }
             StatementKind::Constrain(_constrain_statement) => todo!("Format constrain statement"),
-            StatementKind::Expression(expression) => {
-                self.format_expression(expression, &mut chunks);
-            }
+            StatementKind::Expression(expression) => match expression.kind {
+                ExpressionKind::Block(block) => chunks.group(self.format_block_expression(block)),
+                _ => self.format_expression(expression, &mut chunks),
+            },
             StatementKind::Assign(assign_statement) => {
                 chunks.group(self.format_assign(assign_statement));
             }
@@ -264,6 +265,39 @@ mod tests {
         let src = " fn foo() { comptime  let  x  =  1 ; } ";
         let expected = "fn foo() {
     comptime let x = 1;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_block_statement() {
+        let src = " fn foo() { { } } ";
+        let expected = "fn foo() {
+    {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_block_statement_with_inline_block_comment() {
+        let src = " fn foo() { { /* hello */ } } ";
+        let expected = "fn foo() {
+    { /* hello */ }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_block_statement() {
+        let src = " fn foo() { { 1 ; 2 } } ";
+        let expected = "fn foo() {
+    {
+        1;
+        2
+    }
 }
 ";
         assert_format(src, expected);

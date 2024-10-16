@@ -219,33 +219,7 @@ impl<'a> Formatter<'a> {
             }
         } else {
             let mut chunks = Chunks::new();
-            chunks.increase_indentation();
-            chunks.line();
-
-            for (index, statement) in body.statements.into_iter().enumerate() {
-                if index > 0 {
-                    let count = self.following_newlines_count();
-                    if count > 0 {
-                        // If newlines follow, we first add a line, then add the comment chunk
-                        chunks.lines(count > 1);
-                        chunks.text(self.skip_comments_and_whitespace_chunk());
-                    } else {
-                        // Otherwise, add the comment first as it's a trailing comment
-                        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
-                        chunks.line();
-                    }
-                }
-
-                self.format_statement(statement, &mut chunks);
-            }
-
-            chunks.text(self.chunk(|formatter| {
-                formatter.skip_comments_and_whitespace();
-            }));
-
-            chunks.decrease_indentation();
-            chunks.line();
-
+            self.format_non_empty_block_expressio_contents(body, &mut chunks);
             self.format_chunks_in_multiple_lines(chunks);
         }
     }

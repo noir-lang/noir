@@ -1,7 +1,7 @@
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, BinaryOpKind, CastExpression, Expression, ExpressionKind, IndexExpression,
-        InfixExpression, Literal, PrefixExpression,
+        ArrayLiteral, BinaryOpKind, BlockExpression, CastExpression, Expression, ExpressionKind,
+        IndexExpression, InfixExpression, Literal, PrefixExpression,
     },
     token::{Keyword, Token},
 };
@@ -88,7 +88,8 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> Chunks {
-        let mut chunks = Chunks::new().with_multiple_chunks_per_line();
+        let mut chunks = Chunks::new();
+        chunks.one_chunk_per_line = false;
 
         chunks.text(self.chunk(|formatter| {
             if is_slice {
@@ -127,7 +128,8 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_tuple(&mut self, exprs: Vec<Expression>) -> Chunks {
-        let mut chunks = Chunks::new().with_multiple_chunks_per_line();
+        let mut chunks = Chunks::new();
+        chunks.one_chunk_per_line = false;
         let force_trailing_comma = exprs.len() == 1;
 
         chunks.text(self.chunk(|formatter| {
@@ -239,6 +241,66 @@ impl<'a> Formatter<'a> {
             formatter.write_right_bracket();
         }));
         chunks
+    }
+
+    pub(super) fn format_block_expression(&mut self, block: BlockExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_left_brace();
+        }));
+        self.format_block_expression_contents(block, &mut chunks);
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_brace();
+        }));
+        chunks
+    }
+
+    pub(super) fn format_block_expression_contents(
+        &mut self,
+        block: BlockExpression,
+        mut chunks: &mut Chunks,
+    ) {
+        if block.is_empty() {
+            chunks.increase_indentation();
+            chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
+            chunks.decrease_indentation();
+        } else {
+            chunks.force_multiple_lines = true;
+            self.format_non_empty_block_expressio_contents(block, &mut chunks);
+        }
+    }
+
+    pub(super) fn format_non_empty_block_expressio_contents(
+        &mut self,
+        block: BlockExpression,
+        mut chunks: &mut Chunks,
+    ) {
+        chunks.increase_indentation();
+        chunks.line();
+
+        for (index, statement) in block.statements.into_iter().enumerate() {
+            if index > 0 {
+                let count = self.following_newlines_count();
+                if count > 0 {
+                    // If newlines follow, we first add a line, then add the comment chunk
+                    chunks.lines(count > 1);
+                    chunks.text(self.skip_comments_and_whitespace_chunk());
+                } else {
+                    // Otherwise, add the comment first as it's a trailing comment
+                    chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                    chunks.line();
+                }
+            }
+
+            self.format_statement(statement, &mut chunks);
+        }
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        }));
+
+        chunks.decrease_indentation();
+        chunks.line();
     }
 }
 
