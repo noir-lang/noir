@@ -607,6 +607,19 @@ global y = 1;
         assert_format(src, expected);
     }
 
+    // TODO: this is not ideal
+    #[test]
+    fn format_long_infix_same_operator() {
+        let src = "global x =  one + two + three + four + five ;";
+        let expected = "global x =
+    one + two
+        + three
+            + four
+                + five;
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
     #[test]
     fn format_empty_block() {
         let src = "global x =  {  }  ;";
