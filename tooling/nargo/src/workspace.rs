@@ -3,12 +3,8 @@
 // both a binary and a library.
 // - library will be default
 
-use std::{
-    iter::{once, Once},
-    path::PathBuf,
-    slice,
-};
-
+use std::{fs, iter::{once, Once}, path::PathBuf, slice};
+use std::path::Path;
 use fm::FileManager;
 use noirc_driver::file_manager_with_stdlib;
 
@@ -63,6 +59,21 @@ impl Workspace {
 
     fn is_stdlib(&self) -> bool {
         self.members.len() == 1 && self.members[0].name.to_string() == "std"
+    }
+
+    pub fn create_folder(&self, dir_name: &str) -> Result<String, std::io::Error> {
+        let folder_path = self.root_dir.join(dir_name);
+
+        // Sprawdzamy, czy folder już istnieje
+        if folder_path.exists() {
+            println!("Folder already exists at: {:?}", folder_path);
+        } else {
+            // Tworzymy nowy folder
+            fs::create_dir(&folder_path)?;
+            println!("Folder created at: {:?}", folder_path);
+        }
+
+        Ok(dir_name.to_string())
     }
 }
 

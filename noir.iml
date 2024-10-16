@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="RUST_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/acir/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/acir/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/acir/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/acir_field/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/acvm/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/acvm/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/acvm_js/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/blackbox_solver/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/bn254_blackbox_solver/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/bn254_blackbox_solver/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/brillig/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/acvm-repo/brillig_vm/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/fm/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/noirc_arena/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/noirc_driver/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/noirc_driver/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/noirc_errors/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/noirc_evaluator/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/noirc_frontend/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/noirc_printable_type/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/wasm/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/acvm_cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/debugger/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/debugger/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/fuzzer/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/lsp/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/nargo/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/nargo_cli/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/nargo_cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/nargo_cli/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/nargo_fmt/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/nargo_fmt/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/nargo_toml/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/noirc_abi/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/noirc_abi_wasm/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/noirc_artifacts/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tooling/profiler/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/utils/iter-extended/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>
