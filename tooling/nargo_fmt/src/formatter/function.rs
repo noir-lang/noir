@@ -219,8 +219,12 @@ impl<'a> Formatter<'a> {
             }
         } else {
             let mut chunks = Chunks::new();
-            self.format_non_empty_block_expressio_contents(body, &mut chunks);
-            self.format_chunks_in_multiple_lines(chunks);
+            self.format_non_empty_block_expression_contents(
+                body,
+                true, // force multiple lines
+                &mut chunks,
+            );
+            self.format_chunks(chunks);
         }
     }
 }

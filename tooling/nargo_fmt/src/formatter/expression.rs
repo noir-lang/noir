@@ -17,7 +17,11 @@ impl<'a> Formatter<'a> {
 
         match expression.kind {
             ExpressionKind::Literal(literal) => self.format_literal(literal, chunks),
-            ExpressionKind::Block(_block_expression) => todo!("Format block"),
+            ExpressionKind::Block(block) => {
+                chunks.group(self.format_block_expression(
+                    block, false, // force multiple lines
+                ));
+            }
             ExpressionKind::Prefix(prefix_expression) => {
                 chunks.group(self.format_prefix(*prefix_expression));
             }
@@ -243,12 +247,16 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    pub(super) fn format_block_expression(&mut self, block: BlockExpression) -> Chunks {
+    pub(super) fn format_block_expression(
+        &mut self,
+        block: BlockExpression,
+        force_multiple_lines: bool,
+    ) -> Chunks {
         let mut chunks = Chunks::new();
         chunks.text(self.chunk(|formatter| {
             formatter.write_left_brace();
         }));
-        self.format_block_expression_contents(block, &mut chunks);
+        self.format_block_expression_contents(block, force_multiple_lines, &mut chunks);
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_brace();
         }));
@@ -258,6 +266,7 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_block_expression_contents(
         &mut self,
         block: BlockExpression,
+        force_multiple_lines: bool,
         mut chunks: &mut Chunks,
     ) {
         if block.is_empty() {
@@ -265,18 +274,29 @@ impl<'a> Formatter<'a> {
             chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
             chunks.decrease_indentation();
         } else {
-            chunks.force_multiple_lines = true;
-            self.format_non_empty_block_expressio_contents(block, &mut chunks);
+            self.format_non_empty_block_expression_contents(
+                block,
+                force_multiple_lines,
+                &mut chunks,
+            );
         }
     }
 
-    pub(super) fn format_non_empty_block_expressio_contents(
+    pub(super) fn format_non_empty_block_expression_contents(
         &mut self,
         block: BlockExpression,
+        force_multiple_lines: bool,
         mut chunks: &mut Chunks,
     ) {
+        chunks.force_multiple_lines = force_multiple_lines || block.statements.len() > 1;
+        let surround_with_spaces = !chunks.force_multiple_lines && block.statements.len() == 1;
+
         chunks.increase_indentation();
-        chunks.line();
+        if surround_with_spaces {
+            chunks.space_or_line();
+        } else {
+            chunks.line();
+        }
 
         for (index, statement) in block.statements.into_iter().enumerate() {
             if index > 0 {
@@ -300,7 +320,12 @@ impl<'a> Formatter<'a> {
         }));
 
         chunks.decrease_indentation();
-        chunks.line();
+
+        if surround_with_spaces {
+            chunks.space_or_line();
+        } else {
+            chunks.line();
+        }
     }
 }
 
@@ -545,6 +570,7 @@ global y = 1;
         assert_format(src, expected);
     }
 
+    // TODO: this is not ideal
     #[test]
     fn format_long_index() {
         let src = "global x = foo [ bar [ baz [ qux [ one [ two ]]]] ] ; global y = 1;";
@@ -578,6 +604,33 @@ global y = 1;
     fn format_infix() {
         let src = "global x =  a  +  b  ;";
         let expected = "global x = a + b;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_block() {
+        let src = "global x =  {  }  ;";
+        let expected = "global x = {};\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_block_with_one_statement() {
+        let src = "global x =  {  1  }  ;";
+        let expected = "global x = { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    // TODO: this is not ideal
+    #[test]
+    fn format_block_with_two_statements() {
+        let src = "global x =  {  1; 2  }  ;";
+        let expected = "global x =
+    {
+        1;
+        2
+    };
+";
         assert_format(src, expected);
     }
 }

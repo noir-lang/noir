@@ -145,7 +145,7 @@ impl Chunks {
     }
 
     pub(crate) fn has_newlines(&self) -> bool {
-        self.chunks.iter().any(|chunk| chunk.has_newlines())
+        self.force_multiple_lines || self.chunks.iter().any(|chunk| chunk.has_newlines())
     }
 }
 
@@ -177,9 +177,7 @@ impl<'a> Formatter<'a> {
 
     pub(super) fn format_chunks(&mut self, chunks: Chunks) {
         let previous_indentation = self.indentation;
-
         self.format_chunks_impl(chunks);
-
         self.indentation = previous_indentation;
     }
 

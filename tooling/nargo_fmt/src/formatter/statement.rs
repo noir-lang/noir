@@ -18,7 +18,9 @@ impl<'a> Formatter<'a> {
             }
             StatementKind::Constrain(_constrain_statement) => todo!("Format constrain statement"),
             StatementKind::Expression(expression) => match expression.kind {
-                ExpressionKind::Block(block) => chunks.group(self.format_block_expression(block)),
+                ExpressionKind::Block(block) => chunks.group(self.format_block_expression(
+                    block, true, // force multiple lines
+                )),
                 _ => self.format_expression(expression, &mut chunks),
             },
             StatementKind::Assign(assign_statement) => {
