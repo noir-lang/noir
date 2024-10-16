@@ -37,7 +37,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_turbofish(&mut self, generics: Vec<UnresolvedType>) {
+    pub(super) fn format_turbofish(&mut self, generics: Vec<UnresolvedType>) {
         self.write_token(Token::DoubleColon);
         self.write_token(Token::Less);
         for (index, typ) in generics.into_iter().enumerate() {

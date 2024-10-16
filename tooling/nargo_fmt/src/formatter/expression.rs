@@ -566,6 +566,9 @@ impl<'a> Formatter<'a> {
             if method_call.is_macro_call {
                 formatter.write_token(Token::Bang);
             }
+            if let Some(generics) = method_call.generics {
+                formatter.format_turbofish(generics);
+            }
             formatter.write_left_paren();
         }));
         self.format_expressions_separated_by_comma(
@@ -1033,6 +1036,13 @@ global y = 1;
     fn format_method_call() {
         let src = "global x =  bar . baz ( 1, 2 )  ;";
         let expected = "global x = bar.baz(1, 2);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_method_call_with_generics() {
+        let src = "global x =  bar . baz :: < T >  ( 1, 2 )  ;";
+        let expected = "global x = bar.baz::<T>(1, 2);\n";
         assert_format(src, expected);
     }
 
