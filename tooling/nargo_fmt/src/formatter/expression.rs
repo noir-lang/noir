@@ -402,7 +402,7 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    fn format_if_expression(
+    pub(super) fn format_if_expression(
         &mut self,
         if_expression: IfExpression,
         mut force_multiple_lines: bool,
@@ -424,29 +424,38 @@ impl<'a> Formatter<'a> {
             panic!("Expected if expression consequence to be a block");
         };
 
-        let alternative_block = if_expression.alternative.map(|alternative| {
-            let ExpressionKind::Block(alternative_block) = alternative.kind else {
-                panic!("Expected if expression alternative to be a block");
-            };
-            alternative_block
-        });
-
-        if let Some(alternative_block) = &alternative_block {
-            if alternative_block.statements.len() > 1 {
-                force_multiple_lines = true;
+        if let Some(alternative) = &if_expression.alternative {
+            match &alternative.kind {
+                ExpressionKind::Block(block) => {
+                    if block.statements.len() > 1 {
+                        force_multiple_lines = true;
+                    }
+                }
+                ExpressionKind::If(..) => {
+                    force_multiple_lines = true;
+                }
+                _ => panic!("Unexpected if alternative expression kind"),
             }
         }
 
         chunks.group(self.format_block_expression(consequence_block, force_multiple_lines));
 
-        if let Some(alternative_block) = alternative_block {
+        if let Some(alternative) = if_expression.alternative {
             chunks.text(self.chunk(|formatter| {
                 formatter.write_space();
                 formatter.write_keyword(Keyword::Else);
                 formatter.write_space();
             }));
 
-            chunks.group(self.format_block_expression(alternative_block, force_multiple_lines));
+            match alternative.kind {
+                ExpressionKind::Block(block) => {
+                    chunks.group(self.format_block_expression(block, force_multiple_lines));
+                }
+                ExpressionKind::If(if_expression) => {
+                    chunks.group(self.format_if_expression(*if_expression, force_multiple_lines));
+                }
+                _ => panic!("Unexpected if alternative expression kind"),
+            }
         }
 
         chunks
@@ -1105,6 +1114,19 @@ global y = 1;
         2
     } else {
         3;
+        4
+    };
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_if_expression_else_if() {
+        let src = "global x = if  1   {   2   }  else if 3 {  4  };";
+        let expected = "global x =
+    if 1 {
+        2
+    } else if 3 {
         4
     };
 ";

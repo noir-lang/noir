@@ -28,6 +28,12 @@ impl<'a> Formatter<'a> {
                         block, true, // force multiple lines
                     ));
                 }
+                ExpressionKind::If(if_expression) => {
+                    chunks.group(self.format_if_expression(
+                        *if_expression,
+                        true, // force multiple lines
+                    ));
+                }
                 _ => self.format_expression(expression, &mut chunks),
             },
             StatementKind::Assign(assign_statement) => {
@@ -499,6 +505,18 @@ mod tests {
         let src = r#" fn foo() {  assert ( 1 , 2 , "hello" ) ;  } "#;
         let expected = r#"fn foo() {
     assert(1, 2, "hello");
+}
+"#;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_if_statement() {
+        let src = r#" fn foo() {  if 1 {  2  }  } "#;
+        let expected = r#"fn foo() {
+    if 1 {
+        2
+    }
 }
 "#;
         assert_format(src, expected);
