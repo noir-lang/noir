@@ -1,7 +1,7 @@
 use noirc_frontend::{
     ast::{
-        AssignStatement, Expression, ExpressionKind, LetStatement, Statement, StatementKind,
-        UnresolvedTypeData,
+        AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
+        Statement, StatementKind, UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -26,7 +26,9 @@ impl<'a> Formatter<'a> {
             StatementKind::Assign(assign_statement) => {
                 chunks.group(self.format_assign(assign_statement));
             }
-            StatementKind::For(_for_loop_statement) => todo!("Format for loop statement"),
+            StatementKind::For(for_loop_statement) => {
+                chunks.group(self.format_for_loop(for_loop_statement));
+            }
             StatementKind::Break => {
                 chunks.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Break);
@@ -111,6 +113,56 @@ impl<'a> Formatter<'a> {
             formatter.write_semicolon();
         }));
         chunks.decrease_indentation();
+        chunks
+    }
+
+    fn format_for_loop(&mut self, for_loop: ForLoopStatement) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::For);
+            formatter.write_space();
+            formatter.write_identifier(for_loop.identifier);
+            formatter.write_space();
+            formatter.write_keyword(Keyword::In);
+            formatter.write_space();
+        }));
+
+        match for_loop.range {
+            ForRange::Range(for_bounds) => {
+                self.format_expression(for_bounds.start, &mut chunks);
+                chunks.text(self.chunk(|formatter| {
+                    formatter.skip_comments_and_whitespace();
+                    formatter.write_current_token();
+                    formatter.bump();
+                }));
+                self.format_expression(for_bounds.end, &mut chunks);
+            }
+            ForRange::Array(expression) => {
+                self.format_expression(expression, &mut chunks);
+            }
+        }
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_space();
+        }));
+
+        let ExpressionKind::Block(block) = for_loop.block.kind else {
+            panic!("Expected a block expression for for loop body");
+        };
+
+        chunks.group(self.format_block_expression(
+            block, true, // force multiple lines
+        ));
+
+        // If there's a trailing semicolon, remove it
+        chunks.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+            if formatter.token == Token::Semicolon {
+                formatter.bump();
+            }
+        }));
+
         chunks
     }
 
@@ -317,6 +369,54 @@ mod tests {
     comptime {
         1;
         2
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_for_array() {
+        let src = " fn foo() {  for  x  in  array  {  1  } } ";
+        let expected = "fn foo() {
+    for x in array {
+        1
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_for_array_trailing_semicolon() {
+        let src = " fn foo() {  for  x  in  array  {  1  } ; } ";
+        let expected = "fn foo() {
+    for x in array {
+        1
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_for_range_exclusive() {
+        let src = " fn foo() {  for  x  in  1 .. 10  {  1  } } ";
+        let expected = "fn foo() {
+    for x in 1..10 {
+        1
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_for_range_inclusive() {
+        let src = " fn foo() {  for  x  in  1 ..= 10  {  1  } } ";
+        let expected = "fn foo() {
+    for x in 1..=10 {
+        1
     }
 }
 ";
