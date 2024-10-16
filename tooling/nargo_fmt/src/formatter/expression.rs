@@ -1,7 +1,7 @@
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, BinaryOpKind, BlockExpression, CastExpression, Expression, ExpressionKind,
-        IndexExpression, InfixExpression, Literal, PrefixExpression,
+        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression, Expression,
+        ExpressionKind, IndexExpression, InfixExpression, Literal, PrefixExpression,
     },
     token::{Keyword, Token},
 };
@@ -28,7 +28,7 @@ impl<'a> Formatter<'a> {
             ExpressionKind::Index(index_expression) => {
                 chunks.group(self.format_index_expression(*index_expression))
             }
-            ExpressionKind::Call(_call_expression) => todo!("Format call"),
+            ExpressionKind::Call(call) => chunks.group(self.format_call(*call)),
             ExpressionKind::MethodCall(_method_call_expression) => todo!("Format method call"),
             ExpressionKind::Constructor(_constructor_expression) => todo!("Format constructor"),
             ExpressionKind::MemberAccess(_member_access_expression) => {
@@ -244,6 +244,29 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_bracket();
         }));
+        chunks
+    }
+
+    fn format_call(&mut self, call: CallExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        self.format_expression(*call.func, &mut chunks);
+
+        chunks.text(self.chunk(|formatter| {
+            if call.is_macro_call {
+                formatter.write_token(Token::Bang);
+            }
+            formatter.write_left_paren();
+        }));
+        self.format_expressions_separated_by_comma(
+            call.arguments,
+            false, // force trailing comma
+            &mut chunks,
+        );
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+        }));
+
         chunks
     }
 
@@ -644,6 +667,13 @@ global y = 1;
         2
     };
 ";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_call() {
+        let src = "global x =  foo :: bar ( 1, 2 )  ;";
+        let expected = "global x = foo::bar(1, 2);\n";
         assert_format(src, expected);
     }
 }
