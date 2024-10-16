@@ -100,14 +100,12 @@ impl<'a> Formatter<'a> {
             chunks.text(self.chunk(|formatter| {
                 formatter.write_space();
                 formatter.write_token(Token::Assign);
+                formatter.write_space();
             }));
-            chunks.increase_indentation();
-            chunks.space_or_line();
             self.format_expression(value, &mut chunks);
             chunks.text(self.chunk(|formatter| {
                 formatter.write_semicolon();
             }));
-            chunks.decrease_indentation();
         } else {
             chunks.text(self.chunk(|formatter| {
                 formatter.write_semicolon();

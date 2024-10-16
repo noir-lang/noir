@@ -780,24 +780,26 @@ mod tests {
         assert_format(src, expected);
     }
 
+    // TODO: this is maybe not ideal
     #[test]
     fn format_long_array_in_global() {
         let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;";
-        let expected = "global x =
-    [1, 2, 3, 4, 5];
+        let expected = "global x = [
+    1, 2, 3, 4, 5,
+];
 ";
         assert_format_with_max_width(src, expected, 20);
     }
 
+    // TODO: this is not ideal (the comma shouldn't appear on the next line)
     #[test]
     fn format_long_array_in_global_in_mod() {
         let src = "mod moo { mod bar { global x = [ 1 , 2 , 3 , 4, 5, ] ; } }";
         let expected = "mod moo {
     mod bar {
-        global x =
-            [
-                1, 2, 3,
-                4, 5,
+        global x = [
+            1, 2, 3, 4, 5
+                ,
             ];
     }
 }
@@ -805,15 +807,16 @@ mod tests {
         assert_format_with_max_width(src, expected, 25);
     }
 
+    // TODO: this is missing a newline between the globals
     #[test]
     fn format_long_array_in_global_2() {
         let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;
 
 global y = 1;
         ";
-        let expected = "global x =
-    [1, 2, 3, 4, 5];
-
+        let expected = "global x = [
+    1, 2, 3, 4, 5,
+];
 global y = 1;
 ";
         assert_format_with_max_width(src, expected, 20);
@@ -822,12 +825,10 @@ global y = 1;
     #[test]
     fn format_very_long_array_in_global() {
         let src = "global x = [ 1 , 2 , 3 , 4, 5, 6, 789, 123, 234, 345] ;";
-        let expected = "global x =
-    [
-        1, 2, 3, 4, 5, 6,
-        789, 123, 234,
-        345,
-    ];
+        let expected = "global x = [
+    1, 2, 3, 4, 5, 6,
+    789, 123, 234, 345,
+];
 ";
         assert_format_with_max_width(src, expected, 25);
     }
@@ -836,11 +837,10 @@ global y = 1;
     fn format_array_in_global_with_line_comments() {
         let src = "global x = [ // hello
         1 , 2 ] ;";
-        let expected = "global x =
-    [
-        // hello
-        1, 2,
-    ];
+        let expected = "global x = [
+    // hello
+    1, 2,
+];
 ";
         assert_format(src, expected);
     }
@@ -849,11 +849,10 @@ global y = 1;
     fn format_array_in_global_with_line_comments_2() {
         let src = "global x = [ // hello
          [ 1 , 2 ]  ] ;";
-        let expected = "global x =
-    [
-        // hello
-        [1, 2],
-    ];
+        let expected = "global x = [
+    // hello
+    [1, 2],
+];
 ";
         assert_format(src, expected);
     }
@@ -866,11 +865,10 @@ global y = 1;
         [1, 2],  
     ];
 ";
-        let expected = "global x =
-    [
-        // hello
-        [1, 2],
-    ];
+        let expected = "global x = [
+    // hello
+    [1, 2],
+];
 ";
         assert_format(src, expected);
     }
@@ -883,11 +881,10 @@ global y = 1;
         2, 3,
     ];
 ";
-        let expected = "global x =
-    [
-        1, // world
-        2, 3,
-    ];
+        let expected = "global x = [
+    1, // world
+    2, 3,
+];
 ";
         assert_format(src, expected);
     }
@@ -896,11 +893,10 @@ global y = 1;
     fn format_array_in_global_with_block_comments() {
         let src = "global x = [ /* hello */
         1 , 2 ] ;";
-        let expected = "global x =
-    [
-        /* hello */
-        1, 2,
-    ];
+        let expected = "global x = [
+    /* hello */
+    1, 2,
+];
 ";
         assert_format_with_max_width(src, expected, 20);
     }
@@ -951,9 +947,8 @@ global y = 1;
     #[test]
     fn format_long_index() {
         let src = "global x = foo [ bar [ baz [ qux [ one [ two ]]]] ] ; global y = 1;";
-        let expected = "global x =
-    foo[bar[baz[qux[
-        one[two]]]]];
+        let expected = "global x = foo[bar[baz[
+    qux[one[two]]]]];
 global y = 1;
 ";
         assert_format_with_max_width(src, expected, 25);
@@ -962,9 +957,8 @@ global y = 1;
     #[test]
     fn format_long_index_2() {
         let src = "global x = foo [ bar ] [ baz ] [ qux ] [ one ] [ two ] ; global y = 1;";
-        let expected = "global x =
-    foo[bar][baz][qux]
-        [one][two];
+        let expected = "global x = foo[bar][baz]
+    [qux][one][two];
 global y = 1;
 ";
         assert_format_with_max_width(src, expected, 25);
@@ -988,11 +982,10 @@ global y = 1;
     #[test]
     fn format_long_infix_same_operator() {
         let src = "global x =  one + two + three + four + five ;";
-        let expected = "global x =
-    one + two
-        + three
-            + four
-                + five;
+        let expected = "global x = one + two
+    + three
+        + four
+            + five;
 ";
         assert_format_with_max_width(src, expected, 20);
     }
@@ -1015,11 +1008,10 @@ global y = 1;
     #[test]
     fn format_block_with_two_statements() {
         let src = "global x =  {  1; 2  }  ;";
-        let expected = "global x =
-    {
-        1;
-        2
-    };
+        let expected = "global x = {
+    1;
+    2
+};
 ";
         assert_format(src, expected);
     }
@@ -1056,16 +1048,17 @@ global y = 1;
     #[test]
     fn format_method_call_chain() {
         let src = "global x =  bar . baz ( 1, 2 ) . qux ( 1 , 2, 3) . one ( 5, 6)  ;";
-        let expected = "global x =
-    bar.baz(1, 2)
-        .qux(
-            1,
-            2,
-            3,
-        ).one(
-            5,
-            6,
-        );
+        let expected = "global x = bar.baz(
+    1,
+    2,
+).qux(
+    1,
+    2,
+    3,
+).one(
+    5,
+    6,
+);
 ";
         assert_format_with_max_width(src, expected, 20);
     }
@@ -1081,8 +1074,8 @@ global y = 1;
     #[test]
     fn format_long_member_access() {
         let src = "global x =  foo . bar . baz . qux . this_is_a_long_name   ;";
-        let expected = "global x =
-    foo.bar.baz.qux
+        let expected = "global x = foo.bar
+    .baz.qux
         .this_is_a_long_name;
 ";
         assert_format_with_max_width(src, expected, 20);
@@ -1106,11 +1099,10 @@ global y = 1;
     #[test]
     fn format_unsafe_two_expressions() {
         let src = "global x = unsafe { 1; 2  } ;";
-        let expected = "global x =
-    unsafe {
-        1;
-        2
-    };
+        let expected = "global x = unsafe {
+    1;
+    2
+};
 ";
         assert_format(src, expected);
     }
@@ -1126,11 +1118,10 @@ global y = 1;
     #[test]
     fn format_comptime_two_expressions() {
         let src = "global x = comptime { 1; 2  } ;";
-        let expected = "global x =
-    comptime {
-        1;
-        2
-    };
+        let expected = "global x = comptime {
+    1;
+    2
+};
 ";
         assert_format(src, expected);
     }
@@ -1174,11 +1165,10 @@ global y = 1;
     #[test]
     fn format_if_expression_without_else_two_expressions() {
         let src = "global x = if  1   {   2; 3   } ;";
-        let expected = "global x =
-    if 1 {
-        2;
-        3
-    };
+        let expected = "global x = if 1 {
+    2;
+    3
+};
 ";
         assert_format(src, expected);
     }
@@ -1194,13 +1184,12 @@ global y = 1;
     #[test]
     fn format_if_expression_with_else_multiple_exprs() {
         let src = "global x = if  1   {   2   }  else  {  3; 4  };";
-        let expected = "global x =
-    if 1 {
-        2
-    } else {
-        3;
-        4
-    };
+        let expected = "global x = if 1 {
+    2
+} else {
+    3;
+    4
+};
 ";
         assert_format(src, expected);
     }
@@ -1208,12 +1197,11 @@ global y = 1;
     #[test]
     fn format_if_expression_else_if() {
         let src = "global x = if  1   {   2   }  else if 3 {  4  };";
-        let expected = "global x =
-    if 1 {
-        2
-    } else if 3 {
-        4
-    };
+        let expected = "global x = if 1 {
+    2
+} else if 3 {
+    4
+};
 ";
         assert_format(src, expected);
     }
