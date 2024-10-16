@@ -1,5 +1,8 @@
 use noirc_frontend::{
-    ast::{ExpressionKind, Statement, StatementKind, UnresolvedTypeData},
+    ast::{
+        AssignStatement, Expression, ExpressionKind, LetStatement, Statement, StatementKind,
+        UnresolvedTypeData,
+    },
     token::{Keyword, Token},
 };
 
@@ -11,70 +14,14 @@ impl<'a> Formatter<'a> {
 
         match statement.kind {
             StatementKind::Let(let_statement) => {
-                let mut group = Chunks::new();
-
-                group.text(self.chunk(|formatter| {
-                    formatter.write_keyword(Keyword::Let);
-                    formatter.write_space();
-                    formatter.format_pattern(let_statement.pattern);
-                    if let_statement.r#type.typ != UnresolvedTypeData::Unspecified {
-                        formatter.write_token(Token::Colon);
-                        formatter.write_space();
-                        formatter.format_type(let_statement.r#type);
-                    }
-                    formatter.write_space();
-                    formatter.write_token(Token::Assign);
-                }));
-                group.increase_indentation();
-                group.space_or_line();
-                self.format_expression(let_statement.expression, &mut group);
-                group.text(self.chunk(|formatter| {
-                    formatter.write_semicolon();
-                }));
-                group.decrease_indentation();
-
-                chunks.group(group);
+                chunks.group(self.format_let_statement(let_statement));
             }
             StatementKind::Constrain(_constrain_statement) => todo!("Format constrain statement"),
             StatementKind::Expression(expression) => {
                 self.format_expression(expression, &mut chunks);
             }
             StatementKind::Assign(assign_statement) => {
-                let mut group = Chunks::new();
-                let mut is_op_assign = false;
-
-                group.text(self.chunk(|formatter| {
-                    formatter.format_lvalue(assign_statement.lvalue);
-                    formatter.write_space();
-                    if formatter.token == Token::Assign {
-                        formatter.write_token(Token::Assign);
-                    } else {
-                        while formatter.token != Token::Assign {
-                            formatter.write_current_token();
-                            formatter.bump();
-                            formatter.skip_comments_and_whitespace();
-                        }
-                        formatter.write_token(Token::Assign);
-                        is_op_assign = true;
-                    }
-                }));
-                group.increase_indentation();
-                group.space_or_line();
-
-                if is_op_assign {
-                    let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
-                        panic!("Expected an infix expression for op assign");
-                    };
-                    self.format_expression(infix.rhs, &mut group);
-                } else {
-                    self.format_expression(assign_statement.expression, &mut group);
-                }
-                group.text(self.chunk(|formatter| {
-                    formatter.write_semicolon();
-                }));
-                group.decrease_indentation();
-
-                chunks.group(group);
+                chunks.group(self.format_assign(assign_statement));
             }
             StatementKind::For(_for_loop_statement) => todo!("Format for loop statement"),
             StatementKind::Break => {
@@ -93,17 +40,75 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_comptime_statement(*statement));
             }
             StatementKind::Semi(expression) => {
-                self.format_expression(expression, &mut chunks);
-
-                chunks.text(self.chunk(|formatter| {
-                    formatter.skip_comments_and_whitespace();
-                    formatter.write_semicolon();
-                }));
+                chunks.group(self.format_semi_statement(expression));
             }
             StatementKind::Interned(..) | StatementKind::Error => {
                 unreachable!("Should not be present in the AST")
             }
         }
+    }
+
+    fn format_let_statement(&mut self, let_statement: LetStatement) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Let);
+            formatter.write_space();
+            formatter.format_pattern(let_statement.pattern);
+            if let_statement.r#type.typ != UnresolvedTypeData::Unspecified {
+                formatter.write_token(Token::Colon);
+                formatter.write_space();
+                formatter.format_type(let_statement.r#type);
+            }
+            formatter.write_space();
+            formatter.write_token(Token::Assign);
+        }));
+        chunks.increase_indentation();
+        chunks.space_or_line();
+        self.format_expression(let_statement.expression, &mut chunks);
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_semicolon();
+        }));
+        chunks.decrease_indentation();
+
+        chunks
+    }
+
+    fn format_assign(&mut self, assign_statement: AssignStatement) -> Chunks {
+        let mut chunks = Chunks::new();
+        let mut is_op_assign = false;
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.format_lvalue(assign_statement.lvalue);
+            formatter.write_space();
+            if formatter.token == Token::Assign {
+                formatter.write_token(Token::Assign);
+            } else {
+                while formatter.token != Token::Assign {
+                    formatter.write_current_token();
+                    formatter.bump();
+                    formatter.skip_comments_and_whitespace();
+                }
+                formatter.write_token(Token::Assign);
+                is_op_assign = true;
+            }
+        }));
+        chunks.increase_indentation();
+        chunks.space_or_line();
+
+        if is_op_assign {
+            let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
+                panic!("Expected an infix expression for op assign");
+            };
+            self.format_expression(infix.rhs, &mut chunks);
+        } else {
+            self.format_expression(assign_statement.expression, &mut chunks);
+        }
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_semicolon();
+        }));
+        chunks.decrease_indentation();
+        chunks
     }
 
     fn format_comptime_statement(&mut self, statement: Statement) -> Chunks {
@@ -113,6 +118,19 @@ impl<'a> Formatter<'a> {
             formatter.write_space();
         }));
         self.format_statement(statement, &mut chunks);
+        chunks
+    }
+
+    fn format_semi_statement(&mut self, expression: Expression) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        self.format_expression(expression, &mut chunks);
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+            formatter.write_semicolon();
+        }));
+
         chunks
     }
 }
