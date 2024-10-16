@@ -149,7 +149,11 @@ impl<'a> Formatter<'a> {
     }
 
     fn write_current_token_as_in_source(&mut self) {
-        self.write(&self.source[self.token_span.start() as usize..self.token_span.end() as usize]);
+        self.write_source_span(self.token_span);
+    }
+
+    fn write_source_span(&mut self, span: Span) {
+        self.write(&self.source[span.start() as usize..span.end() as usize]);
     }
 
     fn write_space(&mut self) {

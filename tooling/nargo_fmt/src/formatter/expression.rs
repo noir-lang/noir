@@ -62,8 +62,12 @@ impl<'a> Formatter<'a> {
             ExpressionKind::Parenthesized(expression) => {
                 chunks.group(self.format_parenthesized_expression(*expression));
             }
-            ExpressionKind::Quote(_tokens) => todo!("Format quote"),
-            ExpressionKind::Unquote(_expression) => todo!("Format unquote"),
+            ExpressionKind::Quote(..) => {
+                chunks.group(self.format_quote());
+            }
+            ExpressionKind::Unquote(..) => {
+                unreachable!("Should not be present in the AST")
+            }
             ExpressionKind::Comptime(block_expression, _span) => {
                 chunks.group(self.format_comptime_expression(
                     block_expression,
@@ -185,6 +189,25 @@ impl<'a> Formatter<'a> {
         self.format_expression(expr, &mut chunks);
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
+        }));
+        chunks
+    }
+
+    pub(super) fn format_quote(&mut self) -> Chunks {
+        // We use the current token rather than the Tokens we got from `Token::Quote` because
+        // the current token has whitespace and comments in it, while the one we got from
+        // the parser doesn't.
+        let Token::Quote(tokens) = self.bump() else {
+            panic!("Expected current token to be Quote");
+        };
+
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write("quote {");
+            for token in tokens.0 {
+                formatter.write_source_span(token.to_span());
+            }
+            formatter.write("}");
         }));
         chunks
     }
@@ -1130,6 +1153,13 @@ global y = 1;
         4
     };
 ";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_quote() {
+        let src = "global x = quote { 1  2  3 $four $(five) };";
+        let expected = "global x = quote { 1  2  3 $four $(five) };\n";
         assert_format(src, expected);
     }
 }
