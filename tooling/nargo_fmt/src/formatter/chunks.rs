@@ -247,6 +247,7 @@ impl<'a> Formatter<'a> {
                         // after `format_chunks` finishes)
                         if self.current_line_width <= self.config.max_width
                             && self.current_line_width + text_chunk.width > self.config.max_width
+                            && !self.buffer.ends_with(' ')
                         {
                             self.write_line_without_skipping_whitespace_and_comments();
                             self.increase_indentation();
@@ -285,11 +286,6 @@ impl<'a> Formatter<'a> {
                 }
             }
         }
-
-        // while increased_indentations > 0 {
-        //     self.decrease_indentation();
-        //     increased_indentations -= 1;
-        // }
     }
 
     fn write_chunk_lines(&mut self, string: &str) {

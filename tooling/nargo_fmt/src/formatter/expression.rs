@@ -1,7 +1,7 @@
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, CastExpression, Expression, ExpressionKind, IndexExpression, Literal,
-        PrefixExpression,
+        ArrayLiteral, BinaryOpKind, CastExpression, Expression, ExpressionKind, IndexExpression,
+        InfixExpression, Literal, PrefixExpression,
     },
     token::{Keyword, Token},
 };
@@ -22,7 +22,7 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_prefix(*prefix_expression));
             }
             ExpressionKind::Index(index_expression) => {
-                chunks.group(self.format_index(*index_expression))
+                chunks.group(self.format_index_expression(*index_expression))
             }
             ExpressionKind::Call(_call_expression) => todo!("Format call"),
             ExpressionKind::MethodCall(_method_call_expression) => todo!("Format method call"),
@@ -33,7 +33,9 @@ impl<'a> Formatter<'a> {
             ExpressionKind::Cast(cast_expression) => {
                 chunks.group(self.format_cast(*cast_expression));
             }
-            ExpressionKind::Infix(_infix_expression) => todo!("Format infix"),
+            ExpressionKind::Infix(infix_expression) => {
+                chunks.group(self.format_infix_expression(*infix_expression))
+            }
             ExpressionKind::If(_if_expression) => todo!("Format if"),
             ExpressionKind::Variable(path) => {
                 chunks.text(self.chunk(|formatter| {
@@ -203,7 +205,30 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    fn format_index(&mut self, index: IndexExpression) -> Chunks {
+    fn format_infix_expression(&mut self, infix: InfixExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+
+        self.format_expression(infix.lhs, &mut chunks);
+        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+
+        chunks.increase_indentation();
+        chunks.space_or_line();
+        chunks.text(self.chunk(|formatter| {
+            let tokens_count =
+                if infix.operator.contents == BinaryOpKind::ShiftRight { 2 } else { 1 };
+            for _ in 0..tokens_count {
+                formatter.write_current_token();
+                formatter.bump();
+            }
+            formatter.write_space();
+        }));
+
+        self.format_expression(infix.rhs, &mut chunks);
+
+        chunks
+    }
+
+    fn format_index_expression(&mut self, index: IndexExpression) -> Chunks {
         let mut chunks = Chunks::new();
         self.format_expression(index.collection, &mut chunks);
         chunks.text(self.chunk(|formatter| {
@@ -470,9 +495,27 @@ global y = 1;
     }
 
     #[test]
+    fn format_long_index_2() {
+        let src = "global x = foo [ bar ] [ baz ] [ qux ] [ one ] [ two ] ; global y = 1;";
+        let expected = "global x =
+    foo[bar][baz][qux]
+        [one][two];
+global y = 1;
+";
+        assert_format_with_max_width(src, expected, 25);
+    }
+
+    #[test]
     fn format_prefix() {
         let src = "global x = - a ;";
         let expected = "global x = -a;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_infix() {
+        let src = "global x =  a  +  b  ;";
+        let expected = "global x = a + b;\n";
         assert_format(src, expected);
     }
 }
