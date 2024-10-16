@@ -342,7 +342,7 @@ impl<'a> Formatter<'a> {
             if let Some(token) = token {
                 match token {
                     Ok(token) => return token,
-                    Err(..) => panic!("Expected lexer not to error"),
+                    Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
                 }
             } else {
                 return SpannedToken::new(Token::EOF, Default::default());
