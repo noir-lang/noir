@@ -89,7 +89,9 @@ impl<'a> Formatter<'a> {
                     formatter.write_semicolon();
                 }));
             }
-            StatementKind::Comptime(_statement) => todo!("Format comptime statement"),
+            StatementKind::Comptime(statement) => {
+                chunks.group(self.format_comptime_statement(*statement));
+            }
             StatementKind::Semi(expression) => {
                 self.format_expression(expression, &mut chunks);
 
@@ -102,6 +104,16 @@ impl<'a> Formatter<'a> {
                 unreachable!("Should not be present in the AST")
             }
         }
+    }
+
+    fn format_comptime_statement(&mut self, statement: Statement) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Comptime);
+            formatter.write_space();
+        }));
+        self.format_statement(statement, &mut chunks);
+        chunks
     }
 }
 
@@ -224,6 +236,16 @@ mod tests {
         let src = " fn foo() { x  + =  2 ; } ";
         let expected = "fn foo() {
     x += 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comptime_let_statement() {
+        let src = " fn foo() { comptime  let  x  =  1 ; } ";
+        let expected = "fn foo() {
+    comptime let x = 1;
 }
 ";
         assert_format(src, expected);
