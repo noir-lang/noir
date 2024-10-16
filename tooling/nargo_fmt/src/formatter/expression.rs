@@ -2,8 +2,8 @@ use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstructorExpression, Expression, ExpressionKind, IfExpression, IndexExpression,
-        InfixExpression, Literal, MemberAccessExpression, MethodCallExpression, PrefixExpression,
-        TypePath, UnaryOp,
+        InfixExpression, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
+        PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -58,7 +58,7 @@ impl<'a> Formatter<'a> {
                 }));
             }
             ExpressionKind::Tuple(exprs) => chunks.group(self.format_tuple(exprs)),
-            ExpressionKind::Lambda(_lambda) => todo!("Format lambda"),
+            ExpressionKind::Lambda(lambda) => chunks.group(self.format_lambda(*lambda)),
             ExpressionKind::Parenthesized(expression) => {
                 chunks.group(self.format_parenthesized_expression(*expression));
             }
@@ -178,6 +178,41 @@ impl<'a> Formatter<'a> {
 
         chunks.text(self.chunk(|formatter| formatter.write_right_paren()));
 
+        chunks
+    }
+
+    fn format_lambda(&mut self, lambda: Lambda) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_token(Token::Pipe);
+        }));
+        self.format_items_separated_by_comma(
+            lambda.parameters,
+            false, // force trailing comma
+            false, // surround with spaces
+            &mut chunks,
+            |formatter, (pattern, typ), chunks| {
+                chunks.text(formatter.chunk(|formatter| {
+                    formatter.format_pattern(pattern);
+                    if typ.typ != UnresolvedTypeData::Unspecified {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(typ);
+                    }
+                }));
+            },
+        );
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_token(Token::Pipe);
+            formatter.write_space();
+            if lambda.return_type.typ != UnresolvedTypeData::Unspecified {
+                formatter.write_token(Token::Arrow);
+                formatter.write_space();
+                formatter.format_type(lambda.return_type);
+                formatter.write_space();
+            }
+        }));
+        self.format_expression(lambda.body, &mut chunks);
         chunks
     }
 
@@ -1160,6 +1195,27 @@ global y = 1;
     fn format_quote() {
         let src = "global x = quote { 1  2  3 $four $(five) };";
         let expected = "global x = quote { 1  2  3 $four $(five) };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_no_parameters() {
+        let src = "global x = | |  1 ;";
+        let expected = "global x = || 1;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_parameters() {
+        let src = "global x = | x , y : Field , z |  1 ;";
+        let expected = "global x = |x, y: Field, z| 1;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block() {
+        let src = "global x = | |  {  1  } ;";
+        let expected = "global x = || { 1 };\n";
         assert_format(src, expected);
     }
 }
