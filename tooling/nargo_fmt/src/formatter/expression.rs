@@ -57,7 +57,9 @@ impl<'a> Formatter<'a> {
             ExpressionKind::Quote(_tokens) => todo!("Format quote"),
             ExpressionKind::Unquote(_expression) => todo!("Format unquote"),
             ExpressionKind::Comptime(_block_expression, _span) => todo!("Format comptime"),
-            ExpressionKind::Unsafe(_block_expression, _span) => todo!("Format unsafe"),
+            ExpressionKind::Unsafe(block_expression, _span) => {
+                chunks.group(self.format_unsafe_expression(block_expression));
+            }
             ExpressionKind::AsTraitPath(as_trait_path) => {
                 chunks.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)))
             }
@@ -161,6 +163,18 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));
+        chunks
+    }
+
+    fn format_unsafe_expression(&mut self, block: BlockExpression) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Unsafe);
+            formatter.write_space();
+        }));
+        chunks.group(self.format_block_expression(
+            block, false, // force multiple lines
+        ));
         chunks
     }
 
@@ -786,6 +800,26 @@ global y = 1;
     fn format_parenthesized() {
         let src = "global x =  ( 1 )   ;";
         let expected = "global x = (1);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unsafe_one_expression() {
+        let src = "global x = unsafe { 1  } ;";
+        let expected = "global x = unsafe { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    // TODO: this is not ideal
+    #[test]
+    fn format_unsafe_two_expressions() {
+        let src = "global x = unsafe { 1; 2  } ;";
+        let expected = "global x =
+    unsafe {
+        1;
+        2
+    };
+";
         assert_format(src, expected);
     }
 }
