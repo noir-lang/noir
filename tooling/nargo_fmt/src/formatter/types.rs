@@ -240,6 +240,20 @@ mod tests {
     }
 
     #[test]
+    fn format_array_type_with_binary() {
+        let src = " [ Field ; 1+2 ] ";
+        let expected = "[Field; 1 + 2]";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_array_type_with_parenthesized() {
+        let src = " [ Field ; ( 1 + 2 ) * ( 3 + 4 )  ] ";
+        let expected = "[Field; (1 + 2) * (3 + 4)]";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
     fn format_slice_type() {
         let src = " [ Field  ] ";
         let expected = "[Field]";
