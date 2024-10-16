@@ -217,7 +217,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             }
             ResolverError::UnconditionalRecursion { name, span} => {
                 let mut diagnostic = Diagnostic::simple_warning(
-                    format!("function `${name}` cannot return without recursing"),
+                    format!("function `{name}` cannot return without recursing"),
                     "function cannot return without recursing".to_string(),
                     *span,
                 );
