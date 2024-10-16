@@ -3389,14 +3389,3 @@ fn arithmetic_generics_rounding_fail() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 }
-
-#[test]
-fn unconditional_recursion() {
-    let src = r#"
-    fn main() {
-        main()
-    }
-    "#;
-    // It would be nice if it issued a warning.
-    assert_no_errors(src);
-}
