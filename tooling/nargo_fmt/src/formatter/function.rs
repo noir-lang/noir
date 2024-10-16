@@ -6,10 +6,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{
-    chunks::{Chunks, TextChunk},
-    Formatter,
-};
+use super::{chunks::Chunks, Formatter};
 
 pub(super) struct FunctionToFormat {
     pub(super) visibility: ItemVisibility,
@@ -62,13 +59,8 @@ impl<'a> Formatter<'a> {
             );
         } else {
             let mut chunks = Chunks::new();
-            chunks.increase_indentation();
-            chunks.line();
 
             self.format_function_parameters(func.parameters, &mut chunks);
-
-            chunks.decrease_indentation();
-            chunks.line();
 
             chunks.text(self.chunk(|formatter| {
                 formatter.format_function_right_paren_until_left_brace_or_semicolon(
@@ -124,43 +116,29 @@ impl<'a> Formatter<'a> {
         parameters: Vec<Param>,
         chunks: &mut Chunks,
     ) {
-        for (index, param) in parameters.into_iter().enumerate() {
-            if index > 0 {
-                chunks.text(self.chunk(|formatter| {
-                    formatter.write_comma();
+        self.format_items_separated_by_comma(
+            parameters,
+            false, // force trailing comma
+            chunks,
+            |formatter, param, chunks| {
+                chunks.text(formatter.chunk(|formatter| {
+                    formatter.format_function_param(param);
                 }));
-                chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
-                chunks.space_or_line();
-            }
+            },
+        );
+    }
 
-            chunks.text(self.chunk(|formatter| {
-                formatter.format_pattern(param.pattern);
-                formatter.skip_comments_and_whitespace();
+    fn format_function_param(&mut self, param: Param) {
+        self.format_pattern(param.pattern);
+        self.skip_comments_and_whitespace();
 
-                // There might not be a colon if the parameter is self
-                if formatter.token == Token::Colon {
-                    formatter.write_token(Token::Colon);
-                    formatter.write_space();
-                    formatter.format_visibility(param.visibility);
-                    formatter.format_type(param.typ);
-                }
-            }));
+        // There might not be a colon if the parameter is self
+        if self.token == Token::Colon {
+            self.write_token(Token::Colon);
+            self.write_space();
+            self.format_visibility(param.visibility);
+            self.format_type(param.typ);
         }
-
-        let chunk = self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
-
-            // A trailing comma might happen
-            if formatter.token == Token::Comma {
-                formatter.bump();
-                formatter.skip_comments_and_whitespace();
-            }
-        });
-
-        // Make sure to put a trailing comma before the last parameter comments, if there were any
-        chunks.text_if_multiline(TextChunk::new(",".to_string()));
-
-        chunks.text(chunk);
     }
 
     pub(super) fn format_function_right_paren_until_left_brace_or_semicolon(

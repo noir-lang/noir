@@ -154,12 +154,31 @@ impl<'a> Formatter<'a> {
         &mut self,
         exprs: Vec<Expression>,
         force_trailing_comma: bool,
-        mut chunks: &mut Chunks,
+        chunks: &mut Chunks,
     ) {
+        self.format_items_separated_by_comma(
+            exprs,
+            force_trailing_comma,
+            chunks,
+            |formatter, expr, chunks| {
+                formatter.format_expression(expr, chunks);
+            },
+        );
+    }
+
+    pub(super) fn format_items_separated_by_comma<Item, F>(
+        &mut self,
+        items: Vec<Item>,
+        force_trailing_comma: bool,
+        mut chunks: &mut Chunks,
+        mut format_item: F,
+    ) where
+        F: FnMut(&mut Self, Item, &mut Chunks),
+    {
         chunks.increase_indentation();
         chunks.line();
 
-        for (index, expr) in exprs.into_iter().enumerate() {
+        for (index, expr) in items.into_iter().enumerate() {
             if index > 0 {
                 chunks.text(self.chunk(|formatter| {
                     formatter.write_comma();
@@ -167,7 +186,7 @@ impl<'a> Formatter<'a> {
                 chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
                 chunks.space_or_line();
             }
-            self.format_expression(expr, &mut chunks)
+            format_item(self, expr, &mut chunks);
         }
 
         let chunk = self.chunk(|formatter| {
