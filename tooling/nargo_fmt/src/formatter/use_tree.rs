@@ -55,19 +55,36 @@ impl<'a> Formatter<'a> {
                 }));
             }
             UseTreeKind::List(use_trees) => {
-                chunks.text(self.chunk(|formatter| {
+                let use_trees_len = use_trees.len();
+
+                let left_brace_chunk = self.chunk(|formatter| {
                     formatter.write_left_brace();
-                }));
+                });
+
+                self.wrote_comment = false;
+
+                let mut items_chunk = Chunks::new();
                 self.format_items_separated_by_comma(
                     use_trees,
                     false, // force trailing comma
                     false, // surround with spaces
-                    &mut chunks,
+                    &mut items_chunk,
                     |formatter, use_tree, chunks| chunks.group(formatter.format_use_tree(use_tree)),
                 );
-                chunks.text(self.chunk(|formatter| {
+
+                let wrote_comment = self.wrote_comment;
+
+                let right_brace_chunk = self.chunk(|formatter| {
                     formatter.write_right_brace();
-                }));
+                });
+
+                if use_trees_len == 1 && !wrote_comment {
+                    chunks.chunks.extend(items_chunk.chunks);
+                } else {
+                    chunks.text(left_brace_chunk);
+                    chunks.chunks.extend(items_chunk.chunks);
+                    chunks.text(right_brace_chunk);
+                }
             }
         }
 
@@ -124,5 +141,20 @@ mod tests {
 };
 ";
         assert_format_with_max_width(src, expected, 20);
+    }
+
+    #[test]
+    fn format_use_list_one_item() {
+        let src = " use foo::{  bar,  };";
+        let expected = "use foo::bar;\n";
+        assert_format(src, expected);
+    }
+
+    // TODO: ideally the space after `*/` is preserved too
+    #[test]
+    fn format_use_list_one_item_with_comments() {
+        let src = " use foo::{  /* do not remove me */ bar,  };";
+        let expected = "use foo::{ /* do not remove me */bar};\n";
+        assert_format(src, expected);
     }
 }

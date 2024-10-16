@@ -45,6 +45,14 @@ pub(crate) struct Formatter<'a> {
     token_span: Span,
     indentation: usize,
     current_line_width: usize,
+
+    /// Whenever a comment is written, this flag is set to true.
+    /// So, before formatting some chunk of code we can set this to false,
+    /// format something and know if we wrote some comments.
+    /// This is used, for example, when transforming `foo::{bar}` into `foo::bar`:
+    /// we only do that if there were no comments between `{` and `}`.
+    wrote_comment: bool,
+
     pub(crate) buffer: String,
 }
 
@@ -59,6 +67,7 @@ impl<'a> Formatter<'a> {
             token_span: Default::default(),
             indentation: 0,
             current_line_width: 0,
+            wrote_comment: false,
             buffer: String::new(),
         };
         formatter.bump();
@@ -245,6 +254,7 @@ impl<'a> Formatter<'a> {
                     wrote_comment = true;
                     passed_whitespace = false;
                     last_was_block_comment = false;
+                    self.wrote_comment = true;
                 }
                 Token::BlockComment(_, None) => {
                     if number_of_newlines > 1 && write_lines {
@@ -261,6 +271,7 @@ impl<'a> Formatter<'a> {
                     wrote_comment = true;
                     passed_whitespace = false;
                     last_was_block_comment = true;
+                    self.wrote_comment = true;
                 }
                 _ => break,
             }
