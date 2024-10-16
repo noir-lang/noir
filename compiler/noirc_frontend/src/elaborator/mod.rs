@@ -455,16 +455,13 @@ impl<'context> Elaborator<'context> {
         }
 
         // Check that the body can return without calling the function.
-        match kind {
-            FunctionKind::Normal | FunctionKind::Recursive => {
-                self.check_for_unbounded_recursion(
-                    id,
-                    self.interner.definition_name(func_meta.name.id).to_string(),
-                    func_meta.name.location.span,
-                    hir_func.as_expr(),
-                );
-            }
-            _ => {}
+        if let FunctionKind::Normal | FunctionKind::Recursive = kind {
+            self.check_for_unbounded_recursion(
+                id,
+                self.interner.definition_name(func_meta.name.id).to_string(),
+                func_meta.name.location.span,
+                hir_func.as_expr(),
+            );
         }
 
         let meta = self
