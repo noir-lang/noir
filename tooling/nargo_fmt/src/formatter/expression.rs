@@ -9,7 +9,7 @@ use noirc_frontend::{
 };
 
 use super::{
-    chunks::{Chunks, TextChunk},
+    chunks::{Chunk, ChunkTag, Chunks, TextChunk},
     Formatter,
 };
 
@@ -502,7 +502,10 @@ impl<'a> Formatter<'a> {
             }
         }
 
-        chunks.group(self.format_block_expression(consequence_block, force_multiple_lines));
+        let mut consequence_group =
+            self.format_block_expression(consequence_block, force_multiple_lines);
+        consequence_group.tag = Some(ChunkTag::IfConsequenceOrAlternative);
+        chunks.group(consequence_group);
 
         if let Some(alternative) = if_expression.alternative {
             chunks.text(self.chunk(|formatter| {
@@ -511,15 +514,22 @@ impl<'a> Formatter<'a> {
                 formatter.write_space();
             }));
 
-            match alternative.kind {
+            let mut alternative_group = match alternative.kind {
                 ExpressionKind::Block(block) => {
-                    chunks.group(self.format_block_expression(block, force_multiple_lines));
+                    self.format_block_expression(block, force_multiple_lines)
                 }
                 ExpressionKind::If(if_expression) => {
-                    chunks.group(self.format_if_expression(*if_expression, force_multiple_lines));
+                    self.format_if_expression(*if_expression, force_multiple_lines)
                 }
                 _ => panic!("Unexpected if alternative expression kind"),
-            }
+            };
+
+            alternative_group.tag = Some(ChunkTag::IfConsequenceOrAlternative);
+            chunks.group(alternative_group);
+        }
+
+        if chunks.width() > self.config.single_line_if_else_max_width {
+            force_if_chunks_to_multiple_lines(&mut chunks);
         }
 
         chunks
@@ -692,9 +702,32 @@ impl<'a> Formatter<'a> {
     }
 }
 
+fn force_if_chunks_to_multiple_lines(chunks: &mut Chunks) {
+    // Note: what if we have something like this?
+    //
+    // ```
+    // if foo { if bar { } }
+    // ```
+    //
+    // and we determine the outer if needs to be formatted in multiple lines?
+    // Because we apply this to all "if" chunks, we'll also mark the inner
+    // if to be formatted in multiples lines... but this is fine. At least
+    // rustfmt will not format the above if in a single line (if there's
+    // an if inside an if it forces the outer if to be formatted in multiple lines).
+    if let Some(ChunkTag::IfConsequenceOrAlternative) = chunks.tag {
+        chunks.force_multiple_lines = true;
+    }
+
+    for chunk in chunks.chunks.iter_mut() {
+        if let Chunk::Group(group) = chunk {
+            force_if_chunks_to_multiple_lines(group);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_max_width};
+    use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
 
     #[test]
     fn format_unit() {
@@ -1197,6 +1230,38 @@ global y = 1;
 };
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_if_with_configurable_maximum_if_width() {
+        let src = "global x = if  123   {   456   }  else  {  789  };";
+        let expected = "global x = if 123 {
+    456
+} else {
+    789
+};\n";
+
+        let config = Config {
+            single_line_if_else_max_width: "if 123 { 456 } else { 789 }".len() - 1,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn format_if_with_configurable_maximum_if_width_2() {
+        let src = "global x = if  foo(123)   {   456   }  else  {  789  };";
+        let expected = "global x = if foo(123) {
+    456
+} else {
+    789
+};\n";
+
+        let config = Config {
+            single_line_if_else_max_width: "if foo(123) { 456 } else { 789 }".len() - 1,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
     }
 
     #[test]

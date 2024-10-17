@@ -75,11 +75,22 @@ pub(crate) struct Chunks {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) one_chunk_per_line: bool,
     pub(crate) force_multiple_lines: bool,
+
+    /// Chunks can be tagged. For example we tag chunks as `IfConsequenceOrAlternative` if they are consequences
+    /// or alternatives of an `if` expression. Then, if we determine an outer if would
+    /// exceed the maximum allowed length for an if, we tell all tha inner chunks marked
+    /// as `if`
+    pub(crate) tag: Option<ChunkTag>,
 }
 
 impl Chunks {
     pub(crate) fn new() -> Self {
-        Self { chunks: Vec::new(), one_chunk_per_line: true, force_multiple_lines: false }
+        Self {
+            chunks: Vec::new(),
+            one_chunk_per_line: true,
+            force_multiple_lines: false,
+            tag: None,
+        }
     }
 
     pub(crate) fn text(&mut self, chunk: TextChunk) {
@@ -157,6 +168,7 @@ impl Chunks {
             chunks: Vec::new(),
             one_chunk_per_line: self.one_chunk_per_line,
             force_multiple_lines: self.force_multiple_lines,
+            tag: self.tag,
         };
 
         for chunk in self.chunks {
@@ -173,6 +185,11 @@ impl Chunks {
         }
         chunks
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum ChunkTag {
+    IfConsequenceOrAlternative,
 }
 
 impl<'a> Formatter<'a> {
