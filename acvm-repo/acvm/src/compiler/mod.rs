@@ -11,8 +11,8 @@ mod transformers;
 
 pub use optimizers::optimize;
 use optimizers::optimize_internal;
-pub use transformers::transform;
 use transformers::transform_internal;
+pub use transformers::{transform, MIN_EXPRESSION_WIDTH};
 
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
