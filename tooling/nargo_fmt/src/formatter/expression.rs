@@ -320,11 +320,34 @@ impl<'a> Formatter<'a> {
     ) where
         F: FnMut(&mut Self, Item, &mut Chunks),
     {
-        chunks.increase_indentation();
-        if surround_with_spaces {
-            chunks.space_or_line();
+        let mut comments_chunk = self.skip_comments_and_whitespace_chunk();
+
+        // If the comment is not empty but doesn't have newlines, it's surely `/* comment */`.
+        // We format that with spaces surrounding it so it looks, for example, like `Foo { /* comment */ field ..`.
+        if !comments_chunk.string.trim().is_empty() && !comments_chunk.has_newlines {
+            // Note: there's no space after `{}` because space will be produced by format_items_separated_by_comma
+            comments_chunk.string = if surround_with_spaces {
+                format!(" {}", comments_chunk.string.trim())
+            } else {
+                format!(" {} ", comments_chunk.string.trim())
+            };
+            chunks.text(comments_chunk);
+
+            chunks.increase_indentation();
+            if surround_with_spaces {
+                chunks.space_or_line();
+            } else {
+                chunks.line();
+            }
         } else {
-            chunks.line();
+            chunks.increase_indentation();
+            if surround_with_spaces {
+                chunks.space_or_line();
+            } else {
+                chunks.line();
+            }
+
+            chunks.trailing_comment(comments_chunk);
         }
 
         for (index, expr) in items.into_iter().enumerate() {
@@ -373,7 +396,9 @@ impl<'a> Formatter<'a> {
         }));
 
         if constructor.fields.is_empty() {
-            self.format_empty_block_contents();
+            if let Some(group) = self.empty_block_contents_chunk() {
+                chunks.group(group);
+            }
         } else {
             self.format_items_separated_by_comma(
                 constructor.fields,
@@ -1199,7 +1224,6 @@ mod tests {
         assert_format_with_max_width(src, expected, 25);
     }
 
-    // TODO: this is missing a newline between the globals
     #[test]
     fn format_long_array_in_global_2() {
         let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;

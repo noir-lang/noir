@@ -662,4 +662,41 @@ mod foo;
         let expected = "global x = 1 /* comment */ + 2;\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_comment_in_constructor_inside_function() {
+        let src = "fn foo() { MyStruct {/*test*/}; } ";
+        let expected = "fn foo() {
+    MyStruct { /*test*/ };
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_block_comment_before_constructor_field() {
+        let src = "global x = Foo {/*comment*/field}; ";
+        let expected = "global x = Foo { /*comment*/ field };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_line_comment_before_constructor_field() {
+        let src = "global x = Foo { // foo
+        field}; ";
+        let expected = "global x = Foo {
+    // foo
+    field,
+};\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comment_in_empty_constructor() {
+        let src = "global x = Foo { // comment
+        }; ";
+        let expected = "global x = Foo { // comment
+};\n";
+        assert_format(src, expected);
+    }
 }
