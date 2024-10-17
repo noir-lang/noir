@@ -400,9 +400,67 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_member_access(&mut self, member_access: MemberAccessExpression) -> Chunks {
-        let mut chunks = Chunks::new();
+        let chunk_tag = self.next_chunk_tag();
 
-        self.format_expression(member_access.lhs, &mut chunks);
+        // Keep track of how much indentation increased by formatting the infix expression.
+        // At the end we'll decrease the indentation by that amount.
+        let mut increased_indentation = 0;
+
+        let mut chunks = self.format_member_access_with_chunk_tag(
+            member_access,
+            chunk_tag,
+            &mut increased_indentation,
+        );
+        chunks.force_multiline_on_children_with_same_tag_if_multiline = true;
+
+        // Decrease the indentation if it increased.
+        for _ in 0..increased_indentation {
+            chunks.decrease_indentation();
+        }
+
+        chunks
+    }
+
+    fn format_member_access_with_chunk_tag(
+        &mut self,
+        member_access: MemberAccessExpression,
+        chunk_tag: ChunkTag,
+        increased_indentation: &mut usize,
+    ) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.tag = Some(chunk_tag);
+
+        // If we have code like `foo.bar.baz`, where `member_access.lhs` is also a MemberAccessExpression,
+        // we'll format it with the same tag. Once the lhs is not a MemberAccessExpression, we'll format it
+        // and add an increase in indentation, but just once so that it ends up being formatted like this
+        // in case it needs to be formatted in multiple lines:
+        //
+        //    foo
+        //        .bar
+        //        .baz
+        let increase_indentation = match member_access.lhs.kind {
+            ExpressionKind::MemberAccess(lhs_member_access) => {
+                chunks.group(self.format_member_access_with_chunk_tag(
+                    *lhs_member_access,
+                    chunk_tag,
+                    increased_indentation,
+                ));
+                false
+            }
+            _ => {
+                self.format_expression(member_access.lhs, &mut chunks);
+                true
+            }
+        };
+
+        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+
+        if increase_indentation {
+            chunks.increase_indentation();
+            *increased_indentation += 1;
+        }
+
+        chunks.line();
 
         chunks.text(self.chunk(|formatter| {
             formatter.write_token(Token::Dot);
@@ -1252,13 +1310,14 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_long_member_access() {
         let src = "global x =  foo . bar . baz . qux . this_is_a_long_name   ;";
-        let expected = "global x = foo.bar
-    .baz.qux
-        .this_is_a_long_name;
+        let expected = "global x = foo
+    .bar
+    .baz
+    .qux
+    .this_is_a_long_name;
 ";
         assert_format_with_max_width(src, expected, 20);
     }
