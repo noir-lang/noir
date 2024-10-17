@@ -3438,6 +3438,11 @@ fn unconditional_recursion_fail() {
             a + b
         }
         "#,
+        r#"
+        fn main(input: [u64; 8], idx: u64) -> pub u64 {
+            input[main(input, idx)]
+        }
+        "#,
     ];
 
     for src in srcs {
