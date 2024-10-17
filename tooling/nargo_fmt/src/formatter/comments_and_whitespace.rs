@@ -571,10 +571,7 @@ mod foo;
         /* hello */
     }
         ";
-        let expected = "struct Foo {
-    /* hello */
-}
-";
+        let expected = "struct Foo { /* hello */ }\n";
         assert_format(src, expected);
     }
 
@@ -597,6 +594,36 @@ mod foo;
     fn format_block_comment_no_whitespace_in_block_single_line() {
         let src = "global x = {/*foo*/};";
         let expected = "global x = { /*foo*/ };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_block_comment_no_whitespace_but_newline_in_block_single_line() {
+        let src = "global x = {/*foo*/
+        };";
+        let expected = "global x = { /*foo*/ };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_line_comment_in_block_same_line() {
+        let src = "global x = {       // foo
+        };";
+        let expected = "global x = { // foo
+};
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_line_comment_in_block_separate_line() {
+        let src = "global x = {
+        // foo
+        };";
+        let expected = "global x = {
+    // foo
+};
+";
         assert_format(src, expected);
     }
 }

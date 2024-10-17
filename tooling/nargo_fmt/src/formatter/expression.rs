@@ -1012,14 +1012,11 @@ impl<'a> Formatter<'a> {
             // so there's nothing to write.
             None
         } else {
-            if chunk.has_newlines {
-                // There were comments, so we have to write those indented, then write a final newline
+            if chunk.string.trim_start().starts_with("//") {
                 chunks.text(chunk);
                 chunks.decrease_indentation();
                 chunks.line();
             } else {
-                // There were no lines so the content must be `/* comment */`.
-                // In that case we put spaces around it.
                 chunk.string = format!(" {} ", chunk.string.trim());
                 chunks.text(chunk);
                 chunks.decrease_indentation();
