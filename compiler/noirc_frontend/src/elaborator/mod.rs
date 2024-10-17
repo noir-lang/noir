@@ -410,6 +410,14 @@ impl<'context> Elaborator<'context> {
                 func_meta.return_type(),
                 name.span(),
             );
+            for (_, typ, _) in func_meta.parameters.iter() {
+                self.check_type_is_not_more_private_then_item(
+                    &name,
+                    modifiers.visibility,
+                    typ,
+                    name.span(),
+                );
+            }
         }
 
         self.introduce_generics_into_scope(func_meta.all_generics.clone());

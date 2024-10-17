@@ -54,8 +54,8 @@ fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
     pub type Bar = Foo;
-    pub fn no_unused_warnings(_b: Bar) {
-        let _ = Foo {};
+    pub fn no_unused_warnings() {
+        let _: Bar = Foo {};
     }
     fn main() {}
     "#;
@@ -68,9 +68,9 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     pub struct Generic<T> { value: T }
     struct Foo {}
     pub type Bar = Generic<Foo>;
-    pub fn no_unused_warnings(_b: Bar) {
+    pub fn no_unused_warnings() {
         let _ = Foo {};
-        let _ = Generic { value: 1 };
+        let _: Bar = Generic { value: Foo {} };
     }
     fn main() {}
     "#;
@@ -133,13 +133,13 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
         struct Bar {}
         pub fn bar(_bar: Bar) {}
 
-        pub fn foo() {
-            bar(Bar{});
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
         }
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "foo");
+    assert_type_visibility_error(src, "Bar", "bar");
 }
 
 #[test]
