@@ -387,7 +387,7 @@ impl<'a> Formatter<'a> {
 
         for (index, expr) in items.into_iter().enumerate() {
             if index > 0 {
-                chunks.text(self.chunk(|formatter| {
+                chunks.text_attached_to_last_group(self.chunk(|formatter| {
                     formatter.write_comma();
                 }));
                 chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());

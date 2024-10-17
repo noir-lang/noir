@@ -105,14 +105,30 @@ impl Chunks {
     }
 
     pub(crate) fn text(&mut self, chunk: TextChunk) {
-        if chunk.width > 0 {
-            if let Some(Chunk::Text(text_chunk)) = self.chunks.last_mut() {
-                text_chunk.string.push_str(&chunk.string);
-                text_chunk.width += chunk.width;
-                text_chunk.has_newlines |= chunk.has_newlines;
-            } else {
-                self.push(Chunk::Text(chunk));
-            }
+        if chunk.width == 0 {
+            return;
+        }
+
+        if let Some(Chunk::Text(text_chunk)) = self.chunks.last_mut() {
+            text_chunk.string.push_str(&chunk.string);
+            text_chunk.width += chunk.width;
+            text_chunk.has_newlines |= chunk.has_newlines;
+        } else {
+            self.push(Chunk::Text(chunk));
+        }
+    }
+
+    /// Appends a TextChunk to this chunks chunks. However, if the last chunk is a group,
+    /// it's appended to that group's last text.
+    pub(crate) fn text_attached_to_last_group(&mut self, chunk: TextChunk) {
+        if chunk.width == 0 {
+            return;
+        }
+
+        if let Some(Chunk::Group(group)) = self.chunks.last_mut() {
+            group.text(chunk);
+        } else {
+            self.text(chunk);
         }
     }
 
