@@ -143,7 +143,7 @@ impl PackageConfig {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),
             })?;
-            let resolved_dep = dep_config.resolve_to_dependency(root_dir, processed)?;
+            let resolved_dep = dep_config.resolve_to_dependency(root_dir, processed, &name)?;
 
             dependencies.insert(name, resolved_dep);
         }
@@ -299,6 +299,7 @@ struct PackageMetadata {
 enum DependencyConfig {
     Github { git: String, tag: String, directory: Option<String> },
     Path { path: String },
+    // just version
     Registry(String)
 }
 
@@ -307,6 +308,7 @@ impl DependencyConfig {
         &self,
         pkg_root: &Path,
         processed: &mut Vec<String>,
+        package_name: &CrateName,
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
             Self::Github { git, tag, directory } => {
@@ -333,12 +335,10 @@ impl DependencyConfig {
                 let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Local { package }
             }
-            Self::Registry(package_name) => {
-                //todo fix
-                println!("działam");
-                let package_path = fetch_from_registry(package_name).unwrap();
+            Self::Registry(version) => {
+                let package_path = fetch_from_registry(&package_name.to_string(), version).unwrap();
                 let dir_path = pkg_root.join(package_path);
-                let toml_path = dir_path.join("Nargo.toml");
+                let toml_path = dir_path.join(format!("{}/Nargo.orig.toml", &package_name.to_string()));
                 let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Local { package }
             }

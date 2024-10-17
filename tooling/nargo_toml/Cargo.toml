@@ -26,6 +26,8 @@ reqwest.workspace = true
 tokio.workspace = true
 anyhow.workspace = true
 futures.workspace = true
+tar.workspace = true
+zstd.workspace = true
 
 semver = "1.0.20"
 once_cell = "1.20.2"

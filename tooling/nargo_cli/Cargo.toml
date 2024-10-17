@@ -55,6 +55,8 @@ dap.workspace = true
 tokio.workspace = true
 anyhow.workspace = true
 futures.workspace = true
+tar.workspace = true
+zstd.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 
 notify = "6.1.1"
@@ -64,9 +66,7 @@ termion = "3.0.0"
 # Logs
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
-tar = "0.4.42"
 camino = { version = "1.1.9", features = ["serde1"] }
-zstd = "0.13.2"
 ignore = "0.4.23"
 indicatif = "0.17.8"
 fs4 = { version = "0.10.0", features = ["tokio"] }

@@ -3021,10 +3021,12 @@ dependencies = [
  "reqwest",
  "semver",
  "serde",
+ "tar",
  "thiserror",
  "tokio",
  "toml 0.7.8",
  "url 2.5.2",
+ "zstd",
 ]
 
 [[package]]
@@ -4215,6 +4217,7 @@ dependencies = [
  "async-compression",
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http 1.1.0",

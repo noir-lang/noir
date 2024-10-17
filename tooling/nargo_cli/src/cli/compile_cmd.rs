@@ -118,7 +118,6 @@ pub(super) fn compile_workspace_full(
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
-
     report_errors(
         compiled_workspace,
         &workspace_file_manager,

@@ -21,8 +21,7 @@ use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
 const PANIC_MESSAGE: &str = "This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.\nIf there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml";
 
-#[tokio::main] // This makes your main function asynchronous
-async fn main() {
+fn main() {
     // Setup tracing
     if let Ok(log_dir) = env::var("NARGO_LOG_DIR") {
         let debug_file = rolling::daily(log_dir, "nargo-log");
@@ -45,7 +44,7 @@ async fn main() {
         HookBuilder::default().display_env_section(false).panic_section(PANIC_MESSAGE).into_hooks();
     panic_hook.install();
 
-    if let Err(report) = cli::start_cli().await {
+    if let Err(report) = cli::start_cli() {
         eprintln!("{report}");
         std::process::exit(1);
     }

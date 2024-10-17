@@ -83,7 +83,7 @@ enum NargoCommand {
 }
 
 #[cfg(not(feature = "codegen-docs"))]
-pub(crate) async fn start_cli() -> eyre::Result<()> {
+pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
@@ -114,7 +114,7 @@ pub(crate) async fn start_cli() -> eyre::Result<()> {
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
         NargoCommand::Package(args) => package_cmd::run(args, config),
         NargoCommand::Add(args) => add_cmd::run(args, config),
-        NargoCommand::Publish(args) => publish_cmd::run(args, config).await,
+        NargoCommand::Publish(args) => publish_cmd::run(args, config),
     }?;
 
     Ok(())

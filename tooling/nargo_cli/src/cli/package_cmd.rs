@@ -83,7 +83,7 @@ fn package_one_impl(
 
     dst.set_len(0).with_context(|| format!("failed to truncate: {filename}"))?;
 
-    let uncompressed_size = tar(pkg.name.to_string(), &recipe, &mut dst, ws)?;
+    let uncompressed_size = tar(pkg.name.to_string(), &recipe, &mut dst)?;
 
     // let mut dst = if opts.verify {
     //     run_verify(pkg, dst, ws, opts.features.clone())
@@ -303,13 +303,12 @@ fn tar(
     pkg_id: String,
     recipe: &ArchiveRecipe,
     dst: &mut File,
-    ws: &Workspace,
 ) -> Result<u64> {
     const COMPRESSION_LEVEL: i32 = 22;
     let encoder = zstd::stream::Encoder::new(dst, COMPRESSION_LEVEL)?;
     let mut ar = tar::Builder::new(encoder);
 
-    let base_path = Utf8PathBuf::from("pakiet_").join(pkg_id);
+    let base_path = Utf8PathBuf::from(pkg_id);
 
     let mut uncompressed_size = 0;
     for ArchiveFile { path, contents } in recipe {

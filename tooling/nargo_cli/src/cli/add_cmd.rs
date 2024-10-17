@@ -94,12 +94,6 @@ pub(crate) fn run(args: AddCommand, config: NargoConfig) -> Result<(), CliError>
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection = PackageSelection::DefaultOrAll;
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-    )?;
-
 
     let toml_path_utf = Utf8Path::new(toml_path.to_str().unwrap());
     manifest_editor::edit(
@@ -109,6 +103,11 @@ pub(crate) fn run(args: AddCommand, config: NargoConfig) -> Result<(), CliError>
             dry_run: false,
         },
     ).unwrap();
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
     let compile_options = CompileOptions::default();
     compile_workspace_full(&workspace, &compile_options)?;
 
