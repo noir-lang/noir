@@ -60,6 +60,7 @@ impl<'a> Formatter<'a> {
             self.write_indentation();
         }
         self.write_right_brace();
+        self.write_line();
     }
 
     fn format_trait_item(&mut self, item: TraitItem) {
@@ -257,6 +258,18 @@ mod tests {
             T: Bar;
     }
 }
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_multiple_traits() {
+        let src = " trait Foo {}
+
+        trait Bar {}";
+        let expected = "trait Foo {}
+
+trait Bar {}
 ";
         assert_format(src, expected);
     }
