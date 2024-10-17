@@ -39,7 +39,7 @@ fn assert_type_visibility_error(src: &str, private_typ: &str, public_item: &str)
         typ, item, ..
     }) = &errors[0].0
     else {
-        panic!("Expected an type vs item visibility error");
+        panic!("Expected a type vs item visibility error, got {}", errors[0].0);
     };
 
     assert_eq!(typ, private_typ);
@@ -86,9 +86,7 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
             Foo { value: Bar {} }
         }
     }
-    fn main() {
-        let _ = moo::no_unused_warnings();
-    }
+    fn main() {}
     "#;
     assert_type_visibility_error(src, "Bar", "FooBar");
 }
@@ -101,15 +99,13 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
         pub struct Foo<T> { pub value: T }
         pub struct FooBar { pub value: Foo<Bar> }
 
-        pub fn no_unused_warnings() -> FooBar {
+        pub fn foo_bar() -> FooBar {
             FooBar { value: Foo { value: Bar {} } }
         }
     }
-    fn main() {
-        let _ = moo::no_unused_warnings();
-    }
+    fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "FooBar");
+    assert_type_visibility_error(src, "Bar", "FooBar::value");
 }
 
 #[test]
@@ -118,13 +114,11 @@ fn errors_if_pub_function_leaks_private_type_in_return() {
     pub mod moo {
         struct Bar {}
 
-        pub fn foo() -> Bar {
+        pub fn bar() -> Bar {
             Bar {}
         }
     }
-    fn main() {
-        let _ = moo::foo();
-    }
+    fn main() {}
     "#;
     assert_type_visibility_error(src, "Bar", "foo");
 }
@@ -134,17 +128,13 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
     let src = r#"
     pub mod moo {
         struct Bar {}
+        pub fn bar(_bar: Bar) {}
 
-        pub fn foo(_bar: Bar) {
-            Bar {}
-        }
-        pub fn no_unused_warnings() {
-            foo(Bar{});
+        pub fn foo() {
+            bar(Bar{});
         }
     }
-    fn main() {
-        moo::no_unused_warnings();
-    }
+    fn main() {}
     "#;
     assert_type_visibility_error(src, "Bar", "foo");
 }

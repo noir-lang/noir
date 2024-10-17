@@ -53,7 +53,7 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -1380,6 +1380,22 @@ impl<'context> Elaborator<'context> {
             if typ.struct_def.is_abi() {
                 for field in &fields {
                     self.mark_type_as_used(&field.typ);
+                }
+            }
+
+            // Check that the a public struct doesn't have a private type as a public field.
+            if typ.struct_def.visibility != ItemVisibility::Private {
+                for field in &fields {
+                    let ident = Ident(Spanned::from(
+                        field.name.span(),
+                        format!("{}::{}", typ.struct_def.name, field.name),
+                    ));
+                    self.check_aliased_type_is_not_more_private(
+                        &ident,
+                        field.visibility,
+                        &field.typ,
+                        field.name.span(),
+                    );
                 }
             }
 
