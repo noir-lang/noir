@@ -430,36 +430,87 @@ impl<'a> Formatter<'a> {
         let mut chunks = Chunks::new();
         chunks.tag = Some(chunk_tag);
 
-        // If we have code like `foo.bar.baz`, where `member_access.lhs` is also a MemberAccessExpression,
+        // If we have code like `foo.bar.baz.qux`, where `member_access.lhs` is also a MemberAccessExpression,
         // we'll format it with the same tag. Once the lhs is not a MemberAccessExpression, we'll format it
         // and add an increase in indentation, but just once so that it ends up being formatted like this
         // in case it needs to be formatted in multiple lines:
         //
+        //    foo.bar
+        //        .baz
+        //        .qux
+        //
+        // Note that we do the same if the lhs is a MethodCallExpression.
+        //
+        // Also note that we don't format it like this:
+        //
         //    foo
         //        .bar
         //        .baz
+        //        .qux
         //
-        // Note that we do the same if the lhs is a MethodCallExpression.
-        let increase_indentation = match member_access.lhs.kind {
+        // For that, we check if the lhs'lhs is also a MemberAccess/MethodCall to determine where we need
+        // to put a line and an indentation.
+        let mut increase_indentation = false;
+
+        // Write a `line()` before the dot?
+        let mut line_before_dot = false;
+
+        match member_access.lhs.kind {
             ExpressionKind::MemberAccess(lhs_member_access) => {
+                let lhs_lhs_is_member_access_or_call = matches!(
+                    lhs_member_access.lhs.kind,
+                    ExpressionKind::MemberAccess(..) | ExpressionKind::MethodCall(..)
+                );
+
+                // If we have `foo.bar.baz.qux`
+                //             ^~~~~~~~~~~      --> lhs
+                //             ^~~~~~~          --> lhs.lhs
+                // and lhs.lhs is a member access or call, we don't want to add an extra indent.
+                //
+                // Otherwise, it's something like this `foo.bar.baz` so we increase the
+                // indentation after `foo.bar`.
+                if !lhs_lhs_is_member_access_or_call {
+                    increase_indentation = true;
+                }
+
+                // We always put a line before the dot if lhs is a member access or call
+                line_before_dot = true;
+
                 chunks.group(self.format_member_access_with_chunk_tag(
                     *lhs_member_access,
                     chunk_tag,
                     increased_indentation,
                 ));
-                false
             }
             ExpressionKind::MethodCall(lhs_method_call) => {
+                let lhs_lhs_is_member_access_or_call = matches!(
+                    lhs_method_call.object.kind,
+                    ExpressionKind::MemberAccess(..) | ExpressionKind::MethodCall(..)
+                );
+
+                // If we have `foo.bar.baz.qux`
+                //             ^~~~~~~~~~~      --> lhs
+                //             ^~~~~~~          --> lhs.lhs
+                // and lhs.lhs is a member access or call, we don't want to add an extra indent.
+                //
+                // Otherwise, it's something like this `foo.bar.baz` so we increase the
+                // indentation after `foo.bar`.
+                if !lhs_lhs_is_member_access_or_call {
+                    increase_indentation = true;
+                }
+
+                // We always put a line before the dot if lhs is a member access or call
+                line_before_dot = true;
+
                 chunks.group(self.format_method_call_with_chunk_tag(
                     *lhs_method_call,
                     chunk_tag,
                     increased_indentation,
+                    true, // nested
                 ));
-                false
             }
             _ => {
                 self.format_expression(member_access.lhs, &mut chunks);
-                true
             }
         };
 
@@ -470,7 +521,9 @@ impl<'a> Formatter<'a> {
             *increased_indentation += 1;
         }
 
-        chunks.line();
+        if line_before_dot {
+            chunks.line();
+        }
 
         chunks.text(self.chunk(|formatter| {
             formatter.write_token(Token::Dot);
@@ -747,6 +800,7 @@ impl<'a> Formatter<'a> {
             method_call,
             chunk_tag,
             &mut increased_indentation,
+            false, // nested
         );
         chunks.force_multiline_on_children_with_same_tag_if_multiline = true;
 
@@ -763,52 +817,86 @@ impl<'a> Formatter<'a> {
         method_call: MethodCallExpression,
         chunk_tag: ChunkTag,
         increased_indentation: &mut usize,
+        nested: bool,
     ) -> Chunks {
         let mut chunks = Chunks::new();
 
-        // self.format_expression(method_call.object, &mut chunks);
+        // The logic here is similar to that of `format_member_access_with_chunk_tag`, so
+        // please that function inner comments for details.
+        let mut increase_indentation_before_dot = false;
+        let mut increase_arguments_indentation = false;
 
-        // If we have code like `foo(..).bar(..).baz(..)`, where `method_call.object` is also a MethodCallExpression,
-        // we'll format it with the same tag. Once the lhs is not a MethodCallExpression, we'll format it
-        // and add an increase in indentation, but just once so that it ends up being formatted like this
-        // in case it needs to be formatted in multiple lines:
-        //
-        //    foo(..)
-        //        .bar(..)
-        //        .baz(..)
-        //
-        // Note that we do the same if the object is a MemberAccessExpression.
-        let increase_indentation = match method_call.object.kind {
+        // Write a `line()` before the dot?
+        let mut line_before_dot = false;
+
+        match method_call.object.kind {
             ExpressionKind::MethodCall(lhs_method_call) => {
+                let lhs_lhs_is_member_access_or_call = matches!(
+                    lhs_method_call.object.kind,
+                    ExpressionKind::MemberAccess(..) | ExpressionKind::MethodCall(..)
+                );
+
+                if !lhs_lhs_is_member_access_or_call {
+                    increase_indentation_before_dot = true;
+                }
+
+                line_before_dot = true;
+
                 chunks.group(self.format_method_call_with_chunk_tag(
                     *lhs_method_call,
                     chunk_tag,
                     increased_indentation,
+                    true, // nested
                 ));
-                false
             }
             ExpressionKind::MemberAccess(lhs_member_access) => {
+                let lhs_lhs_is_member_access_or_call = matches!(
+                    lhs_member_access.lhs.kind,
+                    ExpressionKind::MemberAccess(..) | ExpressionKind::MethodCall(..)
+                );
+
+                if !lhs_lhs_is_member_access_or_call {
+                    increase_indentation_before_dot = true;
+                }
+
+                line_before_dot = true;
+
                 chunks.group(self.format_member_access_with_chunk_tag(
                     *lhs_member_access,
                     chunk_tag,
                     increased_indentation,
                 ));
-                false
             }
             _ => {
                 self.format_expression(method_call.object, &mut chunks);
-                true
+
+                // If we have `foo.bar(..)` where `lhs` is neither a member access nor a call,
+                // but this occurs inside another member access or method call we are formatting, like
+                // `foo.bar(..).baz` , then if we end up formatting all of this in multiple lines
+                // we want to have an extra level of indentation in the arguments, so it formats like this:
+                //
+                //     foo.bar(
+                //         1,   // Note how we indented twice
+                //         2,
+                //         3,
+                //     )
+                //     .baz
+                if nested {
+                    increase_arguments_indentation = true;
+                }
             }
-        };
+        }
 
         chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
 
-        if increase_indentation {
+        if increase_indentation_before_dot {
             chunks.increase_indentation();
             *increased_indentation += 1;
         }
 
-        chunks.line();
+        if line_before_dot {
+            chunks.line();
+        }
 
         chunks.text(self.chunk(|formatter| {
             formatter.write_token(Token::Dot);
@@ -821,11 +909,21 @@ impl<'a> Formatter<'a> {
             }
             formatter.write_left_paren();
         }));
+
+        if increase_arguments_indentation {
+            chunks.increase_indentation();
+        }
+
         self.format_expressions_separated_by_comma(
             method_call.arguments,
             false, // force trailing comma
             &mut chunks,
         );
+
+        if increase_arguments_indentation {
+            chunks.decrease_indentation();
+        }
+
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));
@@ -1356,6 +1454,22 @@ global y = 1;
     }
 
     #[test]
+    fn format_method_call_with_long_arguments() {
+        let src = "global x =  bar . baz ( 123456789, 123456789, 123456789, 123456789, 123456789, 123456789, 123456789 )  ;";
+        let expected = "global x = bar.baz(
+    123456789,
+    123456789,
+    123456789,
+    123456789,
+    123456789,
+    123456789,
+    123456789,
+);
+";
+        assert_format_with_max_width(src, expected, 40);
+    }
+
+    #[test]
     fn format_method_call_with_generics() {
         let src = "global x =  bar . baz :: < T >  ( 1, 2 )  ;";
         let expected = "global x = bar.baz::<T>(1, 2);\n";
@@ -1366,8 +1480,7 @@ global y = 1;
     #[test]
     fn format_method_call_chain() {
         let src = "global x =  bar . baz ( 1, 2 ) . qux ( 1 , 2, 3) . one ( 5, 6)  ;";
-        let expected = "global x = bar
-    .baz(
+        let expected = "global x = bar.baz(
         1,
         2,
     )
@@ -1391,23 +1504,23 @@ global y = 1;
         assert_format(src, expected);
     }
 
+    // TODO: this is not ideal
     #[test]
-    fn format_long_member_access() {
-        let src = "global x =  foo . bar . baz . qux . this_is_a_long_name   ;";
-        let expected = "global x = foo
-    .bar
+    fn format_long_member_access_alone() {
+        let src = "global x =  foo . bar . baz . qux . final   ;";
+        let expected = "global x = foo.bar
     .baz
     .qux
-    .this_is_a_long_name;
+    .final;
 ";
-        assert_format_with_max_width(src, expected, 20);
+        assert_format_with_max_width(src, expected, "foo.bar.baz.qux.final".len() - 1);
     }
 
+    // TODO: this is not ideal
     #[test]
     fn format_long_member_access_and_method_call_chain() {
         let src = "global x =  foo . bar(1, 2) . baz . qux(2, 3) . this_is_a_long_name   ;";
-        let expected = "global x = foo
-    .bar(
+        let expected = "global x = foo.bar(
         1,
         2,
     )
