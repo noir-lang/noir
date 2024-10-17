@@ -32,6 +32,10 @@ impl<'a> Formatter<'a> {
             }
         }
 
+        if !noir_trait.where_clause.is_empty() {
+            self.format_where_clause(noir_trait.where_clause, true);
+        }
+
         self.write_space();
         self.write_left_brace();
         if noir_trait.items.is_empty() {
@@ -146,6 +150,19 @@ mod tests {
         let src = " mod moo { trait Foo : Bar  +  Baz {  } }";
         let expected = "mod moo {
     trait Foo: Bar + Baz {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_with_where_clause() {
+        let src = " mod moo { trait Foo < T >  where  T : Bar {  } }";
+        let expected = "mod moo {
+    trait Foo<T>
+    where
+        T: Bar,
+    {}
 }
 ";
         assert_format(src, expected);
