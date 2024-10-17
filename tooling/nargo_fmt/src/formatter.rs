@@ -11,6 +11,7 @@ use crate::Config;
 mod alias;
 mod attribute;
 mod chunks;
+mod comments_and_whitespace;
 mod doc_comments;
 mod expression;
 mod function;
@@ -31,11 +32,6 @@ mod types;
 mod use_tree;
 mod visibility;
 mod where_clause;
-
-#[derive(Debug)]
-pub(crate) struct SkipCommentsAndWhitespaceResult {
-    pub(crate) wrote_comment: bool,
-}
 
 pub(crate) struct Formatter<'a> {
     config: &'a Config,
@@ -171,167 +167,6 @@ impl<'a> Formatter<'a> {
 
     fn write_source_span(&mut self, span: Span) {
         self.write(&self.source[span.start() as usize..span.end() as usize]);
-    }
-
-    fn write_space(&mut self) {
-        self.skip_comments_and_whitespace();
-        self.write_space_without_skipping_whitespace_and_comments();
-    }
-
-    fn write_space_without_skipping_whitespace_and_comments(&mut self) {
-        if !self.buffer.ends_with('\n') && !self.buffer.ends_with(' ') {
-            self.write(" ");
-        }
-    }
-
-    fn skip_whitespace_if_it_is_not_a_newline(&mut self) {
-        while let Token::Whitespace(whitespace) = &self.token {
-            if whitespace.contains('\n') {
-                break;
-            }
-            self.bump();
-        }
-    }
-
-    fn skip_comments_and_whitespace(&mut self) -> SkipCommentsAndWhitespaceResult {
-        self.skip_comments_and_whitespace_impl(
-            false, // write lines
-            false, // at beginning
-        )
-    }
-
-    fn skip_comments_and_whitespace_writing_lines_if_found(
-        &mut self,
-    ) -> SkipCommentsAndWhitespaceResult {
-        self.skip_comments_and_whitespace_impl(
-            true,  // write lines
-            false, // at beginning
-        )
-    }
-
-    fn skip_comments_and_whitespace_impl(
-        &mut self,
-        write_lines: bool,
-        at_beginning: bool,
-    ) -> SkipCommentsAndWhitespaceResult {
-        let mut number_of_newlines = 0;
-        let mut passed_whitespace = false;
-        let mut wrote_comment = false;
-        let mut last_was_block_comment = false;
-        loop {
-            match &self.token {
-                Token::Whitespace(whitespace) => {
-                    number_of_newlines = whitespace.chars().filter(|char| *char == '\n').count();
-                    passed_whitespace = whitespace.ends_with(' ');
-
-                    if last_was_block_comment && number_of_newlines > 0 {
-                        if number_of_newlines > 1 {
-                            self.write_multiple_lines_without_skipping_whitespace_and_comments();
-                        } else {
-                            self.write_line_without_skipping_whitespace_and_comments();
-                        }
-
-                        self.bump();
-
-                        // Only indent for what's coming next if it's a comment
-                        // (otherwise a closing brace must come and we wouldn't want to indent that)
-                        if matches!(
-                            &self.token,
-                            Token::LineComment(_, None) | Token::BlockComment(_, None),
-                        ) {
-                            self.write_indentation();
-                        }
-
-                        number_of_newlines = 0;
-                        passed_whitespace = false;
-                    } else {
-                        self.bump();
-                    }
-
-                    last_was_block_comment = false;
-                }
-                Token::LineComment(_, None) => {
-                    if number_of_newlines > 1 && write_lines {
-                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
-                        self.write_indentation();
-                    } else if number_of_newlines > 0 {
-                        self.write_line_without_skipping_whitespace_and_comments();
-                        self.write_indentation();
-                    } else {
-                        if !(at_beginning && self.buffer.is_empty()) {
-                            self.write_space_without_skipping_whitespace_and_comments();
-                        }
-                    }
-                    self.write_current_token_trimming_end();
-                    self.write_line_without_skipping_whitespace_and_comments();
-                    number_of_newlines = 1;
-                    self.bump();
-                    wrote_comment = true;
-                    passed_whitespace = false;
-                    last_was_block_comment = false;
-                    self.wrote_comment = true;
-                }
-                Token::BlockComment(_, None) => {
-                    if number_of_newlines > 1 && write_lines {
-                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
-                        self.write_indentation();
-                    } else if number_of_newlines > 0 {
-                        self.write_line_without_skipping_whitespace_and_comments();
-                        self.write_indentation();
-                    } else if passed_whitespace {
-                        self.write_space_without_skipping_whitespace_and_comments();
-                    }
-                    self.write_current_token();
-                    self.bump();
-                    wrote_comment = true;
-                    passed_whitespace = false;
-                    last_was_block_comment = true;
-                    self.wrote_comment = true;
-                }
-                _ => break,
-            }
-        }
-
-        if number_of_newlines > 1 && write_lines {
-            self.write_multiple_lines_without_skipping_whitespace_and_comments();
-        }
-
-        SkipCommentsAndWhitespaceResult { wrote_comment }
-    }
-
-    fn following_newlines_count(&mut self) -> usize {
-        let Token::Whitespace(whitespace) = &self.token else {
-            return 0;
-        };
-
-        whitespace.chars().filter(|char| *char == '\n').count()
-    }
-
-    fn write_line(&mut self) {
-        self.skip_comments_and_whitespace_impl(
-            true,  // writing newline
-            false, // at beginning
-        );
-        self.write_line_without_skipping_whitespace_and_comments();
-    }
-
-    fn write_line_without_skipping_whitespace_and_comments(&mut self) -> bool {
-        if !self.buffer.ends_with('\n') && !self.buffer.ends_with(' ') {
-            self.write("\n");
-            true
-        } else {
-            false
-        }
-    }
-
-    fn write_multiple_lines_without_skipping_whitespace_and_comments(&mut self) {
-        if self.buffer.ends_with("\n\n") {
-            // Nothing
-        } else if self.buffer.ends_with("\n") {
-            self.write("\n")
-        } else {
-            self.write("\n\n");
-        }
     }
 
     fn write_indentation(&mut self) {

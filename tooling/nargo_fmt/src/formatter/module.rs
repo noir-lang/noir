@@ -35,9 +35,11 @@ impl<'a> Formatter<'a> {
         if parsed_module_is_empty(&submodule.contents) {
             self.write_left_brace();
             self.increase_indentation();
-            let skip_result = self.skip_comments_and_whitespace_writing_lines_if_found();
+
+            self.wrote_comment = false;
+            self.skip_comments_and_whitespace_writing_lines_if_found();
             self.decrease_indentation();
-            if skip_result.wrote_comment {
+            if self.wrote_comment {
                 self.write_line();
                 self.write_indentation();
             }

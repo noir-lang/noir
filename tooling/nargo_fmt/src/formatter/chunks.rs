@@ -230,12 +230,6 @@ impl<'a> Formatter<'a> {
         TextChunk::new(string)
     }
 
-    pub(super) fn skip_comments_and_whitespace_chunk(&mut self) -> TextChunk {
-        self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
-        })
-    }
-
     pub(super) fn format_chunks(&mut self, chunks: Chunks) {
         let previous_indentation = self.indentation;
         self.format_chunks_impl(chunks);
