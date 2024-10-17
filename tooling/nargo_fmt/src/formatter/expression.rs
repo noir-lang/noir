@@ -401,12 +401,15 @@ impl<'a> Formatter<'a> {
         });
 
         // Make sure to put a trailing comma before the last parameter comments, if there were any
-        if force_trailing_comma {
-            chunks.text(TextChunk::new(",".to_string()));
-        } else {
+        if !force_trailing_comma {
             chunks.trailing_comma();
         }
+
         chunks.text(chunk);
+
+        if force_trailing_comma {
+            chunks.text(TextChunk::new(",".to_string()));
+        }
 
         chunks.decrease_indentation();
         if surround_with_spaces {

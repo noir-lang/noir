@@ -713,4 +713,11 @@ mod foo;
 );\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_comment_in_single_element_tuple() {
+        let src = "global x = ( 1 /* hello */ , );";
+        let expected = "global x = (1 /* hello */,);\n";
+        assert_format(src, expected);
+    }
 }
