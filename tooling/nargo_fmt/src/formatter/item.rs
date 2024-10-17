@@ -32,5 +32,7 @@ impl<'a> Formatter<'a> {
             }
             ItemKind::InnerAttribute(..) => self.format_inner_attribute(),
         }
+
+        self.write_line();
     }
 }

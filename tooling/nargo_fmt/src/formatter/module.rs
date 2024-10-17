@@ -15,7 +15,6 @@ impl<'a> Formatter<'a> {
         self.write_space();
         self.write_identifier(module_declaration.ident);
         self.write_semicolon();
-        self.write_line();
     }
 
     pub(super) fn format_submodule(&mut self, submodule: ParsedSubModule) {
@@ -53,7 +52,6 @@ impl<'a> Formatter<'a> {
             self.write_indentation();
             self.write_right_brace();
         }
-        self.write_line();
     }
 }
 

@@ -26,6 +26,5 @@ impl<'a> Formatter<'a> {
         self.write_indentation();
         self.write_current_token();
         self.bump();
-        self.write_line();
     }
 }

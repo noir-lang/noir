@@ -23,7 +23,6 @@ impl<'a> Formatter<'a> {
 
         self.write_indentation();
         self.format_chunks(chunks);
-        self.write_line();
     }
 
     fn format_use_tree(&mut self, use_tree: UseTree) -> Chunks {

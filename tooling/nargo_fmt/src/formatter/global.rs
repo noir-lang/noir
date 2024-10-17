@@ -52,8 +52,6 @@ impl<'a> Formatter<'a> {
 
         self.write_indentation();
         self.format_chunks(chunks);
-
-        self.write_line();
     }
 }
 

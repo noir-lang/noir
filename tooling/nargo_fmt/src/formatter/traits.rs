@@ -60,7 +60,6 @@ impl<'a> Formatter<'a> {
             self.write_indentation();
         }
         self.write_right_brace();
-        self.write_line();
     }
 
     fn format_trait_item(&mut self, item: TraitItem) {

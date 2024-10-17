@@ -31,7 +31,6 @@ impl<'a> Formatter<'a> {
             where_clause: func.def.where_clause,
             body: Some(func.def.body),
         });
-        self.write_line();
     }
 
     pub(super) fn format_function_impl(&mut self, func: FunctionToFormat) {

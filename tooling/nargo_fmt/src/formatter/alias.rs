@@ -18,7 +18,6 @@ impl<'a> Formatter<'a> {
         self.write_space();
         self.format_type(type_alias.typ);
         self.write_semicolon();
-        self.write_line();
     }
 }
 
