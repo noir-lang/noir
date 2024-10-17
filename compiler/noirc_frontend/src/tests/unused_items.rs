@@ -274,3 +274,23 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn no_warning_on_self_in_trait_impl() {
+    let src = r#" 
+    struct Bar {}
+
+    trait Foo {
+        fn foo(self, a: u64);
+    }
+
+    impl Foo for Bar {
+        fn foo(self, _a: u64) {}
+    }
+
+    fn main() {
+        let _ = Bar {};
+    }
+    "#;
+    assert_no_errors(src);
+}
