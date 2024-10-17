@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{ItemVisibility, PathKind, UseTree, UseTreeKind},
+    ast::{ItemVisibility, UseTree, UseTreeKind},
     token::{Keyword, Token},
 };
 
@@ -32,11 +32,14 @@ impl<'a> Formatter<'a> {
 
         if !use_tree.prefix.is_empty() {
             chunks.text(self.chunk(|formatter| {
-                let kind = use_tree.prefix.kind;
+                let has_segments = !use_tree.prefix.segments.is_empty();
 
                 formatter.format_path(use_tree.prefix);
 
-                if kind == PathKind::Plain {
+                // If the path has segments, like in `foo` or `crate::foo`, we need to add a double colon.
+                // But for example for `crate::` we don't need to add a double colon (there are no segments
+                // and `crate::` was already written).
+                if has_segments {
                     formatter.write_token(Token::DoubleColon);
                 }
             }));
@@ -155,6 +158,13 @@ mod tests {
     fn format_use_list_one_item_with_comments() {
         let src = " use foo::{  /* do not remove me */ bar,  };";
         let expected = "use foo::{ /* do not remove me */bar};\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_use_crate_with_list() {
+        let src = " use crate :: hash :: { Hash, Hasher };  ";
+        let expected = "use crate::hash::{Hash, Hasher};\n";
         assert_format(src, expected);
     }
 }
