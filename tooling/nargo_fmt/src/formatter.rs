@@ -184,6 +184,15 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    fn skip_whitespace_if_it_is_not_a_newline(&mut self) {
+        while let Token::Whitespace(whitespace) = &self.token {
+            if whitespace.contains('\n') {
+                break;
+            }
+            self.bump();
+        }
+    }
+
     fn skip_comments_and_whitespace(&mut self) -> SkipCommentsAndWhitespaceResult {
         self.skip_comments_and_whitespace_impl(
             false, // write lines

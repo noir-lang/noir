@@ -223,7 +223,7 @@ impl<'a> Formatter<'a> {
 
         // If there's a trailing semicolon, remove it
         chunks.text(self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
+            formatter.skip_whitespace_if_it_is_not_a_newline();
             if formatter.token == Token::Semicolon {
                 formatter.bump();
             }
@@ -506,6 +506,26 @@ mod tests {
         let src = " fn foo() {  for  x  in  1 ..= 10  {  1  } } ";
         let expected = "fn foo() {
     for x in 1..=10 {
+        1
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_two_for_separated_by_multiple_lines() {
+        let src = " fn foo() {  for  x  in  array  {  1  } 
+        
+        for  x  in  array  {  1  }
+        
+        } ";
+        let expected = "fn foo() {
+    for x in array {
+        1
+    }
+
+    for x in array {
         1
     }
 }
