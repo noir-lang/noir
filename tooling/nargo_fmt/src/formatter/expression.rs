@@ -515,7 +515,7 @@ impl<'a> Formatter<'a> {
 
         chunks.text(self.chunk(|formatter| {
             formatter.write_token(Token::Dot);
-            formatter.write_identifier(member_access.rhs);
+            formatter.write_identifier_or_integer(member_access.rhs);
         }));
 
         chunks
@@ -1513,6 +1513,13 @@ global y = 1;
     .this_is_a_long_name;
 ";
         assert_format_with_max_width(src, expected, 25);
+    }
+
+    #[test]
+    fn format_tuple_member_access() {
+        let src = "global x =  bar . 0   ;";
+        let expected = "global x = bar.0;\n";
+        assert_format(src, expected);
     }
 
     #[test]

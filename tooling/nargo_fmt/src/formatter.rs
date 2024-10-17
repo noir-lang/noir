@@ -102,10 +102,19 @@ impl<'a> Formatter<'a> {
     fn write_identifier(&mut self, ident: Ident) {
         self.skip_comments_and_whitespace();
 
-        // TODO: check that the ident matches
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);
         };
+        self.write(&ident.0.contents);
+        self.bump();
+    }
+
+    fn write_identifier_or_integer(&mut self, ident: Ident) {
+        self.skip_comments_and_whitespace();
+
+        if !matches!(self.token, Token::Ident(..) | Token::Int(..)) {
+            panic!("Expected identifier or integer, got {:?}", self.token);
+        }
         self.write(&ident.0.contents);
         self.bump();
     }
