@@ -28,13 +28,13 @@ Different proving backends provide different tools for working with Noir program
 You can use `bbup` the installation script to quickly install and update BB, Barretenberg's CLI tool:
 
 You can find the full list of proving backends compatible with Noir in Awesome Noir.
+
 ```bash
 curl -L bbup.dev | bash
 bbup
 ```
 
 For the full list of proving backends compatible with Noir, visit [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends).
-
 
 ## Nargo
 
@@ -57,7 +57,7 @@ fn main(x : Field, y : pub Field) {
 }
 ```
 
-To learn more about private and public values, check the [Data Types](./noir/concepts/data_types/index.md) section.
+To learn more about private and public values, check the [Data Types](../noir/concepts/data_types/index.md) section.
 
 ### Compiling and executing
 
@@ -87,9 +87,8 @@ The command also automatically compiles your Noir program if it was not already 
 With circuit compiled and witness generated, we're ready to prove.
 
 ## Proving backend
-	
+ 
 Different proving backends may provide different tools and commands to work with Noir programs. Here Barretenberg's `bb` CLI tool is used as an example:
-
 
 ```sh
 bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target/proof
