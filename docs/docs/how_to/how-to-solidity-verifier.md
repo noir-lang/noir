@@ -27,7 +27,7 @@ This allows for a powerful feature set, as one can make use of the conciseness a
 This guide shows you how to generate a Solidity Verifier and deploy it on the [Remix IDE](https://remix.ethereum.org/). It is assumed that:
 
 - You are comfortable with the Solidity programming language and understand how contracts are deployed on the Ethereum network
-- You have Noir installed and you have a Noir program. If you don't, [get started](../getting_started/installation/index.md) with Nargo and the example Hello Noir circuit
+- You have Noir installed and you have a Noir program. If you don't, [get started](../getting_started/quick_start.md) with Nargo and the example Hello Noir circuit
 - You are comfortable navigating RemixIDE. If you aren't or you need a refresher, you can find some video tutorials [here](https://www.youtube.com/channel/UCjTUPyFEr2xDGN6Cg8nKDaA) that could help you.
 
 ## Rundown
@@ -57,7 +57,7 @@ bb contract
 replacing `<noir_artifact_name>` with the name of your Noir project. A new `contract` folder would then be generated in your project directory, containing the Solidity
 file `contract.sol`. It can be deployed to any EVM blockchain acting as a verifier smart contract.
 
-You can find more information about `bb` and the default Noir proving backend on [this page](../getting_started/hello_noir/index.md#proving-backend).
+You can find more information about `bb` and the default Noir proving backend on [this page](../getting_started/quick_start.md#proving-backend).
 
 :::info
 
@@ -133,9 +133,9 @@ To verify a proof using the Solidity verifier contract, we call the `verify` fun
 function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)
 ```
 
-When using the default example in the [Hello Noir](../getting_started/hello_noir/index.md) guide, the easiest way to confirm that the verifier contract is doing its job is by calling the `verify` function via remix with the required parameters. Note that the public inputs must be passed in separately to the rest of the proof so we must split the proof as returned from `bb`.
+When using the default example in the [Hello Noir](../getting_started/quick_start.md) guide, the easiest way to confirm that the verifier contract is doing its job is by calling the `verify` function via remix with the required parameters. Note that the public inputs must be passed in separately to the rest of the proof so we must split the proof as returned from `bb`.
 
-First generate a proof with `bb` at the location `./proof` using the steps in [get started](../getting_started/hello_noir/index.md), this proof is in a binary format but we want to convert it into a hex string to pass into Remix, this can be done with the
+First generate a proof with `bb` at the location `./proof` using the steps in [get started](../getting_started/quick_start.md), this proof is in a binary format but we want to convert it into a hex string to pass into Remix, this can be done with the
 
 ```bash
 # This value must be changed to match the number of public inputs (including return values!) in your program.

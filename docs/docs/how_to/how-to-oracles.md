@@ -174,7 +174,7 @@ If the Oracle function is returning an array containing other arrays, such as `[
 
 ## Step 3 - Usage with Nargo
 
-Using the [`nargo` CLI tool](../getting_started/installation/index.md), you can use oracles in the `nargo test` and `nargo execute`  commands by passing a value to `--oracle-resolver`. For example:
+Using the [`nargo` CLI tool](../getting_started/noir_installation.md), you can use oracles in the `nargo test` and `nargo execute`  commands by passing a value to `--oracle-resolver`. For example:
 
 ```bash
 nargo test --oracle-resolver http://localhost:5555

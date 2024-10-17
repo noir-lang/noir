@@ -15,7 +15,7 @@ export default {
   url: 'https://noir-lang.org',
   baseUrl: '/',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'throw',
+  onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -26,7 +26,7 @@ export default {
       '@docusaurus/preset-classic',
       {
         docs: {
-          path: 'processed-docs',
+          path: process.env.ENV === 'dev' ? 'docs' : 'processed-docs',
           sidebarPath: './sidebars.js',
           routeBasePath: '/docs',
           remarkPlugins: [math],
@@ -48,7 +48,7 @@ export default {
     ],
   ],
   customFields: {
-    MATOMO_ENV: process.env.MATOMO_ENV,
+    MATOMO_ENV: process.env.ENV,
   },
   themeConfig: {
     colorMode: {
