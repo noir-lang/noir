@@ -221,7 +221,11 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_left_paren();
         }));
+        chunks.increase_indentation();
+        chunks.line();
         self.format_expression(expr, &mut chunks);
+        chunks.decrease_indentation();
+        chunks.line();
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));

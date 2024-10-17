@@ -626,4 +626,22 @@ mod foo;
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_block_comment_in_parenthesized_expression() {
+        let src = "global x = ( /* foo */ 1 );";
+        let expected = "global x = ( /* foo */ 1);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_line_comment_in_parenthesized() {
+        let src = "global x = ( // hello 
+        1 );";
+        let expected = "global x = (
+    // hello
+    1
+);\n";
+        assert_format(src, expected);
+    }
 }
