@@ -936,9 +936,9 @@ impl<'a> Formatter<'a> {
         mut chunks: &mut Chunks,
     ) {
         if block.is_empty() {
-            chunks.increase_indentation();
-            chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
-            chunks.decrease_indentation();
+            if let Some(block_chunks) = self.empty_block_contents_chunk() {
+                chunks.chunks.extend(block_chunks.chunks);
+            }
         } else {
             self.format_non_empty_block_expression_contents(
                 block,
@@ -995,23 +995,36 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_empty_block_contents(&mut self) {
+        if let Some(chunks) = self.empty_block_contents_chunk() {
+            self.format_chunks(chunks);
+        }
+    }
+
+    pub(super) fn empty_block_contents_chunk(&mut self) -> Option<Chunks> {
         let mut chunks = Chunks::new();
         chunks.increase_indentation();
-        let chunk = self.chunk(|formatter| {
+        let mut chunk = self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_lines_if_found();
         });
 
         if chunk.string.trim().is_empty() {
             // We only found whitespace until the next non-whitespace-non-comment token,
             // so there's nothing to write.
-            return;
+            None
         } else {
-            // There were comments, so we have to write those indented, then write
-            // a final newline in case we found a `//` comment.
-            chunks.text(chunk);
-            chunks.decrease_indentation();
-            chunks.line();
-            self.format_chunks(chunks);
+            if chunk.has_newlines {
+                // There were comments, so we have to write those indented, then write a final newline
+                chunks.text(chunk);
+                chunks.decrease_indentation();
+                chunks.line();
+            } else {
+                // There were no lines so the content must be `/* comment */`.
+                // In that case we put spaces around it.
+                chunk.string = format!(" {} ", chunk.string.trim());
+                chunks.text(chunk);
+                chunks.decrease_indentation();
+            }
+            Some(chunks)
         }
     }
 }

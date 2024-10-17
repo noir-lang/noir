@@ -592,4 +592,11 @@ mod foo;
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_block_comment_no_whitespace_in_block_single_line() {
+        let src = "global x = {/*foo*/};";
+        let expected = "global x = { /*foo*/ };\n";
+        assert_format(src, expected);
+    }
 }
