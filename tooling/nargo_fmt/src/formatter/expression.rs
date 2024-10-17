@@ -471,7 +471,28 @@ impl<'a> Formatter<'a> {
         if_expression: IfExpression,
         mut force_multiple_lines: bool,
     ) -> Chunks {
+        let chunk_tag = self.next_chunk_tag();
+        let mut chunks = self.format_if_expression_with_chunk_tag(
+            if_expression,
+            &mut force_multiple_lines,
+            chunk_tag,
+        );
+
+        if force_multiple_lines || chunks.width() > self.config.single_line_if_else_max_width {
+            force_if_chunks_to_multiple_lines(&mut chunks, chunk_tag);
+        }
+
+        chunks
+    }
+
+    pub(super) fn format_if_expression_with_chunk_tag(
+        &mut self,
+        if_expression: IfExpression,
+        force_multiple_lines: &mut bool,
+        chunk_tag: ChunkTag,
+    ) -> Chunks {
         let mut chunks = Chunks::new();
+        chunks.tag = Some(chunk_tag);
 
         chunks.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::If);
@@ -482,7 +503,7 @@ impl<'a> Formatter<'a> {
 
         let comment_chunk_after_condition = self.skip_comments_and_whitespace_chunk();
         if comment_chunk_after_condition.has_newlines {
-            force_multiple_lines = true;
+            *force_multiple_lines = true;
             chunks.trailing_comment(comment_chunk_after_condition);
         } else {
             chunks.text(self.chunk(|formatter| {
@@ -498,19 +519,19 @@ impl<'a> Formatter<'a> {
             match &alternative.kind {
                 ExpressionKind::Block(block) => {
                     if block.statements.len() > 1 {
-                        force_multiple_lines = true;
+                        *force_multiple_lines = true;
                     }
                 }
                 ExpressionKind::If(..) => {
-                    force_multiple_lines = true;
+                    *force_multiple_lines = true;
                 }
                 _ => panic!("Unexpected if alternative expression kind"),
             }
         }
 
         let mut consequence_group =
-            self.format_block_expression(consequence_block, force_multiple_lines);
-        consequence_group.tag = Some(ChunkTag::IfConsequenceOrAlternative);
+            self.format_block_expression(consequence_block, *force_multiple_lines);
+        consequence_group.tag = Some(chunk_tag);
         chunks.group(consequence_group);
 
         if let Some(alternative) = if_expression.alternative {
@@ -521,7 +542,7 @@ impl<'a> Formatter<'a> {
 
             let comment_chunk_after_else = self.skip_comments_and_whitespace_chunk();
             if comment_chunk_after_else.has_newlines {
-                force_multiple_lines = true;
+                *force_multiple_lines = true;
                 chunks.trailing_comment(comment_chunk_after_else);
             } else {
                 chunks.text(self.chunk(|formatter| {
@@ -531,20 +552,18 @@ impl<'a> Formatter<'a> {
 
             let mut alternative_group = match alternative.kind {
                 ExpressionKind::Block(block) => {
-                    self.format_block_expression(block, force_multiple_lines)
+                    self.format_block_expression(block, *force_multiple_lines)
                 }
-                ExpressionKind::If(if_expression) => {
-                    self.format_if_expression(*if_expression, force_multiple_lines)
-                }
+                ExpressionKind::If(if_expression) => self.format_if_expression_with_chunk_tag(
+                    *if_expression,
+                    force_multiple_lines,
+                    chunk_tag,
+                ),
                 _ => panic!("Unexpected if alternative expression kind"),
             };
 
-            alternative_group.tag = Some(ChunkTag::IfConsequenceOrAlternative);
+            alternative_group.tag = Some(chunk_tag);
             chunks.group(alternative_group);
-        }
-
-        if force_multiple_lines || chunks.width() > self.config.single_line_if_else_max_width {
-            force_if_chunks_to_multiple_lines(&mut chunks);
         }
 
         chunks
@@ -729,25 +748,14 @@ impl<'a> Formatter<'a> {
     }
 }
 
-fn force_if_chunks_to_multiple_lines(chunks: &mut Chunks) {
-    // Note: what if we have something like this?
-    //
-    // ```
-    // if foo { if bar { } }
-    // ```
-    //
-    // and we determine the outer if needs to be formatted in multiple lines?
-    // Because we apply this to all "if" chunks, we'll also mark the inner
-    // if to be formatted in multiples lines... but this is fine. At least
-    // rustfmt will not format the above if in a single line (if there's
-    // an if inside an if it forces the outer if to be formatted in multiple lines).
-    if let Some(ChunkTag::IfConsequenceOrAlternative) = chunks.tag {
+fn force_if_chunks_to_multiple_lines(chunks: &mut Chunks, chunk_tag: ChunkTag) {
+    if chunks.tag == Some(chunk_tag) {
         chunks.force_multiple_lines = true;
     }
 
     for chunk in chunks.chunks.iter_mut() {
         if let Chunk::Group(group) = chunk {
-            force_if_chunks_to_multiple_lines(group);
+            force_if_chunks_to_multiple_lines(group, chunk_tag);
         }
     }
 }

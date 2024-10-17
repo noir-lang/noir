@@ -54,6 +54,8 @@ pub(crate) struct Formatter<'a> {
     /// we only do that if there were no comments between `{` and `}`.
     wrote_comment: bool,
 
+    next_chunk_tag: usize,
+
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: String,
 }
@@ -70,6 +72,7 @@ impl<'a> Formatter<'a> {
             indentation: 0,
             current_line_width: 0,
             wrote_comment: false,
+            next_chunk_tag: 0,
             buffer: String::new(),
         };
         formatter.bump();

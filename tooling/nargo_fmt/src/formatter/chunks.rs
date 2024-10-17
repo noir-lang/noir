@@ -205,10 +205,8 @@ impl Chunks {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub(crate) enum ChunkTag {
-    IfConsequenceOrAlternative,
-}
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) struct ChunkTag(usize);
 
 impl<'a> Formatter<'a> {
     pub(super) fn chunk<F>(&mut self, f: F) -> TextChunk
@@ -369,5 +367,11 @@ impl<'a> Formatter<'a> {
                 self.write(line);
             }
         }
+    }
+
+    pub(super) fn next_chunk_tag(&mut self) -> ChunkTag {
+        let tag = ChunkTag(self.next_chunk_tag);
+        self.next_chunk_tag += 1;
+        tag
     }
 }
