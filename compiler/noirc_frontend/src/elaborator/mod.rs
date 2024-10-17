@@ -1689,7 +1689,7 @@ impl<'context> Elaborator<'context> {
             }
             HirExpression::Block(b) => check_block(b),
             HirExpression::Prefix(e) => check(e.rhs),
-            HirExpression::Infix(e) => check(e.lhs) || check(e.rhs),
+            HirExpression::Infix(e) => check(e.lhs) && check(e.rhs),
             HirExpression::Index(e) => check(e.collection) && check(e.index),
             HirExpression::MemberAccess(e) => check(e.lhs),
             HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),

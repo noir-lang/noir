@@ -3414,6 +3414,11 @@ fn unconditional_recursion_fail() {
         }
         "#,
         r#"
+        fn main() -> pub u64 {
+            1 + main()
+        }
+        "#,
+        r#"
         fn main() -> pub bool {
             let _ = main();
             true
