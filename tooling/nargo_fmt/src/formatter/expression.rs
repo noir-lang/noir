@@ -574,11 +574,23 @@ impl<'a> Formatter<'a> {
             }
             formatter.write_left_paren();
         }));
+
+        // Format arguments in a separate group so we can calculate the arguments
+        // width and determine if we need to format this call in multiple lines.
+        let mut group = Chunks::new();
         self.format_expressions_separated_by_comma(
             call.arguments,
             false, // force trailing comma
-            &mut chunks,
+            &mut group,
         );
+
+        if group.width() > self.config.fn_call_width {
+            chunks.force_multiple_lines = true;
+        }
+
+        // We no longer need this subgroup, so put all its chunks into the main chunks
+        chunks.chunks.extend(group.chunks);
+
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));
@@ -1073,6 +1085,19 @@ global y = 1;
         let src = "global x =  foo :: bar :: < Field, i32 > ( 1, 2 )  ;";
         let expected = "global x = foo::bar::<Field, i32>(1, 2);\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_call_with_maximum_width() {
+        let src = "global x =  foo :: bar ( 1, 2, 3 )  ;";
+        let expected = "global x = foo::bar(
+    1,
+    2,
+    3,
+);\n";
+
+        let config = Config { fn_call_width: "1, 2, 3".len() - 1, ..Default::default() };
+        assert_format_with_config(src, expected, config);
     }
 
     #[test]
