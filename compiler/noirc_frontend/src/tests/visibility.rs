@@ -113,7 +113,7 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
 }
 
 #[test]
-fn errors_if_pub_function_leaks_private_type() {
+fn errors_if_pub_function_leaks_private_type_in_return() {
     let src = r#"
     pub mod moo {
         struct Bar {}
@@ -124,6 +124,26 @@ fn errors_if_pub_function_leaks_private_type() {
     }
     fn main() {
         let _ = moo::foo();
+    }
+    "#;
+    assert_type_visibility_error(src, "Bar", "foo");
+}
+
+#[test]
+fn errors_if_pub_function_leaks_private_type_in_arg() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        pub fn foo(_bar: Bar) {
+            Bar {}
+        }
+        pub fn no_unused_warnings() {
+            foo(Bar{});
+        }
+    }
+    fn main() {
+        moo::no_unused_warnings();
     }
     "#;
     assert_type_visibility_error(src, "Bar", "foo");
