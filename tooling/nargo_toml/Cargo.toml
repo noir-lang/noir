@@ -22,6 +22,12 @@ thiserror.workspace = true
 toml.workspace = true
 url.workspace = true
 noirc_driver.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+futures.workspace = true
+
 semver = "1.0.20"
+once_cell = "1.20.2"
 
 [dev-dependencies]

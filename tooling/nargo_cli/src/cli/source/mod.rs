@@ -8,7 +8,7 @@ use crate::cli::package::id::PackageId;
 
 mod id;
 mod scarb_stable_hash;
-mod canonical_url;
+pub mod canonical_url;
 
 /// Something that finds and downloads remote packages based on names and versions.
 #[async_trait]

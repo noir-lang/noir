@@ -42,10 +42,6 @@ pub(crate) fn run(args: PackageCommand, config: NargoConfig) -> Result<(), CliEr
 
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let files: Vec<FmFile> = workspace_file_manager.as_file_map()
-        .all_file_ids()
-        .filter_map(|file_id| workspace_file_manager.as_file_map().get_file(*file_id))
-        .collect();
     for package in &workspace {
         let toml_path_utf = Utf8Path::new(toml_path.to_str().unwrap()); // Convert to Utf8Path
         let toml_manifest = TomlManifest::read_from_path(toml_path_utf).unwrap();
@@ -61,20 +57,7 @@ pub(crate) fn run(args: PackageCommand, config: NargoConfig) -> Result<(), CliEr
             )
             .with_context(|| format!("failed to parse manifest at: {toml_path_utf}")).unwrap();
         let manifest = Box::new(manifest);
-        // let package = Package::new(manifest.summary.package_id, manifest_path.into(), manifest);
-        // Some(package)
-        // println!("mam pakiet: {}", parsed_files)
-        // let any_file_written = check_package(
-        //     &workspace_file_manager,
-        //     &parsed_files,
-        //     package,
-        //     &args.compile_options,
-        //     args.allow_overwrite,
-        // )?;
-        // if any_file_written {
-        //     println!("[{}] Constraint system successfully built!", package.name);
-        // }
-        package_one_impl(package, &workspace, &manifest).unwrap();
+        package_one_impl(package, &workspace, &manifest, toml_path_utf).unwrap();
     }
     Ok(())
 
@@ -84,21 +67,21 @@ fn package_one_impl(
     pkg: &Package,
     ws: &Workspace,
     manifest: &Box<Manifest>,
+    manifest_path: &Utf8Path
 ) -> Result<(FileLockGuard)> {
 
-    let recipe = prepare_archive_recipe(pkg, manifest)?;
+    let recipe = prepare_archive_recipe(pkg, manifest, manifest_path)?;
     let num_files = recipe.len();
 
     // Package up and test a temporary tarball and only move it to the final location if it actually
     // passes all verification checks. Any previously existing tarball can be assumed as corrupt
     // or invalid, so we can overwrite it if it exists.
     let filename = pkg.name.to_string();
-    let target_dir = ws.create_folder("pakiet").unwrap();
+    let target_dir = ws.target_directory_path().join("package");
 
-    let mut dst = Filesystem::new_output_dir(Utf8PathBuf::from(target_dir)).create_rw(format!(".{filename}"), "package scratch space")?;
+    let mut dst = Filesystem::new_output_dir(Utf8PathBuf::from(target_dir.to_str().unwrap())).create_rw(format!(".{filename}"), "package scratch space")?;
 
-    dst.set_len(0)
-        .with_context(|| format!("failed to truncate: {filename}"))?;
+    dst.set_len(0).with_context(|| format!("failed to truncate: {filename}"))?;
 
     let uncompressed_size = tar(pkg.name.to_string(), &recipe, &mut dst, ws)?;
 
@@ -142,7 +125,7 @@ enum ArchiveFileContents {
     Generated(Box<dyn Fn() -> Result<Vec<u8>>>),
 }
 
-fn prepare_archive_recipe(pkg: &Package, manifest: &Box<Manifest>) -> Result<ArchiveRecipe> {
+fn prepare_archive_recipe(pkg: &Package, manifest: &Box<Manifest>, manifest_path: &Utf8Path) -> Result<ArchiveRecipe> {
     ensure!(
         pkg.is_library(),
         r"
@@ -173,13 +156,13 @@ fn prepare_archive_recipe(pkg: &Package, manifest: &Box<Manifest>) -> Result<Arc
             })
         }),
     });;
-    //
-    // // Add original manifest file.
-    // recipe.push(ArchiveFile {
-    //     path: ORIGINAL_MANIFEST_FILE_NAME.into(),
-    //     contents: ArchiveFileContents::OnDisk(pkg.manifest_path().to_owned()),
-    // });
-    //
+
+    // Add original manifest file.
+    recipe.push(ArchiveFile {
+        path: ORIGINAL_MANIFEST_FILE_NAME.into(),
+        contents: ArchiveFileContents::OnDisk(manifest_path.to_path_buf()),
+    });
+
     // // Add README file
     // if let Some(readme) = &pkg.manifest.metadata.readme {
     //     recipe.push(ArchiveFile {

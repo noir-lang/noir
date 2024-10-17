@@ -9,13 +9,13 @@ fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     folder_name
 }
 
-fn nargo_crates() -> PathBuf {
+// the base folder for all
+pub fn nargo_crates() -> PathBuf {
     dirs::home_dir().unwrap().join("nargo")
 }
 
 fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
     let folder_name = resolve_folder_name(base, tag);
-
     nargo_crates().join(folder_name)
 }
 

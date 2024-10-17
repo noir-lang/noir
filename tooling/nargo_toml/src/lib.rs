@@ -21,9 +21,11 @@ use serde::Deserialize;
 mod errors;
 mod git;
 mod semver;
+mod registry;
 
 pub use errors::ManifestError;
 use git::clone_git_repo;
+use crate::registry::fetch_from_registry;
 
 /// Searches for a `Nargo.toml` file in the current directory and all parent directories.
 /// For example, if the current directory is `/workspace/package/src`, then this function
@@ -297,6 +299,7 @@ struct PackageMetadata {
 enum DependencyConfig {
     Github { git: String, tag: String, directory: Option<String> },
     Path { path: String },
+    Registry(String)
 }
 
 impl DependencyConfig {
@@ -326,6 +329,15 @@ impl DependencyConfig {
             }
             Self::Path { path } => {
                 let dir_path = pkg_root.join(path);
+                let toml_path = dir_path.join("Nargo.toml");
+                let package = resolve_package_from_toml(&toml_path, processed)?;
+                Dependency::Local { package }
+            }
+            Self::Registry(package_name) => {
+                //todo fix
+                println!("działam");
+                let package_path = fetch_from_registry(package_name).unwrap();
+                let dir_path = pkg_root.join(package_path);
                 let toml_path = dir_path.join("Nargo.toml");
                 let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Local { package }

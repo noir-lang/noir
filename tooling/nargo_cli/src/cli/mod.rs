@@ -25,6 +25,9 @@ mod package;
 mod manifest;
 mod source;
 mod internal;
+mod add_cmd;
+mod manifest_editor;
+mod publish_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -75,10 +78,12 @@ enum NargoCommand {
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
     Package(package_cmd::PackageCommand),
+    Add(add_cmd::AddCommand),
+    Publish(publish_cmd::PublishCommand),
 }
 
 #[cfg(not(feature = "codegen-docs"))]
-pub(crate) fn start_cli() -> eyre::Result<()> {
+pub(crate) async fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
@@ -108,13 +113,15 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Dap(args) => dap_cmd::run(args, config),
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
         NargoCommand::Package(args) => package_cmd::run(args, config),
+        NargoCommand::Add(args) => add_cmd::run(args, config),
+        NargoCommand::Publish(args) => publish_cmd::run(args, config).await,
     }?;
 
     Ok(())
 }
 
 #[cfg(feature = "codegen-docs")]
-pub(crate) fn start_cli() -> eyre::Result<()> {
+pub(crate) async fn start_cli() -> eyre::Result<()> {
     let markdown: String = clap_markdown::help_markdown::<NargoCli>();
     println!("{markdown}");
     Ok(())

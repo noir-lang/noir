@@ -12,8 +12,7 @@ use crate::cli::internal::fsx::PathBufUtf8Ext;
 use crate::cli::package::static_hash_cache::StaticHashCache;
 use crate::cli::source::canonical_url::CanonicalUrl;
 use crate::cli::source::scarb_stable_hash::short_hash;
-//todo change it aztec
-pub const DEFAULT_REGISTRY_INDEX: &str = "https://scarbs.xyz/";
+pub const DEFAULT_REGISTRY_INDEX: &str = "http://localhost:3000";
 
 /// Unique identifier for a source of packages.
 ///
