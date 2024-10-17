@@ -3,7 +3,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::Formatter;
+use super::{chunks::Chunks, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_pattern(&mut self, pattern: Pattern) {
@@ -51,31 +51,37 @@ impl<'a> Formatter<'a> {
                 self.format_path(path);
                 self.write_space();
                 self.write_left_brace();
-                self.skip_comments_and_whitespace();
-                for (index, (name, pattern)) in fields.into_iter().enumerate() {
-                    let is_identifier_pattern = is_identifier_pattern(&pattern, &name);
+                if fields.is_empty() {
+                    self.format_empty_block_contents();
+                } else {
+                    let mut chunks = Chunks::new();
+                    self.format_items_separated_by_comma(
+                        fields,
+                        false, // force trailing comma,
+                        true,  // surround with spaces
+                        &mut chunks,
+                        |formatter, (name, pattern), chunks| {
+                            let is_identifier_pattern = is_identifier_pattern(&pattern, &name);
 
-                    if index > 0 {
-                        self.write_comma();
-                        self.write_space();
-                    }
-
-                    self.write_identifier(name);
-                    self.skip_comments_and_whitespace();
-                    if self.token == Token::Colon {
-                        if is_identifier_pattern {
-                            self.chunk(|formatter| {
-                                formatter.write_token(Token::Colon);
-                                formatter.write_space();
-                                formatter.format_pattern(pattern);
-                            });
-                        } else {
-                            self.write_token(Token::Colon);
-                            self.write_space();
-                            self.format_pattern(pattern);
-                        }
-                    }
+                            chunks.text(formatter.chunk(|formatter| {
+                                formatter.write_identifier(name);
+                                formatter.skip_comments_and_whitespace();
+                            }));
+                            if formatter.token == Token::Colon {
+                                let value_chunk = formatter.chunk(|formatter| {
+                                    formatter.write_token(Token::Colon);
+                                    formatter.write_space();
+                                    formatter.format_pattern(pattern);
+                                });
+                                if !is_identifier_pattern {
+                                    chunks.text(value_chunk);
+                                }
+                            }
+                        },
+                    );
+                    self.format_chunks(chunks);
                 }
+
                 self.write_right_brace();
             }
             Pattern::Interned(..) => {
@@ -142,14 +148,14 @@ mod tests {
     #[test]
     fn format_struct_pattern() {
         let src = "fn foo( Foo { x : one , y : two } : i32) {}";
-        let expected = "fn foo(Foo {x: one, y: two}: i32) {}\n";
+        let expected = "fn foo(Foo { x: one, y: two }: i32) {}\n";
         assert_format(src, expected);
     }
 
     #[test]
     fn format_struct_pattern_no_pattern() {
         let src = "fn foo( Foo { x  , y : y } : i32) {}";
-        let expected = "fn foo(Foo {x, y}: i32) {}\n";
+        let expected = "fn foo(Foo { x, y }: i32) {}\n";
         assert_format(src, expected);
     }
 }
