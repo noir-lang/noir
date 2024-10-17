@@ -740,7 +740,39 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_left_bracket();
         }));
+
+        // If we have:
+        //
+        //     foo[ // bar
+        //       1]
+        //
+        // and there were newlines in the comment section, we format it like this:
+        //
+        //     foo[
+        //       // bar
+        //       1
+        //     ]
+        //
+        // That is, we first put a newline before the comment so it looks a bit better.
+        // This is a rare scenario, but we had a test for this before the formatter was
+        // rewritten, so...
+        let comments_chunk = self.skip_comments_and_whitespace_chunk();
+        let comments_chunk_has_newlines = comments_chunk.has_newlines;
+
+        if comments_chunk_has_newlines {
+            chunks.increase_indentation();
+            chunks.line();
+        }
+
+        chunks.leading_comment(comments_chunk);
+
         self.format_expression(index.index, &mut chunks);
+
+        if comments_chunk_has_newlines {
+            chunks.decrease_indentation();
+            chunks.line();
+        }
+
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_bracket();
         }));

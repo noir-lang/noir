@@ -644,4 +644,15 @@ mod foo;
 );\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_index_with_comment() {
+        let src = "global x = foo[// hello
+        1];";
+        let expected = "global x = foo[
+    // hello
+    1
+];\n";
+        assert_format(src, expected);
+    }
 }
