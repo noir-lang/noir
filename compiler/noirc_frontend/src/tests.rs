@@ -3444,8 +3444,12 @@ fn unconditional_recursion_fail() {
         }
         "#,
         r#"
-        fn main(input: [u64; 8], idx: u64) -> pub u64 {
-            input[main(input, idx)]
+        fn main() -> pub u64 {
+            let mut sum = 0;
+            for i in 0 .. main() {
+                sum += i;
+            }
+            sum
         }
         "#,
     ];
@@ -3490,6 +3494,16 @@ fn unconditional_recursion_pass() {
         }
         fn bar() {
             foo();
+        }
+        "#,
+        // For loop bodies are not checked.
+        r#"
+        fn main() -> pub u64 {
+            let mut sum = 0;
+            for _ in 0 .. 10 {
+                sum += main();
+            }
+            sum
         }
         "#,
     ];

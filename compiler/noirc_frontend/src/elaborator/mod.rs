@@ -1666,9 +1666,10 @@ impl<'context> Elaborator<'context> {
                 HirStatement::Assign(s) => check(s.expression),
                 HirStatement::Expression(e) => check(e),
                 HirStatement::Semi(e) => check(e),
+                // Rust doesn't seem to check the for loop body.
+                HirStatement::For(e) => check(e.start_range) && check(e.end_range),
                 HirStatement::Constrain(_)
                 | HirStatement::Comptime(_)
-                | HirStatement::For(_)
                 | HirStatement::Break
                 | HirStatement::Continue
                 | HirStatement::Error => true,
