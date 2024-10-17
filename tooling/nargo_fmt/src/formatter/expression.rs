@@ -217,18 +217,47 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_parenthesized_expression(&mut self, expr: Expression) -> Chunks {
+        let is_nested_parenthesized = matches!(expr.kind, ExpressionKind::Parenthesized(..));
+
         let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+        let left_paren_chunk = self.chunk(|formatter| {
             formatter.write_left_paren();
-        }));
-        chunks.increase_indentation();
-        chunks.line();
-        self.format_expression(expr, &mut chunks);
-        chunks.decrease_indentation();
-        chunks.line();
-        chunks.text(self.chunk(|formatter| {
+        });
+
+        let mut group = Chunks::new();
+        let mut has_comments = false;
+
+        let comment_after_left_paren_chunk = self.skip_comments_and_whitespace_chunk();
+        if !comment_after_left_paren_chunk.string.trim().is_empty() {
+            has_comments = true;
+        }
+
+        group.leading_comment(comment_after_left_paren_chunk);
+
+        self.format_expression(expr, &mut group);
+
+        let comment_before_right_parent_chunk = self.skip_comments_and_whitespace_chunk();
+        if !comment_before_right_parent_chunk.string.trim().is_empty() {
+            has_comments = true;
+        }
+
+        let right_paren_chunk = self.chunk(|formatter| {
             formatter.write_right_paren();
-        }));
+        });
+
+        if is_nested_parenthesized && !has_comments && self.config.remove_nested_parens {
+            chunks.chunks.extend(group.chunks);
+        } else {
+            chunks.text(left_paren_chunk);
+            chunks.increase_indentation();
+            chunks.line();
+            chunks.chunks.extend(group.chunks);
+            chunks.text(comment_before_right_parent_chunk);
+            chunks.decrease_indentation();
+            chunks.line();
+            chunks.text(right_paren_chunk);
+        }
+
         chunks
     }
 
@@ -1741,5 +1770,21 @@ global y = 1;
 };
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn removes_nested_parens() {
+        let src = "global x = ( ( ( ( ) ) ) ) ;";
+        let expected = "global x = (());\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_remove_nested_parens_if_not_told_so() {
+        let src = "global x = ( ( ( ( ) ) ) ) ;";
+        let expected = "global x = (((())));\n";
+
+        let config = Config { remove_nested_parens: false, ..Config::default() };
+        assert_format_with_config(src, expected, config);
     }
 }

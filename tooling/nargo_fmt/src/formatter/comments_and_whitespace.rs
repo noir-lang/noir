@@ -699,4 +699,18 @@ mod foo;
 };\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_comment_after_parenthesized() {
+        let src = "global x = (
+            1
+            // hello
+        )
+        ; ";
+        let expected = "global x = (
+    1
+    // hello
+);\n";
+        assert_format(src, expected);
+    }
 }
