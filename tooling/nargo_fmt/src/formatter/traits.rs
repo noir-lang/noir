@@ -244,4 +244,20 @@ mod tests {
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_trait_with_function_with_where_clause() {
+        let src = " mod moo { trait Foo { 
+            fn  foo<T> () where  T : Bar;
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        fn foo<T>()
+        where
+            T: Bar;
+    }
+}
+";
+        assert_format(src, expected);
+    }
 }

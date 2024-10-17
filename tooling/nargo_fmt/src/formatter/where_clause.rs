@@ -6,7 +6,11 @@ use noirc_frontend::{
 use super::Formatter;
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_where_clause(&mut self, constraints: Vec<UnresolvedTraitConstraint>) {
+    pub(super) fn format_where_clause(
+        &mut self,
+        constraints: Vec<UnresolvedTraitConstraint>,
+        write_trailing_comma_and_new_line: bool,
+    ) {
         assert!(!constraints.is_empty());
 
         self.skip_comments_and_whitespace();
@@ -42,15 +46,23 @@ impl<'a> Formatter<'a> {
             write_type = true;
 
             if self.token == Token::Comma {
-                self.write_token(Token::Comma);
-            } else {
+                if write_trailing_comma_and_new_line {
+                    self.write_token(Token::Comma);
+                } else {
+                    self.skip_comments_and_whitespace();
+                    self.bump();
+                }
+            } else if write_trailing_comma_and_new_line {
                 self.write(",")
             }
         }
 
         self.decrease_indentation();
-        self.write_line();
-        self.write_indentation();
+
+        if write_trailing_comma_and_new_line {
+            self.write_line();
+            self.write_indentation();
+        }
     }
 
     pub(super) fn format_trait_bound(&mut self, trait_bound: TraitBound) {

@@ -75,8 +75,15 @@ impl<'a> Formatter<'a> {
         }
 
         if has_where_clause {
-            self.format_where_clause(func.where_clause);
-            self.write_left_brace();
+            self.format_where_clause(
+                func.where_clause,
+                func.body.is_some(), // write trailing comma and newline
+            );
+            if func.body.is_some() {
+                self.write_left_brace();
+            } else {
+                self.write_semicolon();
+            }
         }
 
         if let Some(body) = func.body {

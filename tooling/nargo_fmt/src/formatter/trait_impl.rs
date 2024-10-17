@@ -24,7 +24,10 @@ impl<'a> Formatter<'a> {
         self.format_type(trait_impl.object_type);
 
         if has_where_clause {
-            self.format_where_clause(trait_impl.where_clause);
+            self.format_where_clause(
+                trait_impl.where_clause,
+                true, // write trailing comma and newline
+            );
         } else {
             self.write_space();
         }
