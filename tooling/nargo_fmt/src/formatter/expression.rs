@@ -480,9 +480,15 @@ impl<'a> Formatter<'a> {
 
         self.format_expression(if_expression.condition, &mut chunks);
 
-        chunks.text(self.chunk(|formatter| {
-            formatter.write_space();
-        }));
+        let comment_chunk_after_condition = self.skip_comments_and_whitespace_chunk();
+        if comment_chunk_after_condition.has_newlines {
+            force_multiple_lines = true;
+            chunks.trailing_comment(comment_chunk_after_condition);
+        } else {
+            chunks.text(self.chunk(|formatter| {
+                formatter.write_space();
+            }));
+        }
 
         let ExpressionKind::Block(consequence_block) = if_expression.consequence.kind else {
             panic!("Expected if expression consequence to be a block");
@@ -511,8 +517,17 @@ impl<'a> Formatter<'a> {
             chunks.text(self.chunk(|formatter| {
                 formatter.write_space();
                 formatter.write_keyword(Keyword::Else);
-                formatter.write_space();
             }));
+
+            let comment_chunk_after_else = self.skip_comments_and_whitespace_chunk();
+            if comment_chunk_after_else.has_newlines {
+                force_multiple_lines = true;
+                chunks.trailing_comment(comment_chunk_after_else);
+            } else {
+                chunks.text(self.chunk(|formatter| {
+                    formatter.write_space();
+                }));
+            }
 
             let mut alternative_group = match alternative.kind {
                 ExpressionKind::Block(block) => {
@@ -528,7 +543,7 @@ impl<'a> Formatter<'a> {
             chunks.group(alternative_group);
         }
 
-        if chunks.width() > self.config.single_line_if_else_max_width {
+        if force_multiple_lines || chunks.width() > self.config.single_line_if_else_max_width {
             force_if_chunks_to_multiple_lines(&mut chunks);
         }
 
@@ -1262,6 +1277,32 @@ global y = 1;
             ..Config::default()
         };
         assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn format_if_with_comment_after_condition() {
+        let src = "global x = if  123  // some comment  
+        {   456   }  ;";
+        let expected = "global x = if 123 // some comment
+{
+    456
+};
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_if_with_comment_after_else() {
+        let src = "global x = if  123  {   456   } else  // some comment 
+        { 789 };";
+        let expected = "global x = if 123 {
+    456
+} else // some comment
+{
+    789
+};
+";
+        assert_format(src, expected);
     }
 
     #[test]
