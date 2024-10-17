@@ -1116,7 +1116,6 @@ mod tests {
         assert_format(src, expected);
     }
 
-    // TODO: this is maybe not ideal
     #[test]
     fn format_long_array_in_global() {
         let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;";
