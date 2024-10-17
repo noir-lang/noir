@@ -608,7 +608,19 @@ impl<'a> Formatter<'a> {
             }
         };
 
-        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+        let mut comment_chunk_after_lhs = self.skip_comments_and_whitespace_chunk();
+
+        // If the comment is not empty but doesn't have newlines, it's surely `/* comment */`.
+        // We format that with spaces surrounding it so it looks like `a /* comment */ + b`.
+        if !comment_chunk_after_lhs.string.trim().is_empty()
+            && !comment_chunk_after_lhs.has_newlines
+        {
+            // Note: there's no space after `{}` because a bit below comes "space_or_line".
+            comment_chunk_after_lhs.string = format!(" {}", comment_chunk_after_lhs.string.trim());
+            chunks.text(comment_chunk_after_lhs);
+        } else {
+            chunks.trailing_comment(comment_chunk_after_lhs);
+        }
 
         if increase_indentation {
             chunks.increase_indentation();

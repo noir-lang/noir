@@ -655,4 +655,11 @@ mod foo;
 ];\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_comment_in_infix_between_lhs_and_operator() {
+        let src = "global x = 1/* comment */+ 2 ;";
+        let expected = "global x = 1 /* comment */ + 2;\n";
+        assert_format(src, expected);
+    }
 }
