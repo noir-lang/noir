@@ -444,12 +444,64 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_infix_expression(&mut self, infix: InfixExpression) -> Chunks {
-        let mut chunks = Chunks::new();
+        let chunk_tag = self.next_chunk_tag();
 
-        self.format_expression(infix.lhs, &mut chunks);
+        // Keep track of how much indentation increased by formatting the infix expression.
+        // At the end we'll decrease the indentation by that amount.
+        let mut increased_indentation = 0;
+        let mut chunks = self.format_infix_expression_with_chunk_tag(
+            infix,
+            chunk_tag,
+            &mut increased_indentation,
+        );
+        chunks.force_multiline_on_children_with_same_tag_if_multiline = true;
+
+        // Decrease the indentation if it increased.
+        for _ in 0..increased_indentation {
+            chunks.decrease_indentation();
+        }
+
+        chunks
+    }
+
+    fn format_infix_expression_with_chunk_tag(
+        &mut self,
+        infix: InfixExpression,
+        chunk_tag: ChunkTag,
+        increased_indentation: &mut usize,
+    ) -> Chunks {
+        let mut chunks = Chunks::new();
+        chunks.tag = Some(chunk_tag);
+
+        // If we have code like `a + b + c + d`, that's always parsed as `((a + b) + c) + d` where each
+        // parentheses denotes an InfixExpression. So, if the lhs of the current infix expression is also
+        // an infix expression with the same operator, we format it with the same tag.
+        // If the lhs is not an infix expression or has a different operator, we format it normally,
+        // and afterwards signal an increase in indentation. That way if this infix expression has
+        // to be formatted in multiple lines, we'll only indent after the first operand
+        // (we still produce "space or line" after each operator).
+        let increase_indentation = match infix.lhs.kind {
+            ExpressionKind::Infix(lhs_infix) if lhs_infix.operator == infix.operator => {
+                chunks.group(self.format_infix_expression_with_chunk_tag(
+                    *lhs_infix,
+                    chunk_tag,
+                    increased_indentation,
+                ));
+                false
+            }
+            _ => {
+                self.format_expression(infix.lhs, &mut chunks);
+                true
+            }
+        };
+
         chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
 
-        chunks.increase_indentation();
+        if increase_indentation {
+            chunks.increase_indentation();
+            *increased_indentation += 1;
+        }
+
         chunks.space_or_line();
         chunks.text(self.chunk(|formatter| {
             let tokens_count =
@@ -1044,16 +1096,38 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
-    fn format_long_infix_same_operator() {
-        let src = "global x =  one + two + three + four + five ;";
-        let expected = "global x = one + two
-    + three
-        + four
-            + five;
+    fn format_long_infix_same_operator_1() {
+        let src = "global x =  one + two + three;";
+        let expected = "global x = one
+    + two
+    + three;
 ";
-        assert_format_with_max_width(src, expected, 20);
+        assert_format_with_max_width(src, expected, "one + two + three".len() - 1);
+    }
+
+    #[test]
+    fn format_long_infix_same_operator_2() {
+        let src = "global x =  one + two + three + four;";
+        let expected = "global x = one
+    + two
+    + three
+    + four;
+";
+        assert_format_with_max_width(src, expected, "one + two + three + four".len() - 1);
+    }
+
+    #[test]
+    fn format_long_infix_same_operator_3() {
+        let src = "fn foo() { one + two + three + four }";
+        let expected = "fn foo() {
+    one
+        + two
+        + three
+        + four
+}
+";
+        assert_format_with_max_width(src, expected, "one + two + three + four".len() - 1);
     }
 
     #[test]

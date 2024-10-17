@@ -82,6 +82,15 @@ pub(crate) struct Chunks {
     /// exceed the maximum allowed length for an if, we tell all tha inner chunks marked
     /// as `if`
     pub(crate) tag: Option<ChunkTag>,
+
+    /// This name is a bit long and explicit, but it's to make things clearer:
+    /// if we determine that this group needs to be formatted in multiple lines,
+    /// children groups with the same tag will also be formatted in multiple lines.
+    ///
+    /// This is used for example in infix expressions like `a + b + c + d`, where if we
+    /// determine that `a + b` needs to be formatted in multiple lines, we want the entire
+    /// tree (of those infix expressions) to be formatted in multiple lines.
+    pub(crate) force_multiline_on_children_with_same_tag_if_multiline: bool,
 }
 
 impl Chunks {
@@ -91,6 +100,7 @@ impl Chunks {
             one_chunk_per_line: true,
             force_multiple_lines: false,
             tag: None,
+            force_multiline_on_children_with_same_tag_if_multiline: false,
         }
     }
 
@@ -170,6 +180,8 @@ impl Chunks {
             one_chunk_per_line: self.one_chunk_per_line,
             force_multiple_lines: self.force_multiple_lines,
             tag: self.tag,
+            force_multiline_on_children_with_same_tag_if_multiline: self
+                .force_multiline_on_children_with_same_tag_if_multiline,
         };
 
         for chunk in self.chunks {
@@ -318,7 +330,16 @@ impl<'a> Formatter<'a> {
                     self.write_line_without_skipping_whitespace_and_comments();
                     self.write_indentation();
                 }
-                Chunk::Group(group) => self.format_chunks_impl(group),
+                Chunk::Group(mut group) => {
+                    if chunks.force_multiline_on_children_with_same_tag_if_multiline
+                        && chunks.tag == group.tag
+                    {
+                        group.force_multiple_lines = true;
+                        group.force_multiline_on_children_with_same_tag_if_multiline = true;
+                    }
+
+                    self.format_chunks_impl(group)
+                }
                 Chunk::Line { two } => {
                     if two {
                         self.write_multiple_lines_without_skipping_whitespace_and_comments();
