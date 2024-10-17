@@ -116,7 +116,6 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
-    /// Test that parsing an invalid option doesn't
     #[test]
     fn test_parse_invalid_expression_width() {
         let cmd = "nargo --program-dir . compile --expression-width 1";
