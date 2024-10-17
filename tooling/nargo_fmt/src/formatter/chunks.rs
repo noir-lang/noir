@@ -270,10 +270,9 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::Group(chunks) => self.format_chunks_in_one_line(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
-                Chunk::TrailingComma
-                | Chunk::Line { .. }
-                | Chunk::IncreaseIndentation
-                | Chunk::DecreaseIndentation => (),
+                Chunk::TrailingComma | Chunk::Line { .. } => (),
+                Chunk::IncreaseIndentation => self.increase_indentation(),
+                Chunk::DecreaseIndentation => self.decrease_indentation(),
             }
         }
     }

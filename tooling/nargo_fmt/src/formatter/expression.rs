@@ -1516,6 +1516,21 @@ global y = 1;
     }
 
     #[test]
+    fn format_long_member_access_and_method_call_chain_2() {
+        let src = "fn burn() {
+    storage.at(from).sub(from_keys.npk_m, U128::from_integer(amount))
+    .emit(encode_and_encrypt_note());  
+}
+";
+        let expected = "fn burn() {
+    storage.at(from).sub(from_keys.npk_m, U128::from_integer(amount))
+        .emit(encode_and_encrypt_note());
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_tuple_member_access() {
         let src = "global x =  bar . 0   ;";
         let expected = "global x = bar.0;\n";
