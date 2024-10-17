@@ -59,9 +59,7 @@ impl<'a> Formatter<'a> {
 
         self.write_token(Token::Less);
 
-        let mut index = 0;
-
-        for kind in generics.kinds {
+        for (index, kind) in generics.kinds.into_iter().enumerate() {
             self.skip_comments_and_whitespace();
 
             if index > 0 {
@@ -83,7 +81,6 @@ impl<'a> Formatter<'a> {
                     self.format_type(typ);
                 }
             }
-            index += 1;
         }
 
         self.skip_comments_and_whitespace();

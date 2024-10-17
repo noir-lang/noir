@@ -1661,6 +1661,13 @@ global y = 1;
     }
 
     #[test]
+    fn format_constructor_with_turbofish() {
+        let src = "global x = Foo :: < Bar > { one } ;";
+        let expected = "global x = Foo::<Bar> { one };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_type_path() {
         let src = "global x = Field :: max  ;";
         let expected = "global x = Field::max;\n";

@@ -59,7 +59,16 @@ impl<'a> Formatter<'a> {
             }
             UnresolvedTypeData::Named(path, generic_type_args, _) => {
                 self.format_path(path);
-                self.format_generic_type_args(generic_type_args);
+                if !generic_type_args.is_empty() {
+                    self.skip_comments_and_whitespace();
+
+                    // Apparently some Named types with generics have `::` before the generics
+                    // while others don't, so we have to account for both cases.
+                    if self.token == Token::DoubleColon {
+                        self.write_token(Token::DoubleColon);
+                    }
+                    self.format_generic_type_args(generic_type_args);
+                }
             }
             UnresolvedTypeData::TraitAsType(path, generic_type_args) => {
                 self.write_keyword(Keyword::Impl);

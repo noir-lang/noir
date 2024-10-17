@@ -360,7 +360,11 @@ impl UnresolvedType {
         let last_segment = path.segments.last_mut().unwrap();
         let generics = last_segment.generics.take();
         let generic_type_args = if let Some(generics) = generics {
-            GenericTypeArgs { ordered_args: generics, named_args: Vec::new(), kinds: Vec::new() }
+            let mut kinds = Vec::with_capacity(generics.len());
+            for _ in 0..generics.len() {
+                kinds.push(GenericTypeArgKind::Ordered);
+            }
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new(), kinds }
         } else {
             GenericTypeArgs::default()
         };
