@@ -67,6 +67,6 @@ impl<'a> Formatter<'a> {
 
     pub(super) fn format_trait_bound(&mut self, trait_bound: TraitBound) {
         self.format_path(trait_bound.trait_path);
-        // TODO: generics
+        self.format_generic_type_args(trait_bound.trait_generics);
     }
 }

@@ -141,6 +141,17 @@ mod tests {
     }
 
     #[test]
+    fn format_empty_trait_impl_with_where_clause_with_trait_bound_generics() {
+        let src = "impl<T, U> Into<T> for U where T: From<U> { }";
+        let expected = "impl<T, U> Into<T> for U
+where
+    T: From<U>,
+{}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_trait_impl_function() {
         let src = " mod moo { impl  Foo  for  Bar {  
         /// Some doc comment
