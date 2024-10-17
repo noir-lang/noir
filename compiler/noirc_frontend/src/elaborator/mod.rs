@@ -3,7 +3,9 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, TypeBindings};
+use crate::{
+    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -398,18 +400,12 @@ impl<'context> Elaborator<'context> {
 
         self.run_function_lints(&func_meta, &modifiers);
 
-        // Check arg and return value visibility.
-        if modifiers.visibility != ItemVisibility::Private {
+        // Check arg and return-value visibility of standalone functions.
+        if self.should_check_function_visibility(&func_meta, &modifiers) {
             let name = Ident(Spanned::from(
                 func_meta.name.location.span,
                 self.interner.definition_name(func_meta.name.id).to_string(),
             ));
-            self.check_type_is_not_more_private_then_item(
-                &name,
-                modifiers.visibility,
-                func_meta.return_type(),
-                name.span(),
-            );
             for (_, typ, _) in func_meta.parameters.iter() {
                 self.check_type_is_not_more_private_then_item(
                     &name,
@@ -418,6 +414,12 @@ impl<'context> Elaborator<'context> {
                     name.span(),
                 );
             }
+            self.check_type_is_not_more_private_then_item(
+                &name,
+                modifiers.visibility,
+                func_meta.return_type(),
+                name.span(),
+            );
         }
 
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
@@ -1308,6 +1310,40 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
     }
 
+    /// Find the struct in the parent module so we can know its visibility
+    fn find_struct_visibility(&self, struct_type: &StructType) -> Option<ItemVisibility> {
+        let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+        let parent_module_data = self.get_module(parent_module_id);
+        let per_ns = parent_module_data.find_name(&struct_type.name);
+        per_ns.types.map(|(_, vis, _)| vis)
+    }
+
+    /// Check whether a functions return value and args should be checked for private type visibility.
+    fn should_check_function_visibility(
+        &self,
+        func_meta: &FuncMeta,
+        modifiers: &FunctionModifiers,
+    ) -> bool {
+        // Private functions don't leak anything.
+        if modifiers.visibility == ItemVisibility::Private {
+            return false;
+        }
+        // Implementing public traits on private types is okay, they can't be used unless the type itself is accessible.
+        if func_meta.trait_impl.is_some() {
+            return false;
+        }
+        // Public struct functions should not expose private types.
+        if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
+            let struct_def = self.get_struct(id);
+            let struct_def = struct_def.borrow();
+            self.find_struct_visibility(&struct_def)
+        }) {
+            return struct_visibility != ItemVisibility::Private;
+        }
+        // Standalone functions should be checked
+        true
+    }
+
     /// Check that an item such as a struct field or type alias is not more visible than the type it refers to.
     fn check_type_is_not_more_private_then_item(
         &mut self,
@@ -1325,11 +1361,7 @@ impl<'context> Elaborator<'context> {
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
-                    // Find the struct in the parent module so we can know its visibility
-                    let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
-                    let parent_module_data = self.get_module(parent_module_id);
-                    let per_ns = parent_module_data.find_name(&struct_type.name);
-                    if let Some((_, aliased_visibility, _)) = per_ns.types {
+                    if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
                         if aliased_visibility < visibility {
                             self.push_err(ResolverError::TypeIsMorePrivateThenItem {
                                 typ: struct_type.name.to_string(),

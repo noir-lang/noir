@@ -143,6 +143,93 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
 }
 
 #[test]
+fn does_not_error_if_pub_function_is_on_private_struct() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        impl Bar { 
+            pub fn bar() -> Bar { 
+                Bar {}
+            }
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
+        }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_pub_function_on_pub_struct_returns_private() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+        pub struct Foo {}
+
+        impl Foo { 
+            pub fn bar() -> Bar { 
+                Bar {}
+            }
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Foo {};            
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_visibility_error(src, "Bar", "bar");
+}
+
+#[test]
+fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        pub trait Foo { 
+            fn foo() -> Self;
+        }
+
+        impl Foo for Bar {
+            fn foo() -> Self { 
+                Bar {}
+            }
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
+        }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_pub_trait_returns_private_struct() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        pub trait Foo { 
+            fn foo() -> Bar;
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_visibility_error(src, "Bar", "foo");
+}
+
+#[test]
 fn errors_if_trying_to_access_public_function_inside_private_module() {
     let src = r#"
     mod foo {
