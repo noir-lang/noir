@@ -61,7 +61,7 @@ fn parsed_module_is_empty(parsed_module: &ParsedModule) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_format;
+    use crate::{assert_format, assert_format_with_config, Config};
 
     #[test]
     fn format_module_declaration() {
@@ -235,5 +235,18 @@ mod  foo ; ";
 mod foo;
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_submodule_with_configurable_tab_spaces() {
+        let src = " mod foo {
+        mod bar ;
+    }";
+        let expected = "mod foo {
+  mod bar;
+}
+";
+        let config = Config { tab_spaces: 2, ..Config::default() };
+        assert_format_with_config(src, expected, config);
     }
 }

@@ -43,7 +43,12 @@ pub(crate) struct Formatter<'a> {
     lexer: Lexer<'a>,
     token: Token,
     token_span: Span,
+
+    /// The current indentation level.
     indentation: usize,
+
+    /// How many characters we've written so far in the current line
+    /// (useful to avoid exceeding the configurable maximum)
     current_line_width: usize,
 
     /// Whenever a comment is written, this flag is set to true.
@@ -53,6 +58,7 @@ pub(crate) struct Formatter<'a> {
     /// we only do that if there were no comments between `{` and `}`.
     wrote_comment: bool,
 
+    /// This is the buffer where we write the formatted code.
     pub(crate) buffer: String,
 }
 
@@ -325,7 +331,9 @@ impl<'a> Formatter<'a> {
         }
 
         for _ in 0..self.indentation {
-            self.write("    ");
+            for _ in 0..self.config.tab_spaces {
+                self.write(" ");
+            }
         }
     }
 
