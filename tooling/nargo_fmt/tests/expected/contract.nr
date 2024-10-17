@@ -8,6 +8,7 @@ contract Benchmarking {
     use value_note::{
         utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
     };
+
     use aztec::{
         context::Context, note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         log::emit_unencrypted_log, state_vars::{Map, PublicMutable, PrivateSet},
@@ -15,6 +16,7 @@ contract Benchmarking {
             FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         }, types::address::AztecAddress,
     };
+
     struct Storage {
         notes: Map<AztecAddress, PrivateSet<ValueNote, VALUE_NOTE_LEN>>,
         balances: Map<AztecAddress, PublicMutable<Field, FIELD_SERIALIZED_LEN>>,
