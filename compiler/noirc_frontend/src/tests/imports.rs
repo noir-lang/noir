@@ -22,6 +22,23 @@ fn use_super() {
 }
 
 #[test]
+fn no_super() {
+    let src = "use super::some_func;";
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
+        PathResolutionError::NoSuper(span),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(span.start(), 4);
+    assert_eq!(span.end(), 9);
+}
+
+#[test]
 fn use_super_in_path() {
     let src = r#"
     fn some_func() {}
@@ -56,7 +73,7 @@ fn warns_on_use_of_private_exported_item() {
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2); // An existing bug causes this error to be duplicated
+    assert_eq!(errors.len(), 1);
 
     assert!(matches!(
         &errors[0].0,

@@ -12,7 +12,7 @@ fn main() {
     // is the root of the repository and append the crate path
     let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir),
-        Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
+        Err(_) => std::env::current_dir().unwrap().join("tooling").join("nargo_fmt"),
     };
     let test_dir = manifest_dir.join("tests");
 

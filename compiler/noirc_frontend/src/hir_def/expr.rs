@@ -11,7 +11,7 @@ use crate::token::Tokens;
 use crate::Shared;
 
 use super::stmt::HirPattern;
-use super::traits::TraitConstraint;
+use super::traits::{ResolvedTraitBound, TraitConstraint};
 use super::types::{StructType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
@@ -70,7 +70,14 @@ pub enum ImplKind {
     /// and eventually linked to this id. The boolean indicates whether the impl
     /// is already assumed to exist - e.g. when resolving a path such as `T::default`
     /// when there is a corresponding `T: Default` constraint in scope.
-    TraitMethod(TraitMethodId, TraitConstraint, bool),
+    TraitMethod(TraitMethod),
+}
+
+#[derive(Debug, Clone)]
+pub struct TraitMethod {
+    pub method_id: TraitMethodId,
+    pub constraint: TraitConstraint,
+    pub assumed: bool,
 }
 
 impl Eq for HirIdent {}
@@ -243,11 +250,13 @@ impl HirMethodCallExpression {
                 let id = interner.trait_method_id(method_id);
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_id: method_id.trait_id,
-                    trait_generics,
-                    span: location.span,
+                    trait_bound: ResolvedTraitBound {
+                        trait_id: method_id.trait_id,
+                        trait_generics,
+                        span: location.span,
+                    },
                 };
-                (id, ImplKind::TraitMethod(method_id, constraint, false))
+                (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false }))
             }
         };
         let func_var = HirIdent { location, id, impl_kind };

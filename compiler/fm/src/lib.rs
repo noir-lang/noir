@@ -100,6 +100,11 @@ impl FileManager {
         self.id_to_path.get(&file_id).map(|path| path.as_path())
     }
 
+    pub fn has_file(&self, file_name: &Path) -> bool {
+        let file_name = self.root.join(file_name);
+        self.name_to_id(file_name).is_some()
+    }
+
     // TODO: This should accept a &Path instead of a PathBuf
     pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
         self.file_map.get_file_id(&PathString::from_path(file_name))

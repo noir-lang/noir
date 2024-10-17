@@ -37,10 +37,12 @@ pub fn verify_signature_noir<let N: u32>(
     if ((sig_s.lo != 0) | (sig_s.hi != 0)) & ((sig_e.lo != 0) | (sig_e.hi != 0)) {
         let (r_is_infinite, result) = calculate_signature_challenge(public_key, sig_s, sig_e, message);
 
-        is_ok = !r_is_infinite;
+        is_ok &= !r_is_infinite;
         for i in 0..32 {
             is_ok &= result[i] == signature[32 + i];
         }
+    } else {
+        is_ok = false;
     }
     is_ok
 }
@@ -91,4 +93,13 @@ fn calculate_signature_challenge<let N: u32>(
 
     let result = crate::hash::blake2s(hash_input);
     (r.is_infinite, result)
+}
+
+#[test]
+fn test_zero_signature() {
+    let public_key: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
+    let signature: [u8; 64] = [0; 64];
+    let message: [u8; _] = [2; 64]; // every message
+    let verified = verify_signature_noir(public_key, signature, message);
+    assert(!verified);
 }
