@@ -328,15 +328,21 @@ impl<'a> Formatter<'a> {
         force_trailing_comma: bool,
         chunks: &mut Chunks,
     ) {
-        self.format_items_separated_by_comma(
-            exprs,
-            force_trailing_comma,
-            false, // surround with spaces
-            chunks,
-            |formatter, expr, chunks| {
-                formatter.format_expression(expr, chunks);
-            },
-        );
+        if exprs.is_empty() {
+            if let Some(group) = self.empty_block_contents_chunk() {
+                chunks.group(group);
+            }
+        } else {
+            self.format_items_separated_by_comma(
+                exprs,
+                force_trailing_comma,
+                false, // surround with spaces
+                chunks,
+                |formatter, expr, chunks| {
+                    formatter.format_expression(expr, chunks);
+                },
+            );
+        }
     }
 
     pub(super) fn format_items_separated_by_comma<Item, F>(
@@ -1445,6 +1451,13 @@ global y = 1;
     }
 
     #[test]
+    fn format_call_with_maximum_width_2() {
+        let src = "global x =  foo::bar::baz( );";
+        let expected = "global x = foo::bar::baz();\n";
+        assert_format_with_max_width(src, expected, "foo::bar::baz".len() - 1);
+    }
+
+    #[test]
     fn format_call_with_maximum_width_comma_exceeds() {
         let src = "global x = foo::bar(
     baz::qux(1, 2, 3),
@@ -1530,6 +1543,13 @@ global y = 1;
     .one(5, 6);
 ";
         assert_format_with_max_width(src, expected, 25);
+    }
+
+    #[test]
+    fn format_method_call_with_maximum_width() {
+        let src = "global x =  foo::bar.baz( );";
+        let expected = "global x = foo::bar.baz();\n";
+        assert_format_with_max_width(src, expected, "foo::bar.baz".len() - 1);
     }
 
     #[test]
