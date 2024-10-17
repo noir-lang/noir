@@ -400,18 +400,11 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_member_access(&mut self, member_access: MemberAccessExpression) -> Chunks {
-        let chunk_tag = self.next_chunk_tag();
-
         // Keep track of how much indentation increased by formatting the member access.
         // At the end we'll decrease the indentation by that amount.
         let mut increased_indentation = 0;
 
-        let mut chunks = self.format_member_access_with_chunk_tag(
-            member_access,
-            chunk_tag,
-            &mut increased_indentation,
-        );
-        chunks.force_multiline_on_children_with_same_tag_if_multiline = true;
+        let mut chunks = self.format_member_access_impl(member_access, &mut increased_indentation);
 
         // Decrease the indentation if it increased.
         for _ in 0..increased_indentation {
@@ -421,14 +414,12 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    fn format_member_access_with_chunk_tag(
+    fn format_member_access_impl(
         &mut self,
         member_access: MemberAccessExpression,
-        chunk_tag: ChunkTag,
         increased_indentation: &mut usize,
     ) -> Chunks {
         let mut chunks = Chunks::new();
-        chunks.tag = Some(chunk_tag);
 
         // If we have code like `foo.bar.baz.qux`, where `member_access.lhs` is also a MemberAccessExpression,
         // we'll format it with the same tag. Once the lhs is not a MemberAccessExpression, we'll format it
@@ -476,11 +467,9 @@ impl<'a> Formatter<'a> {
                 // We always put a line before the dot if lhs is a member access or call
                 line_before_dot = true;
 
-                chunks.group(self.format_member_access_with_chunk_tag(
-                    *lhs_member_access,
-                    chunk_tag,
-                    increased_indentation,
-                ));
+                chunks.group(
+                    self.format_member_access_impl(*lhs_member_access, increased_indentation),
+                );
             }
             ExpressionKind::MethodCall(lhs_method_call) => {
                 let lhs_lhs_is_member_access_or_call = matches!(
@@ -502,9 +491,8 @@ impl<'a> Formatter<'a> {
                 // We always put a line before the dot if lhs is a member access or call
                 line_before_dot = true;
 
-                chunks.group(self.format_method_call_with_chunk_tag(
+                chunks.group(self.format_method_call_impl(
                     *lhs_method_call,
-                    chunk_tag,
                     increased_indentation,
                     true, // nested
                 ));
@@ -791,18 +779,14 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_method_call(&mut self, method_call: MethodCallExpression) -> Chunks {
-        let chunk_tag = self.next_chunk_tag();
-
         // Keep track of how much indentation increased by formatting the method call.
         // At the end we'll decrease the indentation by that amount.
         let mut increased_indentation = 0;
-        let mut chunks = self.format_method_call_with_chunk_tag(
+        let mut chunks = self.format_method_call_impl(
             method_call,
-            chunk_tag,
             &mut increased_indentation,
             false, // nested
         );
-        chunks.force_multiline_on_children_with_same_tag_if_multiline = true;
 
         // Decrease the indentation if it increased.
         for _ in 0..increased_indentation {
@@ -812,10 +796,9 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    fn format_method_call_with_chunk_tag(
+    fn format_method_call_impl(
         &mut self,
         method_call: MethodCallExpression,
-        chunk_tag: ChunkTag,
         increased_indentation: &mut usize,
         nested: bool,
     ) -> Chunks {
@@ -842,9 +825,8 @@ impl<'a> Formatter<'a> {
 
                 line_before_dot = true;
 
-                chunks.group(self.format_method_call_with_chunk_tag(
+                chunks.group(self.format_method_call_impl(
                     *lhs_method_call,
-                    chunk_tag,
                     increased_indentation,
                     true, // nested
                 ));
@@ -861,11 +843,9 @@ impl<'a> Formatter<'a> {
 
                 line_before_dot = true;
 
-                chunks.group(self.format_member_access_with_chunk_tag(
-                    *lhs_member_access,
-                    chunk_tag,
-                    increased_indentation,
-                ));
+                chunks.group(
+                    self.format_member_access_impl(*lhs_member_access, increased_indentation),
+                );
             }
             _ => {
                 self.format_expression(method_call.object, &mut chunks);
@@ -914,11 +894,13 @@ impl<'a> Formatter<'a> {
             chunks.increase_indentation();
         }
 
+        let mut group = Chunks::new();
         self.format_expressions_separated_by_comma(
             method_call.arguments,
             false, // force trailing comma
-            &mut chunks,
+            &mut group,
         );
+        chunks.group(group);
 
         if increase_arguments_indentation {
             chunks.decrease_indentation();
@@ -1455,11 +1437,12 @@ global y = 1;
         },
             [owner]
         );";
-        let expected = "global _callStackItem1 = = context.call_public_function(
+        let expected = "global _callStackItem1 = context.call_public_function(
     context.this_address(),
     comptime { FunctionSelector::from_signature(\"broadcast(Field)\") },
     [owner],
-);";
+);
+";
         assert_format(src, expected);
     }
 
@@ -1493,25 +1476,14 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_method_call_chain() {
         let src = "global x =  bar . baz ( 1, 2 ) . qux ( 1 , 2, 3) . one ( 5, 6)  ;";
-        let expected = "global x = bar.baz(
-        1,
-        2,
-    )
-    .qux(
-        1,
-        2,
-        3,
-    )
-    .one(
-        5,
-        6,
-    );
+        let expected = "global x = bar.baz(1, 2)
+    .qux(1, 2, 3)
+    .one(5, 6);
 ";
-        assert_format_with_max_width(src, expected, 20);
+        assert_format_with_max_width(src, expected, 25);
     }
 
     #[test]
@@ -1521,7 +1493,6 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_long_member_access_alone() {
         let src = "global x =  foo . bar . baz . qux . final   ;";
@@ -1533,22 +1504,15 @@ global y = 1;
         assert_format_with_max_width(src, expected, "foo.bar.baz.qux.final".len() - 1);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_long_member_access_and_method_call_chain() {
         let src = "global x =  foo . bar(1, 2) . baz . qux(2, 3) . this_is_a_long_name   ;";
-        let expected = "global x = foo.bar(
-        1,
-        2,
-    )
+        let expected = "global x = foo.bar(1, 2)
     .baz
-    .qux(
-        2,
-        3,
-    )
+    .qux(2, 3)
     .this_is_a_long_name;
 ";
-        assert_format_with_max_width(src, expected, 20);
+        assert_format_with_max_width(src, expected, 25);
     }
 
     #[test]
