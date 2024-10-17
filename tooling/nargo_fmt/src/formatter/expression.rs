@@ -791,7 +791,6 @@ mod tests {
         assert_format_with_max_width(src, expected, 20);
     }
 
-    // TODO: this is not ideal (the comma shouldn't appear on the next line)
     #[test]
     fn format_long_array_in_global_in_mod() {
         let src = "mod moo { mod bar { global x = [ 1 , 2 , 3 , 4, 5, ] ; } }";
@@ -943,7 +942,6 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_long_index() {
         let src = "global x = foo [ bar [ baz [ qux [ one [ two ]]]] ] ; global y = 1;";
@@ -1004,7 +1002,6 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_block_with_two_statements() {
         let src = "global x =  {  1; 2  }  ;";
@@ -1095,7 +1092,6 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_unsafe_two_expressions() {
         let src = "global x = unsafe { 1; 2  } ;";
@@ -1114,7 +1110,6 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_comptime_two_expressions() {
         let src = "global x = comptime { 1; 2  } ;";
@@ -1161,7 +1156,6 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_if_expression_without_else_two_expressions() {
         let src = "global x = if  1   {   2; 3   } ;";
@@ -1180,7 +1174,6 @@ global y = 1;
         assert_format(src, expected);
     }
 
-    // TODO: this is not ideal
     #[test]
     fn format_if_expression_with_else_multiple_exprs() {
         let src = "global x = if  1   {   2   }  else  {  3; 4  };";
