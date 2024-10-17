@@ -1447,6 +1447,23 @@ global y = 1;
     }
 
     #[test]
+    fn format_nested_call_max_width() {
+        let src = "global _callStackItem1 = context.call_public_function(
+            context.this_address(),
+            comptime {
+            FunctionSelector::from_signature(\"broadcast(Field)\")
+        },
+            [owner]
+        );";
+        let expected = "global _callStackItem1 = = context.call_public_function(
+    context.this_address(),
+    comptime { FunctionSelector::from_signature(\"broadcast(Field)\") },
+    [owner],
+);";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_method_call() {
         let src = "global x =  bar . baz ( 1, 2 )  ;";
         let expected = "global x = bar.baz(1, 2);\n";
