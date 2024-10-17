@@ -21,8 +21,9 @@ impl TextChunk {
 pub(crate) enum Chunk {
     /// A text chunk. It might contain leading comments.
     Text(TextChunk),
-    /// A text chunk that should only be written if we decide to format chunks in multiple lines.
-    TextIfMultiline(TextChunk),
+    /// A trailing comma that's only written if we decide to format chunks in multiple lines
+    /// (for example for a call we'll add a trailing comma to the last argument).
+    TrailingComma,
     /// A trailing comment (happens at the end of a line, and always after something else have been written).
     TrailingComment(TextChunk),
     /// A leading comment. Happens at the beginning of a line.
@@ -51,18 +52,18 @@ impl Chunk {
             Chunk::Line { .. }
             | Chunk::IncreaseIndentation
             | Chunk::DecreaseIndentation
-            | Chunk::TextIfMultiline(..) => 0,
+            | Chunk::TrailingComma => 0,
         }
     }
 
     pub(crate) fn has_newlines(&self) -> bool {
         match self {
-            Chunk::Text(chunk)
-            | Chunk::TextIfMultiline(chunk)
-            | Chunk::TrailingComment(chunk)
-            | Chunk::LeadingComment(chunk) => chunk.has_newlines,
+            Chunk::Text(chunk) | Chunk::TrailingComment(chunk) | Chunk::LeadingComment(chunk) => {
+                chunk.has_newlines
+            }
             Chunk::Group(chunks) => chunks.has_newlines(),
-            Chunk::Line { .. }
+            Chunk::TrailingComma
+            | Chunk::Line { .. }
             | Chunk::SpaceOrLine
             | Chunk::IncreaseIndentation
             | Chunk::DecreaseIndentation => false,
@@ -117,8 +118,8 @@ impl Chunks {
         }
     }
 
-    pub(crate) fn text_if_multiline(&mut self, chunk: TextChunk) {
-        self.push(Chunk::TextIfMultiline(chunk));
+    pub(crate) fn trailing_comma(&mut self) {
+        self.push(Chunk::TrailingComma);
     }
 
     pub(crate) fn group(&mut self, chunks: Chunks) {
@@ -159,9 +160,9 @@ impl Chunks {
         self.force_multiple_lines || self.chunks.iter().any(|chunk| chunk.has_newlines())
     }
 
-    /// Before writing a Chunks object in multiple lines, create a new one where `TextIfMultiline`
+    /// Before writing a Chunks object in multiple lines, create a new one where `TrailingComma`
     /// is turned into `Text`. Because Chunks will glue two consecutive `Text`s together, if we
-    /// have two chunks `Text("123"), TextIfMultiline(",")`, we'll consider the entire string "123,"
+    /// have two chunks `Text("123"), TrailingComma`, we'll consider the entire string "123,"
     /// when deciding whether we can still write in the current line or not.
     pub(crate) fn prepare_for_multiple_lines(self) -> Chunks {
         let mut chunks = Chunks {
@@ -173,7 +174,16 @@ impl Chunks {
 
         for chunk in self.chunks {
             match chunk {
-                Chunk::Text(chunk) | Chunk::TextIfMultiline(chunk) => chunks.text(chunk),
+                Chunk::Text(chunk) => chunks.text(chunk),
+                Chunk::TrailingComma => {
+                    // If there's a trailing comma after a group, append the text to that group
+                    // so that it glues with the last text present there (if any)
+                    if let Some(Chunk::Group(group)) = chunks.chunks.last_mut() {
+                        group.add_trailing_comma_to_last_text();
+                    } else {
+                        chunks.text(TextChunk::new(",".to_string()));
+                    }
+                }
                 Chunk::TrailingComment(chunk) => chunks.trailing_comment(chunk),
                 Chunk::LeadingComment(chunk) => chunks.leading_comment(chunk),
                 Chunk::Group(group) => chunks.group(group),
@@ -184,6 +194,14 @@ impl Chunks {
             }
         }
         chunks
+    }
+
+    fn add_trailing_comma_to_last_text(&mut self) {
+        if let Some(Chunk::Group(group)) = self.chunks.last_mut() {
+            group.add_trailing_comma_to_last_text();
+        } else {
+            self.text(TextChunk::new(",".to_string()));
+        }
     }
 }
 
@@ -248,7 +266,7 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::Group(chunks) => self.format_chunks_in_one_line(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
-                Chunk::TextIfMultiline(..)
+                Chunk::TrailingComma
                 | Chunk::Line { .. }
                 | Chunk::IncreaseIndentation
                 | Chunk::DecreaseIndentation => (),
@@ -326,9 +344,9 @@ impl<'a> Formatter<'a> {
                 Chunk::DecreaseIndentation => {
                     self.decrease_indentation();
                 }
-                Chunk::TextIfMultiline(..) => {
+                Chunk::TrailingComma => {
                     unreachable!(
-                        "TextIfMultiline should have been removed by `prepare_for_multiple_lines`"
+                        "TrailingComma should have been removed by `prepare_for_multiple_lines`"
                     )
                 }
             }

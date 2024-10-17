@@ -348,7 +348,7 @@ impl<'a> Formatter<'a> {
         if force_trailing_comma {
             chunks.text(TextChunk::new(",".to_string()));
         } else {
-            chunks.text_if_multiline(TextChunk::new(",".to_string()));
+            chunks.trailing_comma();
         }
         chunks.text(chunk);
 
@@ -1098,6 +1098,36 @@ global y = 1;
 
         let config = Config { fn_call_width: "1, 2, 3".len() - 1, ..Default::default() };
         assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn format_call_with_maximum_width_comma_exceeds() {
+        let src = "global x = foo::bar(
+    baz::qux(1, 2, 3),
+);";
+        let expected = "global x = foo::bar(
+    baz::qux(
+        1,
+        2,
+        3,
+    ),
+);
+";
+        assert_format_with_max_width(src, expected, "    baz::qux(1, 2, 3),".len() - 1);
+    }
+
+    #[test]
+    fn format_call_with_maximum_width_comma_exceeds_2() {
+        let src = "global x = foo::bar(
+    |x, y| { some_chunk_of_code },
+);";
+        let expected = "global x = foo::bar(
+    |x, y| {
+        some_chunk_of_code
+    },
+);
+";
+        assert_format_with_max_width(src, expected, "    |x, y| { some_chunk_of_code },".len() - 1);
     }
 
     #[test]
