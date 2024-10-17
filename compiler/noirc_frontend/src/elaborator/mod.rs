@@ -398,6 +398,20 @@ impl<'context> Elaborator<'context> {
 
         self.run_function_lints(&func_meta, &modifiers);
 
+        // Check arg and return value visibility.
+        if modifiers.visibility != ItemVisibility::Private {
+            let name = Ident(Spanned::from(
+                func_meta.name.location.span,
+                self.interner.definition_name(func_meta.name.id).to_string(),
+            ));
+            self.check_type_is_not_more_private_then_item(
+                &name,
+                modifiers.visibility,
+                func_meta.return_type(),
+                name.span(),
+            );
+        }
+
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
         // The DefinitionIds for each parameter were already created in define_function_meta
@@ -1279,14 +1293,15 @@ impl<'context> Elaborator<'context> {
         let typ = self.resolve_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
-            self.check_aliased_type_is_not_more_private(name, visibility, &typ, span);
+            self.check_type_is_not_more_private_then_item(name, visibility, &typ, span);
         }
 
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
     }
 
-    fn check_aliased_type_is_not_more_private(
+    /// Check that an item such as a struct field or type alias is not more visible than the type it refers to.
+    fn check_type_is_not_more_private_then_item(
         &mut self,
         name: &Ident,
         visibility: ItemVisibility,
@@ -1318,16 +1333,16 @@ impl<'context> Elaborator<'context> {
                 }
 
                 for generic in generics {
-                    self.check_aliased_type_is_not_more_private(name, visibility, generic, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, generic, span);
                 }
             }
             Type::Tuple(types) => {
                 for typ in types {
-                    self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.check_aliased_type_is_not_more_private(
+                self.check_type_is_not_more_private_then_item(
                     name,
                     visibility,
                     &alias_type.borrow().get_type(generics),
@@ -1336,17 +1351,17 @@ impl<'context> Elaborator<'context> {
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {
-                    self.check_aliased_type_is_not_more_private(name, visibility, arg, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, arg, span);
                 }
-                self.check_aliased_type_is_not_more_private(name, visibility, return_type, span);
-                self.check_aliased_type_is_not_more_private(name, visibility, env, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, return_type, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, env, span);
             }
             Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
-                self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
             }
             Type::InfixExpr(left, _op, right) => {
-                self.check_aliased_type_is_not_more_private(name, visibility, left, span);
-                self.check_aliased_type_is_not_more_private(name, visibility, right, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, left, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, right, span);
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1390,7 +1405,7 @@ impl<'context> Elaborator<'context> {
                         field.name.span(),
                         format!("{}::{}", typ.struct_def.name, field.name),
                     ));
-                    self.check_aliased_type_is_not_more_private(
+                    self.check_type_is_not_more_private_then_item(
                         &ident,
                         field.visibility,
                         &field.typ,

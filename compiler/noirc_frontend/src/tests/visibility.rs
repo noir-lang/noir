@@ -33,17 +33,20 @@ fn assert_type_visibility_error(src: &str, private_typ: &str, public_item: &str)
     let errors = get_program_errors(src);
 
     assert!(!errors.is_empty(), "expected visibility error, got nothing");
+    for (error, _) in &errors {
+        let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
+            typ,
+            item,
+            ..
+        }) = error
+        else {
+            panic!("Expected a type vs item visibility error, got {}", error);
+        };
+
+        assert_eq!(typ, private_typ);
+        assert_eq!(item, public_item);
+    }
     assert_eq!(errors.len(), 1, "only expected one error");
-
-    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-        typ, item, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected a type vs item visibility error, got {}", errors[0].0);
-    };
-
-    assert_eq!(typ, private_typ);
-    assert_eq!(item, public_item);
 }
 
 #[test]
@@ -82,8 +85,8 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
         pub struct Foo<T> { pub value: T }
         pub type FooBar = Foo<Bar>;
 
-        pub fn no_unused_warnings() -> FooBar {
-            Foo { value: Bar {} }
+        pub fn no_unused_warnings() {
+            let _: FooBar = Foo { value: Bar {} };
         }
     }
     fn main() {}
@@ -99,8 +102,8 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
         pub struct Foo<T> { pub value: T }
         pub struct FooBar { pub value: Foo<Bar> }
 
-        pub fn foo_bar() -> FooBar {
-            FooBar { value: Foo { value: Bar {} } }
+        pub fn no_unused_warnings() {
+            let _ = FooBar { value: Foo { value: Bar {} } };
         }
     }
     fn main() {}
@@ -120,7 +123,7 @@ fn errors_if_pub_function_leaks_private_type_in_return() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "foo");
+    assert_type_visibility_error(src, "Bar", "bar");
 }
 
 #[test]
