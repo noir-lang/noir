@@ -402,7 +402,7 @@ impl<'a> Formatter<'a> {
     fn format_member_access(&mut self, member_access: MemberAccessExpression) -> Chunks {
         let chunk_tag = self.next_chunk_tag();
 
-        // Keep track of how much indentation increased by formatting the infix expression.
+        // Keep track of how much indentation increased by formatting the member access.
         // At the end we'll decrease the indentation by that amount.
         let mut increased_indentation = 0;
 
@@ -438,10 +438,20 @@ impl<'a> Formatter<'a> {
         //    foo
         //        .bar
         //        .baz
+        //
+        // Note that we do the same if the lhs is a MethodCallExpression.
         let increase_indentation = match member_access.lhs.kind {
             ExpressionKind::MemberAccess(lhs_member_access) => {
                 chunks.group(self.format_member_access_with_chunk_tag(
                     *lhs_member_access,
+                    chunk_tag,
+                    increased_indentation,
+                ));
+                false
+            }
+            ExpressionKind::MethodCall(lhs_method_call) => {
+                chunks.group(self.format_method_call_with_chunk_tag(
+                    *lhs_method_call,
                     chunk_tag,
                     increased_indentation,
                 ));
@@ -728,9 +738,77 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_method_call(&mut self, method_call: MethodCallExpression) -> Chunks {
+        let chunk_tag = self.next_chunk_tag();
+
+        // Keep track of how much indentation increased by formatting the method call.
+        // At the end we'll decrease the indentation by that amount.
+        let mut increased_indentation = 0;
+        let mut chunks = self.format_method_call_with_chunk_tag(
+            method_call,
+            chunk_tag,
+            &mut increased_indentation,
+        );
+        chunks.force_multiline_on_children_with_same_tag_if_multiline = true;
+
+        // Decrease the indentation if it increased.
+        for _ in 0..increased_indentation {
+            chunks.decrease_indentation();
+        }
+
+        chunks
+    }
+
+    fn format_method_call_with_chunk_tag(
+        &mut self,
+        method_call: MethodCallExpression,
+        chunk_tag: ChunkTag,
+        increased_indentation: &mut usize,
+    ) -> Chunks {
         let mut chunks = Chunks::new();
 
-        self.format_expression(method_call.object, &mut chunks);
+        // self.format_expression(method_call.object, &mut chunks);
+
+        // If we have code like `foo(..).bar(..).baz(..)`, where `method_call.object` is also a MethodCallExpression,
+        // we'll format it with the same tag. Once the lhs is not a MethodCallExpression, we'll format it
+        // and add an increase in indentation, but just once so that it ends up being formatted like this
+        // in case it needs to be formatted in multiple lines:
+        //
+        //    foo(..)
+        //        .bar(..)
+        //        .baz(..)
+        //
+        // Note that we do the same if the object is a MemberAccessExpression.
+        let increase_indentation = match method_call.object.kind {
+            ExpressionKind::MethodCall(lhs_method_call) => {
+                chunks.group(self.format_method_call_with_chunk_tag(
+                    *lhs_method_call,
+                    chunk_tag,
+                    increased_indentation,
+                ));
+                false
+            }
+            ExpressionKind::MemberAccess(lhs_member_access) => {
+                chunks.group(self.format_member_access_with_chunk_tag(
+                    *lhs_member_access,
+                    chunk_tag,
+                    increased_indentation,
+                ));
+                false
+            }
+            _ => {
+                self.format_expression(method_call.object, &mut chunks);
+                true
+            }
+        };
+
+        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+
+        if increase_indentation {
+            chunks.increase_indentation();
+            *increased_indentation += 1;
+        }
+
+        chunks.line();
 
         chunks.text(self.chunk(|formatter| {
             formatter.write_token(Token::Dot);
@@ -1288,17 +1366,20 @@ global y = 1;
     #[test]
     fn format_method_call_chain() {
         let src = "global x =  bar . baz ( 1, 2 ) . qux ( 1 , 2, 3) . one ( 5, 6)  ;";
-        let expected = "global x = bar.baz(
-    1,
-    2,
-).qux(
-    1,
-    2,
-    3,
-).one(
-    5,
-    6,
-);
+        let expected = "global x = bar
+    .baz(
+        1,
+        2,
+    )
+    .qux(
+        1,
+        2,
+        3,
+    )
+    .one(
+        5,
+        6,
+    );
 ";
         assert_format_with_max_width(src, expected, 20);
     }
@@ -1317,6 +1398,24 @@ global y = 1;
     .bar
     .baz
     .qux
+    .this_is_a_long_name;
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
+    #[test]
+    fn format_long_member_access_and_method_call_chain() {
+        let src = "global x =  foo . bar(1, 2) . baz . qux(2, 3) . this_is_a_long_name   ;";
+        let expected = "global x = foo
+    .bar(
+        1,
+        2,
+    )
+    .baz
+    .qux(
+        2,
+        3,
+    )
     .this_is_a_long_name;
 ";
         assert_format_with_max_width(src, expected, 20);
