@@ -14,6 +14,7 @@ impl<'a> Formatter<'a> {
 
         self.write_indentation();
         self.write_keyword(Keyword::Impl);
+        self.format_generics(trait_impl.impl_generics);
         self.write_space();
         self.format_path(trait_impl.trait_name);
         self.format_generic_type_args(trait_impl.trait_generics);
@@ -104,10 +105,21 @@ mod tests {
     }
 
     #[test]
-    fn format_empty_trait_impl_with_generics() {
+    fn format_empty_trait_impl_with_trait_generics() {
         let src = " mod moo { impl  Foo < T >   for  Bar {  } }";
         let expected = "mod moo {
     impl Foo<T> for Bar {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_trait_impl_with_impl_generics() {
+        let src = " mod moo { impl<T> Default for Option {
+} }";
+        let expected = "mod moo {
+    impl<T> Default for Option {}
 }
 ";
         assert_format(src, expected);
