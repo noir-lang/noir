@@ -103,14 +103,11 @@ impl<'a> Formatter<'a> {
                 formatter.write_space();
             }));
             self.format_expression(value, &mut chunks);
-            chunks.text(self.chunk(|formatter| {
-                formatter.write_semicolon();
-            }));
-        } else {
-            chunks.text(self.chunk(|formatter| {
-                formatter.write_semicolon();
-            }));
         }
+
+        chunks.text(self.chunk(|formatter| {
+            formatter.write_semicolon();
+        }));
 
         chunks
     }

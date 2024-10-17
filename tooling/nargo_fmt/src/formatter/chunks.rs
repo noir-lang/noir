@@ -294,7 +294,7 @@ impl<'a> Formatter<'a> {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else {
-                        self.write_space();
+                        self.write_space_without_skipping_whitespace_and_comments();
                     }
                 }
             }

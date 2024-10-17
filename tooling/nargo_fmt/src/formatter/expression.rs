@@ -1151,6 +1151,7 @@ global y = 1;
         let expected = "global x = [
     1, 2, 3, 4, 5,
 ];
+
 global y = 1;
 ";
         assert_format_with_max_width(src, expected, 20);
