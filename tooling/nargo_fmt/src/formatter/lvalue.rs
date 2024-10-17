@@ -14,7 +14,7 @@ impl<'a> Formatter<'a> {
             LValue::MemberAccess { object, field_name, span: _ } => {
                 self.format_lvalue(*object);
                 self.write_token(Token::Dot);
-                self.write_identifier(field_name);
+                self.write_identifier_or_integer(field_name);
             }
             LValue::Index { array, index, span: _ } => {
                 self.format_lvalue(*array);
