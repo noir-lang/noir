@@ -28,6 +28,24 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
         ))
     ));
 }
+
+fn assert_type_visibility_error(src: &str, private_typ: &str, public_item: &str) {
+    let errors = get_program_errors(src);
+
+    assert!(!errors.is_empty(), "expected visibility error, got nothing");
+    assert_eq!(errors.len(), 1, "only expected one error");
+
+    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
+        typ, item, ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected an type vs item visibility error");
+    };
+
+    assert_eq!(typ, private_typ);
+    assert_eq!(item, public_item);
+}
+
 #[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
@@ -38,19 +56,7 @@ fn errors_if_type_alias_aliases_more_private_type() {
     }
     fn main() {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-        typ, item, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(typ, "Foo");
-    assert_eq!(item, "Bar");
+    assert_type_visibility_error(src, "Foo", "Bar");
 }
 
 #[test]
@@ -65,19 +71,45 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     }
     fn main() {}
     "#;
+    assert_type_visibility_error(src, "Foo", "Bar");
+}
 
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+#[test]
+fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+        pub struct Foo<T> { pub value: T }
+        pub type FooBar = Foo<Bar>;
 
-    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-        typ, item, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
+        pub fn no_unused_warnings() -> FooBar {
+            Foo { value: Bar {} }
+        }
+    }
+    fn main() {
+        let _ = moo::no_unused_warnings();
+    }
+    "#;
+    assert_type_visibility_error(src, "Bar", "FooBar");
+}
 
-    assert_eq!(typ, "Foo");
-    assert_eq!(item, "Bar");
+#[test]
+fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+        pub struct Foo<T> { pub value: T }
+        pub struct FooBar { pub value: Foo<Bar> }
+
+        pub fn no_unused_warnings() -> FooBar {
+            FooBar { value: Foo { value: Bar {} } }
+        }
+    }
+    fn main() {
+        let _ = moo::no_unused_warnings();
+    }
+    "#;
+    assert_type_visibility_error(src, "Bar", "FooBar");
 }
 
 #[test]
