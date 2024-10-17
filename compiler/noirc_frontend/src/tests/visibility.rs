@@ -113,6 +113,23 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
 }
 
 #[test]
+fn errors_if_pub_function_leaks_private_type() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        pub fn foo() -> Bar {
+            Bar {}
+        }
+    }
+    fn main() {
+        let _ = moo::foo();
+    }
+    "#;
+    assert_type_visibility_error(src, "Bar", "foo");
+}
+
+#[test]
 fn errors_if_trying_to_access_public_function_inside_private_module() {
     let src = r#"
     mod foo {
