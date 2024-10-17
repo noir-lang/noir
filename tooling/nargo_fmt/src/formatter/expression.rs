@@ -1169,74 +1169,6 @@ global y = 1;
     }
 
     #[test]
-    fn format_array_in_global_with_line_comments() {
-        let src = "global x = [ // hello
-        1 , 2 ] ;";
-        let expected = "global x = [
-    // hello
-    1, 2,
-];
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_array_in_global_with_line_comments_2() {
-        let src = "global x = [ // hello
-         [ 1 , 2 ]  ] ;";
-        let expected = "global x = [
-    // hello
-    [1, 2],
-];
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_array_in_global_with_line_comments_3() {
-        let src = "global x =
-    [ 
-        // hello
-        [1, 2],  
-    ];
-";
-        let expected = "global x = [
-    // hello
-    [1, 2],
-];
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_array_in_global_with_line_comments_4() {
-        let src = "global x =
-    [
-        1, // world 
-        2, 3,
-    ];
-";
-        let expected = "global x = [
-    1, // world
-    2, 3,
-];
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_array_in_global_with_block_comments() {
-        let src = "global x = [ /* hello */
-        1 , 2 ] ;";
-        let expected = "global x = [
-    /* hello */
-    1, 2,
-];
-";
-        assert_format_with_max_width(src, expected, 20);
-    }
-
-    #[test]
     fn format_cast() {
         let src = "global x =  1  as  u8 ;";
         let expected = "global x = 1 as u8;\n";
@@ -1688,32 +1620,6 @@ global y = 1;
             ..Config::default()
         };
         assert_format_with_config(src, expected, config);
-    }
-
-    #[test]
-    fn format_if_with_comment_after_condition() {
-        let src = "global x = if  123  // some comment  
-        {   456   }  ;";
-        let expected = "global x = if 123 // some comment
-{
-    456
-};
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_if_with_comment_after_else() {
-        let src = "global x = if  123  {   456   } else  // some comment 
-        { 789 };";
-        let expected = "global x = if 123 {
-    456
-} else // some comment
-{
-    789
-};
-";
-        assert_format(src, expected);
     }
 
     #[test]

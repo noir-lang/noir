@@ -244,49 +244,6 @@ mod tests {
     }
 
     #[test]
-    fn format_function_when_some_args_are_multiline_because_of_line_comments() {
-        let src = "fn  foo ( a: i32, // comment
-         b: i32
-         )  { }  ";
-        let expected = "fn foo(
-    a: i32, // comment
-    b: i32,
-) {}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_when_some_args_are_multiline_because_of_line_comments_2() {
-        let src = "fn  foo ( a: i32, // comment
-        // another
-         b: i32 // another comment
-         )  { }  ";
-        let expected = "fn foo(
-    a: i32, // comment
-    // another
-    b: i32, // another comment
-) {}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_when_some_args_are_multiline_because_of_block_comments() {
-        let src = "fn  foo ( a: i32 /*
-        some
-        comment */, b: i32
-         )  { }  ";
-        let expected = "fn foo(
-    a: i32 /*
-        some
-        comment */,
-    b: i32,
-) {}\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_function_with_modifiers() {
         let src = "pub  unconstrained  comptime  fn  foo ( ) {  }";
         let expected = "pub unconstrained comptime fn foo() {}\n";
@@ -381,71 +338,12 @@ mod tests {
     }
 
     #[test]
-    fn format_function_with_comment_after_parameters() {
-        let src = "fn main()
-        // hello 
-    {}";
-        let expected = "fn main()
-// hello
-{}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_with_line_comment_in_parameters() {
-        let src = "fn main(
-        // hello
-        )
-    {}";
-        let expected = "fn main(
-    // hello
-) {}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_with_line_comment_on_top_of_parameter() {
-        let src = "fn main(
-// hello
-unit: ()
-) {}";
-        let expected = "fn main(
-    // hello
-    unit: (),
-) {}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_with_block_comment_in_params() {
-        let src = "fn main(/* test */) {}";
-        let expected = "fn main(/* test */) {}\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_function_with_body() {
         let src = "fn main() { 1; 2; 3 }";
         let expected = "fn main() {
     1;
     2;
     3
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_with_body_and_block_comment() {
-        let src = "fn main() { 
-        /* foo */ 
-        1 }";
-        let expected = "fn main() {
-    /* foo */
-    1
 }
 ";
         assert_format(src, expected);
@@ -486,92 +384,11 @@ unit: ()
     }
 
     #[test]
-    fn format_function_with_body_one_expr_trailing_comment() {
-        let src = "mod moo { fn main() { 1   // yes
-        } }";
-        let expected = "mod moo {
-    fn main() {
-        1 // yes
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_with_body_one_expr_semicolon_trailing_comment() {
-        let src = "mod moo { fn main() { 1  ; // yes
-        } }";
-        let expected = "mod moo {
-    fn main() {
-        1; // yes
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_with_many_exprs_trailing_comments() {
-        let src = "mod moo { fn main() { 1  ; // yes
-        2 ; // no
-        3 // maybe
-        } }";
-        let expected = "mod moo {
-    fn main() {
-        1; // yes
-        2; // no
-        3 // maybe
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_function_with_block_comment_after_two_newlines() {
-        let src = "fn foo() {
-    1;
-
-    /* world */
-    2
-}
-";
-        let expected = "fn foo() {
-    1;
-
-    /* world */
-    2
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_function_with_empty_body_multiple_lines() {
         let src = "fn foo() {
 
         }";
         let expected = "fn foo() {}\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_comment_on_top_of_let_followed_by_statement() {
-        let src = "fn foo() {
-    1;
-
-    // Comment
-    let x = 1;
-}
-";
-        let expected = "fn foo() {
-    1;
-
-    // Comment
-    let x = 1;
-}
-";
         assert_format(src, expected);
     }
 }

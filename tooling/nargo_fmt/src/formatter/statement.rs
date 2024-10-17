@@ -403,16 +403,6 @@ mod tests {
     }
 
     #[test]
-    fn format_empty_block_statement_with_inline_block_comment() {
-        let src = " fn foo() { { /* hello */ } } ";
-        let expected = "fn foo() {
-    { /* hello */ }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_block_statement() {
         let src = " fn foo() { { 1 ; 2 } } ";
         let expected = "fn foo() {

@@ -71,25 +71,6 @@ mod tests {
     }
 
     #[test]
-    fn format_module_declaration_with_block_comments() {
-        let src = "  mod/*a*/ foo /*b*/ ; ";
-        let expected = "mod/*a*/ foo /*b*/;\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_module_declaration_with_inline_comments() {
-        let src = "  mod // a  
- foo // b 
-  ; ";
-        let expected = "mod // a
-foo // b
-;
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_module_declaration_with_doc_comments() {
         let src = " /// hello
 /// world 
@@ -129,65 +110,6 @@ mod foo;\n";
     }
 
     #[test]
-    fn format_submodule_with_line_comments_in_separate_line() {
-        let src = " #[foo] pub  mod foo { 
-// one
-#[hello]
-mod bar; 
-// two
-}";
-        let expected = "#[foo]
-pub mod foo {
-    // one
-    #[hello]
-    mod bar;
-    // two
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_submodule_with_line_comment_in_same_line() {
-        let src = " #[foo] pub  mod foo {  // one
-mod bar; 
-}";
-        let expected = "#[foo]
-pub mod foo { // one
-    mod bar;
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_submodule_with_block_comment() {
-        let src = " #[foo] pub  mod foo {  /* one */
-/* two */
-mod bar; 
-}";
-        let expected = "#[foo]
-pub mod foo { /* one */
-    /* two */
-    mod bar;
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_submodule_with_block_comment_2() {
-        let src = "mod foo {
-        /* one */
-}";
-        let expected = "mod foo {
-    /* one */
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_multiple_modules() {
         let src = "  mod  foo { 
 // hello
@@ -201,38 +123,6 @@ mod bar {
         // world
     }
 }
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn keeps_spaces_between_comments() {
-        let src = "  mod  foo { 
-
-// hello
-
-// world
-
-} ";
-        let expected = "mod foo {
-
-    // hello
-
-    // world
-
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn comment_with_leading_space() {
-        let src = "    // comment
-        // hello
-mod  foo ; ";
-        let expected = "// comment
-// hello
-mod foo;
 ";
         assert_format(src, expected);
     }

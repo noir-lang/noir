@@ -148,39 +148,11 @@ y: Field
     }
 
     #[test]
-    fn format_empty_struct_with_block_comments() {
-        let src = " struct Foo {
-        /* hello */
-    }
-        ";
-        let expected = "struct Foo {
-    /* hello */
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_two_structs() {
         let src = " struct Foo { } struct Bar {}
         ";
         let expected = "struct Foo {}
 struct Bar {}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_struct_with_just_comments() {
-        let src = " mod foo { struct Foo {
-// hello
-    } }
-        ";
-        let expected = "mod foo {
-    struct Foo {
-        // hello
-    }
-}
 ";
         assert_format(src, expected);
     }

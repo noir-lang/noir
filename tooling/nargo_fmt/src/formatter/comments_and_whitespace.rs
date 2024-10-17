@@ -163,3 +163,433 @@ impl<'a> Formatter<'a> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_format, assert_format_with_max_width};
+
+    #[test]
+    fn format_array_in_global_with_line_comments() {
+        let src = "global x = [ // hello
+        1 , 2 ] ;";
+        let expected = "global x = [
+    // hello
+    1, 2,
+];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_line_comments_2() {
+        let src = "global x = [ // hello
+         [ 1 , 2 ]  ] ;";
+        let expected = "global x = [
+    // hello
+    [1, 2],
+];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_line_comments_3() {
+        let src = "global x =
+    [ 
+        // hello
+        [1, 2],  
+    ];
+";
+        let expected = "global x = [
+    // hello
+    [1, 2],
+];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_line_comments_4() {
+        let src = "global x =
+    [
+        1, // world 
+        2, 3,
+    ];
+";
+        let expected = "global x = [
+    1, // world
+    2, 3,
+];
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_array_in_global_with_block_comments() {
+        let src = "global x = [ /* hello */
+        1 , 2 ] ;";
+        let expected = "global x = [
+    /* hello */
+    1, 2,
+];
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
+    #[test]
+    fn format_if_with_comment_after_condition() {
+        let src = "global x = if  123  // some comment  
+        {   456   }  ;";
+        let expected = "global x = if 123 // some comment
+{
+    456
+};
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_if_with_comment_after_else() {
+        let src = "global x = if  123  {   456   } else  // some comment 
+        { 789 };";
+        let expected = "global x = if 123 {
+    456
+} else // some comment
+{
+    789
+};
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_when_some_args_are_multiline_because_of_line_comments() {
+        let src = "fn  foo ( a: i32, // comment
+         b: i32
+         )  { }  ";
+        let expected = "fn foo(
+    a: i32, // comment
+    b: i32,
+) {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_when_some_args_are_multiline_because_of_line_comments_2() {
+        let src = "fn  foo ( a: i32, // comment
+        // another
+         b: i32 // another comment
+         )  { }  ";
+        let expected = "fn foo(
+    a: i32, // comment
+    // another
+    b: i32, // another comment
+) {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_when_some_args_are_multiline_because_of_block_comments() {
+        let src = "fn  foo ( a: i32 /*
+        some
+        comment */, b: i32
+         )  { }  ";
+        let expected = "fn foo(
+    a: i32 /*
+        some
+        comment */,
+    b: i32,
+) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_comment_after_parameters() {
+        let src = "fn main()
+        // hello 
+    {}";
+        let expected = "fn main()
+// hello
+{}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_line_comment_in_parameters() {
+        let src = "fn main(
+        // hello
+        )
+    {}";
+        let expected = "fn main(
+    // hello
+) {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_line_comment_on_top_of_parameter() {
+        let src = "fn main(
+// hello
+unit: ()
+) {}";
+        let expected = "fn main(
+    // hello
+    unit: (),
+) {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_block_comment_in_params() {
+        let src = "fn main(/* test */) {}";
+        let expected = "fn main(/* test */) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_and_block_comment() {
+        let src = "fn main() { 
+        /* foo */ 
+        1 }";
+        let expected = "fn main() {
+    /* foo */
+    1
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_one_expr_trailing_comment() {
+        let src = "mod moo { fn main() { 1   // yes
+        } }";
+        let expected = "mod moo {
+    fn main() {
+        1 // yes
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_body_one_expr_semicolon_trailing_comment() {
+        let src = "mod moo { fn main() { 1  ; // yes
+        } }";
+        let expected = "mod moo {
+    fn main() {
+        1; // yes
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_many_exprs_trailing_comments() {
+        let src = "mod moo { fn main() { 1  ; // yes
+        2 ; // no
+        3 // maybe
+        } }";
+        let expected = "mod moo {
+    fn main() {
+        1; // yes
+        2; // no
+        3 // maybe
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_block_comment_after_two_newlines() {
+        let src = "fn foo() {
+    1;
+
+    /* world */
+    2
+}
+";
+        let expected = "fn foo() {
+    1;
+
+    /* world */
+    2
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comment_on_top_of_let_followed_by_statement() {
+        let src = "fn foo() {
+    1;
+
+    // Comment
+    let x = 1;
+}
+";
+        let expected = "fn foo() {
+    1;
+
+    // Comment
+    let x = 1;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_module_declaration_with_block_comments() {
+        let src = "  mod/*a*/ foo /*b*/ ; ";
+        let expected = "mod/*a*/ foo /*b*/;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_module_declaration_with_inline_comments() {
+        let src = "  mod // a  
+ foo // b 
+  ; ";
+        let expected = "mod // a
+foo // b
+;
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_submodule_with_line_comments_in_separate_line() {
+        let src = " #[foo] pub  mod foo { 
+// one
+#[hello]
+mod bar; 
+// two
+}";
+        let expected = "#[foo]
+pub mod foo {
+    // one
+    #[hello]
+    mod bar;
+    // two
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_submodule_with_line_comment_in_same_line() {
+        let src = " #[foo] pub  mod foo {  // one
+mod bar; 
+}";
+        let expected = "#[foo]
+pub mod foo { // one
+    mod bar;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_submodule_with_block_comment() {
+        let src = " #[foo] pub  mod foo {  /* one */
+/* two */
+mod bar; 
+}";
+        let expected = "#[foo]
+pub mod foo { /* one */
+    /* two */
+    mod bar;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_submodule_with_block_comment_2() {
+        let src = "mod foo {
+        /* one */
+}";
+        let expected = "mod foo {
+    /* one */
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn keeps_spaces_between_comments() {
+        let src = "  mod  foo { 
+
+// hello
+
+// world
+
+} ";
+        let expected = "mod foo {
+
+    // hello
+
+    // world
+
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn comment_with_leading_space() {
+        let src = "    // comment
+        // hello
+mod  foo ; ";
+        let expected = "// comment
+// hello
+mod foo;
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_block_statement_with_inline_block_comment() {
+        let src = " fn foo() { { /* hello */ } } ";
+        let expected = "fn foo() {
+    { /* hello */ }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_struct_with_block_comments() {
+        let src = " struct Foo {
+        /* hello */
+    }
+        ";
+        let expected = "struct Foo {
+    /* hello */
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_struct_with_just_comments() {
+        let src = " mod foo { struct Foo {
+// hello
+    } }
+        ";
+        let expected = "mod foo {
+    struct Foo {
+        // hello
+    }
+}
+";
+        assert_format(src, expected);
+    }
+}
