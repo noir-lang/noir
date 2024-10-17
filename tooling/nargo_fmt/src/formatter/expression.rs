@@ -183,26 +183,25 @@ impl<'a> Formatter<'a> {
 
     fn format_lambda(&mut self, lambda: Lambda) -> Chunks {
         let mut chunks = Chunks::new();
+
         chunks.text(self.chunk(|formatter| {
             formatter.write_token(Token::Pipe);
-        }));
-        self.format_items_separated_by_comma(
-            lambda.parameters,
-            false, // force trailing comma
-            false, // surround with spaces
-            &mut chunks,
-            |formatter, (pattern, typ), chunks| {
-                chunks.text(formatter.chunk(|formatter| {
-                    formatter.format_pattern(pattern);
-                    if typ.typ != UnresolvedTypeData::Unspecified {
-                        formatter.write_token(Token::Colon);
-                        formatter.write_space();
-                        formatter.format_type(typ);
-                    }
-                }));
-            },
-        );
-        chunks.text(self.chunk(|formatter| {
+            for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
+                if index > 0 {
+                    formatter.write_comma();
+                    formatter.write_space();
+                }
+                formatter.format_pattern(pattern);
+                if typ.typ != UnresolvedTypeData::Unspecified {
+                    formatter.write_token(Token::Colon);
+                    formatter.write_space();
+                    formatter.format_type(typ);
+                }
+            }
+            formatter.skip_comments_and_whitespace();
+            if formatter.token == Token::Comma {
+                formatter.bump();
+            }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
             if lambda.return_type.typ != UnresolvedTypeData::Unspecified {
@@ -213,6 +212,7 @@ impl<'a> Formatter<'a> {
             }
         }));
         self.format_expression(lambda.body, &mut chunks);
+
         chunks
     }
 
@@ -1355,6 +1355,17 @@ global y = 1;
     fn format_lambda_with_block() {
         let src = "global x = | |  {  1  } ;";
         let expected = "global x = || { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block_multiple_statements() {
+        let src = "global x = | a, b |  {  1; 2  } ;";
+        let expected = "global x = |a, b| {
+    1;
+    2
+};
+";
         assert_format(src, expected);
     }
 }
