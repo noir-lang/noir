@@ -1,4 +1,3 @@
-
 // This circuit aggregates two proofs from `assert_statement_recursive`.
 #[recursive]
 fn main(

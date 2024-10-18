@@ -1,4 +1,3 @@
-
 // This circuit aggregates one proof from `assert_statement_recursive`.
 fn main(
     verification_key: [Field; 114],
