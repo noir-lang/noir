@@ -177,9 +177,8 @@ impl<'a> Formatter<'a> {
                 formatter.write_token(Token::Assign);
                 is_op_assign = true;
             }
+            formatter.write_space();
         }));
-        group.increase_indentation();
-        group.space_or_line();
 
         if is_op_assign {
             let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
@@ -189,10 +188,10 @@ impl<'a> Formatter<'a> {
         } else {
             self.format_expression(assign_statement.expression, &mut group);
         }
+
         group.text(self.chunk(|formatter| {
             formatter.write_semicolon();
         }));
-        group.decrease_indentation();
         group
     }
 

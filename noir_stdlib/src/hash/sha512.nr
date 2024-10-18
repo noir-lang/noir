@@ -42,11 +42,10 @@ fn sha_w(msg: [u64; 16]) -> [u64; 80] // Expanded message blocks
     }
 
     for j in 16..80 {
-        w[j] =
-            crate::wrapping_add(
-                crate::wrapping_add(sha_sigma1(w[j - 2]), w[j - 7]),
-                crate::wrapping_add(sha_sigma0(w[j - 15]), w[j - 16]),
-            );
+        w[j] = crate::wrapping_add(
+            crate::wrapping_add(sha_sigma1(w[j - 2]), w[j - 7]),
+            crate::wrapping_add(sha_sigma0(w[j - 15]), w[j - 16]),
+        );
     }
     w
 }

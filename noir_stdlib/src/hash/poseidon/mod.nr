@@ -185,197 +185,179 @@ impl Hasher for PoseidonHasher {
             result = bn254::hash_3([self._state[0], self._state[1], self._state[2]]);
         }
         if len == 4 {
-            result =
-                bn254::hash_4(
-                    [self._state[0], self._state[1], self._state[2], self._state[3]],
-                );
+            result = bn254::hash_4(
+                [self._state[0], self._state[1], self._state[2], self._state[3]],
+            );
         }
         if len == 5 {
-            result =
-                bn254::hash_5(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                    ],
-                );
+            result = bn254::hash_5(
+                [self._state[0], self._state[1], self._state[2], self._state[3], self._state[4]],
+            );
         }
         if len == 6 {
-            result =
-                bn254::hash_6(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                    ],
-                );
+            result = bn254::hash_6(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                ],
+            );
         }
         if len == 7 {
-            result =
-                bn254::hash_7(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                    ],
-                );
+            result = bn254::hash_7(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                ],
+            );
         }
         if len == 8 {
-            result =
-                bn254::hash_8(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                    ],
-                );
+            result = bn254::hash_8(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                ],
+            );
         }
         if len == 9 {
-            result =
-                bn254::hash_9(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                        self._state[8],
-                    ],
-                );
+            result = bn254::hash_9(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                    self._state[8],
+                ],
+            );
         }
         if len == 10 {
-            result =
-                bn254::hash_10(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                        self._state[8],
-                        self._state[9],
-                    ],
-                );
+            result = bn254::hash_10(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                    self._state[8],
+                    self._state[9],
+                ],
+            );
         }
         if len == 11 {
-            result =
-                bn254::hash_11(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                        self._state[8],
-                        self._state[9],
-                        self._state[10],
-                    ],
-                );
+            result = bn254::hash_11(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                    self._state[8],
+                    self._state[9],
+                    self._state[10],
+                ],
+            );
         }
         if len == 12 {
-            result =
-                bn254::hash_12(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                        self._state[8],
-                        self._state[9],
-                        self._state[10],
-                        self._state[11],
-                    ],
-                );
+            result = bn254::hash_12(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                    self._state[8],
+                    self._state[9],
+                    self._state[10],
+                    self._state[11],
+                ],
+            );
         }
         if len == 13 {
-            result =
-                bn254::hash_13(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                        self._state[8],
-                        self._state[9],
-                        self._state[10],
-                        self._state[11],
-                        self._state[12],
-                    ],
-                );
+            result = bn254::hash_13(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                    self._state[8],
+                    self._state[9],
+                    self._state[10],
+                    self._state[11],
+                    self._state[12],
+                ],
+            );
         }
         if len == 14 {
-            result =
-                bn254::hash_14(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                        self._state[8],
-                        self._state[9],
-                        self._state[10],
-                        self._state[11],
-                        self._state[12],
-                        self._state[13],
-                    ],
-                );
+            result = bn254::hash_14(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                    self._state[8],
+                    self._state[9],
+                    self._state[10],
+                    self._state[11],
+                    self._state[12],
+                    self._state[13],
+                ],
+            );
         }
         if len == 15 {
-            result =
-                bn254::hash_15(
-                    [
-                        self._state[0],
-                        self._state[1],
-                        self._state[2],
-                        self._state[3],
-                        self._state[4],
-                        self._state[5],
-                        self._state[6],
-                        self._state[7],
-                        self._state[8],
-                        self._state[9],
-                        self._state[10],
-                        self._state[11],
-                        self._state[12],
-                        self._state[13],
-                        self._state[14],
-                    ],
-                );
+            result = bn254::hash_15(
+                [
+                    self._state[0],
+                    self._state[1],
+                    self._state[2],
+                    self._state[3],
+                    self._state[4],
+                    self._state[5],
+                    self._state[6],
+                    self._state[7],
+                    self._state[8],
+                    self._state[9],
+                    self._state[10],
+                    self._state[11],
+                    self._state[12],
+                    self._state[13],
+                    self._state[14],
+                ],
+            );
         }
 
         result

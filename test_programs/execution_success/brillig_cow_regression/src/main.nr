@@ -168,8 +168,7 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
         let input_as_bytes: [u8; 16] = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS
             + log_field_index].to_be_bytes();
         for byte_index in 0..16 {
-            hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] =
-                input_as_bytes[byte_index];
+            hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
         }
     }
 

@@ -93,12 +93,11 @@ where
         for _ in 0..N {
             if result.succeeded {
                 let next_result = self.inner.match(result.leftover);
-                result =
-                    Match {
-                        succeeded: next_result.succeeded,
-                        match_ends: result.match_ends + next_result.match_ends,
-                        leftover: next_result.leftover,
-                    };
+                result = Match {
+                    succeeded: next_result.succeeded,
+                    match_ends: result.match_ends + next_result.match_ends,
+                    leftover: next_result.leftover,
+                };
             }
         }
         result

@@ -345,15 +345,14 @@ pub mod curvegroup {
             let mut out = Point::zero();
 
             for i in 0..N {
-                out =
-                    self.add(
-                        self.add(out, out),
-                        if (bits[N - i - 1] == 0) {
-                            Point::zero()
-                        } else {
-                            p
-                        },
-                    );
+                out = self.add(
+                    self.add(out, out),
+                    if (bits[N - i - 1] == 0) {
+                        Point::zero()
+                    } else {
+                        p
+                    },
+                );
             }
 
             out
