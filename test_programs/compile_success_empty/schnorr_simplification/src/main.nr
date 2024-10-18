@@ -1,5 +1,3 @@
-use std::embedded_curve_ops;
-
 // Note: If main has any unsized types, then the verifier will never be able
 // to figure out the circuit instance
 fn main() {

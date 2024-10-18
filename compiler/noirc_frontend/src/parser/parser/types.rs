@@ -1,412 +1,683 @@
-use super::path::{as_trait_path, path_no_turbofish};
-use super::primitives::{ident, token_kind};
-use super::{
-    expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
-    ParserErrorReason, Precedence,
+use acvm::{AcirField, FieldElement};
+
+use crate::{
+    ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    token::{Keyword, Token, TokenKind},
+    QuotedType,
 };
-use crate::ast::{
-    Expression, GenericTypeArg, GenericTypeArgs, Recoverable, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression,
-};
-use crate::QuotedType;
 
-use crate::parser::labels::ParsingRuleLabel;
-use crate::token::{Keyword, Token, TokenKind};
+use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
-use chumsky::prelude::*;
-use noirc_errors::Span;
-
-pub fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
-    recursive(parse_type_inner)
-}
-
-pub(super) fn parse_type_inner<'a>(
-    recursive_type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    choice((
-        primitive_type(),
-        format_string_type(recursive_type_parser.clone()),
-        named_type(recursive_type_parser.clone()),
-        named_trait(recursive_type_parser.clone()),
-        slice_type(recursive_type_parser.clone()),
-        array_type(recursive_type_parser.clone()),
-        parenthesized_type(recursive_type_parser.clone()),
-        tuple_type(recursive_type_parser.clone()),
-        function_type(recursive_type_parser.clone()),
-        mutable_reference_type(recursive_type_parser.clone()),
-        as_trait_path_type(recursive_type_parser),
-    ))
-}
-
-pub(super) fn primitive_type() -> impl NoirParser<UnresolvedType> {
-    choice((
-        field_type(),
-        int_type(),
-        bool_type(),
-        string_type(),
-        comptime_type(),
-        resolved_type(),
-        interned_unresolved_type(),
-    ))
-}
-
-fn as_trait_path_type<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    as_trait_path(type_parser)
-        .map_with_span(|path, span| UnresolvedTypeData::AsTraitPath(Box::new(path)).with_span(span))
-}
-
-pub(super) fn parenthesized_type(
-    recursive_type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
-    recursive_type_parser
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-        .map_with_span(|typ, span| UnresolvedType {
-            typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-            span,
-        })
-}
-
-pub(super) fn maybe_comp_time() -> impl NoirParser<bool> {
-    keyword(Keyword::Comptime).or_not().map(|opt| opt.is_some())
-}
-
-pub(super) fn field_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Field)
-        .map_with_span(|_, span| UnresolvedTypeData::FieldElement.with_span(span))
-}
-
-pub(super) fn bool_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Bool).map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
-}
-
-pub(super) fn comptime_type() -> impl NoirParser<UnresolvedType> {
-    choice((
-        expr_type(),
-        struct_definition_type(),
-        trait_constraint_type(),
-        trait_definition_type(),
-        trait_impl_type(),
-        unresolved_type_type(),
-        function_definition_type(),
-        module_type(),
-        type_of_quoted_types(),
-        top_level_item_type(),
-        quoted_type(),
-        typed_expr_type(),
-        comptime_string_type(),
-    ))
-}
-
-/// This is the type `Expr` - the type of a quoted, untyped expression object used for macros
-pub(super) fn expr_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Expr)
-        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Expr).with_span(span))
-}
-
-/// This is the type `StructDefinition` - the type of a quoted struct definition
-pub(super) fn struct_definition_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::StructDefinition).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::StructDefinition).with_span(span)
-    })
-}
-
-/// This is the type `TraitConstraint` - the type of a quoted trait constraint
-pub(super) fn trait_constraint_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TraitConstraint).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::TraitConstraint).with_span(span)
-    })
-}
-
-pub(super) fn trait_definition_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TraitDefinition).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::TraitDefinition).with_span(span)
-    })
-}
-
-pub(super) fn trait_impl_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TraitImpl)
-        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TraitImpl).with_span(span))
-}
-
-pub(super) fn unresolved_type_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::UnresolvedType).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::UnresolvedType).with_span(span)
-    })
-}
-
-pub(super) fn function_definition_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::FunctionDefinition).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::FunctionDefinition).with_span(span)
-    })
-}
-
-pub(super) fn module_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Module)
-        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Module).with_span(span))
-}
-
-/// This is the type `TopLevelItem` - the type of a quoted statement in the top level.
-/// E.g. a type definition, trait definition, trait impl, function, etc.
-fn top_level_item_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TopLevelItem).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::TopLevelItem).with_span(span)
-    })
-}
-
-/// This is the type `Type` - the type of a quoted noir type.
-fn type_of_quoted_types() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TypeType)
-        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Type).with_span(span))
-}
-
-/// This is the type of a quoted, unparsed token stream.
-fn quoted_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Quoted)
-        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Quoted).with_span(span))
-}
-
-/// This is the type of a typed/resolved expression.
-fn typed_expr_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TypedExpr)
-        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TypedExpr).with_span(span))
-}
-
-/// This is the `CtString` type for dynamically-sized compile-time strings
-fn comptime_string_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::CtString)
-        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::CtString).with_span(span))
-}
-
-/// This is the type of an already resolved type.
-/// The only way this can appear in the token input is if an already resolved `Type` object
-/// was spliced into a macro's token stream via the `$` operator.
-pub(super) fn resolved_type() -> impl NoirParser<UnresolvedType> {
-    token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
-        Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
-        _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
-    })
-}
-
-pub(super) fn interned_unresolved_type() -> impl NoirParser<UnresolvedType> {
-    token_kind(TokenKind::InternedUnresolvedTypeData).map_with_span(|token, span| match token {
-        Token::InternedUnresolvedTypeData(id) => UnresolvedTypeData::Interned(id).with_span(span),
-        _ => unreachable!(
-            "token_kind(InternedUnresolvedTypeData) guarantees we parse an interned unresolved type"
-        ),
-    })
-}
-
-pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::String)
-        .ignore_then(type_expression().delimited_by(just(Token::Less), just(Token::Greater)))
-        .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
-}
-
-pub(super) fn format_string_type<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    keyword(Keyword::FormatString)
-        .ignore_then(
-            type_expression()
-                .then_ignore(just(Token::Comma))
-                .then(type_parser)
-                .delimited_by(just(Token::Less), just(Token::Greater)),
-        )
-        .map_with_span(|(size, fields), span| {
-            UnresolvedTypeData::FormatString(size, Box::new(fields)).with_span(span)
-        })
-}
-
-pub(super) fn int_type() -> impl NoirParser<UnresolvedType> {
-    filter_map(|span, token: Token| match token {
-        Token::IntType(int_type) => Ok(int_type),
-        unexpected => {
-            Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
+impl<'a> Parser<'a> {
+    pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
+        if let Some(typ) = self.parse_type() {
+            typ
+        } else {
+            self.expected_label(ParsingRuleLabel::Type);
+            self.unspecified_type_at_previous_token_end()
         }
-    })
-    .validate(|token, span, emit| {
-        UnresolvedTypeData::from_int_token(token).map(|data| data.with_span(span)).unwrap_or_else(
-            |err| {
-                emit(ParserError::with_reason(ParserErrorReason::InvalidBitSize(err.0), span));
-                UnresolvedType::error(span)
-            },
-        )
-    })
-}
+    }
 
-pub(super) fn named_type<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    path_no_turbofish().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
-        UnresolvedTypeData::Named(path, args, false).with_span(span)
-    })
-}
+    pub(crate) fn parse_type(&mut self) -> Option<UnresolvedType> {
+        let start_span = self.current_token_span;
+        let typ = self.parse_unresolved_type_data()?;
+        let span = self.span_since(start_span);
+        Some(UnresolvedType { typ, span })
+    }
 
-pub(super) fn named_trait<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    keyword(Keyword::Impl)
-        .ignore_then(path_no_turbofish())
-        .then(generic_type_args(type_parser))
-        .map_with_span(|(path, args), span| {
-            UnresolvedTypeData::TraitAsType(path, args).with_span(span)
-        })
-}
+    fn parse_unresolved_type_data(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(typ) = self.parse_primitive_type() {
+            return Some(typ);
+        }
 
-pub(super) fn generic_type_args<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<GenericTypeArgs> + 'a {
-    required_generic_type_args(type_parser).or_not().map(Option::unwrap_or_default)
-}
+        if let Some(typ) = self.parse_parentheses_type() {
+            return Some(typ);
+        }
 
-pub(super) fn required_generic_type_args<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<GenericTypeArgs> + 'a {
-    let generic_type_arg = type_parser
-        .clone()
-        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression_validated());
+        if let Some(typ) = self.parse_array_or_slice_type() {
+            return Some(typ);
+        }
 
-    let named_arg = ident()
-        .then_ignore(just(Token::Assign))
-        .then(generic_type_arg.clone())
-        .map(|(name, typ)| GenericTypeArg::Named(name, typ));
+        if let Some(typ) = self.parses_mutable_reference_type() {
+            return Some(typ);
+        }
 
-    // We need to parse named arguments first since otherwise when we see
-    // `Foo = Bar`, just `Foo` is a valid type, and we'd parse an ordered
-    // generic before erroring that an `=` is invalid after an ordered generic.
-    choice((named_arg, generic_type_arg.map(GenericTypeArg::Ordered)))
-        .boxed()
-        // Without checking for a terminating ',' or '>' here we may incorrectly
-        // parse a generic `N * 2` as just the type `N` then fail when there is no
-        // separator afterward. Failing early here ensures we try the `type_expression`
-        // parser afterward.
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .at_least(1)
-        .delimited_by(just(Token::Less), just(Token::Greater))
-        .map(GenericTypeArgs::from)
-}
+        if let Some(typ) = self.parse_function_type() {
+            return Some(typ);
+        }
 
-pub(super) fn array_type<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    just(Token::LeftBracket)
-        .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(type_expression()))
-        .then_ignore(just(Token::RightBracket))
-        .map_with_span(|(element_type, size), span| {
-            UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)
-        })
-}
+        if let Some(typ) = self.parse_trait_as_type() {
+            return Some(typ);
+        }
 
-pub(super) fn slice_type(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
-    just(Token::LeftBracket)
-        .ignore_then(type_parser)
-        .then_ignore(just(Token::RightBracket))
-        .map_with_span(|element_type, span| {
-            UnresolvedTypeData::Slice(Box::new(element_type)).with_span(span)
-        })
-}
+        if let Some(typ) = self.parse_as_trait_path_type() {
+            return Some(typ);
+        }
 
-fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
-    type_expression_inner().try_map(UnresolvedTypeExpression::from_expr)
-}
+        if let Some(path) = self.parse_path_no_turbofish() {
+            let generics = self.parse_generic_type_args();
+            return Some(UnresolvedTypeData::Named(path, generics, false));
+        }
 
-/// This parser is the same as `type_expression()`, however, it continues parsing and
-/// emits a parser error in the case of an invalid type expression rather than halting the parser.
-pub(super) fn type_expression_validated() -> impl NoirParser<UnresolvedType> {
-    type_expression_inner().validate(|expr, span, emit| {
-        let type_expr = UnresolvedTypeExpression::from_expr(expr, span);
-        match type_expr {
-            Ok(type_expression) => UnresolvedTypeData::Expression(type_expression).with_span(span),
-            Err(parser_error) => {
-                emit(parser_error);
-                UnresolvedType::error(span)
+        None
+    }
+
+    pub(super) fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(typ) = self.parse_field_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_int_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_bool_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_str_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_fmtstr_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_comptime_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_resolved_type() {
+            return Some(typ);
+        }
+
+        if let Some(typ) = self.parse_interned_type() {
+            return Some(typ);
+        }
+
+        None
+    }
+
+    fn parse_bool_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat_keyword(Keyword::Bool) {
+            return Some(UnresolvedTypeData::Bool);
+        }
+
+        None
+    }
+
+    fn parse_field_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat_keyword(Keyword::Field) {
+            return Some(UnresolvedTypeData::FieldElement);
+        }
+
+        None
+    }
+
+    fn parse_int_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(int_type) = self.eat_int_type() {
+            return Some(match UnresolvedTypeData::from_int_token(int_type) {
+                Ok(typ) => typ,
+                Err(err) => {
+                    self.push_error(
+                        ParserErrorReason::InvalidBitSize(err.0),
+                        self.previous_token_span,
+                    );
+                    UnresolvedTypeData::Error
+                }
+            });
+        }
+
+        None
+    }
+
+    fn parse_str_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_keyword(Keyword::String) {
+            return None;
+        }
+
+        if !self.eat_less() {
+            self.expected_token(Token::Less);
+            let expr =
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            return Some(UnresolvedTypeData::String(expr));
+        }
+
+        let expr = match self.parse_type_expression() {
+            Ok(expr) => expr,
+            Err(error) => {
+                self.errors.push(error);
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+            }
+        };
+
+        self.eat_or_error(Token::Greater);
+
+        Some(UnresolvedTypeData::String(expr))
+    }
+
+    fn parse_fmtstr_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_keyword(Keyword::FormatString) {
+            return None;
+        }
+
+        if !self.eat_less() {
+            self.expected_token(Token::Less);
+            let expr =
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
+            return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
+        }
+
+        let expr = match self.parse_type_expression() {
+            Ok(expr) => expr,
+            Err(error) => {
+                self.errors.push(error);
+                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+            }
+        };
+
+        if !self.eat_commas() {
+            self.expected_token(Token::Comma);
+        }
+
+        let typ = self.parse_type_or_error();
+
+        self.eat_or_error(Token::Greater);
+
+        Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)))
+    }
+
+    fn parse_comptime_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat_keyword(Keyword::Expr) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Expr));
+        }
+        if self.eat_keyword(Keyword::Quoted) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Quoted));
+        }
+        if self.eat_keyword(Keyword::TopLevelItem) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TopLevelItem));
+        }
+        if self.eat_keyword(Keyword::TypeType) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Type));
+        }
+        if self.eat_keyword(Keyword::TypedExpr) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
+        }
+        if self.eat_keyword(Keyword::StructDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
+        }
+        if self.eat_keyword(Keyword::TraitConstraint) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));
+        }
+        if self.eat_keyword(Keyword::TraitDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TraitDefinition));
+        }
+        if self.eat_keyword(Keyword::TraitImpl) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TraitImpl));
+        }
+        if self.eat_keyword(Keyword::UnresolvedType) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::UnresolvedType));
+        }
+        if self.eat_keyword(Keyword::FunctionDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::FunctionDefinition));
+        }
+        if self.eat_keyword(Keyword::Module) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::Module));
+        }
+        if self.eat_keyword(Keyword::CtString) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::CtString));
+        }
+        None
+    }
+
+    fn parse_function_type(&mut self) -> Option<UnresolvedTypeData> {
+        let unconstrained = self.eat_keyword(Keyword::Unconstrained);
+
+        if !self.eat_keyword(Keyword::Fn) {
+            if unconstrained {
+                self.expected_token(Token::Keyword(Keyword::Fn));
+                return Some(UnresolvedTypeData::Function(
+                    Vec::new(),
+                    Box::new(self.unspecified_type_at_previous_token_end()),
+                    Box::new(self.unspecified_type_at_previous_token_end()),
+                    unconstrained,
+                ));
+            }
+
+            return None;
+        }
+
+        let env = if self.eat_left_bracket() {
+            let typ = self.parse_type_or_error();
+            self.eat_or_error(Token::RightBracket);
+            typ
+        } else {
+            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+        };
+
+        if !self.eat_left_paren() {
+            self.expected_token(Token::LeftParen);
+
+            return Some(UnresolvedTypeData::Function(
+                Vec::new(),
+                Box::new(self.unspecified_type_at_previous_token_end()),
+                Box::new(self.unspecified_type_at_previous_token_end()),
+                unconstrained,
+            ));
+        }
+
+        let args = self.parse_many(
+            "parameters",
+            separated_by_comma_until_right_paren(),
+            Self::parse_parameter,
+        );
+
+        let ret = if self.eat(Token::Arrow) {
+            self.parse_type_or_error()
+        } else {
+            self.expected_token(Token::Arrow);
+            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+        };
+
+        Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
+    }
+
+    fn parse_parameter(&mut self) -> Option<UnresolvedType> {
+        let typ = self.parse_type_or_error();
+        if let UnresolvedTypeData::Error = typ.typ {
+            None
+        } else {
+            Some(typ)
+        }
+    }
+
+    fn parse_trait_as_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_keyword(Keyword::Impl) {
+            return None;
+        }
+
+        let Some(path) = self.parse_path_no_turbofish() else {
+            self.expected_label(ParsingRuleLabel::Path);
+            return None;
+        };
+
+        let generics = self.parse_generic_type_args();
+
+        Some(UnresolvedTypeData::TraitAsType(path, generics))
+    }
+
+    fn parse_as_trait_path_type(&mut self) -> Option<UnresolvedTypeData> {
+        let as_trait_path = self.parse_as_trait_path()?;
+        Some(UnresolvedTypeData::AsTraitPath(Box::new(as_trait_path)))
+    }
+
+    fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
+            match token.into_token() {
+                Token::QuotedType(id) => {
+                    return Some(UnresolvedTypeData::Resolved(id));
+                }
+                _ => unreachable!(),
             }
         }
-    })
-}
 
-fn type_expression_inner() -> impl NoirParser<Expression> {
-    recursive(|expr| {
-        expression_with_precedence(
-            Precedence::lowest_type_precedence(),
-            expr,
-            nothing(),
-            nothing(),
-            true,
-            false,
-        )
-    })
-    .labelled(ParsingRuleLabel::TypeExpression)
-}
+        None
+    }
 
-pub(super) fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-{
-    let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
-    parenthesized(fields).map_with_span(|fields, span| {
-        if fields.is_empty() {
-            UnresolvedTypeData::Unit.with_span(span)
-        } else {
-            UnresolvedTypeData::Tuple(fields).with_span(span)
+    pub(super) fn parse_interned_type(&mut self) -> Option<UnresolvedTypeData> {
+        if let Some(token) = self.eat_kind(TokenKind::InternedUnresolvedTypeData) {
+            match token.into_token() {
+                Token::InternedUnresolvedTypeData(id) => {
+                    return Some(UnresolvedTypeData::Interned(id));
+                }
+                _ => unreachable!(),
+            }
         }
-    })
-}
 
-pub(super) fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-{
-    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
+        None
+    }
 
-    let env = just(Token::LeftBracket)
-        .ignore_then(type_parser.clone())
-        .then_ignore(just(Token::RightBracket))
-        .or_not()
-        .map_with_span(|t, span| {
-            t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
-        });
+    fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
+        if self.eat(Token::Ampersand) {
+            self.eat_keyword_or_error(Keyword::Mut);
+            return Some(UnresolvedTypeData::MutableReference(Box::new(
+                self.parse_type_or_error(),
+            )));
+        };
 
-    keyword(Keyword::Unconstrained)
-        .or_not()
-        .then(keyword(Keyword::Fn))
-        .map(|(unconstrained_token, _fn_token)| unconstrained_token.is_some())
-        .then(env)
-        .then(args)
-        .then_ignore(just(Token::Arrow))
-        .then(type_parser)
-        .map_with_span(|(((unconstrained, env), args), ret), span| {
-            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained)
-                .with_span(span)
+        None
+    }
+
+    fn parse_array_or_slice_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_left_bracket() {
+            return None;
+        }
+
+        let typ = self.parse_type_or_error();
+
+        if self.eat_semicolon() {
+            match self.parse_type_expression() {
+                Ok(expr) => {
+                    self.eat_or_error(Token::RightBracket);
+                    Some(UnresolvedTypeData::Array(expr, Box::new(typ)))
+                }
+                Err(error) => {
+                    self.errors.push(error);
+                    self.eat_or_error(Token::RightBracket);
+                    Some(UnresolvedTypeData::Slice(Box::new(typ)))
+                }
+            }
+        } else {
+            self.eat_or_error(Token::RightBracket);
+            Some(UnresolvedTypeData::Slice(Box::new(typ)))
+        }
+    }
+
+    fn parse_parentheses_type(&mut self) -> Option<UnresolvedTypeData> {
+        if !self.eat_left_paren() {
+            return None;
+        }
+
+        if self.eat_right_paren() {
+            return Some(UnresolvedTypeData::Unit);
+        }
+
+        let (mut types, trailing_comma) = self.parse_many_return_trailing_separator_if_any(
+            "tuple elements",
+            separated_by_comma_until_right_paren(),
+            Self::parse_type_in_list,
+        );
+
+        Some(if types.len() == 1 && !trailing_comma {
+            UnresolvedTypeData::Parenthesized(Box::new(types.remove(0)))
+        } else {
+            UnresolvedTypeData::Tuple(types)
         })
-}
+    }
 
-pub(super) fn mutable_reference_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-{
-    just(Token::Ampersand)
-        .ignore_then(keyword(Keyword::Mut))
-        .ignore_then(type_parser)
-        .map_with_span(|element, span| {
-            UnresolvedTypeData::MutableReference(Box::new(element)).with_span(span)
-        })
+    pub(super) fn parse_type_in_list(&mut self) -> Option<UnresolvedType> {
+        if let Some(typ) = self.parse_type() {
+            Some(typ)
+        } else {
+            self.expected_label(ParsingRuleLabel::Type);
+            None
+        }
+    }
+
+    /// OptionalTypeAnnotation = ( ':' Type )?
+    pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {
+        if self.eat_colon() {
+            self.parse_type_or_error()
+        } else {
+            self.unspecified_type_at_previous_token_end()
+        }
+    }
+
+    pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
+        UnresolvedTypeData::Unspecified.with_span(self.span_at_previous_token_end())
+    }
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-    use crate::parser::parser::test_helpers::*;
+mod tests {
+    use strum::IntoEnumIterator;
+
+    use crate::{
+        ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
+        parser::{
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            Parser,
+        },
+        QuotedType,
+    };
+
+    fn parse_type_no_errors(src: &str) -> UnresolvedType {
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        expect_no_errors(&parser.errors);
+        typ
+    }
 
     #[test]
-    fn parse_type_expression() {
-        parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
+    fn parses_unit_type() {
+        let src = "()";
+        let typ = parse_type_no_errors(src);
+        assert!(matches!(typ.typ, UnresolvedTypeData::Unit));
+    }
+
+    #[test]
+    fn parses_bool_type() {
+        let src = "bool";
+        let typ = parse_type_no_errors(src);
+        assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
+    }
+
+    #[test]
+    fn parses_int_type() {
+        let src = "u32";
+        let typ = parse_type_no_errors(src);
+        assert!(matches!(
+            typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
+        ));
+    }
+
+    #[test]
+    fn parses_field_type() {
+        let src = "Field";
+        let typ = parse_type_no_errors(src);
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_str_type() {
+        let src = "str<10>";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::String(expr) = typ.typ else { panic!("Expected a string type") };
+        assert_eq!(expr.to_string(), "10");
+    }
+
+    #[test]
+    fn parses_fmtstr_type() {
+        let src = "fmtstr<10, T>";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::FormatString(expr, typ) = typ.typ else {
+            panic!("Expected a format string type")
+        };
+        assert_eq!(expr.to_string(), "10");
+        assert_eq!(typ.to_string(), "T");
+    }
+
+    #[test]
+    fn parses_comptime_types() {
+        for quoted_type in QuotedType::iter() {
+            let src = quoted_type.to_string();
+            let typ = parse_type_no_errors(&src);
+            let UnresolvedTypeData::Quoted(parsed_qouted_type) = typ.typ else {
+                panic!("Expected a quoted type for {}", quoted_type)
+            };
+            assert_eq!(parsed_qouted_type, quoted_type);
+        }
+    }
+
+    #[test]
+    fn parses_tuple_type() {
+        let src = "(Field, bool)";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Tuple(mut types) = typ.typ else { panic!("Expected a tuple type") };
+        assert_eq!(types.len(), 2);
+
+        let typ = types.remove(0);
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+
+        let typ = types.remove(0);
+        assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
+    }
+
+    #[test]
+    fn parses_tuple_type_one_element() {
+        let src = "(Field,)";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Tuple(mut types) = typ.typ else { panic!("Expected a tuple type") };
+        assert_eq!(types.len(), 1);
+
+        let typ = types.remove(0);
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_parenthesized_type() {
+        let src = "(Field)";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
+            panic!("Expected a parenthesized type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_unclosed_parentheses_type() {
+        let src = "(Field";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert_eq!(parser.errors.len(), 1);
+        let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
+            panic!("Expected a parenthesized type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_mutable_reference_type() {
+        let src = "&mut Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::MutableReference(typ) = typ.typ else {
+            panic!("Expected a mutable reference type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn parses_named_type_no_generics() {
+        let src = "foo::Bar";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
+            panic!("Expected a named type")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert!(generics.is_empty());
+    }
+
+    #[test]
+    fn parses_slice_type() {
+        let src = "[Field]";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
+    fn errors_if_missing_right_bracket_after_slice_type() {
+        let src = "
+        [Field 
+              ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        parser.parse_type();
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a ']' but found end of input");
+    }
+
+    #[test]
+    fn parses_array_type() {
+        let src = "[Field; 10]";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
+            panic!("Expected an array type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(expr.to_string(), "10");
+    }
+
+    #[test]
+    fn parses_empty_function_type() {
+        let src = "fn() -> Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(args, ret, env, unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert!(args.is_empty());
+        assert_eq!(ret.typ.to_string(), "Field");
+        assert!(matches!(env.typ, UnresolvedTypeData::Unit));
+        assert!(!unconstrained);
+    }
+
+    #[test]
+    fn parses_function_type_with_arguments() {
+        let src = "fn(Field, bool) -> Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(args, _ret, _env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0].typ.to_string(), "Field");
+        assert_eq!(args[1].typ.to_string(), "bool");
+    }
+
+    #[test]
+    fn parses_function_type_with_return_type() {
+        let src = "fn() -> Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(ret.typ.to_string(), "Field");
+    }
+
+    #[test]
+    fn parses_function_type_with_env() {
+        let src = "fn[Field]() -> Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(_args, _ret, env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(env.typ.to_string(), "Field");
+    }
+
+    #[test]
+    fn parses_unconstrained_function_type() {
+        let src = "unconstrained fn() -> Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(_args, _ret, _env, unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert!(unconstrained);
+    }
+
+    #[test]
+    fn parses_trait_as_type_no_generics() {
+        let src = "impl foo::Bar";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::TraitAsType(path, generics) = typ.typ else {
+            panic!("Expected trait as type")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert!(generics.is_empty());
+    }
+
+    #[test]
+    fn parses_as_trait_path() {
+        let src = "<Field as foo::Bar>::baz";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::AsTraitPath(as_trait_path) = typ.typ else {
+            panic!("Expected as_trait_path")
+        };
+        assert_eq!(as_trait_path.typ.typ.to_string(), "Field");
+        assert_eq!(as_trait_path.trait_path.to_string(), "foo::Bar");
+        assert!(as_trait_path.trait_generics.is_empty());
+        assert_eq!(as_trait_path.impl_item.to_string(), "baz");
     }
 }

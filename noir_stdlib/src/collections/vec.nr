@@ -1,5 +1,5 @@
 pub struct Vec<T> { 
-    slice: [T]
+    pub(crate) slice: [T]
 }
 // A mutable vector type implemented as a wrapper around immutable slices.
 // A separate type is technically not needed but helps differentiate which operations are mutable.

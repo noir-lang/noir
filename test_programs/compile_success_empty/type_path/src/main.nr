@@ -8,7 +8,7 @@ fn main() {
     }
 }
 
-struct Foo {}
+pub struct Foo {}
 
 impl Foo {
     fn static() {}

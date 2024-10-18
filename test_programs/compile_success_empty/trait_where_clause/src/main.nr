@@ -42,6 +42,7 @@ impl StaticTrait for Static100 {
 struct Static200 {}
 impl StaticTrait for Static200 {
     fn static_function(slf: Self) -> Field {
+        let _ = slf;
         200
     }
 }

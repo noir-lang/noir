@@ -21,7 +21,7 @@ pub struct UHashMap<K, V, B> {
 }
 
 // Data unit in the UHashMap table.
-// In case Noir adds support for enums in the future, this  
+// In case Noir adds support for enums in the future, this
 // should be refactored to have three states:
 // 1. (key, value)
 // 2. (empty)
@@ -60,7 +60,7 @@ impl<K, V> Slot<K, V> {
     }
 
     // Shall not override `_key_value` with Option::none(),
-    // because we must be able to differentiate empty 
+    // because we must be able to differentiate empty
     // and deleted slots for lookup.
     fn mark_deleted(&mut self) {
         self._is_deleted = true;
@@ -68,7 +68,7 @@ impl<K, V> Slot<K, V> {
 }
 
 // While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
-// that if we have went that far without finding desired, 
+// that if we have went that far without finding desired,
 // it is very unlikely to be after - performance will be heavily degraded.
 impl<K, V, B> UHashMap<K, V, B> {
     // Creates a new instance of UHashMap with specified BuildHasher.
@@ -188,7 +188,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // For each key-value entry applies mutator function.
     // docs:start:iter_mut
-    unconstrained pub fn iter_mut<H>(
+    pub unconstrained fn iter_mut<H>(
         &mut self,
         f: fn(K, V) -> (K, V)
     )
@@ -210,10 +210,10 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // For each key applies mutator function.
     // docs:start:iter_keys_mut
-    unconstrained pub fn iter_keys_mut<H>(
+    pub unconstrained fn iter_keys_mut<H>(
         &mut self,
         f: fn(K) -> K
-    ) 
+    )
     where
         K: Eq + Hash,
         B: BuildHasher<H>,
@@ -277,7 +277,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    unconstrained pub fn get<H>(
+    pub unconstrained fn get<H>(
         self,
         key: K
     ) -> Option<V>
@@ -307,9 +307,9 @@ impl<K, V, B> UHashMap<K, V, B> {
         result
     }
 
-    // Insert key-value entry. In case key was already present, value is overridden. 
+    // Insert key-value entry. In case key was already present, value is overridden.
     // docs:start:insert
-    unconstrained pub fn insert<H>(
+    pub unconstrained fn insert<H>(
         &mut self,
         key: K,
         value: V
@@ -362,7 +362,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Removes a key-value entry. If key is not present, UHashMap remains unchanged.
     // docs:start:remove
-    unconstrained pub fn remove<H>(
+    pub unconstrained fn remove<H>(
         &mut self,
         key: K
     )
@@ -407,14 +407,14 @@ impl<K, V, B> UHashMap<K, V, B> {
     // Probing scheme: quadratic function.
     // We use 0.5 constant near variadic attempt and attempt^2 monomials.
     // This ensures good uniformity of distribution for table sizes
-    // equal to prime numbers or powers of two. 
+    // equal to prime numbers or powers of two.
     fn quadratic_probe(self: Self, hash: u32, attempt: u32) -> u32 {
         (hash + (attempt + attempt * attempt) / 2) % self._table.len()
     }
 }
 
-// Equality class on UHashMap has to test that they have 
-// equal sets of key-value entries, 
+// Equality class on UHashMap has to test that they have
+// equal sets of key-value entries,
 // thus one is a subset of the other and vice versa.
 // docs:start:eq
 impl<K, V, B, H> Eq for UHashMap<K, V, B>

@@ -73,7 +73,7 @@ fn warns_on_use_of_private_exported_item() {
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2); // An existing bug causes this error to be duplicated
+    assert_eq!(errors.len(), 1);
 
     assert!(matches!(
         &errors[0].0,

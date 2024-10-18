@@ -5,25 +5,23 @@ global PLO: Field = 53438638232309528389504892708671455233;
 global PHI: Field = 64323764613183177041862057485226039389;
 
 pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
+global TWO_POW_64: Field = 0x10000000000000000;
 
 // Decomposes a single field into two 16 byte fields.
-fn compute_decomposition(x: Field) -> (Field, Field) {
-    let x_bytes: [u8; 32] = x.to_le_bytes();
+fn compute_decomposition(mut x: Field) -> (Field, Field) {
+    // Here's we're taking advantage of truncating 64 bit limbs from the input field
+    // and then subtracting them from the input such the field division is equivalent to integer division.
+    let low_lower_64 = (x as u64) as Field;
+    x = (x - low_lower_64) / TWO_POW_64;
+    let low_upper_64 = (x as u64) as Field;
 
-    let mut low: Field = 0;
-    let mut high: Field = 0;
-
-    let mut offset = 1;
-    for i in 0..16 {
-        low += (x_bytes[i] as Field) * offset;
-        high += (x_bytes[i + 16] as Field) * offset;
-        offset *= 256;
-    }
+    let high = (x - low_upper_64) / TWO_POW_64;
+    let low = low_upper_64 * TWO_POW_64 + low_lower_64;
 
     (low, high)
 }
 
-unconstrained pub(crate) fn decompose_hint(x: Field) -> (Field, Field) {
+pub(crate) unconstrained fn decompose_hint(x: Field) -> (Field, Field) {
     compute_decomposition(x)
 }
 
@@ -72,8 +70,8 @@ fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
         let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
         let rhi = ahi - bhi - (borrow as Field);
 
-        rlo.assert_max_bit_size(128);
-        rhi.assert_max_bit_size(128);
+        rlo.assert_max_bit_size::<128>();
+        rhi.assert_max_bit_size::<128>();
     }
 }
 
@@ -87,8 +85,8 @@ pub fn decompose(x: Field) -> (Field, Field) {
             let (xlo, xhi) = decompose_hint(x);
 
             // Range check the limbs
-            xlo.assert_max_bit_size(128);
-            xhi.assert_max_bit_size(128);
+            xlo.assert_max_bit_size::<128>();
+            xhi.assert_max_bit_size::<128>();
 
             // Check that the decomposition is correct
             assert_eq(x, xlo + TWO_POW_128 * xhi);

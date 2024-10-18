@@ -1,9 +1,7 @@
-use std::meta::type_of;
-
 trait SomeTrait<X, Y> {
     fn foo();
 }
-struct SomeStruct {
+pub struct SomeStruct {
 
 }
 

@@ -4,8 +4,8 @@ use crate::cmp::{Eq, Ord, Ordering};
 global pow64 : Field = 18446744073709551616; //2^64;
 global pow63 : Field = 9223372036854775808; // 2^63;
 pub struct U128 {
-    lo: Field,
-    hi: Field,
+    pub(crate) lo: Field,
+    pub(crate) hi: Field,
 }
 
 impl U128 {
@@ -98,7 +98,7 @@ impl U128 {
         ((ascii >= 65) & (ascii <= 90)) // Between 'A' and 'Z'
     }
 
-    fn decode_ascii(ascii: u8) -> Field {
+    pub(crate) fn decode_ascii(ascii: u8) -> Field {
         (if ascii < 58 {
             ascii - 48
         } else {
@@ -111,7 +111,7 @@ impl U128 {
         }) as Field
     }
 
-    // TODO: Replace with a faster version. 
+    // TODO: Replace with a faster version.
     // A circuit that uses this function can be slow to compute
     // (we're doing up to 127 calls to compute the quotient)
     unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
@@ -141,7 +141,7 @@ impl U128 {
     pub fn from_integer<T>(i: T) -> U128 {
         let f = crate::as_field(i);
         // Reject values which would overflow a u128
-        f.assert_max_bit_size(128);
+        f.assert_max_bit_size::<128>();
         let lo = f as u64 as Field;
         let hi = (f - lo) / pow64;
         U128 { lo, hi }

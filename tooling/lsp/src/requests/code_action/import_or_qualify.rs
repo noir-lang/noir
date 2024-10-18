@@ -186,7 +186,7 @@ fn foo(x: SomeTypeInBar) {}"#;
         let src = r#"
         mod foo {
             mod bar {
-                mod some_module_in_bar {}
+                pub mod some_module_in_bar {}
             }
         }
 
@@ -198,7 +198,7 @@ fn foo(x: SomeTypeInBar) {}"#;
         let expected = r#"
         mod foo {
             mod bar {
-                mod some_module_in_bar {}
+                pub mod some_module_in_bar {}
             }
         }
 
@@ -216,7 +216,7 @@ fn foo(x: SomeTypeInBar) {}"#;
 
         let src = r#"mod foo {
     mod bar {
-        mod some_module_in_bar {}
+        pub(crate) mod some_module_in_bar {}
     }
 }
 
@@ -228,7 +228,7 @@ fn main() {
 
 mod foo {
     mod bar {
-        mod some_module_in_bar {}
+        pub(crate) mod some_module_in_bar {}
     }
 }
 

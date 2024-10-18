@@ -52,7 +52,7 @@ impl HirStatement {
             }),
             HirStatement::For(for_stmt) => StatementKind::For(ForLoopStatement {
                 identifier: for_stmt.identifier.to_display_ast(interner),
-                range: ForRange::Range(
+                range: ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
                 ),
@@ -417,7 +417,7 @@ impl HirArrayLiteral {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
                     Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer((*length as u128).into(), false);
+                        let literal = Literal::Integer(*length, false);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, span))
                     }

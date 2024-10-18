@@ -67,6 +67,9 @@ pub struct SsaEvaluatorOptions {
 
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
+
+    /// The higher the value, the more inlined brillig functions will be.
+    pub inliner_aggressiveness: i64,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -94,9 +97,10 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
     .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
     .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
-    .run_pass(Ssa::inline_functions, "After Inlining:")
+    .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "After Inlining:")
     // Run mem2reg with the CFG separated into blocks
     .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    .run_pass(Ssa::simplify_cfg, "After Simplifying:")
     .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
     .try_run_pass(
         Ssa::evaluate_static_assert_and_assert_constant,
@@ -112,7 +116,10 @@ pub(crate) fn optimize_into_acir(
     // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
     // This pass must come immediately following `mem2reg` as the succeeding passes
     // may create an SSA which inlining fails to handle.
-    .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
+    .run_pass(
+        |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
+        "After Inlining:",
+    )
     .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
     .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
@@ -405,7 +412,10 @@ impl SsaBuilder {
     }
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
-    fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
+    fn run_pass<F>(mut self, pass: F, msg: &str) -> Self
+    where
+        F: FnOnce(Ssa) -> Ssa,
+    {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa));
         self.print(msg)
     }

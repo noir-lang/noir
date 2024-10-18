@@ -7,7 +7,7 @@ use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
+        ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
         MethodCallExpression, Pattern, PrefixExpression, Statement, StatementKind, UnresolvedType,
         UnresolvedTypeData,
@@ -267,6 +267,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Dot
             | Token::DoubleColon
             | Token::DoubleDot
+            | Token::DoubleDotEqual
             | Token::Caret
             | Token::Pound
             | Token::Pipe
@@ -508,8 +509,11 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
 }
 
 fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
-    let trait_ = interner.get_trait(trait_constraint.trait_id);
-    format!("{}: {}{}", trait_constraint.typ, trait_.name, trait_constraint.trait_generics)
+    let trait_ = interner.get_trait(trait_constraint.trait_bound.trait_id);
+    format!(
+        "{}: {}{}",
+        trait_constraint.typ, trait_.name, trait_constraint.trait_bound.trait_generics
+    )
 }
 
 // Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
@@ -713,10 +717,13 @@ fn remove_interned_in_statement_kind(
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
             range: match for_loop.range {
-                ForRange::Range(from, to) => ForRange::Range(
-                    remove_interned_in_expression(interner, from),
-                    remove_interned_in_expression(interner, to),
-                ),
+                ForRange::Range(ForBounds { start, end, inclusive }) => {
+                    ForRange::Range(ForBounds {
+                        start: remove_interned_in_expression(interner, start),
+                        end: remove_interned_in_expression(interner, end),
+                        inclusive,
+                    })
+                }
                 ForRange::Array(expr) => {
                     ForRange::Array(remove_interned_in_expression(interner, expr))
                 }
