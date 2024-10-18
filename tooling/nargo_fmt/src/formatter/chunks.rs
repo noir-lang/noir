@@ -87,6 +87,14 @@ impl Chunk {
             | Chunk::PopIndentation => false,
         }
     }
+
+    pub(crate) fn as_group(self) -> Option<Chunks> {
+        if let Chunk::Group(group) = self {
+            Some(group)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug)]

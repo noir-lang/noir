@@ -3,7 +3,10 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{chunks::Chunks, Formatter};
+use super::{
+    chunks::{Chunk, Chunks},
+    Formatter,
+};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_import(&mut self, use_tree: UseTree, visibility: ItemVisibility) {
@@ -81,7 +84,12 @@ impl<'a> Formatter<'a> {
                 });
 
                 if use_trees_len == 1 && !wrote_comment {
-                    chunks.chunks.extend(items_chunk.chunks);
+                    // We are only interested in keeping the single Group: everything else
+                    // is lines, indentation and trailing comma that we don't need and would
+                    // actually produce incorrect code.
+                    let group =
+                        items_chunk.chunks.into_iter().filter_map(Chunk::as_group).next().unwrap();
+                    chunks.chunks.extend(group.chunks);
                 } else {
                     chunks.text(left_brace_chunk);
                     chunks.chunks.extend(items_chunk.chunks);
@@ -150,6 +158,16 @@ mod tests {
         let src = " use foo::{  bar,  };";
         let expected = "use foo::bar;\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_long_use_list_one_item() {
+        let src = "use one::two::{three::{four, five}};";
+        let expected = "use one::two::three::{
+    four, five,
+};
+";
+        assert_format_with_max_width(src, expected, 20);
     }
 
     #[test]
