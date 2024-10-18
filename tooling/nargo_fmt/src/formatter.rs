@@ -157,10 +157,22 @@ impl<'a> Formatter<'a> {
         self.write_token(Token::Semicolon);
     }
 
+    /// Writes the given keyword, if the current token is that keyword
+    /// (so this is a check that we are producing a token we expect to be in the source
+    /// we are traversing). Then advances to the next token.
+    ///
+    /// Calls `write_token` so comments and whitespaces are skipped before writing the keyword.
     fn write_keyword(&mut self, keyword: Keyword) {
         self.write_token(Token::Keyword(keyword));
     }
 
+    /// Writes the given token, if the current token is the same as the given one
+    /// (so this is a check that we are producing a token we expect to be in the source
+    /// we are traversing). Then advances to the next token.
+    ///
+    /// Before writing the token any comments and spaces are skipped. This is so that
+    /// a caller can call `write_token`, `write_keyword`, `write_space`, etc., without
+    /// having to explicitly call `skip_comments_and_whitespace` in between those calls.
     fn write_token(&mut self, token: Token) {
         self.skip_comments_and_whitespace();
         if self.token == token {
@@ -171,22 +183,33 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Writes the current token but doesn't advance to the next one.
     fn write_current_token(&mut self) {
         self.write(&self.token.to_string());
     }
 
+    /// Writes the current token trimming its end but doesn't advance to the next one.
+    /// Mainly used when writing comment lines, because we never want trailing spaces
+    /// inside comments.
     fn write_current_token_trimming_end(&mut self) {
         self.write(self.token.to_string().trim_end());
     }
 
+    /// Writes the current token but without turning it into a string using `to_string()`.
+    /// Instead, we check the token's span and format what's in the original source there
+    /// (useful when formatting integer tokens, because a token like 0xFF ends up being an
+    /// integer with a value 255, but we don't want to change 0xFF to 255).
     fn write_current_token_as_in_source(&mut self) {
         self.write_source_span(self.token_span);
     }
 
+    /// Writes whatever is in the given span relative to the file's source that's being formatted.
     fn write_source_span(&mut self, span: Span) {
         self.write(&self.source[span.start() as usize..span.end() as usize]);
     }
 
+    /// Writes the current indentation to the buffer, but only if the buffer
+    /// does not end with a space (otherwise we'd be indenting too much).
     fn write_indentation(&mut self) {
         if self.buffer.ends_with(' ') {
             return;
@@ -199,6 +222,11 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Writes a string to the buffer.
+    /// This is the only method that directly appends to the buffer and keeps
+    /// track of the current line width.
+    /// If adding new methods that write to the buffer, always use this method
+    /// instead of directly appending to the buffer.
     fn write(&mut self, str: &str) {
         self.buffer.push_str(str);
 
@@ -225,6 +253,7 @@ impl<'a> Formatter<'a> {
         self.indentation = self.indentation_stack.pop().unwrap();
     }
 
+    /// Advances to the next token (the current token is not written).
     fn bump(&mut self) -> Token {
         let next_token = self.read_token_internal();
         self.token_span = next_token.to_span();

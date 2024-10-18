@@ -690,7 +690,7 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_infix_expression(&mut self, infix: InfixExpression) -> ChunkGroup {
-        let group_tag = self.next_group_tag();
+        let group_tag = self.new_group_tag();
 
         let mut group = self.format_infix_expression_with_group_tag(
             infix, group_tag, false, // nested
@@ -775,7 +775,7 @@ impl<'a> Formatter<'a> {
         if_expression: IfExpression,
         mut force_multiple_lines: bool,
     ) -> ChunkGroup {
-        let group_tag = self.next_group_tag();
+        let group_tag = self.new_group_tag();
         let mut group = self.format_if_expression_with_group_tag(
             if_expression,
             &mut force_multiple_lines,
@@ -1173,7 +1173,7 @@ impl<'a> Formatter<'a> {
         let mut group = ChunkGroup::new();
         group.increase_indentation();
         let mut chunk = self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace_writing_lines_if_found();
+            formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         });
 
         if chunk.string.trim().is_empty() {

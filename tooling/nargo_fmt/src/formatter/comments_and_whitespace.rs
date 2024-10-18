@@ -3,17 +3,30 @@ use noirc_frontend::token::Token;
 use super::{chunks::TextChunk, Formatter};
 
 impl<'a> Formatter<'a> {
+    /// Writes a single space, skipping any whitespace and comments.
+    /// That is, suppose the next token is a big whitespace, possibly with multiple lines.
+    /// Those are skipped but only one space is written. In this way if we have
+    /// "mod     foo" it's transformed to "mod foo".
+    /// If there are comments in between `mod` and `foo` they are written, though!
+    /// No comment is ever lost.
+    ///
+    /// A space is not appended to the buffer is it already ends with a space.
     pub(super) fn write_space(&mut self) {
         self.skip_comments_and_whitespace();
         self.write_space_without_skipping_whitespace_and_comments();
     }
 
+    /// Writes a single space, but doesn't skip whitespace and comments before doing that.
+    ///
+    /// A space is not appended to the buffer is it already ends with a space.
     pub(super) fn write_space_without_skipping_whitespace_and_comments(&mut self) {
         if !self.buffer.ends_with('\n') && !self.buffer.ends_with(' ') {
             self.write(" ");
         }
     }
 
+    /// Only skips whitespace if it doesn't have newlines in it.
+    /// Note that this doesn't write whitespace or comments at all.
     pub(super) fn skip_whitespace_if_it_is_not_a_newline(&mut self) {
         while let Token::Whitespace(whitespace) = &self.token {
             if whitespace.contains('\n') {
@@ -23,28 +36,38 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Skips comments and whitespace, writing newlines if there are any.
+    /// If there are multiple consecutive newlines, only one is written.
     pub(super) fn skip_comments_and_whitespace(&mut self) {
         self.skip_comments_and_whitespace_impl(
-            false, // write lines
+            false, // write multiple lines
             false, // at beginning
         );
     }
 
-    pub(super) fn skip_comments_and_whitespace_writing_lines_if_found(&mut self) {
+    /// Similar to skip_comments_and_whitespace, but will write two lines if
+    /// multiple newlines are found (but at most two lines at a time).
+    pub(super) fn skip_comments_and_whitespace_writing_multiple_lines_if_found(&mut self) {
         self.skip_comments_and_whitespace_impl(
-            true,  // write lines
+            true,  // write multiple lines
             false, // at beginning
         );
     }
 
     pub(super) fn skip_comments_and_whitespace_impl(
         &mut self,
-        write_lines: bool,
+        write_multiple_lines: bool,
         at_beginning: bool,
     ) {
+        // Number of newlines we just skipped.
         let mut number_of_newlines = 0;
+
+        // Did we just passed some whitespace?
         let mut passed_whitespace = false;
+
+        // Was the last token we processed a block comment?
         let mut last_was_block_comment = false;
+
         loop {
             match &self.token {
                 Token::Whitespace(whitespace) => {
@@ -78,13 +101,19 @@ impl<'a> Formatter<'a> {
                     last_was_block_comment = false;
                 }
                 Token::LineComment(_, None) => {
-                    if number_of_newlines > 1 && write_lines {
+                    // Here we check if we need to write one line, two lines or none after the
+                    // end of the line comment.
+                    if number_of_newlines > 1 && write_multiple_lines {
                         self.write_multiple_lines_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else if number_of_newlines > 0 {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else if !(at_beginning && self.buffer.is_empty()) {
+                        // We write a space before a line comment so if you have code like this:
+                        // "1// comment" it's transformed to "1 // comment".
+                        // What if there was already a space? It's all good, `write_space`
+                        // will never write two consecutive spaces.
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
 
@@ -97,13 +126,19 @@ impl<'a> Formatter<'a> {
                     self.wrote_comment = true;
                 }
                 Token::BlockComment(_, None) => {
-                    if number_of_newlines > 1 && write_lines {
+                    // Here we check if we need to write one line, two lines or none after the
+                    // end of the block comment.
+                    if number_of_newlines > 1 && write_multiple_lines {
                         self.write_multiple_lines_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else if number_of_newlines > 0 {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else if passed_whitespace {
+                        // We write a space before a line comment so if you have code like this:
+                        // "1/* comment */" it's transformed to "1 /* comment */".
+                        // What if there was already a space? It's all good, `write_space`
+                        // will never write two consecutive spaces.
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
                     self.write_current_token();
@@ -116,11 +151,14 @@ impl<'a> Formatter<'a> {
             }
         }
 
-        if number_of_newlines > 1 && write_lines {
+        // Case when we passed some whitespace with newlines but no comments followed it.
+        if number_of_newlines > 1 && write_multiple_lines {
             self.write_multiple_lines_without_skipping_whitespace_and_comments();
         }
     }
 
+    /// Returns the number of newlines that come next, if we are at a whitespace
+    /// token (otherwise returns 0).
     pub(super) fn following_newlines_count(&mut self) -> usize {
         let Token::Whitespace(whitespace) = &self.token else {
             return 0;
@@ -129,6 +167,12 @@ impl<'a> Formatter<'a> {
         whitespace.chars().filter(|char| *char == '\n').count()
     }
 
+    /// Writes a single newline, if the last thing we wrote wasn't also a newline
+    /// (this prevents multiple consecutive newlines, though that's still possible to
+    /// do if you call `write_multiple_lines_...`).
+    ///
+    /// Any whitespace or comments found right at and after the current token are "skipped"
+    /// (whitespace is discarded, comments are written).
     pub(super) fn write_line(&mut self) {
         self.skip_comments_and_whitespace_impl(
             true,  // writing newline
@@ -146,6 +190,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    // Modifies the current buffer so that it will always have two newlines at the end.
     pub(super) fn write_multiple_lines_without_skipping_whitespace_and_comments(&mut self) {
         if self.buffer.ends_with("\n\n") {
             // Nothing
@@ -156,6 +201,8 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Stops writing to the current buffer, skips comments and whitespaces (formatting them)
+    /// and returns the formatted result as a `TextChunk`.
     pub(super) fn skip_comments_and_whitespace_chunk(&mut self) -> TextChunk {
         self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();

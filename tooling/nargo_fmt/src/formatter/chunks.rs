@@ -73,6 +73,10 @@ impl Chunk {
         }
     }
 
+    /// Computes the width of this chunk considering it's inside an ExpressionList.
+    /// The only thing that changes here compared to `width` is that a LambdaAsLastExpressionInList's
+    /// width is considered to be only the first line, so we can avoid splitting the entire call
+    /// arguments into separate lins.
     pub(crate) fn width_inside_an_expression_list(&self) -> usize {
         if let Chunk::Group(group) = &self {
             if let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind {
@@ -111,7 +115,34 @@ impl Chunk {
 #[derive(Debug)]
 pub(crate) struct ChunkGroup {
     pub(crate) chunks: Vec<Chunk>,
+
+    /// If `true`, when formatting in multiple lines, and after a SpaceOrLine,
+    /// a line will be written.
+    /// If `false`, when formatting in multiple lines, and after a SpaceOrLine,
+    /// a space will be inserted and the next chunk will go in the same line if
+    /// it fits that line.
+    ///
+    /// This is used to, for example, control how arrays are formatted. If each
+    /// element is short, we'll format the array like this:
+    ///
+    /// [
+    ///   1, 2, 3,
+    ///   4, 5
+    /// ]
+    ///
+    /// but if one of the elements is long, each one will go in a separate line:
+    ///
+    /// [
+    ///     1,
+    ///     1234567890123,
+    ///     3
+    /// ]
     pub(crate) one_chunk_per_line: bool,
+
+    /// If true, regardless of this group's chunks, this group will be formatted in
+    /// multiple lines.
+    /// This is set to true when, for example, we format a block that has at least
+    /// two statements: we always want to show that in multiple lines.
     pub(crate) force_multiple_lines: bool,
 
     /// Groups can be tagged. For example we tag all consequences and alternative blocks
@@ -146,6 +177,9 @@ impl ChunkGroup {
         }
     }
 
+    /// Appends a text to this group.
+    /// If the last chunk in this group is a text, no new chunk is inserted and
+    /// instead the last text chunk is extended.
     pub(crate) fn text(&mut self, chunk: TextChunk) {
         if chunk.width == 0 {
             return;
@@ -174,22 +208,26 @@ impl ChunkGroup {
         }
     }
 
+    /// Appends a trailing comment (it's formatted slightly differently than a regular text chunk).
     pub(crate) fn trailing_comment(&mut self, chunk: TextChunk) {
         if chunk.width > 0 {
             self.push(Chunk::TrailingComment(chunk));
         }
     }
 
+    /// Appends a leading comment (it's formatted slightly differently than a regular text chunk).
     pub(crate) fn leading_comment(&mut self, chunk: TextChunk) {
         if chunk.width > 0 {
             self.push(Chunk::LeadingComment(chunk));
         }
     }
 
+    /// Appends a trailing comma (will only show up if the group is formatted in multiple lines).
     pub(crate) fn trailing_comma(&mut self) {
         self.push(Chunk::TrailingComma);
     }
 
+    /// Appends another group as a nested group.
     pub(crate) fn group(&mut self, group: ChunkGroup) {
         self.push(Chunk::Group(group));
     }
@@ -204,6 +242,8 @@ impl ChunkGroup {
         self.push(Chunk::Line { two });
     }
 
+    /// Appends a SpaceOrLine chunk, which means that it's a space when this group is
+    /// formatted in a single line, or a line when it's formatted in multiple lines.
     pub(crate) fn space_or_line(&mut self) {
         self.push(Chunk::SpaceOrLine);
     }
@@ -364,6 +404,11 @@ pub(crate) enum GroupKind {
 }
 
 impl<'a> Formatter<'a> {
+    /// Stops writing to the current buffer for the duration of the `f` call, which takes
+    /// a formatter to write to. Then, returns a `TextChunk` with the written text.
+    ///
+    /// This allows a caller to format pieces of code and then pre-process them before
+    /// writing to the main buffer.
     pub(super) fn chunk<F>(&mut self, f: F) -> TextChunk
     where
         F: FnOnce(&mut Formatter<'a>),
@@ -383,6 +428,8 @@ impl<'a> Formatter<'a> {
         TextChunk::new(string)
     }
 
+    /// Main interface to format a chunk group.
+    /// Here it's determined if the chunk will group in a single line or multiple lines.
     pub(super) fn format_chunk_group(&mut self, group: ChunkGroup) {
         let previous_indentation = self.indentation;
         self.format_chunk_group_impl(group);
@@ -446,6 +493,7 @@ impl<'a> Formatter<'a> {
             return;
         }
 
+        // Check if the group first in the remainder of the current line.
         let chunks_width = chunks.width();
         let total_width = self.current_line_width + chunks_width;
         if total_width > self.config.max_width {
@@ -505,7 +553,9 @@ impl<'a> Formatter<'a> {
                     } else {
                         // If we didn't exceed the max width, but this chunk will, insert a newline,
                         // increase indentation and indent (the indentation will be undone
-                        // after `format_chunks` finishes)
+                        // after `format_chunks` finishes).
+                        // This is the logic to automatically wrap a line when a ChunkGroup doesn't
+                        // have Line or SpaceOrLine in it.
                         if self.current_line_width <= self.config.max_width
                             && self.current_line_width + text_chunk.width > self.config.max_width
                             && !self.buffer.ends_with(' ')
@@ -569,6 +619,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Appends the string to the current buffer line by line, with some pre-checks.
     fn write_chunk_lines(&mut self, string: &str) {
         for (index, line) in string.lines().enumerate() {
             // Don't indent the first line (it should already be indented).
@@ -593,7 +644,8 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(super) fn next_group_tag(&mut self) -> GroupTag {
+    /// Returns a new GroupTag that is unique compared to other `new_group_tag` calls.
+    pub(super) fn new_group_tag(&mut self) -> GroupTag {
         let tag = GroupTag(self.group_tag_counter);
         self.group_tag_counter += 1;
         tag

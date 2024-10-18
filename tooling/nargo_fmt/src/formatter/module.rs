@@ -36,7 +36,7 @@ impl<'a> Formatter<'a> {
             self.increase_indentation();
 
             self.wrote_comment = false;
-            self.skip_comments_and_whitespace_writing_lines_if_found();
+            self.skip_comments_and_whitespace_writing_multiple_lines_if_found();
             self.decrease_indentation();
             if self.wrote_comment {
                 self.write_line();
