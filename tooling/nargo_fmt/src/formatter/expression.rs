@@ -1962,4 +1962,32 @@ global y = 1;
         let config = Config { remove_nested_parens: false, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
+
+    #[test]
+    fn attaches_comma_to_last_group() {
+        let src = " mod moo {
+    fn foo() {
+        [
+            Foo { a: 1 }, Foo { a: 1 }
+            ];
+            bar;
+        }
+}
+";
+        let expected = "mod moo {
+    fn foo() {
+        [
+            Foo {
+                a: 1,
+            },
+            Foo {
+                a: 1,
+            },
+        ];
+        bar;
+    }
+}
+";
+        assert_format_with_max_width(src, expected, "            Foo { a: 1 },".len() - 1);
+    }
 }

@@ -61,7 +61,7 @@ fn parsed_module_is_empty(parsed_module: &ParsedModule) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
+    use crate::{assert_format, assert_format_with_config, Config};
 
     #[test]
     fn format_module_declaration() {
@@ -138,33 +138,5 @@ mod bar {
 ";
         let config = Config { tab_spaces: 2, ..Config::default() };
         assert_format_with_config(src, expected, config);
-    }
-
-    #[test]
-    fn attaches_comma_to_last_group() {
-        let src = " mod moo {
-    fn foo() {
-        [
-            Foo { a: 1 }, Foo { a: 1 }
-            ];
-            bar;
-        }
-}
-";
-        let expected = "mod moo {
-    fn foo() {
-        [
-            Foo {
-                a: 1,
-            },
-            Foo {
-                a: 1,
-            },
-        ];
-        bar;
-    }
-}
-";
-        assert_format_with_max_width(src, expected, "            Foo { a: 1 },".len() - 1);
     }
 }
