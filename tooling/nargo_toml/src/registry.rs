@@ -1,3 +1,4 @@
+use std::env;
 use crate::git::nargo_crates;
 use anyhow::{ensure, Context, Result};
 use once_cell::sync::Lazy;
@@ -13,8 +14,6 @@ use std::path::Path;
 use tar::Archive;
 use zstd::Decoder;
 
-pub const DEFAULT_REGISTRY_INDEX: &str = "http://localhost:3000";
-
 // package_name - e.g. asdf@1.0.0
 pub fn fetch_from_registry(package_name: &String, version: &String) -> Result<String, Box<dyn Error>> {
     let package = format!("{}_{}", package_name, version);
@@ -24,7 +23,7 @@ pub fn fetch_from_registry(package_name: &String, version: &String) -> Result<St
         return Ok(loc.to_str().unwrap().to_string());
     }
     fs::create_dir_all(&loc)?;
-    let url = format!("{}/api/v1/{}/{}", DEFAULT_REGISTRY_INDEX, package_name, version);
+    let url = format!("{}/api/v1/{}/{}", env::var("DEFAULT_REGISTRY_INDEX").unwrap_or_else(|_| "https://npkg.walnut.dev".to_string()), package_name, version);
     let response = HTTP_CLIENT.get(&url)
         .send()
         .unwrap();

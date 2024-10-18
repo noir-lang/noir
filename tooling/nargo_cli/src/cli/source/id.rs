@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{env, fmt};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::{LazyLock};
@@ -12,7 +12,6 @@ use crate::cli::internal::fsx::PathBufUtf8Ext;
 use crate::cli::package::static_hash_cache::StaticHashCache;
 use crate::cli::source::canonical_url::CanonicalUrl;
 use crate::cli::source::scarb_stable_hash::short_hash;
-pub const DEFAULT_REGISTRY_INDEX: &str = "http://localhost:3000";
 
 /// Unique identifier for a source of packages.
 ///
@@ -233,7 +232,7 @@ impl SourceId {
 
     pub fn default_registry() -> Self {
         static CACHE: LazyLock<SourceId> = LazyLock::new(|| {
-            let url = Url::parse(DEFAULT_REGISTRY_INDEX).unwrap();
+            let url = Url::parse(env::var("DEFAULT_REGISTRY_INDEX").unwrap_or_else(|_| "https://npkg.walnut.dev".to_string()).as_str()).unwrap();
             SourceId::new(url, SourceKind::Registry).unwrap()
         });
         *CACHE
