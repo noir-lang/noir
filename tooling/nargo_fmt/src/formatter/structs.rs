@@ -3,7 +3,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::Formatter;
+use super::{chunks::ChunkGroup, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_struct(&mut self, noir_struct: NoirStruct) {
@@ -34,7 +34,12 @@ impl<'a> Formatter<'a> {
             self.increase_indentation();
             self.write_line();
 
-            for documented_field in noir_struct.fields {
+            for (index, documented_field) in noir_struct.fields.into_iter().enumerate() {
+                if index > 0 {
+                    self.write_comma();
+                    self.write_line();
+                }
+
                 let doc_comments = documented_field.doc_comments;
                 if !doc_comments.is_empty() {
                     self.format_outer_doc_comments();
@@ -47,17 +52,25 @@ impl<'a> Formatter<'a> {
                 self.write_token(Token::Colon);
                 self.write_space();
                 self.format_type(field.typ);
-                self.skip_comments_and_whitespace();
-
-                if self.token == Token::Comma {
-                    self.bump();
-                }
-                self.write(",");
-                self.write_line();
             }
 
-            self.write_line();
+            // Take the comment chunk so we can put it after a trailing comma we add, in case there's no comma
+            let mut group = ChunkGroup::new();
+            let mut comments_and_whitespace_chunk = self.skip_comments_and_whitespace_chunk();
+            comments_and_whitespace_chunk.string =
+                comments_and_whitespace_chunk.string.trim_end().to_string();
+            group.text(comments_and_whitespace_chunk);
+
+            if self.token == Token::Comma {
+                self.bump();
+            }
+            self.write(",");
+
+            self.format_chunk_group(group);
+            self.skip_comments_and_whitespace();
+
             self.decrease_indentation();
+            self.write_line();
             self.write_indentation();
         }
 
@@ -153,6 +166,32 @@ y: Field
         ";
         let expected = "struct Foo {}
 struct Bar {}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_struct_field_without_trailing_comma_but_comment() {
+        let src = "struct Foo {
+    field: Field // comment
+        }";
+        let expected = "struct Foo {
+    field: Field, // comment
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comment_after_last_struct_field() {
+        let src = "struct Foo {
+    field: Field 
+    /* comment */
+        }";
+        let expected = "struct Foo {
+    field: Field,
+    /* comment */
+}
 ";
         assert_format(src, expected);
     }
