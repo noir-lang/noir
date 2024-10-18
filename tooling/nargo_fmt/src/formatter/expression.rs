@@ -968,7 +968,6 @@ impl<'a> Formatter<'a> {
         nested: bool,
     ) -> Chunks {
         let mut chunks = Chunks::new();
-        chunks.kind = ChunkKind::ExpressionList;
 
         // The logic here is similar to that of `format_member_access_with_chunk_tag`, so
         // please that function inner comments for details.
@@ -1061,6 +1060,7 @@ impl<'a> Formatter<'a> {
         }
 
         let mut group = Chunks::new();
+        group.kind = ChunkKind::ExpressionList;
         self.format_expressions_separated_by_comma(
             method_call.arguments,
             false, // force trailing comma
@@ -1861,6 +1861,17 @@ global y = 1;
     fn format_lambda_as_last_call_argument() {
         let src = "global x = foo(1, |x| { 1; 2 });";
         let expected = "global x = foo(1, |x| {
+    1;
+    2
+});
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_method_call_argument() {
+        let src = "global x = foo.bar(1, |x| { 1; 2 });";
+        let expected = "global x = foo.bar(1, |x| {
     1;
     2
 });
