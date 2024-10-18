@@ -21,8 +21,7 @@ pub mod affine {
     pub struct Point {
         pub x: Field,
         pub y: Field,
-        pub infty: bool // Indicator for point at infinity
-,
+        pub infty: bool, // Indicator for point at infinity
     }
 
     impl Point {
@@ -206,8 +205,7 @@ pub mod curvegroup {
     pub struct Point {
         pub x: Field,
         pub y: Field,
-        pub z: Field // z = 0 corresponds to point at infinity.
-,
+        pub z: Field, // z = 0 corresponds to point at infinity.
     }
 
     impl Point {

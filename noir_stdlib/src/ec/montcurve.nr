@@ -25,8 +25,7 @@ pub mod affine {
     pub struct Point {
         pub x: Field,
         pub y: Field,
-        pub infty: bool // Indicator for point at infinity
-,
+        pub infty: bool, // Indicator for point at infinity
     }
 
     impl Point {
