@@ -51,9 +51,7 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
     let mut result = quote {};
 
     for trait_to_derive in traits {
-        let handler = unsafe {
-            HANDLERS.get(trait_to_derive)
-        };
+        let handler = unsafe { HANDLERS.get(trait_to_derive) };
         assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
 
         let trait_impl = handler.unwrap()(s);
@@ -92,7 +90,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     function_signature: Quoted,
     for_each_field: fn[Env1](Quoted) -> Quoted,
     join_fields_with: Quoted,
-    body: fn[Env2](Quoted) -> Quoted
+    body: fn[Env2](Quoted) -> Quoted,
 ) -> Quoted {
     // docs:end:make_trait_impl
     let typ = s.as_type();
@@ -100,12 +98,10 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     let where_clause = s.generics().map(|name| quote { $name: $trait_name }).join(quote {,});
 
     // `for_each_field(field1) $join_fields_with for_each_field(field2) $join_fields_with ...`
-    let fields = s.fields().map(
-        |f: (Quoted, Type)| {
+    let fields = s.fields().map(|f: (Quoted, Type)| {
         let name = f.0;
         for_each_field(name)
-    }
-    );
+    });
     let body = body(fields.join(join_fields_with));
 
     quote {
@@ -127,8 +123,7 @@ mod tests {
 
     #[test]
     fn returning_versus_macro_insertion() {
-        comptime
-        {
+        comptime {
             // let _a: Quoted = quote { 1 };
             let _a: Quoted = quote_one();
 
@@ -149,7 +144,10 @@ mod tests {
     }
 
     #[derive_field_count]
-    struct Bar { x: Field, y: [Field; 2] }
+    struct Bar {
+        x: Field,
+        y: [Field; 2],
+    }
 
     comptime fn derive_field_count(s: StructDefinition) -> Quoted {
         let typ = s.as_type();
@@ -166,7 +164,9 @@ mod tests {
 
     // docs:start:annotation-arguments-example
     #[assert_field_is_type(quote { i32 }.as_type())]
-    struct MyStruct { my_field: i32 }
+    struct MyStruct {
+        my_field: i32,
+    }
 
     comptime fn assert_field_is_type(s: StructDefinition, typ: Type) {
         // Assert the first field in `s` has type `typ`
@@ -177,7 +177,9 @@ mod tests {
 
     // docs:start:annotation-varargs-example
     #[assert_three_args(1, 2, 3)]
-    struct MyOtherStruct { my_other_field: u32 }
+    struct MyOtherStruct {
+        my_other_field: u32,
+    }
 
     #[varargs]
     comptime fn assert_three_args(_s: StructDefinition, args: [Field]) {
@@ -240,7 +242,7 @@ mod tests {
             method_signature,
             for_each_field,
             join_fields_with,
-            body
+            body,
         )
     }
     // docs:end:big-derive-usage-example
