@@ -6,7 +6,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{chunks::Chunks, Formatter};
+use super::{chunks::ChunkGroup, Formatter};
 
 pub(super) struct FunctionToFormat {
     pub(super) visibility: ItemVisibility,
@@ -57,11 +57,11 @@ impl<'a> Formatter<'a> {
                 func.body.is_none(), // semicolon
             );
         } else {
-            let mut chunks = Chunks::new();
+            let mut group = ChunkGroup::new();
 
-            self.format_function_parameters(func.parameters, &mut chunks);
+            self.format_function_parameters(func.parameters, &mut group);
 
-            chunks.text(self.chunk(|formatter| {
+            group.text(self.chunk(|formatter| {
                 formatter.format_function_right_paren_until_left_brace_or_semicolon(
                     func.return_type,
                     func.return_visibility,
@@ -70,7 +70,7 @@ impl<'a> Formatter<'a> {
                 );
             }));
 
-            self.format_chunks(chunks);
+            self.format_chunk_group(group);
         }
 
         if has_where_clause {
@@ -120,7 +120,7 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_function_parameters(
         &mut self,
         parameters: Vec<Param>,
-        chunks: &mut Chunks,
+        chunks: &mut ChunkGroup,
     ) {
         self.format_items_separated_by_comma(
             parameters,
@@ -197,13 +197,12 @@ impl<'a> Formatter<'a> {
         if body.is_empty() {
             self.format_empty_block_contents();
         } else {
-            let mut chunks = Chunks::new();
+            let mut group = ChunkGroup::new();
             self.format_non_empty_block_expression_contents(
-                body,
-                true, // force multiple lines
-                &mut chunks,
+                body, true, // force multiple lines
+                &mut group,
             );
-            self.format_chunks(chunks);
+            self.format_chunk_group(group);
         }
     }
 }

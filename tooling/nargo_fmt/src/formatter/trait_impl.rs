@@ -76,7 +76,7 @@ impl<'a> Formatter<'a> {
                 let chunks = self.format_let_or_global(Keyword::Let, pattern, typ, Some(value));
 
                 self.write_indentation();
-                self.format_chunks(chunks);
+                self.format_chunk_group(chunks);
             }
             TraitImplItemKind::Type { name, alias } => {
                 self.write_indentation();

@@ -1,5 +1,14 @@
+//! This module has all the logic to format a series of chunks (a piece of text) in a way
+//! that we (almost always) never exceed the configurable maximum line width.
+//!
+//! It's heavily inspired by this excellent blog post:
+//!
+//! https://yorickpeterse.com/articles/how-to-write-a-code-formatter/
+//!
+//! However, some changes were introduces to handle comments and other particularities of Noir.
 use super::Formatter;
 
+/// A text chunk. It precomputes the text width and wether it has newlines.
 #[derive(Debug)]
 pub(crate) struct TextChunk {
     pub(crate) string: String,
@@ -17,6 +26,8 @@ impl TextChunk {
     }
 }
 
+/// A chunk can either be text or a directive that instructs the formatter to do something
+/// (for example: increase or decrease the current indentation).
 #[derive(Debug)]
 pub(crate) enum Chunk {
     /// A text chunk. It might contain leading comments.
@@ -29,7 +40,7 @@ pub(crate) enum Chunk {
     /// A leading comment. Happens at the beginning of a line.
     LeadingComment(TextChunk),
     /// A group of chunks.
-    Group(Chunks),
+    Group(ChunkGroup),
     /// Write a line (or two) if we decide to format chunks in multiple lines, otherwise do nothing.
     Line { two: bool },
     /// Writes a space if we can write a group in one line, otherwise writes a line.
@@ -41,7 +52,7 @@ pub(crate) enum Chunk {
     DecreaseIndentation,
     /// Push the current indentation to the indentation stack.
     PushIndentation,
-    /// Set the current indetation by popping it from the indentation stack.
+    /// Set the current indentation by popping it from the indentation stack.
     PopIndentation,
 }
 
@@ -51,7 +62,7 @@ impl Chunk {
             Chunk::Text(chunk) | Chunk::TrailingComment(chunk) | Chunk::LeadingComment(chunk) => {
                 chunk.width
             }
-            Chunk::Group(chunks) => chunks.width(),
+            Chunk::Group(group) => group.width(),
             Chunk::SpaceOrLine => 1,
             Chunk::Line { .. }
             | Chunk::IncreaseIndentation
@@ -64,7 +75,7 @@ impl Chunk {
 
     pub(crate) fn width_inside_an_expression_list(&self) -> usize {
         if let Chunk::Group(group) = &self {
-            if let ChunkKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind {
+            if let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind {
                 return *first_line_width;
             }
         }
@@ -77,7 +88,7 @@ impl Chunk {
             Chunk::Text(chunk) | Chunk::TrailingComment(chunk) | Chunk::LeadingComment(chunk) => {
                 chunk.has_newlines
             }
-            Chunk::Group(chunks) => chunks.has_newlines(),
+            Chunk::Group(group) => group.has_newlines(),
             Chunk::TrailingComma
             | Chunk::Line { .. }
             | Chunk::SpaceOrLine
@@ -88,7 +99,7 @@ impl Chunk {
         }
     }
 
-    pub(crate) fn as_group(self) -> Option<Chunks> {
+    pub(crate) fn as_group(self) -> Option<ChunkGroup> {
         if let Chunk::Group(group) = self {
             Some(group)
         } else {
@@ -98,18 +109,20 @@ impl Chunk {
 }
 
 #[derive(Debug)]
-pub(crate) struct Chunks {
+pub(crate) struct ChunkGroup {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) one_chunk_per_line: bool,
     pub(crate) force_multiple_lines: bool,
 
-    /// Chunks can be tagged. For example we tag chunks as `IfConsequenceOrAlternative` if they are consequences
-    /// or alternatives of an `if` expression. Then, if we determine an outer if would
-    /// exceed the maximum allowed length for an if, we tell all tha inner chunks marked
-    /// as `if`
-    pub(crate) tag: Option<ChunkTag>,
+    /// Groups can be tagged. For example we tag all consequences and alternative blocks
+    /// of an `if` expression. If we determine one of them needs to be formatted in multiple
+    /// lines, we find all other chunks with the same tag and mark them too to be formatted
+    /// in multiple lines.
+    pub(crate) tag: Option<GroupTag>,
 
-    pub(crate) kind: ChunkKind,
+    /// The kind of this group. Some group kinds are formatted in a special way
+    /// (mainly lambda arguments that are the last expression in a list).
+    pub(crate) kind: GroupKind,
 
     /// This name is a bit long and explicit, but it's to make things clearer:
     /// if we determine that this group needs to be formatted in multiple lines,
@@ -121,14 +134,14 @@ pub(crate) struct Chunks {
     pub(crate) force_multiline_on_children_with_same_tag_if_multiline: bool,
 }
 
-impl Chunks {
+impl ChunkGroup {
     pub(crate) fn new() -> Self {
         Self {
             chunks: Vec::new(),
             one_chunk_per_line: true,
             force_multiple_lines: false,
             tag: None,
-            kind: ChunkKind::Regular,
+            kind: GroupKind::Regular,
             force_multiline_on_children_with_same_tag_if_multiline: false,
         }
     }
@@ -177,8 +190,8 @@ impl Chunks {
         self.push(Chunk::TrailingComma);
     }
 
-    pub(crate) fn group(&mut self, chunks: Chunks) {
-        self.push(Chunk::Group(chunks));
+    pub(crate) fn group(&mut self, group: ChunkGroup) {
+        self.push(Chunk::Group(group));
     }
 
     /// Append one line to this chunk.
@@ -220,12 +233,12 @@ impl Chunks {
     }
 
     pub(crate) fn expression_list_width(&self) -> usize {
-        if self.kind == ChunkKind::MethodCall {
+        if self.kind == GroupKind::MethodCall {
             self.chunks
                 .iter()
                 .map(|chunk| {
                     if let Chunk::Group(group) = chunk {
-                        if group.kind == ChunkKind::ExpressionList {
+                        if group.kind == GroupKind::ExpressionList {
                             group.expression_list_width()
                         } else {
                             chunk.width_inside_an_expression_list()
@@ -244,13 +257,16 @@ impl Chunks {
         self.force_multiple_lines || self.chunks.iter().any(|chunk| chunk.has_newlines())
     }
 
+    /// Determines if this group has a LambdaAsLastExpressionInList chunk.
+    /// Note that if this group is a MethodCall, this is checked for the ExpressionList group
+    /// inside it.
     pub(crate) fn has_lambda_as_last_expression_in_list(&self) -> bool {
         self.chunks.iter().any(|chunk| {
             if let Chunk::Group(group) = chunk {
-                if self.kind == ChunkKind::MethodCall {
+                if self.kind == GroupKind::MethodCall && group.kind == GroupKind::ExpressionList {
                     group.has_lambda_as_last_expression_in_list()
                 } else {
-                    matches!(group.kind, ChunkKind::LambdaAsLastExpressionInList { .. })
+                    matches!(group.kind, GroupKind::LambdaAsLastExpressionInList { .. })
                 }
             } else {
                 false
@@ -258,15 +274,17 @@ impl Chunks {
         })
     }
 
+    /// Finds the `LambdaAsLastExpressionInList` associated to this group and sets its indentation
+    /// to the given value.
     pub(crate) fn set_lambda_as_last_expression_in_list_indentation(
         &mut self,
         indentation_to_set: usize,
     ) {
         for chunk in self.chunks.iter_mut() {
             if let Chunk::Group(group) = chunk {
-                if self.kind == ChunkKind::MethodCall {
+                if self.kind == GroupKind::MethodCall && group.kind == GroupKind::ExpressionList {
                     group.set_lambda_as_last_expression_in_list_indentation(indentation_to_set);
-                } else if let ChunkKind::LambdaAsLastExpressionInList { indentation, .. } =
+                } else if let GroupKind::LambdaAsLastExpressionInList { indentation, .. } =
                     &mut group.kind
                 {
                     if indentation.is_none() {
@@ -281,8 +299,8 @@ impl Chunks {
     /// is turned into `Text`. Because Chunks will glue two consecutive `Text`s together, if we
     /// have two chunks `Text("123"), TrailingComma`, we'll consider the entire string "123,"
     /// when deciding whether we can still write in the current line or not.
-    pub(crate) fn prepare_for_multiple_lines(self) -> Chunks {
-        let mut chunks = Chunks {
+    pub(crate) fn prepare_for_multiple_lines(self) -> ChunkGroup {
+        let mut group = ChunkGroup {
             chunks: Vec::new(),
             one_chunk_per_line: self.one_chunk_per_line,
             force_multiple_lines: self.force_multiple_lines,
@@ -294,28 +312,28 @@ impl Chunks {
 
         for chunk in self.chunks {
             match chunk {
-                Chunk::Text(chunk) => chunks.text(chunk),
+                Chunk::Text(chunk) => group.text(chunk),
                 Chunk::TrailingComma => {
                     // If there's a trailing comma after a group, append the text to that group
                     // so that it glues with the last text present there (if any)
-                    if let Some(Chunk::Group(group)) = chunks.chunks.last_mut() {
+                    if let Some(Chunk::Group(group)) = group.chunks.last_mut() {
                         group.add_trailing_comma_to_last_text();
                     } else {
-                        chunks.text(TextChunk::new(",".to_string()));
+                        group.text(TextChunk::new(",".to_string()));
                     }
                 }
-                Chunk::TrailingComment(chunk) => chunks.trailing_comment(chunk),
-                Chunk::LeadingComment(chunk) => chunks.leading_comment(chunk),
-                Chunk::Group(group) => chunks.group(group),
-                Chunk::Line { two } => chunks.lines(two),
-                Chunk::SpaceOrLine => chunks.space_or_line(),
-                Chunk::IncreaseIndentation => chunks.increase_indentation(),
-                Chunk::DecreaseIndentation => chunks.decrease_indentation(),
-                Chunk::PushIndentation => chunks.push_indentation(),
-                Chunk::PopIndentation => chunks.pop_indentation(),
+                Chunk::TrailingComment(chunk) => group.trailing_comment(chunk),
+                Chunk::LeadingComment(chunk) => group.leading_comment(chunk),
+                Chunk::Group(inner_group) => group.group(inner_group),
+                Chunk::Line { two } => group.lines(two),
+                Chunk::SpaceOrLine => group.space_or_line(),
+                Chunk::IncreaseIndentation => group.increase_indentation(),
+                Chunk::DecreaseIndentation => group.decrease_indentation(),
+                Chunk::PushIndentation => group.push_indentation(),
+                Chunk::PopIndentation => group.pop_indentation(),
             }
         }
-        chunks
+        group
     }
 
     fn add_trailing_comma_to_last_text(&mut self) {
@@ -328,10 +346,10 @@ impl Chunks {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct ChunkTag(usize);
+pub(crate) struct GroupTag(usize);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum ChunkKind {
+pub(crate) enum GroupKind {
     /// Most chunks are regular chunks and are not of interest.
     Regular,
     /// This is a chunk that has a list of expression in it, for example:
@@ -365,28 +383,31 @@ impl<'a> Formatter<'a> {
         TextChunk::new(string)
     }
 
-    pub(super) fn format_chunks(&mut self, chunks: Chunks) {
+    pub(super) fn format_chunk_group(&mut self, group: ChunkGroup) {
         let previous_indentation = self.indentation;
-        self.format_chunks_impl(chunks);
+        self.format_chunk_group_impl(group);
         self.indentation = previous_indentation;
     }
 
-    pub(super) fn format_chunks_impl(&mut self, chunks: Chunks) {
-        if let ChunkKind::LambdaAsLastExpressionInList { indentation: Some(indentation), .. } =
+    pub(super) fn format_chunk_group_impl(&mut self, chunks: ChunkGroup) {
+        if let GroupKind::LambdaAsLastExpressionInList { indentation: Some(indentation), .. } =
             chunks.kind
         {
             let previous_indentation = self.indentation;
             self.indentation = indentation;
-            self.format_chunks_impl_2(chunks);
+            self.format_chunks_group_impl_without_lambda_handling(chunks);
             self.indentation = previous_indentation;
         } else {
-            self.format_chunks_impl_2(chunks);
+            self.format_chunks_group_impl_without_lambda_handling(chunks);
         }
     }
 
-    pub(super) fn format_chunks_impl_2(&mut self, mut chunks: Chunks) {
+    pub(super) fn format_chunks_group_impl_without_lambda_handling(
+        &mut self,
+        mut chunks: ChunkGroup,
+    ) {
         if chunks.force_multiple_lines {
-            self.format_chunks_in_multiple_lines(chunks);
+            self.format_chunk_group_in_multiple_lines(chunks);
             return;
         }
 
@@ -398,13 +419,17 @@ impl<'a> Formatter<'a> {
             // 3. However, an expression list is instructed to increase indentation after, say,
             //    `(` or `[` (depending on the expression list) and then the `{` part of a lambda
             //    will also increase the indentation, resulting in too much indentation.
-            // 4. For that reason we decrease the indentation knowing that it will be increased
-            //    again. This is fine (that's why indentation is i32 and not usize) and if we
-            //    determined that we can format the expression list in a single line it means
-            //    none of the expression up to the lambda will result in multiple lines, so
-            //    this change in indentation won't affect them.
+            // 4. For that reason we adjust the lambda to be formatted with the indentation
+            //    we have right that (that is, that of the call that holds the lambda).
+            //    We do that by setting the `indentation` field of the LambdaAsLastExpressionInList.
+            //
+            // Note that this logic is a bit complex because for method calls, the arguments list
+            // is in a group so all arguments can potentially be formatted in a single line, and
+            // that group has the `ExpressionList` kind. The method call itself has the `MethodCall`
+            // kind. So when determining the first line width of a method call with a lambda as
+            // the last argument we have to find the nested ExpressionList and do some nested calls.
             let chunks_kind = chunks.kind;
-            if (chunks_kind == ChunkKind::ExpressionList || chunks_kind == ChunkKind::MethodCall)
+            if (chunks_kind == GroupKind::ExpressionList || chunks_kind == GroupKind::MethodCall)
                 && chunks.has_lambda_as_last_expression_in_list()
             {
                 let chunks_width = chunks.expression_list_width();
@@ -412,26 +437,26 @@ impl<'a> Formatter<'a> {
                 let total_width = self.current_line_width + chunks_width;
                 if total_width <= self.config.max_width {
                     chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
-                    self.format_chunks_in_one_line(chunks);
+                    self.format_chunk_group_in_one_line(chunks);
                     return;
                 }
             }
 
-            self.format_chunks_in_multiple_lines(chunks);
+            self.format_chunk_group_in_multiple_lines(chunks);
             return;
         }
 
         let chunks_width = chunks.width();
         let total_width = self.current_line_width + chunks_width;
         if total_width > self.config.max_width {
-            self.format_chunks_in_multiple_lines(chunks);
+            self.format_chunk_group_in_multiple_lines(chunks);
             return;
         }
 
-        self.format_chunks_in_one_line(chunks);
+        self.format_chunk_group_in_one_line(chunks);
     }
 
-    pub(super) fn format_chunks_in_one_line(&mut self, chunks: Chunks) {
+    pub(super) fn format_chunk_group_in_one_line(&mut self, chunks: ChunkGroup) {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) => self.write(&text_chunk.string),
@@ -439,7 +464,7 @@ impl<'a> Formatter<'a> {
                     self.write(&text_chunk.string);
                     self.write(" ");
                 }
-                Chunk::Group(chunks) => self.format_chunks_impl(chunks),
+                Chunk::Group(chunks) => self.format_chunk_group_impl(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
                 Chunk::IncreaseIndentation => self.increase_indentation(),
                 Chunk::DecreaseIndentation => self.decrease_indentation(),
@@ -450,7 +475,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(super) fn format_chunks_in_multiple_lines(&mut self, chunks: Chunks) {
+    pub(super) fn format_chunk_group_in_multiple_lines(&mut self, chunks: ChunkGroup) {
         let chunks = chunks.prepare_for_multiple_lines();
 
         let mut last_was_space_or_line = false;
@@ -510,7 +535,7 @@ impl<'a> Formatter<'a> {
                         group.force_multiline_on_children_with_same_tag_if_multiline = true;
                     }
 
-                    self.format_chunks_impl(group);
+                    self.format_chunk_group_impl(group);
                 }
                 Chunk::Line { two } => {
                     if two {
@@ -568,9 +593,9 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(super) fn next_chunk_tag(&mut self) -> ChunkTag {
-        let tag = ChunkTag(self.next_chunk_tag);
-        self.next_chunk_tag += 1;
+    pub(super) fn next_group_tag(&mut self) -> GroupTag {
+        let tag = GroupTag(self.group_tag_counter);
+        self.group_tag_counter += 1;
         tag
     }
 }

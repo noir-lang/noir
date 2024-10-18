@@ -1,6 +1,6 @@
 use noirc_frontend::{ast::LValue, token::Token};
 
-use super::{chunks::Chunks, Formatter};
+use super::{chunks::ChunkGroup, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_lvalue(&mut self, lvalue: LValue) {
@@ -19,9 +19,9 @@ impl<'a> Formatter<'a> {
             LValue::Index { array, index, span: _ } => {
                 self.format_lvalue(*array);
                 self.write_left_bracket();
-                let mut chunks = Chunks::new();
-                self.format_expression(index, &mut chunks);
-                self.format_chunks(chunks);
+                let mut group = ChunkGroup::new();
+                self.format_expression(index, &mut group);
+                self.format_chunk_group(group);
                 self.write_right_bracket();
             }
             LValue::Dereference(lvalue, _span) => {

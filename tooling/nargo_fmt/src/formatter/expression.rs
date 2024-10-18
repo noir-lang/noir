@@ -9,18 +9,18 @@ use noirc_frontend::{
 };
 
 use super::{
-    chunks::{Chunk, ChunkKind, ChunkTag, Chunks, TextChunk},
+    chunks::{Chunk, ChunkGroup, GroupKind, GroupTag, TextChunk},
     Formatter,
 };
 
 #[derive(Debug)]
 struct FormattedLambda {
-    group: Chunks,
+    group: ChunkGroup,
     first_line_width: usize,
 }
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_expression(&mut self, expression: Expression, chunks: &mut Chunks) {
+    pub(super) fn format_expression(&mut self, expression: Expression, chunks: &mut ChunkGroup) {
         chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
 
         match expression.kind {
@@ -99,7 +99,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_literal(&mut self, literal: Literal, chunks: &mut Chunks) {
+    fn format_literal(&mut self, literal: Literal, chunks: &mut ChunkGroup) {
         match literal {
             Literal::Unit => chunks.text(self.chunk(|formatter| {
                 formatter.write_left_paren();
@@ -131,11 +131,11 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.kind = ChunkKind::ExpressionList;
+    fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.kind = GroupKind::ExpressionList;
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             if is_slice {
                 formatter.write_token(Token::Ampersand);
             }
@@ -145,54 +145,53 @@ impl<'a> Formatter<'a> {
         match literal {
             ArrayLiteral::Standard(exprs) => {
                 let maximum_element_width = self.format_expressions_separated_by_comma(
-                    exprs,
-                    false, // force trailing comma
-                    &mut chunks,
+                    exprs, false, // force trailing comma
+                    &mut group,
                 );
-                chunks.one_chunk_per_line =
+                group.one_chunk_per_line =
                     maximum_element_width > self.config.short_array_element_width_threshold;
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
-                chunks.increase_indentation();
-                chunks.line();
+                group.increase_indentation();
+                group.line();
 
-                self.format_expression(*repeated_element, &mut chunks);
-                chunks.text(self.chunk(|formatter| {
+                self.format_expression(*repeated_element, &mut group);
+                group.text(self.chunk(|formatter| {
                     formatter.write_semicolon();
                     formatter.write_space();
                 }));
-                self.format_expression(*length, &mut chunks);
+                self.format_expression(*length, &mut group);
 
-                chunks.decrease_indentation();
-                chunks.line();
+                group.decrease_indentation();
+                group.line();
             }
         }
 
-        chunks.text(self.chunk(|formatter| formatter.write_right_bracket()));
+        group.text(self.chunk(|formatter| formatter.write_right_bracket()));
 
-        chunks
+        group
     }
 
-    fn format_tuple(&mut self, exprs: Vec<Expression>) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.one_chunk_per_line = false;
-        chunks.kind = ChunkKind::ExpressionList;
+    fn format_tuple(&mut self, exprs: Vec<Expression>) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.one_chunk_per_line = false;
+        group.kind = GroupKind::ExpressionList;
 
         let force_trailing_comma = exprs.len() == 1;
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_left_paren();
         }));
 
-        self.format_expressions_separated_by_comma(exprs, force_trailing_comma, &mut chunks);
+        self.format_expressions_separated_by_comma(exprs, force_trailing_comma, &mut group);
 
-        chunks.text(self.chunk(|formatter| formatter.write_right_paren()));
+        group.text(self.chunk(|formatter| formatter.write_right_paren()));
 
-        chunks
+        group
     }
 
     fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
-        let mut chunks = Chunks::new();
+        let mut group = ChunkGroup::new();
 
         let params_and_return_type_chunk = self.chunk(|formatter| {
             formatter.write_token(Token::Pipe);
@@ -224,15 +223,15 @@ impl<'a> Formatter<'a> {
 
         let params_and_return_type_chunk_width = params_and_return_type_chunk.width;
 
-        chunks.text(params_and_return_type_chunk);
+        group.text(params_and_return_type_chunk);
 
         let body_is_block = matches!(lambda.body.kind, ExpressionKind::Block(..));
 
-        let width_before_body = chunks.width();
+        let width_before_body = group.width();
 
-        self.format_expression(lambda.body, &mut chunks);
+        self.format_expression(lambda.body, &mut group);
 
-        let width_after_body = chunks.width();
+        let width_after_body = group.width();
 
         let first_line_width = params_and_return_type_chunk_width
             + (if body_is_block {
@@ -244,18 +243,18 @@ impl<'a> Formatter<'a> {
                 width_after_body - width_before_body
             });
 
-        FormattedLambda { group: chunks, first_line_width }
+        FormattedLambda { group, first_line_width }
     }
 
-    fn format_parenthesized_expression(&mut self, expr: Expression) -> Chunks {
+    fn format_parenthesized_expression(&mut self, expr: Expression) -> ChunkGroup {
         let is_nested_parenthesized = matches!(expr.kind, ExpressionKind::Parenthesized(..));
 
-        let mut chunks = Chunks::new();
+        let mut group = ChunkGroup::new();
         let left_paren_chunk = self.chunk(|formatter| {
             formatter.write_left_paren();
         });
 
-        let mut group = Chunks::new();
+        let mut expr_group = ChunkGroup::new();
         let mut has_comments = false;
 
         let comment_after_left_paren_chunk = self.skip_comments_and_whitespace_chunk();
@@ -263,9 +262,9 @@ impl<'a> Formatter<'a> {
             has_comments = true;
         }
 
-        group.leading_comment(comment_after_left_paren_chunk);
+        expr_group.leading_comment(comment_after_left_paren_chunk);
 
-        self.format_expression(expr, &mut group);
+        self.format_expression(expr, &mut expr_group);
 
         let comment_before_right_parent_chunk = self.skip_comments_and_whitespace_chunk();
         if !comment_before_right_parent_chunk.string.trim().is_empty() {
@@ -277,22 +276,22 @@ impl<'a> Formatter<'a> {
         });
 
         if is_nested_parenthesized && !has_comments && self.config.remove_nested_parens {
-            chunks.chunks.extend(group.chunks);
+            group.chunks.extend(expr_group.chunks);
         } else {
-            chunks.text(left_paren_chunk);
-            chunks.increase_indentation();
-            chunks.line();
-            chunks.chunks.extend(group.chunks);
-            chunks.text(comment_before_right_parent_chunk);
-            chunks.decrease_indentation();
-            chunks.line();
-            chunks.text(right_paren_chunk);
+            group.text(left_paren_chunk);
+            group.increase_indentation();
+            group.line();
+            group.chunks.extend(expr_group.chunks);
+            group.text(comment_before_right_parent_chunk);
+            group.decrease_indentation();
+            group.line();
+            group.text(right_paren_chunk);
         }
 
-        chunks
+        group
     }
 
-    pub(super) fn format_quote(&mut self) -> Chunks {
+    pub(super) fn format_quote(&mut self) -> ChunkGroup {
         // We use the current token rather than the Tokens we got from `Token::Quote` because
         // the current token has whitespace and comments in it, while the one we got from
         // the parser doesn't.
@@ -300,48 +299,48 @@ impl<'a> Formatter<'a> {
             panic!("Expected current token to be Quote");
         };
 
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             formatter.write("quote {");
             for token in tokens.0 {
                 formatter.write_source_span(token.to_span());
             }
             formatter.write("}");
         }));
-        chunks
+        group
     }
 
     pub(super) fn format_comptime_expression(
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::Comptime);
             formatter.write_space();
         }));
-        chunks.group(self.format_block_expression(block, force_multiple_lines));
-        chunks
+        group.group(self.format_block_expression(block, force_multiple_lines));
+        group
     }
 
     pub(super) fn format_unsafe_expression(
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));
-        chunks.group(self.format_block_expression(block, force_multiple_lines));
-        chunks
+        group.group(self.format_block_expression(block, force_multiple_lines));
+        group
     }
 
-    pub(super) fn format_type_path(&mut self, type_path: TypePath) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+    pub(super) fn format_type_path(&mut self, type_path: TypePath) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             formatter.format_type(type_path.typ);
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
@@ -350,7 +349,7 @@ impl<'a> Formatter<'a> {
                 formatter.format_generic_type_args(type_path.turbofish);
             }
         }));
-        chunks
+        group
     }
 
     /// Returns the maximum width of each expression to format. For example,
@@ -359,7 +358,7 @@ impl<'a> Formatter<'a> {
         &mut self,
         exprs: Vec<Expression>,
         force_trailing_comma: bool,
-        chunks: &mut Chunks,
+        chunks: &mut ChunkGroup,
     ) -> usize {
         if exprs.is_empty() {
             if let Some(group) = self.empty_block_contents_chunk() {
@@ -388,7 +387,7 @@ impl<'a> Formatter<'a> {
                     if expr_index == exprs_len - 1 {
                         if let ExpressionKind::Lambda(lambda) = expr.kind {
                             let mut lambda_group = formatter.format_lambda(*lambda);
-                            lambda_group.group.kind = ChunkKind::LambdaAsLastExpressionInList {
+                            lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
                                 first_line_width: lambda_group.first_line_width,
                                 indentation: None,
                             };
@@ -422,10 +421,10 @@ impl<'a> Formatter<'a> {
         items: Vec<Item>,
         force_trailing_comma: bool,
         surround_with_spaces: bool,
-        chunks: &mut Chunks,
+        chunks: &mut ChunkGroup,
         mut format_item: F,
     ) where
-        F: FnMut(&mut Self, Item, &mut Chunks),
+        F: FnMut(&mut Self, Item, &mut ChunkGroup),
     {
         let mut comments_chunk = self.skip_comments_and_whitespace_chunk();
 
@@ -497,24 +496,24 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_constructor(&mut self, constructor: ConstructorExpression) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+    fn format_constructor(&mut self, constructor: ConstructorExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             formatter.format_type(constructor.typ);
             formatter.write_space();
             formatter.write_left_brace();
         }));
 
         if constructor.fields.is_empty() {
-            if let Some(group) = self.empty_block_contents_chunk() {
-                chunks.group(group);
+            if let Some(inner_group) = self.empty_block_contents_chunk() {
+                group.group(inner_group);
             }
         } else {
             self.format_items_separated_by_comma(
                 constructor.fields,
                 false, // force trailing comma
                 true,  // surround with spaces
-                &mut chunks,
+                &mut group,
                 |formatter, (name, value), chunks| {
                     chunks.text(formatter.chunk(|formatter| {
                         formatter.write_identifier(name);
@@ -531,14 +530,14 @@ impl<'a> Formatter<'a> {
                 },
             );
         }
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_right_brace();
         }));
 
-        chunks
+        group
     }
 
-    fn format_member_access(&mut self, member_access: MemberAccessExpression) -> Chunks {
+    fn format_member_access(&mut self, member_access: MemberAccessExpression) -> ChunkGroup {
         self.format_member_access_impl(
             member_access,
             false, // nested
@@ -549,11 +548,11 @@ impl<'a> Formatter<'a> {
         &mut self,
         member_access: MemberAccessExpression,
         nested: bool,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
 
         if !nested {
-            chunks.push_indentation();
+            group.push_indentation();
         }
 
         // If we have code like `foo.bar.baz.qux`, where `member_access.lhs` is also a MemberAccessExpression,
@@ -602,7 +601,7 @@ impl<'a> Formatter<'a> {
                 // We always put a line before the dot if lhs is a member access or call
                 line_before_dot = true;
 
-                chunks.group(self.format_member_access_impl(
+                group.group(self.format_member_access_impl(
                     *lhs_member_access,
                     true, // nested
                 ));
@@ -627,53 +626,53 @@ impl<'a> Formatter<'a> {
                 // We always put a line before the dot if lhs is a member access or call
                 line_before_dot = true;
 
-                chunks.group(self.format_method_call_impl(
+                group.group(self.format_method_call_impl(
                     *lhs_method_call,
                     true, // nested
                 ));
             }
             _ => {
-                self.format_expression(member_access.lhs, &mut chunks);
+                self.format_expression(member_access.lhs, &mut group);
             }
         };
 
-        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+        group.trailing_comment(self.skip_comments_and_whitespace_chunk());
 
         if increase_indentation {
-            chunks.increase_indentation();
+            group.increase_indentation();
         }
 
         if line_before_dot {
-            chunks.line();
+            group.line();
         }
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_token(Token::Dot);
             formatter.write_identifier_or_integer(member_access.rhs);
         }));
 
         if !nested {
-            chunks.pop_indentation();
+            group.pop_indentation();
         }
 
-        chunks
+        group
     }
 
-    fn format_cast(&mut self, cast_expression: CastExpression) -> Chunks {
-        let mut chunks = Chunks::new();
-        self.format_expression(cast_expression.lhs, &mut chunks);
-        chunks.text(self.chunk(|formatter| {
+    fn format_cast(&mut self, cast_expression: CastExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        self.format_expression(cast_expression.lhs, &mut group);
+        group.text(self.chunk(|formatter| {
             formatter.write_space();
             formatter.write_keyword(Keyword::As);
             formatter.write_space();
             formatter.format_type(cast_expression.r#type);
         }));
-        chunks
+        group
     }
 
-    fn format_prefix(&mut self, prefix: PrefixExpression) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+    fn format_prefix(&mut self, prefix: PrefixExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             if let UnaryOp::MutableReference = prefix.operator {
                 formatter.write_current_token();
                 formatter.bump();
@@ -686,39 +685,32 @@ impl<'a> Formatter<'a> {
                 formatter.bump();
             }
         }));
-        self.format_expression(prefix.rhs, &mut chunks);
-        chunks
+        self.format_expression(prefix.rhs, &mut group);
+        group
     }
 
-    fn format_infix_expression(&mut self, infix: InfixExpression) -> Chunks {
-        let chunk_tag = self.next_chunk_tag();
+    fn format_infix_expression(&mut self, infix: InfixExpression) -> ChunkGroup {
+        let group_tag = self.next_group_tag();
 
-        // Keep track of how much indentation increased by formatting the infix expression.
-        // At the end we'll decrease the indentation by that amount.
-        let mut increased_indentation = 0;
-        let mut chunks = self.format_infix_expression_with_chunk_tag(
-            infix,
-            chunk_tag,
-            &mut increased_indentation,
+        let mut group = self.format_infix_expression_with_group_tag(
+            infix, group_tag, false, // nested
         );
-        chunks.force_multiline_on_children_with_same_tag_if_multiline = true;
-
-        // Decrease the indentation if it increased.
-        for _ in 0..increased_indentation {
-            chunks.decrease_indentation();
-        }
-
-        chunks
+        group.force_multiline_on_children_with_same_tag_if_multiline = true;
+        group
     }
 
-    fn format_infix_expression_with_chunk_tag(
+    fn format_infix_expression_with_group_tag(
         &mut self,
         infix: InfixExpression,
-        chunk_tag: ChunkTag,
-        increased_indentation: &mut usize,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.tag = Some(chunk_tag);
+        group_tag: GroupTag,
+        nested: bool,
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.tag = Some(group_tag);
+
+        if !nested {
+            group.push_indentation();
+        }
 
         // If we have code like `a + b + c + d`, that's always parsed as `((a + b) + c) + d` where each
         // parentheses denotes an InfixExpression. So, if the lhs of the current infix expression is also
@@ -729,15 +721,13 @@ impl<'a> Formatter<'a> {
         // (we still produce "space or line" after each operator).
         let increase_indentation = match infix.lhs.kind {
             ExpressionKind::Infix(lhs_infix) if lhs_infix.operator == infix.operator => {
-                chunks.group(self.format_infix_expression_with_chunk_tag(
-                    *lhs_infix,
-                    chunk_tag,
-                    increased_indentation,
+                group.group(self.format_infix_expression_with_group_tag(
+                    *lhs_infix, group_tag, true, // nested
                 ));
                 false
             }
             _ => {
-                self.format_expression(infix.lhs, &mut chunks);
+                self.format_expression(infix.lhs, &mut group);
                 true
             }
         };
@@ -751,18 +741,17 @@ impl<'a> Formatter<'a> {
         {
             // Note: there's no space after `{}` because a bit below comes "space_or_line".
             comment_chunk_after_lhs.string = format!(" {}", comment_chunk_after_lhs.string.trim());
-            chunks.text(comment_chunk_after_lhs);
+            group.text(comment_chunk_after_lhs);
         } else {
-            chunks.trailing_comment(comment_chunk_after_lhs);
+            group.trailing_comment(comment_chunk_after_lhs);
         }
 
         if increase_indentation {
-            chunks.increase_indentation();
-            *increased_indentation += 1;
+            group.increase_indentation();
         }
 
-        chunks.space_or_line();
-        chunks.text(self.chunk(|formatter| {
+        group.space_or_line();
+        group.text(self.chunk(|formatter| {
             let tokens_count =
                 if infix.operator.contents == BinaryOpKind::ShiftRight { 2 } else { 1 };
             for _ in 0..tokens_count {
@@ -772,52 +761,56 @@ impl<'a> Formatter<'a> {
             formatter.write_space();
         }));
 
-        self.format_expression(infix.rhs, &mut chunks);
+        self.format_expression(infix.rhs, &mut group);
 
-        chunks
+        if !nested {
+            group.pop_indentation();
+        }
+
+        group
     }
 
     pub(super) fn format_if_expression(
         &mut self,
         if_expression: IfExpression,
         mut force_multiple_lines: bool,
-    ) -> Chunks {
-        let chunk_tag = self.next_chunk_tag();
-        let mut chunks = self.format_if_expression_with_chunk_tag(
+    ) -> ChunkGroup {
+        let group_tag = self.next_group_tag();
+        let mut group = self.format_if_expression_with_group_tag(
             if_expression,
             &mut force_multiple_lines,
-            chunk_tag,
+            group_tag,
         );
 
-        if force_multiple_lines || chunks.width() > self.config.single_line_if_else_max_width {
-            force_if_chunks_to_multiple_lines(&mut chunks, chunk_tag);
+        if force_multiple_lines || group.width() > self.config.single_line_if_else_max_width {
+            force_if_chunks_to_multiple_lines(&mut group, group_tag);
         }
 
-        chunks
+        group
     }
 
-    pub(super) fn format_if_expression_with_chunk_tag(
+    pub(super) fn format_if_expression_with_group_tag(
         &mut self,
         if_expression: IfExpression,
         force_multiple_lines: &mut bool,
-        chunk_tag: ChunkTag,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.tag = Some(chunk_tag);
+        group_tag: GroupTag,
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.tag = Some(group_tag);
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::If);
             formatter.write_space();
         }));
 
-        self.format_expression(if_expression.condition, &mut chunks);
+        self.format_expression(if_expression.condition, &mut group);
 
         let comment_chunk_after_condition = self.skip_comments_and_whitespace_chunk();
         if comment_chunk_after_condition.has_newlines {
             *force_multiple_lines = true;
-            chunks.trailing_comment(comment_chunk_after_condition);
+            group.trailing_comment(comment_chunk_after_condition);
         } else {
-            chunks.text(self.chunk(|formatter| {
+            group.text(self.chunk(|formatter| {
                 formatter.write_space();
             }));
         }
@@ -842,11 +835,11 @@ impl<'a> Formatter<'a> {
 
         let mut consequence_group =
             self.format_block_expression(consequence_block, *force_multiple_lines);
-        consequence_group.tag = Some(chunk_tag);
-        chunks.group(consequence_group);
+        consequence_group.tag = Some(group_tag);
+        group.group(consequence_group);
 
         if let Some(alternative) = if_expression.alternative {
-            chunks.text(self.chunk(|formatter| {
+            group.text(self.chunk(|formatter| {
                 formatter.write_space();
                 formatter.write_keyword(Keyword::Else);
             }));
@@ -854,9 +847,9 @@ impl<'a> Formatter<'a> {
             let comment_chunk_after_else = self.skip_comments_and_whitespace_chunk();
             if comment_chunk_after_else.has_newlines {
                 *force_multiple_lines = true;
-                chunks.trailing_comment(comment_chunk_after_else);
+                group.trailing_comment(comment_chunk_after_else);
             } else {
-                chunks.text(self.chunk(|formatter| {
+                group.text(self.chunk(|formatter| {
                     formatter.write_space();
                 }));
             }
@@ -865,25 +858,25 @@ impl<'a> Formatter<'a> {
                 ExpressionKind::Block(block) => {
                     self.format_block_expression(block, *force_multiple_lines)
                 }
-                ExpressionKind::If(if_expression) => self.format_if_expression_with_chunk_tag(
+                ExpressionKind::If(if_expression) => self.format_if_expression_with_group_tag(
                     *if_expression,
                     force_multiple_lines,
-                    chunk_tag,
+                    group_tag,
                 ),
                 _ => panic!("Unexpected if alternative expression kind"),
             };
 
-            alternative_group.tag = Some(chunk_tag);
-            chunks.group(alternative_group);
+            alternative_group.tag = Some(group_tag);
+            group.group(alternative_group);
         }
 
-        chunks
+        group
     }
 
-    fn format_index_expression(&mut self, index: IndexExpression) -> Chunks {
-        let mut chunks = Chunks::new();
-        self.format_expression(index.collection, &mut chunks);
-        chunks.text(self.chunk(|formatter| {
+    fn format_index_expression(&mut self, index: IndexExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        self.format_expression(index.collection, &mut group);
+        group.text(self.chunk(|formatter| {
             formatter.write_left_bracket();
         }));
 
@@ -906,32 +899,32 @@ impl<'a> Formatter<'a> {
         let comments_chunk_has_newlines = comments_chunk.has_newlines;
 
         if comments_chunk_has_newlines {
-            chunks.increase_indentation();
-            chunks.line();
+            group.increase_indentation();
+            group.line();
         }
 
-        chunks.leading_comment(comments_chunk);
+        group.leading_comment(comments_chunk);
 
-        self.format_expression(index.index, &mut chunks);
+        self.format_expression(index.index, &mut group);
 
         if comments_chunk_has_newlines {
-            chunks.decrease_indentation();
-            chunks.line();
+            group.decrease_indentation();
+            group.line();
         }
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_right_bracket();
         }));
-        chunks
+        group
     }
 
-    fn format_call(&mut self, call: CallExpression) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.kind = ChunkKind::ExpressionList;
+    fn format_call(&mut self, call: CallExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.kind = GroupKind::ExpressionList;
 
-        self.format_expression(*call.func, &mut chunks);
+        self.format_expression(*call.func, &mut group);
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             if call.is_macro_call {
                 formatter.write_token(Token::Bang);
             }
@@ -940,28 +933,28 @@ impl<'a> Formatter<'a> {
 
         // Format arguments in a separate group so we can calculate the arguments
         // width and determine if we need to format this call in multiple lines.
-        let mut group = Chunks::new();
+        let mut args_group = ChunkGroup::new();
         self.format_expressions_separated_by_comma(
             call.arguments,
             false, // force trailing comma
-            &mut group,
+            &mut args_group,
         );
 
-        if group.width() > self.config.fn_call_width {
-            chunks.force_multiple_lines = true;
+        if args_group.width() > self.config.fn_call_width {
+            group.force_multiple_lines = true;
         }
 
         // We no longer need this subgroup, so put all its chunks into the main chunks
-        chunks.chunks.extend(group.chunks);
+        group.chunks.extend(args_group.chunks);
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));
 
-        chunks
+        group
     }
 
-    fn format_method_call(&mut self, method_call: MethodCallExpression) -> Chunks {
+    fn format_method_call(&mut self, method_call: MethodCallExpression) -> ChunkGroup {
         self.format_method_call_impl(
             method_call,
             false, // nested
@@ -972,15 +965,15 @@ impl<'a> Formatter<'a> {
         &mut self,
         method_call: MethodCallExpression,
         nested: bool,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.kind = ChunkKind::MethodCall;
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.kind = GroupKind::MethodCall;
 
         if !nested {
-            chunks.push_indentation();
+            group.push_indentation();
         }
 
-        // The logic here is similar to that of `format_member_access_with_chunk_tag`, so
+        // The logic here is similar to that of `format_member_access_with_group_tag`, so
         // please that function inner comments for details.
         let mut increase_indentation_before_dot = false;
         let mut increase_arguments_indentation = false;
@@ -1001,7 +994,7 @@ impl<'a> Formatter<'a> {
 
                 line_before_dot = true;
 
-                chunks.group(self.format_method_call_impl(
+                group.group(self.format_method_call_impl(
                     *lhs_method_call,
                     true, // nested
                 ));
@@ -1018,13 +1011,13 @@ impl<'a> Formatter<'a> {
 
                 line_before_dot = true;
 
-                chunks.group(self.format_member_access_impl(
+                group.group(self.format_member_access_impl(
                     *lhs_member_access,
                     true, // nested
                 ));
             }
             _ => {
-                self.format_expression(method_call.object, &mut chunks);
+                self.format_expression(method_call.object, &mut group);
 
                 // If we have `foo.bar(..)` where `lhs` is neither a member access nor a call,
                 // but this occurs inside another member access or method call we are formatting, like
@@ -1043,17 +1036,17 @@ impl<'a> Formatter<'a> {
             }
         }
 
-        chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+        group.trailing_comment(self.skip_comments_and_whitespace_chunk());
 
         if increase_indentation_before_dot {
-            chunks.increase_indentation();
+            group.increase_indentation();
         }
 
         if line_before_dot {
-            chunks.line();
+            group.line();
         }
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_token(Token::Dot);
             formatter.write_identifier(method_call.method_name);
             if method_call.is_macro_call {
@@ -1066,54 +1059,54 @@ impl<'a> Formatter<'a> {
         }));
 
         if increase_arguments_indentation {
-            chunks.increase_indentation();
+            group.increase_indentation();
         }
 
-        let mut group = Chunks::new();
-        group.kind = ChunkKind::ExpressionList;
+        let mut args_group = ChunkGroup::new();
+        args_group.kind = GroupKind::ExpressionList;
         self.format_expressions_separated_by_comma(
             method_call.arguments,
             false, // force trailing comma
-            &mut group,
+            &mut args_group,
         );
-        chunks.group(group);
+        group.group(args_group);
 
         if increase_arguments_indentation {
-            chunks.decrease_indentation();
+            group.decrease_indentation();
         }
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));
 
         if !nested {
-            chunks.pop_indentation();
+            group.pop_indentation();
         }
 
-        chunks
+        group
     }
 
     pub(super) fn format_block_expression(
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             formatter.write_left_brace();
         }));
-        self.format_block_expression_contents(block, force_multiple_lines, &mut chunks);
-        chunks.text(self.chunk(|formatter| {
+        self.format_block_expression_contents(block, force_multiple_lines, &mut group);
+        group.text(self.chunk(|formatter| {
             formatter.write_right_brace();
         }));
-        chunks
+        group
     }
 
     pub(super) fn format_block_expression_contents(
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-        chunks: &mut Chunks,
+        chunks: &mut ChunkGroup,
     ) {
         if block.is_empty() {
             if let Some(block_chunks) = self.empty_block_contents_chunk() {
@@ -1128,7 +1121,7 @@ impl<'a> Formatter<'a> {
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-        chunks: &mut Chunks,
+        chunks: &mut ChunkGroup,
     ) {
         chunks.force_multiple_lines = force_multiple_lines || block.statements.len() > 1;
         let surround_with_spaces = !chunks.force_multiple_lines && block.statements.len() == 1;
@@ -1172,13 +1165,13 @@ impl<'a> Formatter<'a> {
 
     pub(super) fn format_empty_block_contents(&mut self) {
         if let Some(chunks) = self.empty_block_contents_chunk() {
-            self.format_chunks(chunks);
+            self.format_chunk_group(chunks);
         }
     }
 
-    pub(super) fn empty_block_contents_chunk(&mut self) -> Option<Chunks> {
-        let mut chunks = Chunks::new();
-        chunks.increase_indentation();
+    pub(super) fn empty_block_contents_chunk(&mut self) -> Option<ChunkGroup> {
+        let mut group = ChunkGroup::new();
+        group.increase_indentation();
         let mut chunk = self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_lines_if_found();
         });
@@ -1189,27 +1182,27 @@ impl<'a> Formatter<'a> {
             None
         } else {
             if chunk.string.trim_start().starts_with("//") {
-                chunks.text(chunk);
-                chunks.decrease_indentation();
-                chunks.line();
+                group.text(chunk);
+                group.decrease_indentation();
+                group.line();
             } else {
                 chunk.string = format!(" {} ", chunk.string.trim());
-                chunks.text(chunk);
-                chunks.decrease_indentation();
+                group.text(chunk);
+                group.decrease_indentation();
             }
-            Some(chunks)
+            Some(group)
         }
     }
 }
 
-fn force_if_chunks_to_multiple_lines(chunks: &mut Chunks, chunk_tag: ChunkTag) {
-    if chunks.tag == Some(chunk_tag) {
+fn force_if_chunks_to_multiple_lines(chunks: &mut ChunkGroup, group_tag: GroupTag) {
+    if chunks.tag == Some(group_tag) {
         chunks.force_multiple_lines = true;
     }
 
     for chunk in chunks.chunks.iter_mut() {
         if let Chunk::Group(group) = chunk {
-            force_if_chunks_to_multiple_lines(group, chunk_tag);
+            force_if_chunks_to_multiple_lines(group, group_tag);
         }
     }
 }

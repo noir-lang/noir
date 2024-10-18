@@ -4,13 +4,13 @@ use noirc_frontend::{
 };
 
 use super::{
-    chunks::{Chunk, Chunks},
+    chunks::{Chunk, ChunkGroup},
     Formatter,
 };
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_import(&mut self, use_tree: UseTree, visibility: ItemVisibility) {
-        let mut chunks = Chunks::new();
+        let mut chunks = ChunkGroup::new();
 
         chunks.text(self.chunk(|formatter| {
             formatter.format_item_visibility(visibility);
@@ -25,15 +25,15 @@ impl<'a> Formatter<'a> {
         }));
 
         self.write_indentation();
-        self.format_chunks(chunks);
+        self.format_chunk_group(chunks);
     }
 
-    fn format_use_tree(&mut self, use_tree: UseTree) -> Chunks {
-        let mut chunks = Chunks::new();
-        chunks.one_chunk_per_line = false;
+    fn format_use_tree(&mut self, use_tree: UseTree) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.one_chunk_per_line = false;
 
         if !use_tree.prefix.is_empty() {
-            chunks.text(self.chunk(|formatter| {
+            group.text(self.chunk(|formatter| {
                 let has_segments = !use_tree.prefix.segments.is_empty();
 
                 formatter.format_path(use_tree.prefix);
@@ -49,7 +49,7 @@ impl<'a> Formatter<'a> {
 
         match use_tree.kind {
             UseTreeKind::Path(name, alias) => {
-                chunks.text(self.chunk(|formatter| {
+                group.text(self.chunk(|formatter| {
                     formatter.write_identifier(name);
                     if let Some(alias) = alias {
                         formatter.write_space();
@@ -68,7 +68,7 @@ impl<'a> Formatter<'a> {
 
                 self.wrote_comment = false;
 
-                let mut items_chunk = Chunks::new();
+                let mut items_chunk = ChunkGroup::new();
                 self.format_items_separated_by_comma(
                     use_trees,
                     false, // force trailing comma
@@ -87,18 +87,18 @@ impl<'a> Formatter<'a> {
                     // We are only interested in keeping the single Group: everything else
                     // is lines, indentation and trailing comma that we don't need and would
                     // actually produce incorrect code.
-                    let group =
+                    let single_group =
                         items_chunk.chunks.into_iter().filter_map(Chunk::as_group).next().unwrap();
-                    chunks.chunks.extend(group.chunks);
+                    group.chunks.extend(single_group.chunks);
                 } else {
-                    chunks.text(left_brace_chunk);
-                    chunks.chunks.extend(items_chunk.chunks);
-                    chunks.text(right_brace_chunk);
+                    group.text(left_brace_chunk);
+                    group.chunks.extend(items_chunk.chunks);
+                    group.text(right_brace_chunk);
                 }
             }
         }
 
-        chunks
+        group
     }
 }
 

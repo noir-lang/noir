@@ -7,10 +7,10 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{chunks::Chunks, Formatter};
+use super::{chunks::ChunkGroup, Formatter};
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_statement(&mut self, statement: Statement, chunks: &mut Chunks) {
+    pub(super) fn format_statement(&mut self, statement: Statement, chunks: &mut ChunkGroup) {
         chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
 
         match statement.kind {
@@ -67,7 +67,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_let_statement(&mut self, let_statement: LetStatement) -> Chunks {
+    fn format_let_statement(&mut self, let_statement: LetStatement) -> ChunkGroup {
         self.format_let_or_global(
             Keyword::Let,
             let_statement.pattern,
@@ -82,10 +82,10 @@ impl<'a> Formatter<'a> {
         pattern: Pattern,
         typ: UnresolvedType,
         value: Option<Expression>,
-    ) -> Chunks {
-        let mut chunks = Chunks::new();
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_keyword(keyword);
             formatter.write_space();
             formatter.format_pattern(pattern);
@@ -97,23 +97,26 @@ impl<'a> Formatter<'a> {
         }));
 
         if let Some(value) = value {
-            chunks.text(self.chunk(|formatter| {
+            group.text(self.chunk(|formatter| {
                 formatter.write_space();
                 formatter.write_token(Token::Assign);
                 formatter.write_space();
             }));
-            self.format_expression(value, &mut chunks);
+            self.format_expression(value, &mut group);
         }
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_semicolon();
         }));
 
-        chunks
+        group
     }
 
-    fn format_constrain_statement(&mut self, constrain_statement: ConstrainStatement) -> Chunks {
-        let mut chunks = Chunks::new();
+    fn format_constrain_statement(
+        &mut self,
+        constrain_statement: ConstrainStatement,
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
 
         let keyword = match constrain_statement.kind {
             ConstrainKind::Assert => Keyword::Assert,
@@ -123,7 +126,7 @@ impl<'a> Formatter<'a> {
             }
         };
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_keyword(keyword);
             formatter.write_left_paren();
         }));
@@ -131,22 +134,22 @@ impl<'a> Formatter<'a> {
         self.format_expressions_separated_by_comma(
             constrain_statement.arguments,
             false, // force trailing comma
-            &mut chunks,
+            &mut group,
         );
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_right_paren();
             formatter.write_semicolon();
         }));
 
-        chunks
+        group
     }
 
-    fn format_assign(&mut self, assign_statement: AssignStatement) -> Chunks {
-        let mut chunks = Chunks::new();
+    fn format_assign(&mut self, assign_statement: AssignStatement) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
         let mut is_op_assign = false;
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.format_lvalue(assign_statement.lvalue);
             formatter.write_space();
             if formatter.token == Token::Assign {
@@ -161,28 +164,28 @@ impl<'a> Formatter<'a> {
                 is_op_assign = true;
             }
         }));
-        chunks.increase_indentation();
-        chunks.space_or_line();
+        group.increase_indentation();
+        group.space_or_line();
 
         if is_op_assign {
             let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
                 panic!("Expected an infix expression for op assign");
             };
-            self.format_expression(infix.rhs, &mut chunks);
+            self.format_expression(infix.rhs, &mut group);
         } else {
-            self.format_expression(assign_statement.expression, &mut chunks);
+            self.format_expression(assign_statement.expression, &mut group);
         }
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_semicolon();
         }));
-        chunks.decrease_indentation();
-        chunks
+        group.decrease_indentation();
+        group
     }
 
-    fn format_for_loop(&mut self, for_loop: ForLoopStatement) -> Chunks {
-        let mut chunks = Chunks::new();
+    fn format_for_loop(&mut self, for_loop: ForLoopStatement) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::For);
             formatter.write_space();
             formatter.write_identifier(for_loop.identifier);
@@ -193,20 +196,20 @@ impl<'a> Formatter<'a> {
 
         match for_loop.range {
             ForRange::Range(for_bounds) => {
-                self.format_expression(for_bounds.start, &mut chunks);
-                chunks.text(self.chunk(|formatter| {
+                self.format_expression(for_bounds.start, &mut group);
+                group.text(self.chunk(|formatter| {
                     formatter.skip_comments_and_whitespace();
                     formatter.write_current_token();
                     formatter.bump();
                 }));
-                self.format_expression(for_bounds.end, &mut chunks);
+                self.format_expression(for_bounds.end, &mut group);
             }
             ForRange::Array(expression) => {
-                self.format_expression(expression, &mut chunks);
+                self.format_expression(expression, &mut group);
             }
         }
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_space();
         }));
 
@@ -214,47 +217,47 @@ impl<'a> Formatter<'a> {
             panic!("Expected a block expression for for loop body");
         };
 
-        chunks.group(self.format_block_expression(
+        group.group(self.format_block_expression(
             block, true, // force multiple lines
         ));
 
         // If there's a trailing semicolon, remove it
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.skip_whitespace_if_it_is_not_a_newline();
             if formatter.token == Token::Semicolon {
                 formatter.bump();
             }
         }));
 
-        chunks
+        group
     }
 
-    fn format_comptime_statement(&mut self, statement: Statement) -> Chunks {
-        let mut chunks = Chunks::new();
+    fn format_comptime_statement(&mut self, statement: Statement) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
 
         // A comptime statement can be a let, a block or a for.
         // We always want to force multiple lines except for let.
-        chunks.force_multiple_lines = !matches!(statement.kind, StatementKind::Let(..));
+        group.force_multiple_lines = !matches!(statement.kind, StatementKind::Let(..));
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.write_keyword(Keyword::Comptime);
             formatter.write_space();
         }));
-        self.format_statement(statement, &mut chunks);
-        chunks
+        self.format_statement(statement, &mut group);
+        group
     }
 
-    fn format_semi_statement(&mut self, expression: Expression) -> Chunks {
-        let mut chunks = Chunks::new();
+    fn format_semi_statement(&mut self, expression: Expression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
 
-        self.format_expression(expression, &mut chunks);
+        self.format_expression(expression, &mut group);
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
             formatter.write_semicolon();
         }));
 
-        chunks
+        group
     }
 }
 

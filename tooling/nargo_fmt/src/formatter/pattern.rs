@@ -3,7 +3,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{chunks::Chunks, Formatter};
+use super::{chunks::ChunkGroup, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_pattern(&mut self, pattern: Pattern) {
@@ -54,12 +54,12 @@ impl<'a> Formatter<'a> {
                 if fields.is_empty() {
                     self.format_empty_block_contents();
                 } else {
-                    let mut chunks = Chunks::new();
+                    let mut group = ChunkGroup::new();
                     self.format_items_separated_by_comma(
                         fields,
                         false, // force trailing comma,
                         true,  // surround with spaces
-                        &mut chunks,
+                        &mut group,
                         |formatter, (name, pattern), chunks| {
                             let is_identifier_pattern = is_identifier_pattern(&pattern, &name);
 
@@ -79,7 +79,7 @@ impl<'a> Formatter<'a> {
                             }
                         },
                     );
-                    self.format_chunks(chunks);
+                    self.format_chunk_group(group);
                 }
 
                 self.write_right_brace();

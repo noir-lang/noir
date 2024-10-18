@@ -107,7 +107,7 @@ impl<'a> Formatter<'a> {
                 let chunks = self.format_let_or_global(Keyword::Let, pattern, typ, default_value);
 
                 self.write_indentation();
-                self.format_chunks(chunks);
+                self.format_chunk_group(chunks);
             }
             TraitItem::Type { name } => {
                 self.write_indentation();

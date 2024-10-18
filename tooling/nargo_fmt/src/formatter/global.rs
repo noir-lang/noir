@@ -3,7 +3,7 @@ use noirc_frontend::{
     token::Keyword,
 };
 
-use super::{chunks::Chunks, Formatter};
+use super::{chunks::ChunkGroup, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_global(
@@ -11,13 +11,13 @@ impl<'a> Formatter<'a> {
         let_statement: LetStatement,
         visibility: ItemVisibility,
     ) {
-        let mut chunks = Chunks::new();
-        chunks.text(self.chunk(|formatter| {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
             formatter.format_item_visibility(visibility);
         }));
 
         if let_statement.comptime {
-            chunks.text(self.chunk(|formatter| {
+            group.text(self.chunk(|formatter| {
                 formatter.write_keyword(Keyword::Comptime);
                 formatter.write_space();
             }));
@@ -31,7 +31,7 @@ impl<'a> Formatter<'a> {
                 // A mutable pattern would be `mut x` but here we have `mut global x`,
                 // so in that case we write `mut` now, then the pattern we'll write doesn't
                 // have the `mut` part.
-                chunks.text(self.chunk(|formatter| {
+                group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Mut);
                     formatter.write_space();
                 }));
@@ -43,7 +43,7 @@ impl<'a> Formatter<'a> {
             }
         };
 
-        chunks.group(self.format_let_or_global(
+        group.group(self.format_let_or_global(
             Keyword::Global,
             pattern,
             let_statement.r#type,
@@ -51,7 +51,7 @@ impl<'a> Formatter<'a> {
         ));
 
         self.write_indentation();
-        self.format_chunks(chunks);
+        self.format_chunk_group(group);
     }
 }
 

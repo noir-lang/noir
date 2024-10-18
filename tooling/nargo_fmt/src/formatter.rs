@@ -43,6 +43,8 @@ pub(crate) struct Formatter<'a> {
     /// The current indentation level.
     indentation: usize,
 
+    /// When formatting chunks we sometimes need to remember the current indentation
+    /// and restore it later. This is what this stack is used for.
     indentation_stack: Vec<usize>,
 
     /// How many characters we've written so far in the current line
@@ -56,7 +58,8 @@ pub(crate) struct Formatter<'a> {
     /// we only do that if there were no comments between `{` and `}`.
     wrote_comment: bool,
 
-    next_chunk_tag: usize,
+    /// A counter to create GroupTags.
+    group_tag_counter: usize,
 
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: String,
@@ -75,7 +78,7 @@ impl<'a> Formatter<'a> {
             indentation_stack: Vec::new(),
             current_line_width: 0,
             wrote_comment: false,
-            next_chunk_tag: 0,
+            group_tag_counter: 0,
             buffer: String::new(),
         };
         formatter.bump();
