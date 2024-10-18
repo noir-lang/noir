@@ -39,6 +39,10 @@ pub(crate) enum Chunk {
     IncreaseIndentation,
     /// Command to decrease the current indentation.
     DecreaseIndentation,
+    /// Push the current indentation to the indentation stack.
+    PushIndentation,
+    /// Set the current indetation by popping it from the indentation stack.
+    PopIndentation,
 }
 
 impl Chunk {
@@ -52,13 +56,15 @@ impl Chunk {
             Chunk::Line { .. }
             | Chunk::IncreaseIndentation
             | Chunk::DecreaseIndentation
-            | Chunk::TrailingComma => 0,
+            | Chunk::TrailingComma
+            | Chunk::PushIndentation
+            | Chunk::PopIndentation => 0,
         }
     }
 
     pub(crate) fn width_inside_an_expression_list(&self) -> usize {
         if let Chunk::Group(group) = &self {
-            if let ChunkKind::LambdaAsLastExpressionInList { first_line_width } = &group.kind {
+            if let ChunkKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind {
                 return *first_line_width;
             }
         }
@@ -76,7 +82,9 @@ impl Chunk {
             | Chunk::Line { .. }
             | Chunk::SpaceOrLine
             | Chunk::IncreaseIndentation
-            | Chunk::DecreaseIndentation => false,
+            | Chunk::DecreaseIndentation
+            | Chunk::PushIndentation
+            | Chunk::PopIndentation => false,
         }
     }
 }
@@ -187,6 +195,14 @@ impl Chunks {
         self.push(Chunk::DecreaseIndentation);
     }
 
+    pub(crate) fn push_indentation(&mut self) {
+        self.push(Chunk::PushIndentation);
+    }
+
+    pub(crate) fn pop_indentation(&mut self) {
+        self.push(Chunk::PopIndentation);
+    }
+
     pub(crate) fn push(&mut self, chunk: Chunk) {
         self.chunks.push(chunk);
     }
@@ -196,7 +212,24 @@ impl Chunks {
     }
 
     pub(crate) fn expression_list_width(&self) -> usize {
-        self.chunks.iter().map(|chunk| chunk.width_inside_an_expression_list()).sum()
+        if self.kind == ChunkKind::MethodCall {
+            self.chunks
+                .iter()
+                .map(|chunk| {
+                    if let Chunk::Group(group) = chunk {
+                        if group.kind == ChunkKind::ExpressionList {
+                            group.expression_list_width()
+                        } else {
+                            chunk.width_inside_an_expression_list()
+                        }
+                    } else {
+                        chunk.width_inside_an_expression_list()
+                    }
+                })
+                .sum()
+        } else {
+            self.chunks.iter().map(|chunk| chunk.width_inside_an_expression_list()).sum()
+        }
     }
 
     pub(crate) fn has_newlines(&self) -> bool {
@@ -206,11 +239,34 @@ impl Chunks {
     pub(crate) fn has_lambda_as_last_expression_in_list(&self) -> bool {
         self.chunks.iter().any(|chunk| {
             if let Chunk::Group(group) = chunk {
-                matches!(group.kind, ChunkKind::LambdaAsLastExpressionInList { .. })
+                if self.kind == ChunkKind::MethodCall {
+                    group.has_lambda_as_last_expression_in_list()
+                } else {
+                    matches!(group.kind, ChunkKind::LambdaAsLastExpressionInList { .. })
+                }
             } else {
                 false
             }
         })
+    }
+
+    pub(crate) fn set_lambda_as_last_expression_in_list_indentation(
+        &mut self,
+        indentation_to_set: usize,
+    ) {
+        for chunk in self.chunks.iter_mut() {
+            if let Chunk::Group(group) = chunk {
+                if self.kind == ChunkKind::MethodCall {
+                    group.set_lambda_as_last_expression_in_list_indentation(indentation_to_set);
+                } else if let ChunkKind::LambdaAsLastExpressionInList { indentation, .. } =
+                    &mut group.kind
+                {
+                    if indentation.is_none() {
+                        *indentation = Some(indentation_to_set);
+                    }
+                }
+            }
+        }
     }
 
     /// Before writing a Chunks object in multiple lines, create a new one where `TrailingComma`
@@ -247,6 +303,8 @@ impl Chunks {
                 Chunk::SpaceOrLine => chunks.space_or_line(),
                 Chunk::IncreaseIndentation => chunks.increase_indentation(),
                 Chunk::DecreaseIndentation => chunks.decrease_indentation(),
+                Chunk::PushIndentation => chunks.push_indentation(),
+                Chunk::PopIndentation => chunks.pop_indentation(),
             }
         }
         chunks
@@ -274,7 +332,9 @@ pub(crate) enum ChunkKind {
     /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
     /// list and the left bracket.
-    LambdaAsLastExpressionInList { first_line_width: usize },
+    LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<usize> },
+    /// A method call (one of its groups is an ExpressionList)
+    MethodCall,
 }
 
 impl<'a> Formatter<'a> {
@@ -304,6 +364,19 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunks_impl(&mut self, chunks: Chunks) {
+        if let ChunkKind::LambdaAsLastExpressionInList { indentation: Some(indentation), .. } =
+            chunks.kind
+        {
+            let previous_indentation = self.indentation;
+            self.indentation = indentation;
+            self.format_chunks_impl_2(chunks);
+            self.indentation = previous_indentation;
+        } else {
+            self.format_chunks_impl_2(chunks);
+        }
+    }
+
+    pub(super) fn format_chunks_impl_2(&mut self, mut chunks: Chunks) {
         if chunks.force_multiple_lines {
             self.format_chunks_in_multiple_lines(chunks);
             return;
@@ -322,14 +395,15 @@ impl<'a> Formatter<'a> {
             //    determined that we can format the expression list in a single line it means
             //    none of the expression up to the lambda will result in multiple lines, so
             //    this change in indentation won't affect them.
-            if chunks.kind == ChunkKind::ExpressionList {
+            let chunks_kind = chunks.kind;
+            if chunks_kind == ChunkKind::ExpressionList || chunks_kind == ChunkKind::MethodCall {
                 if chunks.has_lambda_as_last_expression_in_list() {
                     let chunks_width = chunks.expression_list_width();
+
                     let total_width = self.current_line_width + chunks_width;
                     if total_width <= self.config.max_width {
-                        self.decrease_indentation();
+                        chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
                         self.format_chunks_in_one_line(chunks);
-                        self.increase_indentation();
                         return;
                     }
                 }
@@ -359,9 +433,11 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::Group(chunks) => self.format_chunks_impl(chunks),
                 Chunk::SpaceOrLine => self.write(" "),
-                Chunk::TrailingComma | Chunk::Line { .. } => (),
                 Chunk::IncreaseIndentation => self.increase_indentation(),
                 Chunk::DecreaseIndentation => self.decrease_indentation(),
+                Chunk::PushIndentation => self.push_indentation(),
+                Chunk::PopIndentation => self.pop_indentation(),
+                Chunk::TrailingComma | Chunk::Line { .. } => (),
             }
         }
     }
@@ -444,6 +520,12 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::DecreaseIndentation => {
                     self.decrease_indentation();
+                }
+                Chunk::PushIndentation => {
+                    self.push_indentation();
+                }
+                Chunk::PopIndentation => {
+                    self.pop_indentation();
                 }
                 Chunk::TrailingComma => {
                     unreachable!(

@@ -41,10 +41,9 @@ pub(crate) struct Formatter<'a> {
     token_span: Span,
 
     /// The current indentation level.
-    /// Why an `i32` and not `usize`? We sometimes need indentation to be negative,
-    /// see `format_chunks_impl` for a complete explanation (it's for formatting
-    /// a lambda as a last argument in an expression list).
-    indentation: i32,
+    indentation: usize,
+
+    indentation_stack: Vec<usize>,
 
     /// How many characters we've written so far in the current line
     /// (useful to avoid exceeding the configurable maximum)
@@ -73,6 +72,7 @@ impl<'a> Formatter<'a> {
             token: Token::EOF,
             token_span: Default::default(),
             indentation: 0,
+            indentation_stack: Vec::new(),
             current_line_width: 0,
             wrote_comment: false,
             next_chunk_tag: 0,
@@ -212,6 +212,14 @@ impl<'a> Formatter<'a> {
 
     fn decrease_indentation(&mut self) {
         self.indentation -= 1;
+    }
+
+    fn push_indentation(&mut self) {
+        self.indentation_stack.push(self.indentation);
+    }
+
+    fn pop_indentation(&mut self) {
+        self.indentation = self.indentation_stack.pop().unwrap();
     }
 
     fn bump(&mut self) -> Token {

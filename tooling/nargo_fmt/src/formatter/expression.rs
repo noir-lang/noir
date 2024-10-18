@@ -385,6 +385,7 @@ impl<'a> Formatter<'a> {
                             let mut lambda_group = formatter.format_lambda(*lambda);
                             lambda_group.group.kind = ChunkKind::LambdaAsLastExpressionInList {
                                 first_line_width: lambda_group.first_line_width,
+                                indentation: None,
                             };
                             chunks.group(lambda_group.group);
                             return;
@@ -520,26 +521,22 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_member_access(&mut self, member_access: MemberAccessExpression) -> Chunks {
-        // Keep track of how much indentation increased by formatting the member access.
-        // At the end we'll decrease the indentation by that amount.
-        let mut increased_indentation = 0;
-
-        let mut chunks = self.format_member_access_impl(member_access, &mut increased_indentation);
-
-        // Decrease the indentation if it increased.
-        for _ in 0..increased_indentation {
-            chunks.decrease_indentation();
-        }
-
-        chunks
+        self.format_member_access_impl(
+            member_access,
+            false, // nested
+        )
     }
 
     fn format_member_access_impl(
         &mut self,
         member_access: MemberAccessExpression,
-        increased_indentation: &mut usize,
+        nested: bool,
     ) -> Chunks {
         let mut chunks = Chunks::new();
+
+        if !nested {
+            chunks.push_indentation();
+        }
 
         // If we have code like `foo.bar.baz.qux`, where `member_access.lhs` is also a MemberAccessExpression,
         // we'll format it with the same tag. Once the lhs is not a MemberAccessExpression, we'll format it
@@ -587,9 +584,10 @@ impl<'a> Formatter<'a> {
                 // We always put a line before the dot if lhs is a member access or call
                 line_before_dot = true;
 
-                chunks.group(
-                    self.format_member_access_impl(*lhs_member_access, increased_indentation),
-                );
+                chunks.group(self.format_member_access_impl(
+                    *lhs_member_access,
+                    true, // nested
+                ));
             }
             ExpressionKind::MethodCall(lhs_method_call) => {
                 let lhs_lhs_is_member_access_or_call = matches!(
@@ -613,7 +611,6 @@ impl<'a> Formatter<'a> {
 
                 chunks.group(self.format_method_call_impl(
                     *lhs_method_call,
-                    increased_indentation,
                     true, // nested
                 ));
             }
@@ -626,7 +623,6 @@ impl<'a> Formatter<'a> {
 
         if increase_indentation {
             chunks.increase_indentation();
-            *increased_indentation += 1;
         }
 
         if line_before_dot {
@@ -637,6 +633,10 @@ impl<'a> Formatter<'a> {
             formatter.write_token(Token::Dot);
             formatter.write_identifier_or_integer(member_access.rhs);
         }));
+
+        if !nested {
+            chunks.pop_indentation();
+        }
 
         chunks
     }
@@ -944,30 +944,23 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_method_call(&mut self, method_call: MethodCallExpression) -> Chunks {
-        // Keep track of how much indentation increased by formatting the method call.
-        // At the end we'll decrease the indentation by that amount.
-        let mut increased_indentation = 0;
-        let mut chunks = self.format_method_call_impl(
+        self.format_method_call_impl(
             method_call,
-            &mut increased_indentation,
             false, // nested
-        );
-
-        // Decrease the indentation if it increased.
-        for _ in 0..increased_indentation {
-            chunks.decrease_indentation();
-        }
-
-        chunks
+        )
     }
 
     fn format_method_call_impl(
         &mut self,
         method_call: MethodCallExpression,
-        increased_indentation: &mut usize,
         nested: bool,
     ) -> Chunks {
         let mut chunks = Chunks::new();
+        chunks.kind = ChunkKind::MethodCall;
+
+        if !nested {
+            chunks.push_indentation();
+        }
 
         // The logic here is similar to that of `format_member_access_with_chunk_tag`, so
         // please that function inner comments for details.
@@ -992,7 +985,6 @@ impl<'a> Formatter<'a> {
 
                 chunks.group(self.format_method_call_impl(
                     *lhs_method_call,
-                    increased_indentation,
                     true, // nested
                 ));
             }
@@ -1008,9 +1000,10 @@ impl<'a> Formatter<'a> {
 
                 line_before_dot = true;
 
-                chunks.group(
-                    self.format_member_access_impl(*lhs_member_access, increased_indentation),
-                );
+                chunks.group(self.format_member_access_impl(
+                    *lhs_member_access,
+                    true, // nested
+                ));
             }
             _ => {
                 self.format_expression(method_call.object, &mut chunks);
@@ -1036,7 +1029,6 @@ impl<'a> Formatter<'a> {
 
         if increase_indentation_before_dot {
             chunks.increase_indentation();
-            *increased_indentation += 1;
         }
 
         if line_before_dot {
@@ -1075,6 +1067,10 @@ impl<'a> Formatter<'a> {
         chunks.text(self.chunk(|formatter| {
             formatter.write_right_paren();
         }));
+
+        if !nested {
+            chunks.pop_indentation();
+        }
 
         chunks
     }
@@ -1877,6 +1873,47 @@ global y = 1;
 });
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_method_call_chain_argument() {
+        let src = "global x = foo.bar(1).baz(2, |x| { 1; 2 });";
+        let expected = "global x = foo.bar(1).baz(2, |x| {
+    1;
+    2
+});
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_method_call_chain_argument_2() {
+        let src = "fn foo() { expr.as_unsafe().map(|exprs| { a; aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa }) }
+        ";
+        let expected = "fn foo() {
+    expr.as_unsafe().map(|exprs| {
+        a;
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    })
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_method_call_has_to_wrap() {
+        let src = "global foo = bar(1, 2, 3, |argument| { 1; 2 });";
+        let expected = "global foo = bar(
+    1,
+    2,
+    3,
+    |argument| {
+        1;
+        2
+    },
+);
+";
+        assert_format_with_max_width(src, expected, src.len() - 10);
     }
 
     #[test]
