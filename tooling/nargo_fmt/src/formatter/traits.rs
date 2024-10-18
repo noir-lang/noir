@@ -59,6 +59,7 @@ impl<'a> Formatter<'a> {
                 self.format_trait_item(item);
             }
 
+            self.skip_comments_and_whitespace();
             self.decrease_indentation();
             self.write_line();
             self.write_indentation();

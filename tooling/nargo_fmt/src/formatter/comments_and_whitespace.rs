@@ -720,4 +720,43 @@ mod foo;
         let expected = "global x = (1 /* hello */,);\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_comment_after_impl_function() {
+        let src = "impl Foo { fn foo() {} 
+        // bar 
+        }";
+        let expected = "impl Foo {
+    fn foo() {}
+    // bar
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comment_after_trait_impl_function() {
+        let src = "impl Foo for Bar { fn foo() {} 
+        // bar 
+        }";
+        let expected = "impl Foo for Bar {
+    fn foo() {}
+    // bar
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_comment_after_trait_function() {
+        let src = "trait Foo { fn foo() {} 
+        // bar 
+        }";
+        let expected = "trait Foo {
+    fn foo() {}
+    // bar
+}
+";
+        assert_format(src, expected);
+    }
 }

@@ -41,6 +41,7 @@ impl<'a> Formatter<'a> {
                 self.format_function(method);
             }
 
+            self.skip_comments_and_whitespace();
             self.decrease_indentation();
             self.write_line();
             self.write_indentation();
