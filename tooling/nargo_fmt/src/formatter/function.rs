@@ -6,7 +6,10 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{chunks::ChunkGroup, Formatter};
+use super::{
+    chunks::{ChunkGroup, TextChunk},
+    Formatter,
+};
 
 pub(super) struct FunctionToFormat {
     pub(super) visibility: ItemVisibility,
@@ -50,27 +53,25 @@ impl<'a> Formatter<'a> {
             self.increase_indentation();
             self.skip_comments_and_whitespace();
             self.decrease_indentation();
+
+            let group = ChunkGroup::new();
             self.format_function_right_paren_until_left_brace_or_semicolon(
                 func.return_type,
                 func.return_visibility,
                 has_where_clause,
                 func.body.is_none(), // semicolon
+                group,
             );
         } else {
             let mut group = ChunkGroup::new();
-
             self.format_function_parameters(func.parameters, &mut group);
-
-            group.text(self.chunk(|formatter| {
-                formatter.format_function_right_paren_until_left_brace_or_semicolon(
-                    func.return_type,
-                    func.return_visibility,
-                    has_where_clause,
-                    func.body.is_none(), // semicolon
-                );
-            }));
-
-            self.format_chunk_group(group);
+            self.format_function_right_paren_until_left_brace_or_semicolon(
+                func.return_type,
+                func.return_visibility,
+                has_where_clause,
+                func.body.is_none(), // semicolon
+                group,
+            );
         }
 
         if has_where_clause {
@@ -148,31 +149,105 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Returns whether the left brace of semicolon was written
+    /// (we don't write it when there's a comment before those tokens)
     pub(super) fn format_function_right_paren_until_left_brace_or_semicolon(
         &mut self,
         return_type: FunctionReturnType,
         visibility: Visibility,
         has_where_clause: bool,
         semicolon: bool,
+        mut group: ChunkGroup,
     ) {
-        self.write_right_paren();
-        self.format_function_return_type(return_type, visibility);
-        self.skip_comments_and_whitespace();
+        group.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+            formatter.format_function_return_type(return_type, visibility);
+        }));
+
+        // The following code is a bit long because it takes into account three scenarios:
+        //
+        // 1.
+        // fn foo() -> Field {}
+        //
+        // 2.
+        // fn foo() -> Field // comment
+        // {}
+        //
+        // 3.
+        // fn foo() -> Field
+        // // comment
+        // {}
+        //
+        // We want to preserve the above formatting when there are trailing comments,
+        // possibly considering a trailing comment in the same line to count towards the
+        // maximum width of the line.
+        //
+        // For that, we take the comment chunk and depending on whether it has leading newlines
+        // or if it even exists we take different paths.
+        let comment_chunk = self.skip_comments_and_whitespace_chunk();
+        let comment_chunk = TextChunk::new(comment_chunk.string.trim_end().to_string());
+
+        let comment_starts_with_newline = comment_chunk.string.trim_matches(' ').starts_with('\n');
+        if comment_starts_with_newline {
+            // After the return type we found a newline and a comment. We want to format the group
+            // right away, then keep formatting everything else (at that point there's no need to
+            // use chunks anymore).
+            self.format_chunk_group(group);
+
+            let mut comment_group = ChunkGroup::new();
+            comment_group.text(comment_chunk);
+            self.format_chunk_group(comment_group);
+            self.write_line();
+
+            // If there's no where clause the left brace goes on the same line as the function signature
+            if !has_where_clause {
+                self.skip_stray_where_keyword();
+
+                if semicolon {
+                    self.write_semicolon();
+                } else {
+                    self.write_left_brace();
+                }
+            }
+            return;
+        }
+
+        let wrote_comment = !comment_chunk.string.trim().is_empty();
+        group.text(comment_chunk);
 
         // If there's no where clause the left brace goes on the same line as the function signature
         if !has_where_clause {
-            // There might still be a where keyword that we'll remove
-            if self.token == Token::Keyword(Keyword::Where) {
-                self.bump();
-                self.skip_comments_and_whitespace();
-            }
+            group.text(self.chunk(Formatter::skip_stray_where_keyword));
+        }
 
+        if !has_where_clause && !wrote_comment {
+            group.text(self.chunk(|formatter| {
+                if semicolon {
+                    formatter.write_semicolon();
+                } else {
+                    formatter.write_space();
+                    formatter.write_left_brace();
+                }
+            }));
+        }
+
+        self.format_chunk_group(group);
+
+        if wrote_comment {
+            self.write_line();
             if semicolon {
                 self.write_semicolon();
             } else {
-                self.write_space();
                 self.write_left_brace();
             }
+        }
+    }
+
+    fn skip_stray_where_keyword(&mut self) {
+        // There might still be a where keyword that we'll remove
+        if self.token == Token::Keyword(Keyword::Where) {
+            self.bump();
+            self.skip_comments_and_whitespace();
         }
     }
 
@@ -388,6 +463,30 @@ mod tests {
 
         }";
         let expected = "fn foo() {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_trailing_comment_in_same_line_before_left_brace() {
+        let src = "fn foo(x: Field) // comment 
+        {
+        }";
+        let expected = "fn foo(x: Field) // comment
+{}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_function_with_trailing_comment_in_separate_line_before_left_brace() {
+        let src = "fn foo(x: Field)
+        // comment 
+        {
+        }";
+        let expected = "fn foo(x: Field)
+// comment
+{}
+";
         assert_format(src, expected);
     }
 }
