@@ -9,9 +9,15 @@ use noirc_frontend::{
 };
 
 use super::{
-    chunks::{Chunk, ChunkTag, Chunks, TextChunk},
+    chunks::{Chunk, ChunkKind, ChunkTag, Chunks, TextChunk},
     Formatter,
 };
+
+#[derive(Debug)]
+struct FormattedLambda {
+    group: Chunks,
+    first_line_width: usize,
+}
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_expression(&mut self, expression: Expression, chunks: &mut Chunks) {
@@ -58,7 +64,7 @@ impl<'a> Formatter<'a> {
                 }));
             }
             ExpressionKind::Tuple(exprs) => chunks.group(self.format_tuple(exprs)),
-            ExpressionKind::Lambda(lambda) => chunks.group(self.format_lambda(*lambda)),
+            ExpressionKind::Lambda(lambda) => chunks.group(self.format_lambda(*lambda).group),
             ExpressionKind::Parenthesized(expression) => {
                 chunks.group(self.format_parenthesized_expression(*expression));
             }
@@ -128,6 +134,7 @@ impl<'a> Formatter<'a> {
     fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> Chunks {
         let mut chunks = Chunks::new();
         chunks.one_chunk_per_line = false;
+        chunks.kind = ChunkKind::ExpressionList;
 
         chunks.text(self.chunk(|formatter| {
             if is_slice {
@@ -168,6 +175,8 @@ impl<'a> Formatter<'a> {
     fn format_tuple(&mut self, exprs: Vec<Expression>) -> Chunks {
         let mut chunks = Chunks::new();
         chunks.one_chunk_per_line = false;
+        chunks.kind = ChunkKind::ExpressionList;
+
         let force_trailing_comma = exprs.len() == 1;
 
         chunks.text(self.chunk(|formatter| {
@@ -181,10 +190,10 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
-    fn format_lambda(&mut self, lambda: Lambda) -> Chunks {
+    fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
         let mut chunks = Chunks::new();
 
-        chunks.text(self.chunk(|formatter| {
+        let params_and_return_type_chunk = self.chunk(|formatter| {
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
                 if index > 0 {
@@ -210,10 +219,31 @@ impl<'a> Formatter<'a> {
                 formatter.format_type(lambda.return_type);
                 formatter.write_space();
             }
-        }));
+        });
+
+        let params_and_return_type_chunk_width = params_and_return_type_chunk.width;
+
+        chunks.text(params_and_return_type_chunk);
+
+        let body_is_block = matches!(lambda.body.kind, ExpressionKind::Block(..));
+
+        let width_before_body = chunks.width();
+
         self.format_expression(lambda.body, &mut chunks);
 
-        chunks
+        let width_after_body = chunks.width();
+
+        let first_line_width = params_and_return_type_chunk_width
+            + (if body_is_block {
+                // 1 because we already have `|param1, param2, ..., paramN| ` (including the space)
+                // so all that's left is a `{`.
+                1
+            } else {
+                // The body is not a block so we can't assume it'll go into multiple lines
+                width_after_body - width_before_body
+            });
+
+        FormattedLambda { group: chunks, first_line_width }
     }
 
     fn format_parenthesized_expression(&mut self, expr: Expression) -> Chunks {
@@ -333,12 +363,35 @@ impl<'a> Formatter<'a> {
                 chunks.group(group);
             }
         } else {
+            let exprs_len = exprs.len();
+            let mut expr_index = 0;
+
             self.format_items_separated_by_comma(
                 exprs,
                 force_trailing_comma,
                 false, // surround with spaces
                 chunks,
                 |formatter, expr, chunks| {
+                    // If the last expression in the list is a lambda, we format it but we mark
+                    // the chunk in a special way: it likely has newlines, but we don't want
+                    // those newlines to affect the parent group. For example:
+                    //
+                    //     foo(1, 2, |x| {
+                    //       let y = x + 1;
+                    //       y * 2
+                    //     })
+                    if expr_index == exprs_len - 1 {
+                        if let ExpressionKind::Lambda(lambda) = expr.kind {
+                            let mut lambda_group = formatter.format_lambda(*lambda);
+                            lambda_group.group.kind = ChunkKind::LambdaAsLastExpressionInList {
+                                first_line_width: lambda_group.first_line_width,
+                            };
+                            chunks.group(lambda_group.group);
+                            return;
+                        }
+                    }
+                    expr_index += 1;
+
                     formatter.format_expression(expr, chunks);
                 },
             );
@@ -856,6 +909,7 @@ impl<'a> Formatter<'a> {
 
     fn format_call(&mut self, call: CallExpression) -> Chunks {
         let mut chunks = Chunks::new();
+        chunks.kind = ChunkKind::ExpressionList;
 
         self.format_expression(*call.func, &mut chunks);
 
@@ -914,6 +968,7 @@ impl<'a> Formatter<'a> {
         nested: bool,
     ) -> Chunks {
         let mut chunks = Chunks::new();
+        chunks.kind = ChunkKind::ExpressionList;
 
         // The logic here is similar to that of `format_member_access_with_chunk_tag`, so
         // please that function inner comments for details.
@@ -1798,6 +1853,17 @@ global y = 1;
     1;
     2
 };
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_call_argument() {
+        let src = "global x = foo(1, |x| { 1; 2 });";
+        let expected = "global x = foo(1, |x| {
+    1;
+    2
+});
 ";
         assert_format(src, expected);
     }

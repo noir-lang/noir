@@ -41,7 +41,10 @@ pub(crate) struct Formatter<'a> {
     token_span: Span,
 
     /// The current indentation level.
-    indentation: usize,
+    /// Why an `i32` and not `usize`? We sometimes need indentation to be negative,
+    /// see `format_chunks_impl` for a complete explanation (it's for formatting
+    /// a lambda as a last argument in an expression list).
+    indentation: i32,
 
     /// How many characters we've written so far in the current line
     /// (useful to avoid exceeding the configurable maximum)
