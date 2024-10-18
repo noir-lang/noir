@@ -133,7 +133,6 @@ impl<'a> Formatter<'a> {
 
     fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> Chunks {
         let mut chunks = Chunks::new();
-        chunks.one_chunk_per_line = false;
         chunks.kind = ChunkKind::ExpressionList;
 
         chunks.text(self.chunk(|formatter| {
@@ -145,11 +144,13 @@ impl<'a> Formatter<'a> {
 
         match literal {
             ArrayLiteral::Standard(exprs) => {
-                self.format_expressions_separated_by_comma(
+                let maximum_element_width = self.format_expressions_separated_by_comma(
                     exprs,
                     false, // force trailing comma
                     &mut chunks,
                 );
+                chunks.one_chunk_per_line =
+                    maximum_element_width > self.config.short_array_element_width_threshold;
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
                 chunks.increase_indentation();
@@ -352,19 +353,23 @@ impl<'a> Formatter<'a> {
         chunks
     }
 
+    /// Returns the maximum width of each expression to format. For example,
+    /// if the list is [1, 234, 56], the maximum width is 3 (that of `234`).
     pub(super) fn format_expressions_separated_by_comma(
         &mut self,
         exprs: Vec<Expression>,
         force_trailing_comma: bool,
         chunks: &mut Chunks,
-    ) {
+    ) -> usize {
         if exprs.is_empty() {
             if let Some(group) = self.empty_block_contents_chunk() {
                 chunks.group(group);
             }
+            0
         } else {
             let exprs_len = exprs.len();
             let mut expr_index = 0;
+            let mut max_width = 0;
 
             self.format_items_separated_by_comma(
                 exprs,
@@ -393,9 +398,22 @@ impl<'a> Formatter<'a> {
                     }
                     expr_index += 1;
 
+                    let chunks_len_before_expression = chunks.chunks.len();
+
                     formatter.format_expression(expr, chunks);
+
+                    let chunks_len_after_expression = chunks.chunks.len();
+                    let expression_width: usize = (chunks_len_before_expression
+                        ..chunks_len_after_expression)
+                        .map(|index| chunks.chunks[index].width())
+                        .sum();
+                    if expression_width > max_width {
+                        max_width = expression_width;
+                    }
                 },
             );
+
+            max_width
         }
     }
 
@@ -1333,6 +1351,26 @@ global y = 1;
 ];
 ";
         assert_format_with_max_width(src, expected, 25);
+    }
+
+    #[test]
+    fn format_long_array_element() {
+        let src = "global x = [ 123, 1234, 12345, 123, 1234, 12345, 123456, 123] ;";
+        let expected = "global x = [
+    123,
+    1234,
+    12345,
+    123,
+    1234,
+    12345,
+    123456,
+    123,
+];
+";
+
+        let config =
+            Config { short_array_element_width_threshold: 5, max_width: 30, ..Default::default() };
+        assert_format_with_config(src, expected, config);
     }
 
     #[test]
