@@ -51,12 +51,12 @@ pub(crate) struct Formatter<'a> {
     /// (useful to avoid exceeding the configurable maximum)
     current_line_width: usize,
 
-    /// Whenever a comment is written, this flag is set to true.
-    /// So, before formatting some chunk of code we can set this to false,
-    /// format something and know if we wrote some comments.
+    /// Whenever a comment is written, this counter is incremented.
+    /// In this way we can know if comments were written while formatting some code:
+    /// we remember the previous value, format, then see if it increased.
     /// This is used, for example, when transforming `foo::{bar}` into `foo::bar`:
     /// we only do that if there were no comments between `{` and `}`.
-    wrote_comment: bool,
+    written_comments_count: usize,
 
     /// If we find a comment like this one:
     ///
@@ -84,7 +84,7 @@ impl<'a> Formatter<'a> {
             indentation: 0,
             indentation_stack: Vec::new(),
             current_line_width: 0,
-            wrote_comment: false,
+            written_comments_count: 0,
             ignore_next: false,
             group_tag_counter: 0,
             buffer: String::new(),

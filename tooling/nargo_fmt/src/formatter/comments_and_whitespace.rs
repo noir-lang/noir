@@ -135,7 +135,7 @@ impl<'a> Formatter<'a> {
                     self.bump();
                     passed_whitespace = false;
                     last_was_block_comment = false;
-                    self.wrote_comment = true;
+                    self.written_comments_count += 1;
                 }
                 Token::BlockComment(comment, None) => {
                     if comment.trim() == "noir-fmt:ignore" {
@@ -161,7 +161,7 @@ impl<'a> Formatter<'a> {
                     self.bump();
                     passed_whitespace = false;
                     last_was_block_comment = true;
-                    self.wrote_comment = true;
+                    self.written_comments_count += 1;
                 }
                 _ => break,
             }

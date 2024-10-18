@@ -35,10 +35,10 @@ impl<'a> Formatter<'a> {
             self.write_left_brace();
             self.increase_indentation();
 
-            self.wrote_comment = false;
+            let comments_count_before = self.written_comments_count;
             self.skip_comments_and_whitespace_writing_multiple_lines_if_found();
             self.decrease_indentation();
-            if self.wrote_comment {
+            if self.written_comments_count > comments_count_before {
                 self.write_line();
                 self.write_indentation();
             }

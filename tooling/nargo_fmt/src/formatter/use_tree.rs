@@ -66,7 +66,7 @@ impl<'a> Formatter<'a> {
                     formatter.write_left_brace();
                 });
 
-                self.wrote_comment = false;
+                let comments_count_before = self.written_comments_count;
 
                 let mut items_chunk = ChunkGroup::new();
                 self.format_items_separated_by_comma(
@@ -77,7 +77,7 @@ impl<'a> Formatter<'a> {
                     |formatter, use_tree, chunks| chunks.group(formatter.format_use_tree(use_tree)),
                 );
 
-                let wrote_comment = self.wrote_comment;
+                let wrote_comment = self.written_comments_count > comments_count_before;
 
                 let right_brace_chunk = self.chunk(|formatter| {
                     formatter.write_right_brace();
