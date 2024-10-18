@@ -23,7 +23,7 @@ fn main() {
 
     // 8589934594 has 34 bits
     assert(size == 34);
-    C.assert_max_bit_size(34);
+    C.assert_max_bit_size::<34>();
 
     assert(
         C.to_be_bits() == [

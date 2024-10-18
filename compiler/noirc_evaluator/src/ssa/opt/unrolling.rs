@@ -114,7 +114,7 @@ impl Function {
         // Loop unrolling in brillig can lead to a code explosion currently. This can
         // also be true for ACIR, but we have no alternative to unrolling in ACIR.
         // Brillig also generally prefers smaller code rather than faster code.
-        if self.runtime() != RuntimeType::Brillig {
+        if !matches!(self.runtime(), RuntimeType::Brillig(_)) {
             errors.extend(find_all_loops(self).unroll_each_loop(self));
         }
     }

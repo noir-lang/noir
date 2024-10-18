@@ -31,7 +31,7 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions.
     pub(crate) fn remove_bit_shifts(&mut self) {
-        if let RuntimeType::Brillig = self.runtime() {
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
             return;
         }
 

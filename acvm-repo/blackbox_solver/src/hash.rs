@@ -1,7 +1,6 @@
 use acir::BlackBoxFunc;
 use blake2::digest::generic_array::GenericArray;
 use blake2::{Blake2s256, Digest};
-use sha3::Keccak256;
 
 use crate::BlackBoxResolutionError;
 
@@ -20,11 +19,6 @@ pub fn blake2s(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
 
 pub fn blake3(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
     Ok(blake3::hash(inputs).into())
-}
-
-pub fn keccak256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
-    generic_hash_256::<Keccak256>(inputs)
-        .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Keccak256, err))
 }
 
 pub fn sha256_compression(state: &mut [u32; 8], msg_blocks: &[u32; 16]) {

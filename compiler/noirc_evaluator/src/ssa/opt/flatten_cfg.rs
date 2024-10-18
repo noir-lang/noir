@@ -142,7 +142,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::{CallStack, InsertInstructionResult},
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
@@ -254,7 +254,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     // This pass may run forever on a brillig function.
     // Analyze will check if the predecessors have been processed and push the block to the back of
     // the queue. This loops forever if there are still any loops present in the program.
-    if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
+    if matches!(function.runtime(), RuntimeType::Brillig(_)) {
         return;
     }
     let cfg = ControlFlowGraph::with_function(function);

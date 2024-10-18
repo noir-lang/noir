@@ -21,10 +21,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         item_push_count: usize,
         back: bool,
     ) {
-        let source_vector_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-        let item_push_count_arg = MemoryAddress::from(ScratchSpace::start() + 1);
-        let new_vector_pointer_return = MemoryAddress::from(ScratchSpace::start() + 2);
-        let write_pointer_return = MemoryAddress::from(ScratchSpace::start() + 3);
+        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+        let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
+        let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         self.usize_const_instruction(item_push_count_arg, item_push_count.into());
@@ -40,10 +40,10 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     push_back: bool,
 ) {
-    let source_vector_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-    let item_push_count_arg = MemoryAddress::from(ScratchSpace::start() + 1);
-    let new_vector_pointer_return = MemoryAddress::from(ScratchSpace::start() + 2);
-    let write_pointer_return = MemoryAddress::from(ScratchSpace::start() + 3);
+    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+    let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
+    let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
 
     brillig_context.set_allocated_registers(vec![
         source_vector_pointer_arg,
