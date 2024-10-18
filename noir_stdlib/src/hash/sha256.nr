@@ -5,9 +5,7 @@ use crate::runtime::is_unconstrained;
 
 // Deprecated in favour of `sha256_var`
 // docs:start:sha256
-pub fn sha256<let N: u32>(
-    input: [u8; N],
-) -> [u8; 32]
+pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:sha256
 {
     digest(input)

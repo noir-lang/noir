@@ -18,17 +18,13 @@ pub use sha256::{digest, sha256, sha256_compression, sha256_var};
 
 #[foreign(blake2s)]
 // docs:start:blake2s
-pub fn blake2s<let N: u32>(
-    input: [u8; N],
-) -> [u8; 32]
+pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
 #[foreign(blake3)]
 // docs:start:blake3
-pub fn blake3<let N: u32>(
-    input: [u8; N],
-) -> [u8; 32]
+pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
 {}
 
@@ -94,9 +90,7 @@ fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u
 }
 
 // docs:start:pedersen_hash
-pub fn pedersen_hash<let N: u32>(
-    input: [Field; N],
-) -> Field
+pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
 {
     pedersen_hash_with_separator_noir(input, 0)
@@ -151,10 +145,7 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
 }
 
 // docs:start:keccak256
-pub fn keccak256<let N: u32>(
-    input: [u8; N],
-    message_size: u32,
-) -> [u8; 32]
+pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
 // docs:end:keccak256
 {
     crate::hash::keccak::keccak256(input, message_size)

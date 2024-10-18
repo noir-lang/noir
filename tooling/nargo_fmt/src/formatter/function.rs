@@ -59,6 +59,7 @@ impl<'a> Formatter<'a> {
                 func.return_type,
                 func.return_visibility,
                 has_where_clause,
+                false,               // has parameters
                 func.body.is_none(), // semicolon
                 group,
             );
@@ -69,6 +70,7 @@ impl<'a> Formatter<'a> {
                 func.return_type,
                 func.return_visibility,
                 has_where_clause,
+                true,                // has parameters
                 func.body.is_none(), // semicolon
                 group,
             );
@@ -156,6 +158,7 @@ impl<'a> Formatter<'a> {
         return_type: FunctionReturnType,
         visibility: Visibility,
         has_where_clause: bool,
+        has_parameters: bool,
         semicolon: bool,
         mut group: ChunkGroup,
     ) {
@@ -231,7 +234,11 @@ impl<'a> Formatter<'a> {
             }));
         }
 
-        self.format_chunk_group(group);
+        if has_parameters {
+            self.format_chunk_group(group);
+        } else {
+            self.format_chunk_group_in_one_line(group);
+        }
 
         if wrote_comment {
             self.write_line();
@@ -488,5 +495,12 @@ mod tests {
 {}
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_long_function_signature_no_parameters() {
+        let src = "fn foo() -> Field {}";
+        let expected = "fn foo() -> Field {}\n";
+        assert_format_with_max_width(src, expected, 15);
     }
 }

@@ -2,10 +2,7 @@
 // 64 bytes.
 // Internal functions act on 64-bit unsigned integers for simplicity.
 // Auxiliary mappings; names as in FIPS PUB 180-4
-fn rotr64(
-    a: u64,
-    b: u8,
-) -> u64 // 64-bit right rotation
+fn rotr64(a: u64, b: u8) -> u64 // 64-bit right rotation
 {
     // None of the bits overlap between `(a >> b)` and `(a << (64 - b))`
     // Addition is then equivalent to OR, with fewer constraints.
@@ -36,9 +33,7 @@ fn sha_sigma1(x: u64) -> u64 {
     rotr64(x, 19) ^ rotr64(x, 61) ^ (x >> 6)
 }
 
-fn sha_w(
-    msg: [u64; 16],
-) -> [u64; 80] // Expanded message blocks
+fn sha_w(msg: [u64; 16]) -> [u64; 80] // Expanded message blocks
 {
     let mut w: [u64; 80] = [0; 80];
 

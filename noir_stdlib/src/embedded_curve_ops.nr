@@ -124,9 +124,7 @@ pub(crate) fn multi_scalar_mul_slice(
 ) -> [Field; 3] {}
 
 // docs:start:fixed_base_scalar_mul
-pub fn fixed_base_scalar_mul(
-    scalar: EmbeddedCurveScalar,
-) -> EmbeddedCurvePoint
+pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 // docs:end:fixed_base_scalar_mul
 {
     let g1 = EmbeddedCurvePoint {
