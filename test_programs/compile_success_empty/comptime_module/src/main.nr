@@ -47,7 +47,7 @@ comptime fn outer_attribute_separate_module(m: Module) {
     increment_counter();
 }
 
-struct Foo {}
+pub struct Foo {}
 
 #[add_function]
 mod add_to_me {
