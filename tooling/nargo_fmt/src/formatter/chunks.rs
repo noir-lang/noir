@@ -103,7 +103,8 @@ impl Chunk {
         }
     }
 
-    pub(crate) fn as_group(self) -> Option<ChunkGroup> {
+    /// Returns the current chunk as a Group, if it is one. Otherwise returns None.
+    pub(crate) fn group(self) -> Option<ChunkGroup> {
         if let Chunk::Group(group) = self {
             Some(group)
         } else {

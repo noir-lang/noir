@@ -88,7 +88,7 @@ impl<'a> Formatter<'a> {
                     // is lines, indentation and trailing comma that we don't need and would
                     // actually produce incorrect code.
                     let single_group =
-                        items_chunk.chunks.into_iter().filter_map(Chunk::as_group).next().unwrap();
+                        items_chunk.chunks.into_iter().filter_map(Chunk::group).next().unwrap();
                     group.chunks.extend(single_group.chunks);
                 } else {
                     group.text(left_brace_chunk);
