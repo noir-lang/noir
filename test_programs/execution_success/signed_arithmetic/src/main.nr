@@ -4,7 +4,7 @@ fn main(mut x: i32, mut y: i32, z: i32) {
     assert(s1 + s2 == 13);
     assert(x + y == 13);
 
-    s2= -8;
+    s2 = -8;
     y = -y;
     assert(s1 + s2 == -3);
     assert(x + y == -3);

@@ -38,7 +38,10 @@ impl Context {
     }
 }
 
-fn compute<Event>(_event: Event) -> ([u8; 5], Field) where Event: EventInterface {
+fn compute<Event>(_event: Event) -> ([u8; 5], Field)
+where
+    Event: EventInterface,
+{
     ([0 as u8; 5], 0)
 }
 
@@ -46,17 +49,23 @@ fn emit_with_keys<Event, let OB: u32>(
     context: &mut Context,
     randomness: Field,
     event: Event,
-    inner_compute: fn(Event) -> ([u8; OB], Field)
-) where Event: EventInterface {
+    inner_compute: fn(Event) -> ([u8; OB], Field),
+)
+where
+    Event: EventInterface,
+{
     let (log, log_hash) = inner_compute(event);
     context.emit_raw_log(randomness, log, log_hash);
 }
 
 pub fn encode_event_with_randomness<Event>(
     context: &mut Context,
-    randomness: Field
-) -> fn[(&mut Context, Field)](Event) -> () where Event: EventInterface {
-    | e: Event | {
+    randomness: Field,
+) -> fn[(&mut Context, Field)](Event) -> ()
+where
+    Event: EventInterface,
+{
+    |e: Event| {
         unsafe {
             func(context.a);
         }

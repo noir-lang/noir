@@ -79,7 +79,10 @@ impl Default for bool {
     }
 }
 
-impl<T, let N: u32> Default for [T; N] where T: Default {
+impl<T, let N: u32> Default for [T; N]
+where
+    T: Default,
+{
     fn default() -> [T; N] {
         [T::default(); N]
     }
@@ -91,25 +94,47 @@ impl<T> Default for [T] {
     }
 }
 
-impl<A, B> Default for (A, B) where A: Default, B: Default {
+impl<A, B> Default for (A, B)
+where
+    A: Default,
+    B: Default,
+{
     fn default() -> (A, B) {
         (A::default(), B::default())
     }
 }
 
-impl<A, B, C> Default for (A, B, C) where A: Default, B: Default, C: Default {
+impl<A, B, C> Default for (A, B, C)
+where
+    A: Default,
+    B: Default,
+    C: Default,
+{
     fn default() -> (A, B, C) {
         (A::default(), B::default(), C::default())
     }
 }
 
-impl<A, B, C, D> Default for (A, B, C, D) where A: Default, B: Default, C: Default, D: Default {
+impl<A, B, C, D> Default for (A, B, C, D)
+where
+    A: Default,
+    B: Default,
+    C: Default,
+    D: Default,
+{
     fn default() -> (A, B, C, D) {
         (A::default(), B::default(), C::default(), D::default())
     }
 }
 
-impl<A, B, C, D, E> Default for (A, B, C, D, E) where A: Default, B: Default, C: Default, D: Default, E: Default {
+impl<A, B, C, D, E> Default for (A, B, C, D, E)
+where
+    A: Default,
+    B: Default,
+    C: Default,
+    D: Default,
+    E: Default,
+{
     fn default() -> (A, B, C, D, E) {
         (A::default(), B::default(), C::default(), D::default(), E::default())
     }

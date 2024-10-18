@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is assertion
 // This is the same as the `assert_statement` test except we specify
 // that the backend should use a prover which will construct proofs

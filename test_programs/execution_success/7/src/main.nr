@@ -2,7 +2,6 @@
 //
 // Pre-alpha dependencies must now be prefixed with the word "dep".
 // The line below indicates that we would like to pull in the standard library dependency.
-
 fn main(x: [u8; 5], result: [u8; 32]) {
     let digest = std::hash::blake2s(x);
     assert(digest == result);

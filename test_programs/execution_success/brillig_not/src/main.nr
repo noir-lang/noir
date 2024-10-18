@@ -1,5 +1,5 @@
 // Tests a very simple Brillig function.
-// 
+//
 // The features being tested is not instruction on brillig
 fn main(x: Field, y: Field) {
     unsafe {

@@ -14,7 +14,7 @@ fn main(
     // This is the same as `msg_big_with_padding` but with no padding
     msg_big_no_padding: [u8; 297],
     message_size: u64,
-    result_big_with_padding: pub [u8; 32]
+    result_big_with_padding: pub [u8; 32],
 ) {
     let hash = std::hash::sha256_var(msg_just_over_block, msg_just_over_block.len() as u64);
     assert_eq(hash, result_just_over_block);
@@ -27,7 +27,7 @@ fn main(
 
     let hash = std::hash::sha256_var(
         msg_big_not_block_multiple,
-        msg_big_not_block_multiple.len() as u64
+        msg_big_not_block_multiple.len() as u64,
     );
     assert_eq(hash, result_big);
 

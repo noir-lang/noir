@@ -2,7 +2,7 @@ trait MyDefault {
     fn my_default(x: Field, y: Field) -> Self;
 
     fn method2(x: Field) -> Field {
-	    x
+        x
     }
 }
 

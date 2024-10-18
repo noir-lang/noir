@@ -8,47 +8,47 @@ use crate::option::Option;
 /// against another type it will also be set to that type. For example, if `a` is a type
 /// variable and we have the type equality `(a, i32) = (u8, i32)`, the compiler will set
 /// `a` equal to `u8`.
-/// 
+///
 /// Unbound type variables will often be rendered as `_` while printing them. Bound type
 /// variables will appear as the type they are bound to.
-/// 
+///
 /// This can be used in conjunction with functions which internally perform type checks
 /// such as `Type::implements` or `Type::get_trait_impl` to potentially grab some of the types used.
-/// 
+///
 /// Note that calling `Type::implements` or `Type::get_trait_impl` on a type variable will always
 /// fail.
-/// 
+///
 /// Example:
-/// 
+///
 /// ```noir
 /// trait Serialize<let N: u32> {}
-/// 
+///
 /// impl Serialize<1> for Field {}
-/// 
+///
 /// impl<T, let N: u32, let M: u32> Serialize<N * M> for [T; N]
 ///     where T: Serialize<M> {}
-/// 
+///
 /// impl<T, U, let N: u32, let M: u32> Serialize<N + M> for (T, U)
 ///     where T: Serialize<N>, U: Serialize<M> {}
-/// 
+///
 /// fn fresh_variable_example() {
 ///     let typevar1 = std::meta::typ::fresh_type_variable();
 ///     let constraint = quote { Serialize<$typevar1> }.as_trait_constraint();
 ///     let field_type = quote { Field }.as_type();
-/// 
+///
 ///     // Search for a trait impl (binding typevar1 to 1 when the impl is found):
 ///     assert(field_type.implements(constraint));
-/// 
+///
 ///     // typevar1 should be bound to the "1" generic now:
 ///     assert_eq(typevar1.as_constant().unwrap(), 1);
-/// 
+///
 ///     // If we want to do the same with a different type, we need to
 ///     // create a new type variable now that `typevar1` is bound
 ///     let typevar2 = std::meta::typ::fresh_type_variable();
 ///     let constraint = quote { Serialize<$typevar2> }.as_trait_constraint();
 ///     let array_type = quote { [(Field, Field); 5] }.as_type();
 ///     assert(array_type.implements(constraint));
-/// 
+///
 ///     // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
 ///     assert_eq(typevar2.as_constant().unwrap(), 10);
 /// }
@@ -60,14 +60,14 @@ pub comptime fn fresh_type_variable() -> Type {}
 
 impl Type {
     /// If this type is an array, return a pair of (element type, size type).
-    /// 
+    ///
     /// Example:
-    /// 
+    ///
     /// ```noir
     /// comptime {
     ///     let array_type = quote { [Field; 3] }.as_type();
     ///     let (field_type, three_type) = array_type.as_array().unwrap();
-    /// 
+    ///
     ///     assert(field_type.is_field());
     ///     assert_eq(three_type.as_constant().unwrap(), 3);
     /// }
@@ -127,14 +127,14 @@ impl Type {
     /// for a trait constraint specified from a `where` clause is unknown,
     /// this function will return `None` in these cases. If you only want to know
     /// whether a type implements a trait, use `implements` instead.
-    /// 
+    ///
     /// Example:
-    /// 
+    ///
     /// ```rust
     /// comptime {
     ///     let field_type = quote { Field }.as_type();
     ///     let default = quote { Default }.as_trait_constraint();
-    /// 
+    ///
     ///     let the_impl: TraitImpl = field_type.get_trait_impl(default).unwrap();
     ///     assert(the_impl.methods().len(), 1);
     /// }
@@ -147,16 +147,16 @@ impl Type {
     /// Returns `true` if this type implements the given trait. Note that unlike
     /// `get_trait_impl` this will also return true for any `where` constraints
     /// in scope.
-    /// 
+    ///
     /// Example:
-    /// 
+    ///
     /// ```rust
     /// fn foo<T>() where T: Default {
     ///     comptime {
     ///         let field_type = quote { Field }.as_type();
     ///         let default = quote { Default }.as_trait_constraint();
     ///         assert(field_type.implements(default));
-    /// 
+    ///
     ///         let t = quote { T }.as_type();
     ///         assert(t.implements(default));
     ///     }
@@ -196,7 +196,10 @@ impl Eq for Type {
 }
 
 impl crate::hash::Hash for Type {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(type_hash(self))
     }
 }

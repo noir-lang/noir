@@ -1,5 +1,4 @@
 // Tests that we run liveness in block parameters by trying to create too many block parameters to fit in the stack
-
 // Uses up 10 stack items
 struct Inner {
     a: u64,

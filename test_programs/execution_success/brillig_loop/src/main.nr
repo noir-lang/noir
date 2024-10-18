@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is basic looping on brillig
 fn main(sum: u32) {
     unsafe {

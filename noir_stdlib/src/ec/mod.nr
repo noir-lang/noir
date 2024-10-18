@@ -115,7 +115,7 @@ pub mod consts; // Commonly used curve presets
 // the curve.
 //
 // For details on all of the above in the context of hashing to elliptic curves, see <https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html>.
-// 
+//
 //
 // *TODO: Replace Field with Bigint.
 // **TODO: Support arrays of structs to make this work.
@@ -133,18 +133,22 @@ global C5 = 19103219067921713944291392827692070036145651957329286315305642004821
 //fn bit_mul<T,N>(add: fn(T,T) -> T, e: T, bits: [u1; N], p: T) -> T {
 //    let mut out = e;
 //    let n = bits.len();
-// 
+//
 //    for i in 0..n {
 //        out = add(
 //            add(out, out),
 //            if(bits[n - i - 1] == 0) {e} else {p});
 //    }
-// 
+//
 //    out
 //}
 // TODO: Make this built-in.
 pub fn safe_inverse(x: Field) -> Field {
-    if x == 0 { 0 } else { 1 / x }
+    if x == 0 {
+        0
+    } else {
+        1 / x
+    }
 }
 // Boolean indicating whether Field element is a square, i.e. whether there exists a y in Field s.t. x = y*y.
 pub fn is_square(x: Field) -> bool {
@@ -160,7 +164,7 @@ pub fn pow(x: Field, y: Field) -> Field {
 
     for i in 0..254 {
         r *= r;
-        r *= (b[254 - 1 - i] as Field)*x + (1-b[254 - 1 - i] as Field);
+        r *= (b[254 - 1 - i] as Field) * x + (1 - b[254 - 1 - i] as Field);
     }
 
     r

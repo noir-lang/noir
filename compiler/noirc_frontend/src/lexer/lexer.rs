@@ -575,7 +575,11 @@ impl<'a> Lexer<'a> {
             return self.lookup_word_token(word, start, end);
         }
 
-        let delimiter = self.next_token()?;
+        let mut delimiter = self.next_token()?;
+        while let Token::Whitespace(_) = delimiter.token() {
+            delimiter = self.next_token()?;
+        }
+
         let (start_delim, end_delim) = match delimiter.token() {
             Token::LeftBrace => (Token::LeftBrace, Token::RightBrace),
             Token::LeftBracket => (Token::LeftBracket, Token::RightBracket),

@@ -160,7 +160,11 @@ fn merge_slices_else(x: Field) {
 fn merge_slices_return(x: Field, y: Field) -> [Field] {
     let slice = &[0; 2];
     if x != y {
-        if x != 20 { slice.push_back(y) } else { slice }
+        if x != 20 {
+            slice.push_back(y)
+        } else {
+            slice
+        }
     } else {
         slice
     }

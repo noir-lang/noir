@@ -2,8 +2,7 @@
 fn qux() {
     {}
 
-    { /* a block with a comment */
-    }
+    { /* a block with a comment */ }
     {}
     {
         // A block with a comment.
@@ -96,11 +95,12 @@ fn parenthesized() {
 }
 
 fn parenthesized() {
-    value + (/*test*/x as Field/*test*/)
+    value + ( /*test*/ x as Field /*test*/)
 }
 
 fn parenthesized() {
-    value + (
+    value
+        + (
             // line
             x as Field
         )
@@ -117,21 +117,23 @@ fn if_expr() {
 }
 
 fn return_if_expr() {
-    if true { 42 } else { 40 + 2 }
+    if true {
+        42
+    } else {
+        40 + 2
+    }
 }
 
 fn return_if_expr() {
+    if true { 42 };
+
     if true {
         42
-    };
-
-    if true { 42 } else { 40 + 2 }
+    } else {
+        40 + 2
+    }
 }
 
 fn if_if() {
-    (if cond {
-        some();
-    } else {
-        none();
-    }).bar().baz();
+    (if cond { some(); } else { none(); }).bar().baz();
 }

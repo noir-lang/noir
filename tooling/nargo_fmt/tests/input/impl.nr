@@ -14,8 +14,6 @@ impl MyType {
     fn method(self: Self) {}
 
     fn method(mut self: Self) {}
-
-    fn method(&mut self: Self) {}
 }
 
 impl MyType {

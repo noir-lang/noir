@@ -15,7 +15,7 @@ trait Deserialize<let N: u32> {
 global AZTEC_ADDRESS_LENGTH: u32 = 1;
 
 struct AztecAddress {
-    inner : Field
+    inner: Field,
 }
 
 impl FromField for AztecAddress {
@@ -39,10 +39,13 @@ impl Eq for AztecAddress {
 // Custom code
 
 struct MyStruct<T> {
-    a: T
+    a: T,
 }
 
-impl<T> Deserialize<1> for MyStruct<T> where T: FromField {
+impl<T> Deserialize<1> for MyStruct<T>
+where
+    T: FromField,
+{
     fn deserialize(fields: [Field; 1]) -> Self {
         Self { a: FromField::from_field(fields[0]) }
     }
@@ -51,7 +54,6 @@ impl<T> Deserialize<1> for MyStruct<T> where T: FromField {
 fn main() {
     let fields = [5; 1];
     let foo = MyStruct::deserialize(fields); // Note I don't specify T here (the type of `foo.a`)
-
     let bar = AztecAddress { inner: 5 };
 
     // Here `T` is apparently inferred to be `AztecAddress`, presumably because of the comparison.
