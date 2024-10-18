@@ -1134,20 +1134,24 @@ impl<'a> Formatter<'a> {
         }
 
         for (index, statement) in block.statements.into_iter().enumerate() {
+            let mut ignore_next = false;
+
             if index > 0 {
                 let count = self.following_newlines_count();
                 if count > 0 {
                     // If newlines follow, we first add a line, then add the comment chunk
                     chunks.lines(count > 1);
                     chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
+                    ignore_next = self.ignore_next;
                 } else {
                     // Otherwise, add the comment first as it's a trailing comment
                     chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                    ignore_next = self.ignore_next;
                     chunks.line();
                 }
             }
 
-            self.format_statement(statement, chunks);
+            self.format_statement(statement, chunks, ignore_next);
         }
 
         chunks.text(self.chunk(|formatter| {

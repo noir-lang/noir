@@ -3,12 +3,21 @@ use noirc_frontend::parser::{Item, ItemKind};
 use super::Formatter;
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_item(&mut self, item: Item) {
+    pub(super) fn format_item(&mut self, item: Item, mut ignore_next: bool) {
         self.skip_comments_and_whitespace();
+
+        ignore_next |= self.ignore_next;
 
         if !item.doc_comments.is_empty() {
             self.format_outer_doc_comments();
             self.skip_comments_and_whitespace();
+        }
+
+        ignore_next |= self.ignore_next;
+
+        if ignore_next {
+            self.write_and_skip_span_without_formatting(item.span);
+            return;
         }
 
         match item.kind {
@@ -32,7 +41,5 @@ impl<'a> Formatter<'a> {
             }
             ItemKind::InnerAttribute(..) => self.format_inner_attribute(),
         }
-
-        self.write_line();
     }
 }

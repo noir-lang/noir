@@ -503,4 +503,34 @@ mod tests {
         let expected = "fn foo() -> Field {}\n";
         assert_format_with_max_width(src, expected, 15);
     }
+
+    #[test]
+    fn does_not_format_function_if_there_is_a_directive_not_to() {
+        let src = "// noir-fmt:ignore
+fn foo() { let  x  = 1  ; 
+            }
+                   
+fn bar() { let  y  = 2  ; 
+            }
+
+// noir-fmt:ignore
+fn baz() { let  z  = 3  ; 
+            }
+
+";
+        let expected = "// noir-fmt:ignore
+fn foo() { let  x  = 1  ; 
+            }
+
+fn bar() {
+    let y = 2;
+}
+
+// noir-fmt:ignore
+fn baz() { let  z  = 3  ; 
+            }
+
+";
+        assert_format(src, expected);
+    }
 }

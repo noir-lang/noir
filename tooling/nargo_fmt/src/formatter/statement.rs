@@ -10,8 +10,22 @@ use noirc_frontend::{
 use super::{chunks::ChunkGroup, Formatter};
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_statement(&mut self, statement: Statement, chunks: &mut ChunkGroup) {
+    pub(super) fn format_statement(
+        &mut self,
+        statement: Statement,
+        chunks: &mut ChunkGroup,
+        mut ignore_next: bool,
+    ) {
         chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
+
+        ignore_next |= self.ignore_next;
+
+        if ignore_next {
+            chunks.text(self.chunk(|formatter| {
+                formatter.write_and_skip_span_without_formatting(statement.span);
+            }));
+            return;
+        }
 
         match statement.kind {
             StatementKind::Let(let_statement) => {
@@ -243,7 +257,9 @@ impl<'a> Formatter<'a> {
             formatter.write_keyword(Keyword::Comptime);
             formatter.write_space();
         }));
-        self.format_statement(statement, &mut group);
+        self.format_statement(
+            statement, &mut group, false, // ignore next
+        );
         group
     }
 
@@ -562,6 +578,34 @@ mod tests {
     }
 }
 "#;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_format_statement_if_there_is_a_directive_not_to() {
+        let src = "fn foo() {
+    // noir-fmt:ignore
+    let  x  =
+                  1  ;
+
+    let  y  =
+                  2 ;
+
+    // noir-fmt:ignore
+    let  z  =
+                  3  ;
+}\n";
+        let expected = "fn foo() {
+    // noir-fmt:ignore
+    let  x  =
+                  1  ;
+
+    let y = 2;
+
+    // noir-fmt:ignore
+    let  z  =
+                  3  ;
+}\n";
         assert_format(src, expected);
     }
 }

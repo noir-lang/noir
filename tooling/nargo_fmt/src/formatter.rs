@@ -58,6 +58,13 @@ pub(crate) struct Formatter<'a> {
     /// we only do that if there were no comments between `{` and `}`.
     wrote_comment: bool,
 
+    /// If we find a comment like this one:
+    ///
+    /// // noir-fmt:ignore
+    ///
+    /// we won't format the next node (in some cases: only applies to statements and items).
+    ignore_next: bool,
+
     /// A counter to create GroupTags.
     group_tag_counter: usize,
 
@@ -78,6 +85,7 @@ impl<'a> Formatter<'a> {
             indentation_stack: Vec::new(),
             current_line_width: 0,
             wrote_comment: false,
+            ignore_next: false,
             group_tag_counter: 0,
             buffer: String::new(),
         };
@@ -91,17 +99,20 @@ impl<'a> Formatter<'a> {
             true,  // at beginning
         );
 
-        self.format_parsed_module(parsed_module);
+        self.format_parsed_module(parsed_module, self.ignore_next);
     }
 
-    fn format_parsed_module(&mut self, parsed_module: ParsedModule) {
+    fn format_parsed_module(&mut self, parsed_module: ParsedModule, mut ignore_next: bool) {
         if !parsed_module.inner_doc_comments.is_empty() {
             self.format_inner_doc_comments();
         }
 
         for item in parsed_module.items {
-            self.format_item(item);
+            self.format_item(item, ignore_next);
+            self.write_line();
+            ignore_next = self.ignore_next;
         }
+
         self.write_line();
     }
 
@@ -222,6 +233,14 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    pub(super) fn write_and_skip_span_without_formatting(&mut self, span: Span) {
+        self.write_source_span(span);
+
+        while self.token_span.start() < span.end() {
+            self.bump();
+        }
+    }
+
     /// Writes a string to the buffer.
     /// This is the only method that directly appends to the buffer and keeps
     /// track of the current line width.
@@ -255,6 +274,8 @@ impl<'a> Formatter<'a> {
 
     /// Advances to the next token (the current token is not written).
     fn bump(&mut self) -> Token {
+        self.ignore_next = false;
+
         let next_token = self.read_token_internal();
         self.token_span = next_token.to_span();
         std::mem::replace(&mut self.token, next_token.into_token())

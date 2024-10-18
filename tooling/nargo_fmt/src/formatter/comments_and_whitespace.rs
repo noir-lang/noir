@@ -68,6 +68,8 @@ impl<'a> Formatter<'a> {
         // Was the last token we processed a block comment?
         let mut last_was_block_comment = false;
 
+        let mut ignore_next = false;
+
         loop {
             match &self.token {
                 Token::Whitespace(whitespace) => {
@@ -100,7 +102,11 @@ impl<'a> Formatter<'a> {
 
                     last_was_block_comment = false;
                 }
-                Token::LineComment(_, None) => {
+                Token::LineComment(comment, None) => {
+                    if comment.trim() == "noir-fmt:ignore" {
+                        ignore_next = true;
+                    }
+
                     // Here we check if we need to write one line, two lines or none after the
                     // end of the line comment.
                     if number_of_newlines > 1 && write_multiple_lines {
@@ -125,7 +131,11 @@ impl<'a> Formatter<'a> {
                     last_was_block_comment = false;
                     self.wrote_comment = true;
                 }
-                Token::BlockComment(_, None) => {
+                Token::BlockComment(comment, None) => {
+                    if comment.trim() == "noir-fmt:ignore" {
+                        ignore_next = true;
+                    }
+
                     // Here we check if we need to write one line, two lines or none after the
                     // end of the block comment.
                     if number_of_newlines > 1 && write_multiple_lines {
@@ -155,6 +165,8 @@ impl<'a> Formatter<'a> {
         if number_of_newlines > 1 && write_multiple_lines {
             self.write_multiple_lines_without_skipping_whitespace_and_comments();
         }
+
+        self.ignore_next = ignore_next;
     }
 
     /// Returns the number of newlines that come next, if we are at a whitespace

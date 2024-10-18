@@ -47,7 +47,7 @@ impl<'a> Formatter<'a> {
             self.write_left_brace();
             self.increase_indentation();
             self.write_line();
-            self.format_parsed_module(submodule.contents);
+            self.format_parsed_module(submodule.contents, self.ignore_next);
             self.decrease_indentation();
             self.write_indentation();
             self.write_right_brace();
