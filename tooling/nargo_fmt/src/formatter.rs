@@ -233,6 +233,10 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Writes whatever is in the source at the given span without formatting it,
+    /// then advances the lexer until past the end of the span.
+    /// This is mainly used to avoid formatting items and statements when a
+    /// `noir-fmt:ignore` comment is found.
     pub(super) fn write_and_skip_span_without_formatting(&mut self, span: Span) {
         self.write_source_span(span);
 
