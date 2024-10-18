@@ -34,11 +34,11 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_prefix(*prefix_expression));
             }
             ExpressionKind::Index(index_expression) => {
-                chunks.group(self.format_index_expression(*index_expression))
+                chunks.group(self.format_index_expression(*index_expression));
             }
             ExpressionKind::Call(call) => chunks.group(self.format_call(*call)),
             ExpressionKind::MethodCall(method_call) => {
-                chunks.group(self.format_method_call(*method_call))
+                chunks.group(self.format_method_call(*method_call));
             }
             ExpressionKind::Constructor(constructor) => {
                 chunks.group(self.format_constructor(*constructor));
@@ -50,7 +50,7 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_cast(*cast_expression));
             }
             ExpressionKind::Infix(infix_expression) => {
-                chunks.group(self.format_infix_expression(*infix_expression))
+                chunks.group(self.format_infix_expression(*infix_expression));
             }
             ExpressionKind::If(if_expression) => {
                 chunks.group(self.format_if_expression(
@@ -87,7 +87,7 @@ impl<'a> Formatter<'a> {
                 ));
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                chunks.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)))
+                chunks.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
             }
             ExpressionKind::TypePath(type_path) => {
                 chunks.group(self.format_type_path(type_path));
@@ -126,7 +126,7 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_array_literal(
                     array_literal,
                     true, // is slice
-                ))
+                ));
             }
         }
     }
@@ -404,7 +404,7 @@ impl<'a> Formatter<'a> {
         items: Vec<Item>,
         force_trailing_comma: bool,
         surround_with_spaces: bool,
-        mut chunks: &mut Chunks,
+        chunks: &mut Chunks,
         mut format_item: F,
     ) where
         F: FnMut(&mut Self, Item, &mut Chunks),
@@ -447,7 +447,7 @@ impl<'a> Formatter<'a> {
                 chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
                 chunks.space_or_line();
             }
-            format_item(self, expr, &mut chunks);
+            format_item(self, expr, chunks);
         }
 
         let chunk = self.chunk(|formatter| {
@@ -1095,18 +1095,14 @@ impl<'a> Formatter<'a> {
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-        mut chunks: &mut Chunks,
+        chunks: &mut Chunks,
     ) {
         if block.is_empty() {
             if let Some(block_chunks) = self.empty_block_contents_chunk() {
                 chunks.chunks.extend(block_chunks.chunks);
             }
         } else {
-            self.format_non_empty_block_expression_contents(
-                block,
-                force_multiple_lines,
-                &mut chunks,
-            );
+            self.format_non_empty_block_expression_contents(block, force_multiple_lines, chunks);
         }
     }
 
@@ -1114,7 +1110,7 @@ impl<'a> Formatter<'a> {
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-        mut chunks: &mut Chunks,
+        chunks: &mut Chunks,
     ) {
         chunks.force_multiple_lines = force_multiple_lines || block.statements.len() > 1;
         let surround_with_spaces = !chunks.force_multiple_lines && block.statements.len() == 1;
@@ -1140,7 +1136,7 @@ impl<'a> Formatter<'a> {
                 }
             }
 
-            self.format_statement(statement, &mut chunks);
+            self.format_statement(statement, chunks);
         }
 
         chunks.text(self.chunk(|formatter| {

@@ -1007,13 +1007,13 @@ impl SecondaryAttribute {
                 format!("deprecated({note:?})")
             }
             SecondaryAttribute::Tag(ref attribute) => format!("'{}", attribute.contents),
-            SecondaryAttribute::Meta(ref attribute) => format!("{}", attribute.contents),
-            SecondaryAttribute::ContractLibraryMethod => format!("contract_library_method"),
-            SecondaryAttribute::Export => format!("export"),
+            SecondaryAttribute::Meta(ref attribute) => attribute.contents.to_string(),
+            SecondaryAttribute::ContractLibraryMethod => "contract_library_method".to_string(),
+            SecondaryAttribute::Export => "export".to_string(),
             SecondaryAttribute::Field(ref k) => format!("field({k})"),
             SecondaryAttribute::Abi(ref k) => format!("abi({k})"),
-            SecondaryAttribute::Varargs => format!("varargs"),
-            SecondaryAttribute::UseCallersScope => format!("use_callers_scope"),
+            SecondaryAttribute::Varargs => "varargs".to_string(),
+            SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttribute::Allow(ref k) => format!("allow(#{k})"),
         }
     }

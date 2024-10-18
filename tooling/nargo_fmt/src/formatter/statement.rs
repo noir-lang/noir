@@ -10,7 +10,7 @@ use noirc_frontend::{
 use super::{chunks::Chunks, Formatter};
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_statement(&mut self, statement: Statement, mut chunks: &mut Chunks) {
+    pub(super) fn format_statement(&mut self, statement: Statement, chunks: &mut Chunks) {
         chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
 
         match statement.kind {
@@ -18,7 +18,7 @@ impl<'a> Formatter<'a> {
                 chunks.group(self.format_let_statement(let_statement));
             }
             StatementKind::Constrain(constrain_statement) => {
-                chunks.group(self.format_constrain_statement(constrain_statement))
+                chunks.group(self.format_constrain_statement(constrain_statement));
             }
             StatementKind::Expression(expression) => match expression.kind {
                 ExpressionKind::Block(block) => chunks.group(self.format_block_expression(
@@ -35,7 +35,7 @@ impl<'a> Formatter<'a> {
                         true, // force multiple lines
                     ));
                 }
-                _ => self.format_expression(expression, &mut chunks),
+                _ => self.format_expression(expression, chunks),
             },
             StatementKind::Assign(assign_statement) => {
                 chunks.group(self.format_assign(assign_statement));

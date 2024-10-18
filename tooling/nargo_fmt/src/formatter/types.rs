@@ -149,7 +149,7 @@ impl<'a> Formatter<'a> {
                 self.bump();
             }
             UnresolvedTypeData::AsTraitPath(as_trait_path) => {
-                self.format_as_trait_path(*as_trait_path)
+                self.format_as_trait_path(*as_trait_path);
             }
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)

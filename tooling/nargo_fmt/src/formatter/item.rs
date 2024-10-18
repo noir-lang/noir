@@ -13,7 +13,7 @@ impl<'a> Formatter<'a> {
 
         match item.kind {
             ItemKind::Import(use_tree, item_visibility) => {
-                self.format_import(use_tree, item_visibility)
+                self.format_import(use_tree, item_visibility);
             }
             ItemKind::Function(noir_function) => self.format_function(noir_function),
             ItemKind::Struct(noir_struct) => self.format_struct(noir_struct),
@@ -22,10 +22,10 @@ impl<'a> Formatter<'a> {
             ItemKind::Impl(type_impl) => self.format_impl(type_impl),
             ItemKind::TypeAlias(noir_type_alias) => self.format_type_alias(noir_type_alias),
             ItemKind::Global(let_statement, visibility) => {
-                self.format_global(let_statement, visibility)
+                self.format_global(let_statement, visibility);
             }
             ItemKind::ModuleDecl(module_declaration) => {
-                self.format_module_declaration(module_declaration)
+                self.format_module_declaration(module_declaration);
             }
             ItemKind::Submodules(parsed_sub_module) => {
                 self.format_submodule(parsed_sub_module);

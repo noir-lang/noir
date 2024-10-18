@@ -175,7 +175,7 @@ impl Chunks {
 
     /// Append one line to this chunk.
     pub(crate) fn line(&mut self) {
-        self.lines(false)
+        self.lines(false);
     }
 
     /// Append one or two lines to this chunk.
@@ -396,16 +396,16 @@ impl<'a> Formatter<'a> {
             //    none of the expression up to the lambda will result in multiple lines, so
             //    this change in indentation won't affect them.
             let chunks_kind = chunks.kind;
-            if chunks_kind == ChunkKind::ExpressionList || chunks_kind == ChunkKind::MethodCall {
-                if chunks.has_lambda_as_last_expression_in_list() {
-                    let chunks_width = chunks.expression_list_width();
+            if (chunks_kind == ChunkKind::ExpressionList || chunks_kind == ChunkKind::MethodCall)
+                && chunks.has_lambda_as_last_expression_in_list()
+            {
+                let chunks_width = chunks.expression_list_width();
 
-                    let total_width = self.current_line_width + chunks_width;
-                    if total_width <= self.config.max_width {
-                        chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
-                        self.format_chunks_in_one_line(chunks);
-                        return;
-                    }
+                let total_width = self.current_line_width + chunks_width;
+                if total_width <= self.config.max_width {
+                    chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
+                    self.format_chunks_in_one_line(chunks);
+                    return;
                 }
             }
 
@@ -481,7 +481,7 @@ impl<'a> Formatter<'a> {
                             self.increase_indentation();
                             self.write_indentation();
                         }
-                        self.write(&text_chunk.string)
+                        self.write(&text_chunk.string);
                     }
                 }
                 Chunk::TrailingComment(text_chunk) => {
@@ -490,7 +490,7 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 }
                 Chunk::LeadingComment(text_chunk) => {
-                    self.write_chunk_lines(&text_chunk.string.trim());
+                    self.write_chunk_lines(text_chunk.string.trim());
                     self.write_line_without_skipping_whitespace_and_comments();
                     self.write_indentation();
                 }
@@ -502,7 +502,7 @@ impl<'a> Formatter<'a> {
                         group.force_multiline_on_children_with_same_tag_if_multiline = true;
                     }
 
-                    self.format_chunks_impl(group)
+                    self.format_chunks_impl(group);
                 }
                 Chunk::Line { two } => {
                     if two {

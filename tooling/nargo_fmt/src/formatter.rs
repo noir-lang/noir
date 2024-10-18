@@ -173,7 +173,7 @@ impl<'a> Formatter<'a> {
     }
 
     fn write_current_token_trimming_end(&mut self) {
-        self.write(&self.token.to_string().trim_end());
+        self.write(self.token.to_string().trim_end());
     }
 
     fn write_current_token_as_in_source(&mut self) {
@@ -229,16 +229,14 @@ impl<'a> Formatter<'a> {
     }
 
     fn read_token_internal(&mut self) -> SpannedToken {
-        loop {
-            let token = self.lexer.next();
-            if let Some(token) = token {
-                match token {
-                    Ok(token) => return token,
-                    Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
-                }
-            } else {
-                return SpannedToken::new(Token::EOF, Default::default());
+        let token = self.lexer.next();
+        if let Some(token) = token {
+            match token {
+                Ok(token) => token,
+                Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
             }
+        } else {
+            SpannedToken::new(Token::EOF, Default::default())
         }
     }
 }

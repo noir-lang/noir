@@ -27,14 +27,14 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace_impl(
             false, // write lines
             false, // at beginning
-        )
+        );
     }
 
     pub(super) fn skip_comments_and_whitespace_writing_lines_if_found(&mut self) {
         self.skip_comments_and_whitespace_impl(
             true,  // write lines
             false, // at beginning
-        )
+        );
     }
 
     pub(super) fn skip_comments_and_whitespace_impl(
@@ -84,11 +84,10 @@ impl<'a> Formatter<'a> {
                     } else if number_of_newlines > 0 {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
-                    } else {
-                        if !(at_beginning && self.buffer.is_empty()) {
-                            self.write_space_without_skipping_whitespace_and_comments();
-                        }
+                    } else if !(at_beginning && self.buffer.is_empty()) {
+                        self.write_space_without_skipping_whitespace_and_comments();
                     }
+
                     self.write_current_token_trimming_end();
                     self.write_line_without_skipping_whitespace_and_comments();
                     number_of_newlines = 1;
@@ -150,8 +149,8 @@ impl<'a> Formatter<'a> {
     pub(super) fn write_multiple_lines_without_skipping_whitespace_and_comments(&mut self) {
         if self.buffer.ends_with("\n\n") {
             // Nothing
-        } else if self.buffer.ends_with("\n") {
-            self.write("\n")
+        } else if self.buffer.ends_with('\n') {
+            self.write("\n");
         } else {
             self.write("\n\n");
         }

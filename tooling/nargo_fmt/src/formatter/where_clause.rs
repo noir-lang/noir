@@ -53,7 +53,7 @@ impl<'a> Formatter<'a> {
                     self.bump();
                 }
             } else if write_trailing_comma_and_new_line {
-                self.write(",")
+                self.write(",");
             }
         }
 
