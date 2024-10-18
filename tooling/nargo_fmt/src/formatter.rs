@@ -94,9 +94,10 @@ impl<'a> Formatter<'a> {
     }
 
     pub(crate) fn format_program(&mut self, parsed_module: ParsedModule) {
+        self.skip_whitespace();
         self.skip_comments_and_whitespace_impl(
-            false, // write lines
-            true,  // at beginning
+            true, // write lines
+            true, // at beginning
         );
 
         self.format_parsed_module(parsed_module, self.ignore_next);

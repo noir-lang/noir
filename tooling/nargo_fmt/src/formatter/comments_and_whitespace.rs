@@ -25,6 +25,12 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    pub(super) fn skip_whitespace(&mut self) {
+        while let Token::Whitespace(..) = &self.token {
+            self.bump();
+        }
+    }
+
     /// Only skips whitespace if it doesn't have newlines in it.
     /// Note that this doesn't write whitespace or comments at all.
     pub(super) fn skip_whitespace_if_it_is_not_a_newline(&mut self) {
@@ -814,6 +820,31 @@ mod foo;
     fn foo() {}
     // bar
 }
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn keeps_newlines_after_comment_at_the_beginning() {
+        let src = "// foo
+
+global x = 1;
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn keeps_newlines_after_comment_at_the_beginning_2() {
+        let src = "
+        
+        // foo
+
+global x = 1;
+";
+        let expected = "// foo
+
+global x = 1;
 ";
         assert_format(src, expected);
     }
