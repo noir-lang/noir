@@ -9,7 +9,7 @@ use super::{
 };
 use acvm::acir::{brillig::MemoryAddress, AcirField};
 
-pub(crate) const MAX_STACK_SIZE: usize = 32768;
+pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
 
