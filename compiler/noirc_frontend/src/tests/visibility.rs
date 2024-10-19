@@ -28,29 +28,38 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
         ))
     ));
 }
+
+fn assert_type_is_more_private_than_item_error(src: &str, private_typ: &str, public_item: &str) {
+    let errors = get_program_errors(src);
+
+    assert!(!errors.is_empty(), "expected visibility error, got nothing");
+    for (error, _) in &errors {
+        let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
+            typ,
+            item,
+            ..
+        }) = error
+        else {
+            panic!("Expected a type vs item visibility error, got {}", error);
+        };
+
+        assert_eq!(typ, private_typ);
+        assert_eq!(item, public_item);
+    }
+    assert_eq!(errors.len(), 1, "only expected one error");
+}
+
 #[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
     pub type Bar = Foo;
-    pub fn no_unused_warnings(_b: Bar) {
-        let _ = Foo {};
+    pub fn no_unused_warnings() {
+        let _: Bar = Foo {};
     }
     fn main() {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-        typ, item, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(typ, "Foo");
-    assert_eq!(item, "Bar");
+    assert_type_is_more_private_than_item_error(src, "Foo", "Bar");
 }
 
 #[test]
@@ -59,25 +68,165 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     pub struct Generic<T> { value: T }
     struct Foo {}
     pub type Bar = Generic<Foo>;
-    pub fn no_unused_warnings(_b: Bar) {
+    pub fn no_unused_warnings() {
         let _ = Foo {};
-        let _ = Generic { value: 1 };
+        let _: Bar = Generic { value: Foo {} };
     }
     fn main() {}
     "#;
+    assert_type_is_more_private_than_item_error(src, "Foo", "Bar");
+}
 
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+#[test]
+fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+        pub struct Foo<T> { pub value: T }
+        pub type FooBar = Foo<Bar>;
 
-    let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-        typ, item, ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
+        pub fn no_unused_warnings() {
+            let _: FooBar = Foo { value: Bar {} };
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_is_more_private_than_item_error(src, "Bar", "FooBar");
+}
 
-    assert_eq!(typ, "Foo");
-    assert_eq!(item, "Bar");
+#[test]
+fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+        pub struct Foo<T> { pub value: T }
+        pub struct FooBar { pub value: Foo<Bar> }
+
+        pub fn no_unused_warnings() {
+            let _ = FooBar { value: Foo { value: Bar {} } };
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_is_more_private_than_item_error(src, "Bar", "FooBar::value");
+}
+
+#[test]
+fn errors_if_pub_function_leaks_private_type_in_return() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        pub fn bar() -> Bar {
+            Bar {}
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
+}
+
+#[test]
+fn errors_if_pub_function_leaks_private_type_in_arg() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+        pub fn bar(_bar: Bar) {}
+
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
+}
+
+#[test]
+fn does_not_error_if_pub_function_is_on_private_struct() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        impl Bar { 
+            pub fn bar() -> Bar { 
+                Bar {}
+            }
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
+        }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_pub_function_on_pub_struct_returns_private() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+        pub struct Foo {}
+
+        impl Foo { 
+            pub fn bar() -> Bar { 
+                Bar {}
+            }
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Foo {};            
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
+}
+
+#[test]
+fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        pub trait Foo { 
+            fn foo() -> Self;
+        }
+
+        impl Foo for Bar {
+            fn foo() -> Self { 
+                Bar {}
+            }
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
+        }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_pub_trait_returns_private_struct() {
+    let src = r#"
+    pub mod moo {
+        struct Bar {}
+
+        pub trait Foo { 
+            fn foo() -> Bar;
+        }
+
+        pub fn no_unused_warnings() {
+            let _ = Bar {};
+        }
+    }
+    fn main() {}
+    "#;
+    assert_type_is_more_private_than_item_error(src, "Bar", "foo");
 }
 
 #[test]
