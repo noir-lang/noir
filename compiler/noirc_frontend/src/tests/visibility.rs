@@ -29,7 +29,7 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
     ));
 }
 
-fn assert_type_visibility_error(src: &str, private_typ: &str, public_item: &str) {
+fn assert_type_is_more_private_than_item_error(src: &str, private_typ: &str, public_item: &str) {
     let errors = get_program_errors(src);
 
     assert!(!errors.is_empty(), "expected visibility error, got nothing");
@@ -59,7 +59,7 @@ fn errors_if_type_alias_aliases_more_private_type() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Foo", "Bar");
+    assert_type_is_more_private_than_item_error(src, "Foo", "Bar");
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Foo", "Bar");
+    assert_type_is_more_private_than_item_error(src, "Foo", "Bar");
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "FooBar");
+    assert_type_is_more_private_than_item_error(src, "Bar", "FooBar");
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "FooBar::value");
+    assert_type_is_more_private_than_item_error(src, "Bar", "FooBar::value");
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn errors_if_pub_function_leaks_private_type_in_return() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "bar");
+    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "bar");
+    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "bar");
+    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
 }
 
 #[test]
@@ -226,7 +226,7 @@ fn errors_if_pub_trait_returns_private_struct() {
     }
     fn main() {}
     "#;
-    assert_type_visibility_error(src, "Bar", "foo");
+    assert_type_is_more_private_than_item_error(src, "Bar", "foo");
 }
 
 #[test]
