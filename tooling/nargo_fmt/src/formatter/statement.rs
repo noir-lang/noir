@@ -4,7 +4,7 @@ use noirc_frontend::{
         ForLoopStatement, ForRange, LetStatement, Pattern, Statement, StatementKind,
         UnresolvedType, UnresolvedTypeData,
     },
-    token::{Keyword, Token},
+    token::{Keyword, SecondaryAttribute, Token},
 };
 
 use super::{chunks::ChunkGroup, Formatter};
@@ -87,6 +87,7 @@ impl<'a> Formatter<'a> {
             let_statement.pattern,
             let_statement.r#type,
             Some(let_statement.expression),
+            let_statement.attributes,
         )
     }
 
@@ -96,10 +97,14 @@ impl<'a> Formatter<'a> {
         pattern: Pattern,
         typ: UnresolvedType,
         value: Option<Expression>,
+        attributes: Vec<SecondaryAttribute>,
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
+            if !attributes.is_empty() {
+                formatter.format_attributes();
+            }
             formatter.write_keyword(keyword);
             formatter.write_space();
             formatter.format_pattern(pattern);
@@ -335,6 +340,17 @@ mod tests {
         let src = " fn foo() { let  x  :  Field  =  1 ; } ";
         let expected = "fn foo() {
     let x: Field = 1;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_attribute() {
+        let src = " fn foo() {   #[allow(unused_variables)] let  x  =  1 ; } ";
+        let expected = "fn foo() {
+    #[allow(unused_variables)]
+    let x = 1;
 }
 ";
         assert_format(src, expected);

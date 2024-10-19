@@ -1014,7 +1014,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Abi(ref k) => format!("abi({k})"),
             SecondaryAttribute::Varargs => "varargs".to_string(),
             SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
-            SecondaryAttribute::Allow(ref k) => format!("allow(#{k})"),
+            SecondaryAttribute::Allow(ref k) => format!("allow({k})"),
         }
     }
 }

@@ -104,8 +104,13 @@ impl<'a> Formatter<'a> {
             }
             TraitItem::Constant { name, typ, default_value } => {
                 let pattern = Pattern::Identifier(name);
-                let chunks = self.format_let_or_global(Keyword::Let, pattern, typ, default_value);
-
+                let chunks = self.format_let_or_global(
+                    Keyword::Let,
+                    pattern,
+                    typ,
+                    default_value,
+                    Vec::new(), // Attributes
+                );
                 self.write_indentation();
                 self.format_chunk_group(chunks);
             }

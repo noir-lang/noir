@@ -48,6 +48,7 @@ impl<'a> Formatter<'a> {
             pattern,
             let_statement.r#type,
             Some(let_statement.expression),
+            Vec::new(), // Attributes
         ));
 
         self.write_indentation();
