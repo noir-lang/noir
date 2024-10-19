@@ -274,7 +274,7 @@ impl ChunkGroup {
     }
 
     pub(crate) fn expression_list_width(&self) -> usize {
-        if self.kind == GroupKind::MethodCall {
+        if self.kind.is_method_call() {
             self.chunks
                 .iter()
                 .map(|chunk| {
@@ -304,7 +304,7 @@ impl ChunkGroup {
     pub(crate) fn has_lambda_as_last_expression_in_list(&self) -> bool {
         self.chunks.iter().any(|chunk| {
             if let Chunk::Group(group) = chunk {
-                if self.kind == GroupKind::MethodCall && group.kind == GroupKind::ExpressionList {
+                if self.kind.is_method_call() && group.kind.is_expression_list() {
                     group.has_lambda_as_last_expression_in_list()
                 } else {
                     matches!(group.kind, GroupKind::LambdaAsLastExpressionInList { .. })
@@ -319,11 +319,11 @@ impl ChunkGroup {
     /// to the given value.
     pub(crate) fn set_lambda_as_last_expression_in_list_indentation(
         &mut self,
-        indentation_to_set: usize,
+        indentation_to_set: i32,
     ) {
         for chunk in self.chunks.iter_mut() {
             if let Chunk::Group(group) = chunk {
-                if self.kind == GroupKind::MethodCall && group.kind == GroupKind::ExpressionList {
+                if self.kind.is_method_call() && group.kind.is_expression_list() {
                     group.set_lambda_as_last_expression_in_list_indentation(indentation_to_set);
                 } else if let GroupKind::LambdaAsLastExpressionInList { indentation, .. } =
                     &mut group.kind
@@ -399,14 +399,35 @@ pub(crate) enum GroupKind {
     /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
     /// list and the left bracket.
-    LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<usize> },
-    /// A method call (one of its groups is an ExpressionList)
-    MethodCall,
+    LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<i32> },
+    /// A method call.
+    /// We track all this information to see, if we end up needing to format this call
+    /// in multiple lines, if we can write everything up to the left parentheses (inclusive)
+    /// in one line, and just the call arguments in multiple lines.
+    MethodCall {
+        /// This is the width of the group until the left parenthesis (inclusive).
+        width_until_left_paren_inclusive: usize,
+        /// Are there newlines before the left parentheses in this group?
+        has_newlines_before_left_paren: bool,
+        /// Is this method call the left-hand side of a call chain? If so, this is true,
+        /// otherwise this is false an it means it's the outermost call.
+        lhs: bool,
+    },
     /// The value of an assignment or let statement. We know this is the last group in a chunk so
     /// if it doesn't fit in the current line but it fits in the next line, we can
     /// write a newline, indent, and put it there (instead of writing the value in
     /// multiple lines).
     AssignValue,
+}
+
+impl GroupKind {
+    fn is_method_call(&self) -> bool {
+        matches!(self, GroupKind::MethodCall { .. })
+    }
+
+    fn is_expression_list(&self) -> bool {
+        matches!(self, GroupKind::ExpressionList)
+    }
 }
 
 impl<'a> Formatter<'a> {
@@ -459,6 +480,33 @@ impl<'a> Formatter<'a> {
         &mut self,
         mut chunks: ChunkGroup,
     ) {
+        let chunks_width = chunks.width();
+        let total_width = self.current_line_width + chunks_width;
+
+        if total_width > self.config.max_width {
+            // If this is a method call that doesn't fit in the current line, we check if
+            // everything that follows up to the left parentheses fits in the current line.
+            // If so, we write that and we'll end up formatting the arguments in multiple
+            // lines, instead of splitting this entire call chain in multiple lines.
+            if let GroupKind::MethodCall {
+                width_until_left_paren_inclusive,
+                has_newlines_before_left_paren: false,
+                lhs: false,
+            } = chunks.kind
+            {
+                let total_width = self.current_line_width + width_until_left_paren_inclusive;
+                if total_width <= self.config.max_width {
+                    // When a method call's group is formed, we indent after the first dot. But with that
+                    // indentation, and the arguments indentation, we'll end up with too much indentation,
+                    // so here we decrease it to compensate that.
+                    self.decrease_indentation();
+                    self.format_chunk_group_in_one_line(chunks);
+                    self.increase_indentation();
+                    return;
+                }
+            }
+        }
+
         if chunks.force_multiple_lines {
             self.format_chunk_group_in_multiple_lines(chunks);
             return;
@@ -481,8 +529,7 @@ impl<'a> Formatter<'a> {
             // that group has the `ExpressionList` kind. The method call itself has the `MethodCall`
             // kind. So when determining the first line width of a method call with a lambda as
             // the last argument we have to find the nested ExpressionList and do some nested calls.
-            let chunks_kind = chunks.kind;
-            if (chunks_kind == GroupKind::ExpressionList || chunks_kind == GroupKind::MethodCall)
+            if (chunks.kind.is_expression_list() || chunks.kind.is_method_call())
                 && chunks.has_lambda_as_last_expression_in_list()
             {
                 let chunks_width = chunks.expression_list_width();
@@ -500,8 +547,6 @@ impl<'a> Formatter<'a> {
         }
 
         // Check if the group first in the remainder of the current line.
-        let chunks_width = chunks.width();
-        let total_width = self.current_line_width + chunks_width;
         if total_width > self.config.max_width {
             // If this chunk is the value of an assignment (either a normal assignment or a let statement)
             // and it doesn't fit the current line, we check if it fits the next line with an increased
@@ -526,7 +571,7 @@ impl<'a> Formatter<'a> {
             // )
             if chunks.kind == GroupKind::AssignValue {
                 let total_width_next_line =
-                    (self.indentation + 1) * self.config.tab_spaces + chunks_width;
+                    (self.indentation as usize + 1) * self.config.tab_spaces + chunks_width;
                 if total_width_next_line <= self.config.max_width {
                     // We might have trailing spaces
                     // (for example a space after the `=` of a let statement or an assignment)

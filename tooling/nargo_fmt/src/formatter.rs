@@ -41,11 +41,14 @@ pub(crate) struct Formatter<'a> {
     token_span: Span,
 
     /// The current indentation level.
-    indentation: usize,
+    /// We let it be negative because in some cases we just want to decrease indentation
+    /// to compensate an indentation that will come later that we don't need, and we
+    /// don't want to panic when reaching those negative values.
+    indentation: i32,
 
     /// When formatting chunks we sometimes need to remember the current indentation
     /// and restore it later. This is what this stack is used for.
-    indentation_stack: Vec<usize>,
+    indentation_stack: Vec<i32>,
 
     /// How many characters we've written so far in the current line
     /// (useful to avoid exceeding the configurable maximum)
