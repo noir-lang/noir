@@ -235,9 +235,7 @@ impl<'a> Formatter<'a> {
             }
         }
 
-        group.text(self.chunk(|formatter| {
-            formatter.write_space();
-        }));
+        group.space(self);
 
         let ExpressionKind::Block(block) = for_loop.block.kind else {
             panic!("Expected a block expression for for loop body");

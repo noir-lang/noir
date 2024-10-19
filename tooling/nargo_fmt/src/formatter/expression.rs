@@ -157,9 +157,7 @@ impl<'a> Formatter<'a> {
 
                 self.format_expression(*repeated_element, &mut group);
                 group.semicolon(self);
-                group.text(self.chunk(|formatter| {
-                    formatter.write_space();
-                }));
+                group.space(self);
                 self.format_expression(*length, &mut group);
 
                 group.decrease_indentation();
@@ -778,9 +776,7 @@ impl<'a> Formatter<'a> {
             *force_multiple_lines = true;
             group.trailing_comment(comment_chunk_after_condition);
         } else {
-            group.text(self.chunk(|formatter| {
-                formatter.write_space();
-            }));
+            group.space(self);
         }
 
         let ExpressionKind::Block(consequence_block) = if_expression.consequence.kind else {
@@ -817,9 +813,7 @@ impl<'a> Formatter<'a> {
                 *force_multiple_lines = true;
                 group.trailing_comment(comment_chunk_after_else);
             } else {
-                group.text(self.chunk(|formatter| {
-                    formatter.write_space();
-                }));
+                group.space(self);
             }
 
             let mut alternative_group = match alternative.kind {

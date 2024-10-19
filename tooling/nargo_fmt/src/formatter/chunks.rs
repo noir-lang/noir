@@ -195,9 +195,16 @@ impl ChunkGroup {
         }
     }
 
-    /// Appends a semicolon to this group. This will actually end up attaching the
-    /// semicolon to the last text in this group so that we don't end up with
-    /// stray semicolons.
+    /// Appends a single space to this group by reading it from the given formatter.
+    pub(crate) fn space(&mut self, formatter: &mut Formatter<'_>) {
+        self.text(formatter.chunk(|formatter| {
+            formatter.write_space();
+        }));
+    }
+
+    /// Appends a semicolon to this group by reading it from the given formatter.
+    /// This will actually end up attaching the semicolon to the last text in this
+    /// group so that we don't end up with stray semicolons.
     pub(crate) fn semicolon(&mut self, formatter: &mut Formatter<'_>) {
         self.text_attached_to_last_group(formatter.chunk(|formatter| {
             formatter.write_semicolon();
