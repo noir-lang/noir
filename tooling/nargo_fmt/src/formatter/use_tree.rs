@@ -19,10 +19,7 @@ impl<'a> Formatter<'a> {
         }));
 
         chunks.group(self.format_use_tree(use_tree));
-
-        chunks.text_attached_to_last_group(self.chunk(|formatter| {
-            formatter.write_semicolon();
-        }));
+        chunks.semicolon(self);
 
         self.write_indentation();
         self.format_chunk_group(chunks);

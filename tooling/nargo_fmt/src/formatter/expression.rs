@@ -156,9 +156,7 @@ impl<'a> Formatter<'a> {
                 group.line();
 
                 self.format_expression(*repeated_element, &mut group);
-                group.text_attached_to_last_group(self.chunk(|formatter| {
-                    formatter.write_semicolon();
-                }));
+                group.semicolon(self);
                 group.text(self.chunk(|formatter| {
                     formatter.write_space();
                 }));

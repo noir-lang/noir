@@ -195,6 +195,15 @@ impl ChunkGroup {
         }
     }
 
+    /// Appends a semicolon to this group. This will actually end up attaching the
+    /// semicolon to the last text in this group so that we don't end up with
+    /// stray semicolons.
+    pub(crate) fn semicolon(&mut self, formatter: &mut Formatter<'_>) {
+        self.text_attached_to_last_group(formatter.chunk(|formatter| {
+            formatter.write_semicolon();
+        }));
+    }
+
     /// Appends a TextChunk to this chunks chunks. However, if the last chunk is a group,
     /// it's appended to that group's last text.
     pub(crate) fn text_attached_to_last_group(&mut self, chunk: TextChunk) {

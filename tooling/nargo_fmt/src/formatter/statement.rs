@@ -128,14 +128,10 @@ impl<'a> Formatter<'a> {
             let mut value_group = ChunkGroup::new();
             value_group.kind = GroupKind::AssignValue;
             self.format_expression(value, &mut value_group);
-            value_group.text_attached_to_last_group(self.chunk(|formatter| {
-                formatter.write_semicolon();
-            }));
+            value_group.semicolon(self);
             group.group(value_group);
         } else {
-            group.text_attached_to_last_group(self.chunk(|formatter| {
-                formatter.write_semicolon();
-            }));
+            group.semicolon(self);
         }
 
         group
@@ -206,9 +202,7 @@ impl<'a> Formatter<'a> {
         } else {
             self.format_expression(assign_statement.expression, &mut value_group);
         }
-        value_group.text_attached_to_last_group(self.chunk(|formatter| {
-            formatter.write_semicolon();
-        }));
+        value_group.semicolon(self);
         group.group(value_group);
 
         group
@@ -290,9 +284,7 @@ impl<'a> Formatter<'a> {
             formatter.skip_comments_and_whitespace();
         }));
 
-        group.text_attached_to_last_group(self.chunk(|formatter| {
-            formatter.write_semicolon();
-        }));
+        group.semicolon(self);
 
         group
     }

@@ -225,9 +225,7 @@ impl<'a> Formatter<'a> {
 
         if !has_where_clause && !wrote_comment {
             if semicolon {
-                group.text_attached_to_last_group(self.chunk(|formatter| {
-                    formatter.write_semicolon();
-                }));
+                group.semicolon(self);
             } else {
                 group.text(self.chunk(|formatter| {
                     formatter.write_space();
