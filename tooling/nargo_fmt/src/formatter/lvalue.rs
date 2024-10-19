@@ -4,7 +4,7 @@ use super::{chunks::ChunkGroup, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_lvalue(&mut self, lvalue: LValue) {
-        // Parenthesized lvalues exist but are not represented in the AST
+        // Parenthesized l-values exist but are not represented in the AST
         while let Token::LeftParen = self.token {
             self.write_left_paren();
         }
@@ -35,7 +35,7 @@ impl<'a> Formatter<'a> {
 
         self.skip_comments_and_whitespace();
 
-        // Parenthesized lvalues exist but are not represented in the AST
+        // Parenthesized l-values exist but are not represented in the AST
         while let Token::RightParen = self.token {
             self.write_right_paren();
         }

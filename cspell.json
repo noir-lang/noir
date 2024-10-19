@@ -164,6 +164,7 @@
         "plonkc",
         "PLONKish",
         "pprof",
+        "precomputes",
         "preimage",
         "preprocess",
         "prettytable",
@@ -229,6 +230,8 @@
         "wasi",
         "wasmer",
         "Weierstraß",
+        "whitespace",
+        "whitespaces",
         "zkhash",
         "zshell"
     ],
