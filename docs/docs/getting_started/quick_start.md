@@ -25,7 +25,7 @@ Proving backends provide you the abilities to generate proofs, verify proofs, ge
 
 Different proving backends provide different tools for working with Noir programs, here we will use the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) developed by Aztec Labs as an example.
 
-You can use `bbup` the installation script to quickly install and update BB, Barretenberg's CLI tool:
+You can use the `bbup` installation script to quickly install and update BB, Barretenberg's CLI tool:
 
 You can find the full list of proving backends compatible with Noir in Awesome Noir.
 
