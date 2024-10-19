@@ -179,6 +179,7 @@
         "reqwest",
         "rfind",
         "rustc",
+        "rustfmt",
         "rustup",
         "sboxed",
         "schnorr",

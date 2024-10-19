@@ -504,6 +504,25 @@ impl<'a> Formatter<'a> {
             // everything that follows up to the left parentheses fits in the current line.
             // If so, we write that and we'll end up formatting the arguments in multiple
             // lines, instead of splitting this entire call chain in multiple lines.
+            //
+            // For example, a call like this:
+            //
+            // foo.bar.baz.qux(1)
+            //
+            // if it exceeds the maximum width, will end up being formatted like this:
+            //
+            // foo.bar.baz.qux(
+            //     1,
+            // )
+            //
+            // instead of like this (many more lines):
+            //
+            // foo
+            //     .bar
+            //     .baz
+            //     .qux(1)
+            //
+            // This is something that rustfmt seems to do too.
             if let GroupKind::MethodCall {
                 width_until_left_paren_inclusive,
                 has_newlines_before_left_paren: false,
