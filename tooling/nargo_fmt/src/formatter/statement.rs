@@ -124,7 +124,7 @@ impl<'a> Formatter<'a> {
             self.format_expression(value, &mut group);
         }
 
-        group.text(self.chunk(|formatter| {
+        group.text_attached_to_last_group(self.chunk(|formatter| {
             formatter.write_semicolon();
         }));
 
@@ -274,6 +274,9 @@ impl<'a> Formatter<'a> {
 
         group.text(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
+        }));
+
+        group.text_attached_to_last_group(self.chunk(|formatter| {
             formatter.write_semicolon();
         }));
 
@@ -283,7 +286,7 @@ impl<'a> Formatter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_format;
+    use crate::{assert_format, assert_format_with_max_width};
 
     #[test]
     fn format_expression_statement() {
@@ -622,5 +625,40 @@ mod tests {
                   3  ;
 }\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn attaches_semicolon_to_last_group_in_let_statement() {
+        let src = "fn foo() {
+    let x = foo(1, 2);
+}
+";
+        let expected = "fn foo() {
+    let x = foo(
+        1,
+        2,
+    );
+}
+";
+        assert_format_with_max_width(src, expected, "    let x = foo(1, 2);".len() - 1);
+    }
+
+    #[test]
+    fn attaches_semicolon_to_last_group_in_semi_statement() {
+        let src = "fn foo() {
+    foo(1, 2, 3, 4, 5);
+}
+";
+        let expected = "fn foo() {
+    foo(
+        1,
+        2,
+        3,
+        4,
+        5,
+    );
+}
+";
+        assert_format_with_max_width(src, expected, "    foo(1, 2, 3, 4, 5);".len() - 1);
     }
 }
