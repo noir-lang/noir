@@ -402,6 +402,11 @@ pub(crate) enum GroupKind {
     LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<usize> },
     /// A method call (one of its groups is an ExpressionList)
     MethodCall,
+    /// The value of an assignment or let statement. We know this is the last group in a chunk so
+    /// if it doesn't fit in the current line but it fits in the next line, we can
+    /// write a newline, indent, and put it there (instead of writing the value in
+    /// multiple lines).
+    AssignValue,
 }
 
 impl<'a> Formatter<'a> {
@@ -498,6 +503,43 @@ impl<'a> Formatter<'a> {
         let chunks_width = chunks.width();
         let total_width = self.current_line_width + chunks_width;
         if total_width > self.config.max_width {
+            // If this chunk is the value of an assignment (either a normal assignment or a let statement)
+            // and it doesn't fit the current line, we check if it fits the next line with an increased
+            // indentation.
+            //
+            // That way this:
+            //
+            // let x = foo(1, 2);
+            //                 ^
+            //                 assume the max width is here
+            //
+            // is formatted like this:
+            //
+            // let x =
+            //     foo(1, 2);
+            //
+            // instead of:
+            //
+            // let x = foo(
+            //     1,
+            //     2,
+            // )
+            if chunks.kind == GroupKind::AssignValue {
+                let total_width_next_line =
+                    (self.indentation + 1) * self.config.tab_spaces + chunks_width;
+                if total_width_next_line <= self.config.max_width {
+                    // We might have trailing spaces
+                    // (for example a space after the `=` of a let statement or an assignment)
+                    self.trim_spaces();
+                    self.write_line_without_skipping_whitespace_and_comments();
+                    self.increase_indentation();
+                    self.write_indentation();
+                    self.format_chunk_group_in_one_line(chunks);
+                    self.decrease_indentation();
+                    return;
+                }
+            }
+
             self.format_chunk_group_in_multiple_lines(chunks);
             return;
         }

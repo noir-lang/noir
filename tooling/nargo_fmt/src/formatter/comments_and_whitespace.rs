@@ -226,6 +226,13 @@ impl<'a> Formatter<'a> {
             formatter.skip_comments_and_whitespace();
         })
     }
+
+    /// Trim spaces from the end of the buffer.
+    pub(super) fn trim_spaces(&mut self) {
+        while self.buffer.ends_with(' ') {
+            self.buffer.truncate(self.buffer.len() - 1);
+        }
+    }
 }
 
 #[cfg(test)]

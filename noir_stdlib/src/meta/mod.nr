@@ -39,7 +39,8 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 pub type DeriveFunction = fn(StructDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
-comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
+comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
+    UHashMap::default();
 
 // Given a struct and a slice of traits to derive, create trait impls for each.
 // This function is as simple as iterating over the slice, checking if we have a trait

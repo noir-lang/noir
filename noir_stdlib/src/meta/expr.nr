@@ -414,8 +414,8 @@ comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) 
 comptime fn modify_lambda<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_lambda().map(|expr: ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)| {
         let (params, return_type, body) = expr;
-        let params = params.map(|param: (Expr, Option<UnresolvedType>)| (param.0.modify(f), param.1)
-            );
+        let params =
+            params.map(|param: (Expr, Option<UnresolvedType>)| (param.0.modify(f), param.1));
         let body = body.modify(f);
         new_lambda(params, return_type, body)
     })

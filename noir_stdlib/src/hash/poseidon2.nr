@@ -21,12 +21,8 @@ impl Poseidon2 {
     }
 
     pub(crate) fn new(iv: Field) -> Poseidon2 {
-        let mut result = Poseidon2 {
-            cache: [0; 3],
-            state: [0; 4],
-            cache_size: 0,
-            squeeze_mode: false,
-        };
+        let mut result =
+            Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
         result.state[RATE] = iv;
         result
     }

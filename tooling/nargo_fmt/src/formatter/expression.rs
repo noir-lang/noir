@@ -1302,9 +1302,8 @@ mod tests {
     #[test]
     fn format_long_array_in_global() {
         let src = "global x = [ 1 , 2 , 3 , 4, 5, ] ;";
-        let expected = "global x = [
-    1, 2, 3, 4, 5,
-];
+        let expected = "global x =
+    [1, 2, 3, 4, 5];
 ";
         assert_format_with_max_width(src, expected, 20);
     }
@@ -1330,9 +1329,8 @@ mod tests {
 
 global y = 1;
         ";
-        let expected = "global x = [
-    1, 2, 3, 4, 5,
-];
+        let expected = "global x =
+    [1, 2, 3, 4, 5];
 
 global y = 1;
 ";

@@ -9,11 +9,7 @@ fn main(
     let expected = std::hash::sha256(message);
     assert(hashed_message == expected);
 
-    let valid_signature = std::ecdsa_secp256k1::verify_signature(
-        pub_key_x,
-        pub_key_y,
-        signature,
-        hashed_message,
-    );
+    let valid_signature =
+        std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
     assert(valid_signature);
 }

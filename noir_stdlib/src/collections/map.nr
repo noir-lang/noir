@@ -236,7 +236,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
+        let msg =
+            f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
         assert(keys.len() == self._len, msg);
 
         keys
@@ -270,7 +271,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
+        let msg =
+            f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
         assert(values.len() == self._len, msg);
 
         values

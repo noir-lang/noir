@@ -7,7 +7,10 @@ use noirc_frontend::{
     token::{Keyword, SecondaryAttribute, Token},
 };
 
-use super::{chunks::ChunkGroup, Formatter};
+use super::{
+    chunks::{ChunkGroup, GroupKind},
+    Formatter,
+};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_statement(
@@ -121,12 +124,19 @@ impl<'a> Formatter<'a> {
                 formatter.write_token(Token::Assign);
                 formatter.write_space();
             }));
-            self.format_expression(value, &mut group);
-        }
 
-        group.text_attached_to_last_group(self.chunk(|formatter| {
-            formatter.write_semicolon();
-        }));
+            let mut value_group = ChunkGroup::new();
+            value_group.kind = GroupKind::AssignValue;
+            self.format_expression(value, &mut value_group);
+            value_group.text_attached_to_last_group(self.chunk(|formatter| {
+                formatter.write_semicolon();
+            }));
+            group.group(value_group);
+        } else {
+            group.text_attached_to_last_group(self.chunk(|formatter| {
+                formatter.write_semicolon();
+            }));
+        }
 
         group
     }
@@ -185,18 +195,22 @@ impl<'a> Formatter<'a> {
             formatter.write_space();
         }));
 
+        let mut value_group = ChunkGroup::new();
+        value_group.kind = GroupKind::AssignValue;
+
         if is_op_assign {
             let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
                 panic!("Expected an infix expression for op assign");
             };
-            self.format_expression(infix.rhs, &mut group);
+            self.format_expression(infix.rhs, &mut value_group);
         } else {
-            self.format_expression(assign_statement.expression, &mut group);
+            self.format_expression(assign_statement.expression, &mut value_group);
         }
-
-        group.text(self.chunk(|formatter| {
+        value_group.text_attached_to_last_group(self.chunk(|formatter| {
             formatter.write_semicolon();
         }));
+        group.group(value_group);
+
         group
     }
 
@@ -634,10 +648,8 @@ mod tests {
 }
 ";
         let expected = "fn foo() {
-    let x = foo(
-        1,
-        2,
-    );
+    let x =
+        foo(1, 2);
 }
 ";
         assert_format_with_max_width(src, expected, "    let x = foo(1, 2);".len() - 1);
@@ -660,5 +672,19 @@ mod tests {
 }
 ";
         assert_format_with_max_width(src, expected, "    foo(1, 2, 3, 4, 5);".len() - 1);
+    }
+
+    #[test]
+    fn attaches_semicolon_to_last_group_in_assign() {
+        let src = "fn foo() {
+    a_long_variable = foo(1, 2);
+}
+";
+        let expected = "fn foo() {
+    a_long_variable =
+        foo(1, 2);
+}
+";
+        assert_format_with_max_width(src, expected, "    a_long_variable = foo(1, 2);".len() - 1);
     }
 }

@@ -24,7 +24,8 @@ global K_CMP = FIELD_CMP;
 global V_CMP = FIELD_CMP;
 global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP = || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> HashMap::default();
+global ALLOCATE_HASHMAP =
+    || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> HashMap::default();
 
 fn main(input: [Entry; HASHMAP_LEN]) {
     test_sequential(input[0].key, input[0].value);
@@ -209,9 +210,8 @@ fn doc_tests() {
     // docs:end:default_example
     // docs:start:with_hasher_example
     let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
-    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::with_hasher(
-        my_hasher,
-    );
+    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::with_hasher(my_hasher);
     assert(hashmap.is_empty());
     // docs:end:with_hasher_example
     // docs:start:insert_example
@@ -255,7 +255,8 @@ fn doc_tests() {
     assert(map.len() == 2);
     // docs:end:len_example
     // docs:start:capacity_example
-    let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::default();
     assert(empty_map.len() == 0);
     assert(empty_map.capacity() == 42);
     // docs:end:capacity_example

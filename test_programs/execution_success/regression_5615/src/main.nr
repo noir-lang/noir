@@ -4,9 +4,9 @@ use std::hash::poseidon2::Poseidon2Hasher;
 
 unconstrained fn main() {
     comptime {
-        let mut map: UHashMap<u32, Field, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default()
-            ;
+        let mut map: UHashMap<u32, Field, BuildHasherDefault<Poseidon2Hasher>> =
+            UHashMap::default();
 
-            map.insert(1, 2);
-        }
+        map.insert(1, 2);
     }
+}

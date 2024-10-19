@@ -96,9 +96,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let mut msg_byte_ptr = 0; // Pointer into msg_block
     for i in 0..num_blocks {
         let msg_start = BLOCK_SIZE * i;
-        let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, msg_start)
-        };
+        let (new_msg_block, new_msg_byte_ptr) =
+            unsafe { build_msg_block_iter(msg, message_size, msg_start) };
         if msg_start < message_size {
             msg_block = new_msg_block;
         }
@@ -126,9 +125,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     // or our message cannot be evenly split into blocks.
     if modulo != 0 {
         let msg_start = BLOCK_SIZE * num_blocks;
-        let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, msg_start)
-        };
+        let (new_msg_block, new_msg_byte_ptr) =
+            unsafe { build_msg_block_iter(msg, message_size, msg_start) };
 
         if msg_start < message_size {
             msg_block = new_msg_block;

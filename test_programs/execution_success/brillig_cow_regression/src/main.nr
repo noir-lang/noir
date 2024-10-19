@@ -154,9 +154,8 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
 
     offset += NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
     assert_eq(offset, TX_EFFECT_HASH_INPUT_SIZE); // Sanity check
-    let mut hash_input_flattened = [
-        0; TX_EFFECT_HASH_FULL_FIELDS * 32 + TX_EFFECT_HASH_LOG_FIELDS * 16
-    ];
+    let mut hash_input_flattened =
+        [0; TX_EFFECT_HASH_FULL_FIELDS * 32 + TX_EFFECT_HASH_LOG_FIELDS * 16];
     for offset in 0..TX_EFFECT_HASH_FULL_FIELDS {
         let input_as_bytes: [u8; 32] = tx_effects_hash_inputs[offset].to_be_bytes();
         for byte_index in 0..32 {
@@ -165,10 +164,11 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
     }
 
     for log_field_index in 0..TX_EFFECT_HASH_LOG_FIELDS {
-        let input_as_bytes: [u8; 16] = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS
-            + log_field_index].to_be_bytes();
+        let input_as_bytes: [u8; 16] =
+            tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0..16 {
-            hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
+            hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] =
+                input_as_bytes[byte_index];
         }
     }
 

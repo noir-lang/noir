@@ -19,7 +19,8 @@ global K_CMP = FIELD_CMP;
 global V_CMP = FIELD_CMP;
 global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP = || -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> UHashMap::default();
+global ALLOCATE_HASHMAP =
+    || -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> UHashMap::default();
 
 unconstrained fn main(input: [Entry; HASHMAP_LEN]) {
     test_sequential(input[0].key, input[0].value);
@@ -206,9 +207,8 @@ unconstrained fn doc_tests() {
     // docs:end:default_example
     // docs:start:with_hasher_example
     let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
-    let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::with_hasher(
-        my_hasher,
-    );
+    let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> =
+        UHashMap::with_hasher(my_hasher);
     assert(hashmap.is_empty());
     // docs:end:with_hasher_example
     // docs:start:insert_example
@@ -252,43 +252,43 @@ unconstrained fn doc_tests() {
     assert(map.len() == 2);
     // docs:end:len_example
     // docs:start:capacity_example
-    let empty_map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default()
-        ;
-        assert(empty_map.len() == 0);
-        println(empty_map.capacity());
-        // docs:end:capacity_example
-        // docs:start:clear_example
-        assert(!map.is_empty());
-        map.clear();
-        assert(map.is_empty());
-        // docs:end:clear_example
-        // docs:start:contains_key_example
-        if map.contains_key(7) {
-            let value = map.get(7);
-            assert(value.is_some());
-        } else {
-            println("No value for key 7!");
-        }
-        // docs:end:contains_key_example
-        entries_examples(map);
-        iter_examples(map);
-
-        // docs:start:retain_example
-        map.retain(|k, v| (k != 0) & (v != 0));
-        // docs:end:retain_example
-        // docs:start:eq_example
-        let mut map1: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
-        let mut map2: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
-
-        map1.insert(1, 2);
-        map1.insert(3, 4);
-
-        map2.insert(3, 4);
-        map2.insert(1, 2);
-
-        assert(map1 == map2);
-        // docs:end:eq_example
+    let empty_map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> =
+        UHashMap::default();
+    assert(empty_map.len() == 0);
+    println(empty_map.capacity());
+    // docs:end:capacity_example
+    // docs:start:clear_example
+    assert(!map.is_empty());
+    map.clear();
+    assert(map.is_empty());
+    // docs:end:clear_example
+    // docs:start:contains_key_example
+    if map.contains_key(7) {
+        let value = map.get(7);
+        assert(value.is_some());
+    } else {
+        println("No value for key 7!");
     }
+    // docs:end:contains_key_example
+    entries_examples(map);
+    iter_examples(map);
+
+    // docs:start:retain_example
+    map.retain(|k, v| (k != 0) & (v != 0));
+    // docs:end:retain_example
+    // docs:start:eq_example
+    let mut map1: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
+    let mut map2: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
+
+    map1.insert(1, 2);
+    map1.insert(3, 4);
+
+    map2.insert(3, 4);
+    map2.insert(1, 2);
+
+    assert(map1 == map2);
+    // docs:end:eq_example
+}
 
 // docs:start:get_example
 fn get_example(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {

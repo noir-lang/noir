@@ -103,8 +103,8 @@ impl U128 {
             if ascii < 58 {
                 ascii - 48
             } else {
-                let ascii = ascii
-                    + 32 * (unsafe { U128::uconstrained_check_is_upper_ascii(ascii) as u8 });
+                let ascii =
+                    ascii + 32 * (unsafe { U128::uconstrained_check_is_upper_ascii(ascii) as u8 });
                 assert(ascii >= 97); // enforce >= 'a'
                 assert(ascii <= 102); // enforce <= 'f'
                 ascii - 87

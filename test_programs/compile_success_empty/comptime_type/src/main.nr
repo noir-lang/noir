@@ -109,8 +109,8 @@ fn main() {
         // Check Type::implements
         let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
         let struct_implements_some_trait = quote { StructImplementsSomeTrait }.as_type();
-        let struct_does_not_implement_some_trait = quote { StructDoesNotImplementSomeTrait }
-            .as_type();
+        let struct_does_not_implement_some_trait =
+            quote { StructDoesNotImplementSomeTrait }.as_type();
         assert(struct_implements_some_trait.implements(some_trait_i32));
         assert(!struct_does_not_implement_some_trait.implements(some_trait_i32));
 

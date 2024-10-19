@@ -35,12 +35,8 @@ pub fn verify_signature_noir<let N: u32>(
         & (!public_key.is_infinite);
 
     if ((sig_s.lo != 0) | (sig_s.hi != 0)) & ((sig_e.lo != 0) | (sig_e.hi != 0)) {
-        let (r_is_infinite, result) = calculate_signature_challenge(
-            public_key,
-            sig_s,
-            sig_e,
-            message,
-        );
+        let (r_is_infinite, result) =
+            calculate_signature_challenge(public_key, sig_s, sig_e, message);
 
         is_ok &= !r_is_infinite;
         for i in 0..32 {

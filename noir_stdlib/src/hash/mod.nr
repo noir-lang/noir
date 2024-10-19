@@ -66,25 +66,20 @@ fn pedersen_commitment_with_separator_noir<let N: u32>(
 
 #[no_predicates]
 fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
-    let mut scalars: Vec<EmbeddedCurveScalar> = Vec::from_slice(
-        [EmbeddedCurveScalar { lo: 0, hi: 0 }; N].as_slice(),
-    ); //Vec::new();
+    let mut scalars: Vec<EmbeddedCurveScalar> =
+        Vec::from_slice([EmbeddedCurveScalar { lo: 0, hi: 0 }; N].as_slice()); //Vec::new();
     for i in 0..N {
         scalars.set(i, from_field_unsafe(input[i]));
     }
     scalars.push(EmbeddedCurveScalar { lo: N as Field, hi: 0 as Field });
-    let domain_generators: [EmbeddedCurvePoint; N] = derive_generators(
-        "DEFAULT_DOMAIN_SEPARATOR".as_bytes(),
-        separator,
-    );
+    let domain_generators: [EmbeddedCurvePoint; N] =
+        derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
     let mut vec_generators = Vec::new();
     for i in 0..N {
         vec_generators.push(domain_generators[i]);
     }
-    let length_generator: [EmbeddedCurvePoint; 1] = derive_generators(
-        "pedersen_hash_length".as_bytes(),
-        0,
-    );
+    let length_generator: [EmbeddedCurvePoint; 1] =
+        derive_generators("pedersen_hash_length".as_bytes(), 0);
     vec_generators.push(length_generator[0]);
     multi_scalar_mul_slice(vec_generators.slice, scalars.slice)[0]
 }
