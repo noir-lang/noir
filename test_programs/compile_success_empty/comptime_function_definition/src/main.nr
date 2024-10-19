@@ -1,6 +1,6 @@
 use std::meta::type_of;
 
-struct Foo {
+pub struct Foo {
     x: Field,
     field: Field,
 }

@@ -3,7 +3,9 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, TypeBindings};
+use crate::{
+    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -53,7 +55,7 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -398,13 +400,36 @@ impl<'context> Elaborator<'context> {
 
         self.run_function_lints(&func_meta, &modifiers);
 
+        // Check arg and return-value visibility of standalone functions.
+        if self.should_check_function_visibility(&func_meta, &modifiers) {
+            let name = Ident(Spanned::from(
+                func_meta.name.location.span,
+                self.interner.definition_name(func_meta.name.id).to_string(),
+            ));
+            for (_, typ, _) in func_meta.parameters.iter() {
+                self.check_type_is_not_more_private_then_item(
+                    &name,
+                    modifiers.visibility,
+                    typ,
+                    name.span(),
+                );
+            }
+            self.check_type_is_not_more_private_then_item(
+                &name,
+                modifiers.visibility,
+                func_meta.return_type(),
+                name.span(),
+            );
+        }
+
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
         // The DefinitionIds for each parameter were already created in define_function_meta
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
-            self.add_existing_variable_to_scope(name, parameter.clone(), true);
+            let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 
         self.add_trait_constraints_to_scope(&func_meta);
@@ -1279,14 +1304,49 @@ impl<'context> Elaborator<'context> {
         let typ = self.resolve_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
-            self.check_aliased_type_is_not_more_private(name, visibility, &typ, span);
+            self.check_type_is_not_more_private_then_item(name, visibility, &typ, span);
         }
 
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
     }
 
-    fn check_aliased_type_is_not_more_private(
+    /// Find the struct in the parent module so we can know its visibility
+    fn find_struct_visibility(&self, struct_type: &StructType) -> Option<ItemVisibility> {
+        let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+        let parent_module_data = self.get_module(parent_module_id);
+        let per_ns = parent_module_data.find_name(&struct_type.name);
+        per_ns.types.map(|(_, vis, _)| vis)
+    }
+
+    /// Check whether a functions return value and args should be checked for private type visibility.
+    fn should_check_function_visibility(
+        &self,
+        func_meta: &FuncMeta,
+        modifiers: &FunctionModifiers,
+    ) -> bool {
+        // Private functions don't leak anything.
+        if modifiers.visibility == ItemVisibility::Private {
+            return false;
+        }
+        // Implementing public traits on private types is okay, they can't be used unless the type itself is accessible.
+        if func_meta.trait_impl.is_some() {
+            return false;
+        }
+        // Public struct functions should not expose private types.
+        if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
+            let struct_def = self.get_struct(id);
+            let struct_def = struct_def.borrow();
+            self.find_struct_visibility(&struct_def)
+        }) {
+            return struct_visibility != ItemVisibility::Private;
+        }
+        // Standalone functions should be checked
+        true
+    }
+
+    /// Check that an item such as a struct field or type alias is not more visible than the type it refers to.
+    fn check_type_is_not_more_private_then_item(
         &mut self,
         name: &Ident,
         visibility: ItemVisibility,
@@ -1302,11 +1362,7 @@ impl<'context> Elaborator<'context> {
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
-                    // Find the struct in the parent module so we can know its visibility
-                    let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
-                    let parent_module_data = self.get_module(parent_module_id);
-                    let per_ns = parent_module_data.find_name(&struct_type.name);
-                    if let Some((_, aliased_visibility, _)) = per_ns.types {
+                    if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
                         if aliased_visibility < visibility {
                             self.push_err(ResolverError::TypeIsMorePrivateThenItem {
                                 typ: struct_type.name.to_string(),
@@ -1318,16 +1374,16 @@ impl<'context> Elaborator<'context> {
                 }
 
                 for generic in generics {
-                    self.check_aliased_type_is_not_more_private(name, visibility, generic, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, generic, span);
                 }
             }
             Type::Tuple(types) => {
                 for typ in types {
-                    self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.check_aliased_type_is_not_more_private(
+                self.check_type_is_not_more_private_then_item(
                     name,
                     visibility,
                     &alias_type.borrow().get_type(generics),
@@ -1336,17 +1392,17 @@ impl<'context> Elaborator<'context> {
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {
-                    self.check_aliased_type_is_not_more_private(name, visibility, arg, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, arg, span);
                 }
-                self.check_aliased_type_is_not_more_private(name, visibility, return_type, span);
-                self.check_aliased_type_is_not_more_private(name, visibility, env, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, return_type, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, env, span);
             }
             Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
-                self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
             }
             Type::InfixExpr(left, _op, right) => {
-                self.check_aliased_type_is_not_more_private(name, visibility, left, span);
-                self.check_aliased_type_is_not_more_private(name, visibility, right, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, left, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, right, span);
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1380,6 +1436,22 @@ impl<'context> Elaborator<'context> {
             if typ.struct_def.is_abi() {
                 for field in &fields {
                     self.mark_type_as_used(&field.typ);
+                }
+            }
+
+            // Check that the a public struct doesn't have a private type as a public field.
+            if typ.struct_def.visibility != ItemVisibility::Private {
+                for field in &fields {
+                    let ident = Ident(Spanned::from(
+                        field.name.span(),
+                        format!("{}::{}", typ.struct_def.name, field.name),
+                    ));
+                    self.check_type_is_not_more_private_then_item(
+                        &ident,
+                        field.visibility,
+                        &field.typ,
+                        field.name.span(),
+                    );
                 }
             }
 
