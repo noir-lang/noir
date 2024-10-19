@@ -20,8 +20,8 @@ impl<'a> Formatter<'a> {
 
         chunks.group(self.format_use_tree(use_tree));
 
-        chunks.text(self.chunk(|formatter| {
-            formatter.write_token(Token::Semicolon);
+        chunks.text_attached_to_last_group(self.chunk(|formatter| {
+            formatter.write_semicolon();
         }));
 
         self.write_indentation();
@@ -182,5 +182,15 @@ mod tests {
         let src = " use crate :: hash :: { Hash, Hasher };  ";
         let expected = "use crate::hash::{Hash, Hasher};\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn attaches_semicolon_to_last_group() {
+        let src = " use crate::hash::{Hash, Hasher};  ";
+        let expected = "use crate::hash::{
+    Hash, Hasher,
+};
+";
+        assert_format_with_max_width(src, expected, "use crate::hash::{Hash, Hasher}".len());
     }
 }
