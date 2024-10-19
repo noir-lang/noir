@@ -554,10 +554,11 @@ comptime fn new_comptime(exprs: [Expr]) -> Expr {
 }
 
 comptime fn new_constructor(typ: UnresolvedType, fields: [(Quoted, Expr)]) -> Expr {
-    let fields = fields.map(|field: (Quoted, Expr)| {
-        let (name, value) = field;
-        quote { $name: $value }
-    })
+    let fields = fields
+        .map(|field: (Quoted, Expr)| {
+            let (name, value) = field;
+            quote { $name: $value }
+        })
         .join(quote { , });
     quote { $typ { $fields }}.as_expr().unwrap()
 }
@@ -588,15 +589,16 @@ comptime fn new_lambda(
     return_type: Option<UnresolvedType>,
     body: Expr,
 ) -> Expr {
-    let params = params.map(|param: (Expr, Option<UnresolvedType>)| {
-        let (name, typ) = param;
-        if typ.is_some() {
-            let typ = typ.unwrap();
-            quote { $name: $typ }
-        } else {
-            quote { $name }
-        }
-    })
+    let params = params
+        .map(|param: (Expr, Option<UnresolvedType>)| {
+            let (name, typ) = param;
+            if typ.is_some() {
+                let typ = typ.unwrap();
+                quote { $name: $typ }
+            } else {
+                quote { $name }
+            }
+        })
         .join(quote { , });
 
     if return_type.is_some() {
