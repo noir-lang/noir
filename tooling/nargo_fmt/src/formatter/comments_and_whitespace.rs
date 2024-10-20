@@ -2,6 +2,11 @@ use noirc_frontend::token::Token;
 
 use super::{chunks::TextChunk, Formatter};
 
+#[cfg(windows)]
+const NEWLINE: &str = "\r\n";
+#[cfg(not(windows))]
+const NEWLINE: &str = "\n";
+
 impl<'a> Formatter<'a> {
     /// Writes a single space, skipping any whitespace and comments.
     /// That is, suppose the next token is a big whitespace, possibly with multiple lines.
@@ -201,7 +206,7 @@ impl<'a> Formatter<'a> {
 
     pub(super) fn write_line_without_skipping_whitespace_and_comments(&mut self) -> bool {
         if !self.buffer.ends_with('\n') && !self.buffer.ends_with(' ') {
-            self.write("\n");
+            self.write(NEWLINE);
             true
         } else {
             false
@@ -213,9 +218,10 @@ impl<'a> Formatter<'a> {
         if self.buffer.ends_with("\n\n") {
             // Nothing
         } else if self.buffer.ends_with('\n') {
-            self.write("\n");
+            self.write(NEWLINE);
         } else {
-            self.write("\n\n");
+            self.write(NEWLINE);
+            self.write(NEWLINE);
         }
     }
 
