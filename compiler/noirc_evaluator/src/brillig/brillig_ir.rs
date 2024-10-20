@@ -43,19 +43,17 @@ pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
+    /// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
+    StackPointer = 0,
     /// This register stores the free memory pointer. Allocations must be done after this pointer.
-    FreeMemoryPointer = 0,
-    /// This register stores the previous stack pointer. The registers of the caller are stored here.
-    PreviousStackPointer = 1,
+    FreeMemoryPointer = 1,
     /// This register stores a 1_usize constant.
     UsizeOne = 2,
 }
 
 impl ReservedRegisters {
-    /// The number of reserved registers.
-    ///
-    /// This is used to offset the general registers
-    /// which should not overwrite the special register
+    /// The number of reserved registers. These are allocated in the first memory positions.
+    /// The stack should start after the reserved registers.
     const NUM_RESERVED_REGISTERS: usize = 3;
 
     /// Returns the length of the reserved registers
@@ -63,19 +61,16 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
-    /// Returns the free memory pointer register. This will get used to allocate memory in runtime.
+    pub(crate) fn stack_pointer() -> MemoryAddress {
+        MemoryAddress::direct(ReservedRegisters::StackPointer as usize)
+    }
+
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::FreeMemoryPointer as usize)
+        MemoryAddress::direct(ReservedRegisters::FreeMemoryPointer as usize)
     }
 
-    /// Returns the previous stack pointer register. This will be used to restore the registers after a fn call.
-    pub(crate) fn previous_stack_pointer() -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::PreviousStackPointer as usize)
-    }
-
-    /// Returns the usize one register. This will be used to perform arithmetic operations.
     pub(crate) fn usize_one() -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::UsizeOne as usize)
+        MemoryAddress::direct(ReservedRegisters::UsizeOne as usize)
     }
 }
 
@@ -178,20 +173,6 @@ pub(crate) mod tests {
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
         }
-        fn pedersen_commitment(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((2_u128.into(), 3_u128.into()))
-        }
-        fn pedersen_hash(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<FieldElement, BlackBoxResolutionError> {
-            Ok(6_u128.into())
-        }
         fn multi_scalar_mul(
             &self,
             _points: &[FieldElement],
@@ -279,10 +260,10 @@ pub(crate) mod tests {
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
         context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
-        let r_input_size = MemoryAddress::from(ReservedRegisters::len());
-        let r_array_ptr = MemoryAddress::from(ReservedRegisters::len() + 1);
-        let r_output_size = MemoryAddress::from(ReservedRegisters::len() + 2);
-        let r_equality = MemoryAddress::from(ReservedRegisters::len() + 3);
+        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+        let r_array_ptr = MemoryAddress::direct(ReservedRegisters::len() + 1);
+        let r_output_size = MemoryAddress::direct(ReservedRegisters::len() + 2);
+        let r_equality = MemoryAddress::direct(ReservedRegisters::len() + 3);
         context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
         // copy our stack frame to r_array_ptr
         context.mov_instruction(r_array_ptr, r_stack);

@@ -222,6 +222,8 @@ pub enum InlineType {
     /// All function calls are expected to be inlined into a single ACIR.
     #[default]
     Inline,
+    /// Functions marked as inline always will always be inlined, even in brillig contexts.
+    InlineAlways,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
@@ -239,6 +241,7 @@ impl From<&Attributes> for InlineType {
             match func_attribute {
                 FunctionAttribute::Fold => InlineType::Fold,
                 FunctionAttribute::NoPredicates => InlineType::NoPredicates,
+                FunctionAttribute::InlineAlways => InlineType::InlineAlways,
                 _ => InlineType::default(),
             }
         })
@@ -249,6 +252,7 @@ impl InlineType {
     pub fn is_entry_point(&self) -> bool {
         match self {
             InlineType::Inline => false,
+            InlineType::InlineAlways => false,
             InlineType::Fold => true,
             InlineType::NoPredicates => false,
         }
@@ -259,6 +263,7 @@ impl std::fmt::Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
+            InlineType::InlineAlways => write!(f, "inline_always"),
             InlineType::Fold => write!(f, "fold"),
             InlineType::NoPredicates => write!(f, "no_predicates"),
         }
@@ -320,7 +325,7 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    /// Indicates to a backend whether a SNARK-friendly prover should be used.  
+    /// Indicates to a backend whether a SNARK-friendly prover should be used.
     pub recursive: bool,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,

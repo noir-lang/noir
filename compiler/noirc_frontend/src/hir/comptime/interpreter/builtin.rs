@@ -131,6 +131,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_set_return_public" => {
                 function_def_set_return_public(self, arguments, location)
             }
+            "function_def_set_return_data" => {
+                function_def_set_return_data(self, arguments, location)
+            }
             "function_def_set_unconstrained" => {
                 function_def_set_unconstrained(self, arguments, location)
             }
@@ -2249,7 +2252,10 @@ fn function_def_add_attribute(
         }
     }
 
-    if let Attribute::Secondary(SecondaryAttribute::Tag(attribute)) = attribute {
+    if let Attribute::Secondary(
+        SecondaryAttribute::Tag(attribute) | SecondaryAttribute::Meta(attribute),
+    ) = attribute
+    {
         let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
         func_meta.custom_attributes.push(attribute);
     }
@@ -2518,6 +2524,23 @@ fn function_def_set_return_public(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+
+    Ok(Value::Unit)
+}
+
+// fn set_return_data(self)
+fn function_def_set_return_data(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.return_visibility = Visibility::ReturnData;
 
     Ok(Value::Unit)
 }

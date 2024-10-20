@@ -977,22 +977,22 @@ mod tests {
         let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::Const {
-                    destination: MemoryAddress(0),
+                    destination: MemoryAddress::direct(0),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                     value: FieldElement::from(1u64),
                 },
                 BrilligOpcode::Const {
-                    destination: MemoryAddress(1),
+                    destination: MemoryAddress::direct(1),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                     value: FieldElement::from(0u64),
                 },
                 BrilligOpcode::CalldataCopy {
-                    destination_address: MemoryAddress(0),
-                    size_address: MemoryAddress(0),
-                    offset_address: MemoryAddress(1),
+                    destination_address: MemoryAddress::direct(0),
+                    size_address: MemoryAddress::direct(0),
+                    offset_address: MemoryAddress::direct(1),
                 },
                 BrilligOpcode::Const {
-                    destination: MemoryAddress::from(1),
+                    destination: MemoryAddress::direct(1),
                     value: fe_0,
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                 },
@@ -1000,7 +1000,7 @@ mod tests {
                     function: "clear_mock".into(),
                     destinations: vec![],
                     destination_value_types: vec![],
-                    inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                    inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                     input_value_types: vec![HeapValueType::field()],
                 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
@@ -1136,25 +1136,25 @@ mod tests {
         let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::Const {
-                    destination: MemoryAddress(0),
+                    destination: MemoryAddress::direct(0),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                     value: FieldElement::from(2u64),
                 },
                 BrilligOpcode::Const {
-                    destination: MemoryAddress(1),
+                    destination: MemoryAddress::direct(1),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                     value: FieldElement::from(0u64),
                 },
                 BrilligOpcode::CalldataCopy {
-                    destination_address: MemoryAddress(0),
-                    size_address: MemoryAddress(0),
-                    offset_address: MemoryAddress(1),
+                    destination_address: MemoryAddress::direct(0),
+                    size_address: MemoryAddress::direct(0),
+                    offset_address: MemoryAddress::direct(1),
                 },
                 BrilligOpcode::BinaryFieldOp {
-                    destination: MemoryAddress::from(0),
+                    destination: MemoryAddress::direct(0),
                     op: BinaryFieldOp::Add,
-                    lhs: MemoryAddress::from(0),
-                    rhs: MemoryAddress::from(1),
+                    lhs: MemoryAddress::direct(0),
+                    rhs: MemoryAddress::direct(1),
                 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 1 },
             ],

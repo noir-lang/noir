@@ -37,12 +37,6 @@ pub fn blake2s256(inputs: &[u8]) -> Vec<u8> {
     acvm::blackbox_solver::blake2s(inputs).unwrap().into()
 }
 
-/// Calculates the Keccak256 hash of the input bytes
-#[wasm_bindgen]
-pub fn keccak256(inputs: &[u8]) -> Vec<u8> {
-    acvm::blackbox_solver::keccak256(inputs).unwrap().into()
-}
-
 /// Verifies a ECDSA signature over the secp256k1 curve.
 #[wasm_bindgen]
 pub fn ecdsa_secp256k1_verify(

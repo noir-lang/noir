@@ -1,5 +1,6 @@
 mod array_copy;
 mod array_reverse;
+mod check_max_stack_depth;
 mod mem_copy;
 mod prepare_vector_insert;
 mod prepare_vector_push;
@@ -9,6 +10,7 @@ mod vector_remove;
 
 use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
+use check_max_stack_depth::compile_check_max_stack_depth_procedure;
 use mem_copy::compile_mem_copy_procedure;
 use prepare_vector_insert::compile_prepare_vector_insert_procedure;
 use prepare_vector_push::compile_prepare_vector_push_procedure;
@@ -37,6 +39,7 @@ pub(crate) enum ProcedureId {
     VectorPop(bool),
     PrepareVectorInsert,
     VectorRemove,
+    CheckMaxStackDepth,
 }
 
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
@@ -60,6 +63,9 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
             compile_prepare_vector_insert_procedure(&mut brillig_context);
         }
         ProcedureId::VectorRemove => compile_vector_remove_procedure(&mut brillig_context),
+        ProcedureId::CheckMaxStackDepth => {
+            compile_check_max_stack_depth_procedure(&mut brillig_context);
+        }
     };
 
     brillig_context.stop_instruction();

@@ -58,7 +58,7 @@ pub(crate) fn generate_ssa(
         main.name.clone(),
         &main.parameters,
         if force_brillig_runtime || main.unconstrained {
-            RuntimeType::Brillig
+            RuntimeType::Brillig(main.inline_type)
         } else {
             RuntimeType::Acir(main.inline_type)
         },

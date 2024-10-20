@@ -27,6 +27,8 @@ pub(crate) fn convert_ssa_function(
 
     brillig_context.enter_context(Label::function(func.id()));
 
+    brillig_context.call_check_max_stack_depth_procedure();
+
     for block in function_context.blocks.clone() {
         BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
     }
