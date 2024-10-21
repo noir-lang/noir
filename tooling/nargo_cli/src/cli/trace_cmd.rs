@@ -171,7 +171,7 @@ pub(crate) fn trace_program(
     crate_name: &CrateName,
     inputs_map: &InputMap,
     trace_dir: &str,
-    _debug_trace_list: Option<DebugTraceList>,
+    debug_trace_list: Option<DebugTraceList>,
 ) -> Result<(), CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
@@ -189,6 +189,7 @@ pub(crate) fn trace_program(
         &debug_artifact,
         initial_witness,
         &compiled_program.program.unconstrained_functions,
+        debug_trace_list,
         &mut tracer,
     ) {
         Err(error) => return Err(CliError::from(error)),

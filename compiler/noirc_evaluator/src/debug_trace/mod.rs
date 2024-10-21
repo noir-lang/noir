@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ pub struct AsmListIndexRange {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DebugTraceList {
     pub list: Vec<String>,
-    pub source_map: HashMap<SourcePoint, Vec<AsmListIndexRange>>,
+    pub source_map: HashMap<SourcePoint, VecDeque<AsmListIndexRange>>,
 }
 
 impl DebugTraceList {

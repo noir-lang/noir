@@ -1,4 +1,5 @@
 mod source_location;
+use noirc_evaluator::debug_trace::DebugTraceList;
 use source_location::SourceLocation;
 
 mod stack_frame;
@@ -105,7 +106,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
     }
 
     /// Propagates information about the current execution state to `tracer`.
-    fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>) {
+    fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>, debug_trace_list: &mut Option<DebugTraceList>) {
         let stack_frames = get_stack_frames(&self.debug_context);
         let (first_nomatch, dropped_frames, new_frames) =
             tail_diff_vecs(&self.stack_frames, &stack_frames);
@@ -120,7 +121,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                 let current_location = source_locations.last().unwrap();
                 if current_location != call_site_location {
                     let frame = &stack_frames[first_nomatch - 1];
-                    register_step(tracer, call_site_location);
+                    register_step(tracer, call_site_location, debug_trace_list);
                     register_variables(tracer, frame);
                 }
             }
@@ -136,7 +137,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         if index >= 0 {
             let index = index as usize;
             let location = &source_locations[index];
-            register_step(tracer, location);
+            register_step(tracer, location, debug_trace_list);
             register_variables(tracer, &stack_frames[index]);
         }
 
@@ -150,6 +151,7 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
+    mut debug_trace_list: Option<DebugTraceList>,
     tracer: &mut Tracer,
 ) -> Result<(), NargoError<FieldElement>> {
     let mut tracing_context = TracingContext::new(
@@ -179,7 +181,7 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
 
         debug!("debugger stepped until line {:?}", source_locations.last().unwrap());
 
-        tracing_context.update_record(tracer, &source_locations);
+        tracing_context.update_record(tracer, &source_locations, &mut debug_trace_list);
 
         // This update is intentionally explicit here, to show what drives the loop.
         tracing_context.source_locations = source_locations;

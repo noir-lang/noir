@@ -14,6 +14,7 @@ fm.workspace = true
 nargo.workspace = true
 noir_debugger.workspace = true
 noirc_artifacts.workspace = true
+noirc_evaluator.workspace = true
 noirc_printable_type.workspace = true
 runtime_tracing.workspace = true
 tracing.workspace = true

@@ -1,9 +1,9 @@
 use std::{
     borrow::Borrow,
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::Display,
     fs::File,
-    io::{BufWriter, Write},
+    io::{BufWriter, Write}, path::PathBuf, str::FromStr,
 };
 
 use codespan_reporting::files::Files;
@@ -596,11 +596,12 @@ impl AsmWriter {
     }
 
     fn add_debug_trace_source_file_line(&mut self, name: String, line_number: usize) {
+        let name = PathBuf::from_str(&name).unwrap().canonicalize().unwrap().to_string_lossy().into_owned();
         let dtlist = self.debug_trace_list.as_mut().unwrap();
 
         if let Some(prev_dsp) = &self.prev_source_point {
             if let Some(last_range_vec) = dtlist.source_map.get_mut(prev_dsp) {
-                last_range_vec.last_mut().expect("Range vec for previous source point cannot be empty.").end = Some(dtlist.list.len() - 1);
+                last_range_vec.back_mut().expect("Range vec for previous source point cannot be empty.").end = Some(dtlist.list.len() - 1);
             } else {
                 panic!("No entry found for the previous plonky2 asm list index range");
             }
@@ -608,11 +609,13 @@ impl AsmWriter {
 
         let dsp = SourcePoint { file: name, line_number };
         if let Some(line_list) = dtlist.source_map.get_mut(&dsp) {
-            line_list.push(AsmListIndexRange { start: dtlist.list.len(), end: None });
+            line_list.push_back(AsmListIndexRange { start: dtlist.list.len(), end: None });
         } else {
+            let mut deq = VecDeque::new();
+            deq.push_back(AsmListIndexRange { start: dtlist.list.len(), end: None });
             dtlist.source_map.insert(
                 dsp.clone(),
-                vec![AsmListIndexRange { start: dtlist.list.len(), end: None }],
+                deq,
             );
         }
         self.prev_source_point = Some(dsp);

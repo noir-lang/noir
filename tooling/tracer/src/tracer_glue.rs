@@ -2,10 +2,12 @@ use crate::{stack_frame::Variable, SourceLocation, StackFrame};
 
 use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use acvm::FieldElement;
+use noirc_evaluator::debug_trace::{DebugTraceList, SourcePoint};
 use noirc_printable_type::{PrintableType, PrintableValue};
 use runtime_tracing::{FullValueRecord, Line, Tracer, ValueRecord};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use tracing::warn;
 
 /// Stores the trace accumulated in `tracer` in the specified directory. The trace is stored as
@@ -31,11 +33,27 @@ pub fn store_trace(tracer: Tracer, trace_dir: &str) {
 }
 
 /// Registers a tracing step to the given `location` in the given `tracer`.
-pub(crate) fn register_step(tracer: &mut Tracer, location: &SourceLocation) {
+pub(crate) fn register_step(tracer: &mut Tracer, location: &SourceLocation, debug_trace_list: &mut Option<DebugTraceList>) {
     let SourceLocation { filepath, line_number } = &location;
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);
     tracer.register_step(path, line);
+    if let Some(dtl) = debug_trace_list {
+        if let Some(deq) = dtl.source_map.get_mut(&SourcePoint {
+            file: PathBuf::from_str(&filepath.to_string())
+                .unwrap()
+                .canonicalize()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+            line_number: *line_number as usize,
+        }) {
+            if let Some(range) = deq.pop_front() {
+                tracer
+                    .register_asm(&dtl.list[range.start..=range.end.unwrap_or(dtl.list.len() - 1)]);
+            }
+        }
+    }
 }
 
 /// Registers all variables in the given frame for the last registered step. Each time a new step is
