@@ -381,11 +381,7 @@ impl ChunkGroup {
                 Chunk::TrailingComma => {
                     // If there's a trailing comma after a group, append the text to that group
                     // so that it glues with the last text present there (if any)
-                    if let Some(Chunk::Group(group)) = group.chunks.last_mut() {
-                        group.add_trailing_comma_to_last_text();
-                    } else {
-                        group.text(TextChunk::new(",".to_string()));
-                    }
+                    group.add_trailing_comma_to_last_text();
                 }
                 Chunk::TrailingComment(chunk) => group.trailing_comment(chunk),
                 Chunk::LeadingComment(chunk) => group.leading_comment(chunk),
