@@ -46,7 +46,7 @@ impl<T, let N: u32> [T; N] {
         let first_elem = crate::mem::zeroed();
         let mut ret = [first_elem; N];
 
-        for i in 1..self.len() {
+        for i in 0..self.len() {
             ret[i] = f(self[i]);
         }
 
