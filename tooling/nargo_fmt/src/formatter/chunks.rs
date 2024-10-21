@@ -8,7 +8,7 @@
 //! However, some changes were introduces to handle comments and other particularities of Noir.
 use super::Formatter;
 
-/// A text chunk. It precomputes the text width and wether it has newlines.
+/// A text chunk. It precomputes the text width and whether it has newlines.
 #[derive(Debug)]
 pub(crate) struct TextChunk {
     pub(crate) string: String,
