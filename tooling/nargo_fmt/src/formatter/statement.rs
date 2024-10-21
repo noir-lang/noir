@@ -16,15 +16,15 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_statement(
         &mut self,
         statement: Statement,
-        chunks: &mut ChunkGroup,
+        group: &mut ChunkGroup,
         mut ignore_next: bool,
     ) {
-        chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
+        group.leading_comment(self.skip_comments_and_whitespace_chunk());
 
         ignore_next |= self.ignore_next;
 
         if ignore_next {
-            chunks.text(self.chunk(|formatter| {
+            group.text(self.chunk(|formatter| {
                 formatter.write_and_skip_span_without_formatting(statement.span);
             }));
             return;
@@ -32,51 +32,51 @@ impl<'a> Formatter<'a> {
 
         match statement.kind {
             StatementKind::Let(let_statement) => {
-                chunks.group(self.format_let_statement(let_statement));
+                group.group(self.format_let_statement(let_statement));
             }
             StatementKind::Constrain(constrain_statement) => {
-                chunks.group(self.format_constrain_statement(constrain_statement));
+                group.group(self.format_constrain_statement(constrain_statement));
             }
             StatementKind::Expression(expression) => match expression.kind {
-                ExpressionKind::Block(block) => chunks.group(self.format_block_expression(
+                ExpressionKind::Block(block) => group.group(self.format_block_expression(
                     block, true, // force multiple lines
                 )),
                 ExpressionKind::Unsafe(block, _) => {
-                    chunks.group(self.format_unsafe_expression(
+                    group.group(self.format_unsafe_expression(
                         block, true, // force multiple lines
                     ));
                 }
                 ExpressionKind::If(if_expression) => {
-                    chunks.group(self.format_if_expression(
+                    group.group(self.format_if_expression(
                         *if_expression,
                         true, // force multiple lines
                     ));
                 }
-                _ => self.format_expression(expression, chunks),
+                _ => self.format_expression(expression, group),
             },
             StatementKind::Assign(assign_statement) => {
-                chunks.group(self.format_assign(assign_statement));
+                group.group(self.format_assign(assign_statement));
             }
             StatementKind::For(for_loop_statement) => {
-                chunks.group(self.format_for_loop(for_loop_statement));
+                group.group(self.format_for_loop(for_loop_statement));
             }
             StatementKind::Break => {
-                chunks.text(self.chunk(|formatter| {
+                group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Break);
                     formatter.write_semicolon();
                 }));
             }
             StatementKind::Continue => {
-                chunks.text(self.chunk(|formatter| {
+                group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Continue);
                     formatter.write_semicolon();
                 }));
             }
             StatementKind::Comptime(statement) => {
-                chunks.group(self.format_comptime_statement(*statement));
+                group.group(self.format_comptime_statement(*statement));
             }
             StatementKind::Semi(expression) => {
-                chunks.group(self.format_semi_statement(expression));
+                group.group(self.format_semi_statement(expression));
             }
             StatementKind::Interned(..) | StatementKind::Error => {
                 unreachable!("Should not be present in the AST")

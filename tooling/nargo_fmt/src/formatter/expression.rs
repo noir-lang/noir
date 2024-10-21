@@ -20,77 +20,77 @@ struct FormattedLambda {
 }
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_expression(&mut self, expression: Expression, chunks: &mut ChunkGroup) {
-        chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
+    pub(super) fn format_expression(&mut self, expression: Expression, group: &mut ChunkGroup) {
+        group.leading_comment(self.skip_comments_and_whitespace_chunk());
 
         match expression.kind {
-            ExpressionKind::Literal(literal) => self.format_literal(literal, chunks),
+            ExpressionKind::Literal(literal) => self.format_literal(literal, group),
             ExpressionKind::Block(block) => {
-                chunks.group(self.format_block_expression(
+                group.group(self.format_block_expression(
                     block, false, // force multiple lines
                 ));
             }
             ExpressionKind::Prefix(prefix_expression) => {
-                chunks.group(self.format_prefix(*prefix_expression));
+                group.group(self.format_prefix(*prefix_expression));
             }
             ExpressionKind::Index(index_expression) => {
-                chunks.group(self.format_index_expression(*index_expression));
+                group.group(self.format_index_expression(*index_expression));
             }
-            ExpressionKind::Call(call) => chunks.group(self.format_call(*call)),
+            ExpressionKind::Call(call) => group.group(self.format_call(*call)),
             ExpressionKind::MethodCall(method_call) => {
-                chunks.group(self.format_method_call(*method_call));
+                group.group(self.format_method_call(*method_call));
             }
             ExpressionKind::Constructor(constructor) => {
-                chunks.group(self.format_constructor(*constructor));
+                group.group(self.format_constructor(*constructor));
             }
             ExpressionKind::MemberAccess(member_access) => {
-                chunks.group(self.format_member_access(*member_access));
+                group.group(self.format_member_access(*member_access));
             }
             ExpressionKind::Cast(cast_expression) => {
-                chunks.group(self.format_cast(*cast_expression));
+                group.group(self.format_cast(*cast_expression));
             }
             ExpressionKind::Infix(infix_expression) => {
-                chunks.group(self.format_infix_expression(*infix_expression));
+                group.group(self.format_infix_expression(*infix_expression));
             }
             ExpressionKind::If(if_expression) => {
-                chunks.group(self.format_if_expression(
+                group.group(self.format_if_expression(
                     *if_expression,
                     false, // force multiple lines
                 ));
             }
             ExpressionKind::Variable(path) => {
-                chunks.text(self.chunk(|formatter| {
+                group.text(self.chunk(|formatter| {
                     formatter.format_path(path);
                 }));
             }
-            ExpressionKind::Tuple(exprs) => chunks.group(self.format_tuple(exprs)),
-            ExpressionKind::Lambda(lambda) => chunks.group(self.format_lambda(*lambda).group),
+            ExpressionKind::Tuple(exprs) => group.group(self.format_tuple(exprs)),
+            ExpressionKind::Lambda(lambda) => group.group(self.format_lambda(*lambda).group),
             ExpressionKind::Parenthesized(expression) => {
-                chunks.group(self.format_parenthesized_expression(*expression));
+                group.group(self.format_parenthesized_expression(*expression));
             }
             ExpressionKind::Quote(..) => {
-                chunks.group(self.format_quote());
+                group.group(self.format_quote());
             }
             ExpressionKind::Unquote(..) => {
                 unreachable!("Should not be present in the AST")
             }
             ExpressionKind::Comptime(block_expression, _span) => {
-                chunks.group(self.format_comptime_expression(
+                group.group(self.format_comptime_expression(
                     block_expression,
                     false, // force multiple lines
                 ));
             }
             ExpressionKind::Unsafe(block_expression, _span) => {
-                chunks.group(self.format_unsafe_expression(
+                group.group(self.format_unsafe_expression(
                     block_expression,
                     false, // force multiple lines
                 ));
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                chunks.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
+                group.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
             }
             ExpressionKind::TypePath(type_path) => {
-                chunks.group(self.format_type_path(type_path));
+                group.group(self.format_type_path(type_path));
             }
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)
@@ -99,18 +99,18 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_literal(&mut self, literal: Literal, chunks: &mut ChunkGroup) {
+    fn format_literal(&mut self, literal: Literal, group: &mut ChunkGroup) {
         match literal {
-            Literal::Unit => chunks.text(self.chunk(|formatter| {
+            Literal::Unit => group.text(self.chunk(|formatter| {
                 formatter.write_left_paren();
                 formatter.write_right_paren();
             })),
-            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::RawStr(..) => chunks
+            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::RawStr(..) => group
                 .text(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
                 })),
-            Literal::Integer(..) => chunks.text(self.chunk(|formatter| {
+            Literal::Integer(..) => group.text(self.chunk(|formatter| {
                 if formatter.token == Token::Minus {
                     formatter.write_token(Token::Minus);
                     formatter.skip_comments_and_whitespace();
@@ -118,12 +118,12 @@ impl<'a> Formatter<'a> {
                 formatter.write_current_token_as_in_source();
                 formatter.bump();
             })),
-            Literal::Array(array_literal) => chunks.group(self.format_array_literal(
+            Literal::Array(array_literal) => group.group(self.format_array_literal(
                 array_literal,
                 false, // is slice
             )),
             Literal::Slice(array_literal) => {
-                chunks.group(self.format_array_literal(
+                group.group(self.format_array_literal(
                     array_literal,
                     true, // is slice
                 ));
@@ -364,11 +364,11 @@ impl<'a> Formatter<'a> {
         &mut self,
         exprs: Vec<Expression>,
         force_trailing_comma: bool,
-        chunks: &mut ChunkGroup,
+        group: &mut ChunkGroup,
     ) -> usize {
         if exprs.is_empty() {
-            if let Some(group) = self.empty_block_contents_chunk() {
-                chunks.group(group);
+            if let Some(inner_group) = self.empty_block_contents_chunk() {
+                group.group(inner_group);
             }
             0
         } else {
@@ -380,7 +380,7 @@ impl<'a> Formatter<'a> {
                 exprs,
                 force_trailing_comma,
                 false, // surround with spaces
-                chunks,
+                group,
                 |formatter, expr, chunks| {
                     // If the last expression in the list is a lambda, we format it but we mark
                     // the chunk in a special way: it likely has newlines, but we don't want
@@ -427,7 +427,7 @@ impl<'a> Formatter<'a> {
         items: Vec<Item>,
         force_trailing_comma: bool,
         surround_with_spaces: bool,
-        chunks: &mut ChunkGroup,
+        group: &mut ChunkGroup,
         mut format_item: F,
     ) where
         F: FnMut(&mut Self, Item, &mut ChunkGroup),
@@ -443,34 +443,34 @@ impl<'a> Formatter<'a> {
             } else {
                 format!(" {} ", comments_chunk.string.trim())
             };
-            chunks.text(comments_chunk);
+            group.text(comments_chunk);
 
-            chunks.increase_indentation();
+            group.increase_indentation();
             if surround_with_spaces {
-                chunks.space_or_line();
+                group.space_or_line();
             } else {
-                chunks.line();
+                group.line();
             }
         } else {
-            chunks.increase_indentation();
+            group.increase_indentation();
             if surround_with_spaces {
-                chunks.space_or_line();
+                group.space_or_line();
             } else {
-                chunks.line();
+                group.line();
             }
 
-            chunks.trailing_comment(comments_chunk);
+            group.trailing_comment(comments_chunk);
         }
 
         for (index, expr) in items.into_iter().enumerate() {
             if index > 0 {
-                chunks.text_attached_to_last_group(self.chunk(|formatter| {
+                group.text_attached_to_last_group(self.chunk(|formatter| {
                     formatter.write_comma();
                 }));
-                chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
-                chunks.space_or_line();
+                group.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                group.space_or_line();
             }
-            format_item(self, expr, chunks);
+            format_item(self, expr, group);
         }
 
         let chunk = self.chunk(|formatter| {
@@ -485,20 +485,20 @@ impl<'a> Formatter<'a> {
 
         // Make sure to put a trailing comma before the last parameter comments, if there were any
         if !force_trailing_comma {
-            chunks.trailing_comma();
+            group.trailing_comma();
         }
 
-        chunks.text(chunk);
+        group.text(chunk);
 
         if force_trailing_comma {
-            chunks.text(TextChunk::new(",".to_string()));
+            group.text(TextChunk::new(",".to_string()));
         }
 
-        chunks.decrease_indentation();
+        group.decrease_indentation();
         if surround_with_spaces {
-            chunks.space_or_line();
+            group.space_or_line();
         } else {
-            chunks.line();
+            group.line();
         }
     }
 
@@ -1048,14 +1048,14 @@ impl<'a> Formatter<'a> {
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-        chunks: &mut ChunkGroup,
+        group: &mut ChunkGroup,
     ) {
         if block.is_empty() {
-            if let Some(block_chunks) = self.empty_block_contents_chunk() {
-                chunks.chunks.extend(block_chunks.chunks);
+            if let Some(block_group) = self.empty_block_contents_chunk() {
+                group.chunks.extend(block_group.chunks);
             }
         } else {
-            self.format_non_empty_block_expression_contents(block, force_multiple_lines, chunks);
+            self.format_non_empty_block_expression_contents(block, force_multiple_lines, group);
         }
     }
 
@@ -1063,16 +1063,16 @@ impl<'a> Formatter<'a> {
         &mut self,
         block: BlockExpression,
         force_multiple_lines: bool,
-        chunks: &mut ChunkGroup,
+        group: &mut ChunkGroup,
     ) {
-        chunks.force_multiple_lines = force_multiple_lines || block.statements.len() > 1;
-        let surround_with_spaces = !chunks.force_multiple_lines && block.statements.len() == 1;
+        group.force_multiple_lines = force_multiple_lines || block.statements.len() > 1;
+        let surround_with_spaces = !group.force_multiple_lines && block.statements.len() == 1;
 
-        chunks.increase_indentation();
+        group.increase_indentation();
         if surround_with_spaces {
-            chunks.space_or_line();
+            group.space_or_line();
         } else {
-            chunks.line();
+            group.line();
         }
 
         for (index, statement) in block.statements.into_iter().enumerate() {
@@ -1082,30 +1082,30 @@ impl<'a> Formatter<'a> {
                 let count = self.following_newlines_count();
                 if count > 0 {
                     // If newlines follow, we first add a line, then add the comment chunk
-                    chunks.lines(count > 1);
-                    chunks.leading_comment(self.skip_comments_and_whitespace_chunk());
+                    group.lines(count > 1);
+                    group.leading_comment(self.skip_comments_and_whitespace_chunk());
                     ignore_next = self.ignore_next;
                 } else {
                     // Otherwise, add the comment first as it's a trailing comment
-                    chunks.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                    group.trailing_comment(self.skip_comments_and_whitespace_chunk());
                     ignore_next = self.ignore_next;
-                    chunks.line();
+                    group.line();
                 }
             }
 
-            self.format_statement(statement, chunks, ignore_next);
+            self.format_statement(statement, group, ignore_next);
         }
 
-        chunks.text(self.chunk(|formatter| {
+        group.text(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
         }));
 
-        chunks.decrease_indentation();
+        group.decrease_indentation();
 
         if surround_with_spaces {
-            chunks.space_or_line();
+            group.space_or_line();
         } else {
-            chunks.line();
+            group.line();
         }
     }
 
@@ -1141,14 +1141,14 @@ impl<'a> Formatter<'a> {
     }
 }
 
-fn force_if_chunks_to_multiple_lines(chunks: &mut ChunkGroup, group_tag: GroupTag) {
-    if chunks.tag == Some(group_tag) {
-        chunks.force_multiple_lines = true;
+fn force_if_chunks_to_multiple_lines(group: &mut ChunkGroup, group_tag: GroupTag) {
+    if group.tag == Some(group_tag) {
+        group.force_multiple_lines = true;
     }
 
-    for chunk in chunks.chunks.iter_mut() {
-        if let Chunk::Group(group) = chunk {
-            force_if_chunks_to_multiple_lines(group, group_tag);
+    for chunk in group.chunks.iter_mut() {
+        if let Chunk::Group(inner_group) = chunk {
+            force_if_chunks_to_multiple_lines(inner_group, group_tag);
         }
     }
 }

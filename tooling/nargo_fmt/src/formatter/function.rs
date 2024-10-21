@@ -123,15 +123,15 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_function_parameters(
         &mut self,
         parameters: Vec<Param>,
-        chunks: &mut ChunkGroup,
+        group: &mut ChunkGroup,
     ) {
         self.format_items_separated_by_comma(
             parameters,
             false, // force trailing comma
             false, // surround with spaces
-            chunks,
-            |formatter, param, chunks| {
-                chunks.text(formatter.chunk(|formatter| {
+            group,
+            |formatter, param, group| {
+                group.text(formatter.chunk(|formatter| {
                     formatter.format_function_param(param);
                 }));
             },

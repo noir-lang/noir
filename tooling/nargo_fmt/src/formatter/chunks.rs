@@ -523,24 +523,24 @@ impl<'a> Formatter<'a> {
         self.indentation = previous_indentation;
     }
 
-    pub(super) fn format_chunk_group_impl(&mut self, chunks: ChunkGroup) {
+    pub(super) fn format_chunk_group_impl(&mut self, group: ChunkGroup) {
         if let GroupKind::LambdaAsLastExpressionInList { indentation: Some(indentation), .. } =
-            chunks.kind
+            group.kind
         {
             let previous_indentation = self.indentation;
             self.indentation = indentation;
-            self.format_chunks_group_impl_without_lambda_handling(chunks);
+            self.format_chunks_group_impl_without_lambda_handling(group);
             self.indentation = previous_indentation;
         } else {
-            self.format_chunks_group_impl_without_lambda_handling(chunks);
+            self.format_chunks_group_impl_without_lambda_handling(group);
         }
     }
 
     pub(super) fn format_chunks_group_impl_without_lambda_handling(
         &mut self,
-        mut chunks: ChunkGroup,
+        mut group: ChunkGroup,
     ) {
-        let chunks_width = chunks.width();
+        let chunks_width = group.width();
         let total_width = self.current_line_width() + chunks_width;
 
         if total_width > self.max_width {
@@ -571,7 +571,7 @@ impl<'a> Formatter<'a> {
                 width_until_left_paren_inclusive,
                 has_newlines_before_left_paren: false,
                 lhs: false,
-            } = chunks.kind
+            } = group.kind
             {
                 let total_width = self.current_line_width() + width_until_left_paren_inclusive;
                 if total_width <= self.max_width {
@@ -580,7 +580,7 @@ impl<'a> Formatter<'a> {
                     // writing at least one closing parentheses. So the argument list will actually
                     // have one less character available for writing, and that's why we (temporarily) decrease
                     // max width.
-                    let expression_list_group = chunks.first_group().unwrap();
+                    let expression_list_group = group.first_group().unwrap();
                     let has_expression_list_or_call_group =
                         expression_list_group.has_expression_list_or_method_call_group();
                     if !has_expression_list_or_call_group {
@@ -591,7 +591,7 @@ impl<'a> Formatter<'a> {
                     // indentation, and the arguments indentation, we'll end up with too much indentation,
                     // so here we decrease it to compensate that.
                     self.decrease_indentation();
-                    self.format_chunk_group_in_one_line(chunks);
+                    self.format_chunk_group_in_one_line(group);
                     self.increase_indentation();
 
                     if !has_expression_list_or_call_group {
@@ -622,15 +622,15 @@ impl<'a> Formatter<'a> {
             // )
             //
             // (rustfmt seems to do the same thing)
-            if let GroupKind::ExpressionList { prefix_width, expressions_count: 1 } = chunks.kind {
-                if let Some(inner_group) = chunks.first_group() {
+            if let GroupKind::ExpressionList { prefix_width, expressions_count: 1 } = group.kind {
+                if let Some(inner_group) = group.first_group() {
                     if inner_group.kind.is_expression_list() || inner_group.kind.is_method_call() {
                         let total_width = self.current_line_width()
                             + prefix_width
                             + inner_group.width_until_line().0;
                         if total_width <= self.max_width {
                             self.decrease_indentation();
-                            self.format_chunk_group_in_one_line(chunks);
+                            self.format_chunk_group_in_one_line(group);
                             self.increase_indentation();
                             return;
                         }
@@ -639,8 +639,8 @@ impl<'a> Formatter<'a> {
             }
         }
 
-        if chunks.force_multiple_lines {
-            self.format_chunk_group_in_multiple_lines(chunks);
+        if group.force_multiple_lines {
+            self.format_chunk_group_in_multiple_lines(group);
             return;
         }
 
@@ -661,20 +661,20 @@ impl<'a> Formatter<'a> {
         // that group has the `ExpressionList` kind. The method call itself has the `MethodCall`
         // kind. So when determining the first line width of a method call with a lambda as
         // the last argument we have to find the nested ExpressionList and do some nested calls.
-        if (chunks.kind.is_expression_list() || chunks.kind.is_method_call())
-            && chunks.has_lambda_as_last_expression_in_list()
+        if (group.kind.is_expression_list() || group.kind.is_method_call())
+            && group.has_lambda_as_last_expression_in_list()
         {
-            let chunks_width = chunks.expression_list_width();
+            let chunks_width = group.expression_list_width();
             let total_width = self.current_line_width() + chunks_width;
             if total_width <= self.max_width {
-                chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
-                self.format_chunk_group_in_one_line(chunks);
+                group.set_lambda_as_last_expression_in_list_indentation(self.indentation);
+                self.format_chunk_group_in_one_line(group);
                 return;
             }
         }
 
-        if chunks.has_newlines() {
-            self.format_chunk_group_in_multiple_lines(chunks);
+        if group.has_newlines() {
+            self.format_chunk_group_in_multiple_lines(group);
             return;
         }
 
@@ -701,7 +701,7 @@ impl<'a> Formatter<'a> {
             //     1,
             //     2,
             // )
-            if chunks.kind == GroupKind::AssignValue {
+            if group.kind == GroupKind::AssignValue {
                 let total_width_next_line =
                     (self.indentation as usize + 1) * self.config.tab_spaces + chunks_width;
                 if total_width_next_line <= self.max_width {
@@ -711,7 +711,7 @@ impl<'a> Formatter<'a> {
                     self.write_line_without_skipping_whitespace_and_comments();
                     self.increase_indentation();
                     self.write_indentation();
-                    self.format_chunk_group_in_one_line(chunks);
+                    self.format_chunk_group_in_one_line(group);
                     self.decrease_indentation();
                     return;
                 }
@@ -719,16 +719,16 @@ impl<'a> Formatter<'a> {
 
             // If a lambda body doesn't fit in the current line and it's not a block,
             // we can turn it into a block and write it in the next line, so its contents fit.
-            if let GroupKind::LambdaBody { is_block: false } = chunks.kind {
+            if let GroupKind::LambdaBody { is_block: false } = group.kind {
                 // Try to format it again in the next line, but we don't want to recurse
                 // infinitely so we change the group kind.
-                chunks.kind = GroupKind::Regular;
+                group.kind = GroupKind::Regular;
                 self.write("{");
                 self.trim_spaces();
                 self.increase_indentation();
                 self.write_line();
                 self.write_indentation();
-                self.format_chunk_group_impl(chunks);
+                self.format_chunk_group_impl(group);
                 self.decrease_indentation();
                 self.write_line();
                 self.write_indentation();
@@ -736,15 +736,15 @@ impl<'a> Formatter<'a> {
                 return;
             }
 
-            self.format_chunk_group_in_multiple_lines(chunks);
+            self.format_chunk_group_in_multiple_lines(group);
             return;
         }
 
-        self.format_chunk_group_in_one_line(chunks);
+        self.format_chunk_group_in_one_line(group);
     }
 
-    pub(super) fn format_chunk_group_in_one_line(&mut self, chunks: ChunkGroup) {
-        for chunk in chunks.chunks {
+    pub(super) fn format_chunk_group_in_one_line(&mut self, group: ChunkGroup) {
+        for chunk in group.chunks {
             match chunk {
                 Chunk::Text(text_chunk) | Chunk::Verbatim(text_chunk) => {
                     self.write(&text_chunk.string);
@@ -764,8 +764,8 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(super) fn format_chunk_group_in_multiple_lines(&mut self, chunks: ChunkGroup) {
-        let chunks = chunks.prepare_for_multiple_lines();
+    pub(super) fn format_chunk_group_in_multiple_lines(&mut self, group: ChunkGroup) {
+        let chunks = group.prepare_for_multiple_lines();
 
         let mut last_was_space_or_line = false;
 
