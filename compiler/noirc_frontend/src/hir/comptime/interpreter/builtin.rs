@@ -2781,7 +2781,6 @@ fn derive_generators(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    assert_eq!(arguments.len(), 2);
     let (domain_separator_string, starting_index) = check_two_arguments(arguments, location)?;
 
     let domain_separator_location = domain_separator_string.1;
