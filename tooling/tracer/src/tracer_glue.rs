@@ -33,7 +33,11 @@ pub fn store_trace(tracer: Tracer, trace_dir: &str) {
 }
 
 /// Registers a tracing step to the given `location` in the given `tracer`.
-pub(crate) fn register_step(tracer: &mut Tracer, location: &SourceLocation, debug_trace_list: &mut Option<DebugTraceList>) {
+pub(crate) fn register_step(
+    tracer: &mut Tracer,
+    location: &SourceLocation,
+    debug_trace_list: &mut Option<DebugTraceList>,
+) {
     let SourceLocation { filepath, line_number } = &location;
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);

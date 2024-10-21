@@ -106,7 +106,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
     }
 
     /// Propagates information about the current execution state to `tracer`.
-    fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>, debug_trace_list: &mut Option<DebugTraceList>) {
+    fn update_record(
+        &mut self,
+        tracer: &mut Tracer,
+        source_locations: &Vec<SourceLocation>,
+        debug_trace_list: &mut Option<DebugTraceList>,
+    ) {
         let stack_frames = get_stack_frames(&self.debug_context);
         let (first_nomatch, dropped_frames, new_frames) =
             tail_diff_vecs(&self.stack_frames, &stack_frames);
