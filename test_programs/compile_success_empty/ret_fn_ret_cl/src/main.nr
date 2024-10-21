@@ -17,9 +17,7 @@ fn ret_fn() -> fn(Field) -> Field {
 //     inner_closure
 // }
 fn ret_lambda() -> fn(Field) -> Field {
-    let cl = |z: Field| -> Field {
-        z + 1
-    };
+    let cl = |z: Field| -> Field { z + 1 };
     cl
 }
 

@@ -26,7 +26,7 @@ impl Pair {
 
 struct Nested {
     a: Field,
-    b: Field
+    b: Field,
 }
 struct MyStruct {
     my_bool: bool,

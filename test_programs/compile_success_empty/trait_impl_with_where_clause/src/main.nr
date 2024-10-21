@@ -10,7 +10,10 @@ trait MyEq {
     fn my_eq(self, other: Self) -> bool;
 }
 
-impl<T> MyEq for [T; 3] where T: MyEq {
+impl<T> MyEq for [T; 3]
+where
+    T: MyEq,
+{
     fn my_eq(self, other: Self) -> bool {
         let mut ret = true;
         for i in 0..self.len() {

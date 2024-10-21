@@ -15,8 +15,12 @@ fn main(_x: Field) {
         }
 
         // TODO: this method of returning a slice feels hacky.
-        let _ = OracleMock::mock("get_number_sequence").with_params(size).returns((20, mock_oracle_response));
-        let _ = OracleMock::mock("get_reverse_number_sequence").with_params(size).returns((20, reversed_mock_oracle_response));
+        let _ = OracleMock::mock("get_number_sequence").with_params(size).returns((
+            20, mock_oracle_response,
+        ));
+        let _ = OracleMock::mock("get_reverse_number_sequence").with_params(size).returns((
+            20, reversed_mock_oracle_response,
+        ));
 
         get_number_sequence_wrapper(size as Field);
     }

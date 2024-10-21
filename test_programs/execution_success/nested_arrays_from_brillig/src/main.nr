@@ -20,9 +20,7 @@ unconstrained fn create_inside_brillig(values: [Field; 6]) -> [MyNote; 2] {
 }
 
 fn main(values: [Field; 6]) {
-    let notes = unsafe {
-        create_inside_brillig(values)
-    };
+    let notes = unsafe { create_inside_brillig(values) };
     assert(access_nested(notes) == (2 + 4 + 3 + 1));
 }
 

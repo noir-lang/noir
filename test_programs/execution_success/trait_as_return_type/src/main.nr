@@ -5,7 +5,7 @@ trait SomeTrait {
 struct A {}
 struct B {}
 struct C {
-    x: Field
+    x: Field,
 }
 
 impl SomeTrait for A {

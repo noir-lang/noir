@@ -5,7 +5,9 @@ fn main() {
     let _: [Field; 5] = distribute::<1, 2, 3>([1, 2, 3, 4, 5]);
 }
 
-pub fn distribute<let N: u32, let A: u32, let B: u32>(x: [Field; N * (A + B)]) -> [Field; N * A + N * B] {
+pub fn distribute<let N: u32, let A: u32, let B: u32>(
+    x: [Field; N * (A + B)],
+) -> [Field; N * A + N * B] {
     // asserts: [Field; N * (A + B)] = [Field; N * A + N * B]
     //       -> N * A + B = N * A + N * B
     //

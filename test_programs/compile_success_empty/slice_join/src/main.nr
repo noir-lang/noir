@@ -10,7 +10,10 @@ fn main() {
     assert_eq(odds_and_evens, &[1, 3, 5, 100, 2, 4]);
 }
 
-fn append_three<T>(one: T, two: T, three: T) -> T where T: Append {
+fn append_three<T>(one: T, two: T, three: T) -> T
+where
+    T: Append,
+{
     // The `T::empty()`s here should do nothing
     T::empty().append(one).append(two).append(three).append(T::empty())
 }

@@ -1,7 +1,7 @@
 fn main() {
     let field = 1000;
-    let be_bits:[u1; 16] = field.to_be_bits();
-    let le_bits:[u1; 16] = field.to_le_bits();
+    let be_bits: [u1; 16] = field.to_be_bits();
+    let le_bits: [u1; 16] = field.to_le_bits();
 
     for i in 0..16 {
         let x = be_bits[i];

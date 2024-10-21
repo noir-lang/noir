@@ -8,7 +8,10 @@ impl Eq for TraitConstraint {
 }
 
 impl Hash for TraitConstraint {
-    comptime fn hash<H>(self, state: &mut H) where H: Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
         state.write(constraint_hash(self));
     }
 }

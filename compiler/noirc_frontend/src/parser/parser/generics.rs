@@ -130,9 +130,11 @@ impl<'a> Parser<'a> {
             match generic {
                 GenericTypeArg::Ordered(typ) => {
                     generic_type_args.ordered_args.push(typ);
+                    generic_type_args.kinds.push(crate::ast::GenericTypeArgKind::Ordered);
                 }
                 GenericTypeArg::Named(name, typ) => {
                     generic_type_args.named_args.push((name, typ));
+                    generic_type_args.kinds.push(crate::ast::GenericTypeArgKind::Named);
                 }
             }
         }

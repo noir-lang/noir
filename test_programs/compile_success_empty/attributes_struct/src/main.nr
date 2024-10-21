@@ -2,7 +2,7 @@
 #['another_attribute]
 pub struct SomeStruct {
     a: Field,
-    b: Field
+    b: Field,
 }
 
 fn main() {}
@@ -11,9 +11,7 @@ fn main() {}
 
 #[abi(something)]
 #[add_attribute]
-pub struct Foo {
-
-}
+pub struct Foo {}
 
 comptime fn add_attribute(s: StructDefinition) {
     assert(!s.has_named_attribute("foo"));

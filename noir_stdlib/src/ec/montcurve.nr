@@ -19,13 +19,13 @@ pub mod affine {
         pub j: Field,
         pub k: Field,
         // Generator as point in Cartesian coordinates
-        pub gen: Point
+        pub gen: Point,
     }
     // Point in Cartesian coordinates
     pub struct Point {
         pub x: Field,
         pub y: Field,
-        pub infty: bool // Indicator for point at infinity
+        pub infty: bool, // Indicator for point at infinity
     }
 
     impl Point {
@@ -44,7 +44,7 @@ pub mod affine {
             if self.is_zero() {
                 curvegroup::Point::zero()
             } else {
-                let (x,y) = (self.x, self.y);
+                let (x, y) = (self.x, self.y);
                 curvegroup::Point::new(x, y, 1)
             }
         }
@@ -56,14 +56,14 @@ pub mod affine {
 
         // Negation
         pub fn negate(self) -> Self {
-            let Self {x, y, infty} = self;
+            let Self { x, y, infty } = self;
 
             Self { x, y: 0 - y, infty }
         }
 
         // Map into equivalent Twisted Edwards curve
         pub fn into_tecurve(self) -> TEPoint {
-            let Self {x, y, infty} = self;
+            let Self { x, y, infty } = self;
 
             if infty | (y * (x + 1) == 0) {
                 TEPoint::zero()
@@ -101,8 +101,8 @@ pub mod affine {
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Self {j, k, gen: _gen} = self;
-            let Point {x, y, infty: infty} = p;
+            let Self { j, k, gen: _gen } = self;
+            let Point { x, y, infty } = p;
 
             infty | (k * y * y == x * (x * x + j * x + 1))
         }
@@ -141,7 +141,7 @@ pub mod affine {
 
         // Conversion to equivalent Twisted Edwards curve
         pub fn into_tecurve(self) -> TECurve {
-            let Self {j, k, gen} = self;
+            let Self { j, k, gen } = self;
             TECurve::new((j + 2) / k, (j - 2) / k, gen.into_tecurve())
         }
 
@@ -166,7 +166,7 @@ pub mod affine {
 
         // Point mapping from equivalent Short Weierstrass curve
         pub fn map_from_swcurve(self, p: SWPoint) -> Point {
-            let SWPoint {x, y, infty} = p;
+            let SWPoint { x, y, infty } = p;
             let j = self.j;
             let k = self.k;
 
@@ -178,7 +178,6 @@ pub mod affine {
             let j = self.j;
             let k = self.k;
             let z = ZETA; // Non-square Field element required for map
-
             // Check whether curve is admissible
             assert(j != 0);
             let l = (j * j - 4) / (k * k);
@@ -195,10 +194,18 @@ pub mod affine {
 
             let y = if is_square(gx1) {
                 let y0 = sqrt(gx1);
-                if y0.sgn0() == 1 { y0 } else { 0 - y0 }
+                if y0.sgn0() == 1 {
+                    y0
+                } else {
+                    0 - y0
+                }
             } else {
                 let y0 = sqrt(gx2);
-                if y0.sgn0() == 0 { y0 } else { 0 - y0 }
+                if y0.sgn0() == 0 {
+                    y0
+                } else {
+                    0 - y0
+                }
             };
 
             Point::new(x * k, y * k)
@@ -226,13 +233,13 @@ pub mod curvegroup {
         pub j: Field,
         pub k: Field,
         // Generator as point in projective coordinates
-        pub gen: Point
+        pub gen: Point,
     }
     // Point in projective coordinates
     pub struct Point {
         pub x: Field,
         pub y: Field,
-        pub z: Field
+        pub z: Field,
     }
 
     impl Point {
@@ -251,7 +258,7 @@ pub mod curvegroup {
             if self.is_zero() {
                 affine::Point::zero()
             } else {
-                let (x,y,z) = (self.x, self.y, self.z);
+                let (x, y, z) = (self.x, self.y, self.z);
                 affine::Point::new(x / z, y / z)
             }
         }
@@ -263,7 +270,7 @@ pub mod curvegroup {
 
         // Negation
         pub fn negate(self) -> Self {
-            let Self {x, y, z} = self;
+            let Self { x, y, z } = self;
 
             Point::new(x, 0 - y, z)
         }
@@ -303,8 +310,8 @@ pub mod curvegroup {
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Self {j, k, gen: _gen} = self;
-            let Point {x, y, z} = p;
+            let Self { j, k, gen: _gen } = self;
+            let Point { x, y, z } = p;
 
             k * y * y * z == x * (x * x + j * x * z + z * z)
         }
@@ -343,7 +350,7 @@ pub mod curvegroup {
 
         // Conversion to equivalent Twisted Edwards curve
         pub fn into_tecurve(self) -> TECurve {
-            let Self {j, k, gen} = self;
+            let Self { j, k, gen } = self;
             TECurve::new((j + 2) / k, (j - 2) / k, gen.into_tecurve())
         }
 

@@ -31,7 +31,10 @@ impl Module {
 }
 
 impl crate::hash::Hash for Module {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(module_hash(self))
     }
 }

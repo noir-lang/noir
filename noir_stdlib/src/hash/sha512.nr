@@ -35,7 +35,7 @@ fn sha_sigma1(x: u64) -> u64 {
 
 fn sha_w(msg: [u64; 16]) -> [u64; 80] // Expanded message blocks
 {
-    let mut w: [u64;80] = [0; 80];
+    let mut w: [u64; 80] = [0; 80];
 
     for j in 0..16 {
         w[j] = msg[j];
@@ -43,8 +43,8 @@ fn sha_w(msg: [u64; 16]) -> [u64; 80] // Expanded message blocks
 
     for j in 16..80 {
         w[j] = crate::wrapping_add(
-            crate::wrapping_add(sha_sigma1(w[j-2]), w[j-7]), 
-            crate::wrapping_add(sha_sigma0(w[j-15]), w[j-16]),
+            crate::wrapping_add(sha_sigma1(w[j - 2]), w[j - 7]),
+            crate::wrapping_add(sha_sigma0(w[j - 15]), w[j - 16]),
         );
     }
     w
@@ -65,7 +65,7 @@ fn sha_c(msg: [u64; 16], hash: [u64; 8]) -> [u64; 8] {
         out_h[7] = out_h[6];
         out_h[6] = out_h[5];
         out_h[5] = out_h[4];
-        out_h[4] = crate::wrapping_add(out_h[3] , t1);
+        out_h[4] = crate::wrapping_add(out_h[3], t1);
         out_h[3] = out_h[2];
         out_h[2] = out_h[1];
         out_h[1] = out_h[0];
@@ -81,7 +81,7 @@ fn msg_u8_to_u64(msg: [u8; 128]) -> [u64; 16] {
     for i in 0..16 {
         let mut msg_field: Field = 0;
         for j in 0..8 {
-            msg_field = msg_field * 256 + msg[128 - 8*(i + 1) + j] as Field;
+            msg_field = msg_field * 256 + msg[128 - 8 * (i + 1) + j] as Field;
         }
         msg64[15 - i] = msg_field as u64;
     }
@@ -157,7 +157,7 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 64] {
     for j in 0..8 {
         let h_bytes: [u8; 8] = (h[7 - j] as Field).to_le_bytes();
         for k in 0..8 {
-            out_h[63 - 8*j - k] = h_bytes[k];
+            out_h[63 - 8 * j - k] = h_bytes[k];
         }
     }
 

@@ -1,5 +1,5 @@
 struct MyStruct {
-    operation: unconstrained fn (u32) -> u32,
+    operation: unconstrained fn(u32) -> u32,
 }
 
 fn main(x: u32) {
