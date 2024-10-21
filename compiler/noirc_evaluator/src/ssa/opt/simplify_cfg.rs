@@ -18,7 +18,8 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         function::{Function, RuntimeType},
-        instruction::TerminatorInstruction,
+        instruction::{Instruction, TerminatorInstruction},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -31,6 +32,7 @@ impl Ssa {
     /// 4. Removing any blocks which have no instructions other than a single terminating jmp.
     /// 5. Replacing any jmpifs with constant conditions with jmps. If this causes the block to have
     ///    only 1 successor then (2) also will be applied.
+    /// 6. Replacing any jmpifs with a negated condition with a jmpif with a un-negated condition and reversed branches.
     ///
     /// Currently, 1 is unimplemented.
     #[tracing::instrument(level = "trace", skip(self))]
@@ -54,6 +56,8 @@ impl Function {
             if visited.insert(block) {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
+
+            check_for_negated_jmpif_condition(self, block, &mut cfg);
 
             // This call is before try_inline_into_predecessor so that if it succeeds in changing a
             // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
@@ -182,6 +186,35 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
         cfg.recompute_block(function, predecessor_block);
     }
     cfg.recompute_block(function, block);
+}
+
+/// Optimize a jmpif on a negated condition by swapping the branches.
+fn check_for_negated_jmpif_condition(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) {
+    if let Some(TerminatorInstruction::JmpIf {
+        condition,
+        then_destination,
+        else_destination,
+        call_stack,
+    }) = function.dfg[block].terminator()
+    {
+        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
+            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
+                let call_stack = call_stack.clone();
+                let jmpif = TerminatorInstruction::JmpIf {
+                    condition: negated_condition,
+                    then_destination: *else_destination,
+                    else_destination: *then_destination,
+                    call_stack,
+                };
+                function.dfg[block].set_terminator(jmpif);
+                cfg.recompute_block(function, block);
+            }
+        }
+    }
 }
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
@@ -358,5 +391,81 @@ mod test {
             }
             other => panic!("Unexpected terminator {other:?}"),
         }
+    }
+
+    #[test]
+    fn swap_negated_jmpif_branches() {
+        // fn main {
+        //   b0(v0: bool):
+        //     v4 = allocate
+        //     store Field 0 at v4
+        //     v5 = not v0
+        //     jmpif v5 then: b1, else: b2
+        //   b1():
+        //     store Field 1 at v4
+        //     jmp b2()
+        //   b2():
+        //     v6 = load v4
+        //     constrain v6 == Field 1
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::bool());
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(2u128);
+
+        let v4 = builder.insert_allocate(Type::field());
+        builder.insert_store(v4, zero);
+        let v6 = builder.insert_not(v0);
+        builder.terminate_with_jmpif(v6, b1, b2);
+
+        builder.switch_to_block(b1);
+        builder.insert_store(v4, one);
+        builder.terminate_with_jmp(b2, Vec::new());
+
+        builder.switch_to_block(b2);
+        let v6 = builder.insert_load(v4, Type::field());
+        builder.insert_constrain(v6, one, None);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+
+        println!("{ssa}");
+        assert_eq!(ssa.main().reachable_blocks().len(), 3);
+
+        // Expected output:
+        // fn main {
+        //   b0(v0: bool):
+        //     v4 = allocate
+        //     store Field 0 at v4
+        //     v5 = not v0
+        //     jmpif v0 then: b2, else: b1
+        //   b1():
+        //     store Field 1 at v4
+        //     jmp b2()
+        //   b2():
+        //     v6 = load v4
+        //     constrain v6 == Field 1
+        //     return
+        // }
+        let ssa = ssa.simplify_cfg();
+
+        println!("{ssa}");
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 3);
+
+        let entry_block = &main.dfg[main.entry_block()];
+
+        // TODO: more rigorous testing
+        assert!(matches!(
+            entry_block.unwrap_terminator(),
+            TerminatorInstruction::JmpIf { condition, then_destination, else_destination, .. } if *condition == v0 && *then_destination == b2 && *else_destination == b1
+        ));
     }
 }
