@@ -751,7 +751,7 @@ impl<'a> Formatter<'a> {
         for chunk in chunks.chunks {
             match chunk {
                 Chunk::Text(text_chunk) | Chunk::Verbatim(text_chunk) => {
-                    self.write(&text_chunk.string)
+                    self.write(&text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
