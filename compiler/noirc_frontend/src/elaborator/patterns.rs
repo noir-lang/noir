@@ -9,7 +9,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::GenericTypeInPath},
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -178,9 +178,6 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&name, exclude_last_segment);
-
         let last_segment = name.last_segment();
         let name_span = last_segment.ident.span();
         let is_self_type = last_segment.ident.is_self_type_name();
@@ -195,7 +192,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let (struct_type, generics) = match self.lookup_type_or_error(name) {
-            Some(Type::Struct(struct_type, generics)) => (struct_type, generics),
+            Some(Type::Struct(struct_type, struct_generics)) => (struct_type, struct_generics),
             None => return error_identifier(self),
             Some(typ) => {
                 let typ = typ.to_string();
@@ -468,14 +465,19 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&variable, exclude_last_segment);
-
         let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let span = variable.span;
-        let expr = self.resolve_variable(variable);
+        let (expr, generic_type_in_path) = self.resolve_variable(variable);
         let definition_id = expr.id;
+
+        // TODO: generic_type_in_path might be Some.
+        // In that case, the variable looks like this:
+        //
+        // foo::Bar::<i32>::baz
+        //
+        // That is, the type in the path before the function has some generics on it.
+        // How to handle this?
 
         let definition_kind =
             self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
@@ -498,24 +500,30 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    fn resolve_variable(&mut self, path: Path) -> HirIdent {
+    fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<GenericTypeInPath>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
-            if let Some(error) = trait_path_resolution.error {
+            for error in trait_path_resolution.errors {
                 self.push_err(error);
             }
 
-            HirIdent {
-                location: Location::new(path.span, self.file),
-                id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
-                impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
-            }
+            // TODO: GenericTypeInPath
+            let generic_type_in_path = None;
+            (
+                HirIdent {
+                    location: Location::new(path.span, self.file),
+                    id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
+                    impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
+                },
+                generic_type_in_path,
+            )
         } else {
             // If the Path is being used as an Expression, then it is referring to a global from a separate module
             // Otherwise, then it is referring to an Identifier
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
             let span = path.span();
-            let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+            let ((hir_ident, var_scope_index), generic_type_in_path) =
+                self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
                 match self.interner.definition(hir_ident.id).kind {
@@ -557,7 +565,7 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            hir_ident
+            (hir_ident, generic_type_in_path)
         }
     }
 
@@ -668,24 +676,31 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
+    pub fn get_ident_from_path(
+        &mut self,
+        path: Path,
+    ) -> ((HirIdent, usize), Option<GenericTypeInPath>) {
         let location = Location::new(path.last_ident().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
-            Some(Ok(found)) => return found,
+            Some(Ok(found)) => return (found, None),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
-                Ok(id) => return (HirIdent::non_trait_method(id, location), 0),
+                Ok((id, generic_type_in_path)) => {
+                    return ((HirIdent::non_trait_method(id, location), 0), generic_type_in_path)
+                }
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
-                Ok(id) => return (HirIdent::non_trait_method(id, location), 0),
+                Ok((id, generic_type_in_path)) => {
+                    return ((HirIdent::non_trait_method(id, location), 0), generic_type_in_path)
+                }
                 Err(error) => error,
             },
         };
         self.push_err(error);
         let id = DefinitionId::dummy_id();
-        (HirIdent::non_trait_method(id, location), 0)
+        ((HirIdent::non_trait_method(id, location), 0), None)
     }
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {

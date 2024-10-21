@@ -174,8 +174,6 @@ pub enum TypeCheckError {
     StringIndexAssign { span: Span },
     #[error("Macro calls may only return `Quoted` values")]
     MacroReturningNonExpr { typ: Type, span: Span },
-    #[error("turbofish (`::<_>`) usage at this position isn't supported yet")]
-    UnsupportedTurbofishUsage { span: Span },
     #[error("`{name}` has already been specified")]
     DuplicateNamedTypeArg { name: Ident, prev_span: Span },
     #[error("`{item}` has no associated type named `{name}`")]
@@ -439,10 +437,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 "Macro calls must return quoted values, otherwise there is no code to insert".into(),
                 *span,
             ),
-            TypeCheckError::UnsupportedTurbofishUsage { span } => {
-                let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
-            },
             TypeCheckError::DuplicateNamedTypeArg { name, prev_span } => {
                 let msg = format!("`{name}` has already been specified");
                 let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span());

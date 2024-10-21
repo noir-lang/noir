@@ -653,11 +653,15 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
-                if error.is_some() {
-                    None
-                } else {
+            Ok(PathResolution {
+                module_def_id: ModuleDefId::ModuleId(module_id),
+                generic_type_in_path: _,
+                errors,
+            }) => {
+                if errors.is_empty() {
                     Some(module_id)
+                } else {
+                    None
                 }
             }
             _ => None,
@@ -666,8 +670,12 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
-                if let Some(error) = error {
+            Ok(PathResolution {
+                module_def_id: ModuleDefId::TraitId(trait_id),
+                generic_type_in_path: _,
+                errors,
+            }) => {
+                for error in errors {
                     self.push_err(error);
                 }
                 return Some(trait_id);

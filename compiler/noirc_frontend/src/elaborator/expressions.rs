@@ -528,9 +528,6 @@ impl<'context> Elaborator<'context> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&path, exclude_last_segment);
-
         let last_segment = path.last_segment();
         let is_self_type = last_segment.ident.is_self_type_name();
 
