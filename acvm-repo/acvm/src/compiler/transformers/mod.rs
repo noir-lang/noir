@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 mod csat;
 
 pub(crate) use csat::CSatTransformer;
+pub use csat::MIN_EXPRESSION_WIDTH;
 
 use super::{transform_assert_messages, AcirTransformationMap};
 
