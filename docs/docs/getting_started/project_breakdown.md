@@ -5,7 +5,7 @@ description:
   file, and how to prove and verify your program.
 keywords:
   [Nargo, Nargo project, Prover.toml, proof verification, private asset transfer]
-sidebar_position: 2 
+sidebar_position: 1
 ---
 
 This section breaks down our hello world program from the previous section.
@@ -46,7 +46,7 @@ license = "MIT"
 ecrecover = {tag = "v0.9.0", git = "https://github.com/colinnielsen/ecrecover-noir.git"}
 ```
 
-Nargo.toml for a [workspace](../../noir/modules_packages_crates/workspaces.md) will look a bit different. For example:
+Nargo.toml for a [workspace](../noir/modules_packages_crates/workspaces.md) will look a bit different. For example:
 
 ```toml
 [workspace]
@@ -66,11 +66,11 @@ The package section defines a number of fields including:
 - `entry` (optional) - a relative filepath to use as the entry point into your package (overrides the default of `src/lib.nr` or `src/main.nr`)
 - `backend` (optional)
 - `license` (optional)
-- `expression_width` (optional) - Sets the default backend expression width. This field will override the default backend expression width specified by the Noir compiler (currently set to width 4). 
+- `expression_width` (optional) - Sets the default backend expression width. This field will override the default backend expression width specified by the Noir compiler (currently set to width 4).
 
 #### Dependencies section
 
-This is where you will specify any dependencies for your project. See the [Dependencies page](../../noir/modules_packages_crates/dependencies.md) for more info.
+This is where you will specify any dependencies for your project. See the [Dependencies page](../noir/modules_packages_crates/dependencies.md) for more info.
 
 `./proofs/` and `./contract/` directories will not be immediately visible until you create a proof or
 verifier contract respectively.
