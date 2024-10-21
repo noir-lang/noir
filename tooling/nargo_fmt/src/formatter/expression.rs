@@ -2016,6 +2016,37 @@ global y = 1;
     }
 
     #[test]
+    fn format_lambda_as_last_method_call_argument_3() {
+        let src = "mod moo {
+    fn foo() {
+        let mut sorted_write_tuples = unsafe {
+            get_sorted_tuple(
+                final_public_data_writes.storage,
+                |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| full_field_less_than(
+                    1, 2,
+                ),
+            )
+        };
+    }
+}
+";
+        let expected = "mod moo {
+    fn foo() {
+        let mut sorted_write_tuples = unsafe {
+            get_sorted_tuple(
+                final_public_data_writes.storage,
+                |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| {
+                    full_field_less_than(1, 2)
+                },
+            )
+        };
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_lambda_as_last_method_call_chain_argument() {
         let src = "global x = foo.bar(1).baz(2, |x| { 1; 2 });";
         let expected = "global x = foo.bar(1).baz(2, |x| {

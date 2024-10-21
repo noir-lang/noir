@@ -729,10 +729,43 @@ impl<'a> Formatter<'a> {
                 self.write_line();
                 self.write_indentation();
                 self.format_chunk_group_impl(group);
+
+                // If this lambda was in an expression list and it was formatted in multiple
+                // lines, it might be that the trailing comma happened after the lambda body:
+                //
+                // foo(
+                //     1,
+                //     |lambda| body,
+                // )
+                //
+                // Because we attach commas to the last text to avoid splitting it, the body
+                // in this case is "body,", so if we end up writing it as a block it will
+                // look like this:
+                //
+                // foo(
+                //     1,
+                //     |lambda| {
+                //         body,
+                //     }
+                // )
+                //
+                // So, if after writing the body we find a comma (there will be at most one)
+                // we remove it, but place it after the right brace, so it looks like this:
+                //
+                // foo(
+                //     1,
+                //     |lambda| {
+                //         body
+                //     },
+                // )
+                let comma_trimmed = self.trim_comma();
                 self.decrease_indentation();
                 self.write_line();
                 self.write_indentation();
                 self.write("}");
+                if comma_trimmed {
+                    self.write(",");
+                }
                 return;
             }
 

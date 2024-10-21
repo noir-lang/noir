@@ -44,6 +44,16 @@ impl Buffer {
         }
     }
 
+    /// Trim commas from the end of the buffer. Returns true if a comma was trimmed.
+    pub(super) fn trim_comma(&mut self) -> bool {
+        if self.buffer.ends_with(',') {
+            self.buffer.truncate(self.buffer.len() - 1);
+            true
+        } else {
+            false
+        }
+    }
+
     pub(crate) fn contents(self) -> String {
         self.buffer
     }

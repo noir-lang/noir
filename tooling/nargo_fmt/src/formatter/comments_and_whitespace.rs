@@ -237,6 +237,11 @@ impl<'a> Formatter<'a> {
     pub(super) fn trim_spaces(&mut self) {
         self.buffer.trim_spaces();
     }
+
+    /// Trim commas from the end of the buffer. Returns true if a comma was trimmed.
+    pub(super) fn trim_comma(&mut self) -> bool {
+        self.buffer.trim_comma()
+    }
 }
 
 #[cfg(test)]
