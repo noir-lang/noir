@@ -298,7 +298,7 @@ impl<'a> Formatter<'a> {
         };
 
         let mut group = ChunkGroup::new();
-        group.text(self.chunk(|formatter| {
+        group.verbatim(self.chunk(|formatter| {
             formatter.write("quote {");
             for token in tokens.0 {
                 formatter.write_source_span(token.to_span());
@@ -1812,6 +1812,22 @@ global y = 1;
     fn format_quote() {
         let src = "global x = quote { 1  2  3 $four $(five) };";
         let expected = "global x = quote { 1  2  3 $four $(five) };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_quote_with_newlines() {
+        let src = "fn foo() {
+    quote {
+
+        foo
+
+        bar
+
+    }
+}
+";
+        let expected = src;
         assert_format(src, expected);
     }
 

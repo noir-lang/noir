@@ -32,6 +32,8 @@ impl TextChunk {
 pub(crate) enum Chunk {
     /// A text chunk. It might contain leading comments.
     Text(TextChunk),
+    /// A text chunk that should be printed unmodified (used for `quote { ... }` contents).
+    Verbatim(TextChunk),
     /// A trailing comma that's only written if we decide to format chunks in multiple lines
     /// (for example for a call we'll add a trailing comma to the last argument).
     TrailingComma,
@@ -59,9 +61,10 @@ pub(crate) enum Chunk {
 impl Chunk {
     pub(crate) fn width(&self) -> usize {
         match self {
-            Chunk::Text(chunk) | Chunk::TrailingComment(chunk) | Chunk::LeadingComment(chunk) => {
-                chunk.width
-            }
+            Chunk::Text(chunk)
+            | Chunk::Verbatim(chunk)
+            | Chunk::TrailingComment(chunk)
+            | Chunk::LeadingComment(chunk) => chunk.width,
             Chunk::Group(group) => group.width(),
             Chunk::SpaceOrLine => 1,
             Chunk::Line { .. }
@@ -89,9 +92,10 @@ impl Chunk {
 
     pub(crate) fn has_newlines(&self) -> bool {
         match self {
-            Chunk::Text(chunk) | Chunk::TrailingComment(chunk) | Chunk::LeadingComment(chunk) => {
-                chunk.has_newlines
-            }
+            Chunk::Text(chunk)
+            | Chunk::Verbatim(chunk)
+            | Chunk::TrailingComment(chunk)
+            | Chunk::LeadingComment(chunk) => chunk.has_newlines,
             Chunk::Group(group) => group.has_newlines(),
             Chunk::TrailingComma
             | Chunk::Line { .. }
@@ -193,6 +197,15 @@ impl ChunkGroup {
         } else {
             self.push(Chunk::Text(chunk));
         }
+    }
+
+    /// Appends a verbatim text chunk to this group.
+    pub(crate) fn verbatim(&mut self, chunk: TextChunk) {
+        if chunk.width == 0 {
+            return;
+        }
+
+        self.push(Chunk::Verbatim(chunk));
     }
 
     /// Appends a single space to this group by reading it from the given formatter.
@@ -370,6 +383,7 @@ impl ChunkGroup {
         for chunk in self.chunks {
             match chunk {
                 Chunk::Text(chunk) => group.text(chunk),
+                Chunk::Verbatim(chunk) => group.verbatim(chunk),
                 Chunk::TrailingComma => {
                     // If there's a trailing comma after a group, append the text to that group
                     // so that it glues with the last text present there (if any)
@@ -630,7 +644,9 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_chunk_group_in_one_line(&mut self, chunks: ChunkGroup) {
         for chunk in chunks.chunks {
             match chunk {
-                Chunk::Text(text_chunk) => self.write(&text_chunk.string),
+                Chunk::Text(text_chunk) | Chunk::Verbatim(text_chunk) => {
+                    self.write(&text_chunk.string)
+                }
                 Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
                     self.write(" ");
@@ -689,6 +705,9 @@ impl<'a> Formatter<'a> {
                         }
                         self.write(&text_chunk.string);
                     }
+                }
+                Chunk::Verbatim(text_chunk) => {
+                    self.write(&text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk) => {
                     self.write_chunk_lines(&text_chunk.string);
