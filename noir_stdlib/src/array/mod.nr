@@ -43,8 +43,8 @@ impl<T, let N: u32> [T; N] {
     /// assert_eq(b, [2, 4, 6]);
     /// ```
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U; N] {
-        let first_elem = crate::mem::zeroed();
-        let mut ret = [first_elem; N];
+        let uninitialized = crate::mem::zeroed();
+        let mut ret = [uninitialized; N];
 
         for i in 0..self.len() {
             ret[i] = f(self[i]);
