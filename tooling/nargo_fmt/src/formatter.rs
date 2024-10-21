@@ -71,6 +71,10 @@ pub(crate) struct Formatter<'a> {
     /// A counter to create GroupTags.
     group_tag_counter: usize,
 
+    /// We keep a copy of the config's max width because when we format chunk groups
+    /// we somethings change this so that a group has less space to write to.
+    max_width: usize,
+
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: String,
 }
@@ -90,6 +94,7 @@ impl<'a> Formatter<'a> {
             written_comments_count: 0,
             ignore_next: false,
             group_tag_counter: 0,
+            max_width: config.max_width,
             buffer: String::new(),
         };
         formatter.bump();

@@ -308,7 +308,7 @@ impl ChunkGroup {
                 .iter()
                 .map(|chunk| {
                     if let Chunk::Group(group) = chunk {
-                        if group.kind == GroupKind::ExpressionList {
+                        if group.kind.is_expression_list() {
                             group.expression_list_width()
                         } else {
                             chunk.width_inside_an_expression_list()
@@ -414,6 +414,58 @@ impl ChunkGroup {
             self.text(TextChunk::new(",".to_string()));
         }
     }
+
+    /// Returns the width of text until we hit a Line or LineOrSpace, together
+    /// with whether we hit a Line or LineOrSpace.
+    fn width_until_line(&self) -> (usize, bool) {
+        let mut width = 0;
+        for chunk in &self.chunks {
+            match chunk {
+                Chunk::Text(text_chunk)
+                | Chunk::Verbatim(text_chunk)
+                | Chunk::TrailingComment(text_chunk)
+                | Chunk::LeadingComment(text_chunk) => {
+                    width += text_chunk.width;
+                }
+                Chunk::Group(chunk_group) => {
+                    let (group_width, hit_line) = chunk_group.width_until_line();
+                    width += group_width;
+                    if hit_line {
+                        return (width, true);
+                    }
+                }
+                Chunk::Line { .. } | Chunk::SpaceOrLine => {
+                    return (width, true);
+                }
+                Chunk::IncreaseIndentation
+                | Chunk::DecreaseIndentation
+                | Chunk::PushIndentation
+                | Chunk::PopIndentation
+                | Chunk::TrailingComma => (),
+            }
+        }
+
+        (width, false)
+    }
+
+    fn first_group(&self) -> Option<&ChunkGroup> {
+        self.chunks
+            .iter()
+            .filter_map(|chunk| if let Chunk::Group(group) = chunk { Some(group) } else { None })
+            .next()
+    }
+
+    fn has_expression_list_or_method_call_group(&self) -> bool {
+        for chunk in &self.chunks {
+            if let Chunk::Group(group) = chunk {
+                if group.kind.is_expression_list() || group.kind.is_method_call() {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -425,7 +477,9 @@ pub(crate) enum GroupKind {
     Regular,
     /// This is a chunk that has a list of expression in it, for example:
     /// a call, a method call, an array literal, a tuple literal, etc.
-    ExpressionList,
+    /// `prefix_width` is the width of whatever is before the actual expression list.
+    /// For example, for an array this is 1 (for "["), for a slice it's 2 ("&["), etc.
+    ExpressionList { prefix_width: usize, expressions_count: usize },
     /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
     /// list and the left bracket.
@@ -456,7 +510,7 @@ impl GroupKind {
     }
 
     fn is_expression_list(&self) -> bool {
-        matches!(self, GroupKind::ExpressionList)
+        matches!(self, GroupKind::ExpressionList { .. })
     }
 }
 
@@ -513,7 +567,7 @@ impl<'a> Formatter<'a> {
         let chunks_width = chunks.width();
         let total_width = self.current_line_width + chunks_width;
 
-        if total_width > self.config.max_width {
+        if total_width > self.max_width {
             // If this is a method call that doesn't fit in the current line, we check if
             // everything that follows up to the left parentheses fits in the current line.
             // If so, we write that and we'll end up formatting the arguments in multiple
@@ -544,14 +598,67 @@ impl<'a> Formatter<'a> {
             } = chunks.kind
             {
                 let total_width = self.current_line_width + width_until_left_paren_inclusive;
-                if total_width <= self.config.max_width {
+                if total_width <= self.max_width {
+                    // Check if this method call has another call or method call nested in it.
+                    // If not, it means tis is the last nested call and after it we'll need to start
+                    // writing at least one closing parentheses. So the argument list will actually
+                    // have one less character available for writing, and that's why we (temporarily) decrease
+                    // max width.
+                    let expression_list_group = chunks.first_group().unwrap();
+                    let has_expression_list_or_call_group =
+                        expression_list_group.has_expression_list_or_method_call_group();
+                    if !has_expression_list_or_call_group {
+                        self.max_width -= 1;
+                    }
+
                     // When a method call's group is formed, we indent after the first dot. But with that
                     // indentation, and the arguments indentation, we'll end up with too much indentation,
                     // so here we decrease it to compensate that.
                     self.decrease_indentation();
                     self.format_chunk_group_in_one_line(chunks);
                     self.increase_indentation();
+
+                    if !has_expression_list_or_call_group {
+                        self.max_width += 1;
+                    }
                     return;
+                }
+            }
+
+            // If this is an expression list with a single expression, see if we can fit whatever
+            // comes next until a line in the current line. For example, if we have this:
+            //
+            // foo(bar(baz(1)))
+            //
+            // then `foo(...)` is an ExpressionList. We check if `foo(` fits in the current line.
+            // If yes, we write it in the current line and continue. Then we'll find `bar(...)`,
+            // which is also an ExpressionList, and if `bar(` fits the current line, we'll write it,
+            // etc. But we only do this if we have nested calls (nested expression lists, etc.)
+            //
+            // This is to avoid formatting the above like this:
+            //
+            // foo(
+            //     bar(
+            //         baz(
+            //             1,
+            //         ),
+            //     ),
+            // )
+            //
+            // (rustfmt seems to do the same thing)
+            if let GroupKind::ExpressionList { prefix_width, expressions_count: 1 } = chunks.kind {
+                if let Some(inner_group) = chunks.first_group() {
+                    if inner_group.kind.is_expression_list() || inner_group.kind.is_method_call() {
+                        let total_width = self.current_line_width
+                            + prefix_width
+                            + inner_group.width_until_line().0;
+                        if total_width <= self.max_width {
+                            self.decrease_indentation();
+                            self.format_chunk_group_in_one_line(chunks);
+                            self.increase_indentation();
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -582,9 +689,8 @@ impl<'a> Formatter<'a> {
                 && chunks.has_lambda_as_last_expression_in_list()
             {
                 let chunks_width = chunks.expression_list_width();
-
                 let total_width = self.current_line_width + chunks_width;
-                if total_width <= self.config.max_width {
+                if total_width <= self.max_width {
                     chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
                     self.format_chunk_group_in_one_line(chunks);
                     return;
@@ -596,7 +702,7 @@ impl<'a> Formatter<'a> {
         }
 
         // Check if the group first in the remainder of the current line.
-        if total_width > self.config.max_width {
+        if total_width > self.max_width {
             // If this chunk is the value of an assignment (either a normal assignment or a let statement)
             // and it doesn't fit the current line, we check if it fits the next line with an increased
             // indentation.
@@ -621,7 +727,7 @@ impl<'a> Formatter<'a> {
             if chunks.kind == GroupKind::AssignValue {
                 let total_width_next_line =
                     (self.indentation as usize + 1) * self.config.tab_spaces + chunks_width;
-                if total_width_next_line <= self.config.max_width {
+                if total_width_next_line <= self.max_width {
                     // We might have trailing spaces
                     // (for example a space after the `=` of a let statement or an assignment)
                     self.trim_spaces();
@@ -674,7 +780,7 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 } else {
                     // "+ 1" because we still need to add a space before the next chunk
-                    if self.current_line_width + chunk.width() + 1 > self.config.max_width {
+                    if self.current_line_width + chunk.width() + 1 > self.max_width {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else {
@@ -695,8 +801,8 @@ impl<'a> Formatter<'a> {
                         // after `format_chunks` finishes).
                         // This is the logic to automatically wrap a line when a ChunkGroup doesn't
                         // have Line or SpaceOrLine in it.
-                        if self.current_line_width <= self.config.max_width
-                            && self.current_line_width + text_chunk.width > self.config.max_width
+                        if self.current_line_width <= self.max_width
+                            && self.current_line_width + text_chunk.width > self.max_width
                             && !self.buffer.ends_with(' ')
                         {
                             self.write_line_without_skipping_whitespace_and_comments();

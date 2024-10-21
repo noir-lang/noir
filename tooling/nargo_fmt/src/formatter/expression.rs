@@ -133,7 +133,6 @@ impl<'a> Formatter<'a> {
 
     fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> ChunkGroup {
         let mut group = ChunkGroup::new();
-        group.kind = GroupKind::ExpressionList;
 
         group.text(self.chunk(|formatter| {
             if is_slice {
@@ -144,6 +143,11 @@ impl<'a> Formatter<'a> {
 
         match literal {
             ArrayLiteral::Standard(exprs) => {
+                group.kind = GroupKind::ExpressionList {
+                    prefix_width: group.width(),
+                    expressions_count: exprs.len(),
+                };
+
                 let maximum_element_width = self.format_expressions_separated_by_comma(
                     exprs, false, // force trailing comma
                     &mut group,
@@ -173,13 +177,17 @@ impl<'a> Formatter<'a> {
     fn format_tuple(&mut self, exprs: Vec<Expression>) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.one_chunk_per_line = false;
-        group.kind = GroupKind::ExpressionList;
 
         let force_trailing_comma = exprs.len() == 1;
 
         group.text(self.chunk(|formatter| {
             formatter.write_left_paren();
         }));
+
+        group.kind = GroupKind::ExpressionList {
+            prefix_width: group.width(),
+            expressions_count: exprs.len(),
+        };
 
         self.format_expressions_separated_by_comma(exprs, force_trailing_comma, &mut group);
 
@@ -882,7 +890,6 @@ impl<'a> Formatter<'a> {
 
     fn format_call(&mut self, call: CallExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
-        group.kind = GroupKind::ExpressionList;
 
         self.format_expression(*call.func, &mut group);
 
@@ -892,6 +899,11 @@ impl<'a> Formatter<'a> {
             }
             formatter.write_left_paren();
         }));
+
+        group.kind = GroupKind::ExpressionList {
+            prefix_width: group.width(),
+            expressions_count: call.arguments.len(),
+        };
 
         // Format arguments in a separate group so we can calculate the arguments
         // width and determine if we need to format this call in multiple lines.
@@ -994,7 +1006,10 @@ impl<'a> Formatter<'a> {
         };
 
         let mut args_group = ChunkGroup::new();
-        args_group.kind = GroupKind::ExpressionList;
+        args_group.kind = GroupKind::ExpressionList {
+            prefix_width: 0,
+            expressions_count: method_call.arguments.len(),
+        };
         self.format_expressions_separated_by_comma(
             method_call.arguments,
             false, // force trailing comma
@@ -1465,6 +1480,76 @@ global y = 1;
     }
 
     #[test]
+    fn format_nested_call_with_maximum_width() {
+        let src = "fn foo() { foo(bar(123, 456, 789)) } ";
+        let expected = "fn foo() {
+    foo(bar(
+        123,
+        456,
+        789,
+    ))
+}
+";
+        assert_format_with_max_width(src, expected, "    foo(bar(".len());
+    }
+
+    #[test]
+    fn format_nested_call_with_maximum_width_2() {
+        let src = "fn foo() {
+    let note_interface_impl = s.as_type().get_trait_impl(quote { crate::note::note_interface::NoteInterface<$serialized_len_type> }
+        .as_trait_constraint());
+}
+";
+        let expected = "fn foo() {
+    let note_interface_impl = s.as_type().get_trait_impl(
+        quote { crate::note::note_interface::NoteInterface<$serialized_len_type> }
+            .as_trait_constraint(),
+    );
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_nested_call_with_maximum_width_3() {
+        let src = "mod foo {
+    fn bar() {
+        assert(foo(bar.baz(x12345)));
+    }
+}
+";
+        let expected = "mod foo {
+    fn bar() {
+        assert(foo(bar.baz(
+            x12345,
+        )));
+    }
+}
+";
+        assert_format_with_max_width(src, expected, 33);
+    }
+
+    #[test]
+    fn format_nested_call_with_maximum_width_4() {
+        let src = "mod foo {
+    fn bar() {
+        assert(foo(bar_baz(x1, x2)));
+    }
+}
+";
+        let expected = "mod foo {
+    fn bar() {
+        assert(foo(bar_baz(
+            x1,
+            x2,
+        )));
+    }
+}
+";
+        assert_format_with_max_width(src, expected, 33);
+    }
+
+    #[test]
     fn format_call_with_maximum_width_comma_exceeds() {
         let src = "global x = foo::bar(
     baz::qux(1, 2, 3),
@@ -1570,17 +1655,13 @@ global y = 1;
     fn format_method_call_chain_3() {
         let src = "fn foo() {     assert(p4_affine.eq(Gaffine::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));  }";
         let expected = "fn foo() {
-    assert(
-        p4_affine.eq(
-            Gaffine::new(
-                6890855772600357754907169075114257697580319025794532037257385534741338397365,
-                4338620300185947561074059802482547481416142213883829469920100239455078257889,
-            ),
-        ),
-    );
+    assert(p4_affine.eq(Gaffine::new(
+        6890855772600357754907169075114257697580319025794532037257385534741338397365,
+        4338620300185947561074059802482547481416142213883829469920100239455078257889,
+    )));
 }
 ";
-        assert_format_with_max_width(src, expected, "    bar.baz(1, 2).qux(1, 2, 3).one(".len());
+        assert_format(src, expected);
     }
 
     #[test]
@@ -1590,6 +1671,41 @@ global y = 1;
     .baz();
 ";
         assert_format_with_max_width(src, expected, "foo::bar.baz".len() - 1);
+    }
+
+    #[test]
+    fn format_nested_method_call_with_maximum_width() {
+        let src = "fn foo() { foo.bar(baz.qux(123, 456, 789)) } ";
+        let expected = "fn foo() {
+    foo.bar(baz.qux(
+        123,
+        456,
+        789,
+    ))
+}
+";
+        assert_format_with_max_width(src, expected, "    foo.bar(bar.qux(".len());
+    }
+
+    #[test]
+    fn format_nested_method_call_with_maximum_width_2() {
+        let src = "fn foo() {
+    assert(
+        p4_affine.eq(Gaffine::new(
+            6890855772600357754907169075114257697580319025794532037257385534741338397365,
+            4338620300185947561074059802482547481416142213883829469920100239455078257889,
+        )),
+    );
+}
+";
+        let expected = "fn foo() {
+    assert(p4_affine.eq(Gaffine::new(
+        6890855772600357754907169075114257697580319025794532037257385534741338397365,
+        4338620300185947561074059802482547481416142213883829469920100239455078257889,
+    )));
+}
+";
+        assert_format(src, expected);
     }
 
     #[test]

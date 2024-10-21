@@ -156,6 +156,11 @@ impl<'a> Formatter<'a> {
             formatter.write_left_paren();
         }));
 
+        group.kind = GroupKind::ExpressionList {
+            prefix_width: group.width(),
+            expressions_count: constrain_statement.arguments.len(),
+        };
+
         self.format_expressions_separated_by_comma(
             constrain_statement.arguments,
             false, // force trailing comma
