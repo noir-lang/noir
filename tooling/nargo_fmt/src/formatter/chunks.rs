@@ -137,7 +137,7 @@ pub(crate) struct ChunkGroup {
     ///
     /// but if one of the elements is long, each one will go in a separate line:
     ///
-    /// ```
+    /// ```text
     /// [
     ///     1,
     ///     1234567890123,
@@ -372,10 +372,7 @@ impl ChunkGroup {
     /// have two chunks `Text("123"), TrailingComma`, we'll consider the entire string "123,"
     /// when deciding whether we can still write in the current line or not.
     pub(crate) fn prepare_for_multiple_lines(self) -> ChunkGroup {
-        let mut group = ChunkGroup {
-            chunks: Vec::new(),
-            ..self
-        };
+        let mut group = ChunkGroup { chunks: Vec::new(), ..self };
 
         for chunk in self.chunks {
             match chunk {
