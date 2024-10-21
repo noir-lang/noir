@@ -33,24 +33,16 @@ fn main() {
         );
 
         let p3_affine = bjj_affine.add(p1_affine, p2_affine);
-        assert(
-            p3_affine.eq(
-                Gaffine::new(
-                    7916061937171219682591368294088513039687205273691143098332585753343424131937,
-                    14035240266687799601661095864649209771790948434046947201833777492504781204499,
-                ),
-            ),
-        );
+        assert(p3_affine.eq(Gaffine::new(
+            7916061937171219682591368294088513039687205273691143098332585753343424131937,
+            14035240266687799601661095864649209771790948434046947201833777492504781204499,
+        )));
         // Test scalar multiplication
         let p4_affine = bjj_affine.mul(2, p1_affine);
-        assert(
-            p4_affine.eq(
-                Gaffine::new(
-                    6890855772600357754907169075114257697580319025794532037257385534741338397365,
-                    4338620300185947561074059802482547481416142213883829469920100239455078257889,
-                ),
-            ),
-        );
+        assert(p4_affine.eq(Gaffine::new(
+            6890855772600357754907169075114257697580319025794532037257385534741338397365,
+            4338620300185947561074059802482547481416142213883829469920100239455078257889,
+        )));
         assert(p4_affine.eq(bjj_affine.bit_mul([0, 1], p1_affine)));
         // Test subtraction
         let p5_affine = bjj_affine.subtract(p3_affine, p3_affine);
@@ -103,9 +95,10 @@ fn main() {
         assert(p4_swcurve_affine.eq(bjj_swcurve_affine.mul(2, p1_swcurve_affine)));
         assert(p4_swcurve_affine.eq(bjj_swcurve_affine.bit_mul([0, 1], p1_swcurve_affine)));
         // Subtraction
-        assert(
-            SWGaffine::zero().eq(bjj_swcurve_affine.subtract(p3_swcurve_affine, p3_swcurve_affine)),
-        );
+        assert(SWGaffine::zero().eq(bjj_swcurve_affine.subtract(
+            p3_swcurve_affine,
+            p3_swcurve_affine,
+        )));
         assert(p5_swcurve_affine.eq(SWGaffine::zero()));
         // Check that these points are on the curve
         assert(
@@ -151,20 +144,18 @@ fn main() {
         let p4_montcurve_affine = p4_affine.into_montcurve();
         let p5_montcurve_affine = p5_affine.into_montcurve();
         // Addition
-        assert(
-            p3_montcurve_affine.eq(
-                bjj_montcurve_affine.add(p1_montcurve_affine, p2_montcurve_affine),
-            ),
-        );
+        assert(p3_montcurve_affine.eq(bjj_montcurve_affine.add(
+            p1_montcurve_affine,
+            p2_montcurve_affine,
+        )));
         // Doubling
         assert(p4_montcurve_affine.eq(bjj_montcurve_affine.mul(2, p1_montcurve_affine)));
         assert(p4_montcurve_affine.eq(bjj_montcurve_affine.bit_mul([0, 1], p1_montcurve_affine)));
         // Subtraction
-        assert(
-            MGaffine::zero().eq(
-                bjj_montcurve_affine.subtract(p3_montcurve_affine, p3_montcurve_affine),
-            ),
-        );
+        assert(MGaffine::zero().eq(bjj_montcurve_affine.subtract(
+            p3_montcurve_affine,
+            p3_montcurve_affine,
+        )));
         assert(p5_montcurve_affine.eq(MGaffine::zero()));
         // Check that these points are on the curve
         assert(
@@ -203,27 +194,17 @@ fn main() {
         // Elligator 2 map-to-curve
         let ell2_pt_map = bjj_affine.elligator2_map(27);
 
-        assert(
-            ell2_pt_map.eq(
-                MGaffine::new(
-                    7972459279704486422145701269802978968072470631857513331988813812334797879121,
-                    8142420778878030219043334189293412482212146646099536952861607542822144507872,
-                )
-                    .into_tecurve(),
-            ),
-        );
+        assert(ell2_pt_map.eq(MGaffine::new(
+            7972459279704486422145701269802978968072470631857513331988813812334797879121,
+            8142420778878030219043334189293412482212146646099536952861607542822144507872,
+        )
+            .into_tecurve()));
         // SWU map-to-curve
         let swu_pt_map = bjj_affine.swu_map(5, 27);
 
-        assert(
-            swu_pt_map.eq(
-                bjj_affine.map_from_swcurve(
-                    SWGaffine::new(
-                        2162719247815120009132293839392097468339661471129795280520343931405114293888,
-                        5341392251743377373758788728206293080122949448990104760111875914082289313973,
-                    ),
-                ),
-            ),
-        );
+        assert(swu_pt_map.eq(bjj_affine.map_from_swcurve(SWGaffine::new(
+            2162719247815120009132293839392097468339661471129795280520343931405114293888,
+            5341392251743377373758788728206293080122949448990104760111875914082289313973,
+        ))));
     }
 }
