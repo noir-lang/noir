@@ -79,7 +79,7 @@ impl Chunk {
     /// Computes the width of this chunk considering it's inside an ExpressionList.
     /// The only thing that changes here compared to `width` is that a LambdaAsLastExpressionInList's
     /// width is considered to be only the first line, so we can avoid splitting the entire call
-    /// arguments into separate lins.
+    /// arguments into separate lines.
     pub(crate) fn width_inside_an_expression_list(&self) -> usize {
         if let Chunk::Group(group) = &self {
             if let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind {
