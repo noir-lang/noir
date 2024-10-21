@@ -208,7 +208,7 @@ fn main() {
     let result = three_ones_regex.match("1111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
-    // TODO(https://github.com/noir-lang/noir/issues/5462): re-enable these cases and complete the test using array_regex below
+    // TODO(https://github.com/noir-lang/noir/issues/6285): re-enable these cases and complete the test using array_regex below
     // 
     // // 1*
     // let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
@@ -279,7 +279,9 @@ fn main() {
     // });
 }
 
-// array_regex: use to complete test once https://github.com/noir-lang/noir/issues/5462 is resolved
+// TODO
+// array_regex execution_success test:
+// use to complete test once https://github.com/noir-lang/noir/issues/6285 is resolved
 //
 // // offset <= len <= N
 // struct Bvec<T, let N: u32> {
