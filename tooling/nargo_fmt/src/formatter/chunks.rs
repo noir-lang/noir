@@ -374,12 +374,7 @@ impl ChunkGroup {
     pub(crate) fn prepare_for_multiple_lines(self) -> ChunkGroup {
         let mut group = ChunkGroup {
             chunks: Vec::new(),
-            one_chunk_per_line: self.one_chunk_per_line,
-            force_multiple_lines: self.force_multiple_lines,
-            tag: self.tag,
-            kind: self.kind,
-            force_multiline_on_children_with_same_tag_if_multiline: self
-                .force_multiline_on_children_with_same_tag_if_multiline,
+            ..self
         };
 
         for chunk in self.chunks {
