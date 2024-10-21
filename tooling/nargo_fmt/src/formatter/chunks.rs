@@ -137,11 +137,13 @@ pub(crate) struct ChunkGroup {
     ///
     /// but if one of the elements is long, each one will go in a separate line:
     ///
+    /// ```
     /// [
     ///     1,
     ///     1234567890123,
     ///     3
     /// ]
+    /// ```
     pub(crate) one_chunk_per_line: bool,
 
     /// If true, regardless of this group's chunks, this group will be formatted in
