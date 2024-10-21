@@ -1,7 +1,7 @@
 /// A buffer to write to.
 /// It keeps track of the current line width and provides a few useful methods
 /// to deal with the buffer contents.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct Buffer {
     buffer: String,
 
