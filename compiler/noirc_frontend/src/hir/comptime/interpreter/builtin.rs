@@ -2806,6 +2806,9 @@ fn derive_generators(
     );
 
     let is_infinite = FieldElement::zero();
+    let x_field_name: Rc<String> = Rc::new("x".to_owned());
+    let y_field_name: Rc<String> = Rc::new("y".to_owned());
+    let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
     let mut results = Vector::new();
     for gen in generators {
         let x_big: BigUint = gen.x.into();
@@ -2813,10 +2816,10 @@ fn derive_generators(
         let y_big: BigUint = gen.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields.insert(Rc::from("x".to_owned()), Value::Field(x));
-        embedded_curve_point_fields.insert(Rc::from("y".to_owned()), Value::Field(y));
+        embedded_curve_point_fields.insert(x_field_name.clone(), Value::Field(x));
+        embedded_curve_point_fields.insert(y_field_name.clone(), Value::Field(y));
         embedded_curve_point_fields
-            .insert(Rc::from("is_infinite".to_owned()), Value::Field(is_infinite));
+            .insert(is_infinite_field_name.clone(), Value::Field(is_infinite));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);
