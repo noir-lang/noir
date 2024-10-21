@@ -229,9 +229,9 @@ impl<'a> Formatter<'a> {
     }
 
     /// Writes the current indentation to the buffer, but only if the buffer
-    /// does not end with a space (otherwise we'd be indenting too much).
+    /// is empty or it ends with a newline (otherwise we'd be indenting when not needed).
     fn write_indentation(&mut self) {
-        if self.buffer.ends_with(' ') {
+        if !(self.buffer.is_empty() || self.buffer.ends_with('\n')) {
             return;
         }
 
