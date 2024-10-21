@@ -1,3 +1,4 @@
+use buffer::Buffer;
 use noirc_frontend::{
     ast::Ident,
     hir::resolution::errors::Span,
@@ -10,6 +11,7 @@ use crate::Config;
 
 mod alias;
 mod attribute;
+mod buffer;
 mod chunks;
 mod comments_and_whitespace;
 mod doc_comments;
@@ -50,10 +52,6 @@ pub(crate) struct Formatter<'a> {
     /// and restore it later. This is what this stack is used for.
     indentation_stack: Vec<i32>,
 
-    /// How many characters we've written so far in the current line
-    /// (useful to avoid exceeding the configurable maximum)
-    current_line_width: usize,
-
     /// Whenever a comment is written, this counter is incremented.
     /// In this way we can know if comments were written while formatting some code:
     /// we remember the previous value, format, then see if it increased.
@@ -76,7 +74,7 @@ pub(crate) struct Formatter<'a> {
     max_width: usize,
 
     /// This is the buffer where we write the formatted code.
-    pub(crate) buffer: String,
+    pub(crate) buffer: Buffer,
 }
 
 impl<'a> Formatter<'a> {
@@ -90,12 +88,11 @@ impl<'a> Formatter<'a> {
             token_span: Default::default(),
             indentation: 0,
             indentation_stack: Vec::new(),
-            current_line_width: 0,
             written_comments_count: 0,
             ignore_next: false,
             group_tag_counter: 0,
             max_width: config.max_width,
-            buffer: String::new(),
+            buffer: Buffer::default(),
         };
         formatter.bump();
         formatter
@@ -231,7 +228,7 @@ impl<'a> Formatter<'a> {
     /// Writes the current indentation to the buffer, but only if the buffer
     /// is empty or it ends with a newline (otherwise we'd be indenting when not needed).
     fn write_indentation(&mut self) {
-        if !(self.buffer.is_empty() || self.buffer.ends_with('\n')) {
+        if !(self.buffer.is_empty() || self.buffer.ends_with_newline()) {
             return;
         }
 
@@ -255,18 +252,12 @@ impl<'a> Formatter<'a> {
     }
 
     /// Writes a string to the buffer.
-    /// This is the only method that directly appends to the buffer and keeps
-    /// track of the current line width.
-    /// If adding new methods that write to the buffer, always use this method
-    /// instead of directly appending to the buffer.
     fn write(&mut self, str: &str) {
-        self.buffer.push_str(str);
+        self.buffer.write(str);
+    }
 
-        if str.ends_with('\n') {
-            self.current_line_width = 0;
-        } else {
-            self.current_line_width += str.chars().count();
-        }
+    fn current_line_width(&self) -> usize {
+        self.buffer.current_line_width()
     }
 
     fn increase_indentation(&mut self) {

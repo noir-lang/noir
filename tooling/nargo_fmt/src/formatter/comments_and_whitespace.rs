@@ -25,7 +25,7 @@ impl<'a> Formatter<'a> {
     ///
     /// A space is not appended to the buffer is it already ends with a space.
     pub(super) fn write_space_without_skipping_whitespace_and_comments(&mut self) {
-        if !self.buffer.ends_with('\n') && !self.buffer.ends_with(' ') {
+        if !self.buffer.ends_with_newline() && !self.buffer.ends_with_space() {
             self.write(" ");
         }
     }
@@ -205,7 +205,7 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn write_line_without_skipping_whitespace_and_comments(&mut self) -> bool {
-        if !self.buffer.ends_with('\n') && !self.buffer.ends_with(' ') {
+        if !self.buffer.ends_with_newline() && !self.buffer.ends_with_space() {
             self.write(NEWLINE);
             true
         } else {
@@ -215,9 +215,9 @@ impl<'a> Formatter<'a> {
 
     // Modifies the current buffer so that it will always have two newlines at the end.
     pub(super) fn write_multiple_lines_without_skipping_whitespace_and_comments(&mut self) {
-        if self.buffer.ends_with("\n\n") {
+        if self.buffer.ends_with_double_newline() {
             // Nothing
-        } else if self.buffer.ends_with('\n') {
+        } else if self.buffer.ends_with_newline() {
             self.write(NEWLINE);
         } else {
             self.write(NEWLINE);
@@ -235,9 +235,7 @@ impl<'a> Formatter<'a> {
 
     /// Trim spaces from the end of the buffer.
     pub(super) fn trim_spaces(&mut self) {
-        while self.buffer.ends_with(' ') {
-            self.buffer.truncate(self.buffer.len() - 1);
-        }
+        self.buffer.trim_spaces();
     }
 }
 

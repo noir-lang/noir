@@ -46,7 +46,7 @@ pub use config::Config;
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut formatter = Formatter::new(source, config);
     formatter.format_program(parsed_module);
-    formatter.buffer
+    formatter.buffer.contents()
 }
 
 #[cfg(test)]

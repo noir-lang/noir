@@ -498,18 +498,15 @@ impl<'a> Formatter<'a> {
         F: FnOnce(&mut Formatter<'a>),
     {
         let previous_buffer = std::mem::take(&mut self.buffer);
-        let previous_line_width = self.current_line_width;
         let previous_indentation = self.indentation;
-        self.current_line_width = 0;
         self.indentation = 0;
 
         f(self);
 
-        self.current_line_width = previous_line_width;
         self.indentation = previous_indentation;
 
-        let string = std::mem::replace(&mut self.buffer, previous_buffer);
-        TextChunk::new(string)
+        let buffer = std::mem::replace(&mut self.buffer, previous_buffer);
+        TextChunk::new(buffer.contents())
     }
 
     /// Main interface to format a chunk group.
@@ -538,7 +535,7 @@ impl<'a> Formatter<'a> {
         mut chunks: ChunkGroup,
     ) {
         let chunks_width = chunks.width();
-        let total_width = self.current_line_width + chunks_width;
+        let total_width = self.current_line_width() + chunks_width;
 
         if total_width > self.max_width {
             // If this is a method call that doesn't fit in the current line, we check if
@@ -570,7 +567,7 @@ impl<'a> Formatter<'a> {
                 lhs: false,
             } = chunks.kind
             {
-                let total_width = self.current_line_width + width_until_left_paren_inclusive;
+                let total_width = self.current_line_width() + width_until_left_paren_inclusive;
                 if total_width <= self.max_width {
                     // Check if this method call has another call or method call nested in it.
                     // If not, it means tis is the last nested call and after it we'll need to start
@@ -622,7 +619,7 @@ impl<'a> Formatter<'a> {
             if let GroupKind::ExpressionList { prefix_width, expressions_count: 1 } = chunks.kind {
                 if let Some(inner_group) = chunks.first_group() {
                     if inner_group.kind.is_expression_list() || inner_group.kind.is_method_call() {
-                        let total_width = self.current_line_width
+                        let total_width = self.current_line_width()
                             + prefix_width
                             + inner_group.width_until_line().0;
                         if total_width <= self.max_width {
@@ -662,7 +659,7 @@ impl<'a> Formatter<'a> {
                 && chunks.has_lambda_as_last_expression_in_list()
             {
                 let chunks_width = chunks.expression_list_width();
-                let total_width = self.current_line_width + chunks_width;
+                let total_width = self.current_line_width() + chunks_width;
                 if total_width <= self.max_width {
                     chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
                     self.format_chunk_group_in_one_line(chunks);
@@ -753,7 +750,7 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 } else {
                     // "+ 1" because we still need to add a space before the next chunk
-                    if self.current_line_width + chunk.width() + 1 > self.max_width {
+                    if self.current_line_width() + chunk.width() + 1 > self.max_width {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else {
@@ -774,9 +771,9 @@ impl<'a> Formatter<'a> {
                         // after `format_chunks` finishes).
                         // This is the logic to automatically wrap a line when a ChunkGroup doesn't
                         // have Line or SpaceOrLine in it.
-                        if self.current_line_width <= self.max_width
-                            && self.current_line_width + text_chunk.width > self.max_width
-                            && !self.buffer.ends_with(' ')
+                        if self.current_line_width() <= self.max_width
+                            && self.current_line_width() + text_chunk.width > self.max_width
+                            && !self.buffer.ends_with_space()
                         {
                             self.write_line_without_skipping_whitespace_and_comments();
                             self.increase_indentation();
@@ -846,7 +843,7 @@ impl<'a> Formatter<'a> {
             // Don't indent the first line (it should already be indented).
             // Also don't indent if the current line already has a space as the last char
             // (it means it's already indented)
-            if index > 0 && !self.buffer.ends_with(' ') {
+            if index > 0 && !self.buffer.ends_with_space() {
                 self.write_line_without_skipping_whitespace_and_comments();
                 // Only indent if the line doesn't start with a space. When that happens
                 // it's likely a block comment part that we don't want to modify.
@@ -857,7 +854,7 @@ impl<'a> Formatter<'a> {
 
             // If we already have a space in the buffer and the line starts with a space,
             // don't repeat that space.
-            if self.buffer.ends_with(' ') && line.starts_with(' ') {
+            if self.buffer.ends_with_space() && line.starts_with(' ') {
                 self.write(line.trim_start());
             } else {
                 self.write(line);
