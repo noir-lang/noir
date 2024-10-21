@@ -233,11 +233,11 @@ impl<'a> Formatter<'a> {
 
         let body_is_block = matches!(lambda.body.kind, ExpressionKind::Block(..));
 
-        let width_before_body = group.width();
+        let mut body_group = ChunkGroup::new();
+        body_group.kind = GroupKind::LambdaBody { is_block: body_is_block };
 
-        self.format_expression(lambda.body, &mut group);
-
-        let width_after_body = group.width();
+        self.format_expression(lambda.body, &mut body_group);
+        group.group(body_group);
 
         let first_line_width = params_and_return_type_chunk_width
             + (if body_is_block {
@@ -245,8 +245,8 @@ impl<'a> Formatter<'a> {
                 // so all that's left is a `{`.
                 1
             } else {
-                // The body is not a block so we can't assume it'll go into multiple lines
-                width_after_body - width_before_body
+                // The body is not a block so we can write it right away
+                0
             });
 
         FormattedLambda { group, first_line_width }
@@ -1570,11 +1570,9 @@ global y = 1;
         let src = "global x = foo::bar(
     |x, y| { some_chunk_of_code },
 );";
-        let expected = "global x = foo::bar(
-    |x, y| {
-        some_chunk_of_code
-    },
-);
+        let expected = "global x = foo::bar(|x, y| {
+    some_chunk_of_code
+});
 ";
         assert_format_with_max_width(src, expected, "    |x, y| { some_chunk_of_code },".len() - 1);
     }
@@ -1997,6 +1995,22 @@ global y = 1;
     1;
     2
 });
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_method_call_argument_2() {
+        let src = "fn foo(){
+    m.structs().any(|s: StructDefinition| s.has_named_attribute(\"storage\") | s.has_named_attribute(\"storage_no_init\"),
+    )
+}
+";
+        let expected = "fn foo() {
+    m.structs().any(|s: StructDefinition| {
+        s.has_named_attribute(\"storage\") | s.has_named_attribute(\"storage_no_init\")
+    })
+}
 ";
         assert_format(src, expected);
     }

@@ -457,6 +457,12 @@ pub(crate) enum GroupKind {
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
     /// list and the left bracket.
     LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<i32> },
+    /// The body of a lambda.
+    /// We track this as a group kind so that when we have to write it, if it doesn't
+    /// fit in the current line and it's not a block, instead of splitting that expression
+    /// somewhere that's probably undesired, we'll "turn it" into a block
+    /// (write the "{" and "}" delimiters) and write the lambda body in the next line.
+    LambdaBody { is_block: bool },
     /// A method call.
     /// We track all this information to see, if we end up needing to format this call
     /// in multiple lines, if we can write everything up to the left parentheses (inclusive)
@@ -638,35 +644,36 @@ impl<'a> Formatter<'a> {
             return;
         }
 
-        if chunks.has_newlines() {
-            // When formatting an expression list we have to check if the last argument is a lambda,
-            // because we format that in a special way:
-            // 1. to compute the group width we'll consider only the `|...| {` part of the lambda
-            // 2. If it fits in a line, we'll format this expression list in a single line
-            // 3. However, an expression list is instructed to increase indentation after, say,
-            //    `(` or `[` (depending on the expression list) and then the `{` part of a lambda
-            //    will also increase the indentation, resulting in too much indentation.
-            // 4. For that reason we adjust the lambda to be formatted with the indentation
-            //    we have right that (that is, that of the call that holds the lambda).
-            //    We do that by setting the `indentation` field of the LambdaAsLastExpressionInList.
-            //
-            // Note that this logic is a bit complex because for method calls, the arguments list
-            // is in a group so all arguments can potentially be formatted in a single line, and
-            // that group has the `ExpressionList` kind. The method call itself has the `MethodCall`
-            // kind. So when determining the first line width of a method call with a lambda as
-            // the last argument we have to find the nested ExpressionList and do some nested calls.
-            if (chunks.kind.is_expression_list() || chunks.kind.is_method_call())
-                && chunks.has_lambda_as_last_expression_in_list()
-            {
-                let chunks_width = chunks.expression_list_width();
-                let total_width = self.current_line_width() + chunks_width;
-                if total_width <= self.max_width {
-                    chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
-                    self.format_chunk_group_in_one_line(chunks);
-                    return;
-                }
+        // if chunks.has_newlines() {
+        // When formatting an expression list we have to check if the last argument is a lambda,
+        // because we format that in a special way:
+        // 1. to compute the group width we'll consider only the `|...| {` part of the lambda
+        // 2. If it fits in a line, we'll format this expression list in a single line
+        // 3. However, an expression list is instructed to increase indentation after, say,
+        //    `(` or `[` (depending on the expression list) and then the `{` part of a lambda
+        //    will also increase the indentation, resulting in too much indentation.
+        // 4. For that reason we adjust the lambda to be formatted with the indentation
+        //    we have right that (that is, that of the call that holds the lambda).
+        //    We do that by setting the `indentation` field of the LambdaAsLastExpressionInList.
+        //
+        // Note that this logic is a bit complex because for method calls, the arguments list
+        // is in a group so all arguments can potentially be formatted in a single line, and
+        // that group has the `ExpressionList` kind. The method call itself has the `MethodCall`
+        // kind. So when determining the first line width of a method call with a lambda as
+        // the last argument we have to find the nested ExpressionList and do some nested calls.
+        if (chunks.kind.is_expression_list() || chunks.kind.is_method_call())
+            && chunks.has_lambda_as_last_expression_in_list()
+        {
+            let chunks_width = chunks.expression_list_width();
+            let total_width = self.current_line_width() + chunks_width;
+            if total_width <= self.max_width {
+                chunks.set_lambda_as_last_expression_in_list_indentation(self.indentation);
+                self.format_chunk_group_in_one_line(chunks);
+                return;
             }
+        }
 
+        if chunks.has_newlines() {
             self.format_chunk_group_in_multiple_lines(chunks);
             return;
         }
@@ -708,6 +715,25 @@ impl<'a> Formatter<'a> {
                     self.decrease_indentation();
                     return;
                 }
+            }
+
+            // If a lambda body doesn't fit in the current line and it's not a block,
+            // we can turn it into a block and write it in the next line, so its contents fit.
+            if let GroupKind::LambdaBody { is_block: false } = chunks.kind {
+                // Try to format it again in the next line, but we don't want to recurse
+                // infinitely so we change the group kind.
+                chunks.kind = GroupKind::Regular;
+                self.write("{");
+                self.trim_spaces();
+                self.increase_indentation();
+                self.write_line();
+                self.write_indentation();
+                self.format_chunk_group_impl(chunks);
+                self.decrease_indentation();
+                self.write_line();
+                self.write_indentation();
+                self.write("}");
+                return;
             }
 
             self.format_chunk_group_in_multiple_lines(chunks);
