@@ -305,24 +305,7 @@ impl ChunkGroup {
     }
 
     pub(crate) fn expression_list_width(&self) -> usize {
-        if self.kind.is_method_call() {
-            self.chunks
-                .iter()
-                .map(|chunk| {
-                    if let Chunk::Group(group) = chunk {
-                        if group.kind.is_expression_list() {
-                            group.expression_list_width()
-                        } else {
-                            chunk.width_inside_an_expression_list()
-                        }
-                    } else {
-                        chunk.width_inside_an_expression_list()
-                    }
-                })
-                .sum()
-        } else {
-            self.chunks.iter().map(|chunk| chunk.width_inside_an_expression_list()).sum()
-        }
+        self.chunks.iter().map(|chunk| chunk.width_inside_an_expression_list()).sum()
     }
 
     pub(crate) fn has_newlines(&self) -> bool {
