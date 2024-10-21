@@ -41,9 +41,9 @@ pub(crate) struct Formatter<'a> {
     token_span: Span,
 
     /// The current indentation level.
-    /// We let it be negative because in some cases we just want to decrease indentation
-    /// to compensate an indentation that will come later that we don't need, and we
-    /// don't want to panic when reaching those negative values.
+    /// We allow it to be negative because in some cases we just want to decrease indentation
+    /// to preemptively cancel out an indentation that will come later which we don't want to take effect,
+    /// and we don't want to panic when reaching those negative values.
     indentation: i32,
 
     /// When formatting chunks we sometimes need to remember the current indentation
