@@ -126,9 +126,9 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
                 if artifacts.borrow().is_some() {
                     return;
                 }
-                compile_program(&test_program_dir, force_brillig);
+                compile_program(test_program_dir, force_brillig);
                 // Parse the artifacts for use in the benchmark routine
-                let programs = read_compiled_programs_and_inputs(&test_program_dir);
+                let programs = read_compiled_programs_and_inputs(test_program_dir);
                 // Warn, but don't stop, if we haven't found any binary packages.
                 if programs.is_empty() {
                     eprintln!("\nWARNING: There is nothing to benchmark in {benchmark_name}");
