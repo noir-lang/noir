@@ -1736,7 +1736,7 @@ impl<'context> Elaborator<'context> {
                 HirStatement::Assign(s) => check(s.expression),
                 HirStatement::Expression(e) => check(e),
                 HirStatement::Semi(e) => check(e),
-                // Rust doesn't seem to check the for loop body.
+                // Rust doesn't seem to check the for loop body (it's bounds might mean it's never called).
                 HirStatement::For(e) => check(e.start_range) && check(e.end_range),
                 HirStatement::Constrain(_)
                 | HirStatement::Comptime(_)
@@ -1773,9 +1773,10 @@ impl<'context> Elaborator<'context> {
                     && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
             }
             HirExpression::Tuple(e) => e.iter().cloned().all(check),
-            HirExpression::Lambda(e) => check(e.body),
             HirExpression::Unsafe(b) => check_block(b),
-            HirExpression::Literal(_)
+            // Rust doesn't check the lambda body (it might not be called).
+            HirExpression::Lambda(_)
+            | HirExpression::Literal(_)
             | HirExpression::Constructor(_)
             | HirExpression::Quote(_)
             | HirExpression::Unquote(_)

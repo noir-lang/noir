@@ -122,7 +122,7 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
 fn assert_no_errors(src: &str) {
     let errors = get_program_errors(src);
     if !errors.is_empty() {
-        panic!("Expected no errors, got: {:?}", errors);
+        panic!("Expected no errors, got: {:?}; src = {src}", errors);
     }
 }
 
@@ -3504,6 +3504,13 @@ fn unconditional_recursion_pass() {
                 sum += main();
             }
             sum
+        }
+        "#,
+        // Lambda bodies are not checked.
+        r#"
+        fn main() {
+            let foo = || main();
+            foo();
         }
         "#,
     ];
