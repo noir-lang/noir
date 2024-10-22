@@ -81,35 +81,6 @@ impl Ssa {
 }
 
 impl Function {
-    // TODO(https://github.com/noir-lang/noir/issues/6192): are both this and
-    // TODO: Ssa::unroll_loops_iteratively needed? Likely able to be combined
-    pub(crate) fn unroll_loops_iteratively(&mut self) -> Result<(), RuntimeError> {
-        // Try to unroll loops first:
-        let mut unroll_errors = vec![];
-        self.try_to_unroll_loops(&mut unroll_errors);
-
-        // Keep unrolling until no more errors are found
-        while !unroll_errors.is_empty() {
-            let prev_unroll_err_count = unroll_errors.len();
-
-            // Simplify the SSA before retrying
-
-            // Do a mem2reg after the last unroll to aid simplify_cfg
-            self.mem2reg();
-            self.simplify_function();
-            // Do another mem2reg after simplify_cfg to aid the next unroll
-            self.mem2reg();
-
-            // Unroll again
-            self.try_to_unroll_loops(&mut unroll_errors);
-            // If we didn't manage to unroll any more loops, exit
-            if unroll_errors.len() >= prev_unroll_err_count {
-                return Err(unroll_errors.swap_remove(0));
-            }
-        }
-        Ok(())
-    }
-
     pub(crate) fn try_to_unroll_loops(&mut self, errors: &mut Vec<RuntimeError>) {
         // Loop unrolling in brillig can lead to a code explosion currently. This can
         // also be true for ACIR, but we have no alternative to unrolling in ACIR.
