@@ -221,9 +221,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.56.0":
-  version: 0.56.0
-  resolution: "@aztec/bb.js@npm:0.56.0"
+"@aztec/bb.js@npm:0.58.0":
+  version: 0.58.0
+  resolution: "@aztec/bb.js@npm:0.58.0"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
@@ -231,7 +231,7 @@ __metadata:
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: 199a1e6c408e4c1399b69169e1a0a48bac92688299312a7dd6eca242e4970808bc370808d2fe4194f17e0d1fe7f5d09676709a05e3ad6ed569ac5553134be34a
+  checksum: b4e882a6668df737fab6e2223ee6b20ff499e8a0b67c18dcab8109efec47e674c6d8276e8c3b6662289d69f56b6e1d94d3312673fd0ace9909e33ebce7f10cbb
   languageName: node
   linkType: hard
 
@@ -4161,7 +4161,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
-    "@aztec/bb.js": 0.56.0
+    "@aztec/bb.js": 0.58.0
     "@noir-lang/types": "workspace:*"
     "@types/node": ^20.6.2
     "@types/prettier": ^3
