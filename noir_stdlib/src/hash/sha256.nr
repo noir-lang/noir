@@ -192,14 +192,16 @@ fn verify_msg_block<let N: u32>(
 
 // Verify the block we are compressing was appropriately padded with zeroes by `build_msg_block`.
 // This is only relevant for the last, potentially partially filled block.
-fn verify_msg_block_padding<let N: u32>(msg_block: MSG_BLOCK, msg_byte_ptr: u32) {
+fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: u32) {
     // This variable is used to get around the compiler under-constrained check giving a warning.
     // We want to check against a constant zero, but if it does not come from the circuit inputs
     // or return values the compiler check will issue a warning.
     let zero = msg_block[0] - msg_block[0];
 
-    for i in msg_byte_ptr..BLOCK_SIZE {
-        assert_eq(msg_block[i], zero);
+    for i in 0..BLOCK_SIZE {
+        if i >= msg_byte_ptr {
+            assert_eq(msg_block[i], zero);
+        }
     }
 }
 
