@@ -55,7 +55,10 @@ impl StructDefinition {
 }
 
 impl crate::hash::Hash for StructDefinition {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(struct_def_hash(self))
     }
 }

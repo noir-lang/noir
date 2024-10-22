@@ -17,10 +17,7 @@ comptime fn my_comptime_fn(typ: StructDefinition) {
 }
 
 comptime fn mutate_struct_fields(s: StructDefinition) {
-    let fields = &[
-        (quote[x], quote[i32].as_type()),
-        (quote[y], quote[Field].as_type())
-    ];
+    let fields = &[(quote {x}, quote {i32}.as_type()), (quote {y}, quote {Field}.as_type())];
     s.set_fields(fields);
 }
 
