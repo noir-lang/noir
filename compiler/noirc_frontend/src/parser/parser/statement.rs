@@ -702,7 +702,7 @@ mod tests {
         let statement = parser.parse_statement_or_error();
         assert!(matches!(statement.kind, StatementKind::Let(..)));
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a statement but found ]");
+        assert_eq!(error.to_string(), "Expected a statement but found ']'");
     }
 
     #[test]

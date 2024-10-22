@@ -18,6 +18,6 @@ fn foo(x: Field) -> [bar; 4] {
         bar { enable: [true, true, false, false], data: [x, x + 1], pad: 0 },
         bar { enable: [true, false, false, false], data: [x + 2, x + 7], pad: 0 },
         bar { enable: [true, true, false, true], data: [x + 3, x + 5], pad: 0 },
-        bar { enable: [false, false, false, false], data: [x + 4, x - 1], pad: 0 }
+        bar { enable: [false, false, false, false], data: [x + 4, x - 1], pad: 0 },
     ]
 }

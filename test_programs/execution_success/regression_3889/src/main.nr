@@ -1,5 +1,5 @@
 mod Foo {
-    struct NewType{
+    struct NewType {
         a: Field,
     }
 }

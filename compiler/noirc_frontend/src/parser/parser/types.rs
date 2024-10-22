@@ -588,7 +588,7 @@ mod tests {
         let mut parser = Parser::for_str(&src);
         parser.parse_type();
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ] but found end of input");
+        assert_eq!(error.to_string(), "Expected a ']' but found end of input");
     }
 
     #[test]

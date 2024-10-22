@@ -7,7 +7,7 @@ use crate::{
         UnresolvedGeneric, UnresolvedType, UnresolvedTypeData,
     },
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
-    token::{Keyword, Token, TokenKind},
+    token::{Keyword, Token},
 };
 
 use super::{parse_many::without_separator, Parser};
@@ -79,31 +79,28 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_type_impl_method(&mut self) -> Option<(Documented<NoirFunction>, Span)> {
-        self.parse_item_in_list(
-            ParsingRuleLabel::TokenKind(TokenKind::Token(Token::Keyword(Keyword::Fn))),
-            |parser| {
-                let doc_comments = parser.parse_outer_doc_comments();
-                let start_span = parser.current_token_span;
-                let attributes = parser.parse_attributes();
-                let modifiers = parser.parse_modifiers(
-                    false, // allow mutable
-                );
+        self.parse_item_in_list(ParsingRuleLabel::Function, |parser| {
+            let doc_comments = parser.parse_outer_doc_comments();
+            let start_span = parser.current_token_span;
+            let attributes = parser.parse_attributes();
+            let modifiers = parser.parse_modifiers(
+                false, // allow mutable
+            );
 
-                if parser.eat_keyword(Keyword::Fn) {
-                    let method = parser.parse_function(
-                        attributes,
-                        modifiers.visibility,
-                        modifiers.comptime.is_some(),
-                        modifiers.unconstrained.is_some(),
-                        true, // allow_self
-                    );
-                    Some((Documented::new(method, doc_comments), parser.span_since(start_span)))
-                } else {
-                    parser.modifiers_not_followed_by_an_item(modifiers);
-                    None
-                }
-            },
-        )
+            if parser.eat_keyword(Keyword::Fn) {
+                let method = parser.parse_function(
+                    attributes,
+                    modifiers.visibility,
+                    modifiers.comptime.is_some(),
+                    modifiers.unconstrained.is_some(),
+                    true, // allow_self
+                );
+                Some((Documented::new(method, doc_comments), parser.span_since(start_span)))
+            } else {
+                parser.modifiers_not_followed_by_an_item(modifiers);
+                None
+            }
+        })
     }
 
     /// TraitImpl = 'impl' Generics Path GenericTypeArgs 'for' Type TraitImplBody
@@ -542,7 +539,7 @@ mod tests {
         assert_eq!(type_impl.methods.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a fn but found hello");
+        assert_eq!(error.to_string(), "Expected a function but found 'hello'");
     }
 
     #[test]
@@ -562,6 +559,6 @@ mod tests {
         assert_eq!(trait_imp.items.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a trait impl item but found hello");
+        assert_eq!(error.to_string(), "Expected a trait impl item but found 'hello'");
     }
 }

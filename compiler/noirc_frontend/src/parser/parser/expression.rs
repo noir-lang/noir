@@ -1354,7 +1354,7 @@ mod tests {
         let expr = parser.parse_expression_or_error();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a : but found =");
+        assert_eq!(error.to_string(), "Expected a ':' but found '='");
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
