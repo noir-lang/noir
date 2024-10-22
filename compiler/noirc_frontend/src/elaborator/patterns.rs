@@ -474,24 +474,30 @@ impl<'context> Elaborator<'context> {
         let (expr, generic_type_in_path) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
-        if let Some(generic_type_in_path) = generic_type_in_path {
+        // Solve any generics that are part of the path before the function, for example:
+        //
+        // foo::Bar::<i32>::baz
+        //           ^^^^^
+        //         solve these
+        let type_generics = if let Some(generic_type_in_path) = generic_type_in_path {
             match generic_type_in_path.kind {
                 GenericTypeInPathKind::StructId(struct_id) => {
                     let struct_type = self.interner.get_struct(struct_id);
                     let struct_type = struct_type.borrow();
                     let struct_generics = struct_type.instantiate(self.interner);
-                    let struct_generics = self.resolve_struct_turbofish_generics(
+                    self.resolve_struct_turbofish_generics(
                         &struct_type,
                         struct_generics,
                         Some(generic_type_in_path.generics),
                         span,
-                    );
-                    dbg!(struct_generics);
+                    )
                 }
                 GenericTypeInPathKind::TypeAliasId(type_alias_id) => todo!(),
                 GenericTypeInPathKind::TraitId(trait_id) => todo!(),
             }
-        }
+        } else {
+            Vec::new()
+        };
 
         // TODO: generic_type_in_path might be Some.
         // In that case, the variable looks like this:
@@ -504,19 +510,33 @@ impl<'context> Elaborator<'context> {
         let definition_kind =
             self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
 
+        let mut bindings = TypeBindings::new();
+
         // Resolve any generics if we the variable we have resolved is a function
         // and if the turbofish operator was used.
-        let generics = definition_kind.and_then(|definition_kind| match &definition_kind {
-            DefinitionKind::Function(function) => {
-                self.resolve_function_turbofish_generics(function, unresolved_turbofish, span)
+        let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            self.resolve_function_turbofish_generics(func_id, unresolved_turbofish, span)
+        } else {
+            None
+        };
+
+        // If this is a function call on a type that has generics, we need to bind those generic types.
+        if !type_generics.is_empty() {
+            if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+                // `all_generics` will always have the enclosing type generics first, so we need to bind those
+                let func_generics = &self.interner.function_meta(func_id).all_generics;
+                for (type_generic, func_generic) in type_generics.into_iter().zip(func_generics) {
+                    let type_var = &func_generic.type_var;
+                    bindings
+                        .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
+                }
             }
-            _ => None,
-        });
+        }
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, span, self.file);
-        let typ = self.type_check_variable(expr, id, generics);
+        let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings);
         self.interner.push_expr_type(id, typ.clone());
 
         (id, typ)
@@ -597,8 +617,17 @@ impl<'context> Elaborator<'context> {
         expr_id: ExprId,
         generics: Option<Vec<Type>>,
     ) -> Type {
-        let mut bindings = TypeBindings::new();
+        let bindings = TypeBindings::new();
+        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
+    }
 
+    pub(super) fn type_check_variable_with_bindings(
+        &mut self,
+        ident: HirIdent,
+        expr_id: ExprId,
+        generics: Option<Vec<Type>>,
+        mut bindings: TypeBindings,
+    ) -> Type {
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than

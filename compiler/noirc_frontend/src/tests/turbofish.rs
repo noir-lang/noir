@@ -218,7 +218,7 @@ fn errors_if_turbofish_after_module() {
 }
 
 #[test]
-fn turbofish_in_type_before_call() {
+fn turbofish_in_type_before_call_does_not_error() {
     let src = r#"
     struct Foo<T> {
         x: T
@@ -256,4 +256,16 @@ fn turbofish_in_type_before_call_errors() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i32");
+    assert_eq!(expr_typ, "bool");
 }
