@@ -663,7 +663,7 @@ impl<'block> BrilligBlock<'block> {
 
                 self.brillig_context.deallocate_register(items_pointer);
             }
-            Instruction::ArraySet { array, index, value, mutable } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
                 let index_register = self.convert_ssa_single_addr_value(*index, dfg);
                 let value_variable = self.convert_ssa_value(*value, dfg);
@@ -685,7 +685,7 @@ impl<'block> BrilligBlock<'block> {
                     destination_variable,
                     index_register,
                     value_variable,
-                    *mutable,
+                    true,
                 );
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
