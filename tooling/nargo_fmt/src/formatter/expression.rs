@@ -8,10 +8,9 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{
-    chunks::{Chunk, ChunkGroup, GroupKind, GroupTag, TextChunk},
-    Formatter,
-};
+use crate::chunks::{Chunk, ChunkGroup, GroupKind, GroupTag, TextChunk};
+
+use super::Formatter;
 
 #[derive(Debug)]
 struct FormattedLambda {

@@ -7,10 +7,9 @@ use noirc_frontend::{
     token::{Keyword, SecondaryAttribute, Token},
 };
 
-use super::{
-    chunks::{ChunkGroup, GroupKind},
-    Formatter,
-};
+use crate::chunks::{ChunkGroup, GroupKind};
+
+use super::Formatter;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_statement(

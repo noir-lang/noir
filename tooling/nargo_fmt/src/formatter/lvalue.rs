@@ -1,6 +1,7 @@
 use noirc_frontend::{ast::LValue, token::Token};
 
-use super::{chunks::ChunkGroup, Formatter};
+use super::Formatter;
+use crate::chunks::ChunkGroup;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_lvalue(&mut self, lvalue: LValue) {

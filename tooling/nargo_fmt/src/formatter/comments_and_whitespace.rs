@@ -1,6 +1,8 @@
 use noirc_frontend::token::Token;
 
-use super::{chunks::TextChunk, Formatter};
+use crate::chunks::TextChunk;
+
+use super::Formatter;
 
 #[cfg(windows)]
 const NEWLINE: &str = "\r\n";
@@ -16,7 +18,7 @@ impl<'a> Formatter<'a> {
     /// No comment is ever lost.
     ///
     /// A space is not appended to the buffer is it already ends with a space.
-    pub(super) fn write_space(&mut self) {
+    pub(crate) fn write_space(&mut self) {
         self.skip_comments_and_whitespace();
         self.write_space_without_skipping_whitespace_and_comments();
     }
@@ -24,13 +26,13 @@ impl<'a> Formatter<'a> {
     /// Writes a single space, but doesn't skip whitespace and comments before doing that.
     ///
     /// A space is not appended to the buffer is it already ends with a space.
-    pub(super) fn write_space_without_skipping_whitespace_and_comments(&mut self) {
+    pub(crate) fn write_space_without_skipping_whitespace_and_comments(&mut self) {
         if !self.buffer.ends_with_newline() && !self.buffer.ends_with_space() {
             self.write(" ");
         }
     }
 
-    pub(super) fn skip_whitespace(&mut self) {
+    pub(crate) fn skip_whitespace(&mut self) {
         while let Token::Whitespace(..) = &self.token {
             self.bump();
         }
@@ -38,7 +40,7 @@ impl<'a> Formatter<'a> {
 
     /// Only skips whitespace if it doesn't have newlines in it.
     /// Note that this doesn't write whitespace or comments at all.
-    pub(super) fn skip_whitespace_if_it_is_not_a_newline(&mut self) {
+    pub(crate) fn skip_whitespace_if_it_is_not_a_newline(&mut self) {
         while let Token::Whitespace(whitespace) = &self.token {
             if whitespace.contains('\n') {
                 break;
@@ -49,7 +51,7 @@ impl<'a> Formatter<'a> {
 
     /// Skips comments and whitespace, writing newlines if there are any.
     /// If there are multiple consecutive newlines, only one is written.
-    pub(super) fn skip_comments_and_whitespace(&mut self) {
+    pub(crate) fn skip_comments_and_whitespace(&mut self) {
         self.skip_comments_and_whitespace_impl(
             false, // write multiple lines
             false, // at beginning
@@ -58,14 +60,14 @@ impl<'a> Formatter<'a> {
 
     /// Similar to skip_comments_and_whitespace, but will write two lines if
     /// multiple newlines are found (but at most two lines at a time).
-    pub(super) fn skip_comments_and_whitespace_writing_multiple_lines_if_found(&mut self) {
+    pub(crate) fn skip_comments_and_whitespace_writing_multiple_lines_if_found(&mut self) {
         self.skip_comments_and_whitespace_impl(
             true,  // write multiple lines
             false, // at beginning
         );
     }
 
-    pub(super) fn skip_comments_and_whitespace_impl(
+    pub(crate) fn skip_comments_and_whitespace_impl(
         &mut self,
         write_multiple_lines: bool,
         at_beginning: bool,
@@ -182,7 +184,7 @@ impl<'a> Formatter<'a> {
 
     /// Returns the number of newlines that come next, if we are at a whitespace
     /// token (otherwise returns 0).
-    pub(super) fn following_newlines_count(&mut self) -> usize {
+    pub(crate) fn following_newlines_count(&mut self) -> usize {
         let Token::Whitespace(whitespace) = &self.token else {
             return 0;
         };
@@ -196,7 +198,7 @@ impl<'a> Formatter<'a> {
     ///
     /// Any whitespace or comments found right at and after the current token are "skipped"
     /// (whitespace is discarded, comments are written).
-    pub(super) fn write_line(&mut self) {
+    pub(crate) fn write_line(&mut self) {
         self.skip_comments_and_whitespace_impl(
             true,  // writing newline
             false, // at beginning
@@ -204,7 +206,7 @@ impl<'a> Formatter<'a> {
         self.write_line_without_skipping_whitespace_and_comments();
     }
 
-    pub(super) fn write_line_without_skipping_whitespace_and_comments(&mut self) -> bool {
+    pub(crate) fn write_line_without_skipping_whitespace_and_comments(&mut self) -> bool {
         if !self.buffer.ends_with_newline() && !self.buffer.ends_with_space() {
             self.write(NEWLINE);
             true
@@ -214,7 +216,7 @@ impl<'a> Formatter<'a> {
     }
 
     // Modifies the current buffer so that it will always have two newlines at the end.
-    pub(super) fn write_multiple_lines_without_skipping_whitespace_and_comments(&mut self) {
+    pub(crate) fn write_multiple_lines_without_skipping_whitespace_and_comments(&mut self) {
         if self.buffer.ends_with_double_newline() {
             // Nothing
         } else if self.buffer.ends_with_newline() {
@@ -227,19 +229,19 @@ impl<'a> Formatter<'a> {
 
     /// Stops writing to the current buffer, skips comments and whitespaces (formatting them)
     /// and returns the formatted result as a `TextChunk`.
-    pub(super) fn skip_comments_and_whitespace_chunk(&mut self) -> TextChunk {
+    pub(crate) fn skip_comments_and_whitespace_chunk(&mut self) -> TextChunk {
         self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
         })
     }
 
     /// Trim spaces from the end of the buffer.
-    pub(super) fn trim_spaces(&mut self) {
+    pub(crate) fn trim_spaces(&mut self) {
         self.buffer.trim_spaces();
     }
 
     /// Trim commas from the end of the buffer. Returns true if a comma was trimmed.
-    pub(super) fn trim_comma(&mut self) -> bool {
+    pub(crate) fn trim_comma(&mut self) -> bool {
         self.buffer.trim_comma()
     }
 }

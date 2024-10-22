@@ -8,7 +8,7 @@
 //! It works by using two techniques:
 //!
 //! 1. Surfing a parsed module by using a lexer.
-//! 2. Trying to not exceed the maximum line width by formatting to intermediate chunk (see formatter/chunks.rs)
+//! 2. Trying to not exceed the maximum line width by formatting to intermediate chunk (see chunks.rs)
 //!
 //! What is lexer surfing?
 //!
@@ -33,7 +33,8 @@
 //! But that's not all. The formatter will try to not exceed the configurable maximum width.
 //! It will do that but, for simplicity, only for function parameters list, statements and expressions
 //! (we assume an `impl Foo ...` line won't exceed the maximum length, and if it does it's not a big deal,
-//! or we can always improve things later). For this, read the comments in formatter/chunks.rs.
+//! or we can always improve things later). For this, read the comments in chunks.rs.
+mod chunks;
 mod config;
 pub mod errors;
 mod formatter;

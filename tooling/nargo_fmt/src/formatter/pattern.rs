@@ -3,7 +3,8 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{chunks::ChunkGroup, Formatter};
+use super::Formatter;
+use crate::chunks::ChunkGroup;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_pattern(&mut self, pattern: Pattern) {

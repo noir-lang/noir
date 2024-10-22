@@ -6,10 +6,8 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{
-    chunks::{ChunkGroup, TextChunk},
-    Formatter,
-};
+use super::Formatter;
+use crate::chunks::{ChunkGroup, TextChunk};
 
 pub(super) struct FunctionToFormat {
     pub(super) visibility: ItemVisibility,

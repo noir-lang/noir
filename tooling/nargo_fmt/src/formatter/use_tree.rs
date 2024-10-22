@@ -3,10 +3,8 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use super::{
-    chunks::{Chunk, ChunkGroup},
-    Formatter,
-};
+use super::Formatter;
+use crate::chunks::{Chunk, ChunkGroup};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_import(&mut self, use_tree: UseTree, visibility: ItemVisibility) {
