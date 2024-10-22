@@ -226,6 +226,10 @@ pub enum InterpreterError {
         location: Location,
         expression: String,
     },
+    UnknownArrayLength {
+        length: Type,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -299,7 +303,8 @@ impl InterpreterError {
             | InterpreterError::DuplicateGeneric { duplicate_location: location, .. }
             | InterpreterError::TypeAnnotationsNeededForMethodCall { location }
             | InterpreterError::CannotResolveExpression { location, .. }
-            | InterpreterError::CannotSetFunctionBody { location, .. } => *location,
+            | InterpreterError::CannotSetFunctionBody { location, .. }
+            | InterpreterError::UnknownArrayLength { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -633,6 +638,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::CannotSetFunctionBody { location, expression } => {
                 let msg = format!("`{expression}` is not a valid function body");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::UnknownArrayLength { length, location } => {
+                let msg = format!("Could not determine array length `{length}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
         }
