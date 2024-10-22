@@ -101,45 +101,17 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         msg_byte_ptr = 0;
     }
 
-    // This variable is used to get around the compiler under-constrained check giving a warning.
-    // We want to check against a constant zero, but if it does not come from the circuit inputs
-    // or return values the compiler check will issue a warning.
-    let zero = msg_block[0] - msg_block[0];
-
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
+    // Here we rely on the fact that everything beyond the available input is set to 0.
     msg_block[msg_byte_ptr] = 1 << 7;
     let last_block = msg_block;
     msg_byte_ptr = msg_byte_ptr + 1;
 
-    unsafe {
-        let (new_msg_block, new_msg_byte_ptr) = pad_msg_block(msg_block, msg_byte_ptr);
-        msg_block = new_msg_block;
-        if crate::runtime::is_unconstrained() {
-            msg_byte_ptr = new_msg_byte_ptr;
-        }
-    }
-
-    if !crate::runtime::is_unconstrained() {
-        for i in 0..BLOCK_SIZE {
-            assert_eq(msg_block[i], last_block[i]);
-        }
-
-        // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
-        // the 1 and 0s fill up the current block, which we then compress accordingly.
-        // Not enough bits (64) to store length. Fill up with zeros.
-        for _i in (MSG_SIZE_PTR + 1)..BLOCK_SIZE {
-            if msg_byte_ptr > MSG_SIZE_PTR & msg_byte_ptr < BLOCK_SIZE {
-                assert_eq(msg_block[msg_byte_ptr], zero);
-                msg_byte_ptr += 1;
-            }
-        }
-    }
-
     // If we don't have room to write the size, compress the block and reset it.
     if msg_byte_ptr > MSG_SIZE_PTR {
         h = sha256_compression(msg_u8_to_u32(msg_block), h);
-
+        // `attach_len_to_msg_block` will zero out everything after the `msg_byte_ptr`.
         msg_byte_ptr = 0;
     }
 
@@ -190,10 +162,14 @@ unconstrained fn build_msg_block<let N: u32>(
     for k in 0..block_input {
         msg_block[k] = msg[msg_start + k];
     }
+    for k in block_input..BLOCK_SIZE {
+        msg_block[k] = 0;
+    }
     (msg_block, block_input)
 }
 
 // Verify the block we are compressing was appropriately constructed by `build_msg_block`.
+// Returns the index of the first unset item.
 fn verify_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
@@ -202,39 +178,33 @@ fn verify_msg_block<let N: u32>(
 ) -> u32 {
     let mut msg_byte_ptr: u32 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
-    if msg_end > N {
-        msg_end = N;
-    }
+    
+    // This variable is used to get around the compiler under-constrained check giving a warning.
+    // We want to check against a constant zero, but if it does not come from the circuit inputs
+    // or return values the compiler check will issue a warning.
+    let zero = msg_block[0] - msg_block[0];
 
+    let mut i = 0;
     for k in msg_start..msg_end {
         if k < message_size {
-            assert_eq(msg_block[msg_byte_ptr], msg[k]);
-            msg_byte_ptr = msg_byte_ptr + 1;
+            assert_eq(msg_block[i], msg[k]);
+            i = i + 1;
+            msg_byte_ptr = i;
+        } 
+        // We create N/BLOCK_SIZE blocks regardless of input size, but if we start
+        // beyond the input size the `msg_block` does not change before verification.
+        if msg_start < message_size {
+            // Check that the data which was beyond the input size is all zeroes.
+            if k >= message_size {
+                assert_eq(msg_block[i], zero);
+                i = i + 1;
+            }
         }
     }
 
     msg_byte_ptr
 }
 
-// Pad the message block with zeroes _iff_ there is so much data in it that
-// we cannot append the size of the message at the end of the block.
-// Otherwise leave it as it is
-unconstrained fn pad_msg_block(
-    mut msg_block: MSG_BLOCK,
-    mut msg_byte_ptr: u32,
-) -> (MSG_BLOCK, u32) {
-    // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
-    // the 1 and 0s fill up the current block, which we then compress accordingly.
-    if msg_byte_ptr > MSG_SIZE_PTR {
-        // Not enough bits (64) to store length. Fill up with zeros.
-        for i in msg_byte_ptr..BLOCK_SIZE {
-            msg_block[i] = 0;
-        }
-        (msg_block, BLOCK_SIZE)
-    } else {
-        (msg_block, msg_byte_ptr)
-    }
-}
 
 // Zero out all bytes between the end of the message and where the length is appended,
 // then write the length into the last 8 bytes of the block.
