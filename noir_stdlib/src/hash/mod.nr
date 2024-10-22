@@ -7,9 +7,8 @@ pub mod sha512;
 
 use crate::default::Default;
 use crate::uint128::U128;
-use crate::collections::vec::Vec;
 use crate::embedded_curve_ops::{
-    EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_slice,
+    EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
 
@@ -57,22 +56,22 @@ pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 
 #[no_predicates]
 pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
-    let mut scalars: Vec<EmbeddedCurveScalar> =
-        Vec::from_slice([EmbeddedCurveScalar { lo: 0, hi: 0 }; N].as_slice()); //Vec::new();
-    for i in 0..N {
-        scalars.set(i, from_field_unsafe(input[i]));
-    }
-    scalars.push(EmbeddedCurveScalar { lo: N as Field, hi: 0 as Field });
+    let mut scalars: [EmbeddedCurveScalar; N + 1] = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N + 1];
+    let mut generators: [EmbeddedCurvePoint; N + 1] =
+        [EmbeddedCurvePoint::point_at_infinity(); N + 1];
     let domain_generators: [EmbeddedCurvePoint; N] =
         derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
-    let mut vec_generators = Vec::new();
+
     for i in 0..N {
-        vec_generators.push(domain_generators[i]);
+        scalars[i] = from_field_unsafe(input[i]);
+        generators[i] = domain_generators[i];
     }
+    scalars[N] = EmbeddedCurveScalar { lo: N as Field, hi: 0 as Field };
+
     let length_generator: [EmbeddedCurvePoint; 1] =
         derive_generators("pedersen_hash_length".as_bytes(), 0);
-    vec_generators.push(length_generator[0]);
-    multi_scalar_mul_slice(vec_generators.slice, scalars.slice)[0]
+    generators[N] = length_generator[0];
+    multi_scalar_mul_array_return(generators, scalars)[0]
 }
 
 #[field(bn254)]
