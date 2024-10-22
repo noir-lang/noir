@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested are:
 // Binary addition, multiplication, division, constant modulo
 // x = 3, y = 4, z = 5
