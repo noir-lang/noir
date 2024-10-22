@@ -5,13 +5,14 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
+use crate::ast::{
+    BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize, Signedness,
+};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::Type;
-use crate::macros_api::Ident;
-use crate::macros_api::NodeInterner;
+use crate::node_interner::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -47,26 +48,37 @@ pub enum TypeCheckError {
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
+    // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
+    #[error("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)")]
+    EvaluatedGlobalIsntU32 { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
-    InvalidCast { from: Type, span: Span },
+    InvalidCast { from: Type, span: Span, reason: String },
+    #[error("Casting value of type {from} to a smaller type ({to})")]
+    DownsizingCast { from: Type, to: Type, span: Span, reason: String },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
     #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
+    #[error("{} expects {} or {} parameters but {found} were given", kind, kind.required_arguments_count(), kind.required_arguments_count() + 1)]
+    AssertionParameterCountMismatch { kind: ConstrainKind, found: usize, span: Span },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
+    #[error("{item} has incompatible `unconstrained`")]
+    UnconstrainedMismatch { item: String, expected: bool, span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, span: Span },
-    #[error("Variable {name} must be mutable to be assigned to")]
+    #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, span: Span },
+    #[error("Cannot mutate immutable variable `{name}`")]
+    CannotMutateImmutableVariable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
@@ -220,6 +232,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     *expr_span,
                 )
             }
+            // TODO(https://github.com/noir-lang/noir/issues/6238): implement
+            // handling for larger types
+            TypeCheckError::EvaluatedGlobalIsntU32 { expected_kind, expr_kind, expr_span } => {
+                Diagnostic::simple_warning(
+                    format!("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)"),
+                    String::new(),
+                    *expr_span,
+                )
+            }
             TypeCheckError::TraitMethodParameterTypeMismatch { method_name, expected_typ, actual_typ, parameter_index, parameter_span } => {
                 Diagnostic::simple_error(
                     format!("Parameter #{parameter_index} of method `{method_name}` must be of type {expected_typ}, not {actual_typ}"),
@@ -256,18 +277,40 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
+            TypeCheckError::AssertionParameterCountMismatch { kind, found, span } => {
+                let was_or_were = if *found == 1 { "was" } else { "were" };
+                let min = kind.required_arguments_count();
+                let max = min + 1;
+                let msg = format!("{kind} expects {min} or {max} parameters but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
             TypeCheckError::GenericCountMismatch { item, expected, found, span } => {
                 let empty_or_s = if *expected == 1 { "" } else { "s" };
                 let was_or_were = if *found == 1 { "was" } else { "were" };
                 let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
-            TypeCheckError::InvalidCast { span, .. }
-            | TypeCheckError::ExpectedFunction { span, .. }
+            TypeCheckError::UnconstrainedMismatch { item, expected, span } => {
+                let msg = if *expected {
+                    format!("{item} is expected to be unconstrained")
+                } else {
+                    format!("{item} is not expected to be unconstrained")
+                };
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
+            TypeCheckError::InvalidCast { span, reason, .. } => {
+                Diagnostic::simple_error(error.to_string(), reason.clone(), *span)
+            }
+            TypeCheckError::DownsizingCast { span, reason, .. } => {
+                Diagnostic::simple_warning(error.to_string(), reason.clone(), *span)
+            }
+
+            TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
+            | TypeCheckError::CannotMutateImmutableVariable { span, .. }
             | TypeCheckError::UnresolvedMethodCall { span, .. }
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }
@@ -463,8 +506,8 @@ impl NoMatchingImplFoundError {
         let constraints = failing_constraints
             .into_iter()
             .map(|constraint| {
-                let r#trait = interner.try_get_trait(constraint.trait_id)?;
-                let name = format!("{}{}", r#trait.name, constraint.trait_generics);
+                let r#trait = interner.try_get_trait(constraint.trait_bound.trait_id)?;
+                let name = format!("{}{}", r#trait.name, constraint.trait_bound.trait_generics);
                 Some((constraint.typ, name))
             })
             .collect::<Option<Vec<_>>>()?;

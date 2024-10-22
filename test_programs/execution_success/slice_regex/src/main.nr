@@ -12,9 +12,8 @@ impl Match {
 
 impl Eq for Match {
     fn eq(self, other: Self) -> bool {
-        (self.succeeded == other.succeeded) &
-            (self.match_ends == other.match_ends)
-            // (self.leftover == other.leftover)
+        (self.succeeded == other.succeeded) & (self.match_ends == other.match_ends)
+        // (self.leftover == other.leftover)
     }
 }
 
@@ -48,23 +47,19 @@ impl<let N: u32> Regex for str<N> {
             }
         }
         if matches_input {
-            Match {
-                succeeded: true,
-                match_ends: self_as_bytes.len(),
-                leftover,
-            }
+            Match { succeeded: true, match_ends: self_as_bytes.len(), leftover }
         } else {
-            Match {
-                succeeded: false,
-                match_ends: 0,
-                leftover: input,
-            }
+            Match { succeeded: false, match_ends: 0, leftover: input }
         }
     }
 }
 
 // And
-impl<T, U> Regex for (T, U) where T: Regex, U: Regex {
+impl<T, U> Regex for (T, U)
+where
+    T: Regex,
+    U: Regex,
+{
     fn match(self, input: [u8]) -> Match {
         let lhs_result = self.0.match(input);
         if lhs_result.succeeded {
@@ -76,18 +71,10 @@ impl<T, U> Regex for (T, U) where T: Regex, U: Regex {
                     leftover: rhs_result.leftover,
                 }
             } else {
-                Match {
-                    succeeded: false,
-                    match_ends: 0,
-                    leftover: input,
-                }
+                Match { succeeded: false, match_ends: 0, leftover: input }
             }
         } else {
-            Match {
-                succeeded: false,
-                match_ends: 0,
-                leftover: input,
-            }
+            Match { succeeded: false, match_ends: 0, leftover: input }
         }
     }
 }
@@ -97,7 +84,10 @@ struct Repeated<T, let N: u32> {
     inner: T,
 }
 
-impl<T, let N: u32> Regex for Repeated<T, N> where T: Regex {
+impl<T, let N: u32> Regex for Repeated<T, N>
+where
+    T: Regex,
+{
     fn match(self, input: [u8]) -> Match {
         let mut result = Match::empty(input);
         for _ in 0..N {
@@ -119,7 +109,11 @@ struct Or<T, U> {
     rhs: U,
 }
 
-impl<T, U> Regex for Or<T, U> where T: Regex, U: Regex {
+impl<T, U> Regex for Or<T, U>
+where
+    T: Regex,
+    U: Regex,
+{
     fn match(self, input: [u8]) -> Match {
         let lhs_result = self.lhs.match(input);
         if lhs_result.succeeded {
@@ -134,12 +128,12 @@ struct Question<T> {
     inner: T,
 }
 
-impl<T> Regex for Question<T> where T: Regex {
+impl<T> Regex for Question<T>
+where
+    T: Regex,
+{
     fn match(self, input: [u8]) -> Match {
-        Or {
-            lhs: self.inner,
-            rhs: (),
-        }.match(input)
+        Or { lhs: self.inner, rhs: () }.match(input)
     }
 }
 
@@ -148,11 +142,12 @@ struct Star<T, let N: u32> {
     inner: T,
 }
 
-impl<T, let N: u32> Regex for Star<T, N> where T: Regex {
+impl<T, let N: u32> Regex for Star<T, N>
+where
+    T: Regex,
+{
     fn match(self, input: [u8]) -> Match {
-        let regex: Repeated<_, N> = Repeated {
-            inner: Question { inner: self.inner },
-        };
+        let regex: Repeated<_, N> = Repeated { inner: Question { inner: self.inner } };
         regex.match(input)
     }
 }
@@ -162,14 +157,14 @@ struct Plus<T, let N: u32, let N_PRED: u32> {
     inner: T,
 }
 
-impl<T, let N: u32, let N_PRED: u32> Regex for Plus<T, N, N_PRED> where T: Regex {
+impl<T, let N: u32, let N_PRED: u32> Regex for Plus<T, N, N_PRED>
+where
+    T: Regex,
+{
     fn match(self, input: [u8]) -> Match {
         std::static_assert(N_PRED + 1 == N, "N - 1 != N_PRED");
         let star: Star<T, N_PRED> = Star { inner: self.inner };
-        (
-            self.inner,
-            star
-        ).match(input)
+        (self.inner, star).match(input)
     }
 }
 
@@ -233,34 +228,34 @@ fn main() {
     let result = three_ones_regex.match("1111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
-    // TODO(https://github.com/noir-lang/noir/issues/5462): re-enable these cases and complete the test using array_regex below
-    // 
+    // TODO(https://github.com/noir-lang/noir/issues/6285): re-enable these cases and complete the test using array_regex below
+    //
     // // 1*
     // let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
-    // 
+    //
     // let result = ones_regex.match("11000".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
-    // 
+    //
     // let result = ones_regex.match("11".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
-    // 
+    //
     // let result = ones_regex.match("111111".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
-    // 
-    // 
+    //
+    //
     // // 1+
     // let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus { inner: "1" };
-    // 
+    //
     // let result = nonempty_ones_regex.match("111111".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
-    // 
+    //
     // // 2^n-1 in binary: 1+0
     // let pred_pow_two_regex = (nonempty_ones_regex, "0");
-    // 
+    //
     // let result = pred_pow_two_regex.match("1110".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
@@ -304,14 +299,16 @@ fn main() {
     // });
 }
 
-// array_regex: use to complete test once https://github.com/noir-lang/noir/issues/5462 is resolved
+// TODO
+// array_regex execution_success test:
+// use to complete test once https://github.com/noir-lang/noir/issues/6285 is resolved
 //
 // // offset <= len <= N
 // struct Bvec<T, let N: u32> {
 //     inner: [T; N],
 //
 //     // elements at indices < offset are zero
-//     offset: u32, 
+//     offset: u32,
 //
 //     // elements at indices >= len are zero
 //     len: u32,

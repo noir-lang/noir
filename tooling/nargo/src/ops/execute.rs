@@ -89,6 +89,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         | OpcodeResolutionError::IndexOutOfBounds {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
                             ..
+                        }
+                        | OpcodeResolutionError::InvalidInputBitSize {
+                            opcode_location: ErrorLocation::Resolved(opcode_location),
+                            ..
                         } => {
                             let resolved_location = ResolvedOpcodeLocation {
                                 acir_function_index: self.current_function_index,

@@ -1,19 +1,14 @@
-use std::meta::type_of;
-
 trait SomeTrait<X, Y> {
     fn foo();
 }
-struct SomeStruct {
-
-}
+pub struct SomeStruct {}
 
 impl SomeTrait<i32, i64> for SomeStruct {
     fn foo() {}
 }
 
 fn main() {
-    comptime
-    {
+    comptime {
         let some_struct = quote { SomeStruct }.as_type();
         let some_trait = quote { SomeTrait<i32, i64> }.as_trait_constraint();
         let trait_impl = some_struct.get_trait_impl(some_trait).unwrap();

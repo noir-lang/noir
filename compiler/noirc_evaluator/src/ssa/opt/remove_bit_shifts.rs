@@ -21,24 +21,30 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            remove_bit_shifts(function);
+            function.remove_bit_shifts();
         }
         self
     }
 }
 
-/// The structure of this pass is simple:
-/// Go through each block and re-insert all instructions.
-fn remove_bit_shifts(function: &mut Function) {
-    if let RuntimeType::Brillig = function.runtime() {
-        return;
+impl Function {
+    /// The structure of this pass is simple:
+    /// Go through each block and re-insert all instructions.
+    pub(crate) fn remove_bit_shifts(&mut self) {
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            return;
+        }
+
+        let block = self.entry_block();
+        let mut context = Context {
+            function: self,
+            new_instructions: Vec::new(),
+            block,
+            call_stack: CallStack::default(),
+        };
+
+        context.remove_bit_shifts();
     }
-
-    let block = function.entry_block();
-    let mut context =
-        Context { function, new_instructions: Vec::new(), block, call_stack: CallStack::default() };
-
-    context.remove_bit_shifts();
 }
 
 struct Context<'f> {

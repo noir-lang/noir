@@ -15,7 +15,7 @@ use noirc_errors::{
 
 pub use noirc_errors::Location;
 
-use noirc_frontend::graph::CrateName;
+use noirc_driver::CrateName;
 use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
 
@@ -113,6 +113,10 @@ fn extract_locations_from_error<F: AcirField>(
         ExecutionError::AssertionFailed(_, call_stack, _) => Some(call_stack.clone()),
         ExecutionError::SolvingError(
             OpcodeResolutionError::IndexOutOfBounds { opcode_location: error_location, .. },
+            acir_call_stack,
+        )
+        | ExecutionError::SolvingError(
+            OpcodeResolutionError::InvalidInputBitSize { opcode_location: error_location, .. },
             acir_call_stack,
         )
         | ExecutionError::SolvingError(
@@ -234,11 +238,8 @@ pub fn try_to_diagnose_runtime_error(
     };
     // The location of the error itself will be the location at the top
     // of the call stack (the last item in the Vec).
-    let location = source_locations.last()?;
+    let location = *source_locations.last()?;
     let message = extract_message_from_error(&abi.error_types, nargo_err);
-    Some(
-        CustomDiagnostic::simple_error(message, String::new(), location.span)
-            .in_file(location.file)
-            .with_call_stack(source_locations),
-    )
+    let error = CustomDiagnostic::simple_error(message, String::new(), location.span);
+    Some(error.with_call_stack(source_locations).in_file(location.file))
 }

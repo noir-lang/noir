@@ -4,6 +4,7 @@
 //!
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
 //! where it is converted into the Hir (defined in the hir_def module).
+mod docs;
 mod expression;
 mod function;
 mod statement;
@@ -18,6 +19,8 @@ pub use visitor::Visitor;
 pub use expression::*;
 pub use function::*;
 
+use acvm::FieldElement;
+pub use docs::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
@@ -170,6 +173,12 @@ pub enum GenericTypeArg {
     Named(Ident, UnresolvedType),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum GenericTypeArgKind {
+    Ordered,
+    Named,
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
 pub struct GenericTypeArgs {
     /// Each ordered argument, e.g. `<A, B, C>`
@@ -178,6 +187,9 @@ pub struct GenericTypeArgs {
     /// All named arguments, e.g. `<A = B, C = D, E = F>`.
     /// Used for associated types.
     pub named_args: Vec<(Ident, UnresolvedType)>,
+
+    /// The kind of each argument, in order (in case traversing the generics in order is needed)
+    pub kinds: Vec<GenericTypeArgKind>,
 }
 
 impl GenericTypeArgs {
@@ -217,7 +229,7 @@ pub struct UnaryRhsMethodCall {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(u32, Span),
+    Constant(FieldElement, Span),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -342,6 +354,23 @@ impl UnresolvedType {
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
     }
+
+    pub fn from_path(mut path: Path) -> Self {
+        let span = path.span;
+        let last_segment = path.segments.last_mut().unwrap();
+        let generics = last_segment.generics.take();
+        let generic_type_args = if let Some(generics) = generics {
+            let mut kinds = Vec::with_capacity(generics.len());
+            for _ in 0..generics.len() {
+                kinds.push(GenericTypeArgKind::Ordered);
+            }
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new(), kinds }
+        } else {
+            GenericTypeArgs::default()
+        };
+        let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
+        UnresolvedType { typ, span }
+    }
 }
 
 impl UnresolvedTypeData {
@@ -406,12 +435,13 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, _)) => match int.try_to_u32() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.span)),
                 None => Err(expr),
             },
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
-                let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
+                let lhs =
+                    Box::new(UnresolvedTypeExpression::Constant(FieldElement::zero(), expr.span));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
                 let op = BinaryTypeOperator::Subtraction;
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
@@ -445,6 +475,7 @@ impl UnresolvedTypeExpression {
             ExpressionKind::AsTraitPath(path) => {
                 Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
             }
+            ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
         }
     }

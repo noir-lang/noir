@@ -5,16 +5,24 @@ use crate::{hir::comptime::InterpreterError, Type};
 #[derive(Debug)]
 pub enum MonomorphizationError {
     UnknownArrayLength { length: Type, location: Location },
+    UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
+    ComptimeFnInRuntimeCode { name: String, location: Location },
+    ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
 }
 
 impl MonomorphizationError {
     fn location(&self) -> Location {
         match self {
             MonomorphizationError::UnknownArrayLength { location, .. }
+            | MonomorphizationError::UnknownConstant { location }
             | MonomorphizationError::InternalError { location, .. }
+            | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
+            | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
+            | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.get_location(),
         }
@@ -26,7 +34,7 @@ impl From<MonomorphizationError> for FileDiagnostic {
         let location = error.location();
         let call_stack = vec![location];
         let diagnostic = error.into_diagnostic();
-        diagnostic.in_file(location.file).with_call_stack(call_stack)
+        diagnostic.with_call_stack(call_stack).in_file(location.file)
     }
 }
 
@@ -36,6 +44,12 @@ impl MonomorphizationError {
             MonomorphizationError::UnknownArrayLength { length, .. } => {
                 format!("Could not determine array length `{length}`")
             }
+            MonomorphizationError::UnknownConstant { .. } => {
+                "Could not resolve constant".to_string()
+            }
+            MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
+                format!("checked_transmute failed: `{actual}` != `{expected}`")
+            }
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
@@ -43,6 +57,17 @@ impl MonomorphizationError {
             }
             MonomorphizationError::InterpreterError(error) => return error.into(),
             MonomorphizationError::InternalError { message, .. } => message.to_string(),
+            MonomorphizationError::ComptimeFnInRuntimeCode { name, location } => {
+                let message = format!("Comptime function {name} used in runtime code");
+                let secondary =
+                    "Comptime functions must be in a comptime block to be called".into();
+                return CustomDiagnostic::simple_error(message, secondary, location.span);
+            }
+            MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
+                let message = format!("Comptime-only type `{typ}` used in runtime code");
+                let secondary = "Comptime type used here".into();
+                return CustomDiagnostic::simple_error(message, secondary, location.span);
+            }
         };
 
         let location = self.location();

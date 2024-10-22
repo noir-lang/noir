@@ -1,23 +1,15 @@
 use std::meta::type_of;
 
 struct Foo<T> {
-    x: T
+    x: T,
 }
 
-trait SomeTrait<T> {
+trait SomeTrait<T> {}
+pub struct StructImplementsSomeTrait {}
 
-}
-struct StructImplementsSomeTrait {
+impl SomeTrait<i32> for StructImplementsSomeTrait {}
 
-}
-
-impl SomeTrait<i32> for StructImplementsSomeTrait {
-
-}
-
-struct StructDoesNotImplementSomeTrait {
-
-}
+pub struct StructDoesNotImplementSomeTrait {}
 
 // docs:start:serialize-setup
 trait Serialize<let N: u32> {}
@@ -25,15 +17,19 @@ trait Serialize<let N: u32> {}
 impl Serialize<1> for Field {}
 
 impl<T, let N: u32, let M: u32> Serialize<N * M> for [T; N]
-    where T: Serialize<M> {}
+where
+    T: Serialize<M>,
+{}
 
 impl<T, U, let N: u32, let M: u32> Serialize<N + M> for (T, U)
-    where T: Serialize<N>, U: Serialize<M> {}
+where
+    T: Serialize<N>,
+    U: Serialize<M>,
+{}
 // docs:end:serialize-setup
 
 fn main() {
-    comptime
-    {
+    comptime {
         // Check type_of works correctly (relies on Eq for Type)
         let a_field = 0;
         let another_field = 1;
@@ -84,7 +80,7 @@ fn main() {
 
         let array = [1, 2, 3];
         let array_type = type_of(array);
-        let (array_type_element_type , array_length) = array_type.as_array().unwrap();
+        let (array_type_element_type, array_length) = array_type.as_array().unwrap();
         assert_eq(array_type_element_type, field_type_1);
 
         // Check Type::as_constant
@@ -113,7 +109,8 @@ fn main() {
         // Check Type::implements
         let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
         let struct_implements_some_trait = quote { StructImplementsSomeTrait }.as_type();
-        let struct_does_not_implement_some_trait = quote { StructDoesNotImplementSomeTrait }.as_type();
+        let struct_does_not_implement_some_trait =
+            quote { StructDoesNotImplementSomeTrait }.as_type();
         assert(struct_implements_some_trait.implements(some_trait_i32));
         assert(!struct_does_not_implement_some_trait.implements(some_trait_i32));
 
@@ -150,13 +147,22 @@ fn main() {
         // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
         assert_eq(typevar2.as_constant().unwrap(), 10);
         // docs:end:fresh-type-variable-example
+        // Check Type::is_unit
+        let unit = quote { () }.as_type();
+        assert(unit.is_unit());
+
+        // Check Type::as_mutable_reference
+        let typ = quote { &mut Field }.as_type();
+        assert_eq(typ.as_mutable_reference().unwrap(), quote { Field }.as_type());
     }
 }
 
 // docs:start:implements_example
-fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
-    comptime
-    {
+pub fn function_with_where<T>(_x: T)
+where
+    T: SomeTrait<i32>,
+{
+    comptime {
         let t = quote { T }.as_type();
         let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
         assert(t.implements(some_trait_i32));

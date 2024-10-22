@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is keccak256 in brillig
 fn main(x: Field, result: [u8; 32]) {
     unsafe {
@@ -21,6 +21,6 @@ fn main(x: Field, result: [u8; 32]) {
     }
 }
 
-unconstrained fn keccak256<N>(data: [u8; N], msg_len: u32) -> [u8; 32] {
+unconstrained fn keccak256<let N: u32>(data: [u8; N], msg_len: u32) -> [u8; 32] {
     std::hash::keccak256(data, msg_len)
 }

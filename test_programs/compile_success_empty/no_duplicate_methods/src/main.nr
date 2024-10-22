@@ -7,14 +7,20 @@ trait ToField2 {
     fn to_field(self) -> Field;
 }
 
-struct Foo { x: Field }
+pub struct Foo {
+    x: Field,
+}
 
 impl ToField for Foo {
-    fn to_field(self) -> Field { self.x }
+    fn to_field(self) -> Field {
+        self.x
+    }
 }
 
 impl ToField2 for Foo {
-    fn to_field(self) -> Field { self.x }
+    fn to_field(self) -> Field {
+        self.x
+    }
 }
 
 impl Foo {

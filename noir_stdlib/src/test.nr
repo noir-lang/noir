@@ -16,35 +16,35 @@ unconstrained fn set_mock_times_oracle(id: Field, times: u64) {}
 #[oracle(clear_mock)]
 unconstrained fn clear_mock_oracle(id: Field) {}
 
-struct OracleMock {
+pub struct OracleMock {
     id: Field,
 }
 
 impl OracleMock {
-    unconstrained pub fn mock<let N: u32>(name: str<N>) -> Self {
+    pub unconstrained fn mock<let N: u32>(name: str<N>) -> Self {
         Self { id: create_mock_oracle(name) }
     }
 
-    unconstrained pub fn with_params<P>(self, params: P) -> Self {
+    pub unconstrained fn with_params<P>(self, params: P) -> Self {
         set_mock_params_oracle(self.id, params);
         self
     }
 
-    unconstrained pub fn get_last_params<P>(self) -> P {
+    pub unconstrained fn get_last_params<P>(self) -> P {
         get_mock_last_params_oracle(self.id)
     }
 
-    unconstrained pub fn returns<R>(self, returns: R) -> Self {
+    pub unconstrained fn returns<R>(self, returns: R) -> Self {
         set_mock_returns_oracle(self.id, returns);
         self
     }
 
-    unconstrained pub fn times(self, times: u64) -> Self {
+    pub unconstrained fn times(self, times: u64) -> Self {
         set_mock_times_oracle(self.id, times);
         self
     }
 
-    unconstrained pub fn clear(self) {
+    pub unconstrained fn clear(self) {
         clear_mock_oracle(self.id);
     }
 }

@@ -28,16 +28,17 @@ process_dir() {
         fi
 
         if ! nargo execute witness; then
-            echo "$dir: failed"
+            echo "$dir failed"
         else
             if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
                 rm -r "$current_dir/acir_artifacts/$dir_name/target"
             fi
             mkdir "$current_dir/acir_artifacts/$dir_name/target"
+            mkdir "$current_dir/acir_artifacts/$dir_name/proofs"
 
             mv ./target/$dir_name.json "$current_dir/acir_artifacts/$dir_name/target/program.json"
             mv ./target/*.gz "$current_dir/acir_artifacts/$dir_name/target/"
-            echo "$dir: succeeded"
+            echo "$dir succeeded"
         fi
 
         cd "$current_dir"

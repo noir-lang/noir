@@ -1,6 +1,9 @@
 use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
-use noirc_frontend::{ast::ConstructorExpression, node_interner::ReferenceId};
+use noirc_frontend::{
+    ast::{ConstructorExpression, UnresolvedTypeData},
+    node_interner::ReferenceId,
+};
 
 use crate::byte_span_to_range;
 
@@ -12,8 +15,11 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        // Find out which struct this is
-        let location = Location::new(constructor.type_name.last_ident().span(), self.file);
+        let UnresolvedTypeData::Named(path, _, _) = &constructor.typ.typ else {
+            return;
+        };
+
+        let location = Location::new(path.span, self.file);
         let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
             return;
         };
@@ -25,8 +31,8 @@ impl<'a> CodeActionFinder<'a> {
         let mut fields = struct_type.get_fields_as_written();
 
         // Remove the ones that already exists in the constructor
-        for (field, _) in &constructor.fields {
-            fields.retain(|(name, _)| name != &field.0.contents);
+        for (constructor_field, _) in &constructor.fields {
+            fields.retain(|field| field.name.0.contents != constructor_field.0.contents);
         }
 
         if fields.is_empty() {
@@ -87,7 +93,7 @@ impl<'a> CodeActionFinder<'a> {
             new_text.push(' ');
         }
 
-        for (index, (name, _)) in fields.iter().enumerate() {
+        for (index, field) in fields.iter().enumerate() {
             if index > 0 {
                 new_text.push(',');
                 if let Some(line_indent) = &line_indent {
@@ -97,7 +103,7 @@ impl<'a> CodeActionFinder<'a> {
                     new_text.push(' ');
                 }
             }
-            new_text.push_str(name);
+            new_text.push_str(&field.name.0.contents);
             new_text.push_str(": ()");
         }
 

@@ -1,10 +1,22 @@
 mod array_copy;
 mod array_reverse;
+mod check_max_stack_depth;
 mod mem_copy;
+mod prepare_vector_insert;
+mod prepare_vector_push;
+mod vector_copy;
+mod vector_pop;
+mod vector_remove;
 
 use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
+use check_max_stack_depth::compile_check_max_stack_depth_procedure;
 use mem_copy::compile_mem_copy_procedure;
+use prepare_vector_insert::compile_prepare_vector_insert_procedure;
+use prepare_vector_push::compile_prepare_vector_push_procedure;
+use vector_copy::compile_vector_copy_procedure;
+use vector_pop::compile_vector_pop_procedure;
+use vector_remove::compile_vector_remove_procedure;
 
 use crate::brillig::brillig_ir::AcirField;
 
@@ -21,7 +33,13 @@ use super::{
 pub(crate) enum ProcedureId {
     ArrayCopy,
     ArrayReverse,
+    VectorCopy,
     MemCopy,
+    PrepareVectorPush(bool),
+    VectorPop(bool),
+    PrepareVectorInsert,
+    VectorRemove,
+    CheckMaxStackDepth,
 }
 
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
@@ -34,6 +52,20 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::MemCopy => compile_mem_copy_procedure(&mut brillig_context),
         ProcedureId::ArrayCopy => compile_array_copy_procedure(&mut brillig_context),
         ProcedureId::ArrayReverse => compile_array_reverse_procedure(&mut brillig_context),
+        ProcedureId::VectorCopy => compile_vector_copy_procedure(&mut brillig_context),
+        ProcedureId::PrepareVectorPush(push_back) => {
+            compile_prepare_vector_push_procedure(&mut brillig_context, push_back);
+        }
+        ProcedureId::VectorPop(pop_back) => {
+            compile_vector_pop_procedure(&mut brillig_context, pop_back);
+        }
+        ProcedureId::PrepareVectorInsert => {
+            compile_prepare_vector_insert_procedure(&mut brillig_context);
+        }
+        ProcedureId::VectorRemove => compile_vector_remove_procedure(&mut brillig_context),
+        ProcedureId::CheckMaxStackDepth => {
+            compile_check_max_stack_depth_procedure(&mut brillig_context);
+        }
     };
 
     brillig_context.stop_instruction();

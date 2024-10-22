@@ -26,11 +26,14 @@ trait Trait1a {
         self.trait_method2() * 7892 - self.vl
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         43278
     }
 }
-struct Struct1a { vl: Field }
-impl Trait1a for Struct1a { }
+struct Struct1a {
+    vl: Field,
+}
+impl Trait1a for Struct1a {}
 // 1b) trait default method -> trait overriden method
 trait Trait1b {
     fn trait_method1(self) -> Field {
@@ -40,9 +43,12 @@ trait Trait1b {
         9323
     }
 }
-struct Struct1b { vl: Field }
+struct Struct1b {
+    vl: Field,
+}
 impl Trait1b for Struct1b {
     fn trait_method2(self) -> Field {
+        let _ = self;
         2394
     }
 }
@@ -53,9 +59,12 @@ trait Trait1c {
     }
     fn trait_method2(self) -> Field;
 }
-struct Struct1c { vl: Field }
+struct Struct1c {
+    vl: Field,
+}
 impl Trait1c for Struct1c {
     fn trait_method2(self) -> Field {
+        let _ = self;
         5485
     }
 }
@@ -65,10 +74,13 @@ trait Trait1d {
         self.trait_method2() * 2825 - self.vl
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         29341
     }
 }
-struct Struct1d { vl: Field }
+struct Struct1d {
+    vl: Field,
+}
 impl Trait1d for Struct1d {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 9342 - self.vl
@@ -83,12 +95,15 @@ trait Trait1e {
         2381
     }
 }
-struct Struct1e { vl: Field }
+struct Struct1e {
+    vl: Field,
+}
 impl Trait1e for Struct1e {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 47324 - self.vl
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         58945
     }
 }
@@ -99,12 +114,15 @@ trait Trait1f {
     }
     fn trait_method2(self) -> Field;
 }
-struct Struct1f { vl: Field }
+struct Struct1f {
+    vl: Field,
+}
 impl Trait1f for Struct1f {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 34875 - self.vl
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         5748
     }
 }
@@ -112,10 +130,13 @@ impl Trait1f for Struct1f {
 trait Trait1g {
     fn trait_method1(self) -> Field;
     fn trait_method2(self) -> Field {
+        let _ = self;
         37845
     }
 }
-struct Struct1g { vl: Field }
+struct Struct1g {
+    vl: Field,
+}
 impl Trait1g for Struct1g {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 7854 - self.vl
@@ -128,12 +149,15 @@ trait Trait1h {
         7823
     }
 }
-struct Struct1h { vl: Field }
+struct Struct1h {
+    vl: Field,
+}
 impl Trait1h for Struct1h {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 3482 - self.vl
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         8542
     }
 }
@@ -142,12 +166,15 @@ trait Trait1i {
     fn trait_method1(self) -> Field;
     fn trait_method2(self) -> Field;
 }
-struct Struct1i { vl: Field }
+struct Struct1i {
+    vl: Field,
+}
 impl Trait1i for Struct1i {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 23478 - self.vl
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         98543
     }
 }
@@ -161,8 +188,10 @@ trait Trait2a {
         7843
     }
 }
-struct Struct2a { vl: Field }
-impl Trait2a for Struct2a { }
+struct Struct2a {
+    vl: Field,
+}
+impl Trait2a for Struct2a {}
 // 2b) trait default method -> trait overriden function
 trait Trait2b {
     fn trait_method1(self) -> Field {
@@ -172,7 +201,9 @@ trait Trait2b {
         3752
     }
 }
-struct Struct2b { vl: Field }
+struct Struct2b {
+    vl: Field,
+}
 impl Trait2b for Struct2b {
     fn trait_function2() -> Field {
         8477
@@ -185,7 +216,9 @@ trait Trait2c {
     }
     fn trait_function2() -> Field;
 }
-struct Struct2c { vl: Field }
+struct Struct2c {
+    vl: Field,
+}
 impl Trait2c for Struct2c {
     fn trait_function2() -> Field {
         8342
@@ -200,7 +233,9 @@ trait Trait2d {
         384
     }
 }
-struct Struct2d { vl: Field }
+struct Struct2d {
+    vl: Field,
+}
 impl Trait2d for Struct2d {
     fn trait_method1(self) -> Field {
         Self::trait_function2() * 3984 - self.vl
@@ -215,7 +250,9 @@ trait Trait2e {
         97342
     }
 }
-struct Struct2e { vl: Field }
+struct Struct2e {
+    vl: Field,
+}
 impl Trait2e for Struct2e {
     fn trait_method1(self) -> Field {
         Self::trait_function2() * 7363 - self.vl
@@ -231,7 +268,9 @@ trait Trait2f {
     }
     fn trait_function2() -> Field;
 }
-struct Struct2f { vl: Field }
+struct Struct2f {
+    vl: Field,
+}
 impl Trait2f for Struct2f {
     fn trait_method1(self) -> Field {
         Self::trait_function2() * 6362 - self.vl
@@ -247,7 +286,9 @@ trait Trait2g {
         19273
     }
 }
-struct Struct2g { vl: Field }
+struct Struct2g {
+    vl: Field,
+}
 impl Trait2g for Struct2g {
     fn trait_method1(self) -> Field {
         Self::trait_function2() * 9123 - self.vl
@@ -260,7 +301,9 @@ trait Trait2h {
         1281
     }
 }
-struct Struct2h { vl: Field }
+struct Struct2h {
+    vl: Field,
+}
 impl Trait2h for Struct2h {
     fn trait_method1(self) -> Field {
         Self::trait_function2() * 4833 - self.vl
@@ -274,7 +317,9 @@ trait Trait2i {
     fn trait_method1(self) -> Field;
     fn trait_function2() -> Field;
 }
-struct Struct2i { vl: Field }
+struct Struct2i {
+    vl: Field,
+}
 impl Trait2i for Struct2i {
     fn trait_method1(self) -> Field {
         Self::trait_function2() * 2291 - self.vl
@@ -290,11 +335,14 @@ trait Trait3a {
         b.trait_method2() * 8344 - b.vl + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         19212
     }
 }
-struct Struct3a { vl: Field }
-impl Trait3a for Struct3a { }
+struct Struct3a {
+    vl: Field,
+}
+impl Trait3a for Struct3a {}
 // 3b) trait default function -> trait overriden method
 trait Trait3b {
     fn trait_function1(a: Field, b: Self) -> Field {
@@ -304,9 +352,12 @@ trait Trait3b {
         9111
     }
 }
-struct Struct3b { vl: Field }
+struct Struct3b {
+    vl: Field,
+}
 impl Trait3b for Struct3b {
     fn trait_method2(self) -> Field {
+        let _ = self;
         2392
     }
 }
@@ -317,9 +368,12 @@ trait Trait3c {
     }
     fn trait_method2(self) -> Field;
 }
-struct Struct3c { vl: Field }
+struct Struct3c {
+    vl: Field,
+}
 impl Trait3c for Struct3c {
     fn trait_method2(self) -> Field {
+        let _ = self;
         7743
     }
 }
@@ -329,10 +383,13 @@ trait Trait3d {
         b.trait_method2() * 291 - b.vl + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         3328
     }
 }
-struct Struct3d { vl: Field }
+struct Struct3d {
+    vl: Field,
+}
 impl Trait3d for Struct3d {
     fn trait_function1(a: Field, b: Self) -> Field {
         b.trait_method2() * 4933 - b.vl + a
@@ -347,12 +404,15 @@ trait Trait3e {
         373
     }
 }
-struct Struct3e { vl: Field }
+struct Struct3e {
+    vl: Field,
+}
 impl Trait3e for Struct3e {
     fn trait_function1(a: Field, b: Self) -> Field {
         b.trait_method2() * 81232 - b.vl + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         80002
     }
 }
@@ -363,12 +423,15 @@ trait Trait3f {
     }
     fn trait_method2(self) -> Field;
 }
-struct Struct3f { vl: Field }
+struct Struct3f {
+    vl: Field,
+}
 impl Trait3f for Struct3f {
     fn trait_function1(a: Field, b: Self) -> Field {
         b.trait_method2() * 29223 - b.vl + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         63532
     }
 }
@@ -376,10 +439,13 @@ impl Trait3f for Struct3f {
 trait Trait3g {
     fn trait_function1(a: Field, b: Self) -> Field;
     fn trait_method2(self) -> Field {
+        let _ = self;
         8887
     }
 }
-struct Struct3g { vl: Field }
+struct Struct3g {
+    vl: Field,
+}
 impl Trait3g for Struct3g {
     fn trait_function1(a: Field, b: Self) -> Field {
         b.trait_method2() * 31337 - b.vl + a
@@ -392,12 +458,15 @@ trait Trait3h {
         293
     }
 }
-struct Struct3h { vl: Field }
+struct Struct3h {
+    vl: Field,
+}
 impl Trait3h for Struct3h {
     fn trait_function1(a: Field, b: Self) -> Field {
         b.trait_method2() * 74747 - b.vl + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         6283
     }
 }
@@ -406,12 +475,15 @@ trait Trait3i {
     fn trait_function1(a: Field, b: Self) -> Field;
     fn trait_method2(self) -> Field;
 }
-struct Struct3i { vl: Field }
+struct Struct3i {
+    vl: Field,
+}
 impl Trait3i for Struct3i {
     fn trait_function1(a: Field, b: Self) -> Field {
         b.trait_method2() * 1237 - b.vl + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         84352
     }
 }
@@ -425,8 +497,10 @@ trait Trait4a {
         2932
     }
 }
-struct Struct4a { vl: Field }
-impl Trait4a for Struct4a { }
+pub struct Struct4a {
+    vl: Field,
+}
+impl Trait4a for Struct4a {}
 // 4b) trait default function -> trait overriden function
 trait Trait4b {
     fn trait_function1() -> Field {
@@ -436,7 +510,9 @@ trait Trait4b {
         2932
     }
 }
-struct Struct4b { vl: Field }
+pub struct Struct4b {
+    vl: Field,
+}
 impl Trait4b for Struct4b {
     fn trait_function2() -> Field {
         9353
@@ -449,7 +525,9 @@ trait Trait4c {
     }
     fn trait_function2() -> Field;
 }
-struct Struct4c { vl: Field }
+pub struct Struct4c {
+    vl: Field,
+}
 impl Trait4c for Struct4c {
     fn trait_function2() -> Field {
         2928
@@ -464,7 +542,9 @@ trait Trait4d {
         9332
     }
 }
-struct Struct4d { vl: Field }
+pub struct Struct4d {
+    vl: Field,
+}
 impl Trait4d for Struct4d {
     fn trait_function1() -> Field {
         Self::trait_function2() * 8374
@@ -479,7 +559,9 @@ trait Trait4e {
         28328
     }
 }
-struct Struct4e { vl: Field }
+pub struct Struct4e {
+    vl: Field,
+}
 impl Trait4e for Struct4e {
     fn trait_function1() -> Field {
         Self::trait_function2() * 12323
@@ -495,7 +577,9 @@ trait Trait4f {
     }
     fn trait_function2() -> Field;
 }
-struct Struct4f { vl: Field }
+pub struct Struct4f {
+    vl: Field,
+}
 impl Trait4f for Struct4f {
     fn trait_function1() -> Field {
         Self::trait_function2() * 21392
@@ -511,7 +595,9 @@ trait Trait4g {
         2932
     }
 }
-struct Struct4g { vl: Field }
+pub struct Struct4g {
+    vl: Field,
+}
 impl Trait4g for Struct4g {
     fn trait_function1() -> Field {
         Self::trait_function2() * 3345
@@ -524,7 +610,9 @@ trait Trait4h {
         5756
     }
 }
-struct Struct4h { vl: Field }
+pub struct Struct4h {
+    vl: Field,
+}
 impl Trait4h for Struct4h {
     fn trait_function1() -> Field {
         Self::trait_function2() * 6478
@@ -538,7 +626,9 @@ trait Trait4i {
     fn trait_function1() -> Field;
     fn trait_function2() -> Field;
 }
-struct Struct4i { vl: Field }
+pub struct Struct4i {
+    vl: Field,
+}
 impl Trait4i for Struct4i {
     fn trait_function1() -> Field {
         Self::trait_function2() * 8239

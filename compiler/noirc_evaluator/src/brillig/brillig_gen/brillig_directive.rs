@@ -1,5 +1,5 @@
 use acvm::acir::{
-    brillig::{BinaryFieldOp, BitSize, MemoryAddress, Opcode as BrilligOpcode},
+    brillig::{BinaryFieldOp, BitSize, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode},
     AcirField,
 };
 
@@ -14,16 +14,30 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
 
     // The input argument, ie the value that will be inverted.
     // We store the result in this register too.
-    let input = MemoryAddress::from(0);
-    let one_const = MemoryAddress::from(1);
-    let zero_const = MemoryAddress::from(2);
-    let input_is_zero = MemoryAddress::from(3);
+    let input = MemoryAddress::direct(0);
+    let one_const = MemoryAddress::direct(1);
+    let zero_const = MemoryAddress::direct(2);
+    let input_is_zero = MemoryAddress::direct(3);
     // Location of the stop opcode
-    let stop_location = 6;
+    let stop_location = 8;
 
     GeneratedBrillig {
         byte_code: vec![
-            BrilligOpcode::CalldataCopy { destination_address: input, size: 1, offset: 0 },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(20),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(1_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(21),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(0_usize),
+            },
+            BrilligOpcode::CalldataCopy {
+                destination_address: input,
+                size_address: MemoryAddress::direct(20),
+                offset_address: MemoryAddress::direct(21),
+            },
             // Put value zero in register (2)
             BrilligOpcode::Const {
                 destination: zero_const,
@@ -74,37 +88,47 @@ pub(crate) fn directive_quotient<F: AcirField>() -> GeneratedBrillig<F> {
 
     GeneratedBrillig {
         byte_code: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(10),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(2_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(11),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: F::from(0_usize),
+            },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress::from(0),
-                size: 2,
-                offset: 0,
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(10),
+                offset_address: MemoryAddress::direct(11),
             },
             // No cast, since calldata is typed as field by default
             //q = a/b is set into register (2)
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::IntegerDiv, // We want integer division, not field division!
-                lhs: MemoryAddress::from(0),
-                rhs: MemoryAddress::from(1),
-                destination: MemoryAddress::from(2),
+                lhs: MemoryAddress::direct(0),
+                rhs: MemoryAddress::direct(1),
+                destination: MemoryAddress::direct(2),
             },
             //(1)= q*b
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Mul,
-                lhs: MemoryAddress::from(2),
-                rhs: MemoryAddress::from(1),
-                destination: MemoryAddress::from(1),
+                lhs: MemoryAddress::direct(2),
+                rhs: MemoryAddress::direct(1),
+                destination: MemoryAddress::direct(1),
             },
             //(1) = a-q*b
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Sub,
-                lhs: MemoryAddress::from(0),
-                rhs: MemoryAddress::from(1),
-                destination: MemoryAddress::from(1),
+                lhs: MemoryAddress::direct(0),
+                rhs: MemoryAddress::direct(1),
+                destination: MemoryAddress::direct(1),
             },
             //(0) = q
             BrilligOpcode::Mov {
-                destination: MemoryAddress::from(0),
-                source: MemoryAddress::from(2),
+                destination: MemoryAddress::direct(0),
+                source: MemoryAddress::direct(2),
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 2 },
         ],

@@ -1,12 +1,26 @@
 use std::meta::type_of;
 
-struct Foo { x: Field, field: Field }
+pub struct Foo {
+    x: Field,
+    field: Field,
+}
 
 #[function_attr]
-pub fn foo(w: i32, y: Field, Foo { x, field: some_field }: Foo, mut a: bool, (b, c): (i32, i32)) -> i32 {
+pub fn foo(
+    w: i32,
+    y: Field,
+    Foo { x, field: some_field }: Foo,
+    mut a: bool,
+    (b, c): (i32, i32),
+) -> i32 {
     let _ = (w, y, x, some_field, a, b, c);
     1
 }
+
+#[test]
+#[deprecated]
+#[check_named_attribute]
+fn some_test() {}
 
 comptime fn function_attr(f: FunctionDefinition) {
     // Check FunctionDefinition::parameters
@@ -33,7 +47,12 @@ comptime fn function_attr(f: FunctionDefinition) {
     // Check FunctionDefinition::name
     assert_eq(f.name(), quote { foo });
 
-    assert(f.has_named_attribute(quote { function_attr }));
+    assert(f.has_named_attribute("function_attr"));
+}
+
+comptime fn check_named_attribute(f: FunctionDefinition) {
+    assert(f.has_named_attribute("test"));
+    assert(f.has_named_attribute("deprecated"));
 }
 
 #[mutate_add_one]
@@ -66,7 +85,7 @@ contract some_contract {
     }
 }
 
-fn set_pub_return(f: FunctionDefinition) {
+comptime fn set_pub_return(f: FunctionDefinition) {
     f.set_return_public(true);
 }
 
@@ -74,7 +93,7 @@ mod foo {
     #[attr]
     pub fn some() {}
 
-    fn attr(f: FunctionDefinition) {
+    comptime fn attr(f: FunctionDefinition) {
         assert_eq(f.module().name(), quote { foo });
 
         assert(!f.is_unconstrained());

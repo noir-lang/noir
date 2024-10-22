@@ -44,7 +44,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function, false);
+            function.constant_fold(false);
         }
         self
     }
@@ -57,25 +57,27 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function, true);
+            function.constant_fold(true);
         }
         self
     }
 }
 
-/// The structure of this pass is simple:
-/// Go through each block and re-insert all instructions.
-fn constant_fold(function: &mut Function, use_constraint_info: bool) {
-    let mut context = Context { use_constraint_info, ..Default::default() };
-    context.block_queue.push(function.entry_block());
+impl Function {
+    /// The structure of this pass is simple:
+    /// Go through each block and re-insert all instructions.
+    pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
+        let mut context = Context { use_constraint_info, ..Default::default() };
+        context.block_queue.push(self.entry_block());
 
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
+        while let Some(block) = context.block_queue.pop() {
+            if context.visited_blocks.contains(&block) {
+                continue;
+            }
+
+            context.visited_blocks.insert(block);
+            context.fold_constants_in_block(self, block);
         }
-
-        context.visited_blocks.insert(block);
-        context.fold_constants_in_block(function, block);
     }
 }
 
@@ -840,5 +842,58 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 10);
+    }
+
+    // This test currently fails. It being fixed will address the issue https://github.com/noir-lang/noir/issues/5756
+    #[test]
+    #[should_panic]
+    fn constant_array_deduplication() {
+        // fn main f0 {
+        //   b0(v0: u64):
+        //     v5 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
+        //     v6 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
+        // }
+        //
+        // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
+        // This would result in otherwise identical instructions not being deduplicated.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
+
+        let array_contents = vec![
+            v0, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
+            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
+        ];
+        let array1 = builder.array_constant(array_contents.clone().into(), typ.clone());
+        let array2 = builder.array_constant(array_contents.into(), typ.clone());
+
+        assert_eq!(array1, array2, "arrays were assigned different value ids");
+
+        let keccakf1600 =
+            builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");
+        let _v10 = builder.insert_call(keccakf1600, vec![array1], vec![typ.clone()]);
+        let _v11 = builder.insert_call(keccakf1600, vec![array2], vec![typ.clone()]);
+
+        let ssa = builder.finish();
+
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        let starting_instruction_count = instructions.len();
+        assert_eq!(starting_instruction_count, 2);
+
+        let ssa = ssa.fold_constants();
+
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        let ending_instruction_count = instructions.len();
+        assert_eq!(ending_instruction_count, 1);
     }
 }

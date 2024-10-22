@@ -17,40 +17,42 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn resolve_is_unconstrained(mut self) -> Self {
         for func in self.functions.values_mut() {
-            replace_is_unconstrained_result(func);
+            func.replace_is_unconstrained_result();
         }
         self
     }
 }
 
-fn replace_is_unconstrained_result(func: &mut Function) {
-    let mut is_unconstrained_calls = HashSet::default();
-    // Collect all calls to is_unconstrained
-    for block_id in func.reachable_blocks() {
-        for &instruction_id in func.dfg[block_id].instructions() {
-            let target_func = match &func.dfg[instruction_id] {
-                Instruction::Call { func, .. } => *func,
-                _ => continue,
-            };
+impl Function {
+    pub(crate) fn replace_is_unconstrained_result(&mut self) {
+        let mut is_unconstrained_calls = HashSet::default();
+        // Collect all calls to is_unconstrained
+        for block_id in self.reachable_blocks() {
+            for &instruction_id in self.dfg[block_id].instructions() {
+                let target_func = match &self.dfg[instruction_id] {
+                    Instruction::Call { func, .. } => *func,
+                    _ => continue,
+                };
 
-            if let Value::Intrinsic(Intrinsic::IsUnconstrained) = &func.dfg[target_func] {
-                is_unconstrained_calls.insert(instruction_id);
+                if let Value::Intrinsic(Intrinsic::IsUnconstrained) = &self.dfg[target_func] {
+                    is_unconstrained_calls.insert(instruction_id);
+                }
             }
         }
-    }
 
-    for instruction_id in is_unconstrained_calls {
-        let call_returns = func.dfg.instruction_results(instruction_id);
-        let original_return_id = call_returns[0];
+        for instruction_id in is_unconstrained_calls {
+            let call_returns = self.dfg.instruction_results(instruction_id);
+            let original_return_id = call_returns[0];
 
-        // We replace the result with a fresh id. This will be unused, so the DIE pass will remove the leftover intrinsic call.
-        func.dfg.replace_result(instruction_id, original_return_id);
+            // We replace the result with a fresh id. This will be unused, so the DIE pass will remove the leftover intrinsic call.
+            self.dfg.replace_result(instruction_id, original_return_id);
 
-        let is_within_unconstrained = func.dfg.make_constant(
-            FieldElement::from(matches!(func.runtime(), RuntimeType::Brillig)),
-            Type::bool(),
-        );
-        // Replace all uses of the original return value with the constant
-        func.dfg.set_value_from_id(original_return_id, is_within_unconstrained);
+            let is_within_unconstrained = self.dfg.make_constant(
+                FieldElement::from(matches!(self.runtime(), RuntimeType::Brillig(_))),
+                Type::bool(),
+            );
+            // Replace all uses of the original return value with the constant
+            self.dfg.set_value_from_id(original_return_id, is_within_unconstrained);
+        }
     }
 }

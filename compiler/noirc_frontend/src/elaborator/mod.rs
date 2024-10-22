@@ -4,54 +4,42 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, GenericTypeArgs, UnresolvedTraitConstraint},
+    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+};
+use crate::{
+    ast::{
+        BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
+        Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
+    },
+    graph::CrateId,
     hir::{
         def_collector::dc_crate::{
-            filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal, UnresolvedStruct,
-            UnresolvedTypeAlias,
+            filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
+            UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
         },
-        def_map::DefMaps,
+        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
+        def_map::{DefMaps, ModuleData},
+        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
+        resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
+        Context,
     },
+    hir_def::traits::TraitImpl,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::{FunctionBody, Parameters},
+        function::{FuncMeta, FunctionBody, HirFunction},
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
-    macros_api::{
-        BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
-        SecondaryAttribute, StructId,
-    },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, ReferenceId,
-        TraitId, TypeAliasId,
+        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
+        ReferenceId, StructId, TraitId, TraitImplId, TypeAliasId,
     },
-    token::CustomAtrribute,
+    token::{CustomAttribute, SecondaryAttribute},
     Shared, Type, TypeVariable,
-};
-use crate::{
-    ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
-    graph::CrateId,
-    hir::{
-        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::import::PathResolution,
-        Context,
-    },
-    hir_def::function::{FuncMeta, HirFunction},
-    macros_api::{Param, Path, UnresolvedTypeData},
-    node_interner::TraitImplId,
-};
-use crate::{
-    hir::{
-        def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl},
-        def_map::ModuleData,
-    },
-    hir_def::traits::TraitImpl,
-    macros_api::ItemVisibility,
 };
 
 mod comptime;
@@ -67,7 +55,8 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
+use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 
@@ -95,9 +84,9 @@ pub struct Elaborator<'context> {
 
     pub(crate) interner: &'context mut NodeInterner,
 
-    def_maps: &'context mut DefMaps,
+    pub(crate) def_maps: &'context mut DefMaps,
 
-    file: FileId,
+    pub(crate) file: FileId,
 
     in_unsafe_block: bool,
     nested_loops: usize,
@@ -158,6 +147,10 @@ pub struct Elaborator<'context> {
     /// Initially empty, it is set whenever a new top-level item is resolved.
     local_module: LocalModuleId,
 
+    /// True if we're elaborating a comptime item such as a comptime function,
+    /// block, global, or attribute.
+    in_comptime_context: bool,
+
     crate_id: CrateId,
 
     /// The scope of --debug-comptime, or None if unset
@@ -215,6 +208,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             current_trait: None,
             interpreter_call_stack,
+            in_comptime_context: false,
         }
     }
 
@@ -354,11 +348,16 @@ impl<'context> Elaborator<'context> {
     fn introduce_generics_into_scope(&mut self, all_generics: Vec<ResolvedGeneric>) {
         // Introduce all numeric generics into scope
         for generic in &all_generics {
-            if let Kind::Numeric(typ) = &generic.kind {
-                let definition = DefinitionKind::GenericType(generic.type_var.clone());
+            if let Kind::Numeric(typ) = &generic.kind() {
+                let definition =
+                    DefinitionKind::NumericGeneric(generic.type_var.clone(), typ.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
-                let hir_ident =
-                    self.add_variable_decl_inner(ident, false, false, false, definition);
+                let hir_ident = self.add_variable_decl(
+                    ident, false, // mutable
+                    false, // allow_shadowing
+                    false, // warn_if_unused
+                    definition,
+                );
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());
             }
         }
@@ -401,16 +400,38 @@ impl<'context> Elaborator<'context> {
 
         self.run_function_lints(&func_meta, &modifiers);
 
+        // Check arg and return-value visibility of standalone functions.
+        if self.should_check_function_visibility(&func_meta, &modifiers) {
+            let name = Ident(Spanned::from(
+                func_meta.name.location.span,
+                self.interner.definition_name(func_meta.name.id).to_string(),
+            ));
+            for (_, typ, _) in func_meta.parameters.iter() {
+                self.check_type_is_not_more_private_then_item(
+                    &name,
+                    modifiers.visibility,
+                    typ,
+                    name.span(),
+                );
+            }
+            self.check_type_is_not_more_private_then_item(
+                &name,
+                modifiers.visibility,
+                func_meta.return_type(),
+                name.span(),
+            );
+        }
+
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
         // The DefinitionIds for each parameter were already created in define_function_meta
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
-            self.add_existing_variable_to_scope(name, parameter.clone(), true);
+            let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 
-        self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
         let (hir_func, body_type) = match kind {
@@ -438,7 +459,8 @@ impl<'context> Elaborator<'context> {
 
         // Now remove all the `where` clause constraints we added
         for constraint in &func_meta.trait_constraints {
-            self.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+            self.interner
+                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
         }
 
         let func_scope_tree = self.scopes.end_function();
@@ -467,9 +489,9 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
 
         for typ in context.type_variables {
-            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+            if let Type::TypeVariable(variable) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(kind.default_type().expect(msg));
+                variable.bind(variable.kind().default_type().expect(msg));
             }
         }
 
@@ -484,9 +506,9 @@ impl<'context> Elaborator<'context> {
 
             self.verify_trait_constraint(
                 &constraint.typ,
-                constraint.trait_id,
-                &constraint.trait_generics.ordered,
-                &constraint.trait_generics.named,
+                constraint.trait_bound.trait_id,
+                &constraint.trait_bound.trait_generics.ordered,
+                &constraint.trait_bound.trait_generics.named,
                 expr_id,
                 span,
             );
@@ -507,14 +529,16 @@ impl<'context> Elaborator<'context> {
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> Type {
         let new_generic_id = self.interner.next_type_variable_id();
-        let new_generic = TypeVariable::unbound(new_generic_id);
+
+        let new_generic = TypeVariable::unbound(new_generic_id, Kind::Normal);
         generics.push(new_generic.clone());
 
         let name = format!("impl {trait_path}");
-        let generic_type = Type::NamedGeneric(new_generic, Rc::new(name), Kind::Normal);
+        let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
-        if let Some(new_constraint) = self.resolve_trait_bound(&trait_bound, generic_type.clone()) {
+        if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
+            let new_constraint = TraitConstraint { typ: generic_type.clone(), trait_bound };
             trait_constraints.push(new_constraint);
         }
 
@@ -526,19 +550,20 @@ impl<'context> Elaborator<'context> {
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             let mut is_error = false;
-            let (type_var, name, kind) = match self.resolve_generic(generic) {
+            let (type_var, name) = match self.resolve_generic(generic) {
                 Ok(values) => values,
                 Err(error) => {
                     self.push_err(error);
                     is_error = true;
                     let id = self.interner.next_type_variable_id();
-                    (TypeVariable::unbound(id), Rc::new("(error)".into()), Kind::Normal)
+                    let kind = self.resolve_generic_kind(generic);
+                    (TypeVariable::unbound(id, kind), Rc::new("(error)".into()))
                 }
             };
 
             let span = generic.span();
             let name_owned = name.as_ref().clone();
-            let resolved_generic = ResolvedGeneric { name, type_var, kind, span };
+            let resolved_generic = ResolvedGeneric { name, type_var, span };
 
             // Check for name collisions of this generic
             // Checking `is_error` here prevents DuplicateDefinition errors when
@@ -563,25 +588,22 @@ impl<'context> Elaborator<'context> {
     fn resolve_generic(
         &mut self,
         generic: &UnresolvedGeneric,
-    ) -> Result<(TypeVariable, Rc<String>, Kind), ResolverError> {
+    ) -> Result<(TypeVariable, Rc<String>), ResolverError> {
         // Map the generic to a fresh type variable
         match generic {
             UnresolvedGeneric::Variable(_) | UnresolvedGeneric::Numeric { .. } => {
                 let id = self.interner.next_type_variable_id();
-                let typevar = TypeVariable::unbound(id);
-                let ident = generic.ident();
-
                 let kind = self.resolve_generic_kind(generic);
+                let typevar = TypeVariable::unbound(id, kind);
+                let ident = generic.ident();
                 let name = Rc::new(ident.0.contents.clone());
-                Ok((typevar, name, kind))
+                Ok((typevar, name))
             }
             // An already-resolved generic is only possible if it is the result of a
             // previous macro call being inserted into a generics list.
             UnresolvedGeneric::Resolved(id, span) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(type_variable, name, kind) => {
-                        Ok((type_variable, name, kind))
-                    }
+                    Type::NamedGeneric(type_variable, name) => Ok((type_variable.clone(), name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
                         span: *span,
                         typ: other.clone(),
@@ -596,17 +618,21 @@ impl<'context> Elaborator<'context> {
     /// sure only primitive numeric types are being used.
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
-            let typ = typ.clone();
-            let typ = if typ.is_type_expression() {
-                self.resolve_type_inner(typ, &Kind::Numeric(Box::new(Type::default_int_type())))
+            let unresolved_typ = typ.clone();
+            let typ = if unresolved_typ.is_type_expression() {
+                self.resolve_type_inner(
+                    unresolved_typ.clone(),
+                    &Kind::Numeric(Box::new(Type::default_int_type())),
+                )
             } else {
-                self.resolve_type(typ.clone())
+                self.resolve_type(unresolved_typ.clone())
             };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                let unsupported_typ_err = ResolverError::UnsupportedNumericGenericType {
-                    ident: ident.clone(),
-                    typ: typ.clone(),
-                };
+                let unsupported_typ_err =
+                    ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
+                        ident: ident.clone(),
+                        typ: unresolved_typ.typ.clone(),
+                    });
                 self.push_err(unsupported_typ_err);
             }
             Kind::Numeric(Box::new(typ))
@@ -670,14 +696,11 @@ impl<'context> Elaborator<'context> {
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
-        self.resolve_trait_bound(&constraint.trait_bound, typ)
+        let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
+        Some(TraitConstraint { typ, trait_bound })
     }
 
-    pub fn resolve_trait_bound(
-        &mut self,
-        bound: &TraitBound,
-        typ: Type,
-    ) -> Option<TraitConstraint> {
+    pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
         let span = bound.trait_path.span;
@@ -685,7 +708,7 @@ impl<'context> Elaborator<'context> {
         let (ordered, named) = self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
 
         let trait_generics = TraitGenerics { ordered, named };
-        Some(TraitConstraint { typ, trait_id, trait_generics, span })
+        Some(ResolvedTraitBound { trait_id, trait_generics, span })
     }
 
     /// Extract metadata from a NoirFunction
@@ -741,6 +764,7 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
+                // Function parameters have Kind::Normal
                 _ => self.resolve_type_inner(typ, &Kind::Normal),
             };
 
@@ -751,12 +775,16 @@ impl<'context> Elaborator<'context> {
                 type_span,
             );
 
+            if is_entry_point {
+                self.mark_type_as_used(&typ);
+            }
+
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
-                None,
+                true, // warn_if_unused
             );
 
             parameters.push((pattern, typ.clone(), visibility));
@@ -795,7 +823,7 @@ impl<'context> Elaborator<'context> {
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes: Vec<CustomAtrribute> = attributes.cloned().collect();
+        let attributes: Vec<CustomAttribute> = attributes.cloned().collect();
 
         let meta = FuncMeta {
             name: name_ident,
@@ -826,6 +854,51 @@ impl<'context> Elaborator<'context> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+    }
+
+    fn mark_type_as_used(&mut self, typ: &Type) {
+        match typ {
+            Type::Array(_n, typ) => self.mark_type_as_used(typ),
+            Type::Slice(typ) => self.mark_type_as_used(typ),
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.mark_type_as_used(typ);
+                }
+            }
+            Type::Struct(struct_type, generics) => {
+                self.mark_struct_as_constructed(struct_type.clone());
+                for generic in generics {
+                    self.mark_type_as_used(generic);
+                }
+                for (_, typ) in struct_type.borrow().get_fields(generics) {
+                    self.mark_type_as_used(&typ);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.mark_type_as_used(&alias_type.borrow().get_type(generics));
+            }
+            Type::MutableReference(typ) => {
+                self.mark_type_as_used(typ);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.mark_type_as_used(left);
+                self.mark_type_as_used(right);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Forall(..)
+            | Type::Error => (),
+        }
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
@@ -891,61 +964,54 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5156): Remove implicit numeric generics
-    fn declare_numeric_generics(&mut self, params: &Parameters, return_type: &Type) {
-        if self.generics.is_empty() {
-            return;
-        }
-
-        for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
-            // Declare any generics to let users use numeric generics in scope.
-            // Don't issue a warning if these are unused
-            //
-            // We can fail to find the generic in self.generics if it is an implicit one created
-            // by the compiler. This can happen when, e.g. eliding array lengths using the slice
-            // syntax [T].
-            if let Some(ResolvedGeneric { name, span, kind, .. }) =
-                self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
-            {
-                let scope = self.scopes.get_mut_scope();
-                let value = scope.find(&name_to_find);
-                if value.is_some() {
-                    // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
-                    // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
-                    // to transition to the new syntax
-                    // e.g. this code would break with a duplicate definition error:
-                    // ```
-                    // fn foo<let N: u8>(arr: [Field; N]) { }
-                    // ```
-                    continue;
-                }
-                *kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                let ident = Ident::new(name.to_string(), *span);
-                let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-
-                self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-            }
+    fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
+        for constraint in &func_meta.trait_constraints {
+            self.add_trait_bound_to_scope(
+                func_meta,
+                &constraint.typ,
+                &constraint.trait_bound,
+                constraint.trait_bound.trait_id,
+            );
         }
     }
 
-    fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
-        for constraint in &func_meta.trait_constraints {
-            let object = constraint.typ.clone();
-            let trait_id = constraint.trait_id;
-            let generics = constraint.trait_generics.clone();
+    fn add_trait_bound_to_scope(
+        &mut self,
+        func_meta: &FuncMeta,
+        object: &Type,
+        trait_bound: &ResolvedTraitBound,
+        starting_trait_id: TraitId,
+    ) {
+        let trait_id = trait_bound.trait_id;
+        let generics = trait_bound.trait_generics.clone();
 
-            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
-                if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
-                    let trait_name = the_trait.name.to_string();
-                    let typ = constraint.typ.clone();
-                    let span = func_meta.location.span;
-                    self.push_err(TypeCheckError::UnneededTraitConstraint {
-                        trait_name,
-                        typ,
-                        span,
-                    });
+        if !self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
+            if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
+                let trait_name = the_trait.name.to_string();
+                let typ = object.clone();
+                let span = func_meta.location.span;
+                self.push_err(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            }
+        }
+
+        // Also add assumed implementations for the parent traits, if any
+        if let Some(trait_bounds) =
+            self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        {
+            for parent_trait_bound in trait_bounds {
+                // Avoid looping forever in case there are cycles
+                if parent_trait_bound.trait_id == starting_trait_id {
+                    continue;
                 }
+
+                let parent_trait_bound =
+                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
+                self.add_trait_bound_to_scope(
+                    func_meta,
+                    object,
+                    &parent_trait_bound,
+                    starting_trait_id,
+                );
             }
         }
     }
@@ -961,6 +1027,8 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
+        self.check_parent_traits_are_implemented(&trait_impl);
+
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
@@ -975,6 +1043,73 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
+    }
+
+    fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
+        let Some(trait_id) = trait_impl.trait_id else {
+            return;
+        };
+
+        let Some(object_type) = &trait_impl.resolved_object_type else {
+            return;
+        };
+
+        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            return;
+        };
+
+        if the_trait.trait_bounds.is_empty() {
+            return;
+        }
+
+        let impl_trait = the_trait.name.to_string();
+        let the_trait_file = the_trait.location.file;
+
+        let mut bindings = TypeBindings::new();
+        bind_ordered_generics(
+            &the_trait.generics,
+            &trait_impl.resolved_trait_generics,
+            &mut bindings,
+        );
+
+        // Note: we only check if the immediate parents are implemented, we don't check recursively.
+        // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
+        // do the same check for the parent, so this trait's parents parents will be checked, so the
+        // recursion is guaranteed.
+        for parent_trait_bound in the_trait.trait_bounds.clone() {
+            let Some(parent_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id)
+            else {
+                continue;
+            };
+
+            let parent_trait_bound = ResolvedTraitBound {
+                trait_generics: parent_trait_bound
+                    .trait_generics
+                    .map(|typ| typ.substitute(&bindings)),
+                ..parent_trait_bound
+            };
+
+            if self
+                .interner
+                .try_lookup_trait_implementation(
+                    object_type,
+                    parent_trait_bound.trait_id,
+                    &parent_trait_bound.trait_generics.ordered,
+                    &parent_trait_bound.trait_generics.named,
+                )
+                .is_err()
+            {
+                let missing_trait =
+                    format!("{}{}", parent_trait.name, parent_trait_bound.trait_generics);
+                self.push_err(ResolverError::TraitNotImplemented {
+                    impl_trait: impl_trait.clone(),
+                    missing_trait,
+                    type_missing_trait: trait_impl.object_type.to_string(),
+                    span: trait_impl.object_type.span,
+                    missing_trait_location: Location::new(parent_trait_bound.span, the_trait_file),
+                });
+            }
+        }
     }
 
     fn collect_impls(
@@ -1108,7 +1243,7 @@ impl<'context> Elaborator<'context> {
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
-                if module.declare_function(name, ItemVisibility::Public, *method_id).is_err() {
+                if module.declare_function(name, method.def.visibility, *method_id).is_err() {
                     let existing = module.find_func_with_name(method.name_ident()).expect(
                         "declare_function should only error if there is an existing function",
                     );
@@ -1160,11 +1295,129 @@ impl<'context> Elaborator<'context> {
         self.file = alias.file_id;
         self.local_module = alias.module_id;
 
+        let name = &alias.type_alias_def.name;
+        let visibility = alias.type_alias_def.visibility;
+        let span = alias.type_alias_def.typ.span;
+
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
+
+        if visibility != ItemVisibility::Private {
+            self.check_type_is_not_more_private_then_item(name, visibility, &typ, span);
+        }
+
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
+    }
+
+    /// Find the struct in the parent module so we can know its visibility
+    fn find_struct_visibility(&self, struct_type: &StructType) -> Option<ItemVisibility> {
+        let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+        let parent_module_data = self.get_module(parent_module_id);
+        let per_ns = parent_module_data.find_name(&struct_type.name);
+        per_ns.types.map(|(_, vis, _)| vis)
+    }
+
+    /// Check whether a functions return value and args should be checked for private type visibility.
+    fn should_check_function_visibility(
+        &self,
+        func_meta: &FuncMeta,
+        modifiers: &FunctionModifiers,
+    ) -> bool {
+        // Private functions don't leak anything.
+        if modifiers.visibility == ItemVisibility::Private {
+            return false;
+        }
+        // Implementing public traits on private types is okay, they can't be used unless the type itself is accessible.
+        if func_meta.trait_impl.is_some() {
+            return false;
+        }
+        // Public struct functions should not expose private types.
+        if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
+            let struct_def = self.get_struct(id);
+            let struct_def = struct_def.borrow();
+            self.find_struct_visibility(&struct_def)
+        }) {
+            return struct_visibility != ItemVisibility::Private;
+        }
+        // Standalone functions should be checked
+        true
+    }
+
+    /// Check that an item such as a struct field or type alias is not more visible than the type it refers to.
+    fn check_type_is_not_more_private_then_item(
+        &mut self,
+        name: &Ident,
+        visibility: ItemVisibility,
+        typ: &Type,
+        span: Span,
+    ) {
+        match typ {
+            Type::Struct(struct_type, generics) => {
+                let struct_type = struct_type.borrow();
+                let struct_module_id = struct_type.id.module_id();
+
+                // We only check this in types in the same crate. If it's in a different crate
+                // then it's either accessible (all good) or it's not, in which case a different
+                // error will happen somewhere else, but no need to error again here.
+                if struct_module_id.krate == self.crate_id {
+                    if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
+                        if aliased_visibility < visibility {
+                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                                typ: struct_type.name.to_string(),
+                                item: name.to_string(),
+                                span,
+                            });
+                        }
+                    }
+                }
+
+                for generic in generics {
+                    self.check_type_is_not_more_private_then_item(name, visibility, generic, span);
+                }
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                self.check_type_is_not_more_private_then_item(
+                    name,
+                    visibility,
+                    &alias_type.borrow().get_type(generics),
+                    span,
+                );
+            }
+            Type::Function(args, return_type, env, _) => {
+                for arg in args {
+                    self.check_type_is_not_more_private_then_item(name, visibility, arg, span);
+                }
+                self.check_type_is_not_more_private_then_item(name, visibility, return_type, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, env, span);
+            }
+            Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
+                self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
+            }
+            Type::InfixExpr(left, _op, right) => {
+                self.check_type_is_not_more_private_then_item(name, visibility, left, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, right, span);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::TypeVariable(..)
+            | Type::Forall(..)
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::NamedGeneric(..)
+            | Type::Error => (),
+        }
     }
 
     fn collect_struct_definitions(&mut self, structs: &BTreeMap<StructId, UnresolvedStruct>) {
@@ -1179,31 +1432,32 @@ impl<'context> Elaborator<'context> {
             self.local_module = typ.module_id;
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
+
+            if typ.struct_def.is_abi() {
+                for field in &fields {
+                    self.mark_type_as_used(&field.typ);
+                }
+            }
+
+            // Check that the a public struct doesn't have a private type as a public field.
+            if typ.struct_def.visibility != ItemVisibility::Private {
+                for field in &fields {
+                    let ident = Ident(Spanned::from(
+                        field.name.span(),
+                        format!("{}::{}", typ.struct_def.name, field.name),
+                    ));
+                    self.check_type_is_not_more_private_then_item(
+                        &ident,
+                        field.visibility,
+                        &field.typ,
+                        field.name.span(),
+                    );
+                }
+            }
+
             let fields_len = fields.len();
             self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
-
-                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
-                // This is only necessary for resolving named types when implicit numeric generics are used.
-                let mut found_names = Vec::new();
-                struct_def.find_numeric_generics_in_fields(&mut found_names);
-                for generic in struct_def.generics.iter_mut() {
-                    for found_generic in found_names.iter() {
-                        if found_generic == generic.name.as_str() {
-                            if matches!(generic.kind, Kind::Normal) {
-                                let ident = Ident::new(generic.name.to_string(), generic.span);
-                                self.errors.push((
-                                    CompilationError::ResolverError(
-                                        ResolverError::UseExplicitNumericGeneric { ident },
-                                    ),
-                                    self.file,
-                                ));
-                                generic.kind = Kind::Numeric(Box::new(Type::default_int_type()));
-                            }
-                            break;
-                        }
-                    }
-                }
             });
 
             for field_index in 0..fields_len {
@@ -1239,7 +1493,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved: &NoirStruct,
         struct_id: StructId,
-    ) -> Vec<(Ident, Type)> {
+    ) -> Vec<StructField> {
         self.recover_generics(|this| {
             this.current_item = Some(DependencyId::Struct(struct_id));
 
@@ -1248,8 +1502,11 @@ impl<'context> Elaborator<'context> {
             let struct_def = this.interner.get_struct(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let fields = vecmap(&unresolved.fields, |(ident, typ)| {
-                (ident.clone(), this.resolve_type(typ.clone()))
+            let fields = vecmap(&unresolved.fields, |field| {
+                let ident = &field.item.name;
+                let typ = &field.item.typ;
+                let visibility = field.item.visibility;
+                StructField { visibility, name: ident.clone(), typ: this.resolve_type(typ.clone()) }
             });
 
             this.resolving_ids.remove(&struct_id);
@@ -1287,7 +1544,12 @@ impl<'context> Elaborator<'context> {
 
         let comptime = let_stmt.comptime;
 
-        let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
+        let (let_statement, _typ) = if comptime {
+            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
+        } else {
+            self.elaborate_let(let_stmt, Some(global_id))
+        };
+
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
@@ -1296,7 +1558,7 @@ impl<'context> Elaborator<'context> {
         }
 
         if let Some(name) = name {
-            self.interner.register_global(global_id, name, self.module_id());
+            self.interner.register_global(global_id, name, global.visibility, self.module_id());
         }
 
         self.local_module = old_module;
@@ -1322,9 +1584,7 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
-            self.debug_comptime(location, |interner| {
-                interner.get_global(global_id).let_statement.to_display_ast(interner).kind
-            });
+            self.debug_comptime(location, |interner| value.display(interner).to_string());
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
@@ -1418,21 +1678,6 @@ impl<'context> Elaborator<'context> {
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None);
             });
-        }
-    }
-
-    /// True if we're currently within a `comptime` block, function, or global
-    fn in_comptime_context(&self) -> bool {
-        // The first context is the global context, followed by the function-specific context.
-        // Any context after that is a `comptime {}` block's.
-        if self.function_context.len() > 2 {
-            return true;
-        }
-
-        match self.current_item {
-            Some(DependencyId::Function(id)) => self.interner.function_modifiers(&id).is_comptime,
-            Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
-            _ => false,
         }
     }
 

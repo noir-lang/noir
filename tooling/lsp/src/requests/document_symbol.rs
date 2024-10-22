@@ -10,7 +10,7 @@ use noirc_errors::Span;
 use noirc_frontend::{
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
+        NoirTraitImpl, TypeImpl, UnresolvedType, Visitor,
     },
     parser::ParsedSubModule,
     ParsedModule,
@@ -66,6 +66,10 @@ impl<'a> DocumentSymbolCollector<'a> {
     }
 
     fn collect_in_type(&mut self, name: &Ident, typ: Option<&UnresolvedType>) {
+        if name.0.contents.is_empty() {
+            return;
+        }
+
         let Some(name_location) = self.to_lsp_location(name.span()) else {
             return;
         };
@@ -99,6 +103,10 @@ impl<'a> DocumentSymbolCollector<'a> {
         typ: &UnresolvedType,
         default_value: Option<&Expression>,
     ) {
+        if name.0.contents.is_empty() {
+            return;
+        }
+
         let Some(name_location) = self.to_lsp_location(name.span()) else {
             return;
         };
@@ -137,6 +145,10 @@ impl<'a> DocumentSymbolCollector<'a> {
 
 impl<'a> Visitor for DocumentSymbolCollector<'a> {
     fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
+        if noir_function.def.name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(location) = self.to_lsp_location(span) else {
             return false;
         };
@@ -162,6 +174,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_noir_struct(&mut self, noir_struct: &NoirStruct, span: Span) -> bool {
+        if noir_struct.name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(location) = self.to_lsp_location(span) else {
             return false;
         };
@@ -171,7 +187,9 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         };
 
         let mut children = Vec::new();
-        for (field_name, typ) in &noir_struct.fields {
+        for field in &noir_struct.fields {
+            let field_name = &field.item.name;
+            let typ = &field.item.typ;
             let span = Span::from(field_name.span().start()..typ.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {
@@ -211,6 +229,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_noir_trait(&mut self, noir_trait: &NoirTrait, span: Span) -> bool {
+        if noir_trait.name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(location) = self.to_lsp_location(span) else {
             return false;
         };
@@ -223,7 +245,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for item in &noir_trait.items {
-            item.accept(self);
+            item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -253,6 +275,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         _where_clause: &[noirc_frontend::ast::UnresolvedTraitConstraint],
         body: &Option<noirc_frontend::ast::BlockExpression>,
     ) -> bool {
+        if name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(name_location) = self.to_lsp_location(name.span()) else {
             return false;
         };
@@ -306,6 +332,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         typ: &UnresolvedType,
         default_value: &Option<Expression>,
     ) -> bool {
+        if name.0.contents.is_empty() {
+            return false;
+        }
+
         self.collect_in_constant(name, typ, default_value.as_ref());
         false
     }
@@ -350,7 +380,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for trait_impl_item in &noir_trait_impl.items {
-            trait_impl_item.accept(self);
+            trait_impl_item.item.accept(self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -376,12 +406,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         name: &Ident,
         typ: &UnresolvedType,
         default_value: &Expression,
+        _span: Span,
     ) -> bool {
         self.collect_in_constant(name, typ, Some(default_value));
         false
     }
 
-    fn visit_trait_impl_item_type(&mut self, name: &Ident, alias: &UnresolvedType) -> bool {
+    fn visit_trait_impl_item_type(
+        &mut self,
+        name: &Ident,
+        alias: &UnresolvedType,
+        _span: Span,
+    ) -> bool {
         self.collect_in_type(name, Some(alias));
         false
     }
@@ -391,13 +427,12 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         };
 
-        let UnresolvedTypeData::Named(name_path, ..) = &type_impl.object_type.typ else {
+        let name = type_impl.object_type.typ.to_string();
+        if name.is_empty() {
             return false;
-        };
+        }
 
-        let name = name_path.last_ident();
-
-        let Some(name_location) = self.to_lsp_location(name.span()) else {
+        let Some(name_location) = self.to_lsp_location(type_impl.object_type.span) else {
             return false;
         };
 
@@ -405,7 +440,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         self.symbols = Vec::new();
 
         for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.accept(*noir_function_span, self);
+            noir_function.item.accept(*noir_function_span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -427,6 +462,10 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
+        if parsed_sub_module.name.0.contents.is_empty() {
+            return false;
+        }
+
         let Some(name_location) = self.to_lsp_location(parsed_sub_module.name.span()) else {
             return false;
         };
@@ -461,6 +500,11 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_global(&mut self, global: &LetStatement, span: Span) -> bool {
+        let name = global.pattern.to_string();
+        if name.is_empty() {
+            return false;
+        }
+
         let Some(name_location) = self.to_lsp_location(global.pattern.span()) else {
             return false;
         };
@@ -471,7 +515,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
 
         #[allow(deprecated)]
         self.symbols.push(DocumentSymbol {
-            name: global.pattern.to_string(),
+            name,
             detail: None,
             kind: SymbolKind::CONSTANT,
             tags: None,
@@ -630,7 +674,7 @@ mod document_symbol_tests {
                             deprecated: None,
                             range: Range {
                                 start: Position { line: 15, character: 7 },
-                                end: Position { line: 15, character: 25 },
+                                end: Position { line: 15, character: 24 },
                             },
                             selection_range: Range {
                                 start: Position { line: 15, character: 7 },
@@ -664,7 +708,7 @@ mod document_symbol_tests {
                             tags: None,
                             deprecated: None,
                             range: Range {
-                                start: Position { line: 19, character: 7 },
+                                start: Position { line: 19, character: 4 },
                                 end: Position { line: 20, character: 5 },
                             },
                             selection_range: Range {
@@ -710,6 +754,23 @@ mod document_symbol_tests {
                         }
                     ]),
                 },
+                #[allow(deprecated)]
+                DocumentSymbol {
+                    name: "i32".to_string(),
+                    detail: None,
+                    kind: SymbolKind::NAMESPACE,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position { line: 27, character: 0 },
+                        end: Position { line: 27, character: 11 }
+                    },
+                    selection_range: Range {
+                        start: Position { line: 27, character: 5 },
+                        end: Position { line: 27, character: 8 }
+                    },
+                    children: Some(Vec::new())
+                }
             ]
         );
     }

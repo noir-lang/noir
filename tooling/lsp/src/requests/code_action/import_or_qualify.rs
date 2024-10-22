@@ -2,12 +2,12 @@ use lsp_types::{Position, Range, TextEdit};
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::{Ident, Path},
-    macros_api::ModuleDefId,
+    hir::def_map::ModuleDefId,
 };
 
 use crate::{
     byte_span_to_range,
-    modules::{get_parent_module_id, module_full_path, module_id_path},
+    modules::{relative_module_full_path, relative_module_id_path},
 };
 
 use super::CodeActionFinder;
@@ -28,7 +28,7 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        let current_module_parent_id = get_parent_module_id(self.def_maps, self.module_id);
+        let current_module_parent_id = self.module_id.parent(self.def_maps);
 
         // The Path doesn't resolve to anything so it means it's an error and maybe we
         // can suggest an import or to fully-qualify the path.
@@ -39,14 +39,14 @@ impl<'a> CodeActionFinder<'a> {
 
             for (module_def_id, visibility, defining_module) in entries {
                 let module_full_path = if let Some(defining_module) = defining_module {
-                    module_id_path(
+                    relative_module_id_path(
                         *defining_module,
                         &self.module_id,
                         current_module_parent_id,
                         self.interner,
                     )
                 } else {
-                    let Some(module_full_path) = module_full_path(
+                    let Some(module_full_path) = relative_module_full_path(
                         *module_def_id,
                         *visibility,
                         self.module_id,
@@ -134,7 +134,7 @@ mod tests {
         let src = r#"
         mod foo {
             mod bar {
-                struct SomeTypeInBar {}
+                pub struct SomeTypeInBar {}
             }
         }
 
@@ -144,7 +144,7 @@ mod tests {
         let expected = r#"
         mod foo {
             mod bar {
-                struct SomeTypeInBar {}
+                pub struct SomeTypeInBar {}
             }
         }
 
@@ -160,7 +160,7 @@ mod tests {
 
         let src = r#"mod foo {
     mod bar {
-        struct SomeTypeInBar {}
+        pub struct SomeTypeInBar {}
     }
 }
 
@@ -170,7 +170,7 @@ fn foo(x: SomeType>|<InBar) {}"#;
 
 mod foo {
     mod bar {
-        struct SomeTypeInBar {}
+        pub struct SomeTypeInBar {}
     }
 }
 
@@ -186,7 +186,7 @@ fn foo(x: SomeTypeInBar) {}"#;
         let src = r#"
         mod foo {
             mod bar {
-                mod some_module_in_bar {}
+                pub mod some_module_in_bar {}
             }
         }
 
@@ -198,7 +198,7 @@ fn foo(x: SomeTypeInBar) {}"#;
         let expected = r#"
         mod foo {
             mod bar {
-                mod some_module_in_bar {}
+                pub mod some_module_in_bar {}
             }
         }
 
@@ -216,7 +216,7 @@ fn foo(x: SomeTypeInBar) {}"#;
 
         let src = r#"mod foo {
     mod bar {
-        mod some_module_in_bar {}
+        pub(crate) mod some_module_in_bar {}
     }
 }
 
@@ -228,7 +228,7 @@ fn main() {
 
 mod foo {
     mod bar {
-        mod some_module_in_bar {}
+        pub(crate) mod some_module_in_bar {}
     }
 }
 

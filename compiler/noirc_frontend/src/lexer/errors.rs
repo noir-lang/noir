@@ -34,6 +34,8 @@ pub enum LexerErrorKind {
     InvalidEscape { escaped: char, span: Span },
     #[error("Invalid quote delimiter `{delimiter}`, valid delimiters are `{{`, `[`, and `(`")]
     InvalidQuoteDelimiter { delimiter: SpannedToken },
+    #[error("Non-ASCII characters are invalid in comments")]
+    NonAsciiComment { span: Span },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
     UnclosedQuote { start_delim: SpannedToken, end_delim: Token },
 }
@@ -65,6 +67,7 @@ impl LexerErrorKind {
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
             LexerErrorKind::InvalidEscape { span, .. } => *span,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_span(),
+            LexerErrorKind::NonAsciiComment { span, .. } => *span,
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.to_span(),
         }
     }
@@ -124,6 +127,9 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
                 (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.to_span())
             },
+            LexerErrorKind::NonAsciiComment { span } => {
+                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *span)
+            }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
                 ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.to_span())
             }
@@ -135,12 +141,5 @@ impl<'a> From<&'a LexerErrorKind> for Diagnostic {
     fn from(error: &'a LexerErrorKind) -> Diagnostic {
         let (primary, secondary, span) = error.parts();
         Diagnostic::simple_error(primary, secondary, span)
-    }
-}
-
-impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken, Span> {
-    fn from(error: LexerErrorKind) -> Self {
-        let (_, message, span) = error.parts();
-        chumsky::error::Simple::custom(span, message)
     }
 }

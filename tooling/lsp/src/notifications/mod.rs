@@ -2,13 +2,16 @@ use std::collections::HashSet;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 
-use crate::insert_all_files_for_workspace_into_file_manager;
+use crate::{
+    insert_all_files_for_workspace_into_file_manager, PackageCacheData, WorkspaceCacheData,
+};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileManager, FileMap};
+use fm::{FileId, FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
-use lsp_types::{DiagnosticTag, Url};
-use noirc_driver::{check_crate, file_manager_with_stdlib};
-use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
+use noirc_driver::check_crate;
+use noirc_errors::reporter::CustomLabel;
+use noirc_errors::{DiagnosticKind, FileDiagnostic, Location};
 
 use crate::types::{
     notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
@@ -79,7 +82,8 @@ pub(super) fn on_did_close_text_document(
     state.open_documents_count -= 1;
 
     if state.open_documents_count == 0 {
-        state.cached_definitions.clear();
+        state.package_cache.clear();
+        state.workspace_cache.clear();
     }
 
     let document_uri = params.text_document.uri;
@@ -120,7 +124,8 @@ pub(crate) fn process_workspace_for_noir_document(
         ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = workspace.new_file_manager();
+
     insert_all_files_for_workspace_into_file_manager(
         state,
         &workspace,
@@ -154,8 +159,15 @@ pub(crate) fn process_workspace_for_noir_document(
             Some(&file_path),
         );
         state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
-        state.cached_definitions.insert(package.root_dir.clone(), context.def_interner);
-        state.cached_def_maps.insert(package.root_dir.clone(), context.def_maps);
+        state.package_cache.insert(
+            package.root_dir.clone(),
+            PackageCacheData {
+                crate_id,
+                crate_graph: context.crate_graph,
+                node_interner: context.def_interner,
+                def_maps: context.def_maps,
+            },
+        );
 
         let fm = &context.file_manager;
         let files = fm.as_file_map();
@@ -164,6 +176,11 @@ pub(crate) fn process_workspace_for_noir_document(
             publish_diagnostics(state, &package.root_dir, files, fm, file_diagnostics);
         }
     }
+
+    state.workspace_cache.insert(
+        workspace.root_dir.clone(),
+        WorkspaceCacheData { file_manager: workspace_file_manager },
+    );
 
     Ok(())
 }
@@ -179,11 +196,13 @@ fn publish_diagnostics(
 
     for file_diagnostic in file_diagnostics.into_iter() {
         let file_id = file_diagnostic.file_id;
-        let diagnostic = file_diagnostic_to_diagnostic(file_diagnostic, files);
-
         let path = fm.path(file_id).expect("file must exist to have emitted diagnostic");
         if let Ok(uri) = Url::from_file_path(path) {
-            diagnostics_per_url.entry(uri).or_default().push(diagnostic);
+            if let Some(diagnostic) =
+                file_diagnostic_to_diagnostic(file_diagnostic, files, fm, uri.clone())
+            {
+                diagnostics_per_url.entry(uri).or_default().push(diagnostic);
+            }
         }
     }
 
@@ -212,17 +231,21 @@ fn publish_diagnostics(
     state.files_with_errors.insert(package_root_dir.clone(), new_files_with_errors);
 }
 
-fn file_diagnostic_to_diagnostic(file_diagnostic: FileDiagnostic, files: &FileMap) -> Diagnostic {
+fn file_diagnostic_to_diagnostic(
+    file_diagnostic: FileDiagnostic,
+    files: &FileMap,
+    fm: &FileManager,
+    uri: Url,
+) -> Option<Diagnostic> {
     let file_id = file_diagnostic.file_id;
     let diagnostic = file_diagnostic.diagnostic;
 
-    // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
-    let range = diagnostic
-        .secondaries
-        .into_iter()
-        .filter_map(|sec| byte_span_to_range(files, file_id, sec.span.into()))
-        .last()
-        .unwrap_or_default();
+    if diagnostic.secondaries.is_empty() {
+        return None;
+    }
+
+    let span = diagnostic.secondaries.first().unwrap().span;
+    let range = byte_span_to_range(files, file_id, span.into())?;
 
     let severity = match diagnostic.kind {
         DiagnosticKind::Error => DiagnosticSeverity::ERROR,
@@ -239,13 +262,60 @@ fn file_diagnostic_to_diagnostic(file_diagnostic: FileDiagnostic, files: &FileMa
         tags.push(DiagnosticTag::DEPRECATED);
     }
 
-    Diagnostic {
+    let secondaries = diagnostic
+        .secondaries
+        .into_iter()
+        .filter_map(|secondary| secondary_to_related_information(secondary, file_id, files, fm));
+    let notes = diagnostic.notes.into_iter().map(|message| DiagnosticRelatedInformation {
+        location: lsp_types::Location { uri: uri.clone(), range },
+        message,
+    });
+    let call_stack = diagnostic
+        .call_stack
+        .into_iter()
+        .filter_map(|frame| call_stack_frame_to_related_information(frame, files, fm));
+    let related_information: Vec<_> = secondaries.chain(notes).chain(call_stack).collect();
+
+    Some(Diagnostic {
         range,
         severity: Some(severity),
         message: diagnostic.message,
         tags: if tags.is_empty() { None } else { Some(tags) },
+        related_information: if related_information.is_empty() {
+            None
+        } else {
+            Some(related_information)
+        },
         ..Default::default()
-    }
+    })
+}
+
+fn secondary_to_related_information(
+    secondary: CustomLabel,
+    file_id: FileId,
+    files: &FileMap,
+    fm: &FileManager,
+) -> Option<DiagnosticRelatedInformation> {
+    let secondary_file = secondary.file.unwrap_or(file_id);
+    let path = fm.path(secondary_file)?;
+    let uri = Url::from_file_path(path).ok()?;
+    let range = byte_span_to_range(files, file_id, secondary.span.into())?;
+    let message = secondary.message;
+    Some(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
+}
+
+fn call_stack_frame_to_related_information(
+    frame: Location,
+    files: &FileMap,
+    fm: &FileManager,
+) -> Option<DiagnosticRelatedInformation> {
+    let path = fm.path(frame.file)?;
+    let uri = Url::from_file_path(path).ok()?;
+    let range = byte_span_to_range(files, frame.file, frame.span.into())?;
+    Some(DiagnosticRelatedInformation {
+        location: lsp_types::Location { uri, range },
+        message: "Error originated here".to_string(),
+    })
 }
 
 pub(super) fn on_exit(

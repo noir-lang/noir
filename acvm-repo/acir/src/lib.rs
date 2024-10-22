@@ -12,6 +12,7 @@ pub use acir_field;
 pub use acir_field::{AcirField, FieldElement};
 pub use brillig;
 pub use circuit::black_box_functions::BlackBoxFunc;
+pub use circuit::opcodes::InvalidInputBitSize;
 
 #[cfg(test)]
 mod reflection {
@@ -34,7 +35,7 @@ mod reflection {
     use acir_field::FieldElement;
     use brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
-        Opcode as BrilligOpcode, ValueOrArray,
+        MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
     use serde_reflection::{Tracer, TracerConfig};
 
@@ -83,6 +84,7 @@ mod reflection {
         tracer.trace_simple_type::<ExpressionOrMemory<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BitSize>().unwrap();
         tracer.trace_simple_type::<IntegerBitSize>().unwrap();
+        tracer.trace_simple_type::<MemoryAddress>().unwrap();
 
         let registry = tracer.registry().unwrap();
 

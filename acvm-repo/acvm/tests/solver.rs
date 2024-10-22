@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use acir::brillig::{BitSize, IntegerBitSize};
 use acir::{
     acir_field::GenericFieldElement,
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
@@ -18,6 +19,7 @@ use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use bn254_blackbox_solver::{field_from_hex, Bn254BlackBoxSolver, POSEIDON2_CONFIG};
 use brillig_vm::brillig::HeapValueType;
 
+use num_bigint::BigUint;
 use proptest::arbitrary::any;
 use proptest::prelude::*;
 use proptest::result::maybe_ok;
@@ -77,9 +79,9 @@ fn inversion_brillig_oracle_equivalence() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(2),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(2),
     };
 
     let opcodes = vec![
@@ -122,18 +124,28 @@ fn inversion_brillig_oracle_equivalence() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size: 2,
-                offset: 0,
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 3 },
@@ -206,9 +218,9 @@ fn double_inversion_brillig_oracle() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(4),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(4),
     };
 
     let opcodes = vec![
@@ -258,25 +270,35 @@ fn double_inversion_brillig_oracle() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(3u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size: 3,
-                offset: 0,
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(3))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(2))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 5 },
@@ -366,24 +388,33 @@ fn oracle_dependent_execution() {
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
-            BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size: 3,
-                offset: 0,
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(3u64),
             },
-            // Oracles are named 'foreign calls' in brillig
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            BrilligOpcode::CalldataCopy {
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
+            }, // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(3))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(2))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 4 },
@@ -491,25 +522,35 @@ fn brillig_oracle_predicate() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(2),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(2),
     };
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size: 2,
-                offset: 0,
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
         ],
@@ -607,27 +648,46 @@ fn unsatisfied_opcode_resolved_brillig() {
     let w_y = Witness(5);
     let w_result = Witness(6);
 
-    let calldata_copy_opcode =
-        BrilligOpcode::CalldataCopy { destination_address: MemoryAddress(0), size: 2, offset: 0 };
+    let calldata_copy_opcode = BrilligOpcode::CalldataCopy {
+        destination_address: MemoryAddress::direct(0),
+        size_address: MemoryAddress::direct(0),
+        offset_address: MemoryAddress::direct(1),
+    };
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(2),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(2),
     };
     // Jump pass the trap if the values are equal, else
     // jump to the trap
     let location_of_stop = 3;
 
     let jmp_if_opcode =
-        BrilligOpcode::JumpIf { condition: MemoryAddress::from(2), location: location_of_stop };
+        BrilligOpcode::JumpIf { condition: MemoryAddress::direct(2), location: location_of_stop };
 
     let trap_opcode = BrilligOpcode::Trap { revert_data: HeapArray::default() };
     let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_bytecode = BrilligBytecode {
-        bytecode: vec![calldata_copy_opcode, equal_opcode, jmp_if_opcode, trap_opcode, stop_opcode],
+        bytecode: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            calldata_copy_opcode,
+            equal_opcode,
+            jmp_if_opcode,
+            trap_opcode,
+            stop_opcode,
+        ],
     };
 
     let opcode_a = Expression {
@@ -679,7 +739,7 @@ fn unsatisfied_opcode_resolved_brillig() {
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
             function_id: BrilligFunctionId(0),
             payload: None,
-            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
+            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 5 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
     );
@@ -776,15 +836,15 @@ fn constant_or_witness_to_function_inputs(
     xs: Vec<ConstantOrWitness>,
     offset: usize,
     num_bits: Option<u32>,
-) -> Vec<FunctionInput<FieldElement>> {
+) -> Result<Vec<FunctionInput<FieldElement>>, OpcodeResolutionError<FieldElement>> {
     let num_bits = num_bits.unwrap_or(FieldElement::max_num_bits());
     xs.into_iter()
         .enumerate()
         .map(|(i, (x, use_constant))| {
             if use_constant {
-                FunctionInput::constant(x, num_bits)
+                FunctionInput::constant(x, num_bits).map_err(From::from)
             } else {
-                FunctionInput::witness(Witness((i + offset) as u32), num_bits)
+                Ok(FunctionInput::witness(Witness((i + offset) as u32), num_bits))
             }
         })
         .collect()
@@ -810,9 +870,11 @@ fn solve_array_input_blackbox_call<F>(
     num_outputs: usize,
     num_bits: Option<u32>,
     f: F,
-) -> Vec<FieldElement>
+) -> Result<Vec<FieldElement>, OpcodeResolutionError<FieldElement>>
 where
-    F: FnOnce((Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement>,
+    F: FnOnce(
+        (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
 {
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
@@ -821,8 +883,8 @@ where
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
-    let inputs = constant_or_witness_to_function_inputs(inputs, 0, num_bits);
-    let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone())));
+    let inputs = constant_or_witness_to_function_inputs(inputs, 0, num_bits)?;
+    let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone()))?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm =
@@ -831,10 +893,10 @@ where
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
 
-    outputs
+    Ok(outputs
         .iter()
         .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
-        .collect()
+        .collect())
 }
 
 prop_compose! {
@@ -919,7 +981,7 @@ fn bigint_solve_binary_op_opt(
     modulus: Vec<u8>,
     lhs: Vec<ConstantOrWitness>,
     rhs: Vec<ConstantOrWitness>,
-) -> Vec<FieldElement> {
+) -> Result<Vec<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let initial_witness_vec: Vec<_> = lhs
         .iter()
         .chain(rhs.iter())
@@ -934,8 +996,8 @@ fn bigint_solve_binary_op_opt(
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
-    let lhs = constant_or_witness_to_function_inputs(lhs, 0, None);
-    let rhs = constant_or_witness_to_function_inputs(rhs, lhs.len(), None);
+    let lhs = constant_or_witness_to_function_inputs(lhs, 0, None)?;
+    let rhs = constant_or_witness_to_function_inputs(rhs, lhs.len(), None)?;
 
     let to_op_input = if middle_op.is_some() { 2 } else { 0 };
 
@@ -966,10 +1028,10 @@ fn bigint_solve_binary_op_opt(
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
-    output_witnesses
+    Ok(output_witnesses
         .iter()
         .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
-        .collect()
+        .collect())
 }
 
 // Solve the given BlackBoxFuncCall with witnesses: 1, 2 as x, y, resp.
@@ -978,10 +1040,13 @@ fn solve_blackbox_func_call(
     blackbox_func_call: impl Fn(
         Option<FieldElement>,
         Option<FieldElement>,
-    ) -> BlackBoxFuncCall<FieldElement>,
+    ) -> Result<
+        BlackBoxFuncCall<FieldElement>,
+        OpcodeResolutionError<FieldElement>,
+    >,
     lhs: (FieldElement, bool), // if false, use a Witness
     rhs: (FieldElement, bool), // if false, use a Witness
-) -> FieldElement {
+) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
     let (lhs, lhs_constant) = lhs;
     let (rhs, rhs_constant) = rhs;
 
@@ -998,7 +1063,7 @@ fn solve_blackbox_func_call(
         rhs_opt = Some(rhs);
     }
 
-    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt));
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt)?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm =
@@ -1007,130 +1072,79 @@ fn solve_blackbox_func_call(
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
 
-    witness_map[&Witness(3)]
-}
-
-// N inputs
-// 32 outputs
-fn sha256_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    BlackBoxFuncCall::SHA256 {
-        inputs: function_inputs,
-        outputs: outputs.try_into().expect("SHA256 returns 32 outputs"),
-    }
+    Ok(witness_map[&Witness(3)])
 }
 
 // N inputs
 // 32 outputs
 fn blake2s_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
-    BlackBoxFuncCall::Blake2s {
+    Ok(BlackBoxFuncCall::Blake2s {
         inputs: function_inputs,
         outputs: outputs.try_into().expect("Blake2s returns 32 outputs"),
-    }
+    })
 }
 
 // N inputs
 // 32 outputs
 fn blake3_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
-    BlackBoxFuncCall::Blake3 {
+    Ok(BlackBoxFuncCall::Blake3 {
         inputs: function_inputs,
         outputs: outputs.try_into().expect("Blake3 returns 32 outputs"),
-    }
-}
-
-// variable inputs
-// 32 outputs
-fn keccak256_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    let function_inputs_len = function_inputs.len();
-    BlackBoxFuncCall::Keccak256 {
-        inputs: function_inputs,
-        var_message_size: FunctionInput::constant(
-            function_inputs_len.into(),
-            FieldElement::max_num_bits(),
-        ),
-        outputs: outputs.try_into().expect("Keccak256 returns 32 outputs"),
-    }
-}
-
-// var_message_size is the number of bytes to take
-// from the input. Note: if `var_message_size`
-// is more than the number of bytes in the input,
-// then an error is returned.
-//
-// variable inputs
-// 32 outputs
-fn keccak256_invalid_message_size_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    let function_inputs_len = function_inputs.len();
-    BlackBoxFuncCall::Keccak256 {
-        inputs: function_inputs,
-        var_message_size: FunctionInput::constant(
-            (function_inputs_len - 1).into(),
-            FieldElement::max_num_bits(),
-        ),
-        outputs: outputs.try_into().expect("Keccak256 returns 32 outputs"),
-    }
+    })
 }
 
 // 25 inputs
 // 25 outputs
 fn keccakf1600_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
-    BlackBoxFuncCall::Keccakf1600 {
+    Ok(BlackBoxFuncCall::Keccakf1600 {
         inputs: function_inputs.try_into().expect("Keccakf1600 expects 25 inputs"),
         outputs: outputs.try_into().expect("Keccakf1600 returns 25 outputs"),
-    }
+    })
 }
 
 // N inputs
 // N outputs
 fn poseidon2_permutation_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (inputs, outputs) = function_inputs_and_outputs;
     let len = inputs.len() as u32;
-    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
+    Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
 }
 
 // N inputs
 // N outputs
 fn poseidon2_permutation_invalid_len_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (inputs, outputs) = function_inputs_and_outputs;
     let len = (inputs.len() as u32) + 1;
-    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
+    Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
 }
 
 // 24 inputs (16 + 8)
 // 8 outputs
 fn sha256_compression_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
     let mut function_inputs = function_inputs.into_iter();
     let inputs = core::array::from_fn(|_| function_inputs.next().unwrap());
     let hash_values = core::array::from_fn(|_| function_inputs.next().unwrap());
-    BlackBoxFuncCall::Sha256Compression {
+    Ok(BlackBoxFuncCall::Sha256Compression {
         inputs: Box::new(inputs),
         hash_values: Box::new(hash_values),
         outputs: outputs.try_into().unwrap(),
-    }
+    })
 }
 
 fn into_repr_vec<T>(fields: T) -> Vec<ark_bn254::Fr>
@@ -1150,13 +1164,13 @@ where
 
 fn run_both_poseidon2_permutations(
     inputs: Vec<ConstantOrWitness>,
-) -> (Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>) {
+) -> Result<(Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>), OpcodeResolutionError<FieldElement>> {
     let result = solve_array_input_blackbox_call(
         inputs.clone(),
         inputs.len(),
         None,
         poseidon2_permutation_op,
-    );
+    )?;
 
     let poseidon2_t = POSEIDON2_CONFIG.t as usize;
     let poseidon2_d = 5;
@@ -1179,7 +1193,7 @@ fn run_both_poseidon2_permutations(
 
     let expected_result =
         external_poseidon2.permutation(&into_repr_vec(drop_use_constant(&inputs)));
-    (into_repr_vec(result), expected_result)
+    Ok((into_repr_vec(result), expected_result))
 }
 
 // Using the given BigInt modulus, solve the following circuit:
@@ -1195,7 +1209,7 @@ fn bigint_solve_binary_op(
     lhs: Vec<ConstantOrWitness>,
     rhs: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
-    bigint_solve_binary_op_opt(Some(middle_op), modulus, lhs, rhs)
+    bigint_solve_binary_op_opt(Some(middle_op), modulus, lhs, rhs).unwrap()
 }
 
 // Using the given BigInt modulus, solve the following circuit:
@@ -1206,69 +1220,89 @@ fn bigint_solve_from_to_le_bytes(
     modulus: Vec<u8>,
     inputs: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
-    bigint_solve_binary_op_opt(None, modulus, inputs, vec![])
+    bigint_solve_binary_op_opt(None, modulus, inputs, vec![]).unwrap()
 }
 
 fn function_input_from_option(
     witness: Witness,
     opt_constant: Option<FieldElement>,
-) -> FunctionInput<FieldElement> {
+) -> Result<FunctionInput<FieldElement>, OpcodeResolutionError<FieldElement>> {
     opt_constant
-        .map(|constant| FunctionInput::constant(constant, FieldElement::max_num_bits()))
-        .unwrap_or(FunctionInput::witness(witness, FieldElement::max_num_bits()))
+        .map(|constant| {
+            FunctionInput::constant(constant, FieldElement::max_num_bits()).map_err(From::from)
+        })
+        .unwrap_or(Ok(FunctionInput::witness(witness, FieldElement::max_num_bits())))
 }
 
-fn and_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
-    let lhs = function_input_from_option(Witness(1), x);
-    let rhs = function_input_from_option(Witness(2), y);
-    BlackBoxFuncCall::AND { lhs, rhs, output: Witness(3) }
+fn and_op(
+    x: Option<FieldElement>,
+    y: Option<FieldElement>,
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
+    let lhs = function_input_from_option(Witness(1), x)?;
+    let rhs = function_input_from_option(Witness(2), y)?;
+    Ok(BlackBoxFuncCall::AND { lhs, rhs, output: Witness(3) })
 }
 
-fn xor_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
-    let lhs = function_input_from_option(Witness(1), x);
-    let rhs = function_input_from_option(Witness(2), y);
-    BlackBoxFuncCall::XOR { lhs, rhs, output: Witness(3) }
+fn xor_op(
+    x: Option<FieldElement>,
+    y: Option<FieldElement>,
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
+    let lhs = function_input_from_option(Witness(1), x)?;
+    let rhs = function_input_from_option(Witness(2), y)?;
+    Ok(BlackBoxFuncCall::XOR { lhs, rhs, output: Witness(3) })
 }
 
 fn prop_assert_commutative(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     x: (FieldElement, bool),
     y: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(&op, x, y), solve_blackbox_func_call(&op, y, x))
+    (solve_blackbox_func_call(&op, x, y).unwrap(), solve_blackbox_func_call(&op, y, x).unwrap())
 }
 
 fn prop_assert_associative(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     x: (FieldElement, bool),
     y: (FieldElement, bool),
     z: (FieldElement, bool),
     use_constant_xy: bool,
     use_constant_yz: bool,
 ) -> (FieldElement, FieldElement) {
-    let f_xy = (solve_blackbox_func_call(&op, x, y), use_constant_xy);
-    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z);
+    let f_xy = (solve_blackbox_func_call(&op, x, y).unwrap(), use_constant_xy);
+    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z).unwrap();
 
-    let f_yz = (solve_blackbox_func_call(&op, y, z), use_constant_yz);
-    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz);
+    let f_yz = (solve_blackbox_func_call(&op, y, z).unwrap(), use_constant_yz);
+    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz).unwrap();
 
     (f_f_xy_z, f_x_f_yz)
 }
 
 fn prop_assert_identity_l(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     op_identity: (FieldElement, bool),
     x: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(op, op_identity, x), x.0)
+    (solve_blackbox_func_call(op, op_identity, x).unwrap(), x.0)
 }
 
 fn prop_assert_zero_l(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     op_zero: (FieldElement, bool),
     x: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(op, op_zero, x), FieldElement::zero())
+    (solve_blackbox_func_call(op, op_zero, x).unwrap(), FieldElement::zero())
 }
 
 // Test that varying one of the inputs produces a different result
@@ -1282,14 +1316,19 @@ fn prop_assert_injective<F>(
     op: F,
 ) -> (bool, String)
 where
-    F: FnOnce((Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement>
+    F: FnOnce(
+            (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+        )
+            -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>
         + Clone,
 {
     let equal_inputs = drop_use_constant_eq(&inputs, &distinct_inputs);
     let message = format!("not injective:\n{:?}\n{:?}", &inputs, &distinct_inputs);
     let outputs_not_equal =
         solve_array_input_blackbox_call(inputs, num_outputs, num_bits, op.clone())
-            != solve_array_input_blackbox_call(distinct_inputs, num_outputs, num_bits, op);
+            .expect("injectivity test operations to have valid input")
+            != solve_array_input_blackbox_call(distinct_inputs, num_outputs, num_bits, op)
+                .expect("injectivity test operations to have valid input");
     (equal_inputs || outputs_not_equal, message)
 }
 
@@ -1322,12 +1361,12 @@ prop_compose! {
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>) {
         let (_size, patch_location, patch_value) = size_and_patch;
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let modulus = if let Some(max_input_bits) = max_input_bits {
+            1u128 << max_input_bits
+        } else {
+            1
+        };
         let to_input = |(x, use_constant)| {
-            let modulus = if let Some(max_input_bits) = max_input_bits {
-                2u128 << max_input_bits
-            } else {
-                1
-            };
             (FieldElement::from(x % modulus), use_constant)
         };
         let inputs: Vec<_> = inputs.into_iter().map(to_input).collect();
@@ -1338,9 +1377,11 @@ prop_compose! {
             let distinct_inputs_len = distinct_inputs.len();
             let positive_patch_value = std::cmp::max(patch_value, 1);
             if distinct_inputs_len != 0 {
-                distinct_inputs[patch_location % distinct_inputs_len].0 += FieldElement::from(positive_patch_value)
+                let previous_input = &mut distinct_inputs[patch_location % distinct_inputs_len].0;
+                let patched_input: BigUint = (*previous_input + FieldElement::from(positive_patch_value)).into_repr().into();
+                *previous_input = FieldElement::from_be_bytes_reduce(&(patched_input % BigUint::from(modulus)).to_bytes_be());
             } else {
-                distinct_inputs.push((FieldElement::zero(), true))
+                distinct_inputs.push((FieldElement::zero(), true));
             }
         }
 
@@ -1352,29 +1393,16 @@ prop_compose! {
 fn poseidon2_permutation_zeroes() {
     let use_constants: [bool; 4] = [false; 4];
     let inputs: Vec<_> = [FieldElement::zero(); 4].into_iter().zip(use_constants).collect();
-    let (result, expected_result) = run_both_poseidon2_permutations(inputs);
+    let (results, expected_results) = run_both_poseidon2_permutations(inputs).unwrap();
 
-    let internal_expected_result = vec![
+    let internal_expected_results = vec![
         field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
         field_from_hex("095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
         field_from_hex("0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
         field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
     ];
 
-    assert_eq!(expected_result, into_repr_vec(internal_expected_result));
-    assert_eq!(result, expected_result);
-}
-
-#[test]
-fn sha256_zeros() {
-    let results = solve_array_input_blackbox_call(vec![], 32, None, sha256_op);
-    let expected_results: Vec<_> = vec![
-        227, 176, 196, 66, 152, 252, 28, 20, 154, 251, 244, 200, 153, 111, 185, 36, 39, 174, 65,
-        228, 100, 155, 147, 76, 164, 149, 153, 27, 120, 82, 184, 85,
-    ]
-    .into_iter()
-    .map(|x: u128| FieldElement::from(x))
-    .collect();
+    assert_eq!(expected_results, into_repr_vec(internal_expected_results));
     assert_eq!(results, expected_results);
 }
 
@@ -1393,7 +1421,7 @@ fn sha256_compression_zeros() {
     .into_iter()
     .map(|x: u128| FieldElement::from(x))
     .collect();
-    assert_eq!(results, expected_results);
+    assert_eq!(results, Ok(expected_results));
 }
 
 #[test]
@@ -1406,7 +1434,7 @@ fn blake2s_zeros() {
     .into_iter()
     .map(|x: u128| FieldElement::from(x))
     .collect();
-    assert_eq!(results, expected_results);
+    assert_eq!(results, Ok(expected_results));
 }
 
 #[test]
@@ -1419,20 +1447,7 @@ fn blake3_zeros() {
     .into_iter()
     .map(|x: u128| FieldElement::from(x))
     .collect();
-    assert_eq!(results, expected_results);
-}
-
-#[test]
-fn keccak256_zeros() {
-    let results = solve_array_input_blackbox_call(vec![], 32, None, keccak256_op);
-    let expected_results: Vec<_> = vec![
-        197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83,
-        202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112,
-    ]
-    .into_iter()
-    .map(|x: u128| FieldElement::from(x))
-    .collect();
-    assert_eq!(results, expected_results);
+    assert_eq!(results, Ok(expected_results));
 }
 
 #[test]
@@ -1474,7 +1489,7 @@ fn keccakf1600_zeros() {
     .map(|x: u128| FieldElement::from(x))
     .collect();
 
-    assert_eq!(results, expected_results);
+    assert_eq!(results, Ok(expected_results));
 }
 
 // NOTE: an "average" bigint is large, so consider increasing the number of proptest shrinking
@@ -1511,13 +1526,13 @@ proptest! {
     // test that AND(x, x) == x
     #[test]
     fn and_self_identity(x in field_element()) {
-        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x), x.0);
+        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x).unwrap(), x.0);
     }
 
     // test that XOR(x, x) == 0
     #[test]
     fn xor_self_zero(x in field_element()) {
-        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x), FieldElement::zero());
+        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x).unwrap(), FieldElement::zero());
     }
 
     #[test]
@@ -1547,16 +1562,10 @@ proptest! {
 
     #[test]
     fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
-        let (result, expected_result) = run_both_poseidon2_permutations(inputs);
+        let (result, expected_result) = run_both_poseidon2_permutations(inputs).unwrap();
         prop_assert_eq!(result, expected_result)
     }
 
-    #[test]
-    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, sha256_op);
-        prop_assert!(result, "{}", message);
-    }
 
     #[test]
     fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {
@@ -1578,24 +1587,6 @@ proptest! {
     fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake3_op);
-        prop_assert!(result, "{}", message);
-    }
-
-    #[test]
-    fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(32), keccak256_op);
-        prop_assert!(result, "{}", message);
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/5689): doesn't fail with a user error
-    // The test failing with "not injective" demonstrates that it returns constant output instead
-    // of failing with a user error.
-    #[test]
-    #[should_panic(expected = "Test failed: not injective")]
-    fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(8), keccak256_invalid_message_size_op);
         prop_assert!(result, "{}", message);
     }
 

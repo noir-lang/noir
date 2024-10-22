@@ -35,7 +35,7 @@ use nargo::{
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
-    graph::{CrateId, CrateName},
+    graph::{CrateGraph, CrateId, CrateName},
     hir::{
         def_map::{parse_file, CrateDefMap},
         Context, FunctionNameMatch, ParsedFiles,
@@ -62,10 +62,12 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
+mod attribute_reference_finder;
 mod modules;
 mod notifications;
 mod requests;
 mod solver;
+mod trait_impl_method_stub_generator;
 mod types;
 mod utils;
 mod visibility;
@@ -91,13 +93,24 @@ pub struct LspState {
     open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
-    cached_definitions: HashMap<PathBuf, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    cached_def_maps: HashMap<PathBuf, BTreeMap<CrateId, CrateDefMap>>,
+    workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
+    package_cache: HashMap<PathBuf, PackageCacheData>,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+}
+
+struct WorkspaceCacheData {
+    file_manager: FileManager,
+}
+
+struct PackageCacheData {
+    crate_id: CrateId,
+    crate_graph: CrateGraph,
+    node_interner: NodeInterner,
+    def_maps: BTreeMap<CrateId, CrateDefMap>,
 }
 
 impl LspState {
@@ -111,12 +124,11 @@ impl LspState {
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
             cached_lenses: HashMap::new(),
-            cached_definitions: HashMap::new(),
-            open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
-            cached_def_maps: HashMap::new(),
+            workspace_cache: HashMap::new(),
+            package_cache: HashMap::new(),
+            open_documents_count: 0,
             options: Default::default(),
-
             files_with_errors: HashMap::new(),
         }
     }
@@ -255,12 +267,16 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
 
 pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     if let Some(toml_path) = find_file_manifest(file_path) {
-        return resolve_workspace_from_toml(
+        match resolve_workspace_from_toml(
             &toml_path,
             PackageSelection::All,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-        )
-        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
+        ) {
+            Ok(workspace) => return Ok(workspace),
+            Err(error) => {
+                eprintln!("Error while processing {:?}: {}", toml_path, error);
+            }
+        }
     }
 
     let Some(parent_folder) = file_path
@@ -273,14 +289,22 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
             file_path
         )));
     };
+
+    let crate_name = match CrateName::from_str(parent_folder) {
+        Ok(name) => name,
+        Err(error) => {
+            eprintln!("{}", error);
+            CrateName::from_str("root").unwrap()
+        }
+    };
+
     let assumed_package = Package {
         version: None,
         compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
         root_dir: PathBuf::from(parent_folder),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from(file_path),
-        name: CrateName::from_str(parent_folder)
-            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?,
+        name: crate_name,
         dependencies: BTreeMap::new(),
         expression_width: None,
     };
@@ -297,7 +321,11 @@ pub(crate) fn workspace_package_for_file<'a>(
     workspace: &'a Workspace,
     file_path: &Path,
 ) -> Option<&'a Package> {
-    workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+    if workspace.is_assumed {
+        workspace.members.first()
+    } else {
+        workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+    }
 }
 
 pub(crate) fn prepare_package<'file_manager, 'parsed_files>(

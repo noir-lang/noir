@@ -1,7 +1,7 @@
 // docs:start:underflow-example
 fn pop<let N: u32>(array: [Field; N]) -> [Field; N - 1] {
     let mut result: [Field; N - 1] = std::mem::zeroed();
-    for i in 0..N {
+    for i in 0..N - 1 {
         result[i] = array[i];
     }
     result

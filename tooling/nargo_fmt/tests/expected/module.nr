@@ -4,7 +4,7 @@
 mod a {
     mod b {
         struct Data {
-            a: Field
+            a: Field,
         }
     }
 
@@ -33,3 +33,7 @@ mod a {
         #![inner]
     }
 }
+
+pub(crate) mod one {}
+
+pub mod two {}

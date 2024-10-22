@@ -6,7 +6,6 @@ fn main(x: Field, y: pub Field) {
     // let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
     // let fmt_fmt_str = f"fmtstr: {fmt_str}, i: {x}";
     // println(fmt_fmt_str);
-
     // A `fmtstr` lets you easily perform string interpolation.
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
 
@@ -79,11 +78,13 @@ fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Fie
     string
 }
 
-fn string_with_generics<N, T>(string: fmtstr<N, T>) -> fmtstr<N, T> {
+fn string_with_generics<let N: u32, T>(string: fmtstr<N, T>) -> fmtstr<N, T> {
     string
 }
 
-fn string_with_partial_generics<N, T>(string: fmtstr<N, (Field, T)>) -> fmtstr<N, (Field, T)> {
+fn string_with_partial_generics<let N: u32, T>(
+    string: fmtstr<N, (Field, T)>,
+) -> fmtstr<N, (Field, T)> {
     string
 }
 
@@ -98,12 +99,10 @@ struct fooStruct {
 }
 
 fn regression_2903() {
-    let v : [str<1>; 1] = ["1"; 1];
+    let v: [str<1>; 1] = ["1"; 1];
     println(v); // will print [1]
-
     let a = v[0];
     println(a); // will print `1`
-
     let bytes = ["aaa", "bbb", "ccc"];
     println(bytes);
 }
@@ -121,7 +120,9 @@ fn regression_2906() {
     let label_five_vals = "12345";
     println(f"label_five_vals: {label_five_vals}");
 
-    println(f"array_five_vals: {array_five_vals}, label_five_vals: {label_five_vals}");
+    println(
+        f"array_five_vals: {array_five_vals}, label_five_vals: {label_five_vals}",
+    );
 }
 
 fn regression_4967() {
@@ -132,6 +133,8 @@ fn regression_4967() {
     println(slice_of_tuples);
 
     let slice_of_tuples_coerced: [(i32, u8)] = [(11, 22), (33, 44)];
-    println(f"slice_of_tuples: {slice_of_tuples_coerced}, sentinel: {sentinel}");
+    println(
+        f"slice_of_tuples: {slice_of_tuples_coerced}, sentinel: {sentinel}",
+    );
     println(slice_of_tuples_coerced);
 }
