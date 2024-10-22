@@ -179,12 +179,12 @@ fn verify_msg_block<let N: u32>(
 ) -> u32 {
     let mut msg_byte_ptr: u32 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
-    
+
     for k in msg_start..msg_end {
         if k < message_size {
             assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
-        } 
+        }
     }
 
     msg_byte_ptr
@@ -192,10 +192,7 @@ fn verify_msg_block<let N: u32>(
 
 // Verify the block we are compressing was appropriately padded with zeroes by `build_msg_block`.
 // This is only relevant for the last, potentially partially filled block.
-fn verify_msg_block_padding<let N: u32>(
-    msg_block: MSG_BLOCK,
-    msg_byte_ptr: u32,
-) {
+fn verify_msg_block_padding<let N: u32>(msg_block: MSG_BLOCK, msg_byte_ptr: u32) {
     // This variable is used to get around the compiler under-constrained check giving a warning.
     // We want to check against a constant zero, but if it does not come from the circuit inputs
     // or return values the compiler check will issue a warning.
@@ -205,7 +202,6 @@ fn verify_msg_block_padding<let N: u32>(
         assert_eq(msg_block[i], zero);
     }
 }
-
 
 // Zero out all bytes between the end of the message and where the length is appended,
 // then write the length into the last 8 bytes of the block.
