@@ -149,19 +149,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     };
 
     if !crate::runtime::is_unconstrained() {
-        for i in 0..MSG_SIZE_PTR {
-            let predicate = (i < msg_byte_ptr) as u8;
-            let expected_byte = predicate * last_block[i];
-            assert_eq(msg_block[i], expected_byte);
-        }
-
-        // We verify the message length was inserted correctly by reversing the byte decomposition.
-        let len = 8 * message_size;
-        let mut reconstructed_len: Field = 0;
-        for i in MSG_SIZE_PTR..BLOCK_SIZE {
-            reconstructed_len = 256 * reconstructed_len + msg_block[i] as Field;
-        }
-        assert_eq(reconstructed_len, len as Field);
+        verify_msg_len(msg_block, last_block, msg_byte_ptr, message_size);
     }
 
     hash_final_block(msg_block, h)
@@ -185,7 +173,11 @@ fn msg_u8_to_u32(msg: MSG_BLOCK) -> [u32; 16] {
 
 // Take `BLOCK_SIZE` number of bytes from `msg` starting at `msg_start`.
 // Returns the block and the length that has been copied rather than padded with zeroes.
-unconstrained fn build_msg_block<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> (MSG_BLOCK, u32) {
+unconstrained fn build_msg_block<let N: u32>(
+    msg: [u8; N], 
+    message_size: u32,
+    msg_start: u32
+) -> (MSG_BLOCK, u32) {
     let mut msg_block: MSG_BLOCK = [0; BLOCK_SIZE];
     // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
     let block_input = if msg_start + BLOCK_SIZE > message_size {
@@ -205,7 +197,7 @@ unconstrained fn build_msg_block<let N: u32>(msg: [u8; N], message_size: u32, ms
     (msg_block, block_input)
 }
 
-// Verify the block we are compressing was appropriately constructed
+// Verify the block we are compressing was appropriately constructed by `build_msg_block`.
 fn verify_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
@@ -250,7 +242,11 @@ unconstrained fn pad_msg_block(
 
 // Zero out all bytes between the end of the message and where the length is appended, 
 // then write the length into the last 8 bytes of the block.
-unconstrained fn attach_len_to_msg_block(mut msg_block: MSG_BLOCK, msg_byte_ptr: u32, message_size: u32) -> MSG_BLOCK {
+unconstrained fn attach_len_to_msg_block(
+    mut msg_block: MSG_BLOCK, 
+    msg_byte_ptr: u32, 
+    message_size: u32
+) -> MSG_BLOCK {
     // We assume that `msg_byte_ptr` is less than 57 because if not then it is reset to zero before calling this function.
     // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
 
@@ -264,6 +260,28 @@ unconstrained fn attach_len_to_msg_block(mut msg_block: MSG_BLOCK, msg_byte_ptr:
         msg_block[MSG_SIZE_PTR + i] = len_bytes[i];
     }
     msg_block
+}
+
+// Verify that the message length was correctly written by `attach_len_to_msg_block`. 
+fn verify_msg_len(
+    msg_block: MSG_BLOCK, 
+    last_block: MSG_BLOCK, 
+    msg_byte_ptr: u32, 
+    message_size: u32
+) {
+    for i in 0..MSG_SIZE_PTR {
+        let predicate = (i < msg_byte_ptr) as u8;
+        let expected_byte = predicate * last_block[i];
+        assert_eq(msg_block[i], expected_byte);
+    }
+
+    // We verify the message length was inserted correctly by reversing the byte decomposition.
+    let len = 8 * message_size;
+    let mut reconstructed_len: Field = 0;
+    for i in MSG_SIZE_PTR..BLOCK_SIZE {
+        reconstructed_len = 256 * reconstructed_len + msg_block[i] as Field;
+    }
+    assert_eq(reconstructed_len, len as Field);
 }
 
 // Perform the final compression, then transform the `STATE` into `HASH`.
