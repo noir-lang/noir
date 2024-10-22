@@ -1,5 +1,5 @@
 mod foo {
-    trait Trait {
+    pub trait Trait {
         fn me(self) -> Self;
     }
 

@@ -47,12 +47,29 @@ pub fn from_baz(x: [Field; crate::foo::MAGIC_NUMBER]) {}
 
 fn id< T   ,    let  I :  Field > ( x :  [ Field ;  I ] )  -> [Field; I ]  {  }
 
-fn id_two<T, 
+fn id_two<T,
 let   I :    Field >(x: [Field ;  I])  ->   [ Field; I] {}
 
 fn whitespace_before_generics <    T   >  (foo: T) {}
 
-fn more_whitespace_before_generics   <    
+fn more_whitespace_before_generics   <
 T   >  (foo: T) {}
 
 fn with_unconstrained(x: unconstrained fn() -> ()) {}
+
+pub ( crate ) fn one() {}
+
+unconstrained   pub   fn two() {}
+
+unconstrained   pub  comptime   fn two() {}
+
+/// Documented
+#[test] fn three() {}
+
+#[test(should_fail)]
+// comment
+fn four() {}
+
+#[test(should_fail_with = "oops")]
+fn five() {}
+

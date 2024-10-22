@@ -27,15 +27,13 @@ rayon.workspace = true
 jsonrpc.workspace = true
 rand.workspace = true
 serde.workspace = true
+walkdir = "2.5.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 noir_fuzzer.workspace = true
 proptest.workspace = true
 
 [dev-dependencies]
-# TODO: This dependency is used to generate unit tests for `get_all_paths_in_dir`
-# TODO: once that method is moved to nargo_cli, we can move this dependency to nargo_cli
-tempfile.workspace = true
 jsonrpc-http-server = "18.0"
 jsonrpc-core-client = "18.0"
 jsonrpc-derive = "18.0"

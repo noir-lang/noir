@@ -1,6 +1,5 @@
 fn main() {
-    comptime
-    {
+    comptime {
         let foo = quote { Foo }.as_type();
         quote {
             $foo::static()
@@ -8,7 +7,7 @@ fn main() {
     }
 }
 
-struct Foo {}
+pub struct Foo {}
 
 impl Foo {
     fn static() {}

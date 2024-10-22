@@ -6,8 +6,7 @@ trait Trait2 {
     fn tralala() -> Field;
 }
 
-struct Struct1 {
-}
+pub struct Struct1 {}
 
 impl Struct1 {
     fn tralala() -> Field {

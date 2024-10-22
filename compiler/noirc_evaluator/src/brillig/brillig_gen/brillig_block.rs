@@ -783,26 +783,9 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) {
-        // Convert the arguments to registers casting those to the types of the receiving function
-        let argument_registers: Vec<MemoryAddress> = arguments
-            .iter()
-            .map(|argument_id| self.convert_ssa_value(*argument_id, dfg).extract_register())
-            .collect();
-
-        let variables_to_save = self.variables.get_available_variables(self.function_context);
-
-        let saved_registers = self
-            .brillig_context
-            .codegen_pre_call_save_registers_prep_args(&argument_registers, &variables_to_save);
-
-        // Call instruction, which will interpret above registers 0..num args
-        self.brillig_context.add_external_call_instruction(func_id);
-
-        // Important: resolve after pre_call_save_registers_prep_args
-        // This ensures we don't save the results to registers unnecessarily.
-
-        // Allocate the registers for the variables where we are assigning the returns
-        let variables_assigned_to = vecmap(result_ids, |result_id| {
+        let argument_variables =
+            vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
+        let return_variables = vecmap(result_ids, |result_id| {
             self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
@@ -810,26 +793,7 @@ impl<'block> BrilligBlock<'block> {
                 dfg,
             )
         });
-
-        // Collect the registers that should have been returned
-        let returned_registers: Vec<MemoryAddress> = variables_assigned_to
-            .iter()
-            .map(|returned_variable| returned_variable.extract_register())
-            .collect();
-
-        assert!(
-            !saved_registers.iter().any(|x| returned_registers.contains(x)),
-            "should not save registers used as function results"
-        );
-
-        // puts the returns into the returned_registers and restores saved_registers
-        self.brillig_context
-            .codegen_post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
-
-        // Reset the register state to the one needed to hold the current available variables
-        let variables = self.variables.get_available_variables(self.function_context);
-        let registers = variables.into_iter().map(|variable| variable.extract_register()).collect();
-        self.brillig_context.set_allocated_registers(registers);
+        self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
     }
 
     fn validate_array_index(
@@ -1310,12 +1274,13 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
-        self.brillig_context.conditional_mov_instruction(
-            absolute_value.address,
-            result_is_negative.address,
-            twos_complement.address,
-            num.address,
-        );
+        self.brillig_context.codegen_branch(result_is_negative.address, |ctx, is_negative| {
+            if is_negative {
+                ctx.mov_instruction(absolute_value.address, twos_complement.address);
+            } else {
+                ctx.mov_instruction(absolute_value.address, num.address);
+            }
+        });
 
         self.brillig_context.deallocate_single_addr(zero);
         self.brillig_context.deallocate_single_addr(max_positive);

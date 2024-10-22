@@ -128,7 +128,7 @@ impl<'a> FunctionContext<'a> {
     ) {
         self.definitions.clear();
         if func.unconstrained || (force_brillig_runtime && func.inline_type != InlineType::Inline) {
-            self.builder.new_brillig_function(func.name.clone(), id);
+            self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }

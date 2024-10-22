@@ -23,7 +23,7 @@ use crate::node_interner::{
 use crate::ast::{
     ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, LetStatement, Literal, NoirFunction,
     NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -111,6 +111,7 @@ pub struct UnresolvedGlobal {
     pub module_id: LocalModuleId,
     pub global_id: GlobalId,
     pub stmt_def: LetStatement,
+    pub visibility: ItemVisibility,
 }
 
 pub struct ModuleAttribute {
@@ -231,9 +232,16 @@ impl From<ResolverError> for CompilationError {
         CompilationError::ResolverError(value)
     }
 }
+
 impl From<TypeCheckError> for CompilationError {
     fn from(value: TypeCheckError) -> Self {
         CompilationError::TypeError(value)
+    }
+}
+
+impl From<UnsupportedNumericGenericType> for CompilationError {
+    fn from(value: UnsupportedNumericGenericType) -> Self {
+        Self::ResolverError(value.into())
     }
 }
 
@@ -547,6 +555,7 @@ fn inject_prelude(
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
+            None,
             path,
             &mut context.def_interner.usage_tracker,
             &mut None,
@@ -564,6 +573,7 @@ fn inject_prelude(
                     ImportDirective {
                         visibility: ItemVisibility::Private,
                         module_id: crate_root,
+                        self_type_module_id: None,
                         path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,

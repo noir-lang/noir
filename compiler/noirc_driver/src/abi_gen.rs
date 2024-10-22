@@ -7,6 +7,7 @@ use noirc_abi::{
     Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
 };
 use noirc_frontend::ast::{Signedness, Visibility};
+use noirc_frontend::TypeBinding;
 use noirc_frontend::{
     hir::Context,
     hir_def::{
@@ -17,7 +18,6 @@ use noirc_frontend::{
     },
     node_interner::{FuncId, NodeInterner},
 };
-use noirc_frontend::{TypeBinding, TypeVariableKind};
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
@@ -72,13 +72,18 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
 
             AbiType::Integer { sign, width: (*bit_width).into() }
         }
-        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
-        | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
-            TypeBinding::Bound(typ) => abi_type_from_hir_type(context, typ),
-            TypeBinding::Unbound(_) => {
-                abi_type_from_hir_type(context, &Type::default_int_or_field_type())
+        Type::TypeVariable(binding) => {
+            if binding.is_integer() || binding.is_integer_or_field() {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(typ) => abi_type_from_hir_type(context, typ),
+                    TypeBinding::Unbound(_id, _kind) => {
+                        abi_type_from_hir_type(context, &Type::default_int_or_field_type())
+                    }
+                }
+            } else {
+                unreachable!("{typ} cannot be used in the abi")
             }
-        },
+        }
         Type::Bool => AbiType::Boolean,
         Type::String(size) => {
             let size = size
@@ -106,7 +111,6 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::TraitAsType(..)
-        | Type::TypeVariable(_, _)
         | Type::NamedGeneric(..)
         | Type::Forall(..)
         | Type::Quoted(_)
