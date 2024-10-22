@@ -16,6 +16,10 @@ type MSG_BLOCK = [u8; BLOCK_SIZE];
 // The hash is 32 bytes.
 type HASH = [u8; 32];
 
+// The state accumulates the blocks.
+// Its overall size is the same as the `HASH`.
+type STATE = [u32; 8];
+
 // Deprecated in favour of `sha256_var`
 // docs:start:sha256
 pub fn sha256<let N: u32>(input: [u8; N]) -> HASH
@@ -25,7 +29,7 @@ pub fn sha256<let N: u32>(input: [u8; N]) -> HASH
 }
 
 #[foreign(sha256_compression)]
-pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
+pub fn sha256_compression(_input: [u32; 16], _state: STATE) -> STATE {}
 
 // SHA-256 hash function
 #[no_predicates]
@@ -39,7 +43,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     let message_size = message_size as u32;
     let num_blocks = N / BLOCK_SIZE;
     let mut msg_block: MSG_BLOCK = [0; BLOCK_SIZE];
-    let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
+    let mut h: STATE = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
     let mut msg_byte_ptr = 0; // Pointer into msg_block
 
     for i in 0..num_blocks {
@@ -224,7 +228,9 @@ fn verify_msg_block<let N: u32>(
     msg_byte_ptr
 }
 
-
+// Pad the message block with zeroes _iff_ there is so much data in it that
+// we cannot append the size of the message at the end of the block. 
+// Otherwise leave it as it is
 unconstrained fn pad_msg_block(
     mut msg_block: MSG_BLOCK,
     mut msg_byte_ptr: u32
@@ -242,6 +248,8 @@ unconstrained fn pad_msg_block(
     }
 }
 
+// Zero out all bytes between the end of the message and where the length is appended, 
+// then write the length into the last 8 bytes of the block.
 unconstrained fn attach_len_to_msg_block(mut msg_block: MSG_BLOCK, msg_byte_ptr: u32, message_size: u32) -> MSG_BLOCK {
     // We assume that `msg_byte_ptr` is less than 57 because if not then it is reset to zero before calling this function.
     // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
@@ -258,7 +266,8 @@ unconstrained fn attach_len_to_msg_block(mut msg_block: MSG_BLOCK, msg_byte_ptr:
     msg_block
 }
 
-fn hash_final_block(msg_block: MSG_BLOCK, mut state: [u32; 8]) -> HASH {
+// Perform the final compression, then transform the `STATE` into `HASH`.
+fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
     let mut out_h: HASH = [0; 32]; // Digest as sequence of bytes
 
     // Hash final padded block
