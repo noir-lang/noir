@@ -9,7 +9,10 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{errors::ResolverError, import::GenericTypeInPath},
+        resolution::{
+            errors::ResolverError,
+            import::{GenericTypeInPath, GenericTypeInPathKind},
+        },
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -470,6 +473,25 @@ impl<'context> Elaborator<'context> {
         let span = variable.span;
         let (expr, generic_type_in_path) = self.resolve_variable(variable);
         let definition_id = expr.id;
+
+        if let Some(generic_type_in_path) = generic_type_in_path {
+            match generic_type_in_path.kind {
+                GenericTypeInPathKind::StructId(struct_id) => {
+                    let struct_type = self.interner.get_struct(struct_id);
+                    let struct_type = struct_type.borrow();
+                    let struct_generics = struct_type.instantiate(self.interner);
+                    let struct_generics = self.resolve_struct_turbofish_generics(
+                        &struct_type,
+                        struct_generics,
+                        Some(generic_type_in_path.generics),
+                        span,
+                    );
+                    dbg!(struct_generics);
+                }
+                GenericTypeInPathKind::TypeAliasId(type_alias_id) => todo!(),
+                GenericTypeInPathKind::TraitId(trait_id) => todo!(),
+            }
+        }
 
         // TODO: generic_type_in_path might be Some.
         // In that case, the variable looks like this:
