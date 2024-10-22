@@ -23,7 +23,6 @@ num-bigint = "0.4"
 blake2 = "0.10.6"
 blake3 = "1.5.0"
 sha2.workspace = true
-sha3.workspace = true
 keccak = "0.1.4"
 k256 = { version = "0.11.0", features = [
     "ecdsa",

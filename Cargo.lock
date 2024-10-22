@@ -71,7 +71,6 @@ dependencies = [
  "p256",
  "proptest",
  "sha2",
- "sha3",
  "thiserror",
 ]
 

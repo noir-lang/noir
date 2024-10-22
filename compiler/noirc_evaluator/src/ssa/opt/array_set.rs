@@ -34,7 +34,8 @@ impl Function {
             assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
         }
 
-        let mut context = Context::new(&self.dfg, matches!(self.runtime(), RuntimeType::Brillig));
+        let mut context =
+            Context::new(&self.dfg, matches!(self.runtime(), RuntimeType::Brillig(_)));
 
         for block in reachable_blocks.iter() {
             context.analyze_last_uses(*block);
@@ -180,6 +181,7 @@ mod tests {
     use std::sync::Arc;
 
     use im::vector;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -227,7 +229,7 @@ mod tests {
         //   }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 5);
         let zero = builder.field_constant(0u128);

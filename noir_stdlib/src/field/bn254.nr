@@ -70,8 +70,8 @@ fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
         let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
         let rhi = ahi - bhi - (borrow as Field);
 
-        rlo.assert_max_bit_size(128);
-        rhi.assert_max_bit_size(128);
+        rlo.assert_max_bit_size::<128>();
+        rhi.assert_max_bit_size::<128>();
     }
 }
 
@@ -85,8 +85,8 @@ pub fn decompose(x: Field) -> (Field, Field) {
             let (xlo, xhi) = decompose_hint(x);
 
             // Range check the limbs
-            xlo.assert_max_bit_size(128);
-            xhi.assert_max_bit_size(128);
+            xlo.assert_max_bit_size::<128>();
+            xhi.assert_max_bit_size::<128>();
 
             // Check that the decomposition is correct
             assert_eq(x, xlo + TWO_POW_128 * xhi);
