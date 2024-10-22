@@ -6,6 +6,9 @@ use crate::runtime::is_unconstrained;
 // A message block is 64 bytes.
 global BLOCK_SIZE = 64;
 
+// The first index in the block where the 8 byte message size will be written.
+global MSG_SIZE_PTR = 56;
+
 // A message block is a slice of the original message of a fixed size, 
 // potentially padded with zeroes.
 type MSG_BLOCK = [u8; BLOCK_SIZE];
@@ -150,7 +153,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     }
 
     // If we had modulo == 0 then it means the last block was full,
-    // and we can reset the pointer to zero to overwrite it from the start.
+    // and we can reset the pointer to zero to overwrite it.
     if msg_byte_ptr == BLOCK_SIZE {
         msg_byte_ptr = 0;
     }
@@ -182,15 +185,16 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
         // the 1 and 0s fill up the current block, which we then compress accordingly.
         // Not enough bits (64) to store length. Fill up with zeros.
-        for _i in 57..BLOCK_SIZE {
-            if msg_byte_ptr <= 63 & msg_byte_ptr >= 57 {
+        for _i in (MSG_SIZE_PTR + 1)..BLOCK_SIZE {
+            if msg_byte_ptr > MSG_SIZE_PTR & msg_byte_ptr < BLOCK_SIZE {
                 assert_eq(msg_block[msg_byte_ptr], zero);
                 msg_byte_ptr += 1;
             }
         }
     }
 
-    if msg_byte_ptr >= 57 {
+    // If we don't have room to write the size, compress the block and reset it.
+    if msg_byte_ptr > MSG_SIZE_PTR {
         h = sha256_compression(msg_u8_to_u32(msg_block), h);
 
         msg_byte_ptr = 0;
@@ -201,7 +205,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     };
 
     if !crate::runtime::is_unconstrained() {
-        for i in 0..56 {
+        for i in 0..MSG_SIZE_PTR {
             let predicate = (i < msg_byte_ptr) as u8;
             let expected_byte = predicate * last_block[i];
             assert_eq(msg_block[i], expected_byte);
@@ -210,7 +214,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         // We verify the message length was inserted correctly by reversing the byte decomposition.
         let len = 8 * message_size;
         let mut reconstructed_len: Field = 0;
-        for i in 56..BLOCK_SIZE {
+        for i in MSG_SIZE_PTR..BLOCK_SIZE {
             reconstructed_len = 256 * reconstructed_len + msg_block[i] as Field;
         }
         assert_eq(reconstructed_len, len as Field);
@@ -225,7 +229,7 @@ unconstrained fn pad_msg_block(
 ) -> (MSG_BLOCK, u32) {
     // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
     // the 1 and 0s fill up the current block, which we then compress accordingly.
-    if msg_byte_ptr >= 57 {
+    if msg_byte_ptr > MSG_SIZE_PTR {
         // Not enough bits (64) to store length. Fill up with zeros.
         for i in msg_byte_ptr..BLOCK_SIZE {
             msg_block[i] = 0;
@@ -240,14 +244,14 @@ unconstrained fn attach_len_to_msg_block(mut msg_block: MSG_BLOCK, msg_byte_ptr:
     // We assume that `msg_byte_ptr` is less than 57 because if not then it is reset to zero before calling this function.
     // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
 
-    for i in msg_byte_ptr..56 {
+    for i in msg_byte_ptr..MSG_SIZE_PTR {
         msg_block[i] = 0;
     }
 
     let len = 8 * message_size;
     let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
     for i in 0..8 {
-        msg_block[56 + i] = len_bytes[i];
+        msg_block[MSG_SIZE_PTR + i] = len_bytes[i];
     }
     msg_block
 }
