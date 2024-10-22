@@ -1112,7 +1112,7 @@ mod test {
         let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 1);
 
-        let inlined = ssa.inline_functions();
+        let inlined = ssa.inline_functions(i64::MAX);
         assert_eq!(inlined.functions.len(), 0);
     }
 
