@@ -474,46 +474,11 @@ impl<'context> Elaborator<'context> {
         let (expr, generic_type_in_path) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
-        // Solve any generics that are part of the path before the function, for example:
-        //
-        // foo::Bar::<i32>::baz
-        //           ^^^^^
-        //         solve these
-        let type_generics = if let Some(generic_type_in_path) = generic_type_in_path {
-            match generic_type_in_path.kind {
-                GenericTypeInPathKind::StructId(struct_id) => {
-                    let struct_type = self.interner.get_struct(struct_id);
-                    let struct_type = struct_type.borrow();
-                    let struct_generics = struct_type.instantiate(self.interner);
-                    self.resolve_struct_turbofish_generics(
-                        &struct_type,
-                        struct_generics,
-                        Some(generic_type_in_path.generics),
-                        span,
-                    )
-                }
-                GenericTypeInPathKind::TypeAliasId(_) => {
-                    // TODO: https://github.com/noir-lang/noir/issues/6311
-                    self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
-                    Vec::new()
-                }
-                GenericTypeInPathKind::TraitId(_trait_id) => {
-                    // TODO: https://github.com/noir-lang/noir/issues/6310
-                    self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
-                    Vec::new()
-                }
-            }
-        } else {
-            Vec::new()
-        };
-
-        // TODO: generic_type_in_path might be Some.
-        // In that case, the variable looks like this:
-        //
-        // foo::Bar::<i32>::baz
-        //
-        // That is, the type in the path before the function has some generics on it.
-        // How to handle this?
+        let type_generics = generic_type_in_path
+            .map(|generic_type_in_path| {
+                self.resolve_generic_type_in_path(generic_type_in_path, span)
+            })
+            .unwrap_or_default();
 
         let definition_kind =
             self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
@@ -548,6 +513,41 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_type(id, typ.clone());
 
         (id, typ)
+    }
+
+    /// Solve any generics that are part of the path before the function, for example:
+    ///
+    /// foo::Bar::<i32>::baz
+    ///           ^^^^^
+    ///         solve these
+    fn resolve_generic_type_in_path(
+        &mut self,
+        generic_type_in_path: GenericTypeInPath,
+        span: Span,
+    ) -> Vec<Type> {
+        match generic_type_in_path.kind {
+            GenericTypeInPathKind::StructId(struct_id) => {
+                let struct_type = self.interner.get_struct(struct_id);
+                let struct_type = struct_type.borrow();
+                let struct_generics = struct_type.instantiate(self.interner);
+                self.resolve_struct_turbofish_generics(
+                    &struct_type,
+                    struct_generics,
+                    Some(generic_type_in_path.generics),
+                    span,
+                )
+            }
+            GenericTypeInPathKind::TypeAliasId(_) => {
+                // TODO: https://github.com/noir-lang/noir/issues/6311
+                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
+                Vec::new()
+            }
+            GenericTypeInPathKind::TraitId(_trait_id) => {
+                // TODO: https://github.com/noir-lang/noir/issues/6310
+                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
+                Vec::new()
+            }
+        }
     }
 
     fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<GenericTypeInPath>) {
