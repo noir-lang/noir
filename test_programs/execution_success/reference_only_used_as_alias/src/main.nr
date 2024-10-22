@@ -13,11 +13,6 @@ impl EventInterface for ExampleEvent0 {
     }
 }
 
-struct ExampleEvent1 {
-    value2: u8,
-    value3: u8,
-}
-
 struct Context {
     a: u32,
     b: [u32; 3],
@@ -52,7 +47,7 @@ fn emit_with_keys<Event, let OB: u32>(
     context.emit_raw_log(randomness, log, log_hash);
 }
 
-pub fn encode_event_with_randomness<Event>(
+fn encode_event_with_randomness<Event>(
     context: &mut Context,
     randomness: Field
 ) -> fn[(&mut Context, Field)](Event) -> () where Event: EventInterface {
@@ -72,6 +67,7 @@ unconstrained fn func(input: u32) {
         **ref = 2;
     }
 
+    println(var);
     assert(var == 2);
     assert(**ref == 2);
 }
