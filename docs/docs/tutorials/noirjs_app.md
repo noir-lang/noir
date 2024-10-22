@@ -24,13 +24,13 @@ Before we start, we want to make sure we have Node, Nargo and the Barretenberg p
 
 We start by opening a terminal and executing `node --version`. If we don't get an output like `v20.10.0`, that means node is not installed. Let's do that by following the handy [nvm guide](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script).
 
-As for `Nargo`, we can follow the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
+As for `Nargo`, we can follow the [Nargo guide](../getting_started/quick_start.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
 
 ```sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 ```
 
-Follow the instructions on [this page](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg/cpp/src/barretenberg/bb#installation) to install `bb`. 
+Follow the instructions on [this page](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg/cpp/src/barretenberg/bb#installation) to install `bb`.
 Version 0.41.0 is compatible with `nargo` version 0.31.0, which you can install with `bbup -v 0.41.0` once `bbup` is installed.
 
 Easy enough. Onwards!
@@ -78,7 +78,7 @@ At this point in the tutorial, your folder structure should look like this:
 ### Node and Vite
 
 If you want to explore Nargo, feel free to go on a side-quest now and follow the steps in the
-[getting started](../getting_started/hello_noir/index.md) guide. However, we want our app to run on the browser, so we need Vite.
+[getting started](../getting_started/quick_start.md) guide. However, we want our app to run on the browser, so we need Vite.
 
 Vite is a powerful tool to generate static websites. While it provides all kinds of features, let's just go barebones with some good old vanilla JS.
 
@@ -350,13 +350,17 @@ You should also check out the more advanced examples in the [noir-examples repo]
 ## UltraHonk Backend
 
 Barretenberg has recently exposed a new UltraHonk backend. We can use UltraHonk in NoirJS after version 0.33.0. Everything will be the same as the tutorial above, except that the class we need to import will change:
+
 ```js
 import { UltraHonkBackend, UltraHonkVerifier as Verifier } from '@noir-lang/backend_barretenberg';
 ```
+
 The backend will then be instantiated as such:
+
 ```js
 const backend = new UltraHonkBackend(circuit);
 ```
+
 Then all the commands to prove and verify your circuit will be same.
 
 The only feature currently unsupported with UltraHonk are [recursive proofs](../explainers/explainer-recursion.md).

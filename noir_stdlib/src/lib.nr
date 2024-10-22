@@ -67,7 +67,9 @@ pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     key_hash: Field,
     proof_type: u32
 ) {
-    crate::assert_constant(proof_type);
+    if !crate::runtime::is_unconstrained() {
+        crate::assert_constant(proof_type);
+    }
     verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);
 }
 

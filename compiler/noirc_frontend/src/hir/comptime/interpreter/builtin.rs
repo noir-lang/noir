@@ -63,6 +63,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "as_slice" => as_slice(interner, arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
+            "derive_pedersen_generators" => {
+                derive_generators(interner, arguments, return_type, location)
+            }
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
             "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
             "expr_as_assert_eq" => expr_as_assert_eq(interner, arguments, return_type, location),
@@ -130,6 +133,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "function_def_set_return_public" => {
                 function_def_set_return_public(self, arguments, location)
+            }
+            "function_def_set_return_data" => {
+                function_def_set_return_data(self, arguments, location)
             }
             "function_def_set_unconstrained" => {
                 function_def_set_unconstrained(self, arguments, location)
@@ -2249,7 +2255,10 @@ fn function_def_add_attribute(
         }
     }
 
-    if let Attribute::Secondary(SecondaryAttribute::Tag(attribute)) = attribute {
+    if let Attribute::Secondary(
+        SecondaryAttribute::Tag(attribute) | SecondaryAttribute::Meta(attribute),
+    ) = attribute
+    {
         let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
         func_meta.custom_attributes.push(attribute);
     }
@@ -2522,6 +2531,23 @@ fn function_def_set_return_public(
     Ok(Value::Unit)
 }
 
+// fn set_return_data(self)
+fn function_def_set_return_data(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.return_visibility = Visibility::ReturnData;
+
+    Ok(Value::Unit)
+}
+
 // fn set_unconstrained(self, value: bool)
 fn function_def_set_unconstrained(
     interpreter: &mut Interpreter,
@@ -2769,4 +2795,57 @@ fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 
 fn ctstring_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     hash_item(arguments, location, get_ctstring)
+}
+
+fn derive_generators(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (domain_separator_string, starting_index) = check_two_arguments(arguments, location)?;
+
+    let domain_separator_location = domain_separator_string.1;
+    let (domain_separator_string, _) = get_array(interner, domain_separator_string)?;
+    let starting_index = get_u32(starting_index)?;
+
+    let domain_separator_string =
+        try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
+
+    let (size, elements) = match return_type.clone() {
+        Type::Array(size, elements) => (size, elements),
+        _ => panic!("ICE: Should only have an array return type"),
+    };
+
+    let Some(num_generators) = size.evaluate_to_u32() else {
+        return Err(InterpreterError::UnknownArrayLength { length: *size, location });
+    };
+
+    let generators = bn254_blackbox_solver::derive_generators(
+        &domain_separator_string,
+        num_generators,
+        starting_index,
+    );
+
+    let is_infinite = FieldElement::zero();
+    let x_field_name: Rc<String> = Rc::new("x".to_owned());
+    let y_field_name: Rc<String> = Rc::new("y".to_owned());
+    let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
+    let mut results = Vector::new();
+    for gen in generators {
+        let x_big: BigUint = gen.x.into();
+        let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
+        let y_big: BigUint = gen.y.into();
+        let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+        let mut embedded_curve_point_fields = HashMap::default();
+        embedded_curve_point_fields.insert(x_field_name.clone(), Value::Field(x));
+        embedded_curve_point_fields.insert(y_field_name.clone(), Value::Field(y));
+        embedded_curve_point_fields
+            .insert(is_infinite_field_name.clone(), Value::Field(is_infinite));
+        let embedded_curve_point_struct =
+            Value::Struct(embedded_curve_point_fields, *elements.clone());
+        results.push_back(embedded_curve_point_struct);
+    }
+
+    Ok(Value::Array(results, return_type))
 }

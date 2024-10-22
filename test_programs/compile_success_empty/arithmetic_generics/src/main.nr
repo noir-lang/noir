@@ -52,9 +52,9 @@ fn push_multiple<let N: u32>(array: [Field; N]) -> [Field; N + 2] {
 // The rest of this file is setup for demo_proof
 // *********************************************
 
-struct W<let N: u32> { }
+pub struct W<let N: u32> { }
 
-struct Equiv<T, TU, U, UT> {
+pub struct Equiv<T, TU, U, UT> {
     // TODO(https://github.com/noir-lang/noir/issues/5644):
     // Bug with struct_obj.field_thats_a_fn(x)
 
