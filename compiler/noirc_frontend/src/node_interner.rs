@@ -16,6 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
 };
+use crate::attribute_order::AttributeGraph;
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -273,6 +274,8 @@ pub struct NodeInterner {
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
+
+    pub(crate) attribute_order: AttributeGraph,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -292,7 +295,6 @@ pub enum DependencyId {
     Function(FuncId),
     Alias(TypeAliasId),
     Variable(Location),
-    Attribute(FuncId),
 }
 
 /// A reference to a module, struct, trait, etc., mainly used by the LSP code
@@ -680,6 +682,7 @@ impl Default for NodeInterner {
             trait_impl_associated_types: HashMap::default(),
             usage_tracker: UsageTracker::default(),
             doc_comments: HashMap::default(),
+            attribute_order: AttributeGraph::default(),
         }
     }
 }
@@ -2072,11 +2075,6 @@ impl NodeInterner {
                             push_error(alias.name.to_string(), &scc, i, alias.location);
                             break;
                         }
-                        DependencyId::Attribute(id) => {
-                            let name = self.function_name(&id).to_string();
-                            let location = self.function_meta(&id).location;
-                            push_error(name, &scc, i, location)
-                        }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
                         // Local variables should never be in a dependency cycle, scoping rules
@@ -2098,7 +2096,7 @@ impl NodeInterner {
     fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
         let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
             DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
-            DependencyId::Function(id) | DependencyId::Attribute(id) => Cow::Borrowed(self.function_name(&id)),
+            DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
                 Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
             }

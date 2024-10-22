@@ -11,6 +11,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 pub mod ast;
+pub mod attribute_order;
 pub mod debug;
 pub mod elaborator;
 pub mod graph;
