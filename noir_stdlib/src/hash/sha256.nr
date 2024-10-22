@@ -176,6 +176,9 @@ fn verify_msg_block<let N: u32>(
 ) -> u32 {
     let mut msg_byte_ptr: u32 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
+    if msg_end > N {
+        msg_end = N;
+    }
 
     for k in msg_start..msg_end {
         if k < message_size {
