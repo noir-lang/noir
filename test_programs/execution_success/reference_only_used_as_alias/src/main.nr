@@ -67,7 +67,6 @@ unconstrained fn func(input: u32) {
         **ref = 2;
     }
 
-    println(var);
     assert(var == 2);
     assert(**ref == 2);
 }
