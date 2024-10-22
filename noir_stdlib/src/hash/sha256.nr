@@ -33,66 +33,6 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> HASH {
     sha256_var(msg, N as u64)
 }
 
-// Convert 64-byte array to array of 16 u32s
-fn msg_u8_to_u32(msg: MSG_BLOCK) -> [u32; 16] {
-    let mut msg32: [u32; 16] = [0; 16];
-
-    for i in 0..16 {
-        let mut msg_field: Field = 0;
-        for j in 0..4 {
-            msg_field = msg_field * 256 + msg[64 - 4*(i + 1) + j] as Field;
-        }
-        msg32[15 - i] = msg_field as u32;
-    }
-
-    msg32
-}
-
-// Take `BLOCK_SIZE` number of bytes from `msg` starting at `msg_start`.
-// Returns the block and the length that has been copied rather than padded with zeroes.
-unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> (MSG_BLOCK, u32) {
-    let mut msg_block: MSG_BLOCK = [0; BLOCK_SIZE];
-    // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
-    let block_input = if msg_start + BLOCK_SIZE > message_size {
-        if message_size < msg_start {
-            // This function is sometimes called with `msg_start` past the end of the message.
-            // In this case we return an empty block and zero pointer to signal that the result should be ignored.
-            0
-        } else {
-            message_size - msg_start
-        }
-    } else {
-        BLOCK_SIZE
-    };
-    for k in 0..block_input {
-        msg_block[k] = msg[msg_start + k];
-    }
-    (msg_block, block_input)
-}
-
-// Verify the block we are compressing was appropriately constructed
-fn verify_msg_block<let N: u32>(
-    msg: [u8; N],
-    message_size: u32,
-    msg_block: MSG_BLOCK,
-    msg_start: u32
-) -> u32 {
-    let mut msg_byte_ptr: u32 = 0; // Message byte pointer
-    let mut msg_end = msg_start + BLOCK_SIZE;
-    if msg_end > N {
-        msg_end = N;
-    }
-
-    for k in msg_start..msg_end {
-        if k < message_size {
-            assert_eq(msg_block[msg_byte_ptr], msg[k]);
-            msg_byte_ptr = msg_byte_ptr + 1;
-        }
-    }
-
-    msg_byte_ptr
-}
-
 
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
@@ -105,7 +45,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     for i in 0..num_blocks {
         let msg_start = BLOCK_SIZE * i;
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, msg_start)
+            build_msg_block(msg, message_size, msg_start)
         };
         if msg_start < message_size {
             msg_block = new_msg_block;
@@ -135,7 +75,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     if modulo != 0 {
         let msg_start = BLOCK_SIZE * num_blocks;
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, msg_start)
+            build_msg_block(msg, message_size, msg_start)
         };
 
         if msg_start < message_size {
@@ -222,6 +162,68 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
 
     hash_final_block(msg_block, h)
 }
+
+
+// Convert 64-byte array to array of 16 u32s
+fn msg_u8_to_u32(msg: MSG_BLOCK) -> [u32; 16] {
+    let mut msg32: [u32; 16] = [0; 16];
+
+    for i in 0..16 {
+        let mut msg_field: Field = 0;
+        for j in 0..4 {
+            msg_field = msg_field * 256 + msg[64 - 4*(i + 1) + j] as Field;
+        }
+        msg32[15 - i] = msg_field as u32;
+    }
+
+    msg32
+}
+
+// Take `BLOCK_SIZE` number of bytes from `msg` starting at `msg_start`.
+// Returns the block and the length that has been copied rather than padded with zeroes.
+unconstrained fn build_msg_block<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> (MSG_BLOCK, u32) {
+    let mut msg_block: MSG_BLOCK = [0; BLOCK_SIZE];
+    // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
+    let block_input = if msg_start + BLOCK_SIZE > message_size {
+        if message_size < msg_start {
+            // This function is sometimes called with `msg_start` past the end of the message.
+            // In this case we return an empty block and zero pointer to signal that the result should be ignored.
+            0
+        } else {
+            message_size - msg_start
+        }
+    } else {
+        BLOCK_SIZE
+    };
+    for k in 0..block_input {
+        msg_block[k] = msg[msg_start + k];
+    }
+    (msg_block, block_input)
+}
+
+// Verify the block we are compressing was appropriately constructed
+fn verify_msg_block<let N: u32>(
+    msg: [u8; N],
+    message_size: u32,
+    msg_block: MSG_BLOCK,
+    msg_start: u32
+) -> u32 {
+    let mut msg_byte_ptr: u32 = 0; // Message byte pointer
+    let mut msg_end = msg_start + BLOCK_SIZE;
+    if msg_end > N {
+        msg_end = N;
+    }
+
+    for k in msg_start..msg_end {
+        if k < message_size {
+            assert_eq(msg_block[msg_byte_ptr], msg[k]);
+            msg_byte_ptr = msg_byte_ptr + 1;
+        }
+    }
+
+    msg_byte_ptr
+}
+
 
 unconstrained fn pad_msg_block(
     mut msg_block: MSG_BLOCK,
