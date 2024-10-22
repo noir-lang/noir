@@ -6,9 +6,16 @@ use crate::runtime::is_unconstrained;
 // A message block is 64 bytes.
 global BLOCK_SIZE = 64;
 
+// A message block is a slice of the original message of a fixed size, 
+// potentially padded with zeroes.
+type MSG_BLOCK = [u8; BLOCK_SIZE];
+
+// The hash is 32 bytes.
+type HASH = [u8; 32];
+
 // Deprecated in favour of `sha256_var`
 // docs:start:sha256
-pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
+pub fn sha256<let N: u32>(input: [u8; N]) -> HASH
 // docs:end:sha256
 {
     digest(input)
@@ -19,12 +26,12 @@ pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
 
 // SHA-256 hash function
 #[no_predicates]
-pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
+pub fn digest<let N: u32>(msg: [u8; N]) -> HASH {
     sha256_var(msg, N as u64)
 }
 
 // Convert 64-byte array to array of 16 u32s
-fn msg_u8_to_u32(msg: [u8; BLOCK_SIZE]) -> [u32; 16] {
+fn msg_u8_to_u32(msg: MSG_BLOCK) -> [u32; 16] {
     let mut msg32: [u32; 16] = [0; 16];
 
     for i in 0..16 {
@@ -38,8 +45,10 @@ fn msg_u8_to_u32(msg: [u8; BLOCK_SIZE]) -> [u32; 16] {
     msg32
 }
 
-unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> ([u8; BLOCK_SIZE], u32) {
-    let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
+// Take `BLOCK_SIZE` number of bytes from `msg` starting at `msg_start`.
+// Returns the block and the length that has been copied rather than padded with zeroes.
+unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> (MSG_BLOCK, u32) {
+    let mut msg_block: MSG_BLOCK = [0; BLOCK_SIZE];
     // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
     let block_input = if msg_start + BLOCK_SIZE > message_size {
         if message_size < msg_start {
@@ -62,7 +71,7 @@ unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u3
 fn verify_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
-    msg_block: [u8; BLOCK_SIZE],
+    msg_block: MSG_BLOCK,
     msg_start: u32
 ) -> u32 {
     let mut msg_byte_ptr: u32 = 0; // Message byte pointer
@@ -83,10 +92,10 @@ fn verify_msg_block<let N: u32>(
 
 
 // Variable size SHA-256 hash
-pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
+pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     let message_size = message_size as u32;
     let num_blocks = N / BLOCK_SIZE;
-    let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
+    let mut msg_block: MSG_BLOCK = [0; BLOCK_SIZE];
     let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
     let mut msg_byte_ptr = 0; // Pointer into msg_block
 
@@ -140,6 +149,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         }
     }
 
+    // If we had modulo == 0 then it means the last block was full,
+    // and we can reset the pointer to zero to overwrite it from the start.
     if msg_byte_ptr == BLOCK_SIZE {
         msg_byte_ptr = 0;
     }
@@ -199,7 +210,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         // We verify the message length was inserted correctly by reversing the byte decomposition.
         let len = 8 * message_size;
         let mut reconstructed_len: Field = 0;
-        for i in 56..64 {
+        for i in 56..BLOCK_SIZE {
             reconstructed_len = 256 * reconstructed_len + msg_block[i] as Field;
         }
         assert_eq(reconstructed_len, len as Field);
@@ -209,9 +220,9 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 }
 
 unconstrained fn pad_msg_block(
-    mut msg_block: [u8; BLOCK_SIZE],
+    mut msg_block: MSG_BLOCK,
     mut msg_byte_ptr: u32
-) -> ([u8; BLOCK_SIZE], u32) {
+) -> (MSG_BLOCK, u32) {
     // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
     // the 1 and 0s fill up the current block, which we then compress accordingly.
     if msg_byte_ptr >= 57 {
@@ -225,7 +236,7 @@ unconstrained fn pad_msg_block(
     }
 }
 
-unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; BLOCK_SIZE], msg_byte_ptr: u32, message_size: u32) -> [u8; BLOCK_SIZE] {
+unconstrained fn attach_len_to_msg_block(mut msg_block: MSG_BLOCK, msg_byte_ptr: u32, message_size: u32) -> MSG_BLOCK {
     // We assume that `msg_byte_ptr` is less than 57 because if not then it is reset to zero before calling this function.
     // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
 
@@ -241,8 +252,8 @@ unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; BLOCK_SIZE], msg_by
     msg_block
 }
 
-fn hash_final_block(msg_block: [u8; BLOCK_SIZE], mut state: [u32; 8]) -> [u8; 32] {
-    let mut out_h: [u8; 32] = [0; 32]; // Digest as sequence of bytes
+fn hash_final_block(msg_block: MSG_BLOCK, mut state: [u32; 8]) -> HASH {
+    let mut out_h: HASH = [0; 32]; // Digest as sequence of bytes
 
     // Hash final padded block
     state = sha256_compression(msg_u8_to_u32(msg_block), state);
