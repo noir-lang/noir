@@ -43,10 +43,10 @@ impl<T, let N: u32> [T; N] {
     /// assert_eq(b, [2, 4, 6]);
     /// ```
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U; N] {
-        let first_elem = f(self[0]);
-        let mut ret = [first_elem; N];
+        let uninitialized = crate::mem::zeroed();
+        let mut ret = [uninitialized; N];
 
-        for i in 1..self.len() {
+        for i in 0..self.len() {
             ret[i] = f(self[i]);
         }
 
@@ -79,6 +79,8 @@ impl<T, let N: u32> [T; N] {
     }
 
     /// Same as fold, but uses the first element as the starting element.
+    ///
+    /// Requires the input array to be non-empty.
     /// 
     /// Example:
     /// 
@@ -215,5 +217,12 @@ impl<let N: u32> From<str<N>> for [u8; N] {
     /// Returns an array of the string bytes.
     fn from(s: str<N>) -> Self {
         s.as_bytes()
+    }
+}
+
+mod test {
+    #[test]
+    fn map_empty() {
+        assert_eq([].map(|x| x + 1), []);
     }
 }
