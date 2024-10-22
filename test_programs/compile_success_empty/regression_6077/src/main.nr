@@ -1,4 +1,4 @@
-struct WeirdStruct<T, U> {
+pub struct WeirdStruct<T, U> {
     a: T,
     b: U,
 }
