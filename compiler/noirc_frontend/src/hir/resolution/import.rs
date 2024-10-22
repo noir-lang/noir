@@ -26,6 +26,7 @@ use super::visibility::can_reference_module_id;
 pub struct GenericTypeInPath {
     pub kind: GenericTypeInPathKind,
     pub generics: Vec<UnresolvedType>,
+    pub span: Span,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -362,6 +363,7 @@ fn resolve_name_in_module(
                     generic_type_in_path = Some(GenericTypeInPath {
                         kind: GenericTypeInPathKind::StructId(id),
                         generics: last_segment_generics.clone(),
+                        span: last_segment.turbofish_span(),
                     });
                 }
                 id.module_id()
@@ -375,6 +377,7 @@ fn resolve_name_in_module(
                     generic_type_in_path = Some(GenericTypeInPath {
                         kind: GenericTypeInPathKind::TraitId(id),
                         generics: last_segment_generics.clone(),
+                        span: last_segment.turbofish_span(),
                     });
                 }
                 id.0

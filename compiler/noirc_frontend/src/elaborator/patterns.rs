@@ -475,9 +475,7 @@ impl<'context> Elaborator<'context> {
         let definition_id = expr.id;
 
         let type_generics = generic_type_in_path
-            .map(|generic_type_in_path| {
-                self.resolve_generic_type_in_path(generic_type_in_path, span)
-            })
+            .map(|generic_type_in_path| self.resolve_generic_type_in_path(generic_type_in_path))
             .unwrap_or_default();
 
         let definition_kind =
@@ -523,8 +521,9 @@ impl<'context> Elaborator<'context> {
     fn resolve_generic_type_in_path(
         &mut self,
         generic_type_in_path: GenericTypeInPath,
-        span: Span,
     ) -> Vec<Type> {
+        let span = generic_type_in_path.span;
+
         match generic_type_in_path.kind {
             GenericTypeInPathKind::StructId(struct_id) => {
                 let struct_type = self.interner.get_struct(struct_id);
