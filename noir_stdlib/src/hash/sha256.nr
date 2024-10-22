@@ -3,6 +3,9 @@ use crate::runtime::is_unconstrained;
 // Implementation of SHA-256 mapping a byte array of variable length to
 // 32 bytes.
 
+// A message block is 64 bytes.
+global BLOCK_SIZE = 64;
+
 // Deprecated in favour of `sha256_var`
 // docs:start:sha256
 pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
@@ -21,7 +24,7 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
 }
 
 // Convert 64-byte array to array of 16 u32s
-fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
+fn msg_u8_to_u32(msg: [u8; BLOCK_SIZE]) -> [u32; 16] {
     let mut msg32: [u32; 16] = [0; 16];
 
     for i in 0..16 {
@@ -35,7 +38,7 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     msg32
 }
 
-unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> ([u8; 64], u32) {
+unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u32, msg_start: u32) -> ([u8; BLOCK_SIZE], u32) {
     let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
     // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
     let block_input = if msg_start + BLOCK_SIZE > message_size {
@@ -59,7 +62,7 @@ unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u3
 fn verify_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
-    msg_block: [u8; 64],
+    msg_block: [u8; BLOCK_SIZE],
     msg_start: u32
 ) -> u32 {
     let mut msg_byte_ptr: u32 = 0; // Message byte pointer
@@ -78,7 +81,6 @@ fn verify_msg_block<let N: u32>(
     msg_byte_ptr
 }
 
-global BLOCK_SIZE = 64;
 
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
@@ -207,7 +209,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 }
 
 unconstrained fn pad_msg_block(
-    mut msg_block: [u8; 64],
+    mut msg_block: [u8; BLOCK_SIZE],
     mut msg_byte_ptr: u32
 ) -> ([u8; BLOCK_SIZE], u32) {
     // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
