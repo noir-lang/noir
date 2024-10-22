@@ -20,7 +20,7 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace();
 
         // A case like `struct Foo;`
-        if self.token == Token::Semicolon {
+        if self.is_at(Token::Semicolon) {
             self.write_semicolon();
             return;
         }
@@ -57,12 +57,13 @@ impl<'a> Formatter<'a> {
 
             // Take the comment chunk so we can put it after a trailing comma we add, in case there's no comma
             let mut group = ChunkGroup::new();
-            let mut comments_and_whitespace_chunk = self.skip_comments_and_whitespace_chunk();
+            let mut comments_and_whitespace_chunk =
+                self.chunk_formatter().skip_comments_and_whitespace_chunk();
             comments_and_whitespace_chunk.string =
                 comments_and_whitespace_chunk.string.trim_end().to_string();
             group.text(comments_and_whitespace_chunk);
 
-            if self.token == Token::Comma {
+            if self.is_at(Token::Comma) {
                 self.bump();
             }
             self.write(",");

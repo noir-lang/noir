@@ -21,7 +21,7 @@ impl<'a> Formatter<'a> {
                 self.format_lvalue(*array);
                 self.write_left_bracket();
                 let mut group = ChunkGroup::new();
-                self.format_expression(index, &mut group);
+                self.chunk_formatter().format_expression(index, &mut group);
                 self.format_chunk_group(group);
                 self.write_right_bracket();
             }

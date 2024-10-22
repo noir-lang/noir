@@ -7,11 +7,9 @@ use noirc_frontend::{
     token::{Keyword, SecondaryAttribute, Token},
 };
 
-use crate::chunks::{ChunkGroup, GroupKind};
+use crate::chunks::{ChunkFormatter, ChunkGroup, GroupKind};
 
-use super::Formatter;
-
-impl<'a> Formatter<'a> {
+impl<'a, 'b> ChunkFormatter<'a, 'b> {
     pub(super) fn format_statement(
         &mut self,
         statement: Statement,
@@ -181,7 +179,7 @@ impl<'a> Formatter<'a> {
         group.text(self.chunk(|formatter| {
             formatter.format_lvalue(assign_statement.lvalue);
             formatter.write_space();
-            if formatter.token == Token::Assign {
+            if formatter.is_at(Token::Assign) {
                 formatter.write_token(Token::Assign);
             } else {
                 while formatter.token != Token::Assign {
@@ -252,7 +250,7 @@ impl<'a> Formatter<'a> {
         // If there's a trailing semicolon, remove it
         group.text(self.chunk(|formatter| {
             formatter.skip_whitespace_if_it_is_not_a_newline();
-            if formatter.token == Token::Semicolon {
+            if formatter.is_at(Token::Semicolon) {
                 formatter.bump();
             }
         }));

@@ -4,7 +4,7 @@ use noirc_frontend::{
 };
 
 use super::Formatter;
-use crate::chunks::ChunkGroup;
+use crate::chunks::{ChunkFormatter, ChunkGroup};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_global(
@@ -12,6 +12,18 @@ impl<'a> Formatter<'a> {
         let_statement: LetStatement,
         visibility: ItemVisibility,
     ) {
+        let group = self.chunk_formatter().format_global(let_statement, visibility);
+        self.write_indentation();
+        self.format_chunk_group(group);
+    }
+}
+
+impl<'a, 'b> ChunkFormatter<'a, 'b> {
+    pub(super) fn format_global(
+        &mut self,
+        let_statement: LetStatement,
+        visibility: ItemVisibility,
+    ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
             formatter.format_item_visibility(visibility);
@@ -52,8 +64,7 @@ impl<'a> Formatter<'a> {
             Vec::new(), // Attributes
         ));
 
-        self.write_indentation();
-        self.format_chunk_group(group);
+        group
     }
 }
 

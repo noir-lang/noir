@@ -11,7 +11,7 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace();
 
         // Special case: `&mut self` (this is reflected in the param type, not the pattern)
-        if self.token == Token::Ampersand {
+        if self.is_at(Token::Ampersand) {
             self.write_token(Token::Ampersand);
             self.write_keyword(Keyword::Mut);
             self.write_space();
@@ -38,7 +38,7 @@ impl<'a> Formatter<'a> {
 
                 // Check for trailing comma
                 self.skip_comments_and_whitespace();
-                if self.token == Token::Comma {
+                if self.is_at(Token::Comma) {
                     if patterns_len == 1 {
                         self.write_comma();
                     } else {
@@ -56,7 +56,7 @@ impl<'a> Formatter<'a> {
                     self.format_empty_block_contents();
                 } else {
                     let mut group = ChunkGroup::new();
-                    self.format_items_separated_by_comma(
+                    self.chunk_formatter().format_items_separated_by_comma(
                         fields,
                         false, // force trailing comma,
                         true,  // surround with spaces
@@ -68,7 +68,7 @@ impl<'a> Formatter<'a> {
                                 formatter.write_identifier(name);
                                 formatter.skip_comments_and_whitespace();
                             }));
-                            if formatter.token == Token::Colon {
+                            if formatter.is_at(Token::Colon) {
                                 let value_chunk = formatter.chunk(|formatter| {
                                     formatter.write_token(Token::Colon);
                                     formatter.write_space();

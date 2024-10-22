@@ -50,7 +50,7 @@ impl<'a> Formatter<'a> {
 
         // Skip trailing comma, if any
         self.skip_comments_and_whitespace();
-        if self.token == Token::Comma {
+        if self.is_at(Token::Comma) {
             self.bump();
         }
 

@@ -1,7 +1,5 @@
 use noirc_frontend::token::Token;
 
-use crate::chunks::TextChunk;
-
 use super::Formatter;
 
 #[cfg(windows)]
@@ -184,7 +182,7 @@ impl<'a> Formatter<'a> {
 
     /// Returns the number of newlines that come next, if we are at a whitespace
     /// token (otherwise returns 0).
-    pub(crate) fn following_newlines_count(&mut self) -> usize {
+    pub(crate) fn following_newlines_count(&self) -> usize {
         let Token::Whitespace(whitespace) = &self.token else {
             return 0;
         };
@@ -225,14 +223,6 @@ impl<'a> Formatter<'a> {
             self.write(NEWLINE);
             self.write(NEWLINE);
         }
-    }
-
-    /// Stops writing to the current buffer, skips comments and whitespaces (formatting them)
-    /// and returns the formatted result as a `TextChunk`.
-    pub(crate) fn skip_comments_and_whitespace_chunk(&mut self) -> TextChunk {
-        self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
-        })
     }
 
     /// Trim spaces from the end of the buffer.

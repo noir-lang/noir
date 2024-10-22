@@ -35,7 +35,7 @@ impl<'a> Formatter<'a> {
             self.format_trait_bound(constraint.trait_bound);
             self.skip_comments_and_whitespace();
 
-            if self.token == Token::Plus {
+            if self.is_at(Token::Plus) {
                 self.write_space();
                 self.write_token(Token::Plus);
                 self.write_space();
@@ -45,7 +45,7 @@ impl<'a> Formatter<'a> {
 
             write_type = true;
 
-            if self.token == Token::Comma {
+            if self.is_at(Token::Comma) {
                 if write_trailing_comma_and_new_line {
                     self.write_token(Token::Comma);
                 } else {

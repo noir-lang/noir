@@ -95,7 +95,7 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_function_modifiers(&mut self, visibility: ItemVisibility) {
         // For backwards compatibility, unconstrained might come before visibility.
         // We'll remember this but put it after the visibility.
-        let unconstrained = if self.token == Token::Keyword(Keyword::Unconstrained) {
+        let unconstrained = if self.is_at_keyword(Keyword::Unconstrained) {
             self.bump();
             self.skip_comments_and_whitespace();
             true
@@ -107,12 +107,12 @@ impl<'a> Formatter<'a> {
 
         if unconstrained {
             self.write("unconstrained ");
-        } else if self.token == Token::Keyword(Keyword::Unconstrained) {
+        } else if self.is_at_keyword(Keyword::Unconstrained) {
             self.write_keyword(Keyword::Unconstrained);
             self.write_space();
         }
 
-        if self.token == Token::Keyword(Keyword::Comptime) {
+        if self.is_at_keyword(Keyword::Comptime) {
             self.write_keyword(Keyword::Comptime);
             self.write_space();
         }
@@ -123,7 +123,7 @@ impl<'a> Formatter<'a> {
         parameters: Vec<Param>,
         group: &mut ChunkGroup,
     ) {
-        self.format_items_separated_by_comma(
+        self.chunk_formatter().format_items_separated_by_comma(
             parameters,
             false, // force trailing comma
             false, // surround with spaces
@@ -141,7 +141,7 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace();
 
         // There might not be a colon if the parameter is self
-        if self.token == Token::Colon {
+        if self.is_at(Token::Colon) {
             self.write_token(Token::Colon);
             self.write_space();
             self.format_visibility(param.visibility);
@@ -160,7 +160,9 @@ impl<'a> Formatter<'a> {
         semicolon: bool,
         mut group: ChunkGroup,
     ) {
-        group.text(self.chunk(|formatter| {
+        let mut chunk_formatter = self.chunk_formatter();
+
+        group.text(chunk_formatter.chunk(|formatter| {
             formatter.write_right_paren();
             formatter.format_function_return_type(return_type, visibility);
         }));
@@ -185,7 +187,7 @@ impl<'a> Formatter<'a> {
         //
         // For that, we take the comment chunk and depending on whether it has leading newlines
         // or if it even exists we take different paths.
-        let comment_chunk = self.skip_comments_and_whitespace_chunk();
+        let comment_chunk = chunk_formatter.skip_comments_and_whitespace_chunk();
         let comment_chunk = TextChunk::new(comment_chunk.string.trim_end().to_string());
 
         let comment_starts_with_newline = comment_chunk.string.trim_matches(' ').starts_with('\n');
@@ -218,14 +220,16 @@ impl<'a> Formatter<'a> {
 
         // If there's no where clause the left brace goes on the same line as the function signature
         if !has_where_clause {
-            group.text(self.chunk(Formatter::skip_stray_where_keyword));
+            group.text(chunk_formatter.chunk(|formatter| {
+                formatter.skip_stray_where_keyword();
+            }));
         }
 
         if !has_where_clause && !wrote_comment {
             if semicolon {
-                group.semicolon(self);
+                group.semicolon(&mut chunk_formatter);
             } else {
-                group.text(self.chunk(|formatter| {
+                group.text(chunk_formatter.chunk(|formatter| {
                     formatter.write_space();
                     formatter.write_left_brace();
                 }));
@@ -250,7 +254,7 @@ impl<'a> Formatter<'a> {
 
     fn skip_stray_where_keyword(&mut self) {
         // There might still be a where keyword that we'll remove
-        if self.token == Token::Keyword(Keyword::Where) {
+        if self.is_at_keyword(Keyword::Where) {
             self.bump();
             self.skip_comments_and_whitespace();
         }
@@ -278,7 +282,7 @@ impl<'a> Formatter<'a> {
             self.format_empty_block_contents();
         } else {
             let mut group = ChunkGroup::new();
-            self.format_non_empty_block_expression_contents(
+            self.chunk_formatter().format_non_empty_block_expression_contents(
                 body, true, // force multiple lines
                 &mut group,
             );

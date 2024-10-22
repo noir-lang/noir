@@ -3,24 +3,37 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
+use crate::chunks::{Chunk, ChunkFormatter, ChunkGroup};
+
 use super::Formatter;
-use crate::chunks::{Chunk, ChunkGroup};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_import(&mut self, use_tree: UseTree, visibility: ItemVisibility) {
-        let mut chunks = ChunkGroup::new();
+        let group = self.chunk_formatter().format_import(use_tree, visibility);
 
-        chunks.text(self.chunk(|formatter| {
+        self.write_indentation();
+        self.format_chunk_group(group);
+    }
+}
+
+impl<'a, 'b> ChunkFormatter<'a, 'b> {
+    pub(super) fn format_import(
+        &mut self,
+        use_tree: UseTree,
+        visibility: ItemVisibility,
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        group.text(self.chunk(|formatter| {
             formatter.format_item_visibility(visibility);
             formatter.write_keyword(Keyword::Use);
             formatter.write_space();
         }));
 
-        chunks.group(self.format_use_tree(use_tree));
-        chunks.semicolon(self);
+        group.group(self.format_use_tree(use_tree));
+        group.semicolon(self);
 
-        self.write_indentation();
-        self.format_chunk_group(chunks);
+        group
     }
 
     fn format_use_tree(&mut self, use_tree: UseTree) -> ChunkGroup {

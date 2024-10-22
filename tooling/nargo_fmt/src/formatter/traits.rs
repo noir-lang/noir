@@ -104,7 +104,7 @@ impl<'a> Formatter<'a> {
             }
             TraitItem::Constant { name, typ, default_value } => {
                 let pattern = Pattern::Identifier(name);
-                let chunks = self.format_let_or_global(
+                let chunks = self.chunk_formatter().format_let_or_global(
                     Keyword::Let,
                     pattern,
                     typ,

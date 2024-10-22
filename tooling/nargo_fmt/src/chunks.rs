@@ -6,6 +6,10 @@
 //! https://yorickpeterse.com/articles/how-to-write-a-code-formatter/
 //!
 //! However, some changes were introduces to handle comments and other particularities of Noir.
+use std::ops::Deref;
+
+use noirc_frontend::token::Token;
+
 use super::Formatter;
 
 /// A text chunk. It precomputes the text width and whether it has newlines.
@@ -211,7 +215,7 @@ impl ChunkGroup {
     }
 
     /// Appends a single space to this group by reading it from the given formatter.
-    pub(crate) fn space(&mut self, formatter: &mut Formatter<'_>) {
+    pub(crate) fn space(&mut self, formatter: &mut ChunkFormatter<'_, '_>) {
         self.text(formatter.chunk(|formatter| {
             formatter.write_space();
         }));
@@ -220,7 +224,7 @@ impl ChunkGroup {
     /// Appends a semicolon to this group by reading it from the given formatter.
     /// This will actually end up attaching the semicolon to the last text in this
     /// group so that we don't end up with stray semicolons.
-    pub(crate) fn semicolon(&mut self, formatter: &mut Formatter<'_>) {
+    pub(crate) fn semicolon(&mut self, formatter: &mut ChunkFormatter<'_, '_>) {
         self.text_attached_to_last_group(formatter.chunk(|formatter| {
             formatter.write_semicolon();
         }));
@@ -493,26 +497,65 @@ impl GroupKind {
     }
 }
 
-impl<'a> Formatter<'a> {
+/// Interface for creating TextChunks.
+pub(crate) struct ChunkFormatter<'a, 'b>(&'b mut Formatter<'a>);
+
+impl<'a, 'b> ChunkFormatter<'a, 'b> {
+    pub(crate) fn new(formatter: &'b mut Formatter<'a>) -> Self {
+        Self(formatter)
+    }
+
     /// Stops writing to the current buffer for the duration of the `f` call, which takes
     /// a formatter to write to. Then, returns a `TextChunk` with the written text.
     ///
     /// This allows a caller to format pieces of code and then pre-process them before
     /// writing to the main buffer.
-    pub(super) fn chunk<F>(&mut self, f: F) -> TextChunk
-    where
-        F: FnOnce(&mut Formatter<'a>),
-    {
-        let previous_buffer = std::mem::take(&mut self.buffer);
-        let previous_indentation = self.indentation;
-        self.indentation = 0;
+    pub(crate) fn chunk(&mut self, f: impl FnOnce(&mut Formatter)) -> TextChunk {
+        let previous_buffer = std::mem::take(&mut self.0.buffer);
+        let previous_indentation = self.0.indentation;
+        self.0.indentation = 0;
 
-        f(self);
+        f(self.0);
 
-        self.indentation = previous_indentation;
+        self.0.indentation = previous_indentation;
 
-        let buffer = std::mem::replace(&mut self.buffer, previous_buffer);
+        let buffer = std::mem::replace(&mut self.0.buffer, previous_buffer);
         TextChunk::new(buffer.contents())
+    }
+
+    /// Stops writing to the current buffer, skips comments and whitespaces (formatting them)
+    /// and returns the formatted result as a `TextChunk`.
+    pub(crate) fn skip_comments_and_whitespace_chunk(&mut self) -> TextChunk {
+        self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        })
+    }
+
+    pub(super) fn new_group_tag(&mut self) -> GroupTag {
+        self.0.new_group_tag()
+    }
+
+    pub(super) fn bump(&mut self) -> Token {
+        self.0.bump()
+    }
+}
+
+/// Treating a `ChunkFormatter` as a `Formatter` in read-only mode is always fine,
+/// and reduces some boilerplate.
+impl<'a, 'b> Deref for ChunkFormatter<'a, 'b> {
+    type Target = Formatter<'b>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<'a> Formatter<'a> {
+    /// Returns an object that has a `chunk` method to get a TextChunk.
+    /// This method exists so that we can't mix the two operation modes:
+    /// using the formatter directly while writing to the buffer, or creating text chunks.
+    pub(super) fn chunk_formatter(&mut self) -> ChunkFormatter<'a, '_> {
+        ChunkFormatter::new(self)
     }
 
     /// Main interface to format a chunk group.

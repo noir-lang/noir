@@ -279,6 +279,14 @@ impl<'a> Formatter<'a> {
         self.indentation = self.indentation_stack.pop().unwrap();
     }
 
+    pub(crate) fn is_at_keyword(&self, keyword: Keyword) -> bool {
+        self.is_at(Token::Keyword(keyword))
+    }
+
+    pub(crate) fn is_at(&self, token: Token) -> bool {
+        self.token == token
+    }
+
     /// Advances to the next token (the current token is not written).
     pub(crate) fn bump(&mut self) -> Token {
         self.ignore_next = false;

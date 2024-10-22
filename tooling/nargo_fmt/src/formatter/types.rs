@@ -64,7 +64,7 @@ impl<'a> Formatter<'a> {
 
                     // Apparently some Named types with generics have `::` before the generics
                     // while others don't, so we have to account for both cases.
-                    if self.token == Token::DoubleColon {
+                    if self.is_at(Token::DoubleColon) {
                         self.write_token(Token::DoubleColon);
                     }
                     self.format_generic_type_args(generic_type_args);
@@ -95,7 +95,7 @@ impl<'a> Formatter<'a> {
                 }
 
                 self.skip_comments_and_whitespace();
-                if self.token == Token::Comma {
+                if self.is_at(Token::Comma) {
                     if types_len == 1 {
                         self.write_comma();
                     } else {
@@ -114,7 +114,7 @@ impl<'a> Formatter<'a> {
                 self.write_keyword(Keyword::Fn);
                 self.skip_comments_and_whitespace();
 
-                if self.token == Token::LeftBracket {
+                if self.is_at(Token::LeftBracket) {
                     self.write_left_bracket();
                     self.format_type(*env);
                     self.write_right_bracket();
@@ -131,13 +131,13 @@ impl<'a> Formatter<'a> {
 
                 self.skip_comments_and_whitespace();
                 // Remove trailing comma if there's one
-                if self.token == Token::Comma {
+                if self.is_at(Token::Comma) {
                     self.bump();
                 }
 
                 self.write_right_paren();
                 self.skip_comments_and_whitespace();
-                if self.token == Token::Arrow {
+                if self.is_at(Token::Arrow) {
                     self.write_space();
                     self.write_token(Token::Arrow);
                     self.write_space();

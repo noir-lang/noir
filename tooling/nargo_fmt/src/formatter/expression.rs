@@ -8,7 +8,7 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
-use crate::chunks::{Chunk, ChunkGroup, GroupKind, GroupTag, TextChunk};
+use crate::chunks::{Chunk, ChunkFormatter, ChunkGroup, GroupKind, GroupTag, TextChunk};
 
 use super::Formatter;
 
@@ -18,7 +18,7 @@ struct FormattedLambda {
     first_line_width: usize,
 }
 
-impl<'a> Formatter<'a> {
+impl<'a, 'b> ChunkFormatter<'a, 'b> {
     pub(super) fn format_expression(&mut self, expression: Expression, group: &mut ChunkGroup) {
         group.leading_comment(self.skip_comments_and_whitespace_chunk());
 
@@ -110,7 +110,7 @@ impl<'a> Formatter<'a> {
                     formatter.bump();
                 })),
             Literal::Integer(..) => group.text(self.chunk(|formatter| {
-                if formatter.token == Token::Minus {
+                if formatter.is_at(Token::Minus) {
                     formatter.write_token(Token::Minus);
                     formatter.skip_comments_and_whitespace();
                 }
@@ -213,7 +213,7 @@ impl<'a> Formatter<'a> {
                 }
             }
             formatter.skip_comments_and_whitespace();
-            if formatter.token == Token::Comma {
+            if formatter.is_at(Token::Comma) {
                 formatter.bump();
             }
             formatter.write_token(Token::Pipe);
@@ -476,7 +476,7 @@ impl<'a> Formatter<'a> {
             formatter.skip_comments_and_whitespace();
 
             // Trailing comma
-            if formatter.token == Token::Comma {
+            if formatter.is_at(Token::Comma) {
                 formatter.bump();
                 formatter.skip_comments_and_whitespace();
             }
@@ -525,7 +525,7 @@ impl<'a> Formatter<'a> {
                         formatter.skip_comments_and_whitespace();
                     }));
 
-                    if formatter.token == Token::Colon {
+                    if formatter.is_at(Token::Colon) {
                         chunks.text(formatter.chunk(|formatter| {
                             formatter.write_token(Token::Colon);
                             formatter.write_space();
@@ -1108,12 +1108,6 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(super) fn format_empty_block_contents(&mut self) {
-        if let Some(chunks) = self.empty_block_contents_chunk() {
-            self.format_chunk_group(chunks);
-        }
-    }
-
     pub(super) fn empty_block_contents_chunk(&mut self) -> Option<ChunkGroup> {
         let mut group = ChunkGroup::new();
         group.increase_indentation();
@@ -1136,6 +1130,14 @@ impl<'a> Formatter<'a> {
                 group.decrease_indentation();
             }
             Some(group)
+        }
+    }
+}
+
+impl<'a> Formatter<'a> {
+    pub(super) fn format_empty_block_contents(&mut self) {
+        if let Some(chunks) = self.chunk_formatter().empty_block_contents_chunk() {
+            self.format_chunk_group(chunks);
         }
     }
 }

@@ -24,7 +24,7 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace();
 
         // Trailing comma
-        if self.token == Token::Comma {
+        if self.is_at(Token::Comma) {
             self.bump();
         }
 
@@ -86,7 +86,7 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace();
 
         // Don't include a trailing comma if there is one
-        if self.token == Token::Comma {
+        if self.is_at(Token::Comma) {
             self.bump();
             self.skip_comments_and_whitespace();
         }
