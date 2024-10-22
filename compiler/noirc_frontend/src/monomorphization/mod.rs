@@ -993,6 +993,15 @@ impl<'interner> Monomorphizer<'interner> {
                 binding.bind(HirType::default_int_or_field_type());
                 ast::Type::Field
             }
+            HirType::Txm(x, from, to) => {
+                // TODO new error
+                if from.unify(&to).is_err() {
+                    return Err(MonomorphizationError::CheckedTransmuteFailed { actual: *from.clone(), expected: *to.clone(), location });
+                } else {
+                    Self::convert_type(x, location)?
+                }
+
+            }
 
             HirType::TypeVariable(ref binding) => {
                 let type_var_kind = match &*binding.borrow() {
@@ -1100,6 +1109,17 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(())
                 }
             }
+            HirType::Txm(x, from, to) => {
+                // TODO new error
+                if from.unify(&to).is_err() {
+                    return Err(MonomorphizationError::CheckedTransmuteFailed { actual: *from.clone(), expected: *to.clone(), location });
+                } else {
+                    Self::check_type(x, location)
+                }
+
+            }
+
+
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),

@@ -49,7 +49,8 @@ impl Type {
                     return Self::sort_commutative(&lhs, op, &rhs);
                 }
 
-                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
+                let result = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                Type::Txm(Box::new(result.clone()), Box::new(self.clone()), Box::new(result))
             }
             other => other,
         }
