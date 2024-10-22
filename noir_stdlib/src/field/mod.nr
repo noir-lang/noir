@@ -51,9 +51,9 @@ impl Field {
 
     /// Decomposes `self` into its little endian byte decomposition as a `[u8;N]` array
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
-    /// 
+    ///
     /// # Failures
-    ///  The length N of the array must be big enough to contain all the bytes of the 'self', 
+    ///  The length N of the array must be big enough to contain all the bytes of the 'self',
     ///  and no more than the number of bytes required to represent the field modulus
     ///
     /// # Safety
@@ -66,7 +66,7 @@ impl Field {
 
         if !is_unconstrained() {
             // Ensure that the byte decomposition does not overflow the modulus
-            let  p = modulus_le_bytes();
+            let p = modulus_le_bytes();
             assert(bytes.len() <= p.len());
             let mut ok = bytes.len() != p.len();
             for i in 0..N {
@@ -84,9 +84,9 @@ impl Field {
 
     /// Decomposes `self` into its big endian byte decomposition as a `[u8;N]` array of length required to represent the field modulus
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
-    /// 
+    ///
     /// # Failures
-    ///  The length N of the array must be big enough to contain all the bytes of the 'self', 
+    ///  The length N of the array must be big enough to contain all the bytes of the 'self',
     ///  and no more than the number of bytes required to represent the field modulus
     ///
     /// # Safety
@@ -99,7 +99,7 @@ impl Field {
 
         if !is_unconstrained() {
             // Ensure that the byte decomposition does not overflow the modulus
-            let  p = modulus_be_bytes();
+            let p = modulus_be_bytes();
             assert(bytes.len() <= p.len());
             let mut ok = bytes.len() != p.len();
             for i in 0..N {
@@ -151,7 +151,7 @@ impl Field {
 
         for i in 1..33 {
             r *= r;
-            r = (b[32-i] as Field) * (r * self) + (1 - b[32-i] as Field) * r;
+            r = (b[32 - i] as Field) * (r * self) + (1 - b[32 - i] as Field) * r;
         }
         r
     }
@@ -189,7 +189,7 @@ impl Field {
         let mut result = 0;
 
         for i in 0..N {
-            result += (bytes[N-1-i] as Field) * v;
+            result += (bytes[N - 1 - i] as Field) * v;
             v = v * 256;
         }
         result

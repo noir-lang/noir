@@ -1,2 +1,1 @@
-pub trait MyTrait4 {
-}
+pub trait MyTrait4 {}

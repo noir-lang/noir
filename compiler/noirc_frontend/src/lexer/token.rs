@@ -377,7 +377,7 @@ impl fmt::Display for Token {
             }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
-            Token::InnerAttribute(ref a) => write!(f, "#![{a}]"),
+            Token::InnerAttribute(ref a) => write!(f, "#![{}]", a.contents()),
             Token::LineComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "//!{s}"),
                 Some(DocStyle::Outer) => write!(f, "///{s}"),
@@ -1010,25 +1010,29 @@ impl SecondaryAttribute {
     pub(crate) fn is_abi(&self) -> bool {
         matches!(self, SecondaryAttribute::Abi(_))
     }
+
+    pub(crate) fn contents(&self) -> String {
+        match self {
+            SecondaryAttribute::Deprecated(None) => "deprecated".to_string(),
+            SecondaryAttribute::Deprecated(Some(ref note)) => {
+                format!("deprecated({note:?})")
+            }
+            SecondaryAttribute::Tag(ref attribute) => format!("'{}", attribute.contents),
+            SecondaryAttribute::Meta(ref attribute) => attribute.contents.to_string(),
+            SecondaryAttribute::ContractLibraryMethod => "contract_library_method".to_string(),
+            SecondaryAttribute::Export => "export".to_string(),
+            SecondaryAttribute::Field(ref k) => format!("field({k})"),
+            SecondaryAttribute::Abi(ref k) => format!("abi({k})"),
+            SecondaryAttribute::Varargs => "varargs".to_string(),
+            SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
+            SecondaryAttribute::Allow(ref k) => format!("allow({k})"),
+        }
+    }
 }
 
 impl fmt::Display for SecondaryAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SecondaryAttribute::Deprecated(None) => write!(f, "#[deprecated]"),
-            SecondaryAttribute::Deprecated(Some(ref note)) => {
-                write!(f, r#"#[deprecated({note:?})]"#)
-            }
-            SecondaryAttribute::Tag(ref attribute) => write!(f, "#['{}]", attribute.contents),
-            SecondaryAttribute::Meta(ref attribute) => write!(f, "#[{}]", attribute.contents),
-            SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
-            SecondaryAttribute::Export => write!(f, "#[export]"),
-            SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
-            SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
-            SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
-            SecondaryAttribute::UseCallersScope => write!(f, "#[use_callers_scope]"),
-            SecondaryAttribute::Allow(ref k) => write!(f, "#[allow(#{k})]"),
-        }
+        write!(f, "#[{}]", self.contents())
     }
 }
 

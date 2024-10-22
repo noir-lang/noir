@@ -15,13 +15,13 @@ pub mod affine {
         pub a: Field,
         pub b: Field,
         // Generator as point in Cartesian coordinates
-        pub gen: Point
+        pub gen: Point,
     }
     // Point in Cartesian coordinates
     pub struct Point {
         pub x: Field,
         pub y: Field,
-        pub infty: bool // Indicator for point at infinity
+        pub infty: bool, // Indicator for point at infinity
     }
 
     impl Point {
@@ -37,7 +37,7 @@ pub mod affine {
 
         // Conversion to CurveGroup coordinates
         pub fn into_group(self) -> curvegroup::Point {
-            let Self {x, y, infty} = self;
+            let Self { x, y, infty } = self;
 
             if infty {
                 curvegroup::Point::zero()
@@ -53,15 +53,15 @@ pub mod affine {
 
         // Negation
         pub fn negate(self) -> Self {
-            let Self {x, y, infty} = self;
+            let Self { x, y, infty } = self;
             Self { x, y: 0 - y, infty }
         }
     }
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-            let Self {x: x1, y: y1, infty: inf1} = self;
-            let Self {x: x2, y: y2, infty: inf2} = p;
+            let Self { x: x1, y: y1, infty: inf1 } = self;
+            let Self { x: x2, y: y2, infty: inf2 } = p;
 
             (inf1 & inf2) | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
         }
@@ -83,14 +83,14 @@ pub mod affine {
 
         // Conversion to CurveGroup coordinates
         pub fn into_group(self) -> curvegroup::Curve {
-            let Curve{a, b, gen} = self;
+            let Curve { a, b, gen } = self;
 
             curvegroup::Curve { a, b, gen: gen.into_group() }
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Point {x, y, infty} = p;
+            let Point { x, y, infty } = p;
             infty | (y * y == x * x * x + self.a * x + self.b)
         }
 
@@ -106,8 +106,8 @@ pub mod affine {
             } else if p2.is_zero() {
                 p1.into_group()
             } else {
-                let Point {x: x1, y: y1, infty: _inf} = p1;
-                let curvegroup::Point {x: x2, y: y2, z: z2} = p2;
+                let Point { x: x1, y: y1, infty: _inf } = p1;
+                let curvegroup::Point { x: x2, y: y2, z: z2 } = p2;
                 let you1 = x1 * z2 * z2;
                 let you2 = x2;
                 let s1 = y1 * z2 * z2 * z2;
@@ -165,7 +165,7 @@ pub mod affine {
             // Check whether curve is admissible
             assert(self.a * self.b != 0);
 
-            let Curve {a, b, gen: _gen} = self;
+            let Curve { a, b, gen: _gen } = self;
 
             let tv1 = safe_inverse(z * z * u * u * u * u + u * u * z);
             let x1 = if tv1 == 0 {
@@ -176,7 +176,7 @@ pub mod affine {
             let gx1 = x1 * x1 * x1 + a * x1 + b;
             let x2 = z * u * u * x1;
             let gx2 = x2 * x2 * x2 + a * x2 + b;
-            let (x,y) = if is_square(gx1) {
+            let (x, y) = if is_square(gx1) {
                 (x1, sqrt(gx1))
             } else {
                 (x2, sqrt(gx2))
@@ -199,13 +199,13 @@ pub mod curvegroup {
         pub a: Field,
         pub b: Field,
         // Generator as point in Cartesian coordinates
-        pub gen: Point
+        pub gen: Point,
     }
     // Point in three-dimensional Jacobian coordinates
     pub struct Point {
         pub x: Field,
         pub y: Field,
-        pub z: Field // z = 0 corresponds to point at infinity.
+        pub z: Field, // z = 0 corresponds to point at infinity.
     }
 
     impl Point {
@@ -221,7 +221,7 @@ pub mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
-            let Self {x, y, z} = self;
+            let Self { x, y, z } = self;
 
             if z == 0 {
                 affine::Point::zero()
@@ -237,20 +237,23 @@ pub mod curvegroup {
 
         // Negation
         pub fn negate(self) -> Self {
-            let Self {x, y, z} = self;
+            let Self { x, y, z } = self;
             Self { x, y: 0 - y, z }
         }
     }
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-            let Self {x: x1, y: y1, z: z1} = self;
-            let Self {x: x2, y: y2, z: z2} = p;
+            let Self { x: x1, y: y1, z: z1 } = self;
+            let Self { x: x2, y: y2, z: z2 } = p;
 
-            ((z1 == 0) & (z2 == 0)) | ((z1 != 0)
-                    & (z2 != 0)
-                    & (x1 * z2 * z2 == x2 * z1 * z1)
-                    & (y1 * z2 * z2 * z2 == y2 * z1 * z1 * z1))
+            ((z1 == 0) & (z2 == 0))
+                | (
+                    (z1 != 0)
+                        & (z2 != 0)
+                        & (x1 * z2 * z2 == x2 * z1 * z1)
+                        & (y1 * z2 * z2 * z2 == y2 * z1 * z1 * z1)
+                )
         }
     }
 
@@ -270,14 +273,14 @@ pub mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Curve {
-            let Curve{a, b, gen} = self;
+            let Curve { a, b, gen } = self;
 
             affine::Curve { a, b, gen: gen.into_affine() }
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Point {x, y, z} = p;
+            let Point { x, y, z } = p;
             if z == 0 {
                 true
             } else {
@@ -292,8 +295,8 @@ pub mod curvegroup {
             } else if p2.is_zero() {
                 p1
             } else {
-                let Point {x: x1, y: y1, z: z1} = p1;
-                let Point {x: x2, y: y2, z: z2} = p2;
+                let Point { x: x1, y: y1, z: z1 } = p1;
+                let Point { x: x2, y: y2, z: z2 } = p2;
                 let you1 = x1 * z2 * z2;
                 let you2 = x2 * z1 * z1;
                 let s1 = y1 * z2 * z2 * z2;
@@ -319,7 +322,7 @@ pub mod curvegroup {
 
         // Point doubling
         pub fn double(self, p: Point) -> Point {
-            let Point {x, y, z} = p;
+            let Point { x, y, z } = p;
 
             if p.is_zero() {
                 p
@@ -344,7 +347,12 @@ pub mod curvegroup {
             for i in 0..N {
                 out = self.add(
                     self.add(out, out),
-                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
+                    if (bits[N - i - 1] == 0) {
+                        Point::zero()
+                    } else {
+                        p
+                    },
+                );
             }
 
             out
