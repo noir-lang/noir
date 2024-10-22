@@ -1,4 +1,4 @@
-struct WeirdStruct<T, U> {
+pub struct WeirdStruct<T, U> {
     a: T,
     b: U,
 }
@@ -19,7 +19,9 @@ comptime fn mangle_fn(f: FunctionDefinition) {
         {
             WeirdStruct { a: 1, b: [0;3] }
         }
-    }.as_expr().unwrap();
+    }
+        .as_expr()
+        .unwrap();
 
     f.set_return_type(new_return_type);
     f.set_body(new_body);

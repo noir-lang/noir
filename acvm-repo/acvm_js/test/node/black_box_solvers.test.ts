@@ -4,7 +4,6 @@ import {
   blake2s256,
   ecdsa_secp256k1_verify,
   ecdsa_secp256r1_verify,
-  keccak256,
   sha256_compression,
   xor,
 } from '@noir-lang/acvm_js';
@@ -46,28 +45,6 @@ it('successfully calculates the blake2s256 hash', async () => {
     hash.forEach((value, index) => expect(value).to.be.eq(expectedResult.at(index)));
   }
 });
-
-it('successfully calculates the keccak256 hash', async () => {
-  const { keccak256_test_cases } = await import('../shared/black_box_solvers');
-
-  for (const testCase of keccak256_test_cases) {
-    const [preimage, expectedResult] = testCase;
-    const hash = keccak256(preimage);
-    hash.forEach((value, index) => expect(value).to.be.eq(expectedResult.at(index)));
-  }
-});
-
-// it("successfully calculates the hash_to_field_128_security field", async () => {
-//   const { hash_to_field_128_security_test_cases } = await import(
-//     "../shared/black_box_solvers"
-//   );
-
-//   for (const testCase of hash_to_field_128_security_test_cases) {
-//     const [preimage, expectedResult] = testCase;
-//     const hashField = hash_to_field_128_security(preimage);
-//     expect(hashField).to.be.eq(expectedResult);
-//   }
-// });
 
 it('successfully verifies secp256k1 ECDSA signatures', async () => {
   const { ecdsa_secp256k1_test_cases } = await import('../shared/black_box_solvers');

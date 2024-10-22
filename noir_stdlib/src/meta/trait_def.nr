@@ -3,7 +3,7 @@ use crate::cmp::Eq;
 
 impl TraitDefinition {
     #[builtin(trait_def_as_trait_constraint)]
-// docs:start:as_trait_constraint
+    // docs:start:as_trait_constraint
     pub comptime fn as_trait_constraint(_self: Self) -> TraitConstraint {}
     // docs:end:as_trait_constraint
 }
@@ -15,7 +15,10 @@ impl Eq for TraitDefinition {
 }
 
 impl Hash for TraitDefinition {
-    comptime fn hash<H>(self, state: &mut H) where H: Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
         state.write(trait_def_hash(self));
     }
 }

@@ -1,9 +1,18 @@
 use std::meta::type_of;
 
-struct Foo { x: Field, field: Field }
+pub struct Foo {
+    x: Field,
+    field: Field,
+}
 
 #[function_attr]
-pub fn foo(w: i32, y: Field, Foo { x, field: some_field }: Foo, mut a: bool, (b, c): (i32, i32)) -> i32 {
+pub fn foo(
+    w: i32,
+    y: Field,
+    Foo { x, field: some_field }: Foo,
+    mut a: bool,
+    (b, c): (i32, i32),
+) -> i32 {
     let _ = (w, y, x, some_field, a, b, c);
     1
 }

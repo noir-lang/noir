@@ -162,6 +162,7 @@ mod tests {
     use std::vec;
 
     use acvm::FieldElement;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
@@ -182,7 +183,7 @@ mod tests {
 
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let ssa = builder.finish();
         let mut brillig_context = create_context(ssa.main_id);

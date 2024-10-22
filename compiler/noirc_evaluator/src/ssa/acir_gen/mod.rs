@@ -377,7 +377,7 @@ impl<'a> Context<'a> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
-                    InlineType::Inline => {
+                    InlineType::Inline | InlineType::InlineAlways => {
                         if function.id() != ssa.main_id {
                             panic!("ACIR function should have been inlined earlier if not marked otherwise");
                         }
@@ -390,7 +390,7 @@ impl<'a> Context<'a> {
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
                 Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
             }
-            RuntimeType::Brillig => {
+            RuntimeType::Brillig(_) => {
                 if function.id() == ssa.main_id {
                     Ok(Some(self.convert_brillig_main(function, brillig)?))
                 } else {
@@ -816,7 +816,7 @@ impl<'a> Context<'a> {
 
                                 self.handle_ssa_call_outputs(result_ids, output_values, dfg)?;
                             }
-                            RuntimeType::Brillig => {
+                            RuntimeType::Brillig(_) => {
                                 // Check that we are not attempting to return a slice from
                                 // an unconstrained runtime to a constrained runtime
                                 for result_id in result_ids {
@@ -1303,6 +1303,29 @@ impl<'a> Context<'a> {
         }
     }
 
+    /// Returns the acir value at the provided databus offset
+    fn get_from_call_data(
+        &mut self,
+        offset: &mut AcirVar,
+        call_data_block: BlockId,
+        typ: &Type,
+    ) -> Result<AcirValue, RuntimeError> {
+        match typ {
+            Type::Numeric(_) => self.array_get_value(&Type::field(), call_data_block, offset),
+            Type::Array(arc, len) => {
+                let mut result = Vector::new();
+                for _i in 0..*len {
+                    for sub_type in arc.iter() {
+                        let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
+                        result.push_back(element);
+                    }
+                }
+                Ok(AcirValue::Array(result))
+            }
+            _ => unimplemented!("Unsupported type in databus"),
+        }
+    }
+
     /// Generates a read opcode for the array
     /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array
     fn array_get(
@@ -1316,27 +1339,19 @@ impl<'a> Context<'a> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        if let Some(call_data) =
-            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array))
-        {
-            let type_size = res_typ.flattened_size();
-            let type_size = self.acir_context.add_constant(FieldElement::from(type_size as i128));
-            let offset = self.acir_context.mul_var(var_index, type_size)?;
+        let call_data =
+            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
+        if let Some(call_data) = call_data {
+            let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
                 .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
-            let new_index = self.acir_context.add_var(offset, bus_index)?;
-            return self.array_get(
-                instruction,
-                call_data.array_id,
-                new_index,
-                dfg,
-                index_side_effect,
-            );
+            let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
+            let result = self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
+            self.define_result(dfg, instruction, result.clone());
+            return Ok(result);
         }
-
         // Compiler sanity check
         assert!(
             !res_typ.contains_slice_element(),
@@ -2924,8 +2939,8 @@ mod test {
     fn build_basic_foo_with_return(
         builder: &mut FunctionBuilder,
         foo_id: FunctionId,
-        // `InlineType` can only exist on ACIR functions, so if the option is `None` we should generate a Brillig function
-        inline_type: Option<InlineType>,
+        brillig: bool,
+        inline_type: InlineType,
     ) {
         // fn foo f1 {
         // b0(v0: Field, v1: Field):
@@ -2933,10 +2948,10 @@ mod test {
         //     constrain v2 == u1 0
         //     return v0
         // }
-        if let Some(inline_type) = inline_type {
-            builder.new_function("foo".into(), foo_id, inline_type);
+        if brillig {
+            builder.new_brillig_function("foo".into(), foo_id, inline_type);
         } else {
-            builder.new_brillig_function("foo".into(), foo_id);
+            builder.new_function("foo".into(), foo_id, inline_type);
         }
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         builder.set_call_stack(vector![Location::dummy(), Location::dummy()]);
@@ -3000,7 +3015,7 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
+        build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
         let ssa = builder.finish();
 
@@ -3105,7 +3120,7 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
+        build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
         let ssa = builder.finish();
 
@@ -3205,7 +3220,7 @@ mod test {
             .to_vec();
         builder.terminate_with_return(vec![foo_call[0]]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
+        build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
         let ssa = builder.finish();
 
@@ -3327,8 +3342,8 @@ mod test {
         builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, None);
-        build_basic_foo_with_return(&mut builder, bar_id, None);
+        build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
+        build_basic_foo_with_return(&mut builder, bar_id, true, InlineType::default());
 
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
@@ -3464,7 +3479,7 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, None);
+        build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
@@ -3550,9 +3565,9 @@ mod test {
         builder.terminate_with_return(vec![]);
 
         // Build a Brillig function
-        build_basic_foo_with_return(&mut builder, foo_id, None);
+        build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
         // Build an ACIR function which has the same logic as the Brillig function above
-        build_basic_foo_with_return(&mut builder, bar_id, Some(InlineType::Fold));
+        build_basic_foo_with_return(&mut builder, bar_id, false, InlineType::Fold);
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.

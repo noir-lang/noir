@@ -24,10 +24,12 @@ use noirc_frontend::{
         UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
-    hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+    hir::{
+        def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+        resolution::visibility::{method_call_is_visible, struct_member_is_visible},
+    },
     hir_def::traits::Trait,
-    node_interner::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId, StructId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{CustomAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
@@ -202,14 +204,14 @@ impl<'a> NodeFinder<'a> {
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
-            fields.retain(|(_, (name, _))| name != &used_name.0.contents);
+            fields.retain(|(_, field)| field.name.0.contents != used_name.0.contents);
         }
 
         let self_prefix = false;
-        for (field_index, (field, typ)) in &fields {
+        for (field_index, field) in &fields {
             self.completion_items.push(self.struct_field_completion_item(
-                field,
-                typ,
+                &field.name.0.contents,
+                &field.typ,
                 struct_type.id,
                 *field_index,
                 self_prefix,
@@ -629,6 +631,9 @@ impl<'a> NodeFinder<'a> {
             return;
         };
 
+        let struct_id = get_type_struct_id(typ);
+        let is_primitive = typ.is_primitive();
+
         for (name, methods) in methods_by_name {
             for (func_id, method_type) in methods.iter() {
                 if function_kind == FunctionKind::Any {
@@ -637,6 +642,31 @@ impl<'a> NodeFinder<'a> {
                             continue;
                         }
                     }
+                }
+
+                if let Some(struct_id) = struct_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !struct_member_is_visible(
+                        struct_id,
+                        visibility,
+                        self.module_id,
+                        self.def_maps,
+                    ) {
+                        continue;
+                    }
+                }
+
+                if is_primitive
+                    && !method_call_is_visible(
+                        typ,
+                        func_id,
+                        self.module_id,
+                        self.interner,
+                        self.def_maps,
+                    )
+                {
+                    continue;
                 }
 
                 if name_matches(name, prefix) {
@@ -691,16 +721,25 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, typ)) in struct_type.get_fields(generics).iter().enumerate() {
-            if name_matches(name, prefix) {
-                self.completion_items.push(self.struct_field_completion_item(
-                    name,
-                    typ,
-                    struct_type.id,
-                    field_index,
-                    self_prefix,
-                ));
+        for (field_index, (name, visibility, typ)) in
+            struct_type.get_fields_with_visibility(generics).iter().enumerate()
+        {
+            if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
+            {
+                continue;
             }
+
+            if !name_matches(name, prefix) {
+                continue;
+            }
+
+            self.completion_items.push(self.struct_field_completion_item(
+                name,
+                typ,
+                struct_type.id,
+                field_index,
+                self_prefix,
+            ));
         }
     }
 
@@ -1686,6 +1725,18 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             } else {
                 None
             }
+        }
+        _ => None,
+    }
+}
+
+fn get_type_struct_id(typ: &Type) -> Option<StructId> {
+    match typ {
+        Type::Struct(struct_type, _) => Some(struct_type.borrow().id),
+        Type::Alias(type_alias, generics) => {
+            let type_alias = type_alias.borrow();
+            let typ = type_alias.get_type(generics);
+            get_type_struct_id(&typ)
         }
         _ => None,
     }
