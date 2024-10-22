@@ -492,8 +492,16 @@ impl<'context> Elaborator<'context> {
                         span,
                     )
                 }
-                GenericTypeInPathKind::TypeAliasId(type_alias_id) => todo!(),
-                GenericTypeInPathKind::TraitId(trait_id) => todo!(),
+                GenericTypeInPathKind::TypeAliasId(_) => {
+                    // TODO: https://github.com/noir-lang/noir/issues/6311
+                    self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
+                    Vec::new()
+                }
+                GenericTypeInPathKind::TraitId(_trait_id) => {
+                    // TODO: https://github.com/noir-lang/noir/issues/6310
+                    self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
+                    Vec::new()
+                }
             }
         } else {
             Vec::new()
