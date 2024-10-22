@@ -623,11 +623,7 @@ impl Instruction {
                 }
             }
             Instruction::ArrayGet { array, index } => {
-                if let Some(index) = dfg.get_numeric_constant(*index) {
-                    try_optimize_array_get_from_previous_set(dfg, *array, index)
-                } else {
-                    None
-                }
+                try_optimize_array_get_from_previous_set(dfg, *array, *index)
             }
             Instruction::ArraySet { array, index, value, .. } => {
                 let array_const = dfg.get_array_constant(*array);
@@ -759,6 +755,16 @@ impl Instruction {
     }
 }
 
+/// If we have an array get whose array is from an array set at the same index,
+/// we can simplify that array get to the value in that array set.
+///
+/// Simple case:
+/// v4 = array_set v1, index v2, value v3
+/// v5 = array_get v4, index v2
+///
+/// If we could not immediately simplify the array get, we can try to follow
+/// the array set backwards in the case we have constant indices:
+///
 /// Given a chain of operations like:
 /// v1 = array_set [10, 11, 12], index 1, value: 5
 /// v2 = array_set v1, index 2, value: 6
@@ -776,9 +782,21 @@ impl Instruction {
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
-    mut array_id: Id<Value>,
-    target_index: FieldElement,
+    mut array_id: ValueId,
+    target_index: ValueId,
 ) -> SimplifyResult {
+    if let Value::Instruction { instruction, .. } = &dfg[array_id] {
+        if let Instruction::ArraySet { index, value, .. } = &dfg[*instruction] {
+            if *index == target_index {
+                return SimplifyResult::SimplifiedTo(*value);
+            }
+        }
+    }
+
+    let Some(target_index) = dfg.get_numeric_constant(target_index) else {
+        return SimplifyResult::None;
+    };
+
     let mut elements = None;
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
