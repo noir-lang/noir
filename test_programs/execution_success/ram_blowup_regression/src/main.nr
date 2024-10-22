@@ -1,4 +1,3 @@
-
 global TX_EFFECTS_HASH_INPUT_FIELDS = 256;
 
 // Convert a 32 byte array to a field element by truncating the final byte
