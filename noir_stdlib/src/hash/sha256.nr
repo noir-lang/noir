@@ -89,6 +89,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
             let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
             if msg_start < message_size {
                 msg_byte_ptr = new_msg_byte_ptr;
+                verify_msg_block_padding(msg_block, msg_byte_ptr);
             }
         } else if msg_start < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
@@ -168,8 +169,8 @@ unconstrained fn build_msg_block<let N: u32>(
     (msg_block, block_input)
 }
 
-// Verify the block we are compressing was appropriately constructed by `build_msg_block`.
-// Returns the index of the first unset item.
+// Verify the block we are compressing was appropriately constructed by `build_msg_block`
+// and matches the input data. Returns the index of the first unset item.
 fn verify_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
@@ -179,30 +180,30 @@ fn verify_msg_block<let N: u32>(
     let mut msg_byte_ptr: u32 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
     
+    for k in msg_start..msg_end {
+        if k < message_size {
+            assert_eq(msg_block[msg_byte_ptr], msg[k]);
+            msg_byte_ptr = msg_byte_ptr + 1;
+        } 
+    }
+
+    msg_byte_ptr
+}
+
+// Verify the block we are compressing was appropriately padded with zeroes by `build_msg_block`.
+// This is only relevant for the last, potentially partially filled block.
+fn verify_msg_block_padding<let N: u32>(
+    msg_block: MSG_BLOCK,
+    msg_byte_ptr: u32,
+) {
     // This variable is used to get around the compiler under-constrained check giving a warning.
     // We want to check against a constant zero, but if it does not come from the circuit inputs
     // or return values the compiler check will issue a warning.
     let zero = msg_block[0] - msg_block[0];
 
-    let mut i = 0;
-    for k in msg_start..msg_end {
-        if k < message_size {
-            assert_eq(msg_block[i], msg[k]);
-            i = i + 1;
-            msg_byte_ptr = i;
-        } 
-        // We create N/BLOCK_SIZE blocks regardless of input size, but if we start
-        // beyond the input size the `msg_block` does not change before verification.
-        if msg_start < message_size {
-            // Check that the data which was beyond the input size is all zeroes.
-            if k >= message_size {
-                assert_eq(msg_block[i], zero);
-                i = i + 1;
-            }
-        }
+    for i in msg_byte_ptr..BLOCK_SIZE {
+        assert_eq(msg_block[i], zero);
     }
-
-    msg_byte_ptr
 }
 
 
