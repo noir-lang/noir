@@ -163,9 +163,6 @@ unconstrained fn build_msg_block<let N: u32>(
     for k in 0..block_input {
         msg_block[k] = msg[msg_start + k];
     }
-    for k in block_input..BLOCK_SIZE {
-        msg_block[k] = 0;
-    }
     (msg_block, block_input)
 }
 
