@@ -203,6 +203,8 @@ fn main() {
 
 Same as fold, but uses the first element as the starting element.
 
+Requires `self` to be non-empty.
+
 ```rust
 fn reduce(self, f: fn(T, T) -> T) -> T
 ```

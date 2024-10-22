@@ -291,13 +291,14 @@ impl InlineContext {
     ) -> Vec<ValueId> {
         self.recursion_level += 1;
 
+        let source_function = &ssa.functions[&id];
+
         if self.recursion_level > RECURSION_LIMIT {
             panic!(
-                "Attempted to recur more than {RECURSION_LIMIT} times during function inlining."
+                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}': {}", source_function.name(), source_function
             );
         }
 
-        let source_function = &ssa.functions[&id];
         let mut context = PerFunctionContext::new(self, source_function);
 
         let parameters = source_function.parameters();
@@ -966,5 +967,29 @@ mod test {
         // }
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 4);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Attempted to recur more than 1000 times during inlining function 'main': acir(inline) fn main f0 {"
+    )]
+    fn unconditional_recursion() {
+        // fn main f1 {
+        //   b0():
+        //     call f1()
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let main = builder.import_function(main_id);
+        let results = builder.insert_call(main, Vec::new(), vec![]).to_vec();
+        builder.terminate_with_return(results);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.functions.len(), 1);
+
+        let inlined = ssa.inline_functions();
+        assert_eq!(inlined.functions.len(), 0);
     }
 }
