@@ -69,7 +69,10 @@ impl FunctionDefinition {
 }
 
 impl crate::hash::Hash for FunctionDefinition {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(function_def_hash(self))
     }
 }

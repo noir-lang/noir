@@ -25,9 +25,13 @@ unconstrained fn add1(x: &mut Field) {
     *x += 1;
 }
 
-struct S { y: Field }
+struct S {
+    y: Field,
+}
 
-struct Nested { y: &mut &mut Field }
+struct Nested {
+    y: &mut &mut Field,
+}
 
 struct C {
     foo: Field,
@@ -35,7 +39,7 @@ struct C {
 }
 
 struct C2 {
-    array: &mut [Field; 2]
+    array: &mut [Field; 2],
 }
 
 impl S {

@@ -5,7 +5,8 @@ struct EnumEmulation {
 }
 
 unconstrained fn main() -> pub Field {
-    let mut emulated_enum = EnumEmulation { a: Option::some(1), b: Option::none(), c: Option::none() };
+    let mut emulated_enum =
+        EnumEmulation { a: Option::some(1), b: Option::none(), c: Option::none() };
 
     for _ in 0..1 {
         assert_eq(emulated_enum.a.unwrap(), 1);
