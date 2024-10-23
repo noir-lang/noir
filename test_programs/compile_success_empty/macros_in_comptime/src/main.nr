@@ -1,5 +1,4 @@
-use std::field::modulus_num_bits;
-use std::meta::unquote;
+use std::{field::modulus_num_bits, meta::unquote};
 
 // Numeric generics default to u32
 global three_field: Field = 3;
@@ -38,8 +37,7 @@ comptime fn foo<let N: Field>(x: Field) {
 }
 
 mod submodule {
-    use std::field::modulus_be_bytes;
-    use std::meta::unquote;
+    use std::{field::modulus_be_bytes, meta::unquote};
 
     pub comptime fn bar() {
         // Use a function only in scope in this module

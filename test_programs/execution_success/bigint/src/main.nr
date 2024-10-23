@@ -1,5 +1,4 @@
-use std::bigint;
-use std::{bigint::Secpk1Fq, println};
+use std::{bigint::{Secpk1Fq, self}, println};
 
 fn main(mut x: [u8; 5], y: [u8; 5]) {
     let a = bigint::Secpk1Fq::from_le_bytes(&[x[0], x[1], x[2], x[3], x[4]]);

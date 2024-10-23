@@ -1,6 +1,4 @@
-use std::collections::umap::UHashMap;
-use std::hash::BuildHasherDefault;
-use std::hash::poseidon2::Poseidon2Hasher;
+use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, poseidon2::Poseidon2Hasher}};
 
 type K = Field;
 type V = Field;

@@ -1,5 +1,4 @@
-use crate::hash::Hasher;
-use crate::default::Default;
+use crate::{default::Default, hash::Hasher};
 
 comptime global RATE: u32 = 3;
 

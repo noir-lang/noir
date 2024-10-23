@@ -1,5 +1,4 @@
-use crate::hash::{Hash, Hasher};
-use crate::cmp::Eq;
+use crate::{cmp::Eq, hash::{Hash, Hasher}};
 
 impl Eq for TraitConstraint {
     comptime fn eq(self, other: Self) -> bool {

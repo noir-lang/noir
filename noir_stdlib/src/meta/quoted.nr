@@ -1,5 +1,4 @@
-use crate::cmp::Eq;
-use crate::option::Option;
+use crate::{cmp::Eq, option::Option};
 
 impl Quoted {
     #[builtin(quoted_as_expr)]

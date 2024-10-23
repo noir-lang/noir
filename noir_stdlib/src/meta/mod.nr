@@ -30,9 +30,7 @@ pub comptime fn type_of<T>(x: T) -> Type {}
 
 // docs:start:derive_example
 // These are needed for the unconstrained hashmap we're using to store derive functions
-use crate::collections::umap::UHashMap;
-use crate::hash::BuildHasherDefault;
-use crate::hash::poseidon2::Poseidon2Hasher;
+use crate::{collections::umap::UHashMap, hash::{BuildHasherDefault, poseidon2::Poseidon2Hasher}};
 
 // A derive function is one that given a struct definition can
 // create us a quoted trait impl from it.

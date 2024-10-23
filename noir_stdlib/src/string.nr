@@ -1,5 +1,4 @@
-use crate::collections::vec::Vec;
-use crate::convert::From;
+use crate::{collections::vec::Vec, convert::From};
 
 impl<let N: u32> str<N> {
     /// Converts the given string into a byte array

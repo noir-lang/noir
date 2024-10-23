@@ -1,6 +1,4 @@
-use std::hash::Hasher;
-use std::hash::poseidon2::Poseidon2Hasher;
-use std::hash::poseidon::PoseidonHasher;
+use std::hash::{Hasher, poseidon2::Poseidon2Hasher, poseidon::PoseidonHasher};
 
 fn main(x: Field, y: pub Field) {
     let mut hasher = PoseidonHasher::default();

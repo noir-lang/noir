@@ -59,8 +59,8 @@ where
 }
 
 mod test {
-    use super::check_shuffle;
     use crate::cmp::Eq;
+    use super::check_shuffle;
 
     struct CompoundStruct {
         a: bool,

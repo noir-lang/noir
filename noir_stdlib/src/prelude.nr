@@ -1,10 +1,13 @@
-pub use crate::collections::vec::Vec;
-pub use crate::collections::bounded_vec::BoundedVec;
-pub use crate::option::Option;
-pub use crate::{print, println, assert_constant};
-pub use crate::uint128::U128;
-pub use crate::cmp::{Eq, Ord};
-pub use crate::default::Default;
-pub use crate::convert::{From, Into};
-pub use crate::meta::{derive, derive_via};
-pub use crate::panic::panic;
+pub use crate::{
+    assert_constant,
+    cmp::{Eq, Ord},
+    collections::{bounded_vec::BoundedVec, vec::Vec},
+    convert::{From, Into},
+    default::Default,
+    meta::{derive, derive_via},
+    option::Option,
+    panic::panic,
+    print,
+    println,
+    uint128::U128,
+};
