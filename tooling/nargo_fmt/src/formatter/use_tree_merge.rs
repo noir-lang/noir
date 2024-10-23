@@ -100,16 +100,16 @@ fn format_merged_import(segment: Segment, import_tree: ImportTree) -> ChunkGroup
 /// (they'll come in that order before any plain segment).
 #[derive(Debug, PartialEq, Eq)]
 enum Segment {
-    Crate,
-    Super,
-    Dep,
-    Plain(String),
     /// Represents the end of a path.
     /// This is needed because we have want to merge "foo" and "foo::bar",
     /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
     /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", loosing "foo",
     /// when we actually want "foo::{self, bar}".
     Terminal,
+    Crate,
+    Super,
+    Dep,
+    Plain(String),
 }
 
 impl Segment {
@@ -119,6 +119,16 @@ impl Segment {
             self
         } else {
             Segment::Plain(format!("{}::{}", self, other))
+        }
+    }
+
+    fn order_number(&self) -> usize {
+        match self {
+            Segment::Terminal => 0,
+            Segment::Crate => 1,
+            Segment::Super => 2,
+            Segment::Dep => 3,
+            Segment::Plain(_) => 4,
         }
     }
 }
@@ -143,22 +153,16 @@ impl PartialOrd for Segment {
 
 impl Ord for Segment {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Segment::Crate, Segment::Crate) => Ordering::Equal,
-            (Segment::Crate, _) => Ordering::Less,
-            (Segment::Super, Segment::Crate) => Ordering::Greater,
-            (Segment::Super, Segment::Super) => Ordering::Equal,
-            (Segment::Super, _) => Ordering::Less,
-            (Segment::Dep, Segment::Crate) | (Segment::Dep, Segment::Super) => Ordering::Less,
-            (Segment::Dep, Segment::Dep) => Ordering::Equal,
-            (Segment::Dep, _) => Ordering::Greater,
-            (Segment::Plain(self_string), Segment::Plain(other_string)) => {
-                // Case-insensitive comparison for plain segments
-                self_string.to_lowercase().cmp(&other_string.to_lowercase())
-            }
-            (Segment::Plain(_), Segment::Terminal) => Ordering::Less,
-            (Segment::Plain(_), _) => Ordering::Greater,
-            (Segment::Terminal, _) => Ordering::Greater,
+        let order_number_ordering = self.order_number().cmp(&other.order_number());
+        if order_number_ordering != Ordering::Equal {
+            return order_number_ordering;
+        }
+
+        if let (Segment::Plain(self_string), Segment::Plain(other_string)) = (self, other) {
+            // Case-insensitive comparison for plain segments
+            self_string.to_lowercase().cmp(&other_string.to_lowercase())
+        } else {
+            order_number_ordering
         }
     }
 }
@@ -197,12 +201,6 @@ impl ImportTree {
     /// Inserts a segment to the tree, creating the necessary empty children if they don't exist yet.
     fn insert(&mut self, segment: Segment) -> &mut ImportTree {
         self.tree.entry(segment).or_default()
-    }
-
-    /// Inserts a segment that's the final segment in an import path.
-    fn insert_terminal(&mut self, segment: Segment) {
-        let tree = self.insert(segment);
-        tree.insert(Segment::Terminal);
     }
 
     /// Simplifies a tree by combining segments that only have one child.
@@ -259,9 +257,13 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
         match import.kind {
             UseTreeKind::Path(ident, alias) => {
                 if let Some(alias) = alias {
-                    tree.insert_terminal(Segment::Plain(format!("{} as {}", ident, alias)));
+                    tree = tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
+                    tree.insert(Segment::Terminal);
+                } else if ident.0.contents == "self" {
+                    tree.insert(Segment::Terminal);
                 } else {
-                    tree.insert_terminal(Segment::Plain(ident.to_string()));
+                    tree = tree.insert(Segment::Plain(ident.to_string()));
+                    tree.insert(Segment::Terminal);
                 }
             }
             UseTreeKind::List(trees) => {
@@ -521,7 +523,7 @@ use foo::{ABC, def, efg, ZETA};
         use foo::bar;
         use foo;
         ";
-        let expected = "use foo::{bar, self};\n";
+        let expected = "use foo::{self, bar};\n";
         assert_format(src, expected);
     }
 
