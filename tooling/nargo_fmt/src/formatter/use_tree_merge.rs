@@ -513,6 +513,22 @@ use foo::baz;
     }
 
     #[test]
+    fn does_not_sort_imports_in_separate_groups() {
+        let src = "
+            use foo::baz;
+            use foo::{qux, bar};
+
+            use bar;
+        ";
+        let expected = "use foo::{bar, qux};
+use foo::baz;
+
+use bar;
+";
+        assert_format_preserving_granularity(src, expected);
+    }
+
+    #[test]
     fn merges_and_sorts_imports_2() {
         let src = "
 use aztec::{
