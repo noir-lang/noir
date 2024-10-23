@@ -820,8 +820,6 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        self.register_attribute_order(func_id, func.secondary_attributes());
-
         let attributes = func.secondary_attributes().iter();
         let attributes =
             attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());

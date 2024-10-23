@@ -16,7 +16,6 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
 };
-use crate::attribute_order::AttributeGraph;
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -275,8 +274,6 @@ pub struct NodeInterner {
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
-
-    pub(crate) attribute_order: AttributeGraph,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -684,7 +681,6 @@ impl Default for NodeInterner {
             trait_impl_associated_types: HashMap::default(),
             usage_tracker: UsageTracker::default(),
             doc_comments: HashMap::default(),
-            attribute_order: AttributeGraph::default(),
         }
     }
 }
