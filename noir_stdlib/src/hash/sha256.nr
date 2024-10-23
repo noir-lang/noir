@@ -334,6 +334,7 @@ unconstrained fn attach_len_to_msg_block(
     // There can be one item which has to be partially zeroed.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
+        // Index of the block in which we find the field we need to partially zero.
         let i = msg_byte_ptr / INT_SIZE;
         let mut msg_field = msg_block[i];
         for _ in 0..(INT_SIZE - modulo) {
@@ -344,7 +345,7 @@ unconstrained fn attach_len_to_msg_block(
     }
 
     // The rest can be zeroed without bit shifting anything.
-    for i in msg_byte_ptr..INT_SIZE_PTR {
+    for i in (msg_byte_ptr / INT_SIZE)..INT_SIZE_PTR {
         msg_block[i] = 0;
     }
 
@@ -405,8 +406,8 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::sha256_var;
-    use super::{from_field_byte, into_field_byte, set_msg_byte, make_field, set_field_byte, build_msg_block};
-    use super::{INT_BLOCK_SIZE, MSG_BLOCK};
+    use super::{from_field_byte, into_field_byte, set_msg_byte, make_field, set_field_byte, build_msg_block, attach_len_to_msg_block};
+    use super::{INT_BLOCK_SIZE, MSG_BLOCK, INT_BLOCK};
 
     #[test]
     fn smoke_test() {
@@ -711,5 +712,16 @@ mod tests {
         assert_eq(msg_byte_ptr, 4);
         assert_eq(msg_block[0], make_field(input[64], input[65], input[66], input[67]));
         assert_eq(msg_block[1], 0);
+    }
+
+    #[test]
+    fn test_attach_len_to_msg_block() {
+        let input: INT_BLOCK = [2152555847, 1397309779, 1936618851, 1262052426, 1936876331, 1985297723, 543702374, 1919905082, 1131376244, 1701737517, 1417244773, 978151789, 1697470053, 1920166255, 1849316213, 1651139939];
+        let msg_block = unsafe { 
+            attach_len_to_msg_block(input, 1, 448)
+        };
+        assert_eq(msg_block[0], ((1<<7) as u32) * 256 * 256 * 256);
+        assert_eq(msg_block[1], 0);
+        assert_eq(msg_block[15], 3584);
     }
 }
