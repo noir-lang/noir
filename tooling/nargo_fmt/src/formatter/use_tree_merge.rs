@@ -104,12 +104,17 @@ enum Segment {
     Super,
     Dep,
     Plain(String),
+    Terminal,
 }
 
 impl Segment {
     /// Combines two segments into a single one, by joining them with "::".
-    fn combine(&self, other: Segment) -> Segment {
-        Segment::Plain(format!("{}::{}", self, other))
+    fn combine(self, other: Segment) -> Segment {
+        if other == Segment::Terminal {
+            self
+        } else {
+            Segment::Plain(format!("{}::{}", self, other))
+        }
     }
 }
 
@@ -120,6 +125,7 @@ impl Display for Segment {
             Segment::Super => write!(f, "super"),
             Segment::Dep => write!(f, "dep"),
             Segment::Plain(s) => write!(f, "{}", s),
+            Segment::Terminal => write!(f, "self"),
         }
     }
 }
@@ -145,7 +151,9 @@ impl Ord for Segment {
                 // Case-insensitive comparison for plain segments
                 self_string.to_lowercase().cmp(&other_string.to_lowercase())
             }
+            (Segment::Plain(_), Segment::Terminal) => Ordering::Less,
             (Segment::Plain(_), _) => Ordering::Greater,
+            (Segment::Terminal, _) => Ordering::Greater,
         }
     }
 }
@@ -184,6 +192,12 @@ impl ImportTree {
     /// Inserts a segment to the tree, creating the necessary empty children if they don't exist yet.
     fn insert(&mut self, segment: Segment) -> &mut ImportTree {
         self.tree.entry(segment).or_default()
+    }
+
+    /// Inserts a segment that's the final segment in an import path.
+    fn insert_terminal(&mut self, segment: Segment) {
+        let tree = self.insert(segment);
+        tree.insert(Segment::Terminal);
     }
 
     /// Simplifies a tree by combining segments that only have one child.
@@ -240,9 +254,9 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
         match import.kind {
             UseTreeKind::Path(ident, alias) => {
                 if let Some(alias) = alias {
-                    tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
+                    tree.insert_terminal(Segment::Plain(format!("{} as {}", ident, alias)));
                 } else {
-                    tree.insert(Segment::Plain(ident.to_string()));
+                    tree.insert_terminal(Segment::Plain(ident.to_string()));
                 }
             }
             UseTreeKind::List(trees) => {
@@ -417,7 +431,7 @@ use bar; // trailing
     }
 
     #[test]
-    fn merges_and_sorts_imports() {
+    fn merges_and_sorts_imports_just_two() {
         let src = "
             use foo::baz;
             use foo::bar;
@@ -493,6 +507,16 @@ use foo::bar;
         let expected = "use BAR;
 use foo::{ABC, def, efg, ZETA};
 ";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn merges_nested_import() {
+        let src = "
+        use foo::bar;
+        use foo;
+        ";
+        let expected = "use foo::{bar, self};\n";
         assert_format(src, expected);
     }
 
