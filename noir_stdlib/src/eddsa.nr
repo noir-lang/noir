@@ -1,8 +1,8 @@
+use crate::default::Default;
 use crate::ec::consts::te::baby_jubjub;
 use crate::ec::tecurve::affine::Point as TEPoint;
 use crate::hash::Hasher;
 use crate::hash::poseidon::PoseidonHasher;
-use crate::default::Default;
 
 // Returns true if signature is valid
 pub fn eddsa_poseidon_verify(

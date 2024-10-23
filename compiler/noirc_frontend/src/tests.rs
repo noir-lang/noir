@@ -3389,3 +3389,25 @@ fn arithmetic_generics_rounding_fail() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 }
+
+#[test]
+fn uses_self_in_import() {
+    let src = r#"
+    mod moo {
+        pub mod bar {
+            pub fn foo() -> i32 {
+                1
+            }
+        }
+    }
+
+    use moo::bar::{self};
+
+    pub fn baz() -> i32 {
+        bar::foo()
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
