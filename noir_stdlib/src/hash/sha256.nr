@@ -121,15 +121,11 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         msg_byte_ptr = 0;
     }
 
-
-
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
     // Here we rely on the fact that everything beyond the available input is set to 0.
     msg_block = set_msg_byte(msg_block, msg_byte_ptr, 1 << 7);
     msg_byte_ptr = msg_byte_ptr + 1;
-
-
 
     // TODO:
     let _last_block = msg_block;
@@ -142,7 +138,6 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     }
 
     msg_block = unsafe { attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size) };
-
 
     if !crate::runtime::is_unconstrained() {
         // TODO: Enable
@@ -186,7 +181,11 @@ unconstrained fn build_msg_block<let N: u32>(
         // Always construct the integer as 4 bytes, even if it means going beyond the input.
         for j in 0..INT_SIZE {
             let k = i * INT_SIZE + j;
-            let msg_byte = if k < block_input { msg[msg_start + k] } else { 0 };
+            let msg_byte = if k < block_input {
+                msg[msg_start + k]
+            } else {
+                0
+            };
             // Multiplying by 256 is equivalent to shifting by 8 bits.
             msg_field = msg_field * 256 + msg_byte as Field;
         }
@@ -395,7 +394,10 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::sha256_var;
-    use super::{from_field_byte, into_field_byte, set_msg_byte, make_field, set_field_byte, build_msg_block, attach_len_to_msg_block};
+    use super::{
+        from_field_byte, into_field_byte, set_msg_byte, make_field, set_field_byte, build_msg_block,
+        attach_len_to_msg_block,
+    };
     use super::{INT_BLOCK_SIZE, MSG_BLOCK, INT_BLOCK};
 
     #[test]
@@ -668,17 +670,11 @@ mod tests {
     #[test]
     fn test_build_msg_block_start_0() {
         let input = [
-            102, 114, 111, 109, 
-            58, 114, 117, 110, 
-            110, 105, 101, 114, 
-            46, 108, 101, 97, 
-            103, 117, 101, 115, 
-            46, 48
+            102, 114, 111, 109, 58, 114, 117, 110, 110, 105, 101, 114, 46, 108, 101, 97, 103, 117,
+            101, 115, 46, 48,
         ];
         assert_eq(input.len(), 22);
-        let (msg_block, msg_byte_ptr) = unsafe { 
-            build_msg_block(input, input.len(), 0)
-        };
+        let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 0) };
         assert_eq(msg_byte_ptr, input.len());
         assert_eq(msg_block[0], make_field(input[0], input[1], input[2], input[3]));
         assert_eq(msg_block[1], make_field(input[4], input[5], input[6], input[7]));
@@ -695,9 +691,7 @@ mod tests {
             108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116,
         ];
         assert_eq(input.len(), 68);
-        let (msg_block, msg_byte_ptr) = unsafe { 
-            build_msg_block(input, input.len(), 64)
-        };
+        let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 64) };
         assert_eq(msg_byte_ptr, 4);
         assert_eq(msg_block[0], make_field(input[64], input[65], input[66], input[67]));
         assert_eq(msg_block[1], 0);
@@ -705,11 +699,13 @@ mod tests {
 
     #[test]
     fn test_attach_len_to_msg_block() {
-        let input: INT_BLOCK = [2152555847, 1397309779, 1936618851, 1262052426, 1936876331, 1985297723, 543702374, 1919905082, 1131376244, 1701737517, 1417244773, 978151789, 1697470053, 1920166255, 1849316213, 1651139939];
-        let msg_block = unsafe { 
-            attach_len_to_msg_block(input, 1, 448)
-        };
-        assert_eq(msg_block[0], ((1<<7) as u32) * 256 * 256 * 256);
+        let input: INT_BLOCK = [
+            2152555847, 1397309779, 1936618851, 1262052426, 1936876331, 1985297723, 543702374,
+            1919905082, 1131376244, 1701737517, 1417244773, 978151789, 1697470053, 1920166255,
+            1849316213, 1651139939,
+        ];
+        let msg_block = unsafe { attach_len_to_msg_block(input, 1, 448) };
+        assert_eq(msg_block[0], ((1 << 7) as u32) * 256 * 256 * 256);
         assert_eq(msg_block[1], 0);
         assert_eq(msg_block[15], 3584);
     }
