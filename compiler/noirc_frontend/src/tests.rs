@@ -2969,8 +2969,7 @@ fn uses_self_type_in_trait_where_clause() {
         }
     }
 
-    struct Bar;
-    impl Trait for Bar {}
+    struct Bar {}
 
     impl Foo for Bar {
 
@@ -2982,13 +2981,17 @@ fn uses_self_type_in_trait_where_clause() {
     "#;
 
     let errors = get_program_errors(src);
-    dbg!(&errors);
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 2);
+
+    let CompilationError::ResolverError(ResolverError::TraitNotImplemented { .. }) = &errors[0].0
+    else {
+        panic!("Expected a trait not implemented error, got {:?}", errors[0].0);
+    };
 
     let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
-        &errors[0].0
+        &errors[1].0
     else {
-        panic!("Expected an unresolved method call error, got {:?}", errors[0].0);
+        panic!("Expected an unresolved method call error, got {:?}", errors[1].0);
     };
 
     assert_eq!(method_name, "trait_func");
