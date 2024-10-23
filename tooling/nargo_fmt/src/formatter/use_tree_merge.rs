@@ -6,7 +6,10 @@ use std::{
 
 use noirc_frontend::ast::{ItemVisibility, PathKind, UseTree, UseTreeKind};
 
-use crate::chunks::{ChunkGroup, TextChunk};
+use crate::{
+    chunks::{ChunkGroup, TextChunk},
+    config::ImportsGranularity,
+};
 
 use super::Formatter;
 
@@ -16,19 +19,22 @@ impl<'a> Formatter<'a> {
         imports: Vec<UseTree>,
         visibility: ItemVisibility,
     ) {
-        if self.config.merge_imports {
-            let import_tree = merge_imports(imports);
-            self.format_import_tree(import_tree, visibility);
-        } else {
-            let mut import_trees: Vec<ImportTree> =
-                imports.into_iter().map(|import| merge_imports(vec![import])).collect();
-            import_trees.sort();
+        match self.config.imports_granularity {
+            ImportsGranularity::Preserve => {
+                let mut import_trees: Vec<ImportTree> =
+                    imports.into_iter().map(|import| merge_imports(vec![import])).collect();
+                import_trees.sort();
 
-            for (index, import_tree) in import_trees.into_iter().enumerate() {
-                if index > 0 {
-                    self.write_line_without_skipping_whitespace_and_comments();
+                for (index, import_tree) in import_trees.into_iter().enumerate() {
+                    if index > 0 {
+                        self.write_line_without_skipping_whitespace_and_comments();
+                    }
+
+                    self.format_import_tree(import_tree, visibility);
                 }
-
+            }
+            ImportsGranularity::Crate => {
+                let import_tree = merge_imports(imports);
                 self.format_import_tree(import_tree, visibility);
             }
         }
@@ -292,21 +298,33 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format_with_config, Config};
+    use crate::{assert_format_with_config, config::ImportsGranularity, Config};
 
     fn assert_format(src: &str, expected: &str) {
-        let config = Config { merge_imports: true, reorder_imports: true, ..Config::default() };
+        let config = Config {
+            imports_granularity: ImportsGranularity::Crate,
+            reorder_imports: true,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
     fn assert_format_with_max_width(src: &str, expected: &str, max_width: usize) {
-        let config =
-            Config { merge_imports: true, reorder_imports: true, max_width, ..Config::default() };
+        let config = Config {
+            imports_granularity: ImportsGranularity::Crate,
+            reorder_imports: true,
+            max_width,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
-    fn assert_format_without_merge(src: &str, expected: &str) {
-        let config = Config { merge_imports: false, reorder_imports: true, ..Config::default() };
+    fn assert_format_preserving_granularity(src: &str, expected: &str) {
+        let config = Config {
+            imports_granularity: ImportsGranularity::Preserve,
+            reorder_imports: true,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
@@ -491,7 +509,7 @@ use bar; // trailing
 use foo::{bar, qux};
 use foo::baz;
 ";
-        assert_format_without_merge(src, expected);
+        assert_format_preserving_granularity(src, expected);
     }
 
     #[test]

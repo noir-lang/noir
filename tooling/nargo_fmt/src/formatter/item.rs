@@ -4,6 +4,8 @@ use noirc_frontend::{
     parser::{Item, ItemKind},
 };
 
+use crate::config::ImportsGranularity;
+
 use super::Formatter;
 
 impl<'a> Formatter<'a> {
@@ -83,7 +85,9 @@ impl<'a> Formatter<'a> {
     ///
     /// Each import group will be sorted and merged, if the configuration is set to do so.
     fn next_import_group(&self, items: &mut Vec<Item>) -> Option<ImportGroup> {
-        if !self.config.merge_imports && !self.config.reorder_imports {
+        if self.config.imports_granularity == ImportsGranularity::Preserve
+            && !self.config.reorder_imports
+        {
             return None;
         }
 

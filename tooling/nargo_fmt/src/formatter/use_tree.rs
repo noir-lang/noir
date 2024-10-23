@@ -121,16 +121,24 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format_with_config, Config};
+    use crate::{assert_format_with_config, config::ImportsGranularity, Config};
 
     fn assert_format(src: &str, expected: &str) {
-        let config = Config { merge_imports: false, reorder_imports: false, ..Config::default() };
+        let config = Config {
+            imports_granularity: ImportsGranularity::Preserve,
+            reorder_imports: false,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
     fn assert_format_with_max_width(src: &str, expected: &str, max_width: usize) {
-        let config =
-            Config { merge_imports: false, reorder_imports: false, max_width, ..Config::default() };
+        let config = Config {
+            imports_granularity: ImportsGranularity::Preserve,
+            reorder_imports: false,
+            max_width,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
