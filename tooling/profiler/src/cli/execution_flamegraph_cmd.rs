@@ -60,7 +60,9 @@ fn run_with_generator(
 
     let profiling_samples: Vec<Sample<FieldElement>> = profiling_samples
         .into_iter()
-        .map(|(call_stack, brillig_function_id, count)| {
+        .map(|sample| {
+            let call_stack = sample.call_stack;
+            let brillig_function_id = sample.brillig_function_id;
             let last_entry = call_stack.last();
             let opcode = brillig_function_id
                 .and_then(|id| program.bytecode.unconstrained_functions.get(id.0 as usize))
@@ -72,7 +74,7 @@ fn run_with_generator(
                     }
                 })
                 .map(|opcode| AcirOrBrilligOpcode::Brillig(opcode.clone()));
-            Sample { opcode: opcode.unwrap(), call_stack, count, brillig_function_id }
+            Sample { opcode, call_stack, count: 1, brillig_function_id }
         })
         .collect();
 

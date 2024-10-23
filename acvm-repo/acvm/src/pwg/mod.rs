@@ -168,7 +168,12 @@ impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
     }
 }
 
-pub type ProfilingSamples = Vec<(Vec<OpcodeLocation>, Option<BrilligFunctionId>, usize)>;
+pub type ProfilingSamples = Vec<ProfilingSample>;
+
+pub struct ProfilingSample {
+    pub call_stack: Vec<OpcodeLocation>,
+    pub brillig_function_id: Option<BrilligFunctionId>,
+}
 
 pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
@@ -525,18 +530,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             BrilligSolverStatus::Finished => {
                 // Write execution outputs
                 let profiling_info = solver.finalize(&mut self.witness_map, outputs)?;
-                profiling_info.into_iter().for_each(|(call_stack, samples)| {
-                    let mapped = call_stack.into_iter().map(|loc| OpcodeLocation::Brillig {
+                profiling_info.into_iter().for_each(|sample| {
+                    let mapped = sample.call_stack.into_iter().map(|loc| OpcodeLocation::Brillig {
                         acir_index: self.instruction_pointer,
                         brillig_index: loc,
                     });
-                    self.profiling_samples.push((
-                        std::iter::once(OpcodeLocation::Acir(self.instruction_pointer))
+                    self.profiling_samples.push(ProfilingSample {
+                        call_stack: std::iter::once(OpcodeLocation::Acir(self.instruction_pointer))
                             .chain(mapped)
                             .collect(),
-                        Some(*id),
-                        samples,
-                    ));
+                        brillig_function_id: Some(*id),
+                    });
                 });
                 Ok(None)
             }
