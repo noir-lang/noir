@@ -133,7 +133,8 @@ pub(crate) fn execute_program(
             root_path,
             package_name,
         ),
-    ).map(|(witness_stack, _)| witness_stack);
+    )
+    .map(|(witness_stack, _)| witness_stack);
     match solved_witness_stack_err {
         Ok(solved_witness_stack) => Ok(solved_witness_stack),
         Err(err) => {

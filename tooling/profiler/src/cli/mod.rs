@@ -20,17 +20,17 @@ struct ProfilerCli {
 #[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
 enum ProfilerCommand {
-    GatesFlamegraph(gates_flamegraph_cmd::GatesFlamegraphCommand),
-    OpcodesFlamegraph(opcodes_flamegraph_cmd::OpcodesFlamegraphCommand),
-    ExecutionFlamegraph(execution_flamegraph_cmd::ExecutionFlamegraphCommand),
+    Gates(gates_flamegraph_cmd::GatesFlamegraphCommand),
+    Opcodes(opcodes_flamegraph_cmd::OpcodesFlamegraphCommand),
+    ExecutionOpcodes(execution_flamegraph_cmd::ExecutionFlamegraphCommand),
 }
 
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let ProfilerCli { command } = ProfilerCli::parse();
 
     match command {
-        ProfilerCommand::GatesFlamegraph(args) => gates_flamegraph_cmd::run(args),
-        ProfilerCommand::OpcodesFlamegraph(args) => opcodes_flamegraph_cmd::run(args),
-        ProfilerCommand::ExecutionFlamegraph(args) => execution_flamegraph_cmd::run(args),
+        ProfilerCommand::Gates(args) => gates_flamegraph_cmd::run(args),
+        ProfilerCommand::Opcodes(args) => opcodes_flamegraph_cmd::run(args),
+        ProfilerCommand::ExecutionOpcodes(args) => execution_flamegraph_cmd::run(args),
     }
 }

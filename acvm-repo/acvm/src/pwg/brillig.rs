@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
 
-use super::{get_value, insert_value, memory_op::MemoryOpSolver, ProfilingSamples};
+use super::{get_value, insert_value, memory_op::MemoryOpSolver};
 
 #[derive(Debug)]
 pub enum BrilligSolverStatus<F> {
