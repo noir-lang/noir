@@ -2,7 +2,7 @@ use std::{
     compat,
     ec::{consts::te::baby_jubjub, tecurve::affine::Point as TEPoint},
     eddsa::{eddsa_poseidon_verify, eddsa_to_pub, eddsa_verify},
-    hash::{poseidon2::Poseidon2Hasher, self},
+    hash::{self, poseidon2::Poseidon2Hasher},
 };
 
 fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
