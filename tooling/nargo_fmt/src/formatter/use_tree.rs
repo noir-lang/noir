@@ -124,12 +124,13 @@ mod tests {
     use crate::{assert_format_with_config, Config};
 
     fn assert_format(src: &str, expected: &str) {
-        let config = Config { merge_imports: false, ..Config::default() };
+        let config = Config { merge_imports: false, reorder_imports: false, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
 
     fn assert_format_with_max_width(src: &str, expected: &str, max_width: usize) {
-        let config = Config { merge_imports: false, max_width, ..Config::default() };
+        let config =
+            Config { merge_imports: false, reorder_imports: false, max_width, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
 

@@ -50,6 +50,7 @@ config! {
     fn_call_width: usize, 60, "Maximum width of the args of a function call before falling back to vertical formatting";
     single_line_if_else_max_width: usize, 50, "Maximum line length for single line if-else expressions";
     merge_imports: bool, false, "Merge and sort groups of imports";
+    reorder_imports: bool, true, "Reorder imports alphabetically";
 }
 
 impl Config {

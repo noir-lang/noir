@@ -16,9 +16,26 @@ impl<'a> Formatter<'a> {
         imports: Vec<UseTree>,
         visibility: ItemVisibility,
     ) {
-        let merged_import = merge_imports(imports);
+        if self.config.merge_imports {
+            let import_tree = merge_imports(imports);
+            self.format_import_tree(import_tree, visibility);
+        } else {
+            let mut import_trees: Vec<ImportTree> =
+                imports.into_iter().map(|import| merge_imports(vec![import])).collect();
+            import_trees.sort();
 
-        for (index, (segment, segment_tree)) in merged_import.tree.into_iter().enumerate() {
+            for (index, import_tree) in import_trees.into_iter().enumerate() {
+                if index > 0 {
+                    self.write_line_without_skipping_whitespace_and_comments();
+                }
+
+                self.format_import_tree(import_tree, visibility);
+            }
+        }
+    }
+
+    fn format_import_tree(&mut self, import_tree: ImportTree, visibility: ItemVisibility) {
+        for (index, (segment, segment_tree)) in import_tree.tree.into_iter().enumerate() {
             if index > 0 {
                 self.write_line_without_skipping_whitespace_and_comments();
             }
@@ -181,7 +198,7 @@ impl Ord for Segment {
 ///         "bar" => {"baz", "qux"},
 ///     }
 /// }
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 struct ImportTree {
     tree: BTreeMap<Segment, Box<ImportTree>>,
 }
@@ -278,12 +295,18 @@ mod tests {
     use crate::{assert_format_with_config, Config};
 
     fn assert_format(src: &str, expected: &str) {
-        let config = Config { merge_imports: true, ..Config::default() };
+        let config = Config { merge_imports: true, reorder_imports: true, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
 
     fn assert_format_with_max_width(src: &str, expected: &str, max_width: usize) {
-        let config = Config { merge_imports: true, max_width, ..Config::default() };
+        let config =
+            Config { merge_imports: true, reorder_imports: true, max_width, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    fn assert_format_without_merge(src: &str, expected: &str) {
+        let config = Config { merge_imports: false, reorder_imports: true, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
 
@@ -455,6 +478,20 @@ use bar; // trailing
         ";
         let expected = "use foo::{bar, baz};\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn sorts_but_not_merges_if_not_told_so() {
+        let src = "
+            use foo::baz;
+            use foo::{qux, bar};
+            use bar;
+        ";
+        let expected = "use bar;
+use foo::{bar, qux};
+use foo::baz;
+";
+        assert_format_without_merge(src, expected);
     }
 
     #[test]

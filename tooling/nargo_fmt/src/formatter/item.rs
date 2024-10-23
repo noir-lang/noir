@@ -14,17 +14,15 @@ impl<'a> Formatter<'a> {
 
         while !items.is_empty() {
             // Format the next import group, if there is one.
-            if self.config.merge_imports {
-                let import_group = self.next_import_group(&mut items);
-                if let Some(import_group) = import_group {
-                    self.merge_and_format_imports(import_group.imports, import_group.visibility);
-                    self.skip_past_span_end_without_formatting(import_group.span_end);
-                    self.write_line();
-                    ignore_next = self.ignore_next;
+            let import_group = self.next_import_group(&mut items);
+            if let Some(import_group) = import_group {
+                self.merge_and_format_imports(import_group.imports, import_group.visibility);
+                self.skip_past_span_end_without_formatting(import_group.span_end);
+                self.write_line();
+                ignore_next = self.ignore_next;
 
-                    // Continue from the top because the next thing that comes might be another import group
-                    continue;
-                }
+                // Continue from the top because the next thing that comes might be another import group
+                continue;
             }
 
             if let Some(item) = items.pop() {
@@ -85,6 +83,10 @@ impl<'a> Formatter<'a> {
     ///
     /// Each import group will be sorted and merged, if the configuration is set to do so.
     fn next_import_group(&self, items: &mut Vec<Item>) -> Option<ImportGroup> {
+        if !self.config.merge_imports && !self.config.reorder_imports {
+            return None;
+        }
+
         let mut imports = Vec::new();
 
         let item = items.last()?;
@@ -161,6 +163,7 @@ impl<'a> Formatter<'a> {
     }
 }
 
+#[derive(Debug)]
 struct ImportGroup {
     imports: Vec<UseTree>,
     visibility: ItemVisibility,
