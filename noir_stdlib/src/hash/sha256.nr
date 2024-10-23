@@ -54,6 +54,7 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> HASH {
 
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
+    crate::println(f"len = {message_size}, message = {msg}");
     let message_size = message_size as u32;
     let num_blocks = N / BLOCK_SIZE;
     let mut msg_block: MSG_BLOCK = [0; INT_BLOCK_SIZE];
@@ -68,6 +69,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         let msg_start = BLOCK_SIZE * i;
         let (new_msg_block, new_msg_byte_ptr) =
             unsafe { build_msg_block(msg, message_size, msg_start) };
+        crate::println(f"i = {i}, ptr = {new_msg_byte_ptr}, block = {new_msg_block}");
+
         if msg_start < message_size {
             msg_block = new_msg_block;
         }
@@ -120,11 +123,19 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         msg_byte_ptr = 0;
     }
 
+    crate::println(f"before 1<<7: ptr = {msg_byte_ptr}, block = {msg_block}");
+
+
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
     // Here we rely on the fact that everything beyond the available input is set to 0.
     msg_block = set_msg_byte(msg_block, msg_byte_ptr, 1 << 7);
     msg_byte_ptr = msg_byte_ptr + 1;
+
+    crate::println(f"after 1<<7: ptr = {msg_byte_ptr}, block = {msg_block}");
+
+
+    // TODO:
     let _last_block = msg_block;
 
     // If we don't have room to write the size, compress the block and reset it.
@@ -135,6 +146,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     }
 
     msg_block = unsafe { attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size) };
+
+    crate::println(f"after attach len: ptr = {msg_byte_ptr}, block = {msg_block}");
 
     if !crate::runtime::is_unconstrained() {
         // TODO: Enable
@@ -168,8 +181,8 @@ unconstrained fn build_msg_block<let N: u32>(
 
     // Figure out the number of items in the int array that we have to pack.
     // e.g. if the input is [0,1,2,3, 4,5] then we need to pack it as 2 items: [0123, 4500]
-    let mut int_input = block_input / INT_BLOCK_SIZE;
-    if block_input % INT_BLOCK_SIZE != 0 {
+    let mut int_input = block_input / INT_SIZE;
+    if block_input % INT_SIZE != 0 {
         int_input = int_input + 1;
     };
 
@@ -178,7 +191,7 @@ unconstrained fn build_msg_block<let N: u32>(
         // Always construct the integer as 4 bytes, even if it means going beyond the input.
         for j in 0..INT_SIZE {
             let k = i * INT_SIZE + j;
-            let msg_byte = if k < block_input { msg[k] } else { 0 };
+            let msg_byte = if k < block_input { msg[msg_start + k] } else { 0 };
             // Multiplying by 256 is equivalent to shifting by 8 bits.
             msg_field = msg_field * 256 + msg_byte as Field;
         }
@@ -363,6 +376,7 @@ unconstrained fn attach_len_to_msg_block(
 
 // Perform the final compression, then transform the `STATE` into `HASH`.
 fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
+    crate::println(f"hashing block = {msg_block}, state = {state}");
     let mut out_h: HASH = [0; 32]; // Digest as sequence of bytes
     // Hash final padded block
     state = sha256_compression(msg_block, state);
@@ -380,9 +394,8 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::sha256_var;
-    use super::{from_field_byte, into_field_byte, set_msg_byte, make_field};
+    use super::{from_field_byte, into_field_byte, set_msg_byte, make_field, set_field_byte, build_msg_block};
     use super::{INT_BLOCK_SIZE, MSG_BLOCK};
-    use super::set_field_byte;
 
     // #[test]
     // fn smoke_test() {
@@ -395,20 +408,20 @@ mod tests {
     //     assert_eq(sha256_var(input, input.len() as u64), result);
     // }
 
-    // #[test]
-    // fn msg_just_over_block() {
-    //     let input = [
-    //         102, 114, 111, 109, 58, 114, 117, 110, 110, 105, 101, 114, 46, 108, 101, 97, 103, 117,
-    //         101, 115, 46, 48, 106, 64, 105, 99, 108, 111, 117, 100, 46, 99, 111, 109, 13, 10, 99,
-    //         111, 110, 116, 101, 110, 116, 45, 116, 121, 112, 101, 58, 116, 101, 120, 116, 47, 112,
-    //         108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116,
-    //     ];
-    //     let result = [
-    //         91, 122, 146, 93, 52, 109, 133, 148, 171, 61, 156, 70, 189, 238, 153, 7, 222, 184, 94,
-    //         24, 65, 114, 192, 244, 207, 199, 87, 232, 192, 224, 171, 207,
-    //     ];
-    //     assert_eq(sha256_var(input, input.len() as u64), result);
-    // }
+    #[test]
+    fn msg_just_over_block() {
+        let input = [
+            102, 114, 111, 109, 58, 114, 117, 110, 110, 105, 101, 114, 46, 108, 101, 97, 103, 117,
+            101, 115, 46, 48, 106, 64, 105, 99, 108, 111, 117, 100, 46, 99, 111, 109, 13, 10, 99,
+            111, 110, 116, 101, 110, 116, 45, 116, 121, 112, 101, 58, 116, 101, 120, 116, 47, 112,
+            108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116,
+        ];
+        let result = [
+            91, 122, 146, 93, 52, 109, 133, 148, 171, 61, 156, 70, 189, 238, 153, 7, 222, 184, 94,
+            24, 65, 114, 192, 244, 207, 199, 87, 232, 192, 224, 171, 207,
+        ];
+        assert_eq(sha256_var(input, input.len() as u64), result);
+    }
 
     // #[test]
     // fn msg_multiple_over_block() {
@@ -444,20 +457,20 @@ mod tests {
     //     assert_eq(sha256_var(input, input.len() as u64), result);
     // }
 
-    // #[test]
-    // fn msg_just_under_block() {
-    //     let input = [
-    //         102, 114, 111, 109, 58, 114, 117, 110, 110, 105, 101, 114, 46, 108, 101, 97, 103, 117,
-    //         101, 115, 46, 48, 106, 64, 105, 99, 108, 111, 117, 100, 46, 99, 111, 109, 13, 10, 99,
-    //         111, 110, 116, 101, 110, 116, 45, 116, 121, 112, 101, 58, 116, 101, 120, 116, 47, 112,
-    //         108, 97, 105, 110, 59,
-    //     ];
-    //     let result = [
-    //         143, 140, 76, 173, 222, 123, 102, 68, 70, 149, 207, 43, 39, 61, 34, 79, 216, 252, 213,
-    //         165, 74, 16, 110, 74, 29, 64, 138, 167, 30, 1, 9, 119,
-    //     ];
-    //     assert_eq(sha256_var(input, input.len() as u64), result);
-    // }
+    #[test]
+    fn msg_just_under_block() {
+        let input = [
+            102, 114, 111, 109, 58, 114, 117, 110, 110, 105, 101, 114, 46, 108, 101, 97, 103, 117,
+            101, 115, 46, 48, 106, 64, 105, 99, 108, 111, 117, 100, 46, 99, 111, 109, 13, 10, 99,
+            111, 110, 116, 101, 110, 116, 45, 116, 121, 112, 101, 58, 116, 101, 120, 116, 47, 112,
+            108, 97, 105, 110, 59,
+        ];
+        let result = [
+            143, 140, 76, 173, 222, 123, 102, 68, 70, 149, 207, 43, 39, 61, 34, 79, 216, 252, 213,
+            165, 74, 16, 110, 74, 29, 64, 138, 167, 30, 1, 9, 119,
+        ];
+        assert_eq(sha256_var(input, input.len() as u64), result);
+    }
 
     // #[test]
     // fn msg_big_not_block_multiple() {
@@ -649,5 +662,43 @@ mod tests {
 
         let fld = make_field(0, 20, 30, 0);
         assert_eq(msg_block[1], fld);
+    }
+
+    #[test]
+    fn test_build_msg_block_start_0() {
+        let input = [
+            102, 114, 111, 109, 
+            58, 114, 117, 110, 
+            110, 105, 101, 114, 
+            46, 108, 101, 97, 
+            103, 117, 101, 115, 
+            46, 48
+        ];
+        assert_eq(input.len(), 22);
+        let (msg_block, msg_byte_ptr) = unsafe { 
+            build_msg_block(input, input.len(), 0)
+        };
+        assert_eq(msg_byte_ptr, input.len());
+        assert_eq(msg_block[0], make_field(input[0], input[1], input[2], input[3]));
+        assert_eq(msg_block[1], make_field(input[4], input[5], input[6], input[7]));
+        assert_eq(msg_block[5], make_field(input[20], input[21], 0, 0));
+        assert_eq(msg_block[6], 0);
+    }
+
+    #[test]
+    fn test_build_msg_block_start_1() {
+        let input = [
+            102, 114, 111, 109, 58, 114, 117, 110, 110, 105, 101, 114, 46, 108, 101, 97, 103, 117,
+            101, 115, 46, 48, 106, 64, 105, 99, 108, 111, 117, 100, 46, 99, 111, 109, 13, 10, 99,
+            111, 110, 116, 101, 110, 116, 45, 116, 121, 112, 101, 58, 116, 101, 120, 116, 47, 112,
+            108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116,
+        ];
+        assert_eq(input.len(), 68);
+        let (msg_block, msg_byte_ptr) = unsafe { 
+            build_msg_block(input, input.len(), 64)
+        };
+        assert_eq(msg_byte_ptr, 4);
+        assert_eq(msg_block[0], make_field(input[64], input[65], input[66], input[67]));
+        assert_eq(msg_block[1], 0);
     }
 }
