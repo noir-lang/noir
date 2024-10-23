@@ -54,7 +54,6 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> HASH {
 
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
-    crate::println(f"len = {message_size}, message = {msg}");
     let message_size = message_size as u32;
     let num_blocks = N / BLOCK_SIZE;
     let mut msg_block: MSG_BLOCK = [0; INT_BLOCK_SIZE];
@@ -69,7 +68,6 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         let msg_start = BLOCK_SIZE * i;
         let (new_msg_block, new_msg_byte_ptr) =
             unsafe { build_msg_block(msg, message_size, msg_start) };
-        crate::println(f"i = {i}, ptr = {new_msg_byte_ptr}, block = {new_msg_block}");
 
         if msg_start < message_size {
             msg_block = new_msg_block;
@@ -84,14 +82,11 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         } else if msg_start < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
         }
-        crate::println(f"pointer i = {i}, ptr = {msg_byte_ptr}");
 
         // If the block is filled, compress it.
         // An un-filled block is handled after this loop.
         if (msg_start < message_size) & (msg_byte_ptr == BLOCK_SIZE) {
-            crate::println(f"compressing i = {i}, state = {h}, block = {msg_block}");
             h = sha256_compression(msg_block, h);
-            crate::println(f"compressed i = {i}, state = {h}");
         }
     }
 
@@ -126,7 +121,6 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         msg_byte_ptr = 0;
     }
 
-    crate::println(f"before 1<<7: ptr = {msg_byte_ptr}, block = {msg_block}");
 
 
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
@@ -135,7 +129,6 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     msg_block = set_msg_byte(msg_block, msg_byte_ptr, 1 << 7);
     msg_byte_ptr = msg_byte_ptr + 1;
 
-    crate::println(f"after 1<<7: ptr = {msg_byte_ptr}, block = {msg_block}");
 
 
     // TODO:
@@ -143,16 +136,13 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
 
     // If we don't have room to write the size, compress the block and reset it.
     if msg_byte_ptr > MSG_SIZE_PTR {
-        crate::println(f"compressing state = {h}, block = {msg_block}");
         h = sha256_compression(msg_block, h);
-        crate::println(f"compressed state = {h}");
         // `attach_len_to_msg_block` will zero out everything after the `msg_byte_ptr`.
         msg_byte_ptr = 0;
     }
 
     msg_block = unsafe { attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size) };
 
-    crate::println(f"after attach len: ptr = {msg_byte_ptr}, block = {msg_block}");
 
     if !crate::runtime::is_unconstrained() {
         // TODO: Enable
@@ -388,7 +378,6 @@ unconstrained fn attach_len_to_msg_block(
 
 // Perform the final compression, then transform the `STATE` into `HASH`.
 fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
-    crate::println(f"hashing block = {msg_block}, state = {state}");
     let mut out_h: HASH = [0; 32]; // Digest as sequence of bytes
     // Hash final padded block
     state = sha256_compression(msg_block, state);
