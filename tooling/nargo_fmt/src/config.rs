@@ -49,7 +49,7 @@ config! {
     array_width: usize, 100, "Maximum width of an array literal before falling back to vertical formatting";
     fn_call_width: usize, 60, "Maximum width of the args of a function call before falling back to vertical formatting";
     single_line_if_else_max_width: usize, 50, "Maximum line length for single line if-else expressions";
-    merge_imports: bool, true, "Merge and sort groups of imports";
+    merge_imports: bool, false, "Merge and sort groups of imports";
 }
 
 impl Config {

@@ -6,21 +6,19 @@ contract Benchmarking {
     use aztec::protocol_types::abis::function_selector::FunctionSelector;
 
     use value_note::{
-        utils::{decrement, increment},
+        utils::{increment, decrement},
         value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
     };
 
     use aztec::{
         context::Context,
-        log::emit_unencrypted_log,
         note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        state_vars::{Map, PrivateSet, PublicMutable},
-        types::{
-            address::AztecAddress,
-            type_serialization::field_serialization::{
-                FIELD_SERIALIZED_LEN, FieldSerializationMethods,
-            },
+        log::emit_unencrypted_log,
+        state_vars::{Map, PublicMutable, PrivateSet},
+        types::type_serialization::field_serialization::{
+            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
+        types::address::AztecAddress,
     };
 
     struct Storage {
