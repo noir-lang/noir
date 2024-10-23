@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
+
 use crate::errors::ConfigError;
 
 macro_rules! config {
@@ -49,6 +51,8 @@ config! {
     array_width: usize, 100, "Maximum width of an array literal before falling back to vertical formatting";
     fn_call_width: usize, 60, "Maximum width of the args of a function call before falling back to vertical formatting";
     single_line_if_else_max_width: usize, 50, "Maximum line length for single line if-else expressions";
+    imports_granularity: ImportsGranularity, ImportsGranularity::Preserve, "How imports should be grouped into use statements.";
+    reorder_imports: bool, true, "Reorder imports alphabetically";
 }
 
 impl Config {
@@ -70,4 +74,14 @@ impl Config {
         config.fill_from_toml(toml);
         Ok(config)
     }
+}
+
+/// How imports should be grouped into use statements.
+/// Imports will be merged or split to the configured level of granularity.
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq)]
+pub enum ImportsGranularity {
+    /// Do not change the granularity of any imports and preserve the original structure written by the developer.
+    Preserve,
+    /// Merge imports from the same crate into a single use statement.
+    Crate,
 }

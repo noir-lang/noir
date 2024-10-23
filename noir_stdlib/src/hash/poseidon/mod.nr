@@ -1,6 +1,6 @@
 pub mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
-use crate::hash::Hasher;
 use crate::default::Default;
+use crate::hash::Hasher;
 
 // A config struct defining the parameters of the Poseidon instance to use.
 //
