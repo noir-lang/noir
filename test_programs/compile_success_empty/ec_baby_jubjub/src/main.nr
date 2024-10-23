@@ -6,9 +6,9 @@ use std::ec::tecurve::curvegroup::Point as G;
 use std::ec::swcurve::affine::Point as SWGaffine;
 use std::ec::swcurve::curvegroup::Point as SWG;
 
+use std::compat;
 use std::ec::montcurve::affine::Point as MGaffine;
 use std::ec::montcurve::curvegroup::Point as MG;
-use std::compat;
 
 fn main() {
     // This test only makes sense if Field is the right prime field.
