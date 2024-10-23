@@ -63,7 +63,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     test_function,
                     compiled_program.abi,
                     compiled_program.debug,
-                    circuit_execution,
+                    circuit_execution.map(|(witness_stack, _)| witness_stack),
                 )
             } else {
                 #[cfg(target_arch = "wasm32")]
@@ -97,6 +97,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                     package_name.clone(),
                                 ),
                             )
+                            .map(|(witness_stack, _)| witness_stack)
                             .map_err(|err| err.to_string())
                         };
                     let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);

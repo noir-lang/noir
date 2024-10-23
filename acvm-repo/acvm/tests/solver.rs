@@ -53,7 +53,7 @@ fn bls12_381_circuit() {
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
-    let witness_stack = acvm.finalize();
+    let witness_stack = acvm.finalize().0;
 
     assert_eq!(witness_stack.get(&Witness(3)).unwrap(), &Bls12FieldElement::from(5u128));
 }
@@ -188,7 +188,7 @@ fn inversion_brillig_oracle_equivalence() {
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
-    acvm.finalize();
+    acvm.finalize().0;
 }
 
 #[test]
@@ -361,7 +361,7 @@ fn double_inversion_brillig_oracle() {
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
-    acvm.finalize();
+    acvm.finalize().0;
 }
 
 #[test]
@@ -506,7 +506,7 @@ fn oracle_dependent_execution() {
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
-    acvm.finalize();
+    acvm.finalize().0;
 }
 
 #[test]
@@ -592,7 +592,7 @@ fn brillig_oracle_predicate() {
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
-    acvm.finalize();
+    acvm.finalize().0;
 }
 
 #[test]
@@ -785,7 +785,7 @@ fn memory_operations() {
         ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
-    let witness_map = acvm.finalize();
+    let witness_map = acvm.finalize().0;
 
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
 }
@@ -891,7 +891,7 @@ where
         ACVM::new(&Bn254BlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
-    let witness_map = acvm.finalize();
+    let witness_map = acvm.finalize().0;
 
     Ok(outputs
         .iter()
@@ -1027,7 +1027,7 @@ fn bigint_solve_binary_op_opt(
         ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
-    let witness_map = acvm.finalize();
+    let witness_map = acvm.finalize().0;
     Ok(output_witnesses
         .iter()
         .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
@@ -1070,7 +1070,7 @@ fn solve_blackbox_func_call(
         ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
-    let witness_map = acvm.finalize();
+    let witness_map = acvm.finalize().0;
 
     Ok(witness_map[&Witness(3)])
 }

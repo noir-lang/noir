@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use color_eyre::eyre;
 use const_format::formatcp;
 
+mod execution_flamegraph_cmd;
 mod gates_flamegraph_cmd;
 mod opcodes_flamegraph_cmd;
 
@@ -21,6 +22,7 @@ struct ProfilerCli {
 enum ProfilerCommand {
     GatesFlamegraph(gates_flamegraph_cmd::GatesFlamegraphCommand),
     OpcodesFlamegraph(opcodes_flamegraph_cmd::OpcodesFlamegraphCommand),
+    ExecutionFlamegraph(execution_flamegraph_cmd::ExecutionFlamegraphCommand),
 }
 
 pub(crate) fn start_cli() -> eyre::Result<()> {
@@ -29,5 +31,6 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     match command {
         ProfilerCommand::GatesFlamegraph(args) => gates_flamegraph_cmd::run(args),
         ProfilerCommand::OpcodesFlamegraph(args) => opcodes_flamegraph_cmd::run(args),
+        ProfilerCommand::ExecutionFlamegraph(args) => execution_flamegraph_cmd::run(args),
     }
 }

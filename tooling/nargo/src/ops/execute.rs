@@ -3,7 +3,7 @@ use acvm::acir::circuit::{
     OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
 };
 use acvm::acir::native_types::WitnessStack;
-use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ACVM};
+use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples, ACVM};
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{AcirField, BlackBoxFunctionSolver};
 
@@ -62,7 +62,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     fn execute_circuit(
         &mut self,
         initial_witness: WitnessMap<F>,
-    ) -> Result<WitnessMap<F>, NargoError<F>> {
+    ) -> Result<(WitnessMap<F>, ProfilingSamples), NargoError<F>> {
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
@@ -155,7 +155,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     // Execute the ACIR call
                     let acir_to_call = &self.functions[call_info.id.as_usize()];
                     let initial_witness = call_info.initial_witness;
-                    let call_solved_witness = self.execute_circuit(initial_witness)?;
+                    // TODO: Handling profiling among multiple circuits is not supported
+                    let (call_solved_witness, _) = self.execute_circuit(initial_witness)?;
 
                     // Set tracking index back to the parent function after ACIR call execution
                     self.current_function_index = acir_function_caller;
@@ -194,15 +195,15 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
-) -> Result<WitnessStack<F>, NargoError<F>> {
+) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
         blackbox_solver,
         foreign_call_executor,
     );
-    let main_witness = executor.execute_circuit(initial_witness)?;
+    let (main_witness, profiling_samples) = executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);
 
-    Ok(executor.finalize())
+    Ok((executor.finalize(), profiling_samples))
 }

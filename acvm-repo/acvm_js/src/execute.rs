@@ -276,7 +276,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                 }
             }
 
-            Ok(acvm.finalize())
+            Ok(acvm.finalize().0)
         })
     }
 }

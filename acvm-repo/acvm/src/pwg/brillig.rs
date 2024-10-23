@@ -12,12 +12,12 @@ use acir::{
     AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{FailureReason, MemoryValue, VMStatus, VM};
+use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VMStatus, VM};
 use serde::{Deserialize, Serialize};
 
 use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
 
-use super::{get_value, insert_value, memory_op::MemoryOpSolver};
+use super::{get_value, insert_value, memory_op::MemoryOpSolver, ProfilingSamples};
 
 #[derive(Debug)]
 pub enum BrilligSolverStatus<F> {
@@ -203,13 +203,13 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self,
         witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],
-    ) -> Result<(), OpcodeResolutionError<F>> {
+    ) -> Result<BrilligProfilingSamples, OpcodeResolutionError<F>> {
         // Finish the Brillig execution by writing the outputs to the witness map
         let vm_status = self.vm.get_status();
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
                 self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
-                Ok(())
+                Ok(self.vm.profiling_samples)
             }
             _ => panic!("Brillig VM has not completed execution"),
         }

@@ -63,6 +63,8 @@ pub enum VMStatus<F> {
     },
 }
 
+pub type BrilligProfilingSamples = Vec<(Vec<usize>, usize)>;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// VM encapsulates the state of the Brillig VM during execution.
 pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
@@ -88,6 +90,9 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     black_box_solver: &'a B,
     // The solver for big integers
     bigint_solver: BrilligBigintSolver,
+
+    pub profiling_samples: BrilligProfilingSamples,
+    sample_counter: usize,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -109,6 +114,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             call_stack: Vec::new(),
             black_box_solver,
             bigint_solver: Default::default(),
+            profiling_samples: Vec::with_capacity(bytecode.len()),
+            sample_counter: 0,
         }
     }
 
@@ -196,6 +203,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Process a single opcode and modify the program counter.
     pub fn process_opcode(&mut self) -> VMStatus<F> {
+        // self.sample_counter += 1;
+        // if self.sample_counter == 12345 {
+        //     self.sample_counter = 0;
+        let call_stack: Vec<usize> = self.get_call_stack();
+        self.profiling_samples.push((call_stack, 1));
+        // }
+        self.process_opcode_internal()
+    }
+
+    pub fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
