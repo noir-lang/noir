@@ -4,7 +4,8 @@
 //      - structs (struct Foo<T> where T: ...)
 // import the traits from another module to ensure the where clauses are ok with that
 mod the_trait;
-use crate::the_trait::{Asd, StaticTrait};
+use crate::the_trait::Asd;
+use crate::the_trait::StaticTrait;
 
 struct Add10 {
     x: Field,

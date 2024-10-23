@@ -537,7 +537,7 @@ where
 }
 
 mod cmp_tests {
-    use crate::cmp::{max, min};
+    use crate::cmp::{min, max};
 
     #[test]
     fn sanity_check_min() {

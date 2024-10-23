@@ -1,4 +1,5 @@
-use std::ec::tecurve::affine::{Curve as AffineCurve, Point as Gaffine};
+use std::ec::tecurve::affine::Curve as AffineCurve;
+use std::ec::tecurve::affine::Point as Gaffine;
 
 fn main() {
     // Define Baby Jubjub (ERC-2494) parameters in affine representation

@@ -1,4 +1,6 @@
-use crate::{cmp::{Eq, Ord, Ordering}, default::Default, hash::{Hash, Hasher}};
+use crate::hash::{Hash, Hasher};
+use crate::cmp::{Ordering, Ord, Eq};
+use crate::default::Default;
 
 pub struct Option<T> {
     _is_some: bool,

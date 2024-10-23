@@ -8,7 +8,8 @@ fn main() {
 
 mod a {
     // We don't want to give an error due to re-importing elements that are already in the prelude.
-    use std::{collections::vec::Vec, option::Option};
+    use std::collections::vec::Vec;
+    use std::option::Option;
 
     fn main() {
         let _xs = Vec::new();

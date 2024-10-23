@@ -3,7 +3,11 @@ pub mod affine {
     // Points are represented by two-dimensional Cartesian coordinates.
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
     // for reasons of efficiency, cf. <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates>.
-    use crate::{cmp::Eq, ec::{is_square, safe_inverse, sqrt, swcurve::curvegroup}};
+    use crate::ec::swcurve::curvegroup;
+    use crate::ec::safe_inverse;
+    use crate::ec::is_square;
+    use crate::ec::sqrt;
+    use crate::cmp::Eq;
 
     // Curve specification
     pub struct Curve { // Short Weierstrass curve
@@ -186,7 +190,8 @@ pub mod curvegroup {
     // CurveGroup representation of Weierstrass curves
     // Points are represented by three-dimensional Jacobian coordinates.
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
-    use crate::{cmp::Eq, ec::swcurve::affine};
+    use crate::ec::swcurve::affine;
+    use crate::cmp::Eq;
 
     // Curve specification
     pub struct Curve { // Short Weierstrass curve

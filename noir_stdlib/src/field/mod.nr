@@ -1,6 +1,6 @@
 pub mod bn254;
-use crate::runtime::is_unconstrained;
 use bn254::lt as bn254_lt;
+use crate::runtime::is_unconstrained;
 
 impl Field {
     /// Asserts that `self` can be represented in `bit_size` bits.

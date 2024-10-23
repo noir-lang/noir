@@ -1,4 +1,6 @@
-use crate::{cmp::{Eq, Ord}, convert::From, runtime::is_unconstrained};
+use crate::cmp::{Eq, Ord};
+use crate::convert::From;
+use crate::runtime::is_unconstrained;
 
 mod check_shuffle;
 mod quicksort;

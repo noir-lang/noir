@@ -1,4 +1,5 @@
-use crate::{default::Default, hash::Hasher};
+use crate::hash::Hasher;
+use crate::default::Default;
 
 // mimc-p/p implementation
 // constants are (publicly generated) random numbers, for instance using keccak as a ROM.

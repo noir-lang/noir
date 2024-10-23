@@ -1,4 +1,5 @@
-use crate::{cmp::Eq, ops::arith::{Add, Neg, Sub}};
+use crate::ops::arith::{Add, Sub, Neg};
+use crate::cmp::Eq;
 
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.

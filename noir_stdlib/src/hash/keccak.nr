@@ -1,4 +1,5 @@
-use crate::{collections::vec::Vec, runtime::is_unconstrained};
+use crate::collections::vec::Vec;
+use crate::runtime::is_unconstrained;
 
 global BLOCK_SIZE_IN_BYTES: u32 = 136; //(1600 - BITS * 2) / WORD_SIZE;
 global WORD_SIZE: u32 = 8; // Limbs are made up of u64s so 8 bytes each.

@@ -10,7 +10,8 @@ mod foo {
     }
 }
 
-use foo::Trait::{me, self};
+use foo::Trait;
+use foo::Trait::me;
 
 fn main(x: Field) {
     let _ = foo::Trait::me(x);

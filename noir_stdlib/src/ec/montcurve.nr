@@ -3,18 +3,16 @@ pub mod affine {
     // Points are represented by two-dimensional Cartesian coordinates.
     // All group operations are induced by those of the corresponding Twisted Edwards curve.
     // See e.g. <https://eprint.iacr.org/2017/212.pdf> for details on the correspondences.
-    use crate::{
-        cmp::Eq,
-        ec::{
-            is_square,
-            montcurve::curvegroup,
-            safe_inverse,
-            sqrt,
-            swcurve::affine::{Curve as SWCurve, Point as SWPoint},
-            tecurve::affine::{Curve as TECurve, Point as TEPoint},
-            ZETA,
-        },
-    };
+    use crate::ec::montcurve::curvegroup;
+    use crate::ec::swcurve::affine::Curve as SWCurve;
+    use crate::ec::swcurve::affine::Point as SWPoint;
+    use crate::ec::tecurve::affine::Curve as TECurve;
+    use crate::ec::tecurve::affine::Point as TEPoint;
+    use crate::ec::is_square;
+    use crate::ec::safe_inverse;
+    use crate::ec::sqrt;
+    use crate::ec::ZETA;
+    use crate::cmp::Eq;
 
     // Curve specification
     pub struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
@@ -224,14 +222,12 @@ pub mod curvegroup {
     // Points are represented by three-dimensional projective (homogeneous) coordinates.
     // All group operations are induced by those of the corresponding Twisted Edwards curve.
     // See e.g. <https://eprint.iacr.org/2017/212.pdf> for details on the correspondences.
-    use crate::{
-        cmp::Eq,
-        ec::{
-            montcurve::affine,
-            swcurve::curvegroup::{Curve as SWCurve, Point as SWPoint},
-            tecurve::curvegroup::{Curve as TECurve, Point as TEPoint},
-        },
-    };
+    use crate::ec::montcurve::affine;
+    use crate::ec::swcurve::curvegroup::Curve as SWCurve;
+    use crate::ec::swcurve::curvegroup::Point as SWPoint;
+    use crate::ec::tecurve::curvegroup::Curve as TECurve;
+    use crate::ec::tecurve::curvegroup::Point as TEPoint;
+    use crate::cmp::Eq;
 
     pub struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
         pub j: Field,

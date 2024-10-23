@@ -1,6 +1,7 @@
 //! Contains methods on the built-in `Type` type used for representing a type in the source program.
 
-use crate::{cmp::Eq, option::Option};
+use crate::cmp::Eq;
+use crate::option::Option;
 
 /// Creates and returns an unbound type variable. This is a special kind of type internal
 /// to type checking which will type check with any other type. When it is type checked

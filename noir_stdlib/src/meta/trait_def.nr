@@ -1,4 +1,5 @@
-use crate::{cmp::Eq, hash::{Hash, Hasher}};
+use crate::hash::{Hash, Hasher};
+use crate::cmp::Eq;
 
 impl TraitDefinition {
     #[builtin(trait_def_as_trait_constraint)]
