@@ -246,13 +246,13 @@ fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR) 
     verify_msg_block_zeroes(msg_block, msg_byte_ptr, INT_BLOCK_SIZE);
 }
 
-// Verify that a region of ints in the message block are (partially) zeroed, 
-// up to an (exclusive) maximum which can either be the end of the block 
+// Verify that a region of ints in the message block are (partially) zeroed,
+// up to an (exclusive) maximum which can either be the end of the block
 // or just where the size is to be written.
 fn verify_msg_block_zeroes(
-    msg_block: MSG_BLOCK, 
-    mut msg_byte_ptr: BLOCK_BYTE_PTR, 
-    max_int_byte_ptr: u32
+    msg_block: MSG_BLOCK,
+    mut msg_byte_ptr: BLOCK_BYTE_PTR,
+    max_int_byte_ptr: u32,
 ) {
     // This variable is used to get around the compiler under-constrained check giving a warning.
     // We want to check against a constant zero, but if it does not come from the circuit inputs
@@ -283,12 +283,12 @@ fn verify_msg_block_zeroes(
     }
 }
 
-// Verify that up to the byte pointer the two blocks are equal. 
+// Verify that up to the byte pointer the two blocks are equal.
 // At the byte pointer the new block can be partially zeroed.
 fn verify_msg_block_equals_last(
-    msg_block: MSG_BLOCK, 
-    last_block: MSG_BLOCK, 
-    mut msg_byte_ptr: BLOCK_BYTE_PTR, 
+    msg_block: MSG_BLOCK,
+    last_block: MSG_BLOCK,
+    mut msg_byte_ptr: BLOCK_BYTE_PTR,
 ) {
     // msg_byte_ptr is the position at which they are no longer have to be the same.
     // First integer which is supposed to be (partially) zero contains that pointer.
@@ -304,7 +304,7 @@ fn verify_msg_block_equals_last(
         msg_byte_ptr = msg_byte_ptr - modulo;
         for i in 0..INT_SIZE {
             msg_field = msg_field * 256;
-            if i < modulo {            
+            if i < modulo {
                 msg_field = msg_field + from_field_byte(last_field, msg_byte_ptr) as u32;
                 msg_byte_ptr = msg_byte_ptr + 1;
             }
@@ -315,7 +315,7 @@ fn verify_msg_block_equals_last(
     for i in 0..INT_SIZE_PTR {
         if i < int_byte_ptr {
             assert_eq(msg_block[i], last_block[i]);
-        } 
+        }
     }
 }
 
@@ -415,8 +415,8 @@ unconstrained fn attach_len_to_msg_block(
     msg_block
 }
 
-// Verify that the message length was correctly written by `attach_len_to_msg_block`, 
-// and that everything between the byte pointer and the size pointer was zeroed, 
+// Verify that the message length was correctly written by `attach_len_to_msg_block`,
+// and that everything between the byte pointer and the size pointer was zeroed,
 // and that everything before the byte pointer was untouched.
 fn verify_msg_len(
     msg_block: MSG_BLOCK,
