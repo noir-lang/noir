@@ -12,12 +12,15 @@ global MSG_SIZE_PTR = 56;
 // Size of the message block when packed as 4-byte integer array.
 global INT_BLOCK_SIZE = 16;
 
+// Index of a byte in a 64 byte block; ie. 0..=63
+type BLOCK_BYTE_PTR = u32;
+
 // The foreign function to compress blocks works on 16 pieces of 4-byte integers, instead of 64 bytes.
 type INT_BLOCK = [u32; INT_BLOCK_SIZE];
 
 // A message block is a slice of the original message of a fixed size,
 // potentially padded with zeroes.
-type MSG_BLOCK = [u8; 64];
+type MSG_BLOCK = [u8; BLOCK_SIZE];
 
 // The hash is 32 bytes.
 type HASH = [u8; 32];
@@ -152,7 +155,7 @@ unconstrained fn build_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
     msg_start: u32,
-) -> (MSG_BLOCK, u32) {
+) -> (MSG_BLOCK, BLOCK_BYTE_PTR) {
     let mut msg_block: MSG_BLOCK = [0; BLOCK_SIZE];
     // We insert `BLOCK_SIZE` bytes (or up to the end of the message)
     let block_input = if msg_start + BLOCK_SIZE > message_size {
@@ -179,7 +182,7 @@ fn verify_msg_block<let N: u32>(
     message_size: u32,
     msg_block: MSG_BLOCK,
     msg_start: u32,
-) -> u32 {
+) -> BLOCK_BYTE_PTR {
     let mut msg_byte_ptr: u32 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
     if msg_end > N {
@@ -198,7 +201,7 @@ fn verify_msg_block<let N: u32>(
 
 // Verify the block we are compressing was appropriately padded with zeroes by `build_msg_block`.
 // This is only relevant for the last, potentially partially filled block.
-fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: u32) {
+fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR) {
     // This variable is used to get around the compiler under-constrained check giving a warning.
     // We want to check against a constant zero, but if it does not come from the circuit inputs
     // or return values the compiler check will issue a warning.
@@ -215,7 +218,7 @@ fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: u32) {
 // then write the length into the last 8 bytes of the block.
 unconstrained fn attach_len_to_msg_block(
     mut msg_block: MSG_BLOCK,
-    msg_byte_ptr: u32,
+    msg_byte_ptr: BLOCK_BYTE_PTR,
     message_size: u32,
 ) -> MSG_BLOCK {
     // We assume that `msg_byte_ptr` is less than 57 because if not then it is reset to zero before calling this function.
@@ -236,7 +239,7 @@ unconstrained fn attach_len_to_msg_block(
 fn verify_msg_len(
     msg_block: MSG_BLOCK,
     last_block: MSG_BLOCK,
-    msg_byte_ptr: u32,
+    msg_byte_ptr: BLOCK_BYTE_PTR,
     message_size: u32,
 ) {
     for i in 0..MSG_SIZE_PTR {
