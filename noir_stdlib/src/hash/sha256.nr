@@ -107,8 +107,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
             let new_msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, msg_start);
             if msg_start < message_size {
                 msg_byte_ptr = new_msg_byte_ptr;
-                // TODO: Update for 16 bytes
-                // verify_msg_block_padding(msg_block, msg_byte_ptr);
+                verify_msg_block_padding(msg_block, msg_byte_ptr);
             }
         } else if msg_start < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
@@ -245,18 +244,33 @@ fn verify_msg_block<let N: u32>(
 
 // Verify the block we are compressing was appropriately padded with zeroes by `build_msg_block`.
 // This is only relevant for the last, potentially partially filled block.
-// fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR) {
-//     // This variable is used to get around the compiler under-constrained check giving a warning.
-//     // We want to check against a constant zero, but if it does not come from the circuit inputs
-//     // or return values the compiler check will issue a warning.
-//     let zero = msg_block[0] - msg_block[0];
+fn verify_msg_block_padding(msg_block: MSG_BLOCK, mut msg_byte_ptr: BLOCK_BYTE_PTR) {
+    // This variable is used to get around the compiler under-constrained check giving a warning.
+    // We want to check against a constant zero, but if it does not come from the circuit inputs
+    // or return values the compiler check will issue a warning.
+    let zero = msg_block[0] - msg_block[0];
 
-//     for i in 0..BLOCK_SIZE {
-//         if i >= msg_byte_ptr {
-//             assert_eq(msg_block[i], zero);
-//         }
-//     }
-// }
+    // First integer which is supposed to be (partially) zero.
+    let mut int_byte_ptr = msg_byte_ptr / INT_SIZE;
+
+    // Check partial zeroes.
+    let modulo = msg_byte_ptr % INT_SIZE;
+    if modulo != 0 {
+        let msg_field = msg_block[int_byte_ptr];
+        for _ in 0..(INT_SIZE - modulo) {
+            assert_eq(from_field_byte(msg_field, msg_byte_ptr), zero as u8);
+            msg_byte_ptr = msg_byte_ptr + 1;
+        }
+        int_byte_ptr = int_byte_ptr + 1;
+    }
+
+    // Check the rest of the numbers.
+    for i in 0..INT_BLOCK_SIZE {
+        if i >= int_byte_ptr {
+            assert_eq(msg_block[i], zero);
+        }
+    }
+}
 
 // Pack the value of byte into a field of an existing message block, shifting the byte according to its position.
 fn set_msg_byte(mut msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> MSG_BLOCK {
