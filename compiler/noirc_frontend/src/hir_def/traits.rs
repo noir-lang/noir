@@ -75,6 +75,8 @@ pub struct Trait {
 
     /// The resolved trait bounds (for example in `trait Foo: Bar + Baz`, this would be `Bar + Baz`)
     pub trait_bounds: Vec<ResolvedTraitBound>,
+
+    pub where_clause: Vec<TraitConstraint>,
 }
 
 #[derive(Debug)]
@@ -152,6 +154,10 @@ impl Trait {
 
     pub fn set_trait_bounds(&mut self, trait_bounds: Vec<ResolvedTraitBound>) {
         self.trait_bounds = trait_bounds;
+    }
+
+    pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
+        self.where_clause = where_clause;
     }
 
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {

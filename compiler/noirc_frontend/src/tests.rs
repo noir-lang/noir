@@ -2969,9 +2969,8 @@ fn uses_self_type_in_trait_where_clause() {
         }
     }
 
-    struct Bar {
-
-    }
+    struct Bar;
+    impl Trait for Bar {}
 
     impl Foo for Bar {
 
@@ -2983,6 +2982,7 @@ fn uses_self_type_in_trait_where_clause() {
     "#;
 
     let errors = get_program_errors(src);
+    dbg!(&errors);
     assert_eq!(errors.len(), 1);
 
     let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
