@@ -199,10 +199,12 @@ unconstrained fn build_msg_block<let N: u32>(
 
 // Verify the block we are compressing was appropriately constructed by `build_msg_block`
 // and matches the input data. Returns the index of the first unset item.
+// If `message_size` is less than `msg_start` then this is called with the old non-empty block;
+// in that case we can skip verification, ie. no need to check that everything is zero.
 fn verify_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
-    _msg_block: MSG_BLOCK,
+    msg_block: MSG_BLOCK,
     msg_start: u32,
 ) -> BLOCK_BYTE_PTR {
     let mut msg_byte_ptr = 0;
@@ -216,25 +218,24 @@ fn verify_msg_block<let N: u32>(
     }
 
     // Reconstructed packed field.
-    let mut msg_field: Field = 0;
+    let mut msg_field: u32 = 0;
 
     // Inclusive the end so that we can compare the last item.
+    let mut i: u32 = 0;
     for k in msg_start..=msg_end {
         if k % INT_SIZE == 0 {
-            // If we consumed some input we can compare agains the block.
-            if k > 0 {
-                let _i = k / INT_SIZE - 1;
-                // TODO:
-                // assert_eq(msg_block[i], msg_field as u32);
+            // If we consumed some input we can compare against the block.
+            if msg_start < message_size & k > msg_start {
+                assert_eq(msg_block[i], msg_field as u32);
+                i = i + 1;
+                msg_field = 0;
             }
-            // Reset the accumulator.
-            msg_field = 0;
         }
         // Shift the accumulator
         msg_field = msg_field * 256;
-        // If whave input to consume, add it at the LSB position.
+        // If we have input to consume, add it at the rightmost position.
         if k < message_size & k < msg_end {
-            msg_field = msg_field + msg[k] as Field;
+            msg_field = msg_field + msg[k] as u32;
             msg_byte_ptr = msg_byte_ptr + 1;
         }
     }
