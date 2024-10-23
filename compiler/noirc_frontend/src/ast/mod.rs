@@ -371,15 +371,6 @@ impl UnresolvedType {
         let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
         UnresolvedType { typ, span }
     }
-
-    pub fn is_self_type(&self) -> bool {
-        if let UnresolvedTypeData::Named(path, generic_type_args, _) = &self.typ {
-            generic_type_args.is_empty()
-                && path.as_ident().map_or(false, |ident| ident.is_self_type_name())
-        } else {
-            false
-        }
-    }
 }
 
 impl UnresolvedTypeData {

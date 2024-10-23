@@ -379,19 +379,8 @@ impl<'a> ModCollector<'a> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for trait_definition in traits {
             let doc_comments = trait_definition.doc_comments;
-            let mut trait_definition = trait_definition.item;
+            let trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
-
-            // Any where clause that is "Self: Constraint" is the same as a parent constraint,
-            // so we move those to the parent constraints.
-            trait_definition.where_clause.retain(|constraint| {
-                if constraint.typ.is_self_type() {
-                    trait_definition.bounds.push(constraint.trait_bound.clone());
-                    false
-                } else {
-                    true
-                }
-            });
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
