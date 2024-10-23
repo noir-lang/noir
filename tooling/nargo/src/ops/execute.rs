@@ -157,7 +157,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     // Execute the ACIR call
                     let acir_to_call = &self.functions[call_info.id.as_usize()];
                     let initial_witness = call_info.initial_witness;
-                    // TODO: Handling profiling among multiple circuits is not supported
+                    // TODO: Profiling among multiple circuits is not supported
                     let (call_solved_witness, _) = self.execute_circuit(initial_witness)?;
 
                     // Set tracking index back to the parent function after ACIR call execution

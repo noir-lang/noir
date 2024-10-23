@@ -63,10 +63,12 @@ pub enum VMStatus<F> {
     },
 }
 
+// A sample for each opcode that was executed.
 pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
+    // The call stack when processing a given opcode.
     pub call_stack: Vec<usize>,
 }
 
@@ -95,8 +97,8 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     black_box_solver: &'a B,
     // The solver for big integers
     bigint_solver: BrilligBigintSolver,
-
-    pub profiling_samples: BrilligProfilingSamples,
+    // Samples for profiling the VM execution.
+    profiling_samples: BrilligProfilingSamples,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -120,6 +122,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             bigint_solver: Default::default(),
             profiling_samples: Vec::with_capacity(bytecode.len()),
         }
+    }
+
+    pub fn take_profiling_samples(&mut self) -> BrilligProfilingSamples {
+        std::mem::take(&mut self.profiling_samples)
     }
 
     /// Updates the current status of the VM.
@@ -208,8 +214,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     pub fn process_opcode(&mut self) -> VMStatus<F> {
         let call_stack: Vec<usize> = self.get_call_stack();
         self.profiling_samples.push(BrilligProfilingSample { call_stack });
-
-        // self.profiling_samples.push(call_stack);
 
         self.process_opcode_internal()
     }

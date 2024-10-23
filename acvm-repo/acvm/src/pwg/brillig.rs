@@ -200,7 +200,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     }
 
     pub(crate) fn finalize(
-        self,
+        mut self,
         witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],
     ) -> Result<BrilligProfilingSamples, OpcodeResolutionError<F>> {
@@ -209,7 +209,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
                 self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
-                Ok(self.vm.profiling_samples)
+                Ok(self.vm.take_profiling_samples())
             }
             _ => panic!("Brillig VM has not completed execution"),
         }
