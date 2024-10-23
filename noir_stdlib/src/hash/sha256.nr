@@ -3,15 +3,21 @@ use crate::runtime::is_unconstrained;
 // Implementation of SHA-256 mapping a byte array of variable length to
 // 32 bytes.
 
-// A message block is 64 bytes.
+// A message block is up to 64 bytes taken from the input.
 global BLOCK_SIZE = 64;
 
 // The first index in the block where the 8 byte message size will be written.
 global MSG_SIZE_PTR = 56;
 
+// Size of the message block when packed as 4-byte integer array.
+global INT_BLOCK_SIZE = 16;
+
+// The foreign function to compress blocks works on 16 pieces of 4-byte integers, instead of 64 bytes.
+type INT_BLOCK = [u32; INT_BLOCK_SIZE];
+
 // A message block is a slice of the original message of a fixed size,
 // potentially padded with zeroes.
-type MSG_BLOCK = [u8; BLOCK_SIZE];
+type MSG_BLOCK = [u8; 64];
 
 // The hash is 32 bytes.
 type HASH = [u8; 32];
@@ -29,7 +35,7 @@ pub fn sha256<let N: u32>(input: [u8; N]) -> HASH
 }
 
 #[foreign(sha256_compression)]
-pub fn sha256_compression(_input: [u32; 16], _state: STATE) -> STATE {}
+pub fn sha256_compression(_input: INT_BLOCK, _state: STATE) -> STATE {}
 
 // SHA-256 hash function
 #[no_predicates]
@@ -126,10 +132,10 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
 }
 
 // Convert 64-byte array to array of 16 u32s
-fn msg_u8_to_u32(msg: MSG_BLOCK) -> [u32; 16] {
-    let mut msg32: [u32; 16] = [0; 16];
+fn msg_u8_to_u32(msg: MSG_BLOCK) -> INT_BLOCK {
+    let mut msg32: INT_BLOCK = [0; INT_BLOCK_SIZE];
 
-    for i in 0..16 {
+    for i in 0..INT_BLOCK_SIZE {
         let mut msg_field: Field = 0;
         for j in 0..4 {
             msg_field = msg_field * 256 + msg[64 - 4 * (i + 1) + j] as Field;
