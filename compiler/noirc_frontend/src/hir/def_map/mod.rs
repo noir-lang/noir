@@ -309,9 +309,7 @@ impl CrateDefMap {
         index: &mut usize,
         ordering: &mut HashMap<LocalModuleId, usize>,
     ) {
-        let data = &self.modules[current.0];
-
-        for child in &data.child_declaration_order {
+        for child in &self.modules[current.0].child_declaration_order {
             self.topologically_sort_modules(*child, index, ordering);
         }
 

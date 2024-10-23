@@ -676,7 +676,7 @@ impl Attributes {
     pub fn has_contract_library_method(&self) -> bool {
         self.secondary
             .iter()
-            .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
+            .any(|attribute| *attribute == SecondaryAttribute::ContractLibraryMethod)
     }
 
     pub fn is_test_function(&self) -> bool {
