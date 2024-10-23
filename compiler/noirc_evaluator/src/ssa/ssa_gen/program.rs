@@ -54,7 +54,7 @@ impl Ssa {
                     let runtime = func.runtime();
                     match func.runtime() {
                         RuntimeType::Acir(_) => runtime.is_entry_point() || func.id() == main_id,
-                        RuntimeType::Brillig => false,
+                        RuntimeType::Brillig(_) => false,
                     }
                 })
                 .enumerate(),

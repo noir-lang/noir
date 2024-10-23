@@ -135,6 +135,12 @@ pub struct CompileOptions {
     /// This check should always be run on production code.
     #[arg(long)]
     pub skip_underconstrained_check: bool,
+
+    /// Setting to decide on an inlining strategy for brillig functions.
+    /// A more aggressive inliner should generate larger programs but more optimized
+    /// A less aggressive inliner should generate smaller programs
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
+    pub inliner_aggressiveness: i64,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -469,14 +475,12 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(|attr| {
-                if let SecondaryAttribute::Tag(attribute) = attr {
-                    Some(&attribute.contents)
-                } else {
-                    None
+            .filter_map(|attr| match attr {
+                SecondaryAttribute::Tag(attribute) | SecondaryAttribute::Meta(attribute) => {
+                    Some(attribute.contents.clone())
                 }
+                _ => None,
             })
-            .cloned()
             .collect();
 
         functions.push(ContractFunction {
@@ -610,6 +614,7 @@ pub fn compile_no_check(
         show_plonky2: options.show_plonky2,
         plonky2_print_file: options.plonky2_print_file.clone(),
         skip_underconstrained_check: options.skip_underconstrained_check,
+        inliner_aggressiveness: options.inliner_aggressiveness,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

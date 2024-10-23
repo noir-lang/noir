@@ -1,5 +1,5 @@
 fn main() {
-    //Regression for to_le_bits() constant evaluation 
+    //Regression for to_le_bits() constant evaluation
     // binary array representation of u8 1
     let arr: [u8; 2] = [1, 2];
     let as_bits_hardcode_1 = [1, 0];

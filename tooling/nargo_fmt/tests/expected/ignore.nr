@@ -24,3 +24,4 @@ fn mk_array() {
                 ];
     let array = [1];
 }
+
