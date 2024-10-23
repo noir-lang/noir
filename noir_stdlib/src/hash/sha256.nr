@@ -283,6 +283,42 @@ fn verify_msg_block_zeroes(
     }
 }
 
+// Verify that up to the byte pointer the two blocks are equal. 
+// At the byte pointer the new block can be partially zeroed.
+fn verify_msg_block_equals_last(
+    msg_block: MSG_BLOCK, 
+    last_block: MSG_BLOCK, 
+    mut msg_byte_ptr: BLOCK_BYTE_PTR, 
+) {
+    // msg_byte_ptr is the position at which they are no longer have to be the same.
+    // First integer which is supposed to be (partially) zero contains that pointer.
+    let mut int_byte_ptr = msg_byte_ptr / INT_SIZE;
+
+    // Check partial zeroes.
+    let modulo = msg_byte_ptr % INT_SIZE;
+    if modulo != 0 {
+        // Reconstruct the partially zero field from the last block.
+        let last_field = last_block[int_byte_ptr];
+        let mut msg_field: u32 = 0;
+        // Reset to where they are still equal.
+        msg_byte_ptr = msg_byte_ptr - modulo;
+        for i in 0..INT_SIZE {
+            msg_field = msg_field * 256;
+            if i < modulo {            
+                msg_field = msg_field + from_field_byte(last_field, msg_byte_ptr) as u32;
+                msg_byte_ptr = msg_byte_ptr + 1;
+            }
+        }
+        assert_eq(msg_block[int_byte_ptr], msg_field);
+    }
+
+    for i in 0..INT_SIZE_PTR {
+        if i < int_byte_ptr {
+            assert_eq(msg_block[i], last_block[i]);
+        } 
+    }
+}
+
 // Pack the value of byte into a field of an existing message block, shifting the byte according to its position.
 fn set_msg_byte(mut msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> MSG_BLOCK {
     let i = msg_byte_ptr / INT_SIZE;
@@ -384,12 +420,15 @@ unconstrained fn attach_len_to_msg_block(
 // and that everything before the byte pointer was untouched.
 fn verify_msg_len(
     msg_block: MSG_BLOCK,
-    _last_block: MSG_BLOCK,
+    last_block: MSG_BLOCK,
     msg_byte_ptr: BLOCK_BYTE_PTR,
     message_size: u32,
 ) {
     // Check zeroes up to the size pointer.
     verify_msg_block_zeroes(msg_block, msg_byte_ptr, INT_SIZE_PTR);
+
+    // Check that up to the pointer we match the last block.
+    verify_msg_block_equals_last(msg_block, last_block, msg_byte_ptr);
 
     // We verify the message length was inserted correctly by reversing the byte decomposition.
     let mut reconstructed_len: Field = 0;
