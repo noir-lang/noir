@@ -84,11 +84,14 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         } else if msg_start < message_size {
             msg_byte_ptr = new_msg_byte_ptr;
         }
+        crate::println(f"pointer i = {i}, ptr = {msg_byte_ptr}");
 
         // If the block is filled, compress it.
         // An un-filled block is handled after this loop.
         if (msg_start < message_size) & (msg_byte_ptr == BLOCK_SIZE) {
+            crate::println(f"compressing i = {i}, state = {h}, block = {msg_block}");
             h = sha256_compression(msg_block, h);
+            crate::println(f"compressed i = {i}, state = {h}");
         }
     }
 
@@ -140,7 +143,9 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
 
     // If we don't have room to write the size, compress the block and reset it.
     if msg_byte_ptr > MSG_SIZE_PTR {
+        crate::println(f"compressing state = {h}, block = {msg_block}");
         h = sha256_compression(msg_block, h);
+        crate::println(f"compressed state = {h}");
         // `attach_len_to_msg_block` will zero out everything after the `msg_byte_ptr`.
         msg_byte_ptr = 0;
     }
@@ -239,7 +244,7 @@ fn verify_msg_block<let N: u32>(
         // Shift the accumulator
         msg_field = msg_field * 256;
         // If whave input to consume, add it at the LSB position.
-        if k < message_size {
+        if k < message_size & k < msg_end {
             msg_field = msg_field + msg[k] as Field;
             msg_byte_ptr = msg_byte_ptr + 1;
         }
@@ -281,9 +286,12 @@ fn set_field_byte(msg_field: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) ->
 // Get a byte of a field in a `MSG_BLOCK` according to its overall position in the `BLOCK_SIZE` space.
 fn from_field_byte(mut msg_field: u32, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
     // How many times do we have to shift to the right to get to the position we want?
-    let shifts = INT_SIZE - 1 - msg_byte_ptr % INT_SIZE;
-    for _ in 0..shifts {
-        msg_field = msg_field / 256;
+    let max_shifts = INT_SIZE - 1;
+    let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
+    for i in 0..max_shifts {
+        if i < shifts {
+            msg_field = msg_field / 256;
+        }
     }
     // At this point the byte we want is in the rightmost position.
     (msg_field % 256) as u8
@@ -295,9 +303,12 @@ fn from_field_byte(mut msg_field: u32, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
 fn into_field_byte(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
     let mut msg_field = msg_byte as u32;
     // How many times do we have to shift to the left to get to the position we want?
-    let shifts = INT_SIZE - 1 - msg_byte_ptr % INT_SIZE;
-    for _ in 0..shifts {
-        msg_field = msg_field * 256;
+    let max_shifts = INT_SIZE - 1;
+    let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
+    for i in 0..max_shifts {
+        if i < shifts {
+            msg_field = msg_field * 256;
+        }
     }
     msg_field
 }
