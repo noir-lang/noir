@@ -37,7 +37,6 @@ impl<'context> Elaborator<'context> {
             None,
             &mut Vec::new(),
             warn_if_unused,
-            None,
         )
     }
 
@@ -50,7 +49,6 @@ impl<'context> Elaborator<'context> {
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
-        global_id: Option<GlobalId>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -59,7 +57,6 @@ impl<'context> Elaborator<'context> {
             None,
             created_ids,
             warn_if_unused,
-            global_id,
         )
     }
 
@@ -72,7 +69,6 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
-        global_id: Option<GlobalId>,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
@@ -82,7 +78,7 @@ impl<'context> Elaborator<'context> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let ident = if let Some(global_id) = global_id {
+                let ident = if let DefinitionKind::Global(global_id) = definition {
                     // Globals don't need to be added to scope, they're already in the def_maps
                     let id = self.interner.get_global(global_id).definition_id;
                     let location = Location::new(name.span(), self.file);
@@ -112,7 +108,6 @@ impl<'context> Elaborator<'context> {
                     Some(span),
                     new_definitions,
                     warn_if_unused,
-                    global_id,
                 );
                 let location = Location::new(span, self.file);
                 HirPattern::Mutable(Box::new(pattern), location)
@@ -144,7 +139,6 @@ impl<'context> Elaborator<'context> {
                         mutable,
                         new_definitions,
                         warn_if_unused,
-                        global_id,
                     )
                 });
                 let location = Location::new(span, self.file);
@@ -168,7 +162,6 @@ impl<'context> Elaborator<'context> {
                     mutable,
                     new_definitions,
                     warn_if_unused,
-                    global_id,
                 )
             }
         }
@@ -283,7 +276,6 @@ impl<'context> Elaborator<'context> {
                 mutable,
                 new_definitions,
                 true, // warn_if_unused
-                None,
             );
 
             if unseen_fields.contains(&field) {
@@ -329,8 +321,8 @@ impl<'context> Elaborator<'context> {
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
-        if definition.is_global() {
-            return self.add_global_variable_decl(name, definition);
+        if let DefinitionKind::Global(global_id) = definition {
+            return self.add_global_variable_decl(name, global_id);
         }
 
         let location = Location::new(name.span(), self.file);
@@ -375,47 +367,19 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn add_global_variable_decl(
-        &mut self,
-        name: Ident,
-        definition: DefinitionKind,
-    ) -> HirIdent {
-        let comptime = self.in_comptime_context();
+    pub fn add_global_variable_decl(&mut self, name: Ident, global_id: GlobalId) -> HirIdent {
         let scope = self.scopes.get_mut_scope();
-
-        // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
-        // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global statement.
-        // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global. The check below prevents this error.
-        let mut global_id = None;
-        let global = self.interner.get_all_globals();
-        for global_info in global {
-            if global_info.local_id == self.local_module && global_info.ident == name {
-                global_id = Some(global_info.id);
-            }
-        }
-
-        let (ident, resolver_meta) = if let Some(id) = global_id {
-            let global = self.interner.get_global(id);
-            let hir_ident = HirIdent::non_trait_method(global.definition_id, global.location);
-            let ident = hir_ident.clone();
-            let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
-            (hir_ident, resolver_meta)
-        } else {
-            let location = Location::new(name.span(), self.file);
-            let name = name.0.contents.clone();
-            let id = self.interner.push_definition(name, false, comptime, definition, location);
-            let ident = HirIdent::non_trait_method(id, location);
-            let resolver_meta =
-                ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
-            (ident, resolver_meta)
-        };
+        let global = self.interner.get_global(global_id);
+        let ident = HirIdent::non_trait_method(global.definition_id, global.location);
+        let resolver_meta =
+            ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
 
         let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
-                name: name.0.contents.clone(),
-                first_span: old_global_value.ident.location.span,
                 second_span: name.span(),
+                name: name.0.contents,
+                first_span: old_global_value.ident.location.span,
             });
         }
         ident
@@ -655,7 +619,7 @@ impl<'context> Elaborator<'context> {
         if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
             if method.assumed {
-                let trait_generics = method.constraint.trait_generics.clone();
+                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);
@@ -748,7 +712,7 @@ impl<'context> Elaborator<'context> {
             HirMethodReference::TraitMethodId(method_id, generics) => {
                 let mut constraint =
                     self.interner.get_trait(method_id.trait_id).as_constraint(span);
-                constraint.trait_generics = generics;
+                constraint.trait_bound.trait_generics = generics;
                 ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }
         };

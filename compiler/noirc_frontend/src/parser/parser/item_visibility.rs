@@ -73,7 +73,7 @@ mod tests {
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a crate but found end of input");
+        assert_eq!(error.to_string(), "Expected a 'crate' but found end of input");
     }
 
     #[test]
@@ -87,7 +87,7 @@ mod tests {
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a crate but found hello");
+        assert_eq!(error.to_string(), "Expected a 'crate' but found 'hello'");
     }
     #[test]
     fn parses_public_visibility_missing_paren_after_pub_crate() {
@@ -100,7 +100,7 @@ mod tests {
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::PublicCrate);
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ) but found end of input");
+        assert_eq!(error.to_string(), "Expected a ')' but found end of input");
     }
 
     #[test]

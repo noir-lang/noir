@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is brillig calls with conditionals
 fn main(x: [u32; 3]) {
     unsafe {
