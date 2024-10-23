@@ -1736,10 +1736,9 @@ impl<'context> Elaborator<'context> {
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
-            Type::Txm(x, from, to) => {
-                Self::find_numeric_generics_in_type(x, found);
-                Self::find_numeric_generics_in_type(from, found);
+            Type::Txm(to, from) => {
                 Self::find_numeric_generics_in_type(to, found);
+                Self::find_numeric_generics_in_type(from, found);
             }
 
             Type::TraitAsType(_, _, args) => {

@@ -368,6 +368,9 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push(' ');
                 self.append_type(right);
             }
+            Type::Txm(to, _from) => {
+                self.append_type(to);
+            }
             Type::Constant(..)
             | Type::Integer(_, _)
             | Type::Bool

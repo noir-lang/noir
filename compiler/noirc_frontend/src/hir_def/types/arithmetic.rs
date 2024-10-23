@@ -15,6 +15,12 @@ impl Type {
     /// - `canonicalize[((1 + N) + M) + 2] = (M + N) + 3`
     /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
     pub fn canonicalize(&self) -> Type {
+        // TODO rename
+        let found_txm = false;
+        self.canonicalize_helper(found_txm)
+    }
+
+    fn canonicalize_helper(&self, found_txm: bool) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
                 let kind = lhs.infix_kind(&rhs);
@@ -32,25 +38,87 @@ impl Type {
                 let lhs = lhs.canonicalize();
                 let rhs = rhs.canonicalize();
                 if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, op, &rhs) {
-                    return result.canonicalize();
+                    // return result.canonicalize();
+                    let result = result.canonicalize();
+                    if found_txm {
+                        return result;
+                    } else {
+                        return Type::Txm(Box::new(result), Box::new(self.clone()));
+                    }
                 }
 
                 if let Some(result) = Self::try_simplify_non_constants_in_rhs(&lhs, op, &rhs) {
-                    return result.canonicalize();
+                    let result = result.canonicalize();
+                    if found_txm {
+                        return result;
+                    } else {
+                        return Type::Txm(Box::new(result), Box::new(self.clone()));
+                    }
                 }
 
                 // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
                 // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
                 if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs) {
-                    return result.canonicalize();
+                    let result = result.canonicalize();
+                    if found_txm {
+                        return result;
+                    } else {
+                        return Type::Txm(Box::new(result), Box::new(self.clone()));
+                    }
                 }
 
                 if op.is_commutative() {
-                    return Self::sort_commutative(&lhs, op, &rhs);
+                    let result = Self::sort_commutative(&lhs, op, &rhs);
+                    if found_txm {
+                        return result;
+                    } else {
+                        return Type::Txm(Box::new(result), Box::new(self.clone()));
+                    }
                 }
 
                 let result = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
-                Type::Txm(Box::new(result.clone()), Box::new(self.clone()), Box::new(result))
+                if found_txm {
+                    return result;
+                } else {
+                    return Type::Txm(Box::new(result), Box::new(self.clone()));
+                }
+            }
+            Type::Txm(to, ref from) => {
+                let to_found_txm = true;
+                let to = to.canonicalize_helper(to_found_txm);
+                let from_follow_bindings = from.follow_bindings();
+                let from = match from_follow_bindings {
+                    Type::InfixExpr(ref lhs, op, ref rhs) => {
+                        // only evaluate from to a constant
+                        // TODO: deduplicate
+                        let kind = lhs.infix_kind(&rhs);
+
+                        // Wrapping lhs/rhs in Txm's ensure we keep a non-transformed copy when
+                        // calling evaluate_to_field_element
+                        let lhs = Type::Txm(lhs.clone(), lhs.clone());
+                        let rhs = Type::Txm(rhs.clone(), rhs.clone());
+
+                        // evaluate_to_field_element also calls canonicalize so if we just called
+                        // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
+                        if let (Some(lhs_u32), Some(rhs_u32)) =
+                            (lhs.evaluate_to_field_element(&kind), rhs.evaluate_to_field_element(&kind))
+                        {
+                            let kind = lhs.infix_kind(&rhs);
+                            if let Some(result) = op.function(lhs_u32, rhs_u32, &kind) {
+                                Type::Constant(result, kind)
+                            } else {
+                                from_follow_bindings
+                            }
+                        } else {
+                            from_follow_bindings
+                        }
+                        // TODO: (end) deduplicate
+
+                    }
+                    other => other,
+                };
+
+                Type::Txm(Box::new(to), Box::new(from))
             }
             other => other,
         }

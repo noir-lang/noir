@@ -877,10 +877,9 @@ impl<'context> Elaborator<'context> {
             Type::Alias(alias_type, generics) => {
                 self.mark_type_as_used(&alias_type.borrow().get_type(generics));
             }
-            Type::Txm(x, from, to) => {
-                self.mark_type_as_used(x);
-                self.mark_type_as_used(from);
+            Type::Txm(to, from) => {
                 self.mark_type_as_used(to);
+                self.mark_type_as_used(from);
             }
             Type::MutableReference(typ) => {
                 self.mark_type_as_used(typ);
@@ -1395,10 +1394,9 @@ impl<'context> Elaborator<'context> {
                     span,
                 );
             }
-            Type::Txm(x, from, to) => {
-                self.check_type_is_not_more_private_then_item(name, visibility, x, span);
-                self.check_type_is_not_more_private_then_item(name, visibility, from, span);
+            Type::Txm(to, from) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, to, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, from, span);
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {

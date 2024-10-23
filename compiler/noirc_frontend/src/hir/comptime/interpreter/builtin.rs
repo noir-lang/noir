@@ -1319,7 +1319,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
             Ok(Value::Struct(values, typ))
         }
         Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics)),
-        Type::Txm(x, _from, _to) => zeroed(*x),
+        Type::Txm(to, _from) => zeroed(*to),
         typ @ Type::Function(..) => {
             // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
             Ok(Value::Zeroed(typ))

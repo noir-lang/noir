@@ -340,9 +340,9 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
-            Type::Txm(x, _from, _to) => {
+            Type::Txm(to, _from) => {
                 // TODO: irrefutable let
-                let UnresolvedType { typ, ..} = x.to_display_ast();
+                let UnresolvedType { typ, ..} = to.to_display_ast();
                 typ
             }
             Type::Function(args, ret, env, unconstrained) => {
