@@ -241,7 +241,19 @@ fn verify_msg_block<let N: u32>(
 
 // Verify the block we are compressing was appropriately padded with zeroes by `build_msg_block`.
 // This is only relevant for the last, potentially partially filled block.
-fn verify_msg_block_padding(msg_block: MSG_BLOCK, mut msg_byte_ptr: BLOCK_BYTE_PTR) {
+fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR) {
+    // Check all the way to the end of the block.
+    verify_msg_block_zeroes(msg_block, msg_byte_ptr, INT_BLOCK_SIZE);
+}
+
+// Verify that a region of ints in the message block are (partially) zeroed, 
+// up to an (exclusive) maximum which can either be the end of the block 
+// or just where the size is to be written.
+fn verify_msg_block_zeroes(
+    msg_block: MSG_BLOCK, 
+    mut msg_byte_ptr: BLOCK_BYTE_PTR, 
+    max_int_byte_ptr: u32
+) {
     // This variable is used to get around the compiler under-constrained check giving a warning.
     // We want to check against a constant zero, but if it does not come from the circuit inputs
     // or return values the compiler check will issue a warning.
@@ -254,15 +266,17 @@ fn verify_msg_block_padding(msg_block: MSG_BLOCK, mut msg_byte_ptr: BLOCK_BYTE_P
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
         let msg_field = msg_block[int_byte_ptr];
-        for _ in 0..(INT_SIZE - modulo) {
-            assert_eq(from_field_byte(msg_field, msg_byte_ptr), zero as u8);
-            msg_byte_ptr = msg_byte_ptr + 1;
+        for i in 0..INT_SIZE {
+            if i < INT_SIZE - modulo {
+                assert_eq(from_field_byte(msg_field, msg_byte_ptr), zero as u8);
+                msg_byte_ptr = msg_byte_ptr + 1;
+            }
         }
         int_byte_ptr = int_byte_ptr + 1;
     }
 
     // Check the rest of the numbers.
-    for i in 0..INT_BLOCK_SIZE {
+    for i in 0..max_int_byte_ptr {
         if i >= int_byte_ptr {
             assert_eq(msg_block[i], zero);
         }
@@ -371,14 +385,11 @@ unconstrained fn attach_len_to_msg_block(
 fn verify_msg_len(
     msg_block: MSG_BLOCK,
     _last_block: MSG_BLOCK,
-    _msg_byte_ptr: BLOCK_BYTE_PTR,
+    msg_byte_ptr: BLOCK_BYTE_PTR,
     message_size: u32,
 ) {
-    // for i in 0..MSG_SIZE_PTR {
-    //     let predicate = (i < msg_byte_ptr) as u8;
-    //     let expected_byte = predicate * last_block[i];
-    //     assert_eq(msg_block[i], expected_byte);
-    // }
+    // Check zeroes up to the size pointer.
+    verify_msg_block_zeroes(msg_block, msg_byte_ptr, INT_SIZE_PTR);
 
     // We verify the message length was inserted correctly by reversing the byte decomposition.
     let mut reconstructed_len: Field = 0;
