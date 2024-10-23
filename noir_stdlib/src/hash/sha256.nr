@@ -177,7 +177,7 @@ unconstrained fn build_msg_block<let N: u32>(
     };
 
     for i in 0..int_input {
-        let mut msg_field: Field = 0;
+        let mut msg_field: u32 = 0;
         // Always construct the integer as 4 bytes, even if it means going beyond the input.
         for j in 0..INT_SIZE {
             let k = i * INT_SIZE + j;
@@ -187,9 +187,9 @@ unconstrained fn build_msg_block<let N: u32>(
                 0
             };
             // Multiplying by 256 is equivalent to shifting by 8 bits.
-            msg_field = msg_field * 256 + msg_byte as Field;
+            msg_field = msg_field * 256 + msg_byte as u32;
         }
-        msg_block[i] = msg_field as u32;
+        msg_block[i] = msg_field;
     }
 
     // Returning the index as if it was a 64 byte array.
