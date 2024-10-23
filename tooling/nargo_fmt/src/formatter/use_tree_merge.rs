@@ -105,7 +105,7 @@ enum Segment {
     /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
     /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", loosing "foo",
     /// when we actually want "foo::{self, bar}".
-    Terminal,
+    SelfReference,
     Crate,
     Super,
     Dep,
@@ -115,7 +115,7 @@ enum Segment {
 impl Segment {
     /// Combines two segments into a single one, by joining them with "::".
     fn combine(self, other: Segment) -> Segment {
-        if other == Segment::Terminal {
+        if other == Segment::SelfReference {
             self
         } else {
             Segment::Plain(format!("{}::{}", self, other))
@@ -124,7 +124,7 @@ impl Segment {
 
     fn order_number(&self) -> usize {
         match self {
-            Segment::Terminal => 0,
+            Segment::SelfReference => 0,
             Segment::Crate => 1,
             Segment::Super => 2,
             Segment::Dep => 3,
@@ -140,7 +140,7 @@ impl Display for Segment {
             Segment::Super => write!(f, "super"),
             Segment::Dep => write!(f, "dep"),
             Segment::Plain(s) => write!(f, "{}", s),
-            Segment::Terminal => write!(f, "self"),
+            Segment::SelfReference => write!(f, "self"),
         }
     }
 }
@@ -258,12 +258,12 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
             UseTreeKind::Path(ident, alias) => {
                 if let Some(alias) = alias {
                     tree = tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
-                    tree.insert(Segment::Terminal);
+                    tree.insert(Segment::SelfReference);
                 } else if ident.0.contents == "self" {
-                    tree.insert(Segment::Terminal);
+                    tree.insert(Segment::SelfReference);
                 } else {
                     tree = tree.insert(Segment::Plain(ident.to_string()));
-                    tree.insert(Segment::Terminal);
+                    tree.insert(Segment::SelfReference);
                 }
             }
             UseTreeKind::List(trees) => {
