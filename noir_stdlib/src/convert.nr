@@ -15,7 +15,10 @@ pub trait Into<T> {
     fn into(self) -> T;
 }
 
-impl<T, U> Into<T> for U where T: From<U> {
+impl<T, U> Into<T> for U
+where
+    T: From<U>,
+{
     fn into(self) -> T {
         T::from(self)
     }

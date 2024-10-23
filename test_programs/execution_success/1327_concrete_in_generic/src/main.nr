@@ -6,8 +6,8 @@ fn new_concrete_c_over_d() -> C<D> {
 // ---
 // Map<V>
 struct B<T_C> {
-        new_concrete_t_c_constructor: fn()->T_C,
-    }
+    new_concrete_t_c_constructor: fn() -> T_C,
+}
 
 impl<T_C> B<T_C> {
     fn new(new_concrete_t_c_constructor: fn() -> T_C) -> B<T_C> {
@@ -22,8 +22,8 @@ impl<T_C> B<T_C> {
 // ---
 // PrivateSet<Note>
 struct C<T_D> {
-        t_d_interface: MethodInterface<T_D>,
-    }
+    t_d_interface: MethodInterface<T_D>,
+}
 
 impl<T_D> C<T_D> {
     fn new(t_d_interface: MethodInterface<T_D>) -> Self {
@@ -37,13 +37,13 @@ impl<T_D> C<T_D> {
 }
 // ---
 struct MethodInterface<T_D> {
-        some_method_on_t_d: fn(T_D)->Field,
-    }
+    some_method_on_t_d: fn(T_D) -> Field,
+}
 // ---
 // Note
 struct D {
-        d: Field,
-    }
+    d: Field,
+}
 
 fn d_method(input: D) -> Field {
     input.d * input.d

@@ -35,7 +35,10 @@ impl Eq for Quoted {
 }
 
 impl crate::hash::Hash for Quoted {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(quoted_hash(self))
     }
 }

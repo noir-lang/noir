@@ -17,7 +17,7 @@ struct Foo {
 
 fn main(
     dynamic_one: Field, // == 1
-    dynamic_two: Field // == 2
+    dynamic_two: Field, // == 2
 ) {
     // contents unknown at compile time
     // length known at compile time

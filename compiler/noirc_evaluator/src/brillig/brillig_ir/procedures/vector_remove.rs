@@ -19,10 +19,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         index: SingleAddrVariable,
         item_count: usize,
     ) {
-        let source_vector_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-        let index_arg = MemoryAddress::from(ScratchSpace::start() + 1);
-        let item_count_arg = MemoryAddress::from(ScratchSpace::start() + 2);
-        let new_vector_pointer_return = MemoryAddress::from(ScratchSpace::start() + 3);
+        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+        let index_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let item_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
+        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         self.mov_instruction(index_arg, index.address);
@@ -37,10 +37,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_vector_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-    let index_arg = MemoryAddress::from(ScratchSpace::start() + 1);
-    let item_count_arg = MemoryAddress::from(ScratchSpace::start() + 2);
-    let new_vector_pointer_return = MemoryAddress::from(ScratchSpace::start() + 3);
+    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+    let index_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let item_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
+    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
 
     brillig_context.set_allocated_registers(vec![
         source_vector_pointer_arg,
