@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.37.0](https://github.com/noir-lang/noir/compare/v0.36.0...v0.37.0) (2024-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove noir_js_backend_barretenberg (https://github.com/AztecProtocol/aztec-packages/pull/9338)
+* replace usage of vector in keccakf1600 input with array (https://github.com/AztecProtocol/aztec-packages/pull/9350)
+* **profiler:** New flamegraph command that profiles the opcodes executed ([#6327](https://github.com/noir-lang/noir/issues/6327))
+
+### Features
+
+* Check trait where clause ([#6325](https://github.com/noir-lang/noir/issues/6325)) ([0de3241](https://github.com/noir-lang/noir/commit/0de3241bd290b1737ff831c30e5a2a0633a53eb3))
+* Let the formatter remove lambda block braces for single-statement blocks ([#6335](https://github.com/noir-lang/noir/issues/6335)) ([52f7c0b](https://github.com/noir-lang/noir/commit/52f7c0b67fa2f70848512c87fabcefc4c5426dd1))
+* Merge and sort imports ([#6322](https://github.com/noir-lang/noir/issues/6322)) ([07ab515](https://github.com/noir-lang/noir/commit/07ab5150857ec6719b132ec91d5f90af0564a046))
+* **profiler:** New flamegraph command that profiles the opcodes executed ([#6327](https://github.com/noir-lang/noir/issues/6327)) ([4d87c9a](https://github.com/noir-lang/noir/commit/4d87c9ac78b48b4bd0ae81316df28aab390d004e))
+* Reject programs with unconditional recursion ([#6292](https://github.com/noir-lang/noir/issues/6292)) ([00c5c51](https://github.com/noir-lang/noir/commit/00c5c5154b818d0b50802721eae621efb3379a4e))
+* Remove 'single use' intermediate variables ([#6268](https://github.com/noir-lang/noir/issues/6268)) ([ec75e8e](https://github.com/noir-lang/noir/commit/ec75e8ec59e0f2a2169aea67372411ede4074d09))
+* Sha256 refactoring and benchmark with longer input ([#6318](https://github.com/noir-lang/noir/issues/6318)) ([d606491](https://github.com/noir-lang/noir/commit/d606491a61a9fe2153666f7d0a3ec6cae7bfaecb))
+* **ssa:** Various mem2reg reverts to reduce memory and compilation time ([#6307](https://github.com/noir-lang/noir/issues/6307)) ([b820328](https://github.com/noir-lang/noir/commit/b82032888819eac82b2bfce8300c2c8b66507c64))
+
+
+### Bug Fixes
+
+* (formatter) indent after infix lhs ([#6331](https://github.com/noir-lang/noir/issues/6331)) ([c891ffd](https://github.com/noir-lang/noir/commit/c891ffda9df17eabcaf2035f098d29f97bfc463a))
+* Better formatting of leading/trailing line/block comments in expression lists ([#6338](https://github.com/noir-lang/noir/issues/6338)) ([3299c25](https://github.com/noir-lang/noir/commit/3299c25cefb6e3eb4b55396b2f842138b658e42f))
+* Formatter didn't format `&gt;>=` well ([#6337](https://github.com/noir-lang/noir/issues/6337)) ([598230d](https://github.com/noir-lang/noir/commit/598230d9427cf988fc6da8fe9e1eb2b7c00a2fa6))
+* Mutable global pattern didn't have a span ([#6328](https://github.com/noir-lang/noir/issues/6328)) ([5a6dae9](https://github.com/noir-lang/noir/commit/5a6dae9a9ee9c3650695a16d18fb8b7ac12180f4))
+
+
+### Miscellaneous Chores
+
+* Remove noir_js_backend_barretenberg (https://github.com/AztecProtocol/aztec-packages/pull/9338) ([3925228](https://github.com/noir-lang/noir/commit/392522880e102e275ebcf42f16651a8ffa0bbbd2))
+* Replace usage of vector in keccakf1600 input with array (https://github.com/AztecProtocol/aztec-packages/pull/9350) ([3925228](https://github.com/noir-lang/noir/commit/392522880e102e275ebcf42f16651a8ffa0bbbd2))
+
 ## [0.36.0](https://github.com/noir-lang/noir/compare/v0.35.0...v0.36.0) (2024-10-22)
 
 
