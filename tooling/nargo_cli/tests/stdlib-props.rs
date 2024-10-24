@@ -95,7 +95,6 @@ fn run_snippet_proptest(
             &blackbox_solver,
             &mut *foreign_call_executor,
         )
-        .map(|(witness_stack, _)| witness_stack)
         .expect("failed to execute");
 
         let main_witness = witness_stack.peek().expect("should have return value on witness stack");

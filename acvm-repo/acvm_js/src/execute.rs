@@ -174,12 +174,14 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
         witness_stack: &'a mut WitnessStack<FieldElement>,
     ) -> Pin<Box<dyn Future<Output = Result<WitnessMap<FieldElement>, Error>> + 'a>> {
         Box::pin(async {
+            let profiling_active = false;
             let mut acvm = ACVM::new(
                 self.blackbox_solver,
                 &circuit.opcodes,
                 initial_witness,
                 self.unconstrained_functions,
                 &circuit.assert_messages,
+                profiling_active,
             );
 
             loop {
@@ -276,7 +278,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                 }
             }
 
-            Ok(acvm.finalize().0)
+            Ok(acvm.finalize())
         })
     }
 }

@@ -34,6 +34,10 @@ struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecut
     // This is used to fetch the function we want to execute
     // and to resolve call stack locations across many function calls.
     current_function_index: usize,
+
+    // Flag that states whether we want to profile the VM. Profiling can add extra
+    // execution costs so we want to make sure we only trigger it explicitly.
+    profiling_active: bool,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -44,6 +48,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         unconstrained_functions: &'a [BrilligBytecode<F>],
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut E,
+        profiling_active: bool,
     ) -> Self {
         ProgramExecutor {
             functions,
@@ -53,6 +58,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             foreign_call_executor,
             call_stack: Vec::default(),
             current_function_index: 0,
+            profiling_active,
         }
     }
 
@@ -72,6 +78,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             initial_witness,
             self.unconstrained_functions,
             &circuit.assert_messages,
+            self.profiling_active,
         );
 
         loop {
@@ -187,22 +194,67 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         // included in a failure case.
         self.call_stack.clear();
 
-        Ok(acvm.finalize())
+        if self.profiling_active {
+            Ok(acvm.finalize_with_profiling())
+        } else {
+            Ok((acvm.finalize(), ProfilingSamples::default()))
+        }
     }
 }
 
-#[tracing::instrument(level = "trace", skip_all)]
 pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
+) -> Result<WitnessStack<F>, NargoError<F>> {
+    let profiling_active = true;
+    let (witness_stack, profiling_samples) = execute_program_inner(
+        program,
+        initial_witness,
+        blackbox_solver,
+        foreign_call_executor,
+        profiling_active,
+    )?;
+    assert!(profiling_samples.is_empty(), "Expected no profiling samples");
+
+    Ok(witness_stack)
+}
+
+pub fn execute_program_with_profiling<
+    F: AcirField,
+    B: BlackBoxFunctionSolver<F>,
+    E: ForeignCallExecutor<F>,
+>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut E,
+) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
+    let profiling_active = true;
+    execute_program_inner(
+        program,
+        initial_witness,
+        blackbox_solver,
+        foreign_call_executor,
+        profiling_active,
+    )
+}
+
+#[tracing::instrument(level = "trace", skip_all)]
+fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut E,
+    profiling_active: bool,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
         blackbox_solver,
         foreign_call_executor,
+        profiling_active,
     );
     let (main_witness, profiling_samples) = executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);

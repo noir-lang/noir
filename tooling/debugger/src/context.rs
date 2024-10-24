@@ -273,6 +273,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 initial_witness,
                 unconstrained_functions,
                 &initial_circuit.assert_messages,
+                false,
             ),
             current_circuit_id,
             brillig_solver: None,
@@ -573,6 +574,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             callee_witness_map,
             self.unconstrained_functions,
             &callee_circuit.assert_messages,
+            false,
         );
         let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
         self.acvm_stack
@@ -590,7 +592,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         let caller_acvm = caller_frame.acvm;
         let callee_acvm = std::mem::replace(&mut self.acvm, caller_acvm);
         self.current_circuit_id = caller_frame.circuit_id;
-        let call_solved_witness = callee_acvm.finalize().0;
+        let call_solved_witness = callee_acvm.finalize();
 
         let ACVMStatus::RequiresAcirCall(call_info) = self.acvm.get_status() else {
             unreachable!("Resolving an ACIR call, the caller is in an invalid state");
@@ -851,7 +853,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     pub fn finalize(mut self) -> WitnessStack<FieldElement> {
-        let last_witness_map = self.acvm.finalize().0;
+        let last_witness_map = self.acvm.finalize();
         self.witness_stack.push(0, last_witness_map);
         self.witness_stack
     }

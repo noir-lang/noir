@@ -50,7 +50,7 @@ fn run_with_generator(
     let initial_witness = program.abi.encode(&inputs_map, None)?;
 
     println!("Executing");
-    let (_, profiling_samples) = nargo::ops::execute_program(
+    let (_, profiling_samples) = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
         &Bn254BlackBoxSolver,

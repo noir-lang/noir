@@ -170,6 +170,7 @@ impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
 
 pub type ProfilingSamples = Vec<ProfilingSample>;
 
+#[derive(Default)]
 pub struct ProfilingSample {
     pub call_stack: Vec<OpcodeLocation>,
     pub brillig_function_id: Option<BrilligFunctionId>,
@@ -206,6 +207,8 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
 
     assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
 
+    profiling_active: bool,
+
     profiling_samples: ProfilingSamples,
 }
 
@@ -216,6 +219,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         initial_witness: WitnessMap<F>,
         unconstrained_functions: &'a [BrilligBytecode<F>],
         assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
+        profiling_active: bool,
     ) -> Self {
         let status = if opcodes.is_empty() { ACVMStatus::Solved } else { ACVMStatus::InProgress };
         ACVM {
@@ -231,6 +235,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             acir_call_results: Vec::default(),
             unconstrained_functions,
             assertion_payloads,
+            profiling_active,
             profiling_samples: Vec::new(),
         }
     }
@@ -257,11 +262,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     }
 
     /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
-    pub fn finalize(self) -> (WitnessMap<F>, ProfilingSamples) {
+    pub fn finalize_with_profiling(self) -> (WitnessMap<F>, ProfilingSamples) {
         if self.status != ACVMStatus::Solved {
             panic!("ACVM execution is not complete: ({})", self.status);
         }
         (self.witness_map, self.profiling_samples)
+    }
+
+    pub fn finalize(self) -> WitnessMap<F> {
+        if self.status != ACVMStatus::Solved {
+            panic!("ACVM execution is not complete: ({})", self.status);
+        }
+        self.witness_map
     }
 
     /// Updates the current status of the VM.
@@ -513,6 +525,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.backend,
                 self.instruction_pointer,
                 *id,
+                self.profiling_active,
             )?,
         };
 
@@ -529,19 +542,28 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             }
             BrilligSolverStatus::Finished => {
                 // Write execution outputs
-                let profiling_info = solver.finalize(&mut self.witness_map, outputs)?;
-                profiling_info.into_iter().for_each(|sample| {
-                    let mapped = sample.call_stack.into_iter().map(|loc| OpcodeLocation::Brillig {
-                        acir_index: self.instruction_pointer,
-                        brillig_index: loc,
-                    });
-                    self.profiling_samples.push(ProfilingSample {
-                        call_stack: std::iter::once(OpcodeLocation::Acir(self.instruction_pointer))
+                if self.profiling_active {
+                    let profiling_info =
+                        solver.finalize_with_profiling(&mut self.witness_map, outputs)?;
+                    profiling_info.into_iter().for_each(|sample| {
+                        let mapped =
+                            sample.call_stack.into_iter().map(|loc| OpcodeLocation::Brillig {
+                                acir_index: self.instruction_pointer,
+                                brillig_index: loc,
+                            });
+                        self.profiling_samples.push(ProfilingSample {
+                            call_stack: std::iter::once(OpcodeLocation::Acir(
+                                self.instruction_pointer,
+                            ))
                             .chain(mapped)
                             .collect(),
-                        brillig_function_id: Some(*id),
+                            brillig_function_id: Some(*id),
+                        });
                     });
-                });
+                } else {
+                    solver.finalize(&mut self.witness_map, outputs)?;
+                }
+
                 Ok(None)
             }
         }
@@ -597,6 +619,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.backend,
             self.instruction_pointer,
             *id,
+            self.profiling_active,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),
