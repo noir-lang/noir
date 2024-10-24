@@ -849,10 +849,10 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
-                    self.write(" ");
+                    self.write_space_without_skipping_whitespace_and_comments();
                 }
                 Chunk::Group(chunks) => self.format_chunk_group_impl(chunks),
-                Chunk::SpaceOrLine => self.write(" "),
+                Chunk::SpaceOrLine => self.write_space_without_skipping_whitespace_and_comments(),
                 Chunk::IncreaseIndentation => self.increase_indentation(),
                 Chunk::DecreaseIndentation => self.decrease_indentation(),
                 Chunk::PushIndentation => self.push_indentation(),
@@ -915,9 +915,16 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 }
                 Chunk::LeadingComment(text_chunk) => {
+                    let ends_with_newline = text_chunk.string.ends_with('\n');
                     self.write_chunk_lines(text_chunk.string.trim());
-                    self.write_line_without_skipping_whitespace_and_comments();
-                    self.write_indentation();
+
+                    // Respect whether the leading comment had a newline before what comes next or not
+                    if ends_with_newline {
+                        self.write_line_without_skipping_whitespace_and_comments();
+                        self.write_indentation();
+                    } else {
+                        self.write_space_without_skipping_whitespace_and_comments();
+                    }
                 }
                 Chunk::Group(mut group) => {
                     if chunks.force_multiline_on_children_with_same_tag_if_multiline
