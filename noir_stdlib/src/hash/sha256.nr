@@ -355,11 +355,7 @@ fn update_block_item<Env>(
 
 // Set the rightmost `zeros` number of bytes to 0.
 fn set_item_zeros(item: u32, zeros: u8) -> u32 {
-    if zeros == INT_SIZE as u8 {
-        0 // Brillig won't shift by 4 without overflow, not even 0<<4.
-    } else {
-        lshift8(rshift8(item, zeros), zeros)
-    }
+    lshift8(rshift8(item, zeros), zeros)
 }
 
 // Replace one byte in the item with a value, and set everything after it to zero.
@@ -400,22 +396,30 @@ fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
     item
 }
 
-// Shift by 8 bits to the left between 0 and 3 times.
+// Shift by 8 bits to the left between 0 and 4 times.
 // Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context,
 // otherwise multiplies by 256.
 fn lshift8(item: u32, shifts: u8) -> u32 {
     if is_unconstrained() {
-        item << (8 * shifts)
+        if item == 0 {
+            0
+        } else {
+            // Brillig wouldn't shift 0<<4 without overflow.
+            item << (8 * shifts)
+        }
     } else {
         // We can do a for loop up to INT_SIZE or an if-else.
-        if shifts == 3 {
-            item * 256 * 256 * 256
-        } else if shifts == 2 {
-            item * 256 * 256
+        if shifts == 0 {
+            item
         } else if shifts == 1 {
             item * 256
+        } else if shifts == 2 {
+            item * 256 * 256
+        } else if shifts == 3 {
+            item * 256 * 256 * 256
         } else {
-            item
+            // Doesn't make sense, but it's most likely called on 0 anyway.
+            0
         }
     }
 }
@@ -428,16 +432,16 @@ fn rshift8(item: u32, shifts: u8) -> u32 {
         item >> (8 * shifts)
     } else {
         // Division wouldn't work on `Field`.
-        if shifts == 4 {
-            item / 256 / 256 / 256 / 256
-        } else if shifts == 3 {
-            item / 256 / 256 / 256
-        } else if shifts == 2 {
-            item / 256 / 256
+        if shifts == 0 {
+            item
         } else if shifts == 1 {
             item / 256
+        } else if shifts == 2 {
+            item / 256 / 256
+        } else if shifts == 3 {
+            item / 256 / 256 / 256
         } else {
-            item
+            0
         }
     }
 }
