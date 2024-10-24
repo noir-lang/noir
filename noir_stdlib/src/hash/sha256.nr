@@ -355,7 +355,11 @@ fn set_item_byte(msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> u
 
 // Set the rightmost `zeros` number of bytes to 0.
 fn set_item_zeros(item: u32, zeros: u8) -> u32 {
-    lshift8(rshift8(item, zeros), zeros)
+    if zeros == INT_SIZE as u8 {
+        0 // Brillig won't shift by 4 without overflow, not even 0<<4.
+    } else {
+        lshift8(rshift8(item, zeros), zeros)
+    }
 }
 
 // Replace one byte in the item with a value, and set everything after it to zero.
@@ -396,7 +400,7 @@ fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
     item
 }
 
-// Shift by 8 bits to the left between 0 and 4 times.
+// Shift by 8 bits to the left between 0 and 3 times.
 // Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context,
 // otherwise multiplies by 256.
 fn lshift8(item: u32, shifts: u8) -> u32 {
@@ -404,9 +408,7 @@ fn lshift8(item: u32, shifts: u8) -> u32 {
         item << (8 * shifts)
     } else {
         // We can do a for loop up to INT_SIZE or an if-else.
-        if shifts == 4 {
-            item * 256 * 256 * 256 * 256
-        } else if shifts == 3 {
+        if shifts == 3 {
             item * 256 * 256 * 256
         } else if shifts == 2 {
             item * 256 * 256
@@ -523,7 +525,7 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::{
-        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, make_item,
+        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, lshift8, make_item,
         set_block_byte, set_item_byte, set_item_byte_then_zeros, set_item_zeros,
     };
     use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
@@ -802,6 +804,7 @@ mod tests {
         let fld1 = make_item(10, 0, 0, 0);
         assert_eq(set_item_zeros(fld0, 3), fld1);
         assert_eq(set_item_zeros(fld0, 4), 0);
+        assert_eq(set_item_zeros(0, 4), 0);
     }
 
     #[test]
