@@ -268,13 +268,13 @@ fn verify_msg_block_zeros(
     // Check partial zeros.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
-        let num_zeros = INT_SIZE - modulo;
-        let mask = if num_zeros == 3 {
-            256 * 256 * 256
-        } else if num_zeros == 2 {
-            256 * 256
+        let zeros = INT_SIZE - modulo;
+        let mask = if zeros == 3 {
+            1 << 24
+        } else if zeros == 2 {
+            1 << 16
         } else {
-            256
+            1 << 8
         };
         assert_eq(msg_block[int_byte_ptr] % mask, zero);
         int_byte_ptr = int_byte_ptr + 1;
@@ -394,11 +394,11 @@ fn lshift8(item: u32, shifts: u8) -> u32 {
         if shifts == 0 {
             item
         } else if shifts == 1 {
-            item * 256
+            item << 8
         } else if shifts == 2 {
-            item * 256 * 256
+            item << 16
         } else if shifts == 3 {
-            item * 256 * 256 * 256
+            item << 24
         } else {
             // Doesn't make sense, but it's most likely called on 0 anyway.
             0
@@ -417,11 +417,11 @@ fn rshift8(item: u32, shifts: u8) -> u32 {
         if shifts == 0 {
             item
         } else if shifts == 1 {
-            item / 256
+            item >> 8
         } else if shifts == 2 {
-            item / 256 / 256
+            item >> 16
         } else if shifts == 3 {
-            item / 256 / 256 / 256
+            item >> 24
         } else {
             0
         }
@@ -483,13 +483,13 @@ fn verify_msg_len(
     verify_msg_block_equals_last(msg_block, last_block, msg_byte_ptr);
 
     // We verify the message length was inserted correctly by reversing the byte decomposition.
-    let mut reconstructed_len: Field = 0;
-    let two_pow_32 = 256 * 256 * 256 * 256;
+    let mut reconstructed_len: u64 = 0;
     for i in INT_SIZE_PTR..INT_BLOCK_SIZE {
-        reconstructed_len = two_pow_32 * reconstructed_len + msg_block[i] as Field;
+        reconstructed_len = reconstructed_len << 32;
+        reconstructed_len = reconstructed_len + msg_block[i] as u64;
     }
-    let len = 8 * message_size;
-    assert_eq(reconstructed_len, len as Field);
+    let len = 8 * message_size as u64;
+    assert_eq(reconstructed_len, len);
 }
 
 // Perform the final compression, then transform the `STATE` into `HASH`.
