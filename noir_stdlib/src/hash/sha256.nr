@@ -25,7 +25,7 @@ type BLOCK_BYTE_PTR = u32;
 type INT_BLOCK = [u32; INT_BLOCK_SIZE];
 
 // A message block is a slice of the original message of a fixed size,
-// potentially padded with zeroes, with neighbouring 4 bytes packed into integers.
+// potentially padded with zeros, with neighbouring 4 bytes packed into integers.
 type MSG_BLOCK = INT_BLOCK;
 
 // The hash is 32 bytes.
@@ -144,7 +144,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
 }
 
 // Take `BLOCK_SIZE` number of bytes from `msg` starting at `msg_start`.
-// Returns the block and the length that has been copied rather than padded with zeroes.
+// Returns the block and the length that has been copied rather than padded with zeros.
 unconstrained fn build_msg_block<let N: u32>(
     msg: [u8; N],
     message_size: u32,
@@ -238,17 +238,17 @@ fn verify_msg_block<let N: u32>(
     msg_byte_ptr
 }
 
-// Verify the block we are compressing was appropriately padded with zeroes by `build_msg_block`.
+// Verify the block we are compressing was appropriately padded with zeros by `build_msg_block`.
 // This is only relevant for the last, potentially partially filled block.
 fn verify_msg_block_padding(msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR) {
     // Check all the way to the end of the block.
-    verify_msg_block_zeroes(msg_block, msg_byte_ptr, INT_BLOCK_SIZE);
+    verify_msg_block_zeros(msg_block, msg_byte_ptr, INT_BLOCK_SIZE);
 }
 
 // Verify that a region of ints in the message block are (partially) zeroed,
 // up to an (exclusive) maximum which can either be the end of the block
 // or just where the size is to be written.
-fn verify_msg_block_zeroes(
+fn verify_msg_block_zeros(
     msg_block: MSG_BLOCK,
     mut msg_byte_ptr: BLOCK_BYTE_PTR,
     max_int_byte_ptr: u32,
@@ -261,13 +261,13 @@ fn verify_msg_block_zeroes(
     // First integer which is supposed to be (partially) zero.
     let mut int_byte_ptr = msg_byte_ptr / INT_SIZE;
 
-    // Check partial zeroes.
+    // Check partial zeros.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
-        let num_zeroes = INT_SIZE - modulo;
-        let mask = if num_zeroes == 3 {
+        let num_zeros = INT_SIZE - modulo;
+        let mask = if num_zeros == 3 {
             256 * 256 * 256
-        } else if num_zeroes == 2 {
+        } else if num_zeros == 2 {
             256 * 256
         } else {
             256
@@ -295,7 +295,7 @@ fn verify_msg_block_equals_last(
     // First integer which is supposed to be (partially) zero contains that pointer.
     let mut int_byte_ptr = msg_byte_ptr / INT_SIZE;
 
-    // Check partial zeroes.
+    // Check partial zeros.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
         // Reconstruct the partially zero item from the last block.
@@ -337,6 +337,11 @@ fn set_item_byte(msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> u
     let old_field = byte_into_item(old_byte, msg_byte_ptr);
     let new_field = byte_into_item(msg_byte, msg_byte_ptr);
     msg_item - old_field + new_field
+}
+
+// Set the rightmost `zeros` number of bytes to 0.
+fn set_item_zeros(item: u32, zeros: u8) -> u32 {
+    lshift8(rshift8(item, zeros), zeros)
 }
 
 // Get a byte of a message item according to its overall position in the `BLOCK_SIZE` space.
@@ -423,12 +428,9 @@ unconstrained fn attach_len_to_msg_block(
     if modulo != 0 {
         // Index of the block in which we find the item we need to partially zero.
         let i = msg_byte_ptr / INT_SIZE;
-        let mut msg_item = msg_block[i];
-        for _ in 0..(INT_SIZE - modulo) {
-            msg_item = set_item_byte(msg_item, msg_byte_ptr, 0);
-            msg_byte_ptr = msg_byte_ptr + 1;
-        }
-        msg_block[i] = msg_item;
+        let zeros = INT_SIZE - modulo;
+        msg_block[i] = set_item_zeros(msg_block[i], zeros as u8);
+        msg_byte_ptr = msg_byte_ptr + zeros;
     }
 
     // The rest can be zeroed without bit shifting anything.
@@ -460,8 +462,8 @@ fn verify_msg_len(
     msg_byte_ptr: BLOCK_BYTE_PTR,
     message_size: u32,
 ) {
-    // Check zeroes up to the size pointer.
-    verify_msg_block_zeroes(msg_block, msg_byte_ptr, INT_SIZE_PTR);
+    // Check zeros up to the size pointer.
+    verify_msg_block_zeros(msg_block, msg_byte_ptr, INT_SIZE_PTR);
 
     // Check that up to the pointer we match the last block.
     verify_msg_block_equals_last(msg_block, last_block, msg_byte_ptr);
@@ -496,7 +498,7 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 mod tests {
     use super::{
         attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, make_item,
-        set_block_byte, set_item_byte,
+        set_block_byte, set_item_byte, set_item_zeros,
     };
     use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
     use super::sha256_var;
@@ -766,6 +768,13 @@ mod tests {
 
         let fld = make_item(0, 20, 30, 0);
         assert_eq(msg_block[1], fld);
+    }
+
+    #[test]
+    fn test_set_zeros_right() {
+        let fld1 = make_item(10, 20, 30, 40);
+        let fld0 = make_item(10, 0, 0, 0);
+        assert_eq(set_item_zeros(fld1, 3), fld0);
     }
 
     #[test]
