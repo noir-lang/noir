@@ -93,13 +93,59 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             );
         } else {
             let value_register = self.allocate_register();
+            let end_source_pointer = self.allocate_register();
+            self.memory_op_instruction(
+                source_pointer,
+                num_elements_variable.address,
+                end_source_pointer,
+                BrilligBinaryOp::Add,
+            );
 
-            self.codegen_loop(num_elements_variable.address, |ctx, iterator| {
-                ctx.codegen_load_with_offset(source_pointer, iterator, value_register);
-                ctx.codegen_store_with_offset(destination_pointer, iterator, value_register);
-            });
+            self.codegen_generic_iteration(
+                |brillig_context| {
+                    let source_iterator = brillig_context.allocate_register();
+                    let target_iterator = brillig_context.allocate_register();
 
+                    brillig_context.mov_instruction(source_iterator, source_pointer);
+                    brillig_context.mov_instruction(target_iterator, destination_pointer);
+
+                    (source_iterator, target_iterator)
+                },
+                |brillig_context, &(source_iterator, target_iterator)| {
+                    brillig_context.codegen_usize_op_in_place(
+                        source_iterator,
+                        BrilligBinaryOp::Add,
+                        1,
+                    );
+                    brillig_context.codegen_usize_op_in_place(
+                        target_iterator,
+                        BrilligBinaryOp::Add,
+                        1,
+                    );
+                },
+                |brillig_context, &(source_iterator, _)| {
+                    // We have finished when the source/target pointer is less than the source/target start
+                    let finish_condition =
+                        SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+                    brillig_context.memory_op_instruction(
+                        source_iterator,
+                        end_source_pointer,
+                        finish_condition.address,
+                        BrilligBinaryOp::Equals,
+                    );
+                    finish_condition
+                },
+                |brillig_context, &(source_iterator, target_iterator)| {
+                    brillig_context.load_instruction(value_register, source_iterator);
+                    brillig_context.store_instruction(target_iterator, value_register);
+                },
+                |brillig_context, (source_iterator, target_iterator)| {
+                    brillig_context.deallocate_register(source_iterator);
+                    brillig_context.deallocate_register(target_iterator);
+                },
+            );
             self.deallocate_register(value_register);
+            self.deallocate_register(end_source_pointer);
         }
     }
 
