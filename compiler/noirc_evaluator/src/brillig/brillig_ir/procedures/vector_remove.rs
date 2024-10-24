@@ -64,7 +64,7 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    brillig_context.codegen_initialize_vector(target_vector, target_size);
+    brillig_context.codegen_initialize_vector(target_vector, target_size, None);
 
     // Copy the elements to the left of the index
     let source_vector_items_pointer =

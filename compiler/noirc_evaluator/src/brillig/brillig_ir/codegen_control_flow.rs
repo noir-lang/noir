@@ -12,6 +12,41 @@ use super::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    pub(crate) fn codegen_generic_iteration<T>(
+        &mut self,
+        make_iterator: impl FnOnce(&mut BrilligContext<F, Registers>) -> T,
+        update_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
+        make_finish_condition: impl FnOnce(&mut BrilligContext<F, Registers>, &T) -> SingleAddrVariable,
+        on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
+        clean_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, T),
+    ) {
+        let iterator = make_iterator(self);
+
+        let (loop_section, loop_label) = self.reserve_next_section_label();
+        self.enter_section(loop_section);
+
+        // Loop body
+        let should_end = make_finish_condition(self, &iterator);
+
+        let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
+
+        self.jump_if_instruction(should_end.address, exit_loop_label);
+
+        // Call the on iteration function
+        on_iteration(self, &iterator);
+
+        // Update iterator
+        update_iterator(self, &iterator);
+        self.jump_instruction(loop_label);
+
+        // Exit the loop
+        self.enter_section(exit_loop_section);
+
+        // Deallocate our temporary registers
+        self.deallocate_single_addr(should_end);
+        clean_iterator(self, iterator);
+    }
+
     /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
     /// The body of the loop should be issued by the caller in the on_iteration closure.
     pub(crate) fn codegen_for_loop(

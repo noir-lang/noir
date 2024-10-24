@@ -53,8 +53,8 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             let result_vector = BrilligVector { pointer: new_vector_pointer_return };
 
             // Allocate the memory for the new vec
-            let allocation_size = ctx.codegen_make_vector_length(source_vector);
-            ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, 2_usize);
+            let allocation_size = ctx.codegen_make_vector_capacity(source_vector);
+            ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, 3_usize); // Capacity plus 3 (rc, len, cap)
             ctx.codegen_allocate_mem(result_vector.pointer, allocation_size.address);
 
             ctx.codegen_mem_copy(source_vector.pointer, result_vector.pointer, allocation_size);

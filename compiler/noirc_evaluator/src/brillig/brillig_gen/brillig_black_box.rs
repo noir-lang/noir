@@ -8,7 +8,7 @@ use acvm::{
 
 use crate::brillig::brillig_ir::{
     brillig_variable::BrilligVariable, debug_show::DebugToString, registers::RegisterAllocator,
-    BrilligBinaryOp, BrilligContext,
+    BrilligContext,
 };
 
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
@@ -395,19 +395,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
 
                 brillig_context.mov_instruction(out_len.address, outputs_vector.size);
                 // Returns slice, so we need to allocate memory for it after the fact
-                brillig_context.codegen_usize_op_in_place(
-                    outputs_vector.size,
-                    BrilligBinaryOp::Add,
-                    2_usize,
-                );
-                brillig_context.increase_free_memory_pointer_instruction(outputs_vector.size);
-                // We also need to write the size of the vector to the memory
-                brillig_context.codegen_usize_op_in_place(
-                    outputs_vector.pointer,
-                    BrilligBinaryOp::Sub,
-                    1_usize,
-                );
-                brillig_context.store_instruction(outputs_vector.pointer, out_len.address);
+
+                brillig_context.initialize_externally_returned_vector(*outputs, outputs_vector);
 
                 brillig_context.deallocate_heap_vector(inputs);
                 brillig_context.deallocate_heap_vector(outputs_vector);
