@@ -221,17 +221,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.58.0":
-  version: 0.58.0
-  resolution: "@aztec/bb.js@npm:0.58.0"
+"@aztec/bb.js@npm:0.60.0":
+  version: 0.60.0
+  resolution: "@aztec/bb.js@npm:0.60.0"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
     debug: ^4.3.4
+    fflate: ^0.8.0
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: b4e882a6668df737fab6e2223ee6b20ff499e8a0b67c18dcab8109efec47e674c6d8276e8c3b6662289d69f56b6e1d94d3312673fd0ace9909e33ebce7f10cbb
+  checksum: 74ab79d060624362e9d44dda11dc2445973460577b93dc0c16801158db7efb71cd612966d6169b46bfbbb4fd7c9c1b95ad8b6198b3c69d9f6de0ab0fb92387aa
   languageName: node
   linkType: hard
 
@@ -5341,23 +5342,6 @@ __metadata:
     prettier: 3.2.5
     ts-node: ^10.9.1
     typescript: ^5.4.2
-  languageName: unknown
-  linkType: soft
-
-"@noir-lang/backend_barretenberg@workspace:*, @noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
-  version: 0.0.0-use.local
-  resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
-  dependencies:
-    "@aztec/bb.js": 0.58.0
-    "@noir-lang/types": "workspace:*"
-    "@types/node": ^20.6.2
-    "@types/prettier": ^3
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
-    fflate: ^0.8.0
-    prettier: 3.2.5
-    ts-node: ^10.9.1
-    typescript: 5.4.2
   languageName: unknown
   linkType: soft
 
@@ -14139,7 +14123,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@noir-lang/backend_barretenberg": "workspace:*"
+    "@aztec/bb.js": 0.60.0
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": ^2.0.0
@@ -21796,7 +21780,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:5.4.2, typescript@npm:^5.4.2":
+"typescript@npm:^5.4.2":
   version: 5.4.2
   resolution: "typescript@npm:5.4.2"
   bin:
@@ -21806,7 +21790,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@5.4.2#~builtin<compat/typescript>, typescript@patch:typescript@^5.4.2#~builtin<compat/typescript>":
+"typescript@patch:typescript@^5.4.2#~builtin<compat/typescript>":
   version: 5.4.2
   resolution: "typescript@patch:typescript@npm%3A5.4.2#~builtin<compat/typescript>::version=5.4.2&hash=f3b441"
   bin:
