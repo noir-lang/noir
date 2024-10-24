@@ -47,8 +47,7 @@ fn bls12_381_circuit() {
     ])
     .into();
 
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &[], &[], false);
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &[], &[]);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
@@ -165,7 +164,6 @@ fn inversion_brillig_oracle_equivalence() {
         witness_assignments,
         &unconstrained_functions,
         &[],
-        false,
     );
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -321,7 +319,6 @@ fn double_inversion_brillig_oracle() {
         witness_assignments,
         &unconstrained_functions,
         &[],
-        false,
     );
 
     // use the partial witness generation solver with our acir program
@@ -468,7 +465,6 @@ fn oracle_dependent_execution() {
         witness_assignments,
         &unconstrained_functions,
         &[],
-        false,
     );
 
     // use the partial witness generation solver with our acir program
@@ -591,7 +587,6 @@ fn brillig_oracle_predicate() {
         witness_assignments,
         &unconstrained_functions,
         &[],
-        false,
     );
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
@@ -628,7 +623,7 @@ fn unsatisfied_opcode_resolved() {
     let opcodes = vec![Opcode::AssertZero(opcode_a)];
     let unconstrained_functions = vec![];
     let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[], false);
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -737,7 +732,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     ];
     let unconstrained_functions = vec![brillig_bytecode];
     let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[], false);
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -786,14 +781,8 @@ fn memory_operations() {
 
     let opcodes = vec![init, read_op, expression];
     let unconstrained_functions = vec![];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        initial_witness,
-        &unconstrained_functions,
-        &[],
-        false,
-    );
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -873,7 +862,7 @@ fn drop_use_constant_eq(x: &[ConstantOrWitness], y: &[ConstantOrWitness]) -> boo
 
 // Convert FieldElement's to ConstantOrWitness's by making all of them witnesses
 fn use_witnesses(inputs: Vec<FieldElement>) -> Vec<ConstantOrWitness> {
-    inputs.into_iter().map(|input| (input, false)).collect()
+    inputs.into_iter().map(|input| (input)).collect()
 }
 
 fn solve_array_input_blackbox_call<F>(
@@ -898,14 +887,8 @@ where
     let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone()))?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
-    let mut acvm = ACVM::new(
-        &Bn254BlackBoxSolver,
-        &opcodes,
-        initial_witness,
-        &unconstrained_functions,
-        &[],
-        false,
-    );
+    let mut acvm =
+        ACVM::new(&Bn254BlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -1040,14 +1023,8 @@ fn bigint_solve_binary_op_opt(
     opcodes.push(bigint_to_op);
 
     let unconstrained_functions = vec![];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        initial_witness,
-        &unconstrained_functions,
-        &[],
-        false,
-    );
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -1067,8 +1044,8 @@ fn solve_blackbox_func_call(
         BlackBoxFuncCall<FieldElement>,
         OpcodeResolutionError<FieldElement>,
     >,
-    lhs: (FieldElement, bool), // if false, use a Witness
-    rhs: (FieldElement, bool), // if false, use a Witness
+    lhs: (FieldElement, bool), // if  use a Witness
+    rhs: (FieldElement, bool), // if  use a Witness
 ) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
     let (lhs, lhs_constant) = lhs;
     let (rhs, rhs_constant) = rhs;
@@ -1089,14 +1066,8 @@ fn solve_blackbox_func_call(
     let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt)?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        initial_witness,
-        &unconstrained_functions,
-        &[],
-        false,
-    );
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -1438,7 +1409,7 @@ fn poseidon2_permutation_zeroes() {
 #[test]
 fn sha256_compression_zeros() {
     let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero(), false); 24].try_into().unwrap(),
+        [(FieldElement::zero()); 24].try_into().unwrap(),
         8,
         None,
         sha256_compression_op,
@@ -1482,7 +1453,7 @@ fn blake3_zeros() {
 #[test]
 fn keccakf1600_zeros() {
     let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero(), false); 25].into(),
+        [(FieldElement::zero()); 25].into(),
         25,
         Some(64),
         keccakf1600_op,

@@ -219,7 +219,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         initial_witness: WitnessMap<F>,
         unconstrained_functions: &'a [BrilligBytecode<F>],
         assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
-        profiling_active: bool,
     ) -> Self {
         let status = if opcodes.is_empty() { ACVMStatus::Solved } else { ACVMStatus::InProgress };
         ACVM {
@@ -235,9 +234,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             acir_call_results: Vec::default(),
             unconstrained_functions,
             assertion_payloads,
-            profiling_active,
+            profiling_active: false,
             profiling_samples: Vec::new(),
         }
+    }
+
+    // Enable profiling
+    pub fn with_profiler(&mut self, profiling_active: bool) {
+        self.profiling_active = profiling_active;
     }
 
     /// Returns a reference to the current state of the ACVM's [`WitnessMap`].
@@ -261,7 +265,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.instruction_pointer
     }
 
-    /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
+    /// Finalize the ACVM execution with profiling, returning the resulting [`WitnessMap`] and [`ProfilingSamples`]
     pub fn finalize_with_profiling(self) -> (WitnessMap<F>, ProfilingSamples) {
         if self.status != ACVMStatus::Solved {
             panic!("ACVM execution is not complete: ({})", self.status);
@@ -269,11 +273,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         (self.witness_map, self.profiling_samples)
     }
 
+    /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
     pub fn finalize(self) -> WitnessMap<F> {
-        if self.status != ACVMStatus::Solved {
-            panic!("ACVM execution is not complete: ({})", self.status);
-        }
-        self.witness_map
+        self.finalize_with_profiling().0
     }
 
     /// Updates the current status of the VM.

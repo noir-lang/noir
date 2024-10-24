@@ -93,36 +93,17 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
     for sample in samples {
         let mut location_names = Vec::with_capacity(sample.call_stack.len());
         for opcode_location in sample.call_stack {
-            let callsite_labels =
-                if let Some(callsite_labels) = resolution_cache.get(&opcode_location) {
-                    callsite_labels.clone()
-                } else {
-                    let source_locations =
-                        debug_symbols.opcode_location(&opcode_location).unwrap_or_else(|| {
-                            if let (Some(brillig_function_id), Some(brillig_location)) =
-                                (sample.brillig_function_id, opcode_location.to_brillig_location())
-                            {
-                                let brillig_locations =
-                                    debug_symbols.brillig_locations.get(&brillig_function_id);
-                                if let Some(brillig_locations) = brillig_locations {
-                                    brillig_locations
-                                        .get(&brillig_location)
-                                        .cloned()
-                                        .unwrap_or_default()
-                                } else {
-                                    vec![]
-                                }
-                            } else {
-                                vec![]
-                            }
-                        });
-                    let callsite_labels: Vec<_> = source_locations
-                        .into_iter()
-                        .map(|location| location_to_callsite_label(location, files))
-                        .collect();
-                    resolution_cache.insert(opcode_location, callsite_labels.clone());
-                    callsite_labels
-                };
+            let callsite_labels = resolution_cache
+                .entry(opcode_location)
+                .or_insert_with(|| {
+                    find_callsite_labels(
+                        debug_symbols,
+                        &opcode_location,
+                        sample.brillig_function_id,
+                        files,
+                    )
+                })
+                .clone();
 
             location_names.extend(callsite_labels);
         }
@@ -134,6 +115,33 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
     }
 
     to_folded_sorted_lines(&folded_stack_items, Default::default())
+}
+
+fn find_callsite_labels<'files>(
+    debug_symbols: &DebugInfo,
+    opcode_location: &OpcodeLocation,
+    brillig_function_id: Option<BrilligFunctionId>,
+    files: &'files impl Files<'files, FileId = fm::FileId>,
+) -> Vec<String> {
+    let source_locations = debug_symbols.opcode_location(opcode_location).unwrap_or_else(|| {
+        if let (Some(brillig_function_id), Some(brillig_location)) =
+            (brillig_function_id, opcode_location.to_brillig_location())
+        {
+            let brillig_locations = debug_symbols.brillig_locations.get(&brillig_function_id);
+            if let Some(brillig_locations) = brillig_locations {
+                brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
+    });
+    let callsite_labels: Vec<_> = source_locations
+        .into_iter()
+        .map(|location| location_to_callsite_label(location, files))
+        .collect();
+    callsite_labels
 }
 
 fn location_to_callsite_label<'files>(

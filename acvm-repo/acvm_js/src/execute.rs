@@ -181,7 +181,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                 initial_witness,
                 self.unconstrained_functions,
                 &circuit.assert_messages,
-                profiling_active,
             );
 
             loop {

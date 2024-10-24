@@ -78,8 +78,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             initial_witness,
             self.unconstrained_functions,
             &circuit.assert_messages,
-            self.profiling_active,
         );
+        acvm.with_profiler(self.profiling_active);
 
         loop {
             let solver_status = acvm.solve();

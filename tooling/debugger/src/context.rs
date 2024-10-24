@@ -273,7 +273,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 initial_witness,
                 unconstrained_functions,
                 &initial_circuit.assert_messages,
-                false,
             ),
             current_circuit_id,
             brillig_solver: None,
@@ -574,7 +573,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             callee_witness_map,
             self.unconstrained_functions,
             &callee_circuit.assert_messages,
-            false,
         );
         let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
         self.acvm_stack
