@@ -18,6 +18,14 @@ global INT_SIZE = 4;
 // Index of the integer in the `INT_BLOCK` where the length is written.
 global INT_SIZE_PTR = MSG_SIZE_PTR / INT_SIZE;
 
+// Magic numbers for bit shifting.
+// Works with actual bit shifting as well as the compiler turns them into * and /
+// but circuit execution appears to be 10% faster this way.
+global TWO_POW_8 = 256;
+global TWO_POW_16 = TWO_POW_8 * 256;
+global TWO_POW_24 = TWO_POW_16 * 256;
+global TWO_POW_32 = TWO_POW_24 as u64 * 256;
+
 // Index of a byte in a 64 byte block; ie. 0..=63
 type BLOCK_BYTE_PTR = u32;
 
@@ -270,11 +278,11 @@ fn verify_msg_block_zeros(
     if modulo != 0 {
         let zeros = INT_SIZE - modulo;
         let mask = if zeros == 3 {
-            1 << 24
+            TWO_POW_24
         } else if zeros == 2 {
-            1 << 16
+            TWO_POW_16
         } else {
-            1 << 8
+            TWO_POW_8
         };
         assert_eq(msg_block[int_byte_ptr] % mask, zero);
         int_byte_ptr = int_byte_ptr + 1;
@@ -394,11 +402,11 @@ fn lshift8(item: u32, shifts: u8) -> u32 {
         if shifts == 0 {
             item
         } else if shifts == 1 {
-            item << 8
+            item * TWO_POW_8
         } else if shifts == 2 {
-            item << 16
+            item * TWO_POW_16
         } else if shifts == 3 {
-            item << 24
+            item * TWO_POW_24
         } else {
             // Doesn't make sense, but it's most likely called on 0 anyway.
             0
@@ -417,11 +425,11 @@ fn rshift8(item: u32, shifts: u8) -> u32 {
         if shifts == 0 {
             item
         } else if shifts == 1 {
-            item >> 8
+            item / TWO_POW_8
         } else if shifts == 2 {
-            item >> 16
+            item / TWO_POW_16
         } else if shifts == 3 {
-            item >> 24
+            item / TWO_POW_24
         } else {
             0
         }
@@ -485,7 +493,7 @@ fn verify_msg_len(
     // We verify the message length was inserted correctly by reversing the byte decomposition.
     let mut reconstructed_len: u64 = 0;
     for i in INT_SIZE_PTR..INT_BLOCK_SIZE {
-        reconstructed_len = reconstructed_len << 32;
+        reconstructed_len = reconstructed_len * TWO_POW_32;
         reconstructed_len = reconstructed_len + msg_block[i] as u64;
     }
     let len = 8 * message_size as u64;
