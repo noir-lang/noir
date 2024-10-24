@@ -1,8 +1,8 @@
 //! Contains methods on the built-in `Expr` type for quoted, syntactically valid expressions.
 
-use crate::option::Option;
-use crate::meta::op::UnaryOp;
 use crate::meta::op::BinaryOp;
+use crate::meta::op::UnaryOp;
+use crate::option::Option;
 
 impl Expr {
     /// If this expression is an array literal `[elem1, ..., elemN]`, this returns a slice of each element in the array.
@@ -118,7 +118,9 @@ impl Expr {
     /// If this expression is a lambda, returns the parameters, return type and body.
     #[builtin(expr_as_lambda)]
     // docs:start:as_lambda
-    pub comptime fn as_lambda(self) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)> {}
+    pub comptime fn as_lambda(
+        self,
+    ) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)> {}
     // docs:end:as_lambda
 
     /// If this expression is a let statement, returns the let pattern as an `Expr`,
@@ -187,7 +189,7 @@ impl Expr {
     /// Returns `true` if this expression is trailed by a semicolon.
     ///
     /// Example:
-    /// 
+    ///
     /// ```noir
     /// comptime {
     ///     let expr1 = quote { 1 + 2 }.as_expr().unwrap();
@@ -195,7 +197,7 @@ impl Expr {
     ///
     ///     assert(expr1.as_binary_op().is_some());
     ///     assert(expr2.as_binary_op().is_some());
-    /// 
+    ///
     ///     assert(!expr1.has_semicolon());
     ///     assert(expr2.has_semicolon());
     /// }
@@ -219,9 +221,9 @@ impl Expr {
 
     /// Applies a mapping function to this expression and to all of its sub-expressions.
     /// `f` will be applied to each sub-expression first, then applied to the expression itself.
-    /// 
+    ///
     /// This happens recursively for every expression within `self`.
-    /// 
+    ///
     /// For example, calling `modify` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
     /// for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
     // docs:start:modify
@@ -267,14 +269,14 @@ impl Expr {
         quote { $self }
     }
 
-    /// Resolves and type-checks this expression and returns the result as a `TypedExpr`. 
-    /// 
+    /// Resolves and type-checks this expression and returns the result as a `TypedExpr`.
+    ///
     /// The `in_function` argument specifies where the expression is resolved:
     /// - If it's `none`, the expression is resolved in the function where `resolve` was called
     /// - If it's `some`, the expression is resolved in the given function
-    /// 
-    /// If any names used by this expression are not in scope or if there are any type errors, 
-    /// this will give compiler errors as if the expression was written directly into 
+    ///
+    /// If any names used by this expression are not in scope or if there are any type errors,
+    /// this will give compiler errors as if the expression was written directly into
     /// the current `comptime` function.
     #[builtin(expr_resolve)]
     // docs:start:resolve
@@ -283,257 +285,222 @@ impl Expr {
 }
 
 comptime fn modify_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_array().map(
-        |exprs: [Expr]| {
+    expr.as_array().map(|exprs: [Expr]| {
         let exprs = modify_expressions(exprs, f);
         new_array(exprs)
-    }
-    )
+    })
 }
 
 comptime fn modify_assert<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_assert().map(
-        |expr: (Expr, Option<Expr>)| {
+    expr.as_assert().map(|expr: (Expr, Option<Expr>)| {
         let (predicate, msg) = expr;
         let predicate = predicate.modify(f);
         let msg = msg.map(|msg: Expr| msg.modify(f));
         new_assert(predicate, msg)
-    }
-    )
+    })
 }
 
 comptime fn modify_assert_eq<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_assert_eq().map(
-        |expr: (Expr, Expr, Option<Expr>)| {
+    expr.as_assert_eq().map(|expr: (Expr, Expr, Option<Expr>)| {
         let (lhs, rhs, msg) = expr;
         let lhs = lhs.modify(f);
         let rhs = rhs.modify(f);
         let msg = msg.map(|msg: Expr| msg.modify(f));
         new_assert_eq(lhs, rhs, msg)
-    }
-    )
+    })
 }
 
 comptime fn modify_assign<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_assign().map(
-        |expr: (Expr, Expr)| {
+    expr.as_assign().map(|expr: (Expr, Expr)| {
         let (lhs, rhs) = expr;
         let lhs = lhs.modify(f);
         let rhs = rhs.modify(f);
         new_assign(lhs, rhs)
-    }
-    )
+    })
 }
 
 comptime fn modify_binary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_binary_op().map(
-        |expr: (Expr, BinaryOp, Expr)| {
+    expr.as_binary_op().map(|expr: (Expr, BinaryOp, Expr)| {
         let (lhs, op, rhs) = expr;
         let lhs = lhs.modify(f);
         let rhs = rhs.modify(f);
         new_binary_op(lhs, op, rhs)
-    }
-    )
+    })
 }
 
 comptime fn modify_block<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_block().map(
-        |exprs: [Expr]| {
+    expr.as_block().map(|exprs: [Expr]| {
         let exprs = modify_expressions(exprs, f);
         new_block(exprs)
-    }
-    )
+    })
 }
 
 comptime fn modify_cast<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_cast().map(
-        |expr: (Expr, UnresolvedType)| {
+    expr.as_cast().map(|expr: (Expr, UnresolvedType)| {
         let (expr, typ) = expr;
         let expr = expr.modify(f);
         new_cast(expr, typ)
-    }
-    )
+    })
 }
 
 comptime fn modify_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_comptime().map(
-        |exprs: [Expr]| {
+    expr.as_comptime().map(|exprs: [Expr]| {
         let exprs = exprs.map(|expr: Expr| expr.modify(f));
         new_comptime(exprs)
-    }
-    )
+    })
 }
 
 comptime fn modify_constructor<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_constructor().map(
-        |expr: (UnresolvedType, [(Quoted, Expr)])| {
+    expr.as_constructor().map(|expr: (UnresolvedType, [(Quoted, Expr)])| {
         let (typ, fields) = expr;
         let fields = fields.map(|field: (Quoted, Expr)| {
             let (name, value) = field;
             (name, value.modify(f))
         });
         new_constructor(typ, fields)
-    }
-    )
+    })
 }
 
-comptime fn modify_function_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_function_call().map(
-        |expr: (Expr, [Expr])| {
+comptime fn modify_function_call<Env>(
+    expr: Expr,
+    f: fn[Env](Expr) -> Option<Expr>,
+) -> Option<Expr> {
+    expr.as_function_call().map(|expr: (Expr, [Expr])| {
         let (function, arguments) = expr;
         let function = function.modify(f);
         let arguments = arguments.map(|arg: Expr| arg.modify(f));
         new_function_call(function, arguments)
-    }
-    )
+    })
 }
 
 comptime fn modify_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_if().map(
-        |expr: (Expr, Expr, Option<Expr>)| {
+    expr.as_if().map(|expr: (Expr, Expr, Option<Expr>)| {
         let (condition, consequence, alternative) = expr;
         let condition = condition.modify(f);
         let consequence = consequence.modify(f);
         let alternative = alternative.map(|alternative: Expr| alternative.modify(f));
         new_if(condition, consequence, alternative)
-    }
-    )
+    })
 }
 
 comptime fn modify_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_index().map(
-        |expr: (Expr, Expr)| {
+    expr.as_index().map(|expr: (Expr, Expr)| {
         let (object, index) = expr;
         let object = object.modify(f);
         let index = index.modify(f);
         new_index(object, index)
-    }
-    )
+    })
 }
 
 comptime fn modify_for<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_for().map(
-        |expr: (Quoted, Expr, Expr)| {
+    expr.as_for().map(|expr: (Quoted, Expr, Expr)| {
         let (identifier, array, body) = expr;
         let array = array.modify(f);
         let body = body.modify(f);
         new_for(identifier, array, body)
-    }
-    )
+    })
 }
 
 comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_for_range().map(
-        |expr: (Quoted, Expr, Expr, Expr)| {
+    expr.as_for_range().map(|expr: (Quoted, Expr, Expr, Expr)| {
         let (identifier, from, to, body) = expr;
         let from = from.modify(f);
         let to = to.modify(f);
         let body = body.modify(f);
         new_for_range(identifier, from, to, body)
-    }
-    )
+    })
 }
 
 comptime fn modify_lambda<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_lambda().map(
-        |expr: ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)| {
-            let (params, return_type, body) = expr;
-            let params = params.map(|param: (Expr, Option<UnresolvedType>)| (param.0.modify(f), param.1));
-            let body = body.modify(f);
-            new_lambda(params, return_type, body)
-    }
-    )
+    expr.as_lambda().map(|expr: ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)| {
+        let (params, return_type, body) = expr;
+        let params =
+            params.map(|param: (Expr, Option<UnresolvedType>)| (param.0.modify(f), param.1));
+        let body = body.modify(f);
+        new_lambda(params, return_type, body)
+    })
 }
 
 comptime fn modify_let<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_let().map(
-        |expr: (Expr, Option<UnresolvedType>, Expr)| {
+    expr.as_let().map(|expr: (Expr, Option<UnresolvedType>, Expr)| {
         let (pattern, typ, expr) = expr;
         let pattern = pattern.modify(f);
         let expr = expr.modify(f);
         new_let(pattern, typ, expr)
-    }
-    )
+    })
 }
 
-comptime fn modify_member_access<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_member_access().map(
-        |expr: (Expr, Quoted)| {
+comptime fn modify_member_access<Env>(
+    expr: Expr,
+    f: fn[Env](Expr) -> Option<Expr>,
+) -> Option<Expr> {
+    expr.as_member_access().map(|expr: (Expr, Quoted)| {
         let (object, name) = expr;
         let object = object.modify(f);
         new_member_access(object, name)
-    }
-    )
+    })
 }
 
 comptime fn modify_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_method_call().map(
-        |expr: (Expr, Quoted, [UnresolvedType], [Expr])| {
+    expr.as_method_call().map(|expr: (Expr, Quoted, [UnresolvedType], [Expr])| {
         let (object, name, generics, arguments) = expr;
         let object = object.modify(f);
         let arguments = arguments.map(|arg: Expr| arg.modify(f));
         new_method_call(object, name, generics, arguments)
-    }
-    )
+    })
 }
 
-comptime fn modify_repeated_element_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_repeated_element_array().map(
-        |expr: (Expr, Expr)| {
+comptime fn modify_repeated_element_array<Env>(
+    expr: Expr,
+    f: fn[Env](Expr) -> Option<Expr>,
+) -> Option<Expr> {
+    expr.as_repeated_element_array().map(|expr: (Expr, Expr)| {
         let (expr, length) = expr;
         let expr = expr.modify(f);
         let length = length.modify(f);
         new_repeated_element_array(expr, length)
-    }
-    )
+    })
 }
 
-comptime fn modify_repeated_element_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_repeated_element_slice().map(
-        |expr: (Expr, Expr)| {
+comptime fn modify_repeated_element_slice<Env>(
+    expr: Expr,
+    f: fn[Env](Expr) -> Option<Expr>,
+) -> Option<Expr> {
+    expr.as_repeated_element_slice().map(|expr: (Expr, Expr)| {
         let (expr, length) = expr;
         let expr = expr.modify(f);
         let length = length.modify(f);
         new_repeated_element_slice(expr, length)
-    }
-    )
+    })
 }
 
 comptime fn modify_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_slice().map(
-        |exprs: [Expr]| {
+    expr.as_slice().map(|exprs: [Expr]| {
         let exprs = modify_expressions(exprs, f);
         new_slice(exprs)
-    }
-    )
+    })
 }
 
 comptime fn modify_tuple<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_tuple().map(
-        |exprs: [Expr]| {
+    expr.as_tuple().map(|exprs: [Expr]| {
         let exprs = modify_expressions(exprs, f);
         new_tuple(exprs)
-    }
-    )
+    })
 }
 
 comptime fn modify_unary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_unary_op().map(
-        |expr: (UnaryOp, Expr)| {
+    expr.as_unary_op().map(|expr: (UnaryOp, Expr)| {
         let (op, rhs) = expr;
         let rhs = rhs.modify(f);
         new_unary_op(op, rhs)
-    }
-    )
+    })
 }
 
 comptime fn modify_unsafe<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_unsafe().map(
-        |exprs: [Expr]| {
+    expr.as_unsafe().map(|exprs: [Expr]| {
         let exprs = exprs.map(|expr: Expr| expr.modify(f));
         new_unsafe(exprs)
-    }
-    )
+    })
 }
 
 comptime fn modify_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
@@ -587,12 +554,12 @@ comptime fn new_comptime(exprs: [Expr]) -> Expr {
 }
 
 comptime fn new_constructor(typ: UnresolvedType, fields: [(Quoted, Expr)]) -> Expr {
-    let fields = fields.map(
-        |field: (Quoted, Expr)| {
-        let (name, value) = field;
-        quote { $name: $value }
-    }
-    ).join(quote { , });
+    let fields = fields
+        .map(|field: (Quoted, Expr)| {
+            let (name, value) = field;
+            quote { $name: $value }
+        })
+        .join(quote { , });
     quote { $typ { $fields }}.as_expr().unwrap()
 }
 
@@ -620,19 +587,19 @@ comptime fn new_index(object: Expr, index: Expr) -> Expr {
 comptime fn new_lambda(
     params: [(Expr, Option<UnresolvedType>)],
     return_type: Option<UnresolvedType>,
-    body: Expr
+    body: Expr,
 ) -> Expr {
-    let params = params.map(
-        |param: (Expr, Option<UnresolvedType>)| {
-        let (name, typ) = param;
-        if typ.is_some() {
-            let typ = typ.unwrap();
-            quote { $name: $typ }
-        } else {
-            quote { $name }
-        }
-    }
-    ).join(quote { , });
+    let params = params
+        .map(|param: (Expr, Option<UnresolvedType>)| {
+            let (name, typ) = param;
+            if typ.is_some() {
+                let typ = typ.unwrap();
+                quote { $name: $typ }
+            } else {
+                quote { $name }
+            }
+        })
+        .join(quote { , });
 
     if return_type.is_some() {
         let return_type = return_type.unwrap();
@@ -661,7 +628,12 @@ comptime fn new_function_call(function: Expr, arguments: [Expr]) -> Expr {
     quote { $function($arguments) }.as_expr().unwrap()
 }
 
-comptime fn new_method_call(object: Expr, name: Quoted, generics: [UnresolvedType], arguments: [Expr]) -> Expr {
+comptime fn new_method_call(
+    object: Expr,
+    name: Quoted,
+    generics: [UnresolvedType],
+    arguments: [Expr],
+) -> Expr {
     let arguments = join_expressions(arguments, quote { , });
 
     if generics.len() == 0 {

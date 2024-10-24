@@ -66,6 +66,14 @@ impl<'a> Parser<'a> {
     fn parse_use_tree_in_list(&mut self) -> Option<UseTree> {
         let start_span = self.current_token_span;
 
+        // Special case: "self" cannot be followed by anything else
+        if self.eat_self() {
+            return Some(UseTree {
+                prefix: Path { segments: Vec::new(), kind: PathKind::Plain, span: start_span },
+                kind: UseTreeKind::Path(Ident::new("self".to_string(), start_span), None),
+            });
+        }
+
         let use_tree = self.parse_use_tree_without_kind(
             start_span,
             PathKind::Plain,
@@ -247,6 +255,13 @@ mod tests {
     #[test]
     fn errors_on_crate_in_subtree() {
         let src = "use foo::{crate::bar}";
+        let (_, errors) = parse_program(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn errors_on_double_colon_after_self() {
+        let src = "use foo::{self::bar};";
         let (_, errors) = parse_program(src);
         assert!(!errors.is_empty());
     }

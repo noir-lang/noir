@@ -195,7 +195,7 @@ fn check_trait_implementation_duplicate_method() {
             x + 2 * y
         }
     }
-    
+
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
@@ -644,7 +644,7 @@ fn check_impl_struct_not_trait() {
             Self { bar: x, array: [x,y] }
         }
     }
-    
+
     fn main() {
         let _ = Default { x: 1, z: 1 }; // silence Default never constructed warning
     }
@@ -1572,7 +1572,7 @@ fn struct_numeric_generic_in_function() {
         inner: u64
     }
 
-    pub fn bar<let N: Foo>() { 
+    pub fn bar<let N: Foo>() {
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
     "#;
@@ -2156,7 +2156,7 @@ fn numeric_generics_type_kind_mismatch() {
     }
 
     global M: u16 = 3;
-    
+
     fn main() {
         let _ = bar::<M>();
     }
@@ -2194,7 +2194,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
     }
 
     impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
-        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) { 
+        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) {
             // We do this to avoid an unused variable warning on `self`
             let _ = self.len;
             for _ in 0..Len { }
@@ -2485,7 +2485,7 @@ fn trait_impl_where_clause_stricter_pass() {
 
         fn bad_foo<A, B>() where A: OtherTrait { }
     }
-    
+
     fn main() {
         let _ = Option { inner: 1 }; // silence Option never constructed warning
     }
@@ -3518,4 +3518,26 @@ fn unconditional_recursion_pass() {
     for src in srcs {
         assert_no_errors(src);
     }
+}
+
+#[test]
+fn uses_self_in_import() {
+    let src = r#"
+    mod moo {
+        pub mod bar {
+            pub fn foo() -> i32 {
+                1
+            }
+        }
+    }
+
+    use moo::bar::{self};
+
+    pub fn baz() -> i32 {
+        bar::foo()
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
 }

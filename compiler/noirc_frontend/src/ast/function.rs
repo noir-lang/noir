@@ -117,6 +117,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Recursive) => FunctionKind::Recursive,
             Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
+            Some(FunctionAttribute::InlineAlways) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

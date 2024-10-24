@@ -65,7 +65,10 @@ impl crate::cmp::Eq for CtString {
 }
 
 impl crate::hash::Hash for CtString {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(ctstring_hash(self));
     }
 }
@@ -85,8 +88,7 @@ comptime fn ctstring_hash(_string: CtString) -> Field {}
 mod test {
     #[test]
     fn as_quoted_str_example() {
-        comptime
-        {
+        comptime {
             // docs:start:as_quoted_str_example
             let my_ctstring = "foo bar".as_ctstring();
             let my_str = my_ctstring.as_quoted_str!();

@@ -48,7 +48,7 @@ impl<let S: u32> MyStruct<S> {
     }
 }
 
-fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
+fn foo(mut s: MyStruct<2 + 1>) -> MyStruct<10 / 2 - 2> {
     s.data[0] = s.data[0] + 1;
     s
 }
@@ -88,7 +88,10 @@ trait Deserialize<let N: u32> {
 pub struct PublicStorage {}
 
 impl PublicStorage {
-    fn read<T, let N: u32>() -> T where T: Deserialize<N> {
+    fn read<T, let N: u32>() -> T
+    where
+        T: Deserialize<N>,
+    {
         // Used as a type within a function body
         let mut fields: [Field; N] = [0; N];
         // Used a loop bound
@@ -104,7 +107,7 @@ impl PublicStorage {
 // which are declared after the parent struct
 pub struct NestedNumeric<let N: u32> {
     a: Field,
-    b: InnerNumeric<N>
+    b: InnerNumeric<N>,
 }
 pub struct InnerNumeric<let N: u32> {
     inner: [u32; N],
