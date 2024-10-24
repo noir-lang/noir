@@ -214,15 +214,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError<F>> {
         assert!(!self.vm.is_profiling_active(), "Expected VM profiling to not be active");
-        // Finish the Brillig execution by writing the outputs to the witness map
-        let vm_status = self.vm.get_status();
-        match vm_status {
-            VMStatus::Finished { return_data_offset, return_data_size } => {
-                self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
-                Ok(())
-            }
-            _ => panic!("Brillig VM has not completed execution"),
-        }
+        self.finalize_inner(witness, outputs)
     }
 
     pub(crate) fn finalize_with_profiling(
@@ -231,12 +223,21 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         outputs: &[BrilligOutputs],
     ) -> Result<BrilligProfilingSamples, OpcodeResolutionError<F>> {
         assert!(self.vm.is_profiling_active(), "Expected VM profiling to be active");
+        self.finalize_inner(witness, outputs)?;
+        Ok(self.vm.take_profiling_samples())
+    }
+
+    fn finalize_inner(
+        &self,
+        witness: &mut WitnessMap<F>,
+        outputs: &[BrilligOutputs],
+    ) -> Result<(), OpcodeResolutionError<F>> {
         // Finish the Brillig execution by writing the outputs to the witness map
         let vm_status = self.vm.get_status();
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
                 self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
-                Ok(self.vm.take_profiling_samples())
+                Ok(())
             }
             _ => panic!("Brillig VM has not completed execution"),
         }
