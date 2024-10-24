@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+mod aliases;
 mod bound_checks;
 mod imports;
 mod metaprogramming;
