@@ -123,7 +123,6 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
     // Here we rely on the fact that everything beyond the available input is set to 0.
-    // msg_block = set_block_byte(msg_block, msg_byte_ptr, 1 << 7);
     msg_block = update_block_item(
         msg_block,
         msg_byte_ptr,
@@ -335,23 +334,6 @@ fn update_block_item<Env>(
     msg_block[i] = f(msg_block[i]);
     msg_block
 }
-
-// // Pack the value of byte into an item of an existing message block, shifting the byte according to its position.
-// fn set_block_byte(msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> MSG_BLOCK {
-//     update_block_item(
-//         msg_block,
-//         msg_byte_ptr,
-//         |msg_item| set_item_byte(msg_item, msg_byte_ptr, msg_byte),
-//     )
-// }
-
-// // Replace one byte in a message block item.
-// fn set_item_byte(msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> u32 {
-//     let old_byte = get_item_byte(msg_item, msg_byte_ptr);
-//     let old_item = byte_into_item(old_byte, msg_byte_ptr);
-//     let new_item = byte_into_item(msg_byte, msg_byte_ptr);
-//     msg_item - old_item + new_item
-// }
 
 // Set the rightmost `zeros` number of bytes to 0.
 fn set_item_zeros(item: u32, zeros: u8) -> u32 {
@@ -784,23 +766,6 @@ mod tests {
         assert_eq(byte_into_item(20, 1), fld);
         assert_eq(byte_into_item(20, 5), fld);
     }
-
-    // #[test]
-    // fn test_set_item_byte() {
-    //     let fld0 = make_item(10, 20, 30, 40);
-    //     let fld1 = make_item(10, 50, 30, 40);
-    //     assert_eq(set_item_byte(fld0, 9, 50), fld1);
-    // }
-
-    // #[test]
-    // fn test_set_block_byte() {
-    //     let mut msg_block: MSG_BLOCK = [0; INT_BLOCK_SIZE];
-    //     msg_block = set_block_byte(msg_block, 5, 20);
-    //     msg_block = set_block_byte(msg_block, 6, 30);
-
-    //     let fld = make_item(0, 20, 30, 0);
-    //     assert_eq(msg_block[1], fld);
-    // }
 
     #[test]
     fn test_set_item_zeros() {
