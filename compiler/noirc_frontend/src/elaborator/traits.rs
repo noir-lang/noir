@@ -32,6 +32,9 @@ impl<'context> Elaborator<'context> {
                     &resolved_generics,
                 );
 
+                let where_clause =
+                    this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
+
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
                     this.generics.push(associated_type.clone());
@@ -48,6 +51,7 @@ impl<'context> Elaborator<'context> {
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
                     trait_def.set_trait_bounds(resolved_trait_bounds);
+                    trait_def.set_where_clause(where_clause);
                 });
             });
 
