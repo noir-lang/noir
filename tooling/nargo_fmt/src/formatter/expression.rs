@@ -705,6 +705,12 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
         };
 
+        // Indent right after the lhs so that if there's a trailing comment,
+        // the next line is indented correctly.
+        if increase_indentation {
+            group.increase_indentation();
+        }
+
         let mut comment_chunk_after_lhs = self.skip_comments_and_whitespace_chunk();
 
         // If the comment is not empty but doesn't have newlines, it's surely `/* comment */`.
@@ -717,10 +723,6 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             group.text(comment_chunk_after_lhs);
         } else {
             group.trailing_comment(comment_chunk_after_lhs);
-        }
-
-        if increase_indentation {
-            group.increase_indentation();
         }
 
         group.space_or_line();
@@ -1419,6 +1421,23 @@ global y = 1;
 }
 ";
         assert_format_with_max_width(src, expected, "one + two + three + four".len() - 1);
+    }
+
+    #[test]
+    fn format_infix_with_trailing_comments() {
+        let src = "fn foo() {
+    let x = 1 // one
++ 2 // two
++ 3; // three
+}
+";
+        let expected = "fn foo() {
+    let x = 1 // one
+        + 2 // two
+        + 3; // three
+}
+";
+        assert_format(src, expected);
     }
 
     #[test]
