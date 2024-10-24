@@ -264,17 +264,19 @@ fn verify_msg_block_zeroes(
     // Check partial zeroes.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
-        let msg_item = msg_block[int_byte_ptr];
-        for i in 0..INT_SIZE {
-            if i < INT_SIZE - modulo {
-                assert_eq(get_item_byte(msg_item, msg_byte_ptr), zero as u8);
-                msg_byte_ptr = msg_byte_ptr + 1;
-            }
-        }
+        let num_zeroes = INT_SIZE - modulo;
+        let mask = if num_zeroes == 3 {
+            256 * 256 * 256
+        } else if num_zeroes == 2 {
+            256 * 256
+        } else {
+            256 
+        };
+        assert_eq(msg_block[int_byte_ptr] % mask, zero);
         int_byte_ptr = int_byte_ptr + 1;
     }
 
-    // Check the rest of the numbers.
+    // Check the rest of the items.
     for i in 0..max_int_byte_ptr {
         if i >= int_byte_ptr {
             assert_eq(msg_block[i], zero);
@@ -377,7 +379,7 @@ fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
 }
 
 // Shift by 8 bits to the left.
-// Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context, 
+// Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context,
 // otherwise multiplies by 256.
 fn lshift8(item: u32) -> u32 {
     if is_unconstrained() {
@@ -388,7 +390,7 @@ fn lshift8(item: u32) -> u32 {
 }
 
 // Shift by 8 bits to the right.
-// Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context, 
+// Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context,
 // otherwise divides by 256.
 fn rshift8(item: u32) -> u32 {
     if is_unconstrained() {
