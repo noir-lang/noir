@@ -76,7 +76,7 @@ fn run_stdlib_tests() {
                 &bn254_blackbox_solver::Bn254BlackBoxSolver,
                 &mut context,
                 &test_function,
-                false,
+                true,
                 None,
                 Some(dummy_package.root_dir.clone()),
                 Some(dummy_package.name.to_string()),
