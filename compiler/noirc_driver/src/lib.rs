@@ -124,6 +124,10 @@ pub struct CompileOptions {
     /// This check should always be run on production code.
     #[arg(long)]
     pub skip_underconstrained_check: bool,
+
+    /// Flag to enable experimental ACIR optimizations
+    #[arg(long, default_value = "false")]
+    pub experimental_optimization: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -580,6 +584,7 @@ pub fn compile_no_check(
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
+        experimental_optimization: options.experimental_optimization,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

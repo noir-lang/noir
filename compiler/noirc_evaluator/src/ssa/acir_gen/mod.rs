@@ -195,6 +195,11 @@ struct Context<'a> {
 
     /// Contains state that is generated and also used across ACIR functions
     shared_context: &'a mut SharedContext<FieldElement>,
+
+    /// Set of values used in multiple expressions
+    common_used: fxhash::FxHashSet<ValueId>,
+
+    experimental_optimization: bool,
 }
 
 #[derive(Clone)]
@@ -292,12 +297,14 @@ impl Ssa {
         self,
         brillig: &Brillig,
         expression_width: ExpressionWidth,
+        experimental_optimization: bool,
     ) -> Result<Artifacts, RuntimeError> {
         let mut acirs = Vec::new();
         // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context, expression_width);
+            let context =
+                Context::new(&mut shared_context, expression_width, experimental_optimization);
             if let Some(mut generated_acir) =
                 context.convert_ssa_function(&self, function, brillig)?
             {
@@ -349,6 +356,7 @@ impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
+        experimental_optimization: bool,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::default();
         acir_context.set_expression_width(expression_width);
@@ -365,6 +373,8 @@ impl<'a> Context<'a> {
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
+            common_used: fxhash::FxHashSet::default(),
+            experimental_optimization,
         }
     }
 
@@ -664,6 +674,7 @@ impl<'a> Context<'a> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
         let mut warnings = Vec::new();
+        self.common_used = ssa.common_values.to_owned();
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -1928,7 +1939,13 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
-            AcirValue::Var(acir_var, _) => Ok(acir_var),
+            AcirValue::Var(acir_var, _) => {
+                if self.experimental_optimization && self.common_used.contains(&value_id) {
+                    self.acir_context.get_or_create_witness_var(acir_var)
+                } else {
+                    Ok(acir_var)
+                }
+            }
             AcirValue::Array(array) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: format!("{array:?}"),
