@@ -91,6 +91,10 @@ pub enum Type {
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
     NamedGeneric(TypeVariable, Rc<String>),
 
+    // TODO rename
+    // (to, from)
+    Txm(Box<Type>, Box<Type>),
+
     /// A functions with arguments, a return type and environment.
     /// the environment should be `Unit` by default,
     /// for closures it should contain a `Tuple` type with the captured
@@ -860,6 +864,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_, _) => write!(f, "{name}"),
             },
+            Type::Txm(to, _) => write!(f, "{to}"),
             Type::Constant(x, _kind) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
@@ -1061,6 +1066,7 @@ impl Type {
             | Type::TypeVariable(..)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(..)
+            | Type::Txm(..)
             | Type::Forall(..)
             | Type::Constant(..)
             | Type::Quoted(..)
@@ -1102,6 +1108,10 @@ impl Type {
 
             Type::NamedGeneric(_, _) => {
                 named_generic_is_numeric(self, found_names);
+            }
+            Type::Txm(to, from) => {
+                to.find_numeric_type_vars(found_names);
+                from.find_numeric_type_vars(found_names);
             }
 
             Type::TraitAsType(_, _, args) => {
@@ -1187,6 +1197,8 @@ impl Type {
             | Type::InfixExpr(_, _, _)
             | Type::TraitAsType(..) => false,
 
+            Type::Txm(to, _) => to.is_valid_for_program_input(),
+
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
                 alias.get_type(generics).is_valid_for_program_input()
@@ -1236,6 +1248,8 @@ impl Type {
             | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
 
+            Type::Txm(to, _) => to.is_valid_non_inlined_function_input(),
+
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
                 alias.get_type(generics).is_valid_non_inlined_function_input()
@@ -1277,6 +1291,8 @@ impl Type {
                 }
             }
 
+            Type::Txm(to, _) => to.is_valid_for_unconstrained_boundary(),
+
             // Quoted objects only exist at compile-time where the only execution
             // environment is the interpreter. In this environment, they are valid.
             Type::Quoted(_) => true,
@@ -1309,6 +1325,7 @@ impl Type {
     pub fn generic_count(&self) -> usize {
         match self {
             Type::Forall(generics, _) => generics.len(),
+            Type::Txm(to, _) => to.generic_count(),
             Type::TypeVariable(type_variable) | Type::NamedGeneric(type_variable, _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
@@ -1348,6 +1365,7 @@ impl Type {
 
     pub(crate) fn kind(&self) -> Kind {
         match self {
+            Type::Txm(to, _) => to.kind(),
             Type::NamedGeneric(var, _) => var.kind(),
             Type::Constant(_, kind) => kind.clone(),
             Type::TypeVariable(var) => match &*var.borrow() {
@@ -1402,6 +1420,7 @@ impl Type {
                 let fields = struct_type.get_fields(args);
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
+            Type::Txm(to, _) => to.field_count(),
             Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(),
             Type::Tuple(fields) => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
@@ -1578,6 +1597,7 @@ impl Type {
         match self {
             Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
             Type::NamedGeneric(var, _) => Some((var.1.clone(), var.kind())),
+            Type::Txm(to, _from) => to.get_inner_type_variable(),
             _ => None,
         }
     }
@@ -1691,6 +1711,8 @@ impl Type {
                     Err(UnificationError)
                 }
             }
+
+            (Txm(to, _from), other) | (other, Txm(to, _from)) => to.try_unify(other, bindings),
 
             (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
                 if !binding.borrow().is_unbound() =>
@@ -1930,6 +1952,17 @@ impl Type {
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
+        let run_simplifications = true;
+        self.evaluate_to_field_element_helper(kind, run_simplifications)
+    }
+
+    // TODO: rename to constant_evaluate_to_field_element or similar
+    /// Run evaluate_to_field_element without generic arithmetic simplifications
+    pub(crate) fn evaluate_to_field_element_helper(
+        &self,
+        kind: &Kind,
+        run_simplifications: bool,
+    ) -> Option<acvm::FieldElement> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
@@ -1938,7 +1971,8 @@ impl Type {
             }
         }
 
-        match self.canonicalize() {
+        let could_be_txm = false;
+        match self.canonicalize_helper(could_be_txm, run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x)
@@ -1949,11 +1983,31 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_field_element(&infix_kind)?;
-                    let rhs_value = rhs.evaluate_to_field_element(&infix_kind)?;
+                    let lhs_value =
+                        lhs.evaluate_to_field_element_helper(&infix_kind, run_simplifications)?;
+                    let rhs_value =
+                        rhs.evaluate_to_field_element_helper(&infix_kind, run_simplifications)?;
                     op.function(lhs_value, rhs_value, &infix_kind)
                 } else {
                     None
+                }
+            }
+            Type::Txm(to, from) => {
+                let to_value = to.evaluate_to_field_element(kind)?;
+
+                // if both 'to' and 'from' evaluate to a constant,
+                // return None unless they match
+                let skip_simplifications = false;
+                if let Some(from_value) =
+                    from.evaluate_to_field_element_helper(kind, skip_simplifications)
+                {
+                    if to_value == from_value {
+                        Some(to_value)
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(to_value)
                 }
             }
             _ => None,
@@ -2178,6 +2232,11 @@ impl Type {
                 let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
+            Type::Txm(to, from) => {
+                let to = to.substitute_helper(type_bindings, substitute_bound_typevars);
+                let from = from.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::Txm(Box::new(to), Box::new(from))
+            }
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding) => {
                 substitute_binding(binding)
             }
@@ -2267,6 +2326,7 @@ impl Type {
                     || args.named.iter().any(|arg| arg.typ.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
+            Type::Txm(to, from) => to.occurs(target_id) || from.occurs(target_id),
             Type::NamedGeneric(type_var, _) | Type::TypeVariable(type_var) => {
                 match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => {
@@ -2325,6 +2385,11 @@ impl Type {
                 def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
+            Txm(to, from) => {
+                let to = Box::new(to.follow_bindings());
+                let from = Box::new(from.follow_bindings());
+                Txm(to, from)
+            }
             TypeVariable(var) | NamedGeneric(var, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
@@ -2421,6 +2486,10 @@ impl Type {
                     generic.typ.replace_named_generics_with_type_variables();
                 }
             }
+            Type::Txm(to, from) => {
+                to.replace_named_generics_with_type_variables();
+                from.replace_named_generics_with_type_variables();
+            }
             Type::NamedGeneric(var, _) => {
                 let type_binding = var.borrow();
                 if let TypeBinding::Bound(binding) = &*type_binding {
@@ -2478,6 +2547,7 @@ impl Type {
                 }
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).integral_maximum_size(),
+            Type::Txm(to, _) => to.integral_maximum_size(),
             Type::NamedGeneric(binding, _name) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
@@ -2644,6 +2714,7 @@ impl From<&Type> for PrintableType {
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
             Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
+            Type::Txm(to, _) => (*to.clone()).into(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
@@ -2718,6 +2789,7 @@ impl std::fmt::Debug for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
+            Type::Txm(to, _) => write!(f, "{:?}", to),
             Type::NamedGeneric(binding, name) => match binding.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
                     write!(f, "{}{:?}", name, binding)
@@ -2832,6 +2904,7 @@ impl std::hash::Hash for Type {
                 vars.hash(state);
                 typ.hash(state);
             }
+            Type::Txm(to, _from) => to.hash(state),
             Type::Constant(value, _) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
             Type::InfixExpr(lhs, op, rhs) => {
@@ -2898,6 +2971,7 @@ impl PartialEq for Type {
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
+            (Txm(typ, _), other) | (other, Txm(typ, _)) => **typ == *other,
             (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => {
                 lhs == rhs && lhs_kind == rhs_kind
             }

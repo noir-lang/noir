@@ -469,7 +469,13 @@ impl<'context> Elaborator<'context> {
                             Type::Error
                         }
                     }
-                    (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
+
+                    // TODO: Txm here?
+                    // (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
+                    (lhs, rhs) => {
+                        let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                        Type::Txm(Box::new(infix.clone()), Box::new(infix)).canonicalize()
+                    }
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
@@ -1735,6 +1741,11 @@ impl<'context> Elaborator<'context> {
             | Type::NamedGeneric(_, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
+
+            Type::Txm(to, from) => {
+                Self::find_numeric_generics_in_type(to, found);
+                Self::find_numeric_generics_in_type(from, found);
+            }
 
             Type::TraitAsType(_, _, args) => {
                 for arg in &args.ordered {
