@@ -462,12 +462,12 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 }
 
 mod tests {
-    use super::sha256_var;
     use super::{
-        from_field_byte, into_field_byte, set_msg_byte, make_field, set_field_byte, build_msg_block,
-        attach_len_to_msg_block,
+        attach_len_to_msg_block, build_msg_block, from_field_byte, into_field_byte, make_field,
+        set_field_byte, set_msg_byte,
     };
-    use super::{INT_BLOCK_SIZE, MSG_BLOCK, INT_BLOCK};
+    use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
+    use super::sha256_var;
 
     #[test]
     fn smoke_test() {
