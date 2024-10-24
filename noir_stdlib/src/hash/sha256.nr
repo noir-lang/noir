@@ -21,12 +21,12 @@ global INT_SIZE_PTR = MSG_SIZE_PTR / INT_SIZE;
 // Index of a byte in a 64 byte block; ie. 0..=63
 type BLOCK_BYTE_PTR = u32;
 
-// The foreign function to compress blocks works on 16 pieces of 4-byte integers, instead of 64 bytes.
-type INT_BLOCK = [u32; INT_BLOCK_SIZE];
-
 // We can represent 4-byte integers during construction as `Field` or `u32`.
 // Using `u32` because we shift right by dividing by 256, which doesn't work with `Field`.
-type INT_FIELD = u32;
+type MSG_ITEM = u32;
+
+// The foreign function to compress blocks works on 16 pieces of 4-byte integers, instead of 64 bytes.
+type INT_BLOCK = [u32; INT_BLOCK_SIZE];
 
 // A message block is a slice of the original message of a fixed size,
 // potentially padded with zeroes, with neighbouring 4 bytes packed into integers.
@@ -127,7 +127,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
     // Here we rely on the fact that everything beyond the available input is set to 0.
-    msg_block = set_msg_byte(msg_block, msg_byte_ptr, 1 << 7);
+    msg_block = set_block_byte(msg_block, msg_byte_ptr, 1 << 7);
     msg_byte_ptr = msg_byte_ptr + 1;
     let last_block = msg_block;
 
@@ -177,7 +177,7 @@ unconstrained fn build_msg_block<let N: u32>(
     };
 
     for i in 0..int_input {
-        let mut msg_field: u32 = 0;
+        let mut msg_item: u32 = 0;
         // Always construct the integer as 4 bytes, even if it means going beyond the input.
         for j in 0..INT_SIZE {
             let k = i * INT_SIZE + j;
@@ -187,9 +187,9 @@ unconstrained fn build_msg_block<let N: u32>(
                 0
             };
             // Multiplying by 256 is equivalent to shifting by 8 bits.
-            msg_field = msg_field * 256 + msg_byte as u32;
+            msg_item = msg_item * 256 + msg_byte as u32;
         }
-        msg_block[i] = msg_field;
+        msg_block[i] = msg_item;
     }
 
     // Returning the index as if it was a 64 byte array.
@@ -217,8 +217,8 @@ fn verify_msg_block<let N: u32>(
         msg_end = msg_end + INT_SIZE - msg_end % INT_SIZE;
     }
 
-    // Reconstructed packed field.
-    let mut msg_field: u32 = 0;
+    // Reconstructed packed item.
+    let mut msg_item: u32 = 0;
 
     // Inclusive at the end so that we can compare the last item.
     let mut i: u32 = 0;
@@ -226,16 +226,16 @@ fn verify_msg_block<let N: u32>(
         if k % INT_SIZE == 0 {
             // If we consumed some input we can compare against the block.
             if msg_start < message_size & k > msg_start {
-                assert_eq(msg_block[i], msg_field as u32);
+                assert_eq(msg_block[i], msg_item as u32);
                 i = i + 1;
-                msg_field = 0;
+                msg_item = 0;
             }
         }
         // Shift the accumulator
-        msg_field = msg_field * 256;
+        msg_item = msg_item * 256;
         // If we have input to consume, add it at the rightmost position.
         if k < message_size & k < msg_end {
-            msg_field = msg_field + msg[k] as u32;
+            msg_item = msg_item + msg[k] as u32;
             msg_byte_ptr = msg_byte_ptr + 1;
         }
     }
@@ -269,10 +269,10 @@ fn verify_msg_block_zeroes(
     // Check partial zeroes.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
-        let msg_field = msg_block[int_byte_ptr];
+        let msg_item = msg_block[int_byte_ptr];
         for i in 0..INT_SIZE {
             if i < INT_SIZE - modulo {
-                assert_eq(from_field_byte(msg_field, msg_byte_ptr), zero as u8);
+                assert_eq(get_item_byte(msg_item, msg_byte_ptr), zero as u8);
                 msg_byte_ptr = msg_byte_ptr + 1;
             }
         }
@@ -301,19 +301,19 @@ fn verify_msg_block_equals_last(
     // Check partial zeroes.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
-        // Reconstruct the partially zero field from the last block.
+        // Reconstruct the partially zero item from the last block.
         let last_field = last_block[int_byte_ptr];
-        let mut msg_field: u32 = 0;
+        let mut msg_item: u32 = 0;
         // Reset to where they are still equal.
         msg_byte_ptr = msg_byte_ptr - modulo;
         for i in 0..INT_SIZE {
-            msg_field = msg_field * 256;
+            msg_item = msg_item * 256;
             if i < modulo {
-                msg_field = msg_field + from_field_byte(last_field, msg_byte_ptr) as u32;
+                msg_item = msg_item + get_item_byte(last_field, msg_byte_ptr) as u32;
                 msg_byte_ptr = msg_byte_ptr + 1;
             }
         }
-        assert_eq(msg_block[int_byte_ptr], msg_field);
+        assert_eq(msg_block[int_byte_ptr], msg_item);
     }
 
     for i in 0..INT_SIZE_PTR {
@@ -323,54 +323,58 @@ fn verify_msg_block_equals_last(
     }
 }
 
-// Pack the value of byte into a field of an existing message block, shifting the byte according to its position.
-fn set_msg_byte(mut msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> MSG_BLOCK {
+// Pack the value of byte into an item of an existing message block, shifting the byte according to its position.
+fn set_block_byte(
+    mut msg_block: MSG_BLOCK,
+    msg_byte_ptr: BLOCK_BYTE_PTR,
+    msg_byte: u8,
+) -> MSG_BLOCK {
     let i = msg_byte_ptr / INT_SIZE;
-    msg_block[i] = set_field_byte(msg_block[i], msg_byte_ptr, msg_byte);
+    msg_block[i] = set_item_byte(msg_block[i], msg_byte_ptr, msg_byte);
     msg_block
 }
 
-// Replace one byte in a field.
-fn set_field_byte(msg_field: INT_FIELD, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> INT_FIELD {
-    let old_byte = from_field_byte(msg_field, msg_byte_ptr);
-    let old_field = into_field_byte(old_byte, msg_byte_ptr);
-    let new_field = into_field_byte(msg_byte, msg_byte_ptr);
-    msg_field - old_field + new_field
+// Replace one byte in a message block item.
+fn set_item_byte(msg_item: MSG_ITEM, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> MSG_ITEM {
+    let old_byte = get_item_byte(msg_item, msg_byte_ptr);
+    let old_field = byte_into_item(old_byte, msg_byte_ptr);
+    let new_field = byte_into_item(msg_byte, msg_byte_ptr);
+    msg_item - old_field + new_field
 }
 
-// Get a byte of a field in a `MSG_BLOCK` according to its overall position in the `BLOCK_SIZE` space.
-fn from_field_byte(mut msg_field: INT_FIELD, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
+// Get a byte of a message item according to its overall position in the `BLOCK_SIZE` space.
+fn get_item_byte(mut msg_item: MSG_ITEM, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
     // How many times do we have to shift to the right to get to the position we want?
     let max_shifts = INT_SIZE - 1;
     let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
     for i in 0..max_shifts {
         if i < shifts {
             // This doesn't work on `Field`.
-            msg_field = msg_field / 256;
+            msg_item = msg_item / 256;
         }
     }
     // At this point the byte we want is in the rightmost position.
-    msg_field as u8
+    msg_item as u8
 }
 
 // Project a byte into a position in a field based on the overall block pointer.
 // For example putting 1 into pointer 5 would be 100, because overall we would
 // have [____, 0100] with indexes [0123,4567].
-fn into_field_byte(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> INT_FIELD {
-    let mut msg_field = msg_byte as u32;
+fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> MSG_ITEM {
+    let mut msg_item = msg_byte as u32;
     // How many times do we have to shift to the left to get to the position we want?
     let max_shifts = INT_SIZE - 1;
     let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
     for i in 0..max_shifts {
         if i < shifts {
-            msg_field = msg_field * 256;
+            msg_item = msg_item * 256;
         }
     }
-    msg_field
+    msg_item
 }
 
 // Construct a field out of 4 bytes.
-fn make_field(b0: u8, b1: u8, b2: u8, b3: u8) -> INT_FIELD {
+fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> MSG_ITEM {
     let mut field = b0 as u32;
     field = 256 * field + b1 as u32;
     field = 256 * field + b2 as u32;
@@ -390,14 +394,14 @@ unconstrained fn attach_len_to_msg_block(
     // There can be one item which has to be partially zeroed.
     let modulo = msg_byte_ptr % INT_SIZE;
     if modulo != 0 {
-        // Index of the block in which we find the field we need to partially zero.
+        // Index of the block in which we find the item we need to partially zero.
         let i = msg_byte_ptr / INT_SIZE;
-        let mut msg_field = msg_block[i];
+        let mut msg_item = msg_block[i];
         for _ in 0..(INT_SIZE - modulo) {
-            msg_field = set_field_byte(msg_field, msg_byte_ptr, 0);
+            msg_item = set_item_byte(msg_item, msg_byte_ptr, 0);
             msg_byte_ptr = msg_byte_ptr + 1;
         }
-        msg_block[i] = msg_field as u32;
+        msg_block[i] = msg_item as u32;
     }
 
     // The rest can be zeroed without bit shifting anything.
@@ -410,7 +414,7 @@ unconstrained fn attach_len_to_msg_block(
     let len_bytes: [u8; 8] = (len as Field).to_be_bytes();
     for i in 0..=1 {
         let shift = i * 4;
-        msg_block[INT_SIZE_PTR + i] = make_field(
+        msg_block[INT_SIZE_PTR + i] = make_item(
             len_bytes[shift],
             len_bytes[shift + 1],
             len_bytes[shift + 2],
@@ -463,8 +467,8 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::{
-        attach_len_to_msg_block, build_msg_block, from_field_byte, into_field_byte, make_field,
-        set_field_byte, set_msg_byte,
+        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, make_item,
+        set_block_byte, set_item_byte,
     };
     use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
     use super::sha256_var;
@@ -704,35 +708,35 @@ mod tests {
     }
 
     #[test]
-    fn test_from_field_byte() {
-        let fld = make_field(10, 20, 30, 40);
+    fn test_get_item_byte() {
+        let fld = make_item(10, 20, 30, 40);
         assert_eq(fld, 0x0a141e28);
-        assert_eq(from_field_byte(fld, 0), 10);
-        assert_eq(from_field_byte(fld, 4), 10);
-        assert_eq(from_field_byte(fld, 6), 30);
+        assert_eq(get_item_byte(fld, 0), 10);
+        assert_eq(get_item_byte(fld, 4), 10);
+        assert_eq(get_item_byte(fld, 6), 30);
     }
 
     #[test]
-    fn test_into_field_byte() {
-        let fld = make_field(0, 20, 0, 0);
-        assert_eq(into_field_byte(20, 1), fld);
-        assert_eq(into_field_byte(20, 5), fld);
+    fn test_byte_into_item() {
+        let fld = make_item(0, 20, 0, 0);
+        assert_eq(byte_into_item(20, 1), fld);
+        assert_eq(byte_into_item(20, 5), fld);
     }
 
     #[test]
-    fn test_set_field_byte() {
-        let fld0 = make_field(10, 20, 30, 40);
-        let fld1 = make_field(10, 50, 30, 40);
-        assert_eq(set_field_byte(fld0, 9, 50), fld1);
+    fn test_set_item_byte() {
+        let fld0 = make_item(10, 20, 30, 40);
+        let fld1 = make_item(10, 50, 30, 40);
+        assert_eq(set_item_byte(fld0, 9, 50), fld1);
     }
 
     #[test]
-    fn test_set_msg_byte() {
+    fn test_set_block_byte() {
         let mut msg_block: MSG_BLOCK = [0; INT_BLOCK_SIZE];
-        msg_block = set_msg_byte(msg_block, 5, 20);
-        msg_block = set_msg_byte(msg_block, 6, 30);
+        msg_block = set_block_byte(msg_block, 5, 20);
+        msg_block = set_block_byte(msg_block, 6, 30);
 
-        let fld = make_field(0, 20, 30, 0);
+        let fld = make_item(0, 20, 30, 0);
         assert_eq(msg_block[1], fld);
     }
 
@@ -745,9 +749,9 @@ mod tests {
         assert_eq(input.len(), 22);
         let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 0) };
         assert_eq(msg_byte_ptr, input.len());
-        assert_eq(msg_block[0], make_field(input[0], input[1], input[2], input[3]));
-        assert_eq(msg_block[1], make_field(input[4], input[5], input[6], input[7]));
-        assert_eq(msg_block[5], make_field(input[20], input[21], 0, 0));
+        assert_eq(msg_block[0], make_item(input[0], input[1], input[2], input[3]));
+        assert_eq(msg_block[1], make_item(input[4], input[5], input[6], input[7]));
+        assert_eq(msg_block[5], make_item(input[20], input[21], 0, 0));
         assert_eq(msg_block[6], 0);
     }
 
@@ -762,7 +766,7 @@ mod tests {
         assert_eq(input.len(), 68);
         let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 64) };
         assert_eq(msg_byte_ptr, 4);
-        assert_eq(msg_block[0], make_field(input[64], input[65], input[66], input[67]));
+        assert_eq(msg_block[0], make_item(input[64], input[65], input[66], input[67]));
         assert_eq(msg_block[1], 0);
     }
 
