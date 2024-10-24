@@ -5,8 +5,8 @@ mod Foo {
 }
 
 mod Bar {
-    use crate::Foo::NewType as BarStruct;
     use crate::Foo::NewType;
+    use crate::Foo::NewType as BarStruct;
 }
 
 mod Baz {
