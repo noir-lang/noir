@@ -19,6 +19,7 @@ pub(crate) struct ExecutionFlamegraphCommand {
     #[clap(long, short)]
     artifact_path: PathBuf,
 
+    /// The path to the Prover.toml file
     #[clap(long, short)]
     prover_toml_path: PathBuf,
 
