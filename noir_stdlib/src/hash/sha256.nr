@@ -178,7 +178,7 @@ unconstrained fn build_msg_block<let N: u32>(
     };
 
     // Figure out the number of items in the int array that we have to pack.
-    // e.g. if the input is [0,1,2,3, 4,5] then we need to pack it as 2 items: [0123, 4500]
+    // e.g. if the input is [0,1,2,3,4,5] then we need to pack it as 2 items: [0123, 4500]
     let mut int_input = block_input / INT_SIZE;
     if block_input % INT_SIZE != 0 {
         int_input = int_input + 1;
@@ -232,7 +232,7 @@ fn verify_msg_block<let N: u32>(
     for k in msg_start..=msg_end {
         if k % INT_SIZE == 0 {
             // If we consumed some input we can compare against the block.
-            if msg_start < message_size & k > msg_start {
+            if (msg_start < message_size) & (k > msg_start) {
                 assert_eq(msg_block[i], msg_item as u32);
                 i = i + 1;
                 msg_item = 0;
