@@ -55,8 +55,17 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
 
-    // First we need to allocate the target vector incrementing the size by item_push_count_arg
-    let source_size = brillig_context.codegen_make_vector_length(source_vector);
+    let source_rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_capacity = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_items_pointer = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    brillig_context.codegen_read_vector_metadata(
+        source_vector,
+        source_rc,
+        source_size,
+        source_capacity,
+        source_items_pointer,
+    );
 
     let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.memory_op_instruction(
@@ -66,21 +75,82 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         BrilligBinaryOp::Add,
     );
 
-    brillig_context.codegen_initialize_vector(target_vector, target_size);
+    let does_capacity_fit = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    brillig_context.memory_op_instruction(
+        target_size.address,
+        source_capacity.address,
+        does_capacity_fit.address,
+        BrilligBinaryOp::LessThanEquals,
+    );
 
-    // Now we copy the source vector into the target vector
-    let source_vector_items_pointer =
-        brillig_context.codegen_make_vector_items_pointer(source_vector);
+    let is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    brillig_context.codegen_usize_op(
+        source_rc.address,
+        is_rc_one.address,
+        BrilligBinaryOp::Equals,
+        1_usize,
+    );
+
+    // Reallocate target vector for insertion
+    brillig_context.codegen_branch(
+        does_capacity_fit.address,
+        |brillig_context, does_capacity_fit| {
+            if does_capacity_fit {
+                brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
+                    if is_rc_one {
+                        // We can insert in place, so we can just move the source pointer to the destination pointer and update the length
+                        brillig_context
+                            .mov_instruction(target_vector.pointer, source_vector.pointer);
+                        brillig_context.codegen_update_vector_length(target_vector, target_size);
+                    } else {
+                        brillig_context.codegen_initialize_vector(
+                            target_vector,
+                            target_size,
+                            Some(source_capacity),
+                        );
+                    }
+                });
+            } else {
+                let double_size =
+                    SingleAddrVariable::new_usize(brillig_context.allocate_register());
+                brillig_context.codegen_usize_op(
+                    target_size.address,
+                    double_size.address,
+                    BrilligBinaryOp::Mul,
+                    2_usize,
+                );
+                brillig_context.codegen_initialize_vector(
+                    target_vector,
+                    target_size,
+                    Some(double_size),
+                );
+                brillig_context.deallocate_single_addr(double_size);
+            }
+        },
+    );
+
+    brillig_context.deallocate_single_addr(is_rc_one);
+    brillig_context.deallocate_single_addr(does_capacity_fit);
+    let was_reused = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    brillig_context.memory_op_instruction(
+        source_vector.pointer,
+        target_vector.pointer,
+        was_reused.address,
+        BrilligBinaryOp::Equals,
+    );
+
     let target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
     if push_back {
-        brillig_context.codegen_mem_copy(
-            source_vector_items_pointer,
-            target_vector_items_pointer,
-            source_size,
-        );
-
+        brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
+            brillig_context.codegen_mem_copy(
+                source_items_pointer.address,
+                target_vector_items_pointer,
+                source_size,
+            );
+        });
+        // Target vector is ready for push back at this point
         brillig_context.memory_op_instruction(
             target_vector_items_pointer,
             source_size.address,
@@ -88,24 +158,66 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
             BrilligBinaryOp::Add,
         );
     } else {
+        // If push front we need to shift the items independently of it being reused or not
+        brillig_context.codegen_iteration(
+            |brillig_context| {
+                let iterator = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+                brillig_context.codegen_usize_op(
+                    target_size.address,
+                    iterator.address,
+                    BrilligBinaryOp::Sub,
+                    1_usize,
+                );
+                iterator
+            },
+            |brillig_context, iterator| {
+                brillig_context.codegen_usize_op_in_place(
+                    iterator.address,
+                    BrilligBinaryOp::Sub,
+                    1_usize,
+                );
+            },
+            |brillig_context, iterator| {
+                let finish_condition =
+                    SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+                // Since we start at `index = target_size - 1`, we need to end at `index = items_to_insert - 1`
+                brillig_context.memory_op_instruction(
+                    iterator.address,
+                    item_push_count_arg,
+                    finish_condition.address,
+                    BrilligBinaryOp::LessThan,
+                );
+                finish_condition
+            },
+            |brillig_context, &iterator| {
+                let value_register = brillig_context.allocate_register();
+                // Index in source is item_push_count less since we are shifting items to the right
+                let source_index =
+                    SingleAddrVariable::new_usize(brillig_context.allocate_register());
+                brillig_context.memory_op_instruction(
+                    iterator.address,
+                    item_push_count_arg,
+                    source_index.address,
+                    BrilligBinaryOp::Sub,
+                );
+
+                brillig_context.codegen_load_with_offset(
+                    source_items_pointer.address,
+                    source_index,
+                    value_register,
+                );
+                brillig_context.codegen_store_with_offset(
+                    target_vector_items_pointer,
+                    iterator,
+                    value_register,
+                );
+                brillig_context.deallocate_register(value_register);
+                brillig_context.deallocate_single_addr(source_index);
+            },
+            |brillig_context, iterator| {
+                brillig_context.deallocate_single_addr(iterator);
+            },
+        );
         brillig_context.mov_instruction(write_pointer_return, target_vector_items_pointer);
-
-        brillig_context.memory_op_instruction(
-            target_vector_items_pointer,
-            item_push_count_arg,
-            target_vector_items_pointer,
-            BrilligBinaryOp::Add,
-        );
-
-        brillig_context.codegen_mem_copy(
-            source_vector_items_pointer,
-            target_vector_items_pointer,
-            source_size,
-        );
     }
-
-    brillig_context.deallocate_single_addr(source_size);
-    brillig_context.deallocate_single_addr(target_size);
-    brillig_context.deallocate_register(source_vector_items_pointer);
-    brillig_context.deallocate_register(target_vector_items_pointer);
 }

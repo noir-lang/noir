@@ -65,7 +65,7 @@ pub(super) fn compile_vector_pop_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    brillig_context.codegen_initialize_vector(target_vector, target_size);
+    brillig_context.codegen_initialize_vector(target_vector, target_size, None);
 
     // Now we offset the source pointer by removed_items.len()
     let source_vector_items_pointer =

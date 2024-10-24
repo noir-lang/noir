@@ -69,7 +69,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Add,
     );
 
-    brillig_context.codegen_initialize_vector(target_vector, target_size);
+    brillig_context.codegen_initialize_vector(target_vector, target_size, None);
 
     // Copy the elements to the left of the index
     let source_vector_items_pointer =
