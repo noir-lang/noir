@@ -470,6 +470,20 @@ impl<'context> Elaborator<'context> {
             self.check_for_unused_variables_in_scope_tree(func_scope_tree);
         }
 
+        // Check that the body can return without calling the function.
+        if let FunctionKind::Normal | FunctionKind::Recursive = kind {
+            self.run_lint(|elaborator| {
+                lints::unbounded_recursion(
+                    elaborator.interner,
+                    id,
+                    || elaborator.interner.definition_name(func_meta.name.id),
+                    func_meta.name.location.span,
+                    hir_func.as_expr(),
+                )
+                .map(Into::into)
+            });
+        }
+
         let meta = self
             .interner
             .func_meta
