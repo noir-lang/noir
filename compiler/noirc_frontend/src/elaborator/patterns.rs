@@ -498,7 +498,7 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    pub fn resolve_variable(&mut self, path: Path) -> HirIdent {
+    fn resolve_variable(&mut self, path: Path) -> HirIdent {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             if let Some(error) = trait_path_resolution.error {
                 self.push_err(error);

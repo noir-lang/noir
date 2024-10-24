@@ -29,21 +29,21 @@ use crate::{
 use super::{Elaborator, FunctionContext, ResolverMeta};
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct AttributeContext {
+struct AttributeContext {
     // The file where generated items should be added
-    pub(crate) file: FileId,
+    file: FileId,
     // The module where generated items should be added
-    pub(crate) module: LocalModuleId,
+    module: LocalModuleId,
     // The file where the attribute is located
-    pub(crate) attribute_file: FileId,
+    attribute_file: FileId,
     // The module where the attribute is located
-    pub(crate) attribute_module: LocalModuleId,
+    attribute_module: LocalModuleId,
 }
 
-pub(crate) type CollectedAttributes = Vec<(FuncId, Value, Vec<Expression>, AttributeContext, Span)>;
+type CollectedAttributes = Vec<(FuncId, Value, Vec<Expression>, AttributeContext, Span)>;
 
 impl AttributeContext {
-    pub(crate) fn new(file: FileId, module: LocalModuleId) -> Self {
+    fn new(file: FileId, module: LocalModuleId) -> Self {
         Self { file, module, attribute_file: file, attribute_module: module }
     }
 }
