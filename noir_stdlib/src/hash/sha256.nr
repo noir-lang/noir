@@ -21,10 +21,6 @@ global INT_SIZE_PTR = MSG_SIZE_PTR / INT_SIZE;
 // Index of a byte in a 64 byte block; ie. 0..=63
 type BLOCK_BYTE_PTR = u32;
 
-// We can represent 4-byte integers during construction as `Field` or `u32`.
-// Using `u32` because we shift right by dividing by 256, which doesn't work with `Field`.
-type MSG_ITEM = u32;
-
 // The foreign function to compress blocks works on 16 pieces of 4-byte integers, instead of 64 bytes.
 type INT_BLOCK = [u32; INT_BLOCK_SIZE];
 
@@ -335,7 +331,7 @@ fn set_block_byte(
 }
 
 // Replace one byte in a message block item.
-fn set_item_byte(msg_item: MSG_ITEM, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> MSG_ITEM {
+fn set_item_byte(msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> u32 {
     let old_byte = get_item_byte(msg_item, msg_byte_ptr);
     let old_field = byte_into_item(old_byte, msg_byte_ptr);
     let new_field = byte_into_item(msg_byte, msg_byte_ptr);
@@ -343,7 +339,7 @@ fn set_item_byte(msg_item: MSG_ITEM, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8)
 }
 
 // Get a byte of a message item according to its overall position in the `BLOCK_SIZE` space.
-fn get_item_byte(mut msg_item: MSG_ITEM, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
+fn get_item_byte(mut msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
     // How many times do we have to shift to the right to get to the position we want?
     let max_shifts = INT_SIZE - 1;
     let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
@@ -360,7 +356,7 @@ fn get_item_byte(mut msg_item: MSG_ITEM, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
 // Project a byte into a position in a field based on the overall block pointer.
 // For example putting 1 into pointer 5 would be 100, because overall we would
 // have [____, 0100] with indexes [0123,4567].
-fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> MSG_ITEM {
+fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
     let mut msg_item = msg_byte as u32;
     // How many times do we have to shift to the left to get to the position we want?
     let max_shifts = INT_SIZE - 1;
@@ -374,7 +370,7 @@ fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> MSG_ITEM {
 }
 
 // Construct a field out of 4 bytes.
-fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> MSG_ITEM {
+fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
     let mut field = b0 as u32;
     field = 256 * field + b1 as u32;
     field = 256 * field + b2 as u32;
@@ -401,7 +397,7 @@ unconstrained fn attach_len_to_msg_block(
             msg_item = set_item_byte(msg_item, msg_byte_ptr, 0);
             msg_byte_ptr = msg_byte_ptr + 1;
         }
-        msg_block[i] = msg_item as u32;
+        msg_block[i] = msg_item;
     }
 
     // The rest can be zeroed without bit shifting anything.
@@ -441,8 +437,9 @@ fn verify_msg_len(
 
     // We verify the message length was inserted correctly by reversing the byte decomposition.
     let mut reconstructed_len: Field = 0;
+    let two_pow_32 = 256 * 256 * 256 * 256;
     for i in INT_SIZE_PTR..INT_BLOCK_SIZE {
-        reconstructed_len = 256 * 256 * 256 * 256 * reconstructed_len + msg_block[i] as Field;
+        reconstructed_len = two_pow_32 * reconstructed_len + msg_block[i] as Field;
     }
     let len = 8 * message_size;
     assert_eq(reconstructed_len, len as Field);
