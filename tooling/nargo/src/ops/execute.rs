@@ -208,7 +208,7 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
 ) -> Result<WitnessStack<F>, NargoError<F>> {
-    let profiling_active = true;
+    let profiling_active = false;
     let (witness_stack, profiling_samples) = execute_program_inner(
         program,
         initial_witness,
