@@ -320,28 +320,43 @@ fn verify_msg_block_equals_last(
     }
 }
 
+// Apply a function on the block item which the pointer indicates.
+fn update_block_item<Env>(
+    mut msg_block: MSG_BLOCK,
+    msg_byte_ptr: BLOCK_BYTE_PTR,
+    f: fn[Env](u32) -> u32,
+) -> MSG_BLOCK {
+    let i = msg_byte_ptr / INT_SIZE;
+    msg_block[i] = f(msg_block[i]);
+    msg_block
+}
+
 // Pack the value of byte into an item of an existing message block, shifting the byte according to its position.
 fn set_block_byte(
-    mut msg_block: MSG_BLOCK,
+    msg_block: MSG_BLOCK,
     msg_byte_ptr: BLOCK_BYTE_PTR,
     msg_byte: u8,
 ) -> MSG_BLOCK {
-    let i = msg_byte_ptr / INT_SIZE;
-    msg_block[i] = set_item_byte(msg_block[i], msg_byte_ptr, msg_byte);
-    msg_block
+    update_block_item(msg_block, msg_byte_ptr, |msg_item| set_item_byte(msg_item, msg_byte_ptr, msg_byte))
 }
 
 // Replace one byte in a message block item.
 fn set_item_byte(msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> u32 {
     let old_byte = get_item_byte(msg_item, msg_byte_ptr);
-    let old_field = byte_into_item(old_byte, msg_byte_ptr);
-    let new_field = byte_into_item(msg_byte, msg_byte_ptr);
-    msg_item - old_field + new_field
+    let old_item = byte_into_item(old_byte, msg_byte_ptr);
+    let new_item = byte_into_item(msg_byte, msg_byte_ptr);
+    msg_item - old_item + new_item
 }
 
 // Set the rightmost `zeros` number of bytes to 0.
 fn set_item_zeros(item: u32, zeros: u8) -> u32 {
     lshift8(rshift8(item, zeros), zeros)
+}
+
+// Replace one byte in the item with a value, and set everything after it to zero.
+fn set_item_byte_then_zeros(msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> u32 {
+    let zeros = INT_SIZE - msg_byte_ptr % INT_SIZE;
+    set_item_zeros(msg_item, zeros as u8) + byte_into_item(msg_byte, msg_byte_ptr)
 }
 
 // Get a byte of a message item according to its overall position in the `BLOCK_SIZE` space.
@@ -498,7 +513,7 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 mod tests {
     use super::{
         attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, make_item,
-        set_block_byte, set_item_byte, set_item_zeros,
+        set_block_byte, set_item_byte, set_item_zeros, set_item_byte_then_zeros
     };
     use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
     use super::sha256_var;
@@ -771,12 +786,19 @@ mod tests {
     }
 
     #[test]
-    fn test_set_zeros_right() {
-        let fld1 = make_item(10, 20, 30, 40);
-        let fld0 = make_item(10, 0, 0, 0);
-        assert_eq(set_item_zeros(fld1, 3), fld0);
+    fn test_set_item_zeros() {
+        let fld0 = make_item(10, 20, 30, 40);
+        let fld1 = make_item(10, 0, 0, 0);
+        assert_eq(set_item_zeros(fld0, 3), fld1);
     }
 
+    #[test]
+    fn test_set_item_byte_then_zeros() {
+        let fld0 = make_item(10, 20, 30, 40);
+        let fld1 = make_item(10, 50, 0, 0);
+        assert_eq(set_item_byte_then_zeros(fld0, 1, 50), fld1);
+    }
+      
     #[test]
     fn test_build_msg_block_start_0() {
         let input = [
