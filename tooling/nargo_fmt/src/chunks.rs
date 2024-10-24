@@ -467,8 +467,7 @@ pub(crate) enum GroupKind {
     /// somewhere that's probably undesired, we'll "turn it" into a block
     /// (write the "{" and "}" delimiters) and write the lambda body in the next line.
     LambdaBody {
-        is_block: bool,
-        block_statements_count: usize,
+        block_statement_count: Option<usize>,
         has_comments: bool,
         lambda_has_return_type: bool,
     },
@@ -767,7 +766,7 @@ impl<'a> Formatter<'a> {
 
             // If a lambda body doesn't fit in the current line and it's not a block,
             // we can turn it into a block and write it in the next line, so its contents fit.
-            if let GroupKind::LambdaBody { is_block: false, .. } = group.kind {
+            if let GroupKind::LambdaBody { block_statement_count: None, .. } = group.kind {
                 // Try to format it again in the next line, but we don't want to recurse
                 // infinitely so we change the group kind.
                 group.kind = GroupKind::Regular;
@@ -777,7 +776,6 @@ impl<'a> Formatter<'a> {
                 self.write_line_without_skipping_whitespace_and_comments();
                 self.write_indentation();
                 self.format_chunk_group_impl(group);
-                dbg!(&self.buffer);
 
                 // If this lambda was in an expression list and it was formatted in multiple
                 // lines, it might be that the trailing comma happened after the lambda body:
@@ -831,8 +829,7 @@ impl<'a> Formatter<'a> {
         // `{ .. }` it will still fit the current line, and reduce some noise from the code
         // (this is what rustfmt seems to do too).
         if let GroupKind::LambdaBody {
-            is_block: true,
-            block_statements_count: 1,
+            block_statement_count: Some(1),
             has_comments: false,
             lambda_has_return_type: false,
         } = group.kind

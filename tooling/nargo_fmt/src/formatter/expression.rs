@@ -232,12 +232,11 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         group.text(params_and_return_type_chunk);
 
-        let (body_is_block, block_statements_count) =
-            if let ExpressionKind::Block(block) = &lambda.body.kind {
-                (true, block.statements.len())
-            } else {
-                (false, 0)
-            };
+        let block_statement_count = if let ExpressionKind::Block(block) = &lambda.body.kind {
+            Some(block.statements.len())
+        } else {
+            None
+        };
 
         let mut body_group = ChunkGroup::new();
 
@@ -245,8 +244,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         self.format_expression(lambda.body, &mut body_group);
 
         body_group.kind = GroupKind::LambdaBody {
-            is_block: body_is_block,
-            block_statements_count,
+            block_statement_count,
             has_comments: self.written_comments_count > comments_count_before_body,
             lambda_has_return_type,
         };
@@ -254,7 +252,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group.group(body_group);
 
         let first_line_width = params_and_return_type_chunk_width
-            + (if body_is_block {
+            + (if block_statement_count.is_some() {
                 // 1 because we already have `|param1, param2, ..., paramN| ` (including the space)
                 // so all that's left is a `{`.
                 1
