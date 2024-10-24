@@ -2,7 +2,7 @@
 pub struct Foo {}
 
 #[check_eq_derived_for_foo]
-unconstrained fn main() {}
+fn main() {}
 
 comptime fn check_eq_derived_for_foo(_f: FunctionDefinition) {
     let foo = quote {Foo}.as_type();
