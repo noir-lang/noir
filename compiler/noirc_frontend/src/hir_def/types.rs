@@ -1197,7 +1197,7 @@ impl Type {
             | Type::InfixExpr(_, _, _)
             | Type::TraitAsType(..) => false,
 
-            | Type::Txm(to, _) => to.is_valid_for_program_input(),
+            Type::Txm(to, _) => to.is_valid_for_program_input(),
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
@@ -1596,8 +1596,8 @@ impl Type {
     fn get_inner_type_variable(&self) -> Option<(Shared<TypeBinding>, Kind)> {
         match self {
             Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
-            // TODO: Txm case here?
             Type::NamedGeneric(var, _) => Some((var.1.clone(), var.kind())),
+            Type::Txm(to, _from) => to.get_inner_type_variable(),
             _ => None,
         }
     }
@@ -1712,9 +1712,7 @@ impl Type {
                 }
             }
 
-            (Txm(to, _from), other) | (other, Txm(to, _from)) => {
-                to.try_unify(other, bindings)
-            }
+            (Txm(to, _from), other) | (other, Txm(to, _from)) => to.try_unify(other, bindings),
 
             (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
                 if !binding.borrow().is_unbound() =>
@@ -1981,22 +1979,14 @@ impl Type {
                 }
             }
             Type::Txm(to, from) => {
-                match *to {
-                    Type::Constant(to_value, to_kind) => {
-                        if let Some(from_value) = from.evaluate_to_field_element(kind) {
-                            assert_eq!(to_value, from_value);
-                        }
+                let to_value = to.evaluate_to_field_element(kind)?;
 
-                        if kind.unifies(&to_kind) {
-                            kind.ensure_value_fits(to_value)
-                        } else {
-                            None
-                        }
-
-                    }
-                    _ => None,
+                // TODO checked during monomorphization?
+                if let Some(from_value) = from.evaluate_to_field_element(kind) {
+                    assert_eq!(to_value, from_value);
                 }
 
+                Some(to_value)
             }
             _ => None,
         }
@@ -2314,9 +2304,7 @@ impl Type {
                     || args.named.iter().any(|arg| arg.typ.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::Txm(to, from) => {
-                to.occurs(target_id) || from.occurs(target_id)
-            }
+            Type::Txm(to, from) => to.occurs(target_id) || from.occurs(target_id),
             Type::NamedGeneric(type_var, _) | Type::TypeVariable(type_var) => {
                 match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => {

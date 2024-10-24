@@ -342,7 +342,7 @@ impl Type {
             }
             Type::Txm(to, _from) => {
                 // TODO: irrefutable let
-                let UnresolvedType { typ, ..} = to.to_display_ast();
+                let UnresolvedType { typ, .. } = to.to_display_ast();
                 typ
             }
             Type::Function(args, ret, env, unconstrained) => {
