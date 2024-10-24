@@ -2,7 +2,7 @@ use noirc_errors::{Location, Spanned};
 
 use crate::ast::{Ident, Path, PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::resolution::import::{PathResolution, PathResolutionResult};
+use crate::hir::resolution::import::{GenericTypeInPath, PathResolution, PathResolutionResult};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::{
@@ -26,13 +26,18 @@ type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
 impl<'context> Elaborator<'context> {
-    pub(super) fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
+    pub(super) fn lookup<T: TryFromModuleDefId>(
+        &mut self,
+        path: Path,
+    ) -> Result<(T, Option<GenericTypeInPath>), ResolverError> {
         let span = path.span();
-        let id = self.resolve_path_or_error(path)?;
-        T::try_from(id).ok_or_else(|| ResolverError::Expected {
-            expected: T::description(),
-            got: id.as_str().to_owned(),
-            span,
+        let (id, generic_type_in_path) = self.resolve_path_or_error(path)?;
+        T::try_from(id).map(|id| (id, generic_type_in_path)).ok_or_else(|| {
+            ResolverError::Expected {
+                expected: T::description(),
+                got: id.as_str().to_owned(),
+                span,
+            }
         })
     }
 
@@ -53,14 +58,14 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
-    ) -> Result<ModuleDefId, ResolverError> {
+    ) -> Result<(ModuleDefId, Option<GenericTypeInPath>), ResolverError> {
         let path_resolution = self.resolve_path(path)?;
 
-        if let Some(error) = path_resolution.error {
+        for error in path_resolution.errors {
             self.push_err(error);
         }
 
-        Ok(path_resolution.module_def_id)
+        Ok((path_resolution.module_def_id, path_resolution.generic_type_in_path))
     }
 
     pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
@@ -71,9 +76,11 @@ impl<'context> Elaborator<'context> {
             if let Some(Type::Struct(struct_type, _)) = &self.self_type {
                 let struct_type = struct_type.borrow();
                 if path.segments.len() == 1 {
+                    // TODO: handle generics
                     return Ok(PathResolution {
                         module_def_id: ModuleDefId::TypeId(struct_type.id),
-                        error: None,
+                        generic_type_in_path: None,
+                        errors: Vec::new(),
                     });
                 }
 
@@ -183,17 +190,20 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
+    pub(super) fn lookup_global(
+        &mut self,
+        path: Path,
+    ) -> Result<(DefinitionId, Option<GenericTypeInPath>), ResolverError> {
         let span = path.span();
-        let id = self.resolve_path_or_error(path)?;
+        let (id, generic_type_in_path) = self.resolve_path_or_error(path)?;
 
         if let Some(function) = TryFromModuleDefId::try_from(id) {
-            return Ok(self.interner.function_definition_id(function));
+            return Ok((self.interner.function_definition_id(function), generic_type_in_path));
         }
 
         if let Some(global) = TryFromModuleDefId::try_from(id) {
             let global = self.interner.get_global(global);
-            return Ok(global.definition_id);
+            return Ok((global.definition_id, generic_type_in_path));
         }
 
         let expected = "global variable".into();
@@ -240,7 +250,7 @@ impl<'context> Elaborator<'context> {
     /// Lookup a given trait by name/path.
     pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
         match self.lookup(path) {
-            Ok(trait_id) => Some(self.get_trait_mut(trait_id)),
+            Ok((trait_id, _generic_type_in_path)) => Some(self.get_trait_mut(trait_id)),
             Err(error) => {
                 self.push_err(error);
                 None
@@ -251,7 +261,7 @@ impl<'context> Elaborator<'context> {
     /// Lookup a given struct type by name.
     pub fn lookup_struct_or_error(&mut self, path: Path) -> Option<Shared<StructType>> {
         match self.lookup(path) {
-            Ok(struct_id) => Some(self.get_struct(struct_id)),
+            Ok((struct_id, _generic_type_in_path)) => Some(self.get_struct(struct_id)),
             Err(error) => {
                 self.push_err(error);
                 None
@@ -270,10 +280,10 @@ impl<'context> Elaborator<'context> {
         }
 
         match self.lookup(path) {
-            Ok(struct_id) => {
+            Ok((struct_id, _generic_type_in_path)) => {
                 let struct_type = self.get_struct(struct_id);
-                let generics = struct_type.borrow().instantiate(self.interner);
-                Some(Type::Struct(struct_type, generics))
+                let struct_generics = struct_type.borrow().instantiate(self.interner);
+                Some(Type::Struct(struct_type, struct_generics))
             }
             Err(error) => {
                 self.push_err(error);
@@ -283,6 +293,6 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
-        self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
+        self.lookup(path).ok().map(|(id, _generic_type_in_path)| self.interner.get_type_alias(id))
     }
 }

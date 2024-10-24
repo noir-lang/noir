@@ -92,5 +92,9 @@ pub fn resolve_path(
     let id =
         namespace.values.or(namespace.types).map(|(id, _, _)| id).expect("Found empty namespace");
 
-    Ok(PathResolution { module_def_id: id, error: resolved_import.error })
+    Ok(PathResolution {
+        module_def_id: id,
+        generic_type_in_path: resolved_import.generic_type_in_path,
+        errors: resolved_import.errors,
+    })
 }

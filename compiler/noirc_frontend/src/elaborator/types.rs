@@ -46,7 +46,7 @@ pub const WILDCARD_TYPE: &str = "_";
 
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitMethod,
-    pub(super) error: Option<PathResolutionError>,
+    pub(super) errors: Vec<PathResolutionError>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -404,7 +404,7 @@ impl<'context> Elaborator<'context> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.resolve_path_or_error(path.clone()) {
-            Ok(ModuleDefId::GlobalId(id)) => {
+            Ok((ModuleDefId::GlobalId(id), _generic_type_in_path)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
@@ -551,7 +551,7 @@ impl<'context> Elaborator<'context> {
                 let constraint = the_trait.as_constraint(path.span);
                 return Some(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: true },
-                    error: None,
+                    errors: Vec::new(),
                 });
             }
         }
@@ -572,7 +572,7 @@ impl<'context> Elaborator<'context> {
         let constraint = the_trait.as_constraint(path.span);
         Some(TraitPathResolution {
             method: TraitMethod { method_id: method, constraint, assumed: false },
-            error: path_resolution.error,
+            errors: path_resolution.errors,
         })
     }
 
@@ -600,7 +600,7 @@ impl<'context> Elaborator<'context> {
                 if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some(TraitPathResolution {
                         method: TraitMethod { method_id: method, constraint, assumed: true },
-                        error: None,
+                        errors: Vec::new(),
                     });
                 }
             }
@@ -1824,19 +1824,6 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
         context.trait_constraints.push((constraint, expr_id));
-    }
-
-    pub fn check_unsupported_turbofish_usage(&mut self, path: &Path, exclude_last_segment: bool) {
-        for (index, segment) in path.segments.iter().enumerate() {
-            if exclude_last_segment && index == path.segments.len() - 1 {
-                continue;
-            }
-
-            if segment.generics.is_some() {
-                let span = segment.turbofish_span();
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
-            }
-        }
     }
 
     pub fn bind_generics_from_trait_constraint(
