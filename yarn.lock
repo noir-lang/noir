@@ -221,9 +221,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@portal:../../../../barretenberg/ts::locator=integration-tests%40workspace%3Acompiler%2Fintegration-tests":
-  version: 0.0.0-use.local
-  resolution: "@aztec/bb.js@portal:../../../../barretenberg/ts::locator=integration-tests%40workspace%3Acompiler%2Fintegration-tests"
+"@aztec/bb.js@npm:0.60.0":
+  version: 0.60.0
+  resolution: "@aztec/bb.js@npm:0.60.0"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
@@ -231,9 +231,10 @@ __metadata:
     fflate: ^0.8.0
     tslib: ^2.4.0
   bin:
-    bb.js: ./dest/node/main.js
+    bb.js: dest/node/main.js
+  checksum: 74ab79d060624362e9d44dda11dc2445973460577b93dc0c16801158db7efb71cd612966d6169b46bfbbb4fd7c9c1b95ad8b6198b3c69d9f6de0ab0fb92387aa
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.10.4, @babel/code-frame@npm:^7.12.11, @babel/code-frame@npm:^7.16.0, @babel/code-frame@npm:^7.22.13, @babel/code-frame@npm:^7.23.5, @babel/code-frame@npm:^7.8.3":
   version: 7.23.5
@@ -14122,7 +14123,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": "portal:../../../../barretenberg/ts"
+    "@aztec/bb.js": 0.60.0
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": ^2.0.0

@@ -13,7 +13,7 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "dependencies": {
-    "@aztec/bb.js": "portal:../../../../barretenberg/ts",
+    "@aztec/bb.js": "0.60.0",
     "@noir-lang/noir_js": "workspace:*",
     "@noir-lang/noir_wasm": "workspace:*",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
