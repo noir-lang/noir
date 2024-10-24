@@ -29,7 +29,7 @@ type INT_BLOCK = [u32; INT_BLOCK_SIZE];
 type INT_FIELD = u32;
 
 // A message block is a slice of the original message of a fixed size,
-// potentially padded with zeroes, with neigbouring 4 bytes packed into integers.
+// potentially padded with zeroes, with neighbouring 4 bytes packed into integers.
 type MSG_BLOCK = INT_BLOCK;
 
 // The hash is 32 bytes.
@@ -220,7 +220,7 @@ fn verify_msg_block<let N: u32>(
     // Reconstructed packed field.
     let mut msg_field: u32 = 0;
 
-    // Inclusive the end so that we can compare the last item.
+    // Inclusive at the end so that we can compare the last item.
     let mut i: u32 = 0;
     for k in msg_start..=msg_end {
         if k % INT_SIZE == 0 {
