@@ -15,16 +15,6 @@ impl Type {
     /// - `canonicalize[((1 + N) + M) + 2] = (M + N) + 3`
     /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
     pub fn canonicalize(&self) -> Type {
-        // TODO rename
-        // let found_txm = true;
-        // let result = self.canonicalize_helper(found_txm);
-
-        // // TODO: simplify
-        // let found_txm = matches!(self.follow_bindings(), Type::Txm(..));
-        // let result = self.canonicalize_helper(found_txm);
-        // result
-
-        // TODO: simplify
         match self.follow_bindings() {
             Type::Txm(to, from) => {
                 let found_txm = true;
@@ -43,26 +33,27 @@ impl Type {
         }
     }
 
-    fn canonicalize_helper(&self, found_txm: bool, run_simplifications: bool) -> Type {
+    /// If run_simplifications is false, then only:
+    /// - Attempt to evaluate each sub-expression to a constant
+    /// - Drop nested Txm's
+    ///
+    /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
+    /// and other simplifications
+    pub(crate) fn canonicalize_helper(&self, found_txm: bool, run_simplifications: bool) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
-                // TODO
-                dbg!("canonicalize_helper: InfixExpr {:?}", (&lhs, &rhs));
-
                 let kind = lhs.infix_kind(&rhs);
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let (Some(lhs_value), Some(rhs_value)) =
-                    (lhs.evaluate_to_field_element(&kind), rhs.evaluate_to_field_element(&kind))
-                {
+                if let (Some(lhs_value), Some(rhs_value)) = (
+                    lhs.evaluate_to_field_element_helper(&kind, run_simplifications),
+                    rhs.evaluate_to_field_element_helper(&kind, run_simplifications),
+                ) {
                     if let Some(result) = op.function(lhs_value, rhs_value, &kind) {
                         return Type::Constant(result, kind);
                     }
                 }
 
-                dbg!("canonicalize_helper: not constant");
-
-                // TODO?
                 let lhs = lhs.canonicalize_helper(found_txm, run_simplifications);
                 let rhs = rhs.canonicalize_helper(found_txm, run_simplifications);
 
@@ -70,94 +61,38 @@ impl Type {
                     return Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
                 }
 
+                let found_txm_inner = true;
+
                 if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, op, &rhs) {
-                    // TODO
-                    dbg!("try_simplify_non_constants_in_lhs");
-
-                    let found_txm_inner = true;
-                    let run_simplifications = true;
-                    let result = result.canonicalize_helper(found_txm_inner, run_simplifications);
-
-                    // TODO
-                    let found_txm = true;
-                    if found_txm {
-                        return result;
-                    } else {
-                        return Type::Txm(Box::new(result), Box::new(self.clone()));
-                    }
+                    return result.canonicalize_helper(found_txm_inner, run_simplifications);
                 }
 
                 if let Some(result) = Self::try_simplify_non_constants_in_rhs(&lhs, op, &rhs) {
-                    // TODO
-                    dbg!("try_simplify_non_constants_in_rhs");
-
-                    let found_txm_inner = true;
-                    let run_simplifications = true;
-                    let result = result.canonicalize_helper(found_txm_inner, run_simplifications);
-
-                    // TODO
-                    let found_txm = true;
-                    if found_txm {
-                        return result;
-                    } else {
-                        return Type::Txm(Box::new(result), Box::new(self.clone()));
-                    }
+                    return result.canonicalize_helper(found_txm_inner, run_simplifications);
                 }
 
                 // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
                 // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
                 if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs) {
-                    // TODO
-                    dbg!("try_simplify_partial_constants");
-
-                    // TODO parameter always true
-                    let found_txm_inner = true;
-                    let run_simplifications = true;
-                    let result = result.canonicalize_helper(found_txm_inner, run_simplifications);
-
-                    // TODO
-                    let found_txm = true;
-                    if found_txm {
-                        return result;
-                    } else {
-                        return Type::Txm(Box::new(result), Box::new(self.clone()));
-                    }
+                    return result.canonicalize_helper(found_txm_inner, run_simplifications);
                 }
 
                 if op.is_commutative() {
-                    // TODO
-                    dbg!("sort_commutative");
-
-                    let result = Self::sort_commutative(&lhs, op, &rhs);
-
-                    // TODO: re-enable
-                    let found_txm = true;
-                    if found_txm {
-                        return result;
-                    } else {
-                        return Type::Txm(Box::new(result), Box::new(self.clone()));
-                    }
+                    return Self::sort_commutative(&lhs, op, &rhs);
                 }
 
-                // TODO
-                dbg!("canonicalize_helper: output", (&lhs, &rhs));
-                // Type::InfixExpr(lhs, op, rhs)
                 Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
             }
             Type::Txm(to, from) => {
-                // TODO
-                dbg!("canonicalize_helper: Txm {:?}", (&to, &from));
-
-                let to_found_txm = true;
-                let run_simplifications = true;
-                let to = to.canonicalize_helper(to_found_txm, run_simplifications);
+                let inner_found_txm = true;
+                let to = to.canonicalize_helper(inner_found_txm, run_simplifications);
 
                 if found_txm {
                     return to;
                 }
 
                 let skip_simplifications = false;
-                let from = from.canonicalize_helper(to_found_txm, skip_simplifications);
+                let from = from.canonicalize_helper(inner_found_txm, skip_simplifications);
 
                 Type::Txm(Box::new(to), Box::new(from))
             }
@@ -180,15 +115,10 @@ impl Type {
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
-            // TODO dbg
-            dbg!("sort_commutative:pop", &item);
             let found_txm_inner = true;
             let run_simplifications = true;
             match item.canonicalize_helper(found_txm_inner, run_simplifications) {
                 Type::InfixExpr(lhs_inner, new_op, rhs_inner) if new_op == op => {
-                    // TODO dbg
-                    dbg!("sort_commutative: InfixExpr", &lhs_inner, &rhs_inner);
-
                     queue.push(*lhs_inner);
                     queue.push(*rhs_inner);
                 }
@@ -205,9 +135,6 @@ impl Type {
                 }
             }
         }
-
-        // TODO dbg
-        dbg!("end sort_commutative");
 
         if let Some(first) = sorted.pop_first() {
             let (mut typ, first_type_count) = first.clone();
@@ -252,11 +179,11 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `rhs` is expected to already be in canonical form.
+        let found_txm = true;
+        let run_simplifications = true;
         if l_op.approx_inverse() != Some(op)
             || l_op == BinaryTypeOperator::Division
-            // TODO: run before try_simplify_non_constants_in_lhs, right?
-            // || l_rhs.canonicalize_helper(found_txm, run_simplifications) != *rhs
-            || *l_rhs != *rhs
+            || l_rhs.canonicalize_helper(found_txm, run_simplifications) != *rhs
         {
             return None;
         }
@@ -290,10 +217,10 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `lhs` is expected to already be in canonical form.
+        let found_txm = true;
+        let run_simplifications = true;
         if r_op.inverse() != Some(op)
-            // TODO: run before try_simplify_non_constants_in_rhs, right?
-            // || *lhs != r_rhs.canonicalize_helper(found_txm, run_simplifications)
-            || *lhs != *r_rhs
+            || *lhs != r_rhs.canonicalize_helper(found_txm, run_simplifications)
         {
             return None;
         }

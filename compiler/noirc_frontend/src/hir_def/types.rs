@@ -1952,6 +1952,17 @@ impl Type {
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
     pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
+        let run_simplifications = true;
+        self.evaluate_to_field_element_helper(kind, run_simplifications)
+    }
+
+    // TODO: rename to constant_evaluate_to_field_element or similar
+    /// Run evaluate_to_field_element without generic arithmetic simplifications
+    pub(crate) fn evaluate_to_field_element_helper(
+        &self,
+        kind: &Kind,
+        run_simplifications: bool,
+    ) -> Option<acvm::FieldElement> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
@@ -1960,7 +1971,8 @@ impl Type {
             }
         }
 
-        match self.canonicalize() {
+        let could_be_txm = false;
+        match self.canonicalize_helper(could_be_txm, run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x)
@@ -1971,8 +1983,10 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_field_element(&infix_kind)?;
-                    let rhs_value = rhs.evaluate_to_field_element(&infix_kind)?;
+                    let lhs_value =
+                        lhs.evaluate_to_field_element_helper(&infix_kind, run_simplifications)?;
+                    let rhs_value =
+                        rhs.evaluate_to_field_element_helper(&infix_kind, run_simplifications)?;
                     op.function(lhs_value, rhs_value, &infix_kind)
                 } else {
                     None
@@ -1981,12 +1995,20 @@ impl Type {
             Type::Txm(to, from) => {
                 let to_value = to.evaluate_to_field_element(kind)?;
 
-                // TODO checked during monomorphization?
-                if let Some(from_value) = from.evaluate_to_field_element(kind) {
-                    assert_eq!(to_value, from_value);
+                // if both 'to' and 'from' evaluate to a constant,
+                // return None unless they match
+                let skip_simplifications = false;
+                if let Some(from_value) =
+                    from.evaluate_to_field_element_helper(kind, skip_simplifications)
+                {
+                    if to_value == from_value {
+                        Some(to_value)
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(to_value)
                 }
-
-                Some(to_value)
             }
             _ => None,
         }
