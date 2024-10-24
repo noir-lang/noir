@@ -24,6 +24,10 @@ type BLOCK_BYTE_PTR = u32;
 // The foreign function to compress blocks works on 16 pieces of 4-byte integers, instead of 64 bytes.
 type INT_BLOCK = [u32; INT_BLOCK_SIZE];
 
+// We can represent 4-byte integers during construction as `Field` or `u32`.
+// Using `u32` because we shift right by dividing by 256, which doesn't work with `Field`.
+type INT_FIELD = u32;
+
 // A message block is a slice of the original message of a fixed size,
 // potentially padded with zeroes, with neigbouring 4 bytes packed into integers.
 type MSG_BLOCK = INT_BLOCK;
@@ -327,7 +331,7 @@ fn set_msg_byte(mut msg_block: MSG_BLOCK, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte
 }
 
 // Replace one byte in a field.
-fn set_field_byte(msg_field: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> u32 {
+fn set_field_byte(msg_field: INT_FIELD, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) -> INT_FIELD {
     let old_byte = from_field_byte(msg_field, msg_byte_ptr);
     let old_field = into_field_byte(old_byte, msg_byte_ptr);
     let new_field = into_field_byte(msg_byte, msg_byte_ptr);
@@ -335,12 +339,13 @@ fn set_field_byte(msg_field: u32, msg_byte_ptr: BLOCK_BYTE_PTR, msg_byte: u8) ->
 }
 
 // Get a byte of a field in a `MSG_BLOCK` according to its overall position in the `BLOCK_SIZE` space.
-fn from_field_byte(mut msg_field: u32, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
+fn from_field_byte(mut msg_field: INT_FIELD, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
     // How many times do we have to shift to the right to get to the position we want?
     let max_shifts = INT_SIZE - 1;
     let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
     for i in 0..max_shifts {
         if i < shifts {
+            // This doesn't work on `Field`.
             msg_field = msg_field / 256;
         }
     }
@@ -351,7 +356,7 @@ fn from_field_byte(mut msg_field: u32, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
 // Project a byte into a position in a field based on the overall block pointer.
 // For example putting 1 into pointer 5 would be 100, because overall we would
 // have [____, 0100] with indexes [0123,4567].
-fn into_field_byte(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
+fn into_field_byte(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> INT_FIELD {
     let mut msg_field = msg_byte as u32;
     // How many times do we have to shift to the left to get to the position we want?
     let max_shifts = INT_SIZE - 1;
@@ -365,7 +370,7 @@ fn into_field_byte(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
 }
 
 // Construct a field out of 4 bytes.
-fn make_field(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
+fn make_field(b0: u8, b1: u8, b2: u8, b3: u8) -> INT_FIELD {
     let mut field = b0 as u32;
     field = 256 * field + b1 as u32;
     field = 256 * field + b2 as u32;
