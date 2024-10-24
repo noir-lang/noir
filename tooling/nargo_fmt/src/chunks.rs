@@ -827,10 +827,10 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
-                    self.write(" ");
+                    self.write_space_without_skipping_whitespace_and_comments();
                 }
                 Chunk::Group(chunks) => self.format_chunk_group_impl(chunks),
-                Chunk::SpaceOrLine => self.write(" "),
+                Chunk::SpaceOrLine => self.write_space_without_skipping_whitespace_and_comments(),
                 Chunk::IncreaseIndentation => self.increase_indentation(),
                 Chunk::DecreaseIndentation => self.decrease_indentation(),
                 Chunk::PushIndentation => self.push_indentation(),

@@ -1314,6 +1314,14 @@ global y = 1;
     }
 
     #[test]
+    fn format_short_array_with_block_comment_before_elements() {
+        let src = "global x = [ /* one */ 1, /* two */ 2 ] ;";
+        let expected = "global x = [ /* one */ 1, /* two */ 2];\n";
+
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_cast() {
         let src = "global x =  1  as  u8 ;";
         let expected = "global x = 1 as u8;\n";
