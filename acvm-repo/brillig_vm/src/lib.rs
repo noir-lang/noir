@@ -228,7 +228,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.process_opcode_internal()
     }
 
-    pub fn process_opcode_internal(&mut self) -> VMStatus<F> {
+    fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
