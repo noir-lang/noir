@@ -1,6 +1,0 @@
-[package]
-name = "double_verify_honk_proof_recursive"
-type = "bin"
-authors = [""]
-
-[dependencies]
