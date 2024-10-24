@@ -2,6 +2,7 @@
 
 mod bound_checks;
 mod imports;
+mod metaprogramming;
 mod name_shadowing;
 mod references;
 mod traits;
