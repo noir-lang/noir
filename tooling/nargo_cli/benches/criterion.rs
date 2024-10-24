@@ -18,11 +18,15 @@ use std::{process::Command, time::Duration};
 include!("./utils.rs");
 
 /// Compile the test program in a sub-process
-fn compile_program(test_program_dir: &Path) {
+/// The `force_brillig` option is used to benchmark the program as if it was executed by the AVM.
+fn compile_program(test_program_dir: &Path, force_brillig: bool) {
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile");
     cmd.arg("--force");
+    if force_brillig {
+        cmd.arg("--force-brillig");
+    }
     cmd.assert().success();
 }
 
@@ -100,53 +104,63 @@ fn read_inputs_from_file(
 /// Use the nargo CLI to compile a test program, then benchmark its execution
 /// by executing the command directly from the benchmark, so that we can have
 /// meaningful flamegraphs about the ACVM.
+fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_brillig: bool) {
+    let benchmark_name = format!(
+        "{}_execute{}",
+        test_program_dir.file_name().unwrap().to_str().unwrap(),
+        if force_brillig { "_brillig" } else { "" }
+    );
+
+    // The program and its inputs will be populated in the first setup.
+    let artifacts = RefCell::new(None);
+
+    let mut foreign_call_executor =
+        nargo::ops::DefaultForeignCallExecutor::new(false, None, None, None);
+
+    c.bench_function(&benchmark_name, |b| {
+        b.iter_batched(
+            || {
+                // Setup will be called many times to set a batch (which we don't use),
+                // but we can compile it only once, and then the executions will not have to do so.
+                // It is done as a setup so that we only compile the test programs that we filter for.
+                if artifacts.borrow().is_some() {
+                    return;
+                }
+                compile_program(test_program_dir, force_brillig);
+                // Parse the artifacts for use in the benchmark routine
+                let programs = read_compiled_programs_and_inputs(test_program_dir);
+                // Warn, but don't stop, if we haven't found any binary packages.
+                if programs.is_empty() {
+                    eprintln!("\nWARNING: There is nothing to benchmark in {benchmark_name}");
+                }
+                // Store them for execution
+                artifacts.replace(Some(programs));
+            },
+            |_| {
+                let artifacts = artifacts.borrow();
+                let artifacts = artifacts.as_ref().expect("setup compiled them");
+
+                for (program, initial_witness) in artifacts {
+                    let _witness_stack = black_box(nargo::ops::execute_program(
+                        black_box(&program.program),
+                        black_box(initial_witness.clone()),
+                        &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                        &mut foreign_call_executor,
+                    ))
+                    .expect("failed to execute program");
+                }
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
+}
+
+/// Go through all the selected tests and executem with and without Brillig.
 fn criterion_selected_tests_execution(c: &mut Criterion) {
     for test_program_dir in get_selected_tests() {
-        let benchmark_name =
-            format!("{}_execute", test_program_dir.file_name().unwrap().to_str().unwrap());
-
-        // The program and its inputs will be populated in the first setup.
-        let artifacts = RefCell::new(None);
-
-        let mut foreign_call_executor =
-            nargo::ops::DefaultForeignCallExecutor::new(false, None, None, None);
-
-        c.bench_function(&benchmark_name, |b| {
-            b.iter_batched(
-                || {
-                    // Setup will be called many times to set a batch (which we don't use),
-                    // but we can compile it only once, and then the executions will not have to do so.
-                    // It is done as a setup so that we only compile the test programs that we filter for.
-                    if artifacts.borrow().is_some() {
-                        return;
-                    }
-                    compile_program(&test_program_dir);
-                    // Parse the artifacts for use in the benchmark routine
-                    let programs = read_compiled_programs_and_inputs(&test_program_dir);
-                    // Warn, but don't stop, if we haven't found any binary packages.
-                    if programs.is_empty() {
-                        eprintln!("\nWARNING: There is nothing to benchmark in {benchmark_name}");
-                    }
-                    // Store them for execution
-                    artifacts.replace(Some(programs));
-                },
-                |_| {
-                    let artifacts = artifacts.borrow();
-                    let artifacts = artifacts.as_ref().expect("setup compiled them");
-
-                    for (program, initial_witness) in artifacts {
-                        let _witness_stack = black_box(nargo::ops::execute_program(
-                            black_box(&program.program),
-                            black_box(initial_witness.clone()),
-                            &bn254_blackbox_solver::Bn254BlackBoxSolver,
-                            &mut foreign_call_executor,
-                        ))
-                        .expect("failed to execute program");
-                    }
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
+        for force_brillig in [false, true] {
+            criterion_test_execution(c, &test_program_dir, force_brillig);
+        }
     }
 }
 

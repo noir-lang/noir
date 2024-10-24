@@ -5,7 +5,10 @@ fn main() {
     s.foo();
 }
 
-struct Struct<A, B> { a: A, b: B }
+struct Struct<A, B> {
+    a: A,
+    b: B,
+}
 
 // Before the fix, this candidate is searched first, binding ? to `u8` permanently.
 impl Struct<u8, u8> {

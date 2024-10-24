@@ -173,6 +173,12 @@ pub enum GenericTypeArg {
     Named(Ident, UnresolvedType),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum GenericTypeArgKind {
+    Ordered,
+    Named,
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
 pub struct GenericTypeArgs {
     /// Each ordered argument, e.g. `<A, B, C>`
@@ -181,6 +187,9 @@ pub struct GenericTypeArgs {
     /// All named arguments, e.g. `<A = B, C = D, E = F>`.
     /// Used for associated types.
     pub named_args: Vec<(Ident, UnresolvedType)>,
+
+    /// The kind of each argument, in order (in case traversing the generics in order is needed)
+    pub kinds: Vec<GenericTypeArgKind>,
 }
 
 impl GenericTypeArgs {
@@ -351,7 +360,11 @@ impl UnresolvedType {
         let last_segment = path.segments.last_mut().unwrap();
         let generics = last_segment.generics.take();
         let generic_type_args = if let Some(generics) = generics {
-            GenericTypeArgs { ordered_args: generics, named_args: Vec::new() }
+            let mut kinds = Vec::with_capacity(generics.len());
+            for _ in 0..generics.len() {
+                kinds.push(GenericTypeArgKind::Ordered);
+            }
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new(), kinds }
         } else {
             GenericTypeArgs::default()
         };

@@ -1,6 +1,6 @@
 ---
 title: How to use recursion on NoirJS
-description: Learn how to implement recursion with NoirJS, a powerful tool for creating smart contracts on the EVM blockchain. This guide assumes familiarity with NoirJS, solidity verifiers, and the Barretenberg proving backend. Discover how to generate both final and intermediate proofs using `noir_js` and `backend_barretenberg`.
+description: Learn how to implement recursion with NoirJS, a powerful tool for creating smart contracts on the EVM blockchain. This guide assumes familiarity with NoirJS, solidity verifiers, and the Barretenberg proving backend. Discover how to generate both final and intermediate proofs using `noir_js` and `bb.js`.
 keywords:
   [
     "NoirJS",
@@ -10,7 +10,6 @@ keywords:
     "solidity verifiers",
     "Barretenberg backend",
     "noir_js",
-    "backend_barretenberg",
     "intermediate proofs",
     "final proofs",
     "nargo compile",
@@ -32,13 +31,6 @@ It is also assumed that you're not using `noir_wasm` for compilation, and instea
 :::info
 
 As you've read in the [explainer](../explainers/explainer-recursion.md), a recursive proof is an intermediate proof. This means that it doesn't necessarily generate the final step that makes it verifiable in a smart contract. However, it is easy to verify within another circuit.
-
-While "standard" usage of NoirJS packages abstracts final proofs, it currently lacks the necessary interface to abstract away intermediate proofs. This means that these proofs need to be created by using the backend directly.
-
-In short:
-
-- `noir_js` generates *only* final proofs
-- `backend_barretenberg` generates both types of proofs
 
 :::
 
@@ -147,7 +139,7 @@ Managing circuits and "who does what" can be confusing. To make sure your naming
 
 ```js
 const circuits = {
-  main: mainJSON, 
+  main: mainJSON,
   recursive: recursiveJSON
 }
 const backends = {

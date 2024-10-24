@@ -11,7 +11,7 @@ trait ATrait {
 }
 
 struct Foo {
-    x: Field
+    x: Field,
 }
 impl ATrait for Foo {
     fn asd() -> Self {
@@ -21,7 +21,7 @@ impl ATrait for Foo {
 }
 
 struct Bar {
-    x: Field
+    x: Field,
 }
 impl ATrait for Bar {
     // The trait method is declared as returning `Self`
