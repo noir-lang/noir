@@ -15,12 +15,13 @@ mod completion_tests {
             on_completion_request,
         },
         test_utils,
+        tests::apply_text_edit,
     };
 
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
-        CompletionResponse, DidOpenTextDocumentParams, PartialResultParams, Position, Range,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, TextEdit,
+        CompletionResponse, DidOpenTextDocumentParams, PartialResultParams, Position,
+        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
         WorkDoneProgressParams,
     };
     use tokio::test;
@@ -1392,29 +1393,50 @@ mod completion_tests {
 
     #[test]
     async fn test_auto_imports() {
-        let src = r#"
-            mod foo {
-                mod bar {
-                    pub fn hello_world() {}
+        let src = r#"mod foo {
+    mod bar {
+        pub fn hello_world() {}
 
-                    struct Foo {
-                    }
+        struct Foo {
+        }
 
-                    impl Foo {
-                        // This is here to make sure it's not offered for completion
-                        fn hello_world() {}
-                    }
-                }
-            }
+        impl Foo {
+            // This is here to make sure it's not offered for completion
+            fn hello_world() {}
+        }
+    }
+}
 
-            fn main() {
-                hel>|<
-            }
+fn main() {
+    hel>|<
+}
         "#;
-        let items = get_completions(src).await;
+
+        let expected = r#"use foo::bar::hello_world;
+
+mod foo {
+    mod bar {
+        pub fn hello_world() {}
+
+        struct Foo {
+        }
+
+        impl Foo {
+            // This is here to make sure it's not offered for completion
+            fn hello_world() {}
+        }
+    }
+}
+
+fn main() {
+    hel
+}
+        "#;
+
+        let mut items = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
-        let item = &items[0];
+        let item = items.remove(0);
         assert_eq!(item.label, "hello_world()");
         assert_eq!(
             item.label_details,
@@ -1424,38 +1446,45 @@ mod completion_tests {
             })
         );
 
-        assert_eq!(
-            item.additional_text_edits,
-            Some(vec![TextEdit {
-                range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 0 },
-                },
-                new_text: "use foo::bar::hello_world;\n".to_string(),
-            }])
+        let changed = apply_text_edit(
+            &src.replace(">|<", ""),
+            &item.additional_text_edits.unwrap().remove(0),
         );
-
+        assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
 
     #[test]
     async fn test_auto_imports_when_in_nested_module_and_item_is_further_nested() {
-        let src = r#"
-            #[something]
-            mod foo {
-                mod bar {
-                    pub fn hello_world() {}
-                }
+        let src = r#"#[something]
+mod foo {
+    mod bar {
+        pub fn hello_world() {}
+    }
 
-                fn foo() {
-                    hel>|<
-                }
-            }
+    fn foo() {
+        hel>|<
+    }
+}
         "#;
-        let items = get_completions(src).await;
+
+        let expected = r#"#[something]
+mod foo {
+    use bar::hello_world;
+
+    mod bar {
+        pub fn hello_world() {}
+    }
+
+    fn foo() {
+        hel
+    }
+}
+        "#;
+        let mut items = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
-        let item = &items[0];
+        let item = items.remove(0);
         assert_eq!(item.label, "hello_world()");
         assert_eq!(
             item.label_details,
@@ -1465,37 +1494,44 @@ mod completion_tests {
             })
         );
 
-        assert_eq!(
-            item.additional_text_edits,
-            Some(vec![TextEdit {
-                range: Range {
-                    start: Position { line: 3, character: 4 },
-                    end: Position { line: 3, character: 4 },
-                },
-                new_text: "use bar::hello_world;\n\n    ".to_string(),
-            }])
+        let changed = apply_text_edit(
+            &src.replace(">|<", ""),
+            &item.additional_text_edits.unwrap().remove(0),
         );
+        assert_eq!(changed, expected);
     }
 
     #[test]
     async fn test_auto_imports_when_in_nested_module_and_item_is_not_further_nested() {
-        let src = r#"
-            mod foo {
-                mod bar {
-                    pub fn hello_world() {}
-                }
+        let src = r#"mod foo {
+    mod bar {
+        pub fn hello_world() {}
+    }
 
-                mod baz {
-                    fn foo() {
-                        hel>|<
-                    }
-                }
-            }
-        "#;
-        let items = get_completions(src).await;
+    mod baz {
+        fn foo() {
+            hel>|<
+        }
+    }
+}"#;
+
+        let expected = r#"mod foo {
+    mod bar {
+        pub fn hello_world() {}
+    }
+
+    mod baz {
+        use super::bar::hello_world;
+
+        fn foo() {
+            hel
+        }
+    }
+}"#;
+        let mut items = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
-        let item = &items[0];
+        let item = items.remove(0);
         assert_eq!(item.label, "hello_world()");
         assert_eq!(
             item.label_details,
@@ -1505,47 +1541,49 @@ mod completion_tests {
             })
         );
 
-        assert_eq!(
-            item.additional_text_edits,
-            Some(vec![TextEdit {
-                range: Range {
-                    start: Position { line: 7, character: 8 },
-                    end: Position { line: 7, character: 8 },
-                },
-                new_text: "use super::bar::hello_world;\n\n        ".to_string(),
-            }])
+        let changed = apply_text_edit(
+            &src.replace(">|<", ""),
+            &item.additional_text_edits.unwrap().remove(0),
         );
+        assert_eq!(changed, expected);
     }
 
     #[test]
     async fn test_auto_import_inserts_after_last_use() {
-        let src = r#"
-            mod foo {
-                mod bar {
-                    pub fn hello_world() {}
-                }
-            }
+        let src = r#"mod foo {
+    mod bar {
+        pub fn hello_world() {}
+    }
+}
 
-            use foo::bar;
+use foo::bar;
 
-            fn main() {
-                hel>|<
-            }
-        "#;
-        let items = get_completions(src).await;
+fn main() {
+    hel>|<
+}"#;
+
+        let expected = r#"mod foo {
+    mod bar {
+        pub fn hello_world() {}
+    }
+}
+
+use foo::bar;
+use foo::bar::hello_world;
+
+fn main() {
+    hel
+}"#;
+        let mut items = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
-        let item = &items[0];
-        assert_eq!(
-            item.additional_text_edits,
-            Some(vec![TextEdit {
-                range: Range {
-                    start: Position { line: 8, character: 0 },
-                    end: Position { line: 8, character: 0 },
-                },
-                new_text: "use foo::bar::hello_world;\n".to_string(),
-            }])
+        let item = items.remove(0);
+
+        let changed = apply_text_edit(
+            &src.replace(">|<", ""),
+            &item.additional_text_edits.unwrap().remove(0),
         );
+        assert_eq!(changed, expected);
     }
 
     #[test]
@@ -1589,22 +1627,36 @@ mod completion_tests {
 
     #[test]
     async fn test_auto_import_suggests_modules_too() {
-        let src = r#"
-            mod foo {
-                pub mod barbaz {
-                    fn hello_world() {}
-                }
-            }
+        let src = r#"mod foo {
+        pub mod barbaz {
+            fn hello_world() {}
+        }
+    }
 
-            fn main() {
-                barb>|<
-            }
-        "#;
-        let items = get_completions(src).await;
+    fn main() {
+        barb>|<
+    }
+}"#;
+
+        let expected = r#"use foo::barbaz;
+
+mod foo {
+        pub mod barbaz {
+            fn hello_world() {}
+        }
+    }
+
+    fn main() {
+        barb
+    }
+}"#;
+
+        let mut items = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
-        let item = &items[0];
+        let item = items.remove(0);
         assert_eq!(item.label, "barbaz");
+
         assert_eq!(
             item.label_details,
             Some(CompletionItemLabelDetails {
@@ -1612,6 +1664,12 @@ mod completion_tests {
                 description: None
             })
         );
+
+        let changed = apply_text_edit(
+            &src.replace(">|<", ""),
+            &item.additional_text_edits.unwrap().remove(0),
+        );
+        assert_eq!(changed, expected);
     }
 
     #[test]
