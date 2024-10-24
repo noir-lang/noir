@@ -350,7 +350,7 @@ fn from_field_byte(mut msg_field: INT_FIELD, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8
         }
     }
     // At this point the byte we want is in the rightmost position.
-    (msg_field % 256) as u8
+    msg_field as u8
 }
 
 // Project a byte into a position in a field based on the overall block pointer.
@@ -415,7 +415,7 @@ unconstrained fn attach_len_to_msg_block(
             len_bytes[shift + 1],
             len_bytes[shift + 2],
             len_bytes[shift + 3],
-        ) as u32;
+        );
     }
     msg_block
 }
