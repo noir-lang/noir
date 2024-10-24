@@ -77,7 +77,7 @@ fn run_snippet_proptest(
 ) {
     let program = match prepare_and_compile_snippet(source.clone(), force_brillig) {
         Ok((program, _)) => program,
-        Err(e) => panic!("failed to compile program:\n{source}\n{e:?}"),
+        Err(e) => panic!("failed to compile program; brillig = {force_brillig}:\n{source}\n{e:?}"),
     };
 
     let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
