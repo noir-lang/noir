@@ -136,7 +136,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
 
     msg_block = unsafe { attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size) };
 
-    if !crate::runtime::is_unconstrained() {
+    if !is_unconstrained() {
         verify_msg_len(msg_block, last_block, msg_byte_ptr, message_size);
     }
 
@@ -182,8 +182,7 @@ unconstrained fn build_msg_block<let N: u32>(
             } else {
                 0
             };
-            // Multiplying by 256 is equivalent to shifting by 8 bits.
-            msg_item = msg_item * 256 + msg_byte as u32;
+            msg_item = lshift8(msg_item) + msg_byte as u32;
         }
         msg_block[i] = msg_item;
     }
@@ -228,7 +227,7 @@ fn verify_msg_block<let N: u32>(
             }
         }
         // Shift the accumulator
-        msg_item = msg_item * 256;
+        msg_item = lshift8(msg_item);
         // If we have input to consume, add it at the rightmost position.
         if k < message_size & k < msg_end {
             msg_item = msg_item + msg[k] as u32;
@@ -303,7 +302,7 @@ fn verify_msg_block_equals_last(
         // Reset to where they are still equal.
         msg_byte_ptr = msg_byte_ptr - modulo;
         for i in 0..INT_SIZE {
-            msg_item = msg_item * 256;
+            msg_item = lshift8(msg_item);
             if i < modulo {
                 msg_item = msg_item + get_item_byte(last_field, msg_byte_ptr) as u32;
                 msg_byte_ptr = msg_byte_ptr + 1;
@@ -345,8 +344,7 @@ fn get_item_byte(mut msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
     let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
     for i in 0..max_shifts {
         if i < shifts {
-            // This doesn't work on `Field`.
-            msg_item = msg_item / 256;
+            msg_item = rshift8(msg_item);
         }
     }
     // At this point the byte we want is in the rightmost position.
@@ -363,7 +361,7 @@ fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
     let shifts = max_shifts - msg_byte_ptr % INT_SIZE;
     for i in 0..max_shifts {
         if i < shifts {
-            msg_item = msg_item * 256;
+            msg_item = lshift8(msg_item);
         }
     }
     msg_item
@@ -371,11 +369,34 @@ fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
 
 // Construct a field out of 4 bytes.
 fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
-    let mut field = b0 as u32;
-    field = 256 * field + b1 as u32;
-    field = 256 * field + b2 as u32;
-    field = 256 * field + b3 as u32;
-    field
+    let mut item = b0 as u32;
+    item = lshift8(item) + b1 as u32;
+    item = lshift8(item) + b2 as u32;
+    item = lshift8(item) + b3 as u32;
+    item
+}
+
+// Shift by 8 bits to the left.
+// Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context, 
+// otherwise multiplies by 256.
+fn lshift8(item: u32) -> u32 {
+    if is_unconstrained() {
+        item << 8
+    } else {
+        item * 256
+    }
+}
+
+// Shift by 8 bits to the right.
+// Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context, 
+// otherwise divides by 256.
+fn rshift8(item: u32) -> u32 {
+    if is_unconstrained() {
+        item >> 8
+    } else {
+        // This doesn't work on `Field`.
+        item / 256
+    }
 }
 
 // Zero out all bytes between the end of the message and where the length is appended,
