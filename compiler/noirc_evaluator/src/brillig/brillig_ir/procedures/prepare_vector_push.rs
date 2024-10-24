@@ -75,6 +75,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         BrilligBinaryOp::Add,
     );
 
+    // The strategy is to reallocate first and then depending if it's push back or not, copy the items or not.
     reallocate_vector_for_insertion(
         brillig_context,
         source_vector,
@@ -114,13 +115,20 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         brillig_context.deallocate_single_addr(was_reused);
     } else {
         // If push front we need to shift the items independently of it being reused or not
-        copy_vector_shifting_right(
+        let target_start = brillig_context.allocate_register();
+        brillig_context.memory_op_instruction(
+            target_vector_items_pointer,
+            item_push_count_arg,
+            target_start,
+            BrilligBinaryOp::Add,
+        );
+        mem_copy_from_the_end(
             brillig_context,
             source_items_pointer.address,
-            target_vector_items_pointer,
-            target_size,
-            item_push_count_arg,
+            target_start,
+            source_size.address,
         );
+        brillig_context.deallocate_register(target_start);
         brillig_context.mov_instruction(write_pointer_return, target_vector_items_pointer);
     }
 
@@ -132,69 +140,64 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     brillig_context.deallocate_register(target_vector_items_pointer);
 }
 
-/// Copies without overwriting `target_size - offset` items from the start of the source vector to the target vector with an offset of `offset`.  
-fn copy_vector_shifting_right<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+/// Copies num_items from the source pointer to the target pointer, starting from the end
+fn mem_copy_from_the_end<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
-    source_items_pointer: MemoryAddress,
-    target_vector_items_pointer: MemoryAddress,
-    target_size: SingleAddrVariable,
-    item_push_count_arg: MemoryAddress,
+    source_start: MemoryAddress,
+    target_start: MemoryAddress,
+    num_items: MemoryAddress,
 ) {
-    brillig_context.codegen_iteration(
+    brillig_context.codegen_generic_iteration(
         |brillig_context| {
-            let iterator = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+            // Create the pointer to the last item for both source and target
+            let num_items_minus_one = brillig_context.allocate_register();
             brillig_context.codegen_usize_op(
-                target_size.address,
-                iterator.address,
+                num_items,
+                num_items_minus_one,
                 BrilligBinaryOp::Sub,
-                1_usize,
+                1,
             );
-            iterator
-        },
-        |brillig_context, iterator| {
-            brillig_context.codegen_usize_op_in_place(
-                iterator.address,
-                BrilligBinaryOp::Sub,
-                1_usize,
-            );
-        },
-        |brillig_context, iterator| {
-            let finish_condition = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
-            // Since we start at `index = target_size - 1`, we need to end at `index = items_to_insert - 1`
+            let target_pointer = brillig_context.allocate_register();
             brillig_context.memory_op_instruction(
-                iterator.address,
-                item_push_count_arg,
+                target_start,
+                num_items_minus_one,
+                target_pointer,
+                BrilligBinaryOp::Add,
+            );
+            let source_pointer = brillig_context.allocate_register();
+            brillig_context.memory_op_instruction(
+                source_start,
+                num_items_minus_one,
+                source_pointer,
+                BrilligBinaryOp::Add,
+            );
+            brillig_context.deallocate_register(num_items_minus_one);
+            (source_pointer, target_pointer)
+        },
+        |brillig_context, &(source_pointer, target_pointer)| {
+            brillig_context.codegen_usize_op_in_place(source_pointer, BrilligBinaryOp::Sub, 1);
+            brillig_context.codegen_usize_op_in_place(target_pointer, BrilligBinaryOp::Sub, 1);
+        },
+        |brillig_context, &(source_pointer, _)| {
+            // We have finished when the source/target pointer is less than the source/target start
+            let finish_condition = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+            brillig_context.memory_op_instruction(
+                source_pointer,
+                source_start,
                 finish_condition.address,
                 BrilligBinaryOp::LessThan,
             );
             finish_condition
         },
-        |brillig_context, &iterator| {
+        |brillig_context, &(source_pointer, target_pointer)| {
             let value_register = brillig_context.allocate_register();
-            // Index in source is item_push_count less since we are shifting items to the right
-            let source_index = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-            brillig_context.memory_op_instruction(
-                iterator.address,
-                item_push_count_arg,
-                source_index.address,
-                BrilligBinaryOp::Sub,
-            );
-
-            brillig_context.codegen_load_with_offset(
-                source_items_pointer,
-                source_index,
-                value_register,
-            );
-            brillig_context.codegen_store_with_offset(
-                target_vector_items_pointer,
-                iterator,
-                value_register,
-            );
+            brillig_context.load_instruction(value_register, source_pointer);
+            brillig_context.store_instruction(target_pointer, value_register);
             brillig_context.deallocate_register(value_register);
-            brillig_context.deallocate_single_addr(source_index);
         },
-        |brillig_context, iterator| {
-            brillig_context.deallocate_single_addr(iterator);
+        |brillig_context, (source_pointer, target_pointer)| {
+            brillig_context.deallocate_register(source_pointer);
+            brillig_context.deallocate_register(target_pointer);
         },
     );
 }
@@ -223,7 +226,7 @@ fn reallocate_vector_for_insertion<F: AcirField + DebugToString, Registers: Regi
         source_rc.address,
         is_rc_one.address,
         BrilligBinaryOp::Equals,
-        1_usize,
+        1,
     );
 
     // Reallocate target vector for insertion

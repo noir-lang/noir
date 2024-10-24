@@ -12,13 +12,13 @@ use super::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    pub(crate) fn codegen_iteration<T>(
+    pub(crate) fn codegen_generic_iteration<T>(
         &mut self,
         make_iterator: impl FnOnce(&mut BrilligContext<F, Registers>) -> T,
         update_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
         make_finish_condition: impl FnOnce(&mut BrilligContext<F, Registers>, &T) -> SingleAddrVariable,
         on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
-        cleanup: impl FnOnce(&mut BrilligContext<F, Registers>, T),
+        clean_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, T),
     ) {
         let iterator = make_iterator(self);
 
@@ -26,7 +26,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.enter_section(loop_section);
 
         // Loop body
-
         let should_end = make_finish_condition(self, &iterator);
 
         let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
@@ -45,7 +44,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // Deallocate our temporary registers
         self.deallocate_single_addr(should_end);
-        cleanup(self, iterator);
+        clean_iterator(self, iterator);
     }
 
     /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
