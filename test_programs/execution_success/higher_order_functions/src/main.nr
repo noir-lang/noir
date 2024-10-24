@@ -5,7 +5,7 @@ fn main(w: Field) -> pub Field {
     assert(twice(|x| x * 2, 5) == 20);
     assert((|x, y| x + y + 1)(2, 3) == 6);
     // nested lambdas
-    assert((|a, b| { a + (|c| c + 2)(b) })(0, 1) == 3);
+    assert((|a, b| a + (|c| c + 2)(b))(0, 1) == 3);
     // Closures:
     let a = 42;
     let g = || a;

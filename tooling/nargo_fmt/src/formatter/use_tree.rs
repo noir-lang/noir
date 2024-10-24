@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn format_use_list_one_item_with_comments() {
         let src = " use foo::{  /* do not remove me */ bar,  };";
-        let expected = "use foo::{ /* do not remove me */ bar};\n";
+        let expected = "use foo::{/* do not remove me */ bar};\n";
         assert_format(src, expected);
     }
 
