@@ -862,7 +862,7 @@ fn drop_use_constant_eq(x: &[ConstantOrWitness], y: &[ConstantOrWitness]) -> boo
 
 // Convert FieldElement's to ConstantOrWitness's by making all of them witnesses
 fn use_witnesses(inputs: Vec<FieldElement>) -> Vec<ConstantOrWitness> {
-    inputs.into_iter().map(|input| (input)).collect()
+    inputs.into_iter().map(|input| (input, false)).collect()
 }
 
 fn solve_array_input_blackbox_call<F>(
@@ -1044,8 +1044,8 @@ fn solve_blackbox_func_call(
         BlackBoxFuncCall<FieldElement>,
         OpcodeResolutionError<FieldElement>,
     >,
-    lhs: (FieldElement, bool), // if  use a Witness
-    rhs: (FieldElement, bool), // if  use a Witness
+    lhs: (FieldElement, bool), // if false, use a Witness
+    rhs: (FieldElement, bool), // if false, use a Witness
 ) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
     let (lhs, lhs_constant) = lhs;
     let (rhs, rhs_constant) = rhs;
@@ -1409,7 +1409,7 @@ fn poseidon2_permutation_zeroes() {
 #[test]
 fn sha256_compression_zeros() {
     let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero()); 24].try_into().unwrap(),
+        [(FieldElement::zero(), false); 24].try_into().unwrap(),
         8,
         None,
         sha256_compression_op,
@@ -1453,7 +1453,7 @@ fn blake3_zeros() {
 #[test]
 fn keccakf1600_zeros() {
     let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero()); 25].into(),
+        [(FieldElement::zero(), false); 25].into(),
         25,
         Some(64),
         keccakf1600_op,
