@@ -6,11 +6,11 @@ mod b_child2;
 mod b_child1;
 
 #[crate::assert_run_order_function(11)]
-fn foo() {}
+pub fn foo() {}
 
 #![crate::assert_run_order_module(12)]
 
 #[crate::assert_run_order_function(13)]
-fn bar() {}
+pub fn bar() {}
 
 #![crate::assert_run_order_module(14)]

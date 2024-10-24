@@ -1,5 +1,5 @@
 #[crate::assert_run_order_function(0)]
-fn foo(){}
+pub fn foo(){}
 
 #[crate::assert_run_order_struct(1)]
-struct Foo {}
+pub struct Foo {}

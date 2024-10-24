@@ -533,7 +533,7 @@ impl<'context> Elaborator<'context> {
         types: &BTreeMap<StructId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         module_attributes: &[ModuleAttribute],
-    ) -> CollectedItems {
+    ) {
         let mut attributes_to_run = Vec::new();
 
         for (trait_id, trait_) in traits {
@@ -566,10 +566,10 @@ impl<'context> Elaborator<'context> {
         self.sort_attributes_by_run_order(&mut attributes_to_run);
 
         // run
-        let mut generated_items = CollectedItems::default();
         for (attribute, item, args, context, span) in attributes_to_run {
             let location = Location::new(span, context.attribute_file);
 
+            let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
                     context,
@@ -582,9 +582,11 @@ impl<'context> Elaborator<'context> {
                     this.errors.push(error);
                 }
             });
-        }
 
-        generated_items
+            if !generated_items.is_empty() {
+                self.elaborate_items(generated_items);
+            }
+        }
     }
 
     fn sort_attributes_by_run_order(&self, attributes: &mut CollectedAttributes) {
