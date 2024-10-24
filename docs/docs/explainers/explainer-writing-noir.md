@@ -1,6 +1,6 @@
 ---
-title: Writing Performant Noir
-description: Understand new considerations when writing Noir
+title: Thinking in Circuits
+description: Considerations when writing Noir programs
 keywords: [Noir, programming, rust]
 tags: [Optimization]
 sidebar_position: 0
