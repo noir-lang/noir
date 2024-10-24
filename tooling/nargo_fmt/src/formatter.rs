@@ -31,6 +31,7 @@ mod traits;
 mod type_expression;
 mod types;
 mod use_tree;
+mod use_tree_merge;
 mod visibility;
 mod where_clause;
 
@@ -107,21 +108,12 @@ impl<'a> Formatter<'a> {
         self.format_parsed_module(parsed_module, self.ignore_next);
     }
 
-    pub(crate) fn format_parsed_module(
-        &mut self,
-        parsed_module: ParsedModule,
-        mut ignore_next: bool,
-    ) {
+    pub(crate) fn format_parsed_module(&mut self, parsed_module: ParsedModule, ignore_next: bool) {
         if !parsed_module.inner_doc_comments.is_empty() {
             self.format_inner_doc_comments();
         }
 
-        for item in parsed_module.items {
-            self.format_item(item, ignore_next);
-            self.write_line();
-            ignore_next = self.ignore_next;
-        }
-
+        self.format_items(parsed_module.items, ignore_next);
         self.write_line();
     }
 
@@ -249,7 +241,14 @@ impl<'a> Formatter<'a> {
     pub(super) fn write_and_skip_span_without_formatting(&mut self, span: Span) {
         self.write_source_span(span);
 
-        while self.token_span.start() < span.end() {
+        while self.token_span.start() < span.end() && self.token != Token::EOF {
+            self.bump();
+        }
+    }
+
+    /// Advances the lexer until past the given span end without writing anything to the buffer.
+    pub(super) fn skip_past_span_end_without_formatting(&mut self, span_end: u32) {
+        while self.token_span.start() < span_end && self.token != Token::EOF {
             self.bump();
         }
     }
