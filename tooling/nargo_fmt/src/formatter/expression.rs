@@ -198,6 +198,8 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
         let mut group = ChunkGroup::new();
 
+        let lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
+
         let params_and_return_type_chunk = self.chunk(|formatter| {
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
@@ -218,7 +220,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
-            if lambda.return_type.typ != UnresolvedTypeData::Unspecified {
+            if lambda_has_return_type {
                 formatter.write_token(Token::Arrow);
                 formatter.write_space();
                 formatter.format_type(lambda.return_type);
@@ -230,16 +232,27 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         group.text(params_and_return_type_chunk);
 
-        let body_is_block = matches!(lambda.body.kind, ExpressionKind::Block(..));
+        let block_statement_count = if let ExpressionKind::Block(block) = &lambda.body.kind {
+            Some(block.statements.len())
+        } else {
+            None
+        };
 
         let mut body_group = ChunkGroup::new();
-        body_group.kind = GroupKind::LambdaBody { is_block: body_is_block };
 
+        let comments_count_before_body = self.written_comments_count;
         self.format_expression(lambda.body, &mut body_group);
+
+        body_group.kind = GroupKind::LambdaBody {
+            block_statement_count,
+            has_comments: self.written_comments_count > comments_count_before_body,
+            lambda_has_return_type,
+        };
+
         group.group(body_group);
 
         let first_line_width = params_and_return_type_chunk_width
-            + (if body_is_block {
+            + (if block_statement_count.is_some() {
                 // 1 because we already have `|param1, param2, ..., paramN| ` (including the space)
                 // so all that's left is a `{`.
                 1
@@ -1980,10 +1993,42 @@ global y = 1;
     }
 
     #[test]
-    fn format_lambda_with_block() {
+    fn format_lambda_with_block_simplifies() {
         let src = "global x = | |  {  1  } ;";
-        let expected = "global x = || { 1 };\n";
+        let expected = "global x = || 1;\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block_does_not_simplify_if_it_ends_with_semicolon() {
+        let src = "global x = | |  {  1;  } ;";
+        let expected = "global x = || { 1; };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block_does_not_simplify_if_it_has_return_type() {
+        let src = "global x = | | -> i32  {  1  } ;";
+        let expected = "global x = || -> i32 { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_simplifies_block_with_quote() {
+        let src = "global x = | | {  quote { 1 }   } ;";
+        let expected = "global x = || quote { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block_simplifies_inside_arguments_list() {
+        let src = "global x = some_call(this_is_a_long_argument, | |  {  1  });";
+        let expected = "global x = some_call(
+    this_is_a_long_argument,
+    || 1,
+);
+";
+        assert_format_with_max_width(src, expected, 20);
     }
 
     #[test]
