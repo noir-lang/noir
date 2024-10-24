@@ -269,16 +269,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         std::mem::take(&mut self.profiling_samples)
     }
 
-    /// Finalize the ACVM execution with profiling, returning the resulting [`WitnessMap`] and [`ProfilingSamples`]
-    // pub fn finalize_with_profiling(self) -> (WitnessMap<F>, ProfilingSamples) {
-    //     if self.status != ACVMStatus::Solved {
-    //         panic!("ACVM execution is not complete: ({})", self.status);
-    //     }
-    //     let profiling_samples = self.profiling_samples;
-    //     let witness_map = self.finalize();
-    //     (witness_map, profiling_samples)
-    // }
-
     /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
     pub fn finalize(self) -> WitnessMap<F> {
         if self.status != ACVMStatus::Solved {
