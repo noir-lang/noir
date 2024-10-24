@@ -194,11 +194,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         // included in a failure case.
         self.call_stack.clear();
 
-        if self.profiling_active {
-            Ok(acvm.finalize_with_profiling())
-        } else {
-            Ok((acvm.finalize(), ProfilingSamples::default()))
-        }
+        let profiling_samples = acvm.take_profiling_samples();
+        Ok((acvm.finalize(), profiling_samples))
     }
 }
 

@@ -265,17 +265,26 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.instruction_pointer
     }
 
-    /// Finalize the ACVM execution with profiling, returning the resulting [`WitnessMap`] and [`ProfilingSamples`]
-    pub fn finalize_with_profiling(self) -> (WitnessMap<F>, ProfilingSamples) {
-        if self.status != ACVMStatus::Solved {
-            panic!("ACVM execution is not complete: ({})", self.status);
-        }
-        (self.witness_map, self.profiling_samples)
+    pub fn take_profiling_samples(&mut self) -> ProfilingSamples {
+        std::mem::take(&mut self.profiling_samples)
     }
+
+    /// Finalize the ACVM execution with profiling, returning the resulting [`WitnessMap`] and [`ProfilingSamples`]
+    // pub fn finalize_with_profiling(self) -> (WitnessMap<F>, ProfilingSamples) {
+    //     if self.status != ACVMStatus::Solved {
+    //         panic!("ACVM execution is not complete: ({})", self.status);
+    //     }
+    //     let profiling_samples = self.profiling_samples;
+    //     let witness_map = self.finalize();
+    //     (witness_map, profiling_samples)
+    // }
 
     /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
     pub fn finalize(self) -> WitnessMap<F> {
-        self.finalize_with_profiling().0
+        if self.status != ACVMStatus::Solved {
+            panic!("ACVM execution is not complete: ({})", self.status);
+        }
+        self.witness_map
     }
 
     /// Updates the current status of the VM.
