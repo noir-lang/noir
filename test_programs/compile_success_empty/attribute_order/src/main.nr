@@ -1,9 +1,9 @@
 mod a;
 mod b;
 
-#[assert_run_order_function(15)]
+#[assert_run_order_function(18)]
 fn main() {
-    assert_eq(attributes_run, 16);
+    assert_eq(attributes_run, 19);
 }
 
 comptime mut global attributes_run: Field = 0;
