@@ -142,7 +142,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
 /// Reallocates the target vector for insertion, skipping reallocation if the source vector can be reused.
 /// If it doesn't fit capacity we will reallocate the vector to double the capacity.
 /// Does not copy the items, only reallocates the vector.
-fn reallocate_vector_for_insertion<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+pub(crate) fn reallocate_vector_for_insertion<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
     source_vector: BrilligVector,
     source_rc: SingleAddrVariable,
