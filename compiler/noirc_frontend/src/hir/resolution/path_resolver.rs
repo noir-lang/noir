@@ -112,7 +112,7 @@ fn path_resolution_kind_from_module_def_id_and_generic_type_in_path(
             GenericTypeInPathKind::StructId(struct_id) => match module_def_id {
                 ModuleDefId::FunctionId(func_id) => PathResolutionKind::StructFunction(
                     struct_id,
-                    Some(generic_type_in_path.generics),
+                    Some((generic_type_in_path.generics, generic_type_in_path.span)),
                     func_id,
                 ),
                 _ => path_resolution_kind_from_module_def_if(module_def_id),
@@ -120,7 +120,7 @@ fn path_resolution_kind_from_module_def_id_and_generic_type_in_path(
             GenericTypeInPathKind::TypeAliasId(type_alias_id) => match module_def_id {
                 ModuleDefId::FunctionId(func_id) => PathResolutionKind::TypeAliasFunction(
                     type_alias_id,
-                    Some(generic_type_in_path.generics),
+                    Some((generic_type_in_path.generics, generic_type_in_path.span)),
                     func_id,
                 ),
                 _ => path_resolution_kind_from_module_def_if(module_def_id),
@@ -128,7 +128,7 @@ fn path_resolution_kind_from_module_def_id_and_generic_type_in_path(
             GenericTypeInPathKind::TraitId(trait_id) => match module_def_id {
                 ModuleDefId::FunctionId(func_id) => PathResolutionKind::TraitFunction(
                     trait_id,
-                    Some(generic_type_in_path.generics),
+                    Some((generic_type_in_path.generics, generic_type_in_path.span)),
                     func_id,
                 ),
                 _ => path_resolution_kind_from_module_def_if(module_def_id),

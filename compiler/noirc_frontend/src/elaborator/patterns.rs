@@ -521,11 +521,8 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path_resolution_kind: PathResolutionKind,
     ) -> Vec<Type> {
-        // let span = path_resolution_kind.span;
-        let span = Span::default(); // TODO: span
-
         match path_resolution_kind {
-            PathResolutionKind::StructFunction(struct_id, Some(generics), _func_id) => {
+            PathResolutionKind::StructFunction(struct_id, Some((generics, span)), _func_id) => {
                 let struct_type = self.interner.get_struct(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
@@ -536,23 +533,21 @@ impl<'context> Elaborator<'context> {
                     span,
                 )
             }
-            PathResolutionKind::TypeAliasFunction(..) => {
+            PathResolutionKind::TypeAliasFunction(
+                _type_alias_id,
+                Some((_generics, span)),
+                _func_id,
+            ) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6311
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
                 Vec::new()
             }
-            PathResolutionKind::TraitFunction(..) => {
+            PathResolutionKind::TraitFunction(_trait_id, Some((_generics, span)), _func_id) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6310
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
                 Vec::new()
             }
-            PathResolutionKind::StructFunction(_, None, _)
-            | PathResolutionKind::Module(..)
-            | PathResolutionKind::Struct(..)
-            | PathResolutionKind::TypeAlias(..)
-            | PathResolutionKind::Trait(..)
-            | PathResolutionKind::Global(..)
-            | PathResolutionKind::ModuleFunction(..) => Vec::new(),
+            _ => Vec::new(),
         }
     }
 

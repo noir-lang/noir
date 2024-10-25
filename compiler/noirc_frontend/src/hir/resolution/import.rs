@@ -69,9 +69,9 @@ pub enum PathResolutionKind {
     Trait(TraitId, Option<Vec<UnresolvedType>>),
     Global(GlobalId),
     ModuleFunction(FuncId),
-    StructFunction(StructId, Option<Vec<UnresolvedType>>, FuncId),
-    TypeAliasFunction(TypeAliasId, Option<Vec<UnresolvedType>>, FuncId),
-    TraitFunction(TraitId, Option<Vec<UnresolvedType>>, FuncId),
+    StructFunction(StructId, Option<(Vec<UnresolvedType>, Span)>, FuncId),
+    TypeAliasFunction(TypeAliasId, Option<(Vec<UnresolvedType>, Span)>, FuncId),
+    TraitFunction(TraitId, Option<(Vec<UnresolvedType>, Span)>, FuncId),
 }
 
 impl PathResolutionKind {
