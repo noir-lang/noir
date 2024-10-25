@@ -107,12 +107,12 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
             return;
         };
 
-        self.reference_id = Some(path_resolution_kind_to_reference_id(result.item));
+        self.reference_id = Some(path_resolution_item_to_reference_id(result.item));
     }
 }
 
-fn path_resolution_kind_to_reference_id(path_resolution_kind: PathResolutionItem) -> ReferenceId {
-    match path_resolution_kind {
+fn path_resolution_item_to_reference_id(item: PathResolutionItem) -> ReferenceId {
+    match item {
         PathResolutionItem::Module(module_id) => ReferenceId::Module(module_id),
         PathResolutionItem::Struct(struct_id) => ReferenceId::Struct(struct_id),
         PathResolutionItem::TypeAlias(type_alias_id) => ReferenceId::Alias(type_alias_id),

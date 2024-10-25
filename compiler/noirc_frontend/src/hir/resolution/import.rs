@@ -27,7 +27,7 @@ pub struct ImportDirective {
 
 struct NamespaceResolution {
     module_id: ModuleId,
-    path_resolution_kind: PathResolutionItem,
+    item: PathResolutionItem,
     namespace: PerNs,
     errors: Vec<PathResolutionError>,
 }
@@ -40,6 +40,9 @@ pub struct PathResolution {
     pub errors: Vec<PathResolutionError>,
 }
 
+/// All possible items that result from resolving a Path.
+/// Note that this item doesn't include the last turbofish in a Path,
+/// only intermediate ones, if any.
 #[derive(Debug, Clone)]
 pub enum PathResolutionItem {
     Module(ModuleId),
@@ -92,6 +95,7 @@ pub struct Turbofish {
     pub span: Span,
 }
 
+/// Any item that can appear before the last segment in a path.
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
     Module(ModuleId),
@@ -119,7 +123,8 @@ pub struct ResolvedImport {
     pub name: Ident,
     // The symbol which we have resolved to
     pub resolved_namespace: PerNs,
-    pub path_resolution_kind: PathResolutionItem,
+    // The item which we have resolved to
+    pub item: PathResolutionItem,
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
     pub is_prelude: bool,
@@ -164,7 +169,7 @@ pub fn resolve_import(
     let module_scope = import_directive.module_id;
     let NamespaceResolution {
         module_id: resolved_module,
-        path_resolution_kind,
+        item,
         namespace: resolved_namespace,
         mut errors,
     } = resolve_path_to_ns(
@@ -199,7 +204,7 @@ pub fn resolve_import(
     Ok(ResolvedImport {
         name,
         resolved_namespace,
-        path_resolution_kind,
+        item,
         module_scope,
         is_prelude: import_directive.is_prelude,
         errors,
@@ -343,14 +348,14 @@ fn resolve_name_in_module(
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
     let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
-    let mut path_resolution_kind = IntermediatePathResolutionItem::Module(current_mod_id);
+    let mut intermediate_item = IntermediatePathResolutionItem::Module(current_mod_id);
 
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
         return Ok(NamespaceResolution {
             module_id: current_mod_id,
-            path_resolution_kind: PathResolutionItem::Module(current_mod_id),
+            item: PathResolutionItem::Module(current_mod_id),
             namespace: PerNs::types(current_mod_id.into()),
             errors: Vec::new(),
         });
@@ -378,7 +383,7 @@ fn resolve_name_in_module(
         };
 
         // In the type namespace, only Mod can be used in a path.
-        (current_mod_id, path_resolution_kind) = match typ {
+        (current_mod_id, intermediate_item) = match typ {
             ModuleDefId::ModuleId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Module(id));
@@ -462,17 +467,12 @@ fn resolve_name_in_module(
     let module_def_id =
         current_ns.values.or(current_ns.types).map(|(id, _, _)| id).expect("Found empty namespace");
 
-    let path_resolution_kind = merge_intermediate_path_resolution_item_with_module_def_id(
-        path_resolution_kind,
+    let item = merge_intermediate_path_resolution_item_with_module_def_id(
+        intermediate_item,
         module_def_id,
     );
 
-    Ok(NamespaceResolution {
-        module_id: current_mod_id,
-        path_resolution_kind,
-        namespace: current_ns,
-        errors,
-    })
+    Ok(NamespaceResolution { module_id: current_mod_id, item, namespace: current_ns, errors })
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
@@ -536,7 +536,7 @@ fn resolve_external_dep(
 }
 
 fn merge_intermediate_path_resolution_item_with_module_def_id(
-    path_resolution_kind: IntermediatePathResolutionItem,
+    intermediate_item: IntermediatePathResolutionItem,
     module_def_id: ModuleDefId,
 ) -> PathResolutionItem {
     match module_def_id {
@@ -545,7 +545,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
-        ModuleDefId::FunctionId(func_id) => match path_resolution_kind {
+        ModuleDefId::FunctionId(func_id) => match intermediate_item {
             IntermediatePathResolutionItem::Module(_) => {
                 PathResolutionItem::ModuleFunction(func_id)
             }

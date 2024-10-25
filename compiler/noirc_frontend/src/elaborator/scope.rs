@@ -175,15 +175,15 @@ impl<'context> Elaborator<'context> {
         path: Path,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
         let span = path.span();
-        let path_resolution_kind = self.resolve_path_or_error(path)?;
+        let item = self.resolve_path_or_error(path)?;
 
-        if let Some(function) = path_resolution_kind.function_id() {
-            return Ok((self.interner.function_definition_id(function), path_resolution_kind));
+        if let Some(function) = item.function_id() {
+            return Ok((self.interner.function_definition_id(function), item));
         }
 
-        if let PathResolutionItem::Global(global) = path_resolution_kind {
+        if let PathResolutionItem::Global(global) = item {
             let global = self.interner.get_global(global);
-            return Ok((global.definition_id, path_resolution_kind));
+            return Ok((global.definition_id, item));
         }
 
         let expected = "global variable";
@@ -231,13 +231,13 @@ impl<'context> Elaborator<'context> {
     pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
         let span = path.span();
         match self.resolve_path_or_error(path) {
-            Ok(path_resolution_kind) => {
-                if let PathResolutionItem::Trait(trait_id) = path_resolution_kind {
+            Ok(item) => {
+                if let PathResolutionItem::Trait(trait_id) = item {
                     Some(self.get_trait_mut(trait_id))
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "trait",
-                        got: path_resolution_kind.description(),
+                        got: item.description(),
                         span,
                     });
                     None
@@ -254,13 +254,13 @@ impl<'context> Elaborator<'context> {
     pub fn lookup_struct_or_error(&mut self, path: Path) -> Option<Shared<StructType>> {
         let span = path.span();
         match self.resolve_path_or_error(path) {
-            Ok(path_resolution_kind) => {
-                if let PathResolutionItem::Struct(struct_id) = path_resolution_kind {
+            Ok(item) => {
+                if let PathResolutionItem::Struct(struct_id) = item {
                     Some(self.get_struct(struct_id))
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "type",
-                        got: path_resolution_kind.description(),
+                        got: item.description(),
                         span,
                     });
                     None

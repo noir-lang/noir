@@ -468,14 +468,10 @@ impl<'context> Elaborator<'context> {
         let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let span = variable.span;
-        let (expr, path_resolution_kind) = self.resolve_variable(variable);
+        let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
-        let type_generics = path_resolution_kind
-            .map(|path_resolution_kind| {
-                self.resolve_path_resolution_kind_generics(path_resolution_kind)
-            })
-            .unwrap_or_default();
+        let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
 
         let definition_kind =
             self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
@@ -517,11 +513,8 @@ impl<'context> Elaborator<'context> {
     /// foo::Bar::<i32>::baz
     ///           ^^^^^
     ///         solve these
-    fn resolve_path_resolution_kind_generics(
-        &mut self,
-        path_resolution_kind: PathResolutionItem,
-    ) -> Vec<Type> {
-        match path_resolution_kind {
+    fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
+        match item {
             PathResolutionItem::StructFunction(struct_id, Some(generics), _func_id) => {
                 let struct_type = self.interner.get_struct(struct_id);
                 let struct_type = struct_type.borrow();
@@ -567,8 +560,7 @@ impl<'context> Elaborator<'context> {
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
             let span = path.span();
-            let ((hir_ident, var_scope_index), path_resolution_kind) =
-                self.get_ident_from_path(path);
+            let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
                 match self.interner.definition(hir_ident.id).kind {
@@ -610,7 +602,7 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            (hir_ident, path_resolution_kind)
+            (hir_ident, item)
         }
     }
 
@@ -740,20 +732,14 @@ impl<'context> Elaborator<'context> {
             Some(Ok(found)) => return (found, None),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
-                Ok((id, path_resolution_kind)) => {
-                    return (
-                        (HirIdent::non_trait_method(id, location), 0),
-                        Some(path_resolution_kind),
-                    )
+                Ok((id, item)) => {
+                    return ((HirIdent::non_trait_method(id, location), 0), Some(item))
                 }
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
-                Ok((id, path_resolution_kind)) => {
-                    return (
-                        (HirIdent::non_trait_method(id, location), 0),
-                        Some(path_resolution_kind),
-                    )
+                Ok((id, item)) => {
+                    return ((HirIdent::non_trait_method(id, location), 0), Some(item))
                 }
                 Err(error) => error,
             },

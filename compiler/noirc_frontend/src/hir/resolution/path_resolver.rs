@@ -88,8 +88,5 @@ pub fn resolve_path(
     let resolved_import =
         resolve_import(module_id.krate, &import, def_maps, usage_tracker, path_references)?;
 
-    Ok(PathResolution {
-        item: resolved_import.path_resolution_kind,
-        errors: resolved_import.errors,
-    })
+    Ok(PathResolution { item: resolved_import.item, errors: resolved_import.errors })
 }
