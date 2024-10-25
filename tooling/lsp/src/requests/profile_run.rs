@@ -83,7 +83,7 @@ fn on_profile_run_request_inner(
             let mut file_map: BTreeMap<FileId, DebugFile> = BTreeMap::new();
             for compiled_program in compiled_programs {
                 let compiled_program =
-                    nargo::ops::transform_program(compiled_program, expression_width);
+                    nargo::ops::transform_program(compiled_program, expression_width, false);
 
                 for function_debug in compiled_program.debug.iter() {
                     let span_opcodes = function_debug.count_span_opcodes();
@@ -95,7 +95,7 @@ fn on_profile_run_request_inner(
 
             for compiled_contract in compiled_contracts {
                 let compiled_contract =
-                    nargo::ops::transform_contract(compiled_contract, expression_width);
+                    nargo::ops::transform_contract(compiled_contract, expression_width, false);
 
                 let function_debug_info = compiled_contract
                     .functions

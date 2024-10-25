@@ -191,7 +191,11 @@ fn compile_programs(
 
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);
-        let program = nargo::ops::transform_program(program, target_width);
+        let program = nargo::ops::transform_program(
+            program,
+            target_width,
+            compile_options.experimental_optimization,
+        );
 
         save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
 
@@ -222,7 +226,11 @@ fn compiled_contracts(
                 compile_contract(file_manager, parsed_files, package, compile_options)?;
             let target_width =
                 get_target_width(package.expression_width, compile_options.expression_width);
-            let contract = nargo::ops::transform_contract(contract, target_width);
+            let contract = nargo::ops::transform_contract(
+                contract,
+                target_width,
+                compile_options.experimental_optimization,
+            );
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             Ok(((), warnings))
         })
