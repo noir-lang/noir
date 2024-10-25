@@ -466,7 +466,11 @@ pub(crate) enum GroupKind {
     /// fit in the current line and it's not a block, instead of splitting that expression
     /// somewhere that's probably undesired, we'll "turn it" into a block
     /// (write the "{" and "}" delimiters) and write the lambda body in the next line.
-    LambdaBody { is_block: bool },
+    LambdaBody {
+        block_statement_count: Option<usize>,
+        has_comments: bool,
+        lambda_has_return_type: bool,
+    },
     /// A method call.
     /// We track all this information to see, if we end up needing to format this call
     /// in multiple lines, if we can write everything up to the left parentheses (inclusive)
@@ -762,14 +766,14 @@ impl<'a> Formatter<'a> {
 
             // If a lambda body doesn't fit in the current line and it's not a block,
             // we can turn it into a block and write it in the next line, so its contents fit.
-            if let GroupKind::LambdaBody { is_block: false } = group.kind {
+            if let GroupKind::LambdaBody { block_statement_count: None, .. } = group.kind {
                 // Try to format it again in the next line, but we don't want to recurse
                 // infinitely so we change the group kind.
                 group.kind = GroupKind::Regular;
                 self.write("{");
                 self.trim_spaces();
                 self.increase_indentation();
-                self.write_line();
+                self.write_line_without_skipping_whitespace_and_comments();
                 self.write_indentation();
                 self.format_chunk_group_impl(group);
 
@@ -803,7 +807,7 @@ impl<'a> Formatter<'a> {
                 // )
                 let comma_trimmed = self.trim_comma();
                 self.decrease_indentation();
-                self.write_line();
+                self.write_line_without_skipping_whitespace_and_comments();
                 self.write_indentation();
                 self.write("}");
                 if comma_trimmed {
@@ -813,6 +817,24 @@ impl<'a> Formatter<'a> {
             }
 
             self.format_chunk_group_in_multiple_lines(group);
+            return;
+        }
+
+        // At this point we determined we are going to write this group in a single line.
+        // If the current group is a lambda body that is a block with a single statement, like this:
+        //
+        // |x| { 1 + 2 }
+        //
+        // given that we determined the block fits the current line, if we remove the surrounding
+        // `{ .. }` it will still fit the current line, and reduce some noise from the code
+        // (this is what rustfmt seems to do too).
+        if let GroupKind::LambdaBody {
+            block_statement_count: Some(1),
+            has_comments: false,
+            lambda_has_return_type: false,
+        } = group.kind
+        {
+            self.format_lambda_body_removing_braces(group);
             return;
         }
 
@@ -827,10 +849,10 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
-                    self.write(" ");
+                    self.write_space_without_skipping_whitespace_and_comments();
                 }
                 Chunk::Group(chunks) => self.format_chunk_group_impl(chunks),
-                Chunk::SpaceOrLine => self.write(" "),
+                Chunk::SpaceOrLine => self.write_space_without_skipping_whitespace_and_comments(),
                 Chunk::IncreaseIndentation => self.increase_indentation(),
                 Chunk::DecreaseIndentation => self.decrease_indentation(),
                 Chunk::PushIndentation => self.push_indentation(),
@@ -893,9 +915,16 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 }
                 Chunk::LeadingComment(text_chunk) => {
+                    let ends_with_newline = text_chunk.string.ends_with('\n');
                     self.write_chunk_lines(text_chunk.string.trim());
-                    self.write_line_without_skipping_whitespace_and_comments();
-                    self.write_indentation();
+
+                    // Respect whether the leading comment had a newline before what comes next or not
+                    if ends_with_newline {
+                        self.write_line_without_skipping_whitespace_and_comments();
+                        self.write_indentation();
+                    } else {
+                        self.write_space_without_skipping_whitespace_and_comments();
+                    }
                 }
                 Chunk::Group(mut group) => {
                     if chunks.force_multiline_on_children_with_same_tag_if_multiline
@@ -936,6 +965,31 @@ impl<'a> Formatter<'a> {
                     )
                 }
             }
+        }
+    }
+
+    fn format_lambda_body_removing_braces(&mut self, group: ChunkGroup) {
+        // Write to an intermediate string so we can remove the braces if needed.
+        let text_chunk = self.chunk_formatter().chunk(|formatter| {
+            formatter.format_chunk_group_in_one_line(group);
+        });
+        let string = text_chunk.string;
+
+        // Don't remove the braces if the lambda's body is a Semi expression.
+        if string.ends_with("; }") || string.ends_with("; },") {
+            self.write(&string);
+            return;
+        }
+
+        let string = string.strip_prefix("{ ").unwrap();
+
+        // The lambda might have a trailing comma if it's inside an arguments list
+        if let Some(string) = string.strip_suffix(" },") {
+            self.write(string);
+            self.write(",");
+        } else {
+            let string = string.strip_suffix(" }").unwrap();
+            self.write(string);
         }
     }
 

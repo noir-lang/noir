@@ -1,5 +1,5 @@
-use crate::ops::{Add, Sub, Mul, Div, Rem, Not, BitOr, BitAnd, BitXor, Shl, Shr};
 use crate::cmp::{Eq, Ord, Ordering};
+use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 
 global pow64: Field = 18446744073709551616; //2^64;
 global pow63: Field = 9223372036854775808; // 2^63;
@@ -313,7 +313,7 @@ impl Shr for U128 {
 }
 
 mod tests {
-    use crate::uint128::{U128, pow64, pow63};
+    use crate::uint128::{pow63, pow64, U128};
 
     #[test]
     fn test_not(lo: u64, hi: u64) {

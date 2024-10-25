@@ -735,6 +735,7 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             trait_bounds: Vec::new(),
+            where_clause: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
