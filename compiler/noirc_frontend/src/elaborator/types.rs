@@ -566,7 +566,7 @@ impl<'context> Elaborator<'context> {
         let path_resolution = self.resolve_path(path.clone()).ok()?;
         let ModuleDefId::FunctionId(func_id) = path_resolution.module_def_id else { return None };
 
-        let meta = self.interner.function_meta(&func_id);
+        let meta = self.interner.try_function_meta(&func_id)?;
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.span);

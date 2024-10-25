@@ -119,9 +119,11 @@ pub struct ModuleAttribute {
     pub file_id: FileId,
     // The module this attribute is attached to
     pub module_id: LocalModuleId,
+
     // The file where the attribute exists (it could be the same as `file_id`
-    // or a different one if it's an inner attribute in a different file)
+    // or a different one if it is an outer attribute in the parent of the module it applies to)
     pub attribute_file_id: FileId,
+
     // The module where the attribute is defined (similar to `attribute_file_id`,
     // it could be different than `module_id` for inner attributes)
     pub attribute_module_id: LocalModuleId,
