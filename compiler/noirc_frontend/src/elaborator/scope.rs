@@ -283,10 +283,31 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        self.lookup_struct_or_error(path).map(|struct_type| {
-            let struct_generics = struct_type.borrow().instantiate(self.interner);
-            Type::Struct(struct_type, struct_generics)
-        })
+        let span = path.span;
+        match self.resolve_path_or_error(path) {
+            Ok(PathResolutionItem::Struct(struct_id)) => {
+                let struct_type = self.get_struct(struct_id);
+                let generics = struct_type.borrow().instantiate(self.interner);
+                Some(Type::Struct(struct_type, generics))
+            }
+            Ok(PathResolutionItem::TypeAlias(alias_id)) => {
+                let alias = self.interner.get_type_alias(alias_id);
+                let alias = alias.borrow();
+                Some(alias.instantiate(self.interner))
+            }
+            Ok(other) => {
+                self.push_err(ResolverError::Expected {
+                    expected: "type",
+                    got: other.description(),
+                    span,
+                });
+                None
+            }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
     }
 
     pub fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {

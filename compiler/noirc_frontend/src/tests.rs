@@ -3546,3 +3546,19 @@ fn uses_self_in_import() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn alias_in_let_pattern() {
+    let src = r#"
+        struct Foo<T> { x: T }
+
+        type Bar<U> = Foo<U>;
+
+        fn main() {
+            let Bar { x } = Foo { x: [0] };
+            // This is just to show the compiler knows this is an array.
+            let _: [Field; 1] = x;
+        }
+    "#;
+    assert_no_errors(src);
+}
