@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
+use fm::{FileId, FileMap};
+use lsp_types::{Position, Range, TextEdit};
 use noirc_errors::Span;
 use noirc_frontend::ast::{PathKind, UseTree, UseTreeKind};
+
+use crate::requests::to_lsp_location;
 
 /// The position of a segment in a `use` statement.
 /// We use this to determine how an auto-import should be inserted.
@@ -195,4 +199,138 @@ impl UseSegmentPositions {
             self.use_segment_positions.insert(segment, UseSegmentPosition::NoneOrMultiple);
         }
     }
+}
+
+pub(crate) struct UseCompletionItemAdditionTextEditsRequest<'a> {
+    /// The full path of the use statement to insert
+    pub(crate) full_path: &'a str,
+    pub(crate) files: &'a FileMap,
+    pub(crate) file: FileId,
+    /// All of the current source lines
+    pub(crate) lines: &'a Vec<&'a str>,
+    /// How many nested `mod` we are in deep
+    pub(crate) nesting: usize,
+    /// The line where an auto_import must be inserted
+    pub(crate) auto_import_line: usize,
+}
+
+/// Returns the text edits needed to add an auto-import for a given full path.
+pub(crate) fn use_completion_item_additional_text_edits(
+    request: UseCompletionItemAdditionTextEditsRequest,
+    positions: &UseSegmentPositions,
+) -> Vec<TextEdit> {
+    let (use_segment_position, name) = positions.get(request.full_path);
+    match use_segment_position {
+        UseSegmentPosition::NoneOrMultiple => {
+            // The parent path either isn't in any use statement, or it exists in multiple
+            // use statements. In either case we'll add a new use statement.
+
+            new_use_completion_item_additional_text_edits(request)
+        }
+        UseSegmentPosition::Last { span } => {
+            // We have
+            //
+            // use foo::bar;
+            //          ^^^ -> span
+            //
+            // and we want to transform it to:
+            //
+            // use foo::bar::{self, baz};
+            //             ^^^^^^^^^^^^^
+            //
+            // So we need one text edit:
+            // 1. insert "::{self, baz}" right after the span
+            if let Some(lsp_location) = to_lsp_location(request.files, request.file, span) {
+                let range = lsp_location.range;
+                vec![TextEdit {
+                    new_text: format!("::{{self, {}}}", name),
+                    range: Range { start: range.end, end: range.end },
+                }]
+            } else {
+                new_use_completion_item_additional_text_edits(request)
+            }
+        }
+        UseSegmentPosition::BeforeSegment { segment_span_until_end } => {
+            // Go past the end
+            let segment_span_until_end =
+                Span::from(segment_span_until_end.start()..segment_span_until_end.end() + 1);
+
+            // We have
+            //
+            // use foo::bar::{one, two};
+            //          ^^^^^^^^^^^^^^^ -> segment_span_until_end
+            //
+            // and we want to transform it to:
+            //
+            // use foo::{bar::{one, two}, baz};
+            //          ^               ^^^^^^
+            //
+            // So we need two text edits:
+            // 1. insert "{" right before the segment span
+            // 2. insert ", baz}" right after the segment span
+            if let Some(lsp_location) =
+                to_lsp_location(request.files, request.file, segment_span_until_end)
+            {
+                let range = lsp_location.range;
+                vec![
+                    TextEdit {
+                        new_text: "{".to_string(),
+                        range: Range { start: range.start, end: range.start },
+                    },
+                    TextEdit {
+                        new_text: format!(", {}}}", name),
+                        range: Range { start: range.end, end: range.end },
+                    },
+                ]
+            } else {
+                new_use_completion_item_additional_text_edits(request)
+            }
+        }
+        UseSegmentPosition::BeforeList { first_entry_span, list_is_empty } => {
+            // We have
+            //
+            // use foo::bar::{one, two};
+            //                ^^^ -> first_entry_span
+            //
+            // and we want to transform it to:
+            //
+            // use foo::bar::{baz, one, two};
+            //                ^^^^
+            //
+            // So we need one text edit:
+            // 1. insert "baz, " right before the first entry span
+            if let Some(lsp_location) =
+                to_lsp_location(request.files, request.file, first_entry_span)
+            {
+                let range = lsp_location.range;
+                vec![TextEdit {
+                    new_text: if list_is_empty { name } else { format!("{}, ", name) },
+                    range: Range { start: range.start, end: range.start },
+                }]
+            } else {
+                new_use_completion_item_additional_text_edits(request)
+            }
+        }
+    }
+}
+
+fn new_use_completion_item_additional_text_edits(
+    request: UseCompletionItemAdditionTextEditsRequest,
+) -> Vec<TextEdit> {
+    let line = request.auto_import_line as u32;
+    let character = (request.nesting * 4) as u32;
+    let indent = " ".repeat(request.nesting * 4);
+    let mut newlines = "\n";
+
+    // If the line we are inserting into is not an empty line, insert an extra line to make some room
+    if let Some(line_text) = request.lines.get(line as usize) {
+        if !line_text.trim().is_empty() {
+            newlines = "\n\n";
+        }
+    }
+
+    vec![TextEdit {
+        range: Range { start: Position { line, character }, end: Position { line, character } },
+        new_text: format!("use {};{}{}", request.full_path, newlines, indent),
+    }]
 }

@@ -15,17 +15,18 @@ pub(crate) fn apply_text_edit(src: &str, text_edit: &TextEdit) -> String {
     lines.join("\n")
 }
 
-pub(crate) fn apply_text_edits(src: &str, text_edits: &mut [TextEdit]) -> String {
+pub(crate) fn apply_text_edits(src: &str, text_edits: &[TextEdit]) -> String {
     let mut text = src.to_string();
 
     // Text edits must be applied from last to first, otherwise if we apply a text edit
     // that comes before another one, that other one becomes invalid (it will edit the wrong
     // piece of code).
+    let mut text_edits = text_edits.to_vec();
     text_edits.sort_by_key(|edit| (edit.range.start.line, edit.range.start.character));
     text_edits.reverse();
 
     for text_edit in text_edits {
-        text = apply_text_edit(&text, text_edit);
+        text = apply_text_edit(&text, &text_edit);
     }
 
     text

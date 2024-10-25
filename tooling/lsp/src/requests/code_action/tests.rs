@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{notifications::on_did_open_text_document, test_utils, tests::apply_text_edit};
+use crate::{notifications::on_did_open_text_document, test_utils, tests::apply_text_edits};
 
 use lsp_types::{
     CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
@@ -70,9 +70,8 @@ pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
 
     let workspace_edit = action.edit.as_ref().unwrap();
     let text_edits = workspace_edit.changes.as_ref().unwrap().iter().next().unwrap().1;
-    assert_eq!(text_edits.len(), 1);
 
-    let result = apply_text_edit(&src.replace(">|<", ""), &text_edits[0]);
+    let result = apply_text_edits(&src.replace(">|<", ""), text_edits);
     if result != expected {
         println!("Expected:\n```\n{}\n```\n\nGot:\n```\n{}\n```", expected, result);
         assert_eq!(result, expected);

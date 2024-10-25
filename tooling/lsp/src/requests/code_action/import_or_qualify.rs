@@ -1,4 +1,4 @@
-use lsp_types::{Position, Range, TextEdit};
+use lsp_types::TextEdit;
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::{Ident, Path},
@@ -8,6 +8,9 @@ use noirc_frontend::{
 use crate::{
     byte_span_to_range,
     modules::{relative_module_full_path, relative_module_id_path},
+    use_segment_positions::{
+        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+    },
 };
 
 use super::CodeActionFinder;
@@ -82,25 +85,21 @@ impl<'a> CodeActionFinder<'a> {
     }
 
     fn push_import_code_action(&mut self, full_path: &str) {
-        let line = self.auto_import_line as u32;
-        let character = (self.nesting * 4) as u32;
-        let indent = " ".repeat(self.nesting * 4);
-        let mut newlines = "\n";
-
-        // If the line we are inserting into is not an empty line, insert an extra line to make some room
-        if let Some(line_text) = self.lines.get(line as usize) {
-            if !line_text.trim().is_empty() {
-                newlines = "\n\n";
-            }
-        }
-
         let title = format!("Import {}", full_path);
-        let text_edit = TextEdit {
-            range: Range { start: Position { line, character }, end: Position { line, character } },
-            new_text: format!("use {};{}{}", full_path, newlines, indent),
-        };
 
-        let code_action = self.new_quick_fix(title, text_edit);
+        let text_edits = use_completion_item_additional_text_edits(
+            UseCompletionItemAdditionTextEditsRequest {
+                full_path,
+                files: self.files,
+                file: self.file,
+                lines: &self.lines,
+                nesting: self.nesting,
+                auto_import_line: self.auto_import_line,
+            },
+            &self.use_segment_positions,
+        );
+
+        let code_action = self.new_quick_fix_multiple_edits(title, text_edits);
         self.code_actions.push(code_action);
     }
 
@@ -235,6 +234,33 @@ mod foo {
 fn main() {
     some_module_in_bar
 }"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_code_action_for_struct_inserts_into_existing_use() {
+        let title = "Import foo::bar::SomeTypeInBar";
+
+        let src = r#"use foo::bar::SomeOtherType;
+
+mod foo {
+    mod bar {
+        pub struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeType>|<InBar) {}"#;
+
+        let expected = r#"use foo::bar::{SomeOtherType, SomeTypeInBar};
+
+mod foo {
+    mod bar {
+        pub struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeTypeInBar) {}"#;
 
         assert_code_action(title, src, expected).await;
     }

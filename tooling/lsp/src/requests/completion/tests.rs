@@ -1447,7 +1447,7 @@ fn main() {
         );
 
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1493,7 +1493,7 @@ mod foo {
         );
 
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1538,7 +1538,7 @@ mod foo {
         );
 
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1582,7 +1582,7 @@ fn main() {
         let item = items.remove(0);
 
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1666,7 +1666,7 @@ mod foo {
         );
 
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1703,7 +1703,7 @@ fn main() {
 
         let item = items.remove(0);
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1741,7 +1741,7 @@ fn main() {
 
         let item = items.remove(0);
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1781,7 +1781,7 @@ fn main() {
 
         let item = items.remove(0);
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1827,7 +1827,7 @@ fn main() {
 
         let item = items.remove(0);
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1865,7 +1865,7 @@ fn main() {
 
         let item = items.remove(0);
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1905,7 +1905,7 @@ fn main() {
 
         let item = items.remove(0);
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1941,7 +1941,7 @@ fn main() {
 
         let item = items.remove(0);
         let changed =
-            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }

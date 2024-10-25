@@ -378,7 +378,7 @@ fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> 
     }
 }
 
-fn to_lsp_location<'a, F>(
+pub(crate) fn to_lsp_location<'a, F>(
     files: &'a F,
     file_id: F::FileId,
     definition_span: noirc_errors::Span,
