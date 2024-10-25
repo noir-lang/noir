@@ -38,7 +38,7 @@ use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    utils, visibility::is_visible, LspState,
+    use_segment_positions::UseSegmentPositions, utils, visibility::is_visible, LspState,
 };
 
 use super::process_request;
@@ -88,42 +88,6 @@ pub(crate) fn on_completion_request(
     future::ready(result)
 }
 
-/// The position of a segment in a `use` statement.
-/// We use this to determine how an auto-import should be inserted.
-#[derive(Debug, Default, Copy, Clone)]
-enum UseSegmentPosition {
-    /// The segment either doesn't exist in the source code or there are multiple segments.
-    /// In this case auto-import will add a new use statement.
-    #[default]
-    NoneOrMultiple,
-    /// The segment is the last one in the `use` statement (or nested use statement):
-    ///
-    /// use foo::bar;
-    ///          ^^^
-    ///
-    /// Auto-import will transform it to this:
-    ///
-    /// use foo::bar::{self, baz};
-    Last { span: Span },
-    /// The segment happens before another simple (ident) segment:
-    ///
-    /// use foo::bar::qux;
-    ///          ^^^
-    ///
-    /// Auto-import will transform it to this:
-    ///
-    /// use foo::bar::{qux, baz};
-    BeforeSegment { segment_span_until_end: Span },
-    /// The segment happens before a list:
-    ///
-    /// use foo::bar::{qux, another};
-    ///
-    /// Auto-import will transform it to this:
-    ///
-    /// use foo::bar::{qux, another, baz};
-    BeforeList { first_entry_span: Span, list_is_empty: bool },
-}
-
 struct NodeFinder<'a> {
     files: &'a FileMap,
     file: FileId,
@@ -151,11 +115,7 @@ struct NodeFinder<'a> {
     nesting: usize,
     /// The line where an auto_import must be inserted
     auto_import_line: usize,
-    /// Remember where each segment in a `use` statement is located.
-    /// The key is the full segment, so for `use foo::bar::baz` we'll have three
-    /// segments: `foo`, `foo::bar` and `foo::bar::baz`, where the span is just
-    /// for the last identifier (`foo`, `bar` and `baz` in the previous example).
-    use_segment_positions: HashMap<String, UseSegmentPosition>,
+    use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
     in_comptime: bool,
 }
@@ -200,7 +160,7 @@ impl<'a> NodeFinder<'a> {
             suggested_module_def_ids: HashSet::new(),
             nesting: 0,
             auto_import_line: 0,
-            use_segment_positions: HashMap::new(),
+            use_segment_positions: UseSegmentPositions::default(),
             self_type: None,
             in_comptime: false,
         }
@@ -1078,121 +1038,6 @@ impl<'a> NodeFinder<'a> {
     }
 
     /// Determine where each segment in a `use` statement is located.
-    fn gather_use_tree_segments(&mut self, use_tree: &UseTree, mut prefix: String) {
-        let kind_string = match use_tree.prefix.kind {
-            PathKind::Crate => Some("crate".to_string()),
-            PathKind::Super => Some("super".to_string()),
-            PathKind::Dep | PathKind::Plain => None,
-        };
-        if let Some(kind_string) = kind_string {
-            if let Some(segment) = use_tree.prefix.segments.first() {
-                self.insert_use_segment_position(
-                    kind_string,
-                    UseSegmentPosition::BeforeSegment {
-                        segment_span_until_end: Span::from(
-                            segment.ident.span().start()..use_tree.span.end() - 1,
-                        ),
-                    },
-                );
-            } else {
-                self.insert_use_segment_position_before_use_tree_kind(use_tree, kind_string);
-            }
-        }
-
-        let prefix_segments_len = use_tree.prefix.segments.len();
-        for (index, segment) in use_tree.prefix.segments.iter().enumerate() {
-            let ident = &segment.ident;
-            if !prefix.is_empty() {
-                prefix.push_str("::");
-            };
-            prefix.push_str(&ident.0.contents);
-
-            if index < prefix_segments_len - 1 {
-                self.insert_use_segment_position(
-                    prefix.clone(),
-                    UseSegmentPosition::BeforeSegment {
-                        segment_span_until_end: Span::from(
-                            use_tree.prefix.segments[index + 1].ident.span().start()
-                                ..use_tree.span.end() - 1,
-                        ),
-                    },
-                );
-            } else {
-                self.insert_use_segment_position_before_use_tree_kind(use_tree, prefix.clone());
-            }
-        }
-
-        match &use_tree.kind {
-            UseTreeKind::Path(ident, alias) => {
-                if !prefix.is_empty() {
-                    prefix.push_str("::");
-                }
-                prefix.push_str(&ident.0.contents);
-
-                if alias.is_none() {
-                    self.insert_use_segment_position(
-                        prefix,
-                        UseSegmentPosition::Last { span: ident.span() },
-                    );
-                } else {
-                    self.insert_use_segment_position(prefix, UseSegmentPosition::NoneOrMultiple);
-                }
-            }
-            UseTreeKind::List(use_trees) => {
-                for use_tree in use_trees {
-                    self.gather_use_tree_segments(use_tree, prefix.clone());
-                }
-            }
-        }
-    }
-
-    fn insert_use_segment_position_before_use_tree_kind(
-        &mut self,
-        use_tree: &UseTree,
-        prefix: String,
-    ) {
-        match &use_tree.kind {
-            UseTreeKind::Path(ident, _alias) => {
-                self.insert_use_segment_position(
-                    prefix,
-                    UseSegmentPosition::BeforeSegment {
-                        segment_span_until_end: Span::from(
-                            ident.span().start()..use_tree.span.end() - 1,
-                        ),
-                    },
-                );
-            }
-            UseTreeKind::List(use_trees) => {
-                if let Some(first_use_tree) = use_trees.first() {
-                    self.insert_use_segment_position(
-                        prefix,
-                        UseSegmentPosition::BeforeList {
-                            first_entry_span: first_use_tree.prefix.span(),
-                            list_is_empty: false,
-                        },
-                    );
-                } else {
-                    self.insert_use_segment_position(
-                        prefix,
-                        UseSegmentPosition::BeforeList {
-                            first_entry_span: Span::from(
-                                use_tree.span.end() - 1..use_tree.span.end() - 1,
-                            ),
-                            list_is_empty: true,
-                        },
-                    );
-                }
-            }
-        }
-    }
-
-    fn insert_use_segment_position(&mut self, segment: String, position: UseSegmentPosition) {
-        if self.use_segment_positions.get(&segment).is_none() {
-            self.use_segment_positions.insert(segment, position);
-        } else {
-            self.use_segment_positions.insert(segment, UseSegmentPosition::NoneOrMultiple);
-        }
-    }
 
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
@@ -1205,7 +1050,7 @@ impl<'a> Visitor for NodeFinder<'a> {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
-            self.gather_use_tree_segments(use_tree, String::new());
+            self.use_segment_positions.add(use_tree);
         }
 
         self.includes_span(item.span)
