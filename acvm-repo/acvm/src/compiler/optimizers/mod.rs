@@ -5,10 +5,12 @@ use acir::{
 
 // mod constant_backpropagation;
 mod general;
+mod merge_expressions;
 mod redundant_range;
 mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
+pub(crate) use merge_expressions::MergeExpressionsOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 

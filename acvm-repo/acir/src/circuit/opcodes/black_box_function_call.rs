@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::native_types::Witness;
 use crate::{AcirField, BlackBoxFunc};
 
@@ -388,6 +390,16 @@ impl<F: Copy> BlackBoxFuncCall<F> {
             }
             BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
         }
+    }
+
+    pub fn get_input_witnesses(&self) -> BTreeSet<Witness> {
+        let mut result = BTreeSet::new();
+        for input in self.get_inputs_vec() {
+            if let ConstantOrWitnessEnum::Witness(w) = input.input() {
+                result.insert(w);
+            }
+        }
+        result
     }
 }
 

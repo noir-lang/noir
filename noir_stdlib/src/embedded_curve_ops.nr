@@ -1,5 +1,5 @@
-use crate::ops::arith::{Add, Sub, Neg};
 use crate::cmp::Eq;
+use crate::ops::arith::{Add, Neg, Sub};
 
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
@@ -112,15 +112,9 @@ pub fn multi_scalar_mul<let N: u32>(
 }
 
 #[foreign(multi_scalar_mul)]
-fn multi_scalar_mul_array_return<let N: u32>(
+pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N],
-) -> [Field; 3] {}
-
-#[foreign(multi_scalar_mul)]
-pub(crate) fn multi_scalar_mul_slice(
-    points: [EmbeddedCurvePoint],
-    scalars: [EmbeddedCurveScalar],
 ) -> [Field; 3] {}
 
 // docs:start:fixed_base_scalar_mul

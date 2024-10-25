@@ -6,6 +6,7 @@ use acir::circuit::OpcodeLocation;
 use acir::AcirField;
 use color_eyre::eyre::{self};
 use fm::codespan_files::Files;
+use fxhash::FxHashMap as HashMap;
 use inferno::flamegraph::{from_lines, Options, TextTruncateDirection};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
@@ -17,7 +18,7 @@ use super::opcode_formatter::format_opcode;
 
 #[derive(Debug)]
 pub(crate) struct Sample<F: AcirField> {
-    pub(crate) opcode: AcirOrBrilligOpcode<F>,
+    pub(crate) opcode: Option<AcirOrBrilligOpcode<F>>,
     pub(crate) call_stack: Vec<OpcodeLocation>,
     pub(crate) count: usize,
     pub(crate) brillig_function_id: Option<BrilligFunctionId>,
@@ -88,39 +89,59 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
     // Create a nested hashmap with the stack items, folding the gates for all the callsites that are equal
     let mut folded_stack_items = BTreeMap::new();
 
-    samples.into_iter().for_each(|sample| {
-        let mut location_names: Vec<String> = sample
-            .call_stack
-            .into_iter()
-            .flat_map(|opcode_location| {
-                debug_symbols.opcode_location(&opcode_location).unwrap_or_else(|| {
-                    if let (Some(brillig_function_id), Some(brillig_location)) =
-                        (sample.brillig_function_id, opcode_location.to_brillig_location())
-                    {
-                        let brillig_locations =
-                            debug_symbols.brillig_locations.get(&brillig_function_id);
-                        if let Some(brillig_locations) = brillig_locations {
-                            brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
-                        } else {
-                            vec![]
-                        }
-                    } else {
-                        vec![]
-                    }
+    let mut resolution_cache: HashMap<OpcodeLocation, Vec<String>> = HashMap::default();
+    for sample in samples {
+        let mut location_names = Vec::with_capacity(sample.call_stack.len());
+        for opcode_location in sample.call_stack {
+            let callsite_labels = resolution_cache
+                .entry(opcode_location)
+                .or_insert_with(|| {
+                    find_callsite_labels(
+                        debug_symbols,
+                        &opcode_location,
+                        sample.brillig_function_id,
+                        files,
+                    )
                 })
-            })
-            .map(|location| location_to_callsite_label(location, files))
-            .collect();
+                .clone();
 
-        if location_names.is_empty() {
-            location_names.push("unknown".to_string());
+            location_names.extend(callsite_labels);
         }
-        location_names.push(format_opcode(&sample.opcode));
 
+        if let Some(opcode) = &sample.opcode {
+            location_names.push(format_opcode(opcode));
+        }
         add_locations_to_folded_stack_items(&mut folded_stack_items, location_names, sample.count);
-    });
+    }
 
     to_folded_sorted_lines(&folded_stack_items, Default::default())
+}
+
+fn find_callsite_labels<'files>(
+    debug_symbols: &DebugInfo,
+    opcode_location: &OpcodeLocation,
+    brillig_function_id: Option<BrilligFunctionId>,
+    files: &'files impl Files<'files, FileId = fm::FileId>,
+) -> Vec<String> {
+    let source_locations = debug_symbols.opcode_location(opcode_location).unwrap_or_else(|| {
+        if let (Some(brillig_function_id), Some(brillig_location)) =
+            (brillig_function_id, opcode_location.to_brillig_location())
+        {
+            let brillig_locations = debug_symbols.brillig_locations.get(&brillig_function_id);
+            if let Some(brillig_locations) = brillig_locations {
+                brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
+    });
+    let callsite_labels: Vec<_> = source_locations
+        .into_iter()
+        .map(|location| location_to_callsite_label(location, files))
+        .collect();
+    callsite_labels
 }
 
 fn location_to_callsite_label<'files>(
@@ -300,23 +321,27 @@ mod tests {
 
         let samples: Vec<Sample<FieldElement>> = vec![
             Sample {
-                opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(Expression::default())),
+                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(
+                    Expression::default(),
+                ))),
                 call_stack: vec![OpcodeLocation::Acir(0)],
                 count: 10,
                 brillig_function_id: None,
             },
             Sample {
-                opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(Expression::default())),
+                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(
+                    Expression::default(),
+                ))),
                 call_stack: vec![OpcodeLocation::Acir(1)],
                 count: 20,
                 brillig_function_id: None,
             },
             Sample {
-                opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::MemoryInit {
+                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::MemoryInit {
                     block_id: BlockId(0),
                     init: vec![],
                     block_type: acir::circuit::opcodes::BlockType::Memory,
-                }),
+                })),
                 call_stack: vec![OpcodeLocation::Acir(2)],
                 count: 30,
                 brillig_function_id: None,

@@ -259,6 +259,8 @@ mod tests {
         let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
         let _ = derive_do_nothing(crate::panic::panic(f""));
         let _ = derive_do_nothing_alt(crate::panic::panic(f""));
-        remove_unused_warnings();
+        if false {
+            remove_unused_warnings();
+        }
     }
 }
