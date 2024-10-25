@@ -1,6 +1,9 @@
-use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::{
+    def_collector::dc_crate::CompilationError, resolution::errors::ResolverError,
+    type_check::TypeCheckError,
+};
 
-use super::get_program_errors;
+use super::{assert_no_errors, get_program_errors};
 
 // Regression for #5388
 #[test]
@@ -70,6 +73,25 @@ fn unquoted_integer_as_integer_token() {
     }
 
     fn main() {}
+    "#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_references_to_structs_generated_by_macros() {
+    let src = r#"
+    comptime fn make_new_struct(_s: StructDefinition) -> Quoted {
+        quote { struct Bar {} }
+    }
+
+    #[make_new_struct]
+    struct Foo {}
+
+    fn main() {
+        let _ = Foo {};
+        let _ = Bar {};
+    }
     "#;
 
     assert_no_errors(src);

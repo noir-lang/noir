@@ -63,6 +63,15 @@ pub enum VMStatus<F> {
     },
 }
 
+// A sample for each opcode that was executed.
+pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct BrilligProfilingSample {
+    // The call stack when processing a given opcode.
+    pub call_stack: Vec<usize>,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// VM encapsulates the state of the Brillig VM during execution.
 pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
@@ -88,6 +97,10 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     black_box_solver: &'a B,
     // The solver for big integers
     bigint_solver: BrilligBigintSolver,
+    // Flag that determines whether we want to profile VM.
+    profiling_active: bool,
+    // Samples for profiling the VM execution.
+    profiling_samples: BrilligProfilingSamples,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -97,6 +110,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         bytecode: &'a [Opcode<F>],
         foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
+        profiling_active: bool,
     ) -> Self {
         Self {
             calldata,
@@ -109,7 +123,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             call_stack: Vec::new(),
             black_box_solver,
             bigint_solver: Default::default(),
+            profiling_active,
+            profiling_samples: Vec::with_capacity(bytecode.len()),
         }
+    }
+
+    pub fn is_profiling_active(&self) -> bool {
+        self.profiling_active
+    }
+
+    pub fn take_profiling_samples(&mut self) -> BrilligProfilingSamples {
+        std::mem::take(&mut self.profiling_samples)
     }
 
     /// Updates the current status of the VM.
@@ -196,6 +220,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Process a single opcode and modify the program counter.
     pub fn process_opcode(&mut self) -> VMStatus<F> {
+        if self.profiling_active {
+            let call_stack: Vec<usize> = self.get_call_stack();
+            self.profiling_samples.push(BrilligProfilingSample { call_stack });
+        }
+
+        self.process_opcode_internal()
+    }
+
+    fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
@@ -813,7 +846,7 @@ mod tests {
         }];
 
         // Start VM
-        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
@@ -863,7 +896,7 @@ mod tests {
             Opcode::JumpIf { condition: destination, location: 6 },
         ];
 
-        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -921,7 +954,7 @@ mod tests {
             },
         ];
 
-        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -982,7 +1015,7 @@ mod tests {
             },
             Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
         ];
-        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1033,7 +1066,7 @@ mod tests {
             },
             Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
         ];
-        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1079,7 +1112,7 @@ mod tests {
             },
             Opcode::Mov { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(0) },
         ];
-        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1144,7 +1177,7 @@ mod tests {
                 condition: MemoryAddress::direct(1),
             },
         ];
-        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1240,7 +1273,7 @@ mod tests {
             .chain(cast_opcodes)
             .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
             .collect();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         // Calldata copy
         let status = vm.process_opcode();
@@ -1368,7 +1401,7 @@ mod tests {
                 value: FieldElement::from(27_usize),
             },
         ];
-        let mut vm = VM::new(vec![], opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(vec![], opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1592,7 +1625,7 @@ mod tests {
         calldata: Vec<F>,
         opcodes: &[Opcode<F>],
     ) -> VM<'_, F, StubbedBlackBoxSolver> {
-        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver, false);
         brillig_execute(&mut vm);
         assert_eq!(vm.call_stack, vec![]);
         vm
@@ -2271,7 +2304,7 @@ mod tests {
             },
         ];
 
-        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver, false);
 
         vm.process_opcode();
         vm.process_opcode();

@@ -34,7 +34,7 @@ contract Benchmarking {
                 notes: Map::new(
                     context,
                     1,
-                    |context, slot| { PrivateSet::new(context, slot, ValueNoteMethods) },
+                    |context, slot| PrivateSet::new(context, slot, ValueNoteMethods),
                 ),
                 balances: Map::new(
                     context,
