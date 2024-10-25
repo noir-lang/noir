@@ -3546,3 +3546,20 @@ fn uses_self_in_import() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn alias_in_let_pattern() {
+    let src = r#"
+        struct Foo<T> { x: T }
+
+        type Bar<U> = Foo<U>;
+
+        fn main() {
+            let U { x } = Foo { x: [0] };
+            // This is just to show the compiler knows this is an array.
+            // The assert_eq isn't run by the frontend tests.
+            assert_eq(x.len(), 1);
+        }
+    "#;
+    assert_no_errors(src);
+}
