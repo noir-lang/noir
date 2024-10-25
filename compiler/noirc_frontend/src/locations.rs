@@ -5,7 +5,10 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{FunctionDefinition, ItemVisibility},
-    hir::def_map::{ModuleDefId, ModuleId},
+    hir::{
+        def_map::{ModuleDefId, ModuleId},
+        resolution::import::PathResolutionKind,
+    },
     node_interner::{
         DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
     },
@@ -97,6 +100,37 @@ impl NodeInterner {
                 self.add_global_reference(global_id, location);
             }
         };
+    }
+
+    pub(crate) fn add_path_resolution_kind_reference(
+        &mut self,
+        kind: PathResolutionKind,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        match kind {
+            PathResolutionKind::Module(module_id) => {
+                self.add_module_reference(module_id, location);
+            }
+            PathResolutionKind::Struct(struct_id, _generics) => {
+                self.add_struct_reference(struct_id, location, is_self_type);
+            }
+            PathResolutionKind::TypeAlias(type_alias_id, _generics) => {
+                self.add_alias_reference(type_alias_id, location);
+            }
+            PathResolutionKind::Trait(trait_id, _generics) => {
+                self.add_trait_reference(trait_id, location, is_self_type);
+            }
+            PathResolutionKind::Global(global_id) => {
+                self.add_global_reference(global_id, location);
+            }
+            PathResolutionKind::ModuleFunction(func_id)
+            | PathResolutionKind::StructFunction(_, _, func_id)
+            | PathResolutionKind::TypeAliasFunction(_, _, func_id)
+            | PathResolutionKind::TraitFunction(_, _, func_id) => {
+                self.add_function_reference(func_id, location);
+            }
+        }
     }
 
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {

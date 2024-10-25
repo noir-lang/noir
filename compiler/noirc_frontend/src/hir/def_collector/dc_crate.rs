@@ -551,18 +551,16 @@ fn inject_prelude(
             span: Span::default(),
         };
 
-        if let Ok(PathResolution { module_def_id, generic_type_in_path: _, errors }) =
-            path_resolver::resolve_path(
-                &context.def_maps,
-                ModuleId { krate: crate_id, local_id: crate_root },
-                None,
-                path,
-                &mut context.def_interner.usage_tracker,
-                &mut None,
-            )
-        {
+        if let Ok(PathResolution { kind, errors }) = path_resolver::resolve_path(
+            &context.def_maps,
+            ModuleId { krate: crate_id, local_id: crate_root },
+            None,
+            path,
+            &mut context.def_interner.usage_tracker,
+            &mut None,
+        ) {
             assert!(errors.is_empty(), "Tried to add private item to prelude");
-            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
+            let module_id = kind.module_id().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {

@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 
-use crate::node_interner::{ReferenceId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId};
 use crate::usage_tracker::UsageTracker;
 
 use std::collections::BTreeMap;
@@ -55,10 +55,56 @@ struct NamespaceResolution {
 
 type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
 
+#[derive(Debug)]
 pub struct PathResolution {
-    pub module_def_id: ModuleDefId,
-    pub generic_type_in_path: Option<GenericTypeInPath>,
+    pub kind: PathResolutionKind,
     pub errors: Vec<PathResolutionError>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PathResolutionKind {
+    Module(ModuleId),
+    Struct(StructId, Option<Vec<UnresolvedType>>), // The generics, if any (using Option to distinguish the `::<>` case)
+    TypeAlias(TypeAliasId, Option<Vec<UnresolvedType>>),
+    Trait(TraitId, Option<Vec<UnresolvedType>>),
+    Global(GlobalId),
+    ModuleFunction(FuncId),
+    StructFunction(StructId, Option<Vec<UnresolvedType>>, FuncId),
+    TypeAliasFunction(TypeAliasId, Option<Vec<UnresolvedType>>, FuncId),
+    TraitFunction(TraitId, Option<Vec<UnresolvedType>>, FuncId),
+}
+
+impl PathResolutionKind {
+    pub fn function_id(&self) -> Option<FuncId> {
+        match self {
+            PathResolutionKind::ModuleFunction(func_id)
+            | PathResolutionKind::StructFunction(_, _, func_id)
+            | PathResolutionKind::TypeAliasFunction(_, _, func_id)
+            | PathResolutionKind::TraitFunction(_, _, func_id) => Some(*func_id),
+            _ => None,
+        }
+    }
+
+    pub fn module_id(&self) -> Option<ModuleId> {
+        match self {
+            Self::Module(module_id) => Some(*module_id),
+            _ => None,
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            PathResolutionKind::Module(..) => "module",
+            PathResolutionKind::Struct(..) => "type",
+            PathResolutionKind::TypeAlias(..) => "type alias",
+            PathResolutionKind::Trait(..) => "trait",
+            PathResolutionKind::Global(..) => "global",
+            PathResolutionKind::ModuleFunction(..)
+            | PathResolutionKind::StructFunction(..)
+            | PathResolutionKind::TypeAliasFunction(..)
+            | PathResolutionKind::TraitFunction(..) => "function",
+        }
+    }
 }
 
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;

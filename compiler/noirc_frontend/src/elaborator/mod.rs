@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+    ast::ItemVisibility, hir::resolution::import::PathResolutionKind,
+    hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -20,7 +21,7 @@ use crate::{
         },
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
+        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
@@ -667,11 +668,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
-            Ok(PathResolution {
-                module_def_id: ModuleDefId::ModuleId(module_id),
-                generic_type_in_path: _,
-                errors,
-            }) => {
+            Ok(PathResolution { kind: PathResolutionKind::Module(module_id), errors }) => {
                 if errors.is_empty() {
                     Some(module_id)
                 } else {
@@ -684,11 +681,7 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path(path.clone()) {
-            Ok(PathResolution {
-                module_def_id: ModuleDefId::TraitId(trait_id),
-                generic_type_in_path: _,
-                errors,
-            }) => {
+            Ok(PathResolution { kind: PathResolutionKind::Trait(trait_id, _generics), errors }) => {
                 for error in errors {
                     self.push_err(error);
                 }

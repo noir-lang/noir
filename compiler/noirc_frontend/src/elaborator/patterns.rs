@@ -9,10 +9,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError,
-            import::{GenericTypeInPath, GenericTypeInPathKind},
-        },
+        resolution::{errors::ResolverError, import::PathResolutionKind},
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -471,11 +468,13 @@ impl<'context> Elaborator<'context> {
         let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let span = variable.span;
-        let (expr, generic_type_in_path) = self.resolve_variable(variable);
+        let (expr, path_resolution_kind) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
-        let type_generics = generic_type_in_path
-            .map(|generic_type_in_path| self.resolve_generic_type_in_path(generic_type_in_path))
+        let type_generics = path_resolution_kind
+            .map(|path_resolution_kind| {
+                self.resolve_path_resolution_kind_generics(path_resolution_kind)
+            })
             .unwrap_or_default();
 
         let definition_kind =
@@ -518,38 +517,46 @@ impl<'context> Elaborator<'context> {
     /// foo::Bar::<i32>::baz
     ///           ^^^^^
     ///         solve these
-    fn resolve_generic_type_in_path(
+    fn resolve_path_resolution_kind_generics(
         &mut self,
-        generic_type_in_path: GenericTypeInPath,
+        path_resolution_kind: PathResolutionKind,
     ) -> Vec<Type> {
-        let span = generic_type_in_path.span;
+        // let span = path_resolution_kind.span;
+        let span = Span::default(); // TODO: span
 
-        match generic_type_in_path.kind {
-            GenericTypeInPathKind::StructId(struct_id) => {
+        match path_resolution_kind {
+            PathResolutionKind::StructFunction(struct_id, Some(generics), _func_id) => {
                 let struct_type = self.interner.get_struct(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
                 self.resolve_struct_turbofish_generics(
                     &struct_type,
                     struct_generics,
-                    Some(generic_type_in_path.generics),
+                    Some(generics),
                     span,
                 )
             }
-            GenericTypeInPathKind::TypeAliasId(_) => {
+            PathResolutionKind::TypeAliasFunction(..) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6311
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
                 Vec::new()
             }
-            GenericTypeInPathKind::TraitId(_trait_id) => {
+            PathResolutionKind::TraitFunction(..) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6310
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
                 Vec::new()
             }
+            PathResolutionKind::StructFunction(_, None, _)
+            | PathResolutionKind::Module(..)
+            | PathResolutionKind::Struct(..)
+            | PathResolutionKind::TypeAlias(..)
+            | PathResolutionKind::Trait(..)
+            | PathResolutionKind::Global(..)
+            | PathResolutionKind::ModuleFunction(..) => Vec::new(),
         }
     }
 
-    fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<GenericTypeInPath>) {
+    fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<PathResolutionKind>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             for error in trait_path_resolution.errors {
                 self.push_err(error);
@@ -571,7 +578,7 @@ impl<'context> Elaborator<'context> {
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
             let span = path.span();
-            let ((hir_ident, var_scope_index), generic_type_in_path) =
+            let ((hir_ident, var_scope_index), path_resolution_kind) =
                 self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
@@ -614,7 +621,7 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            (hir_ident, generic_type_in_path)
+            (hir_ident, path_resolution_kind)
         }
     }
 
@@ -737,21 +744,27 @@ impl<'context> Elaborator<'context> {
     pub fn get_ident_from_path(
         &mut self,
         path: Path,
-    ) -> ((HirIdent, usize), Option<GenericTypeInPath>) {
+    ) -> ((HirIdent, usize), Option<PathResolutionKind>) {
         let location = Location::new(path.last_ident().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return (found, None),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
-                Ok((id, generic_type_in_path)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), generic_type_in_path)
+                Ok((id, path_resolution_kind)) => {
+                    return (
+                        (HirIdent::non_trait_method(id, location), 0),
+                        Some(path_resolution_kind),
+                    )
                 }
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
-                Ok((id, generic_type_in_path)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), generic_type_in_path)
+                Ok((id, path_resolution_kind)) => {
+                    return (
+                        (HirIdent::non_trait_method(id, location), 0),
+                        Some(path_resolution_kind),
+                    )
                 }
                 Err(error) => error,
             },
