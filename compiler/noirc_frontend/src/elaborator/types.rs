@@ -469,7 +469,6 @@ impl<'context> Elaborator<'context> {
                             Type::Error
                         }
                     }
-
                     (lhs, rhs) => {
                         let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast(Box::new(infix.clone()), Box::new(infix)).canonicalize()
