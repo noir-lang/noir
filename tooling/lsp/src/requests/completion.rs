@@ -580,7 +580,7 @@ impl<'a> NodeFinder<'a> {
                     self_prefix,
                 );
             }
-            Type::Txm(to, _from) => {
+            Type::CheckedCast(to, _from) => {
                 return self.complete_type_fields_and_methods(
                     to,
                     prefix,

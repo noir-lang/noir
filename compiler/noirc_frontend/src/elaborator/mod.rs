@@ -877,7 +877,7 @@ impl<'context> Elaborator<'context> {
             Type::Alias(alias_type, generics) => {
                 self.mark_type_as_used(&alias_type.borrow().get_type(generics));
             }
-            Type::Txm(to, from) => {
+            Type::CheckedCast(to, from) => {
                 self.mark_type_as_used(to);
                 self.mark_type_as_used(from);
             }
@@ -1394,7 +1394,7 @@ impl<'context> Elaborator<'context> {
                     span,
                 );
             }
-            Type::Txm(to, from) => {
+            Type::CheckedCast(to, from) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, to, span);
                 self.check_type_is_not_more_private_then_item(name, visibility, from, span);
             }

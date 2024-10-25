@@ -558,7 +558,7 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);
             }
-            Type::Txm(to, _from) => self.gather_type_links(to),
+            Type::CheckedCast(to, _from) => self.gather_type_links(to),
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool

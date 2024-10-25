@@ -16,30 +16,45 @@ impl Type {
     /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
     pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
-            Type::Txm(to, from) => {
-                let found_txm = true;
-                let run_simplifications = true;
+            Type::CheckedCast(to, from) => {
                 let skip_simplifications = false;
-                Type::Txm(
-                    Box::new(to.canonicalize_helper(found_txm, run_simplifications)),
-                    Box::new(from.canonicalize_helper(found_txm, skip_simplifications)),
+                Type::CheckedCast(
+                    Box::new(to.canonicalize_unchecked()),
+                    Box::new(from.canonicalize_checked_cast(skip_simplifications)),
                 )
             }
             other => {
-                let non_txm = false;
+                let non_checked_cast = false;
                 let run_simplifications = true;
-                other.canonicalize_helper(non_txm, run_simplifications)
+                other.canonicalize_helper(non_checked_cast, run_simplifications)
             }
         }
     }
 
+    fn canonicalize_checked_cast(&self, run_simplifications: bool) -> Type {
+        let found_checked_cast = true;
+        self.canonicalize_helper(found_checked_cast, run_simplifications)
+    }
+
+    /// Run all simplifications and drop/skip any CheckedCast's
+    fn canonicalize_unchecked(&self) -> Type {
+        let run_simplifications = true;
+        self.canonicalize_checked_cast(run_simplifications)
+    }
+
+    /// If found_checked_cast, then drop additional CheckedCast's
+    ///
     /// If run_simplifications is false, then only:
     /// - Attempt to evaluate each sub-expression to a constant
-    /// - Drop nested Txm's
+    /// - Drop nested CheckedCast's
     ///
     /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
     /// and other simplifications
-    pub(crate) fn canonicalize_helper(&self, found_txm: bool, run_simplifications: bool) -> Type {
+    pub(crate) fn canonicalize_helper(
+        &self,
+        found_checked_cast: bool,
+        run_simplifications: bool,
+    ) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
                 let kind = lhs.infix_kind(&rhs);
@@ -54,27 +69,25 @@ impl Type {
                     }
                 }
 
-                let lhs = lhs.canonicalize_helper(found_txm, run_simplifications);
-                let rhs = rhs.canonicalize_helper(found_txm, run_simplifications);
+                let lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
+                let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
 
                 if !run_simplifications {
                     return Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
                 }
 
-                let found_txm_inner = true;
-
                 if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, op, &rhs) {
-                    return result.canonicalize_helper(found_txm_inner, run_simplifications);
+                    return result.canonicalize_unchecked();
                 }
 
                 if let Some(result) = Self::try_simplify_non_constants_in_rhs(&lhs, op, &rhs) {
-                    return result.canonicalize_helper(found_txm_inner, run_simplifications);
+                    return result.canonicalize_unchecked();
                 }
 
                 // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
                 // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
                 if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs) {
-                    return result.canonicalize_helper(found_txm_inner, run_simplifications);
+                    return result.canonicalize_unchecked();
                 }
 
                 if op.is_commutative() {
@@ -83,18 +96,17 @@ impl Type {
 
                 Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
             }
-            Type::Txm(to, from) => {
-                let inner_found_txm = true;
-                let to = to.canonicalize_helper(inner_found_txm, run_simplifications);
+            Type::CheckedCast(to, from) => {
+                let to = to.canonicalize_checked_cast(run_simplifications);
 
-                if found_txm {
+                if found_checked_cast {
                     return to;
                 }
 
                 let skip_simplifications = false;
-                let from = from.canonicalize_helper(inner_found_txm, skip_simplifications);
+                let from = from.canonicalize_checked_cast(skip_simplifications);
 
-                Type::Txm(Box::new(to), Box::new(from))
+                Type::CheckedCast(Box::new(to), Box::new(from))
             }
             other => other,
         }
@@ -115,9 +127,7 @@ impl Type {
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
-            let found_txm_inner = true;
-            let run_simplifications = true;
-            match item.canonicalize_helper(found_txm_inner, run_simplifications) {
+            match item.canonicalize_unchecked() {
                 Type::InfixExpr(lhs_inner, new_op, rhs_inner) if new_op == op => {
                     queue.push(*lhs_inner);
                     queue.push(*rhs_inner);
@@ -179,11 +189,9 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `rhs` is expected to already be in canonical form.
-        let found_txm = true;
-        let run_simplifications = true;
         if l_op.approx_inverse() != Some(op)
             || l_op == BinaryTypeOperator::Division
-            || l_rhs.canonicalize_helper(found_txm, run_simplifications) != *rhs
+            || l_rhs.canonicalize_unchecked() != *rhs
         {
             return None;
         }
@@ -217,11 +225,7 @@ impl Type {
 
         // Note that this is exact, syntactic equality, not unification.
         // `lhs` is expected to already be in canonical form.
-        let found_txm = true;
-        let run_simplifications = true;
-        if r_op.inverse() != Some(op)
-            || *lhs != r_rhs.canonicalize_helper(found_txm, run_simplifications)
-        {
+        if r_op.inverse() != Some(op) || *lhs != r_rhs.canonicalize_unchecked() {
             return None;
         }
 

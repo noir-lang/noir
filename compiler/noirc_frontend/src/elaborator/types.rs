@@ -470,11 +470,9 @@ impl<'context> Elaborator<'context> {
                         }
                     }
 
-                    // TODO: Txm here?
-                    // (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
                     (lhs, rhs) => {
                         let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
-                        Type::Txm(Box::new(infix.clone()), Box::new(infix)).canonicalize()
+                        Type::CheckedCast(Box::new(infix.clone()), Box::new(infix)).canonicalize()
                     }
                 }
             }
@@ -1742,7 +1740,7 @@ impl<'context> Elaborator<'context> {
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
-            Type::Txm(to, from) => {
+            Type::CheckedCast(to, from) => {
                 Self::find_numeric_generics_in_type(to, found);
                 Self::find_numeric_generics_in_type(from, found);
             }

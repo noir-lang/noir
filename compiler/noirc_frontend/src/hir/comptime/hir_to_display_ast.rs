@@ -340,11 +340,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
-            Type::Txm(to, _from) => {
-                // TODO: irrefutable let
-                let UnresolvedType { typ, .. } = to.to_display_ast();
-                typ
-            }
+            Type::CheckedCast(to, _from) => to.to_display_ast().typ,
             Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.to_display_ast());
                 let ret = Box::new(ret.to_display_ast());

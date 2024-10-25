@@ -994,29 +994,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Field
             }
 
-            HirType::Txm(to, from) => {
-                // TODO deuplicate with Self::check_type
-                //
-                // TODO new error
-                if from.unify(to).is_err() {
-                    return Err(MonomorphizationError::CheckedTransmuteFailed {
-                        actual: *to.clone(),
-                        expected: *from.clone(),
-                        location,
-                    });
-                }
-                let to_value = to.evaluate_to_field_element(&to.kind());
-                if to_value.is_some() {
-                    let from_value = from.evaluate_to_field_element(&to.kind());
-                    if from_value.is_none() {
-                        // TODO new error
-                        return Err(MonomorphizationError::CheckedTransmuteFailed {
-                            actual: HirType::Constant(to_value.unwrap(), to.kind()),
-                            expected: *from.clone(),
-                            location,
-                        });
-                    }
-                }
+            HirType::CheckedCast(to, from) => {
+                Self::check_checked_cast(to, from, location)?;
                 Self::convert_type(to, location)?
             }
 
@@ -1126,27 +1105,8 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(())
                 }
             }
-            HirType::Txm(to, from) => {
-                // TODO new error
-                if from.unify(to).is_err() {
-                    return Err(MonomorphizationError::CheckedTransmuteFailed {
-                        actual: *to.clone(),
-                        expected: *from.clone(),
-                        location,
-                    });
-                }
-                let to_value = to.evaluate_to_field_element(&to.kind());
-                if to_value.is_some() {
-                    let from_value = from.evaluate_to_field_element(&to.kind());
-                    if from_value.is_none() {
-                        // TODO new error
-                        return Err(MonomorphizationError::CheckedTransmuteFailed {
-                            actual: HirType::Constant(to_value.unwrap(), to.kind()),
-                            expected: *from.clone(),
-                            location,
-                        });
-                    }
-                }
+            HirType::CheckedCast(to, from) => {
+                Self::check_checked_cast(to, from, location)?;
                 Self::check_type(to, location)
             }
 
@@ -1219,6 +1179,37 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::check_type(rhs, location)
             }
         }
+    }
+
+    /// Check that the 'from' and to' sides of a CheckedCast unify and
+    /// that if the 'to' side evaluates to a field element, that the 'from' side
+    /// evaluates to the same field element
+    fn check_checked_cast(
+        to: &Type,
+        from: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if from.unify(to).is_err() {
+            return Err(MonomorphizationError::CheckedCastFailed {
+                actual: to.clone(),
+                expected: from.clone(),
+                location,
+            });
+        }
+        let to_value = to.evaluate_to_field_element(&to.kind());
+        if to_value.is_some() {
+            let skip_simplifications = false;
+            let from_value =
+                from.evaluate_to_field_element_helper(&to.kind(), skip_simplifications);
+            if from_value.is_none() || from_value != to_value {
+                return Err(MonomorphizationError::CheckedCastFailed {
+                    actual: HirType::Constant(to_value.unwrap(), to.kind()),
+                    expected: from.clone(),
+                    location,
+                });
+            }
+        }
+        Ok(())
     }
 
     fn is_function_closure(&self, t: ast::Type) -> bool {

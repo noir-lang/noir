@@ -102,7 +102,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             AbiType::Struct { fields, path }
         }
         Type::Alias(def, args) => abi_type_from_hir_type(context, &def.borrow().get_type(args)),
-        Type::Txm(to, _from) => abi_type_from_hir_type(context, to),
+        Type::CheckedCast(to, _from) => abi_type_from_hir_type(context, to),
         Type::Tuple(fields) => {
             let fields = vecmap(fields, |typ| abi_type_from_hir_type(context, typ));
             AbiType::Tuple { fields }
