@@ -89,7 +89,7 @@ pub fn resolve_path(
         resolve_import(module_id.krate, &import, def_maps, usage_tracker, path_references)?;
 
     Ok(PathResolution {
-        kind: resolved_import.path_resolution_kind,
+        item: resolved_import.path_resolution_kind,
         errors: resolved_import.errors,
     })
 }

@@ -16,7 +16,7 @@ use crate::{
         def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError,
-            import::{PathResolutionError, PathResolutionKind},
+            import::{PathResolutionError, PathResolutionItem},
         },
         type_check::{
             generics::{Generic, TraitGenerics},
@@ -406,7 +406,7 @@ impl<'context> Elaborator<'context> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.resolve_path_or_error(path.clone()) {
-            Ok(PathResolutionKind::Global(id)) => {
+            Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
@@ -566,7 +566,7 @@ impl<'context> Elaborator<'context> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
         let path_resolution = self.resolve_path(path.clone()).ok()?;
-        let func_id = path_resolution.kind.function_id()?;
+        let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.function_meta(&func_id);
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;

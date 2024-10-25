@@ -9,7 +9,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{errors::ResolverError, import::PathResolutionKind},
+        resolution::{errors::ResolverError, import::PathResolutionItem},
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -519,10 +519,10 @@ impl<'context> Elaborator<'context> {
     ///         solve these
     fn resolve_path_resolution_kind_generics(
         &mut self,
-        path_resolution_kind: PathResolutionKind,
+        path_resolution_kind: PathResolutionItem,
     ) -> Vec<Type> {
         match path_resolution_kind {
-            PathResolutionKind::StructFunction(struct_id, Some(generics), _func_id) => {
+            PathResolutionItem::StructFunction(struct_id, Some(generics), _func_id) => {
                 let struct_type = self.interner.get_struct(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
@@ -533,12 +533,12 @@ impl<'context> Elaborator<'context> {
                     generics.span,
                 )
             }
-            PathResolutionKind::TypeAliasFunction(_type_alias_id, Some(generics), _func_id) => {
+            PathResolutionItem::TypeAliasFunction(_type_alias_id, Some(generics), _func_id) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6311
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
                 Vec::new()
             }
-            PathResolutionKind::TraitFunction(_trait_id, Some(generics), _func_id) => {
+            PathResolutionItem::TraitFunction(_trait_id, Some(generics), _func_id) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6310
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
                 Vec::new()
@@ -547,7 +547,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<PathResolutionKind>) {
+    fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             for error in trait_path_resolution.errors {
                 self.push_err(error);
@@ -733,7 +733,7 @@ impl<'context> Elaborator<'context> {
     pub fn get_ident_from_path(
         &mut self,
         path: Path,
-    ) -> ((HirIdent, usize), Option<PathResolutionKind>) {
+    ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
         let location = Location::new(path.last_ident().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {

@@ -551,7 +551,7 @@ fn inject_prelude(
             span: Span::default(),
         };
 
-        if let Ok(PathResolution { kind, errors }) = path_resolver::resolve_path(
+        if let Ok(PathResolution { item: kind, errors }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             None,

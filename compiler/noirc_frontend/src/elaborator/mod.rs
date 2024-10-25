@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir::resolution::import::PathResolutionKind,
+    ast::ItemVisibility, hir::resolution::import::PathResolutionItem,
     hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
 };
 use crate::{
@@ -668,7 +668,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
-            Ok(PathResolution { kind: PathResolutionKind::Module(module_id), errors }) => {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
                 if errors.is_empty() {
                     Some(module_id)
                 } else {
@@ -681,7 +681,7 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path(path.clone()) {
-            Ok(PathResolution { kind: PathResolutionKind::Trait(trait_id, _generics), errors }) => {
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
                     self.push_err(error);
                 }

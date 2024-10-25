@@ -2,7 +2,7 @@ use noirc_errors::{Location, Spanned};
 
 use crate::ast::{Ident, Path, PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::resolution::import::{PathResolution, PathResolutionKind, PathResolutionResult};
+use crate::hir::resolution::import::{PathResolution, PathResolutionItem, PathResolutionResult};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::{
@@ -40,14 +40,14 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
-    ) -> Result<PathResolutionKind, ResolverError> {
+    ) -> Result<PathResolutionItem, ResolverError> {
         let path_resolution = self.resolve_path(path)?;
 
         for error in path_resolution.errors {
             self.push_err(error);
         }
 
-        Ok(path_resolution.kind)
+        Ok(path_resolution.item)
     }
 
     pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
@@ -58,9 +58,8 @@ impl<'context> Elaborator<'context> {
             if let Some(Type::Struct(struct_type, _)) = &self.self_type {
                 let struct_type = struct_type.borrow();
                 if path.segments.len() == 1 {
-                    // TODO: handle generics
                     return Ok(PathResolution {
-                        kind: PathResolutionKind::Struct(struct_type.id, None),
+                        item: PathResolutionItem::Struct(struct_type.id),
                         errors: Vec::new(),
                     });
                 }
@@ -121,7 +120,7 @@ impl<'context> Elaborator<'context> {
         };
 
         self.interner.add_path_resolution_kind_reference(
-            path_resolution.kind.clone(),
+            path_resolution.item.clone(),
             location,
             is_self_type_name,
         );
@@ -174,7 +173,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn lookup_global(
         &mut self,
         path: Path,
-    ) -> Result<(DefinitionId, PathResolutionKind), ResolverError> {
+    ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
         let span = path.span();
         let path_resolution_kind = self.resolve_path_or_error(path)?;
 
@@ -182,7 +181,7 @@ impl<'context> Elaborator<'context> {
             return Ok((self.interner.function_definition_id(function), path_resolution_kind));
         }
 
-        if let PathResolutionKind::Global(global) = path_resolution_kind {
+        if let PathResolutionItem::Global(global) = path_resolution_kind {
             let global = self.interner.get_global(global);
             return Ok((global.definition_id, path_resolution_kind));
         }
@@ -233,7 +232,7 @@ impl<'context> Elaborator<'context> {
         let span = path.span();
         match self.resolve_path_or_error(path) {
             Ok(path_resolution_kind) => {
-                if let PathResolutionKind::Trait(trait_id, _) = path_resolution_kind {
+                if let PathResolutionItem::Trait(trait_id) = path_resolution_kind {
                     Some(self.get_trait_mut(trait_id))
                 } else {
                     self.push_err(ResolverError::Expected {
@@ -256,7 +255,7 @@ impl<'context> Elaborator<'context> {
         let span = path.span();
         match self.resolve_path_or_error(path) {
             Ok(path_resolution_kind) => {
-                if let PathResolutionKind::Struct(struct_id, _) = path_resolution_kind {
+                if let PathResolutionItem::Struct(struct_id) = path_resolution_kind {
                     Some(self.get_struct(struct_id))
                 } else {
                     self.push_err(ResolverError::Expected {
@@ -292,7 +291,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
         match self.resolve_path_or_error(path) {
-            Ok(PathResolutionKind::TypeAlias(type_alias_id, _)) => {
+            Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
                 Some(self.interner.get_type_alias(type_alias_id))
             }
             _ => None,

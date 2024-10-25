@@ -14,7 +14,7 @@ use noirc_frontend::{
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
         resolution::{
-            import::PathResolutionKind,
+            import::PathResolutionItem,
             path_resolver::{PathResolver, StandardPathResolver},
         },
     },
@@ -107,20 +107,20 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
             return;
         };
 
-        self.reference_id = Some(path_resolution_kind_to_reference_id(result.kind));
+        self.reference_id = Some(path_resolution_kind_to_reference_id(result.item));
     }
 }
 
-fn path_resolution_kind_to_reference_id(path_resolution_kind: PathResolutionKind) -> ReferenceId {
+fn path_resolution_kind_to_reference_id(path_resolution_kind: PathResolutionItem) -> ReferenceId {
     match path_resolution_kind {
-        PathResolutionKind::Module(module_id) => ReferenceId::Module(module_id),
-        PathResolutionKind::Struct(struct_id, _) => ReferenceId::Struct(struct_id),
-        PathResolutionKind::TypeAlias(type_alias_id, _) => ReferenceId::Alias(type_alias_id),
-        PathResolutionKind::Trait(trait_id, _) => ReferenceId::Trait(trait_id),
-        PathResolutionKind::Global(global_id) => ReferenceId::Global(global_id),
-        PathResolutionKind::ModuleFunction(func_id)
-        | PathResolutionKind::StructFunction(_, _, func_id)
-        | PathResolutionKind::TypeAliasFunction(_, _, func_id)
-        | PathResolutionKind::TraitFunction(_, _, func_id) => ReferenceId::Function(func_id),
+        PathResolutionItem::Module(module_id) => ReferenceId::Module(module_id),
+        PathResolutionItem::Struct(struct_id) => ReferenceId::Struct(struct_id),
+        PathResolutionItem::TypeAlias(type_alias_id) => ReferenceId::Alias(type_alias_id),
+        PathResolutionItem::Trait(trait_id) => ReferenceId::Trait(trait_id),
+        PathResolutionItem::Global(global_id) => ReferenceId::Global(global_id),
+        PathResolutionItem::ModuleFunction(func_id)
+        | PathResolutionItem::StructFunction(_, _, func_id)
+        | PathResolutionItem::TypeAliasFunction(_, _, func_id)
+        | PathResolutionItem::TraitFunction(_, _, func_id) => ReferenceId::Function(func_id),
     }
 }
