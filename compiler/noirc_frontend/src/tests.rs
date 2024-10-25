@@ -3557,8 +3557,7 @@ fn alias_in_let_pattern() {
         fn main() {
             let Bar { x } = Foo { x: [0] };
             // This is just to show the compiler knows this is an array.
-            // The assert_eq isn't run by the frontend tests.
-            assert_eq(x.len(), 1);
+            let _: [Field; 1] = x;
         }
     "#;
     assert_no_errors(src);
