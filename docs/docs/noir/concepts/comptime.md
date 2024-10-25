@@ -207,7 +207,7 @@ Although `comptime`, `quote`, and unquoting provide a flexible base for writing 
 Noir's true metaprogramming ability comes from being able to interact with the compiler through a compile-time API.
 This API can be accessed through built-in functions in `std::meta` as well as on methods of several `comptime` types.
 
-The following is an incomplete list of some `comptime` types along with some useful methods on them.
+The following is an incomplete list of some `comptime` types along with some useful methods on them. You can see more in the standard library [Metaprogramming section](../standard_library/meta).
 
 - `Quoted`: A token stream
 - `Type`: The type of a Noir type
