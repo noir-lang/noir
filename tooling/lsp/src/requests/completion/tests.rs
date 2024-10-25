@@ -15,7 +15,7 @@ mod completion_tests {
             on_completion_request,
         },
         test_utils,
-        tests::apply_text_edit,
+        tests::apply_text_edits,
     };
 
     use lsp_types::{
@@ -1446,10 +1446,8 @@ fn main() {
             })
         );
 
-        let changed = apply_text_edit(
-            &src.replace(">|<", ""),
-            &item.additional_text_edits.unwrap().remove(0),
-        );
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1494,10 +1492,8 @@ mod foo {
             })
         );
 
-        let changed = apply_text_edit(
-            &src.replace(">|<", ""),
-            &item.additional_text_edits.unwrap().remove(0),
-        );
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1541,10 +1537,8 @@ mod foo {
             })
         );
 
-        let changed = apply_text_edit(
-            &src.replace(">|<", ""),
-            &item.additional_text_edits.unwrap().remove(0),
-        );
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1556,7 +1550,11 @@ mod foo {
     }
 }
 
-use foo::bar;
+mod baz {
+    fn qux() {}
+}
+
+use baz::qux;
 
 fn main() {
     hel>|<
@@ -1568,7 +1566,11 @@ fn main() {
     }
 }
 
-use foo::bar;
+mod baz {
+    fn qux() {}
+}
+
+use baz::qux;
 use foo::bar::hello_world;
 
 fn main() {
@@ -1579,10 +1581,8 @@ fn main() {
 
         let item = items.remove(0);
 
-        let changed = apply_text_edit(
-            &src.replace(">|<", ""),
-            &item.additional_text_edits.unwrap().remove(0),
-        );
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1665,11 +1665,285 @@ mod foo {
             })
         );
 
-        let changed = apply_text_edit(
-            &src.replace(">|<", ""),
-            &item.additional_text_edits.unwrap().remove(0),
-        );
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
+    }
+
+    #[test]
+    async fn test_auto_imports_expands_existing_use_before_one_segment_not_in_list() {
+        let src = r#"use foo::bar::one_hello_world;
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_>|<
+}"#;
+
+        let expected = r#"use foo::bar::{one_hello_world, two_hello_world};
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
+    }
+
+    #[test]
+    async fn test_auto_imports_expands_existing_use_before_two_segments() {
+        let src = r#"use foo::bar::one_hello_world;
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+    }
+    pub fn two_hello_world() {}
+}
+
+fn main() {
+    two_hello_>|<
+}"#;
+
+        let expected = r#"use foo::{bar::one_hello_world, two_hello_world};
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+    }
+    pub fn two_hello_world() {}
+}
+
+fn main() {
+    two_hello_
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
+    }
+
+    #[test]
+    async fn test_auto_imports_expands_existing_use_before_one_segment_inside_list() {
+        let src = r#"use foo::{bar::one_hello_world, baz};
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+    }
+    mod baz {}
+}
+
+fn main() {
+    two_hello_>|<
+}"#;
+
+        let expected = r#"use foo::{bar::{one_hello_world, two_hello_world}, baz};
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+    }
+    mod baz {}
+}
+
+fn main() {
+    two_hello_
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
+    }
+
+    #[test]
+    async fn test_auto_imports_expands_existing_use_before_one_segment_checks_parents() {
+        let src = r#"use foo::bar::baz;
+
+mod foo {
+    mod bar {
+        mod baz {
+            pub fn one_hello_world() {}
+        }
+        mod qux {
+            pub fn two_hello_world() {}
+        }
+    }
+}
+
+fn main() {
+    two_hello_>|<
+}"#;
+
+        let expected = r#"use foo::bar::{baz, qux::two_hello_world};
+
+mod foo {
+    mod bar {
+        mod baz {
+            pub fn one_hello_world() {}
+        }
+        mod qux {
+            pub fn two_hello_world() {}
+        }
+    }
+}
+
+fn main() {
+    two_hello_
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
+    }
+
+    #[test]
+    async fn test_auto_imports_expands_existing_use_last_segment() {
+        let src = r#"use foo::bar;
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_>|<
+}"#;
+
+        let expected = r#"use foo::bar::{self, two_hello_world};
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
+    }
+
+    #[test]
+    async fn test_auto_imports_expands_existing_use_before_list() {
+        let src = r#"use foo::bar::{one_hello_world, three_hello_world};
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+        pub fn three_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_>|<
+}"#;
+
+        let expected = r#"use foo::bar::{two_hello_world, one_hello_world, three_hello_world};
+
+mod foo {
+    mod bar {
+        pub fn one_hello_world() {}
+        pub fn two_hello_world() {}
+        pub fn three_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
+    }
+
+    #[test]
+    async fn test_auto_imports_expands_existing_use_before_empty_list() {
+        let src = r#"use foo::bar::{};
+
+mod foo {
+    mod bar {
+        pub fn two_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_>|<
+}"#;
+
+        let expected = r#"use foo::bar::{two_hello_world};
+
+mod foo {
+    mod bar {
+        pub fn two_hello_world() {}
+    }
+}
+
+fn main() {
+    two_hello_
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &mut item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
 
     #[test]
