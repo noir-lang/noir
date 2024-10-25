@@ -6,13 +6,14 @@ use noirc_frontend::hir::def_map::ModuleDefId;
 use crate::{
     modules::{relative_module_full_path, relative_module_id_path},
     requests::to_lsp_location,
+    use_segment_positions::UseSegmentPosition,
 };
 
 use super::{
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
     name_matches,
     sort_text::auto_import_sort_text,
-    NodeFinder, UseSegmentPosition,
+    NodeFinder,
 };
 
 impl<'a> NodeFinder<'a> {
@@ -83,8 +84,7 @@ impl<'a> NodeFinder<'a> {
                     completion_item.label_details = Some(label_details);
 
                     // See if there's a single place where one of the parent paths is located
-                    let (use_segment_position, name) =
-                        self.find_use_segment_position(full_path.clone());
+                    let (use_segment_position, name) = self.use_segment_positions.get(&full_path);
                     match use_segment_position {
                         UseSegmentPosition::NoneOrMultiple => {
                             // The parent path either isn't in any use statement, or it exists in multiple
@@ -215,32 +215,5 @@ impl<'a> NodeFinder<'a> {
             range: Range { start: Position { line, character }, end: Position { line, character } },
             new_text: format!("use {};{}{}", full_path, newlines, indent),
         }]
-    }
-
-    /// Given a full path like `foo::bar::baz`, returns the first non-"NoneOrMultiple" segment position
-    /// trying each successive parent, together with the name after the parent.
-    ///
-    /// For example, first we'll check if `foo::bar` has a single position. If not, we'll try with `foo`.
-    fn find_use_segment_position(&self, full_path: String) -> (UseSegmentPosition, String) {
-        // Build a parent path to know in which full segment we need to add this import
-        let mut segments: Vec<_> = full_path.split("::").collect();
-        let mut name = segments.pop().unwrap().to_string();
-        let mut parent_path = segments.join("::");
-
-        loop {
-            let use_segment_position =
-                self.use_segment_positions.get(&parent_path).cloned().unwrap_or_default();
-
-            if let UseSegmentPosition::NoneOrMultiple = use_segment_position {
-                if let Some(next_name) = segments.pop() {
-                    name = format!("{next_name}::{name}");
-                    parent_path = segments.join("::");
-                } else {
-                    return (UseSegmentPosition::NoneOrMultiple, String::new());
-                }
-            } else {
-                return (use_segment_position, name);
-            }
-        }
     }
 }
