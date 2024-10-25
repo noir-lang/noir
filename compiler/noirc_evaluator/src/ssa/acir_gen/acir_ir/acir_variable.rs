@@ -2195,7 +2195,8 @@ fn execute_brillig<F: AcirField>(
     // We pass a stubbed solver here as a concrete solver implies a field choice which conflicts with this function
     // being generic.
     let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
-    let mut vm = VM::new(calldata, code, Vec::new(), &solver);
+    let profiling_active = false;
+    let mut vm = VM::new(calldata, code, Vec::new(), &solver, profiling_active);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

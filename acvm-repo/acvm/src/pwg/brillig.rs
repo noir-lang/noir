@@ -12,7 +12,7 @@ use acir::{
     AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{FailureReason, MemoryValue, VMStatus, VM};
+use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VMStatus, VM};
 use serde::{Deserialize, Serialize};
 
 use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
@@ -58,6 +58,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
     /// Constructs a solver for a Brillig block given the bytecode and initial
     /// witness.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_call(
         initial_witness: &WitnessMap<F>,
         memory: &HashMap<BlockId, MemoryOpSolver<F>>,
@@ -66,9 +67,16 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         bb_solver: &'b B,
         acir_index: usize,
         brillig_function_id: BrilligFunctionId,
+        profiling_active: bool,
     ) -> Result<Self, OpcodeResolutionError<F>> {
-        let vm =
-            Self::setup_brillig_vm(initial_witness, memory, inputs, brillig_bytecode, bb_solver)?;
+        let vm = Self::setup_brillig_vm(
+            initial_witness,
+            memory,
+            inputs,
+            brillig_bytecode,
+            bb_solver,
+            profiling_active,
+        )?;
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
 
@@ -78,6 +86,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         inputs: &[BrilligInputs<F>],
         brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
+        profiling_active: bool,
     ) -> Result<VM<'b, F, B>, OpcodeResolutionError<F>> {
         // Set input values
         let mut calldata: Vec<F> = Vec::new();
@@ -125,7 +134,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
         // Instantiate a Brillig VM given the solved calldata
         // along with the Brillig bytecode.
-        let vm = VM::new(calldata, brillig_bytecode, vec![], bb_solver);
+        let vm = VM::new(calldata, brillig_bytecode, vec![], bb_solver, profiling_active);
         Ok(vm)
     }
 
@@ -201,6 +210,25 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
     pub(crate) fn finalize(
         self,
+        witness: &mut WitnessMap<F>,
+        outputs: &[BrilligOutputs],
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        assert!(!self.vm.is_profiling_active(), "Expected VM profiling to not be active");
+        self.finalize_inner(witness, outputs)
+    }
+
+    pub(crate) fn finalize_with_profiling(
+        mut self,
+        witness: &mut WitnessMap<F>,
+        outputs: &[BrilligOutputs],
+    ) -> Result<BrilligProfilingSamples, OpcodeResolutionError<F>> {
+        assert!(self.vm.is_profiling_active(), "Expected VM profiling to be active");
+        self.finalize_inner(witness, outputs)?;
+        Ok(self.vm.take_profiling_samples())
+    }
+
+    fn finalize_inner(
+        &self,
         witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError<F>> {

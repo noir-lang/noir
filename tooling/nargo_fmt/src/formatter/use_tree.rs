@@ -68,6 +68,11 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 }));
             }
             UseTreeKind::List(use_trees) => {
+                // We check if there are nested lists. If yes, then each item will be on a separate line
+                // (it reads better, and this is what rustfmt seems to do too)
+                let has_nested_list =
+                    use_trees.iter().any(|use_tree| matches!(use_tree.kind, UseTreeKind::List(..)));
+
                 let use_trees_len = use_trees.len();
 
                 let left_brace_chunk = self.chunk(|formatter| {
@@ -99,6 +104,10 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                         items_chunk.chunks.into_iter().filter_map(Chunk::group).next().unwrap();
                     group.chunks.extend(single_group.chunks);
                 } else {
+                    if has_nested_list {
+                        group.one_chunk_per_line = true;
+                    }
+
                     group.text(left_brace_chunk);
                     group.chunks.extend(items_chunk.chunks);
                     group.text(right_brace_chunk);
@@ -112,10 +121,29 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_max_width};
+    use crate::{assert_format_with_config, config::ImportsGranularity, Config};
+
+    fn assert_format(src: &str, expected: &str) {
+        let config = Config {
+            imports_granularity: ImportsGranularity::Preserve,
+            reorder_imports: false,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
+    }
+
+    fn assert_format_with_max_width(src: &str, expected: &str, max_width: usize) {
+        let config = Config {
+            imports_granularity: ImportsGranularity::Preserve,
+            reorder_imports: false,
+            max_width,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
+    }
 
     #[test]
-    fn format_simple_use() {
+    fn format_simple_use_without_alias() {
         let src = " mod moo {  pub  use  foo ;  }";
         let expected = "mod moo {
     pub use foo;
@@ -152,7 +180,9 @@ mod tests {
     fn format_use_trees_with_max_width() {
         let src = " use foo::{ bar,  baz , qux , one::{two, three} };";
         let expected = "use foo::{
-    bar, baz, qux,
+    bar,
+    baz,
+    qux,
     one::{
         two, three,
     },
@@ -175,13 +205,13 @@ mod tests {
     four, five,
 };
 ";
-        assert_format_with_max_width(src, expected, 20);
+        assert_format_with_max_width(src, expected, 25);
     }
 
     #[test]
     fn format_use_list_one_item_with_comments() {
         let src = " use foo::{  /* do not remove me */ bar,  };";
-        let expected = "use foo::{ /* do not remove me */ bar};\n";
+        let expected = "use foo::{/* do not remove me */ bar};\n";
         assert_format(src, expected);
     }
 
@@ -200,5 +230,34 @@ mod tests {
 };
 ";
         assert_format_with_max_width(src, expected, "use crate::hash::{Hash, Hasher}".len());
+    }
+
+    #[test]
+    fn do_not_merge_and_sort_imports() {
+        let src = "
+use aztec::{
+    context::Context, log::emit_unencrypted_log, note::{
+        note_getter_options::NoteGetterOptions, note_header::NoteHeader,
+    }, state_vars::{
+        Map, PrivateSet, PublicMutable,
+    }, types::{
+        address::AztecAddress, type_serialization::field_serialization::{
+            FIELD_SERIALIZED_LEN, FieldSerializationMethods,
+        },
+    },
+};
+        ";
+        let expected = "use aztec::{
+    context::Context,
+    log::emit_unencrypted_log,
+    note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
+    state_vars::{Map, PrivateSet, PublicMutable},
+    types::{
+        address::AztecAddress,
+        type_serialization::field_serialization::{FIELD_SERIALIZED_LEN, FieldSerializationMethods},
+    },
+};
+";
+        assert_format(src, expected);
     }
 }

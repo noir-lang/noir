@@ -24,7 +24,7 @@ pub enum BlackBoxOp {
     },
     /// Keccak Permutation function of 1600 width
     Keccakf1600 {
-        message: HeapVector,
+        input: HeapArray,
         output: HeapArray,
     },
     /// Verifies a ECDSA signature over the secp256k1 curve.
@@ -102,8 +102,8 @@ pub enum BlackBoxOp {
         len: MemoryAddress,
     },
     Sha256Compression {
-        input: HeapVector,
-        hash_values: HeapVector,
+        input: HeapArray,
+        hash_values: HeapArray,
         output: HeapArray,
     },
     ToRadix {
