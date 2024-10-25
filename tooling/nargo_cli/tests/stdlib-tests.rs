@@ -1,4 +1,5 @@
 //! Execute unit tests in the Noir standard library.
+#![allow(clippy::items_after_test_module)]
 use clap::Parser;
 use fm::FileManager;
 use noirc_driver::{check_crate, file_manager_with_stdlib, CompileOptions};
