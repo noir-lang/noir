@@ -3555,7 +3555,7 @@ fn alias_in_let_pattern() {
         type Bar<U> = Foo<U>;
 
         fn main() {
-            let U { x } = Foo { x: [0] };
+            let Bar { x } = Foo { x: [0] };
             // This is just to show the compiler knows this is an array.
             // The assert_eq isn't run by the frontend tests.
             assert_eq(x.len(), 1);
