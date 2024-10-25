@@ -15,27 +15,6 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, Per
 use super::errors::ResolverError;
 use super::visibility::can_reference_module_id;
 
-/// Represents a generic type in the before-last segment of a path, for example:
-///
-/// foo::Bar::<i32>::baz
-///      ^^^^^^^^^^
-///
-/// In the above example, if `Bar` is a struct, `GenericTypeInPath` would be a
-/// `GenericTypeInPathKind::StructId(..)` with the generics being `[i32]`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct GenericTypeInPath {
-    pub kind: GenericTypeInPathKind,
-    pub generics: Vec<UnresolvedType>,
-    pub span: Span,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum GenericTypeInPathKind {
-    StructId(StructId),
-    TypeAliasId(TypeAliasId),
-    TraitId(TraitId),
-}
-
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
     pub visibility: ItemVisibility,
@@ -48,7 +27,7 @@ pub struct ImportDirective {
 
 struct NamespaceResolution {
     module_id: ModuleId,
-    generic_type_in_path: Option<GenericTypeInPath>,
+    path_resolution_kind: PathResolutionKind,
     namespace: PerNs,
     errors: Vec<PathResolutionError>,
 }
@@ -64,14 +43,14 @@ pub struct PathResolution {
 #[derive(Debug, Clone)]
 pub enum PathResolutionKind {
     Module(ModuleId),
-    Struct(StructId, Option<Vec<UnresolvedType>>), // The generics, if any (using Option to distinguish the `::<>` case)
-    TypeAlias(TypeAliasId, Option<Vec<UnresolvedType>>),
-    Trait(TraitId, Option<Vec<UnresolvedType>>),
+    Struct(StructId, Option<PathResolutionGenerics>),
+    TypeAlias(TypeAliasId, Option<PathResolutionGenerics>),
+    Trait(TraitId, Option<PathResolutionGenerics>),
     Global(GlobalId),
     ModuleFunction(FuncId),
-    StructFunction(StructId, Option<(Vec<UnresolvedType>, Span)>, FuncId),
-    TypeAliasFunction(TypeAliasId, Option<(Vec<UnresolvedType>, Span)>, FuncId),
-    TraitFunction(TraitId, Option<(Vec<UnresolvedType>, Span)>, FuncId),
+    StructFunction(StructId, Option<PathResolutionGenerics>, FuncId),
+    TypeAliasFunction(TypeAliasId, Option<PathResolutionGenerics>, FuncId),
+    TraitFunction(TraitId, Option<PathResolutionGenerics>, FuncId),
 }
 
 impl PathResolutionKind {
@@ -107,6 +86,19 @@ impl PathResolutionKind {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PathResolutionGenerics {
+    pub generics: Vec<UnresolvedType>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+enum IntermediatePathResolutionKind {
+    Module(ModuleId),
+    Struct(StructId, Option<PathResolutionGenerics>),
+    Trait(TraitId, Option<PathResolutionGenerics>),
+}
+
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -127,7 +119,7 @@ pub struct ResolvedImport {
     pub name: Ident,
     // The symbol which we have resolved to
     pub resolved_namespace: PerNs,
-    pub generic_type_in_path: Option<GenericTypeInPath>,
+    pub path_resolution_kind: PathResolutionKind,
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
     pub is_prelude: bool,
@@ -172,7 +164,7 @@ pub fn resolve_import(
     let module_scope = import_directive.module_id;
     let NamespaceResolution {
         module_id: resolved_module,
-        generic_type_in_path,
+        path_resolution_kind,
         namespace: resolved_namespace,
         mut errors,
     } = resolve_path_to_ns(
@@ -207,7 +199,7 @@ pub fn resolve_import(
     Ok(ResolvedImport {
         name,
         resolved_namespace,
-        generic_type_in_path,
+        path_resolution_kind,
         module_scope,
         is_prelude: import_directive.is_prelude,
         errors,
@@ -351,14 +343,14 @@ fn resolve_name_in_module(
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
     let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
-    let mut generic_type_in_path = None;
+    let mut path_resolution_kind = IntermediatePathResolutionKind::Module(current_mod_id);
 
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
         return Ok(NamespaceResolution {
             module_id: current_mod_id,
-            generic_type_in_path,
+            path_resolution_kind: PathResolutionKind::Module(current_mod_id),
             namespace: PerNs::types(current_mod_id.into()),
             errors: Vec::new(),
         });
@@ -386,18 +378,20 @@ fn resolve_name_in_module(
         };
 
         // In the type namespace, only Mod can be used in a path.
-        current_mod_id = match typ {
+        (current_mod_id, path_resolution_kind) = match typ {
             ModuleDefId::ModuleId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Module(id));
                 }
+
                 if last_segment_generics.is_some() {
                     errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
                         item: format!("module `{last_ident}`"),
                         span: last_segment.turbofish_span(),
                     });
                 }
-                id
+
+                (id, IntermediatePathResolutionKind::Module(id))
             }
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             // TODO: If impls are ever implemented, types can be used in a path
@@ -405,28 +399,34 @@ fn resolve_name_in_module(
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Struct(id));
                 }
-                if let Some(last_segment_generics) = last_segment_generics {
-                    generic_type_in_path = Some(GenericTypeInPath {
-                        kind: GenericTypeInPathKind::StructId(id),
-                        generics: last_segment_generics.clone(),
-                        span: last_segment.turbofish_span(),
-                    });
-                }
-                id.module_id()
+
+                (
+                    id.module_id(),
+                    IntermediatePathResolutionKind::Struct(
+                        id,
+                        last_segment_generics.as_ref().map(|generics| PathResolutionGenerics {
+                            generics: generics.clone(),
+                            span: last_segment.turbofish_span(),
+                        }),
+                    ),
+                )
             }
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
             ModuleDefId::TraitId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Trait(id));
                 }
-                if let Some(last_segment_generics) = last_segment_generics {
-                    generic_type_in_path = Some(GenericTypeInPath {
-                        kind: GenericTypeInPathKind::TraitId(id),
-                        generics: last_segment_generics.clone(),
-                        span: last_segment.turbofish_span(),
-                    });
-                }
-                id.0
+
+                (
+                    id.0,
+                    IntermediatePathResolutionKind::Trait(
+                        id,
+                        last_segment_generics.as_ref().map(|generics| PathResolutionGenerics {
+                            generics: generics.clone(),
+                            span: last_segment.turbofish_span(),
+                        }),
+                    ),
+                )
             }
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
@@ -459,9 +459,15 @@ fn resolve_name_in_module(
         current_ns = found_ns;
     }
 
+    let module_def_id =
+        current_ns.values.or(current_ns.types).map(|(id, _, _)| id).expect("Found empty namespace");
+
+    let path_resolution_kind =
+        merge_path_resolution_kind_with_module_def_id(path_resolution_kind, module_def_id);
+
     Ok(NamespaceResolution {
         module_id: current_mod_id,
-        generic_type_in_path,
+        path_resolution_kind,
         namespace: current_ns,
         errors,
     })
@@ -525,4 +531,30 @@ fn resolve_external_dep(
         usage_tracker,
         path_references,
     )
+}
+
+fn merge_path_resolution_kind_with_module_def_id(
+    path_resolution_kind: IntermediatePathResolutionKind,
+    module_def_id: ModuleDefId,
+) -> PathResolutionKind {
+    match module_def_id {
+        ModuleDefId::ModuleId(module_id) => PathResolutionKind::Module(module_id),
+        ModuleDefId::TypeId(struct_id) => PathResolutionKind::Struct(struct_id, None),
+        ModuleDefId::TypeAliasId(type_alias_id) => {
+            PathResolutionKind::TypeAlias(type_alias_id, None)
+        }
+        ModuleDefId::TraitId(trait_id) => PathResolutionKind::Trait(trait_id, None),
+        ModuleDefId::GlobalId(global_id) => PathResolutionKind::Global(global_id),
+        ModuleDefId::FunctionId(func_id) => match path_resolution_kind {
+            IntermediatePathResolutionKind::Module(_) => {
+                PathResolutionKind::ModuleFunction(func_id)
+            }
+            IntermediatePathResolutionKind::Struct(struct_id, generics) => {
+                PathResolutionKind::StructFunction(struct_id, generics, func_id)
+            }
+            IntermediatePathResolutionKind::Trait(trait_id, generics) => {
+                PathResolutionKind::TraitFunction(trait_id, generics, func_id)
+            }
+        },
+    }
 }

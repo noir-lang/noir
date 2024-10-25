@@ -293,8 +293,7 @@ impl<'context> Elaborator<'context> {
                 let mut mutable = true;
                 let span = ident.span();
                 let path = Path::from_single(ident.0.contents, span);
-                let ((ident, scope_index), generic_type_in_path) = self.get_ident_from_path(path);
-                assert!(generic_type_in_path.is_none()); // There shouldn't be generics for a single-segment path
+                let ((ident, scope_index), _) = self.get_ident_from_path(path);
 
                 self.resolve_local_variable(ident.clone(), scope_index);
 

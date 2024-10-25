@@ -522,29 +522,25 @@ impl<'context> Elaborator<'context> {
         path_resolution_kind: PathResolutionKind,
     ) -> Vec<Type> {
         match path_resolution_kind {
-            PathResolutionKind::StructFunction(struct_id, Some((generics, span)), _func_id) => {
+            PathResolutionKind::StructFunction(struct_id, Some(generics), _func_id) => {
                 let struct_type = self.interner.get_struct(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
                 self.resolve_struct_turbofish_generics(
                     &struct_type,
                     struct_generics,
-                    Some(generics),
-                    span,
+                    Some(generics.generics),
+                    generics.span,
                 )
             }
-            PathResolutionKind::TypeAliasFunction(
-                _type_alias_id,
-                Some((_generics, span)),
-                _func_id,
-            ) => {
+            PathResolutionKind::TypeAliasFunction(_type_alias_id, Some(generics), _func_id) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6311
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
+                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
                 Vec::new()
             }
-            PathResolutionKind::TraitFunction(_trait_id, Some((_generics, span)), _func_id) => {
+            PathResolutionKind::TraitFunction(_trait_id, Some(generics), _func_id) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6310
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
+                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
                 Vec::new()
             }
             _ => Vec::new(),
@@ -557,15 +553,13 @@ impl<'context> Elaborator<'context> {
                 self.push_err(error);
             }
 
-            // TODO: GenericTypeInPath
-            let generic_type_in_path = None;
             (
                 HirIdent {
                     location: Location::new(path.span, self.file),
                     id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
                     impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
                 },
-                generic_type_in_path,
+                None,
             )
         } else {
             // If the Path is being used as an Expression, then it is referring to a global from a separate module
