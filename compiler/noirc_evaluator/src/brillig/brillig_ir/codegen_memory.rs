@@ -149,6 +149,69 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
+    /// Copies num_elements_variable from the source pointer to the target pointer, starting from the end
+    pub(crate) fn codegen_mem_copy_from_the_end(
+        &mut self,
+        source_start: MemoryAddress,
+        target_start: MemoryAddress,
+        num_elements_variable: SingleAddrVariable,
+    ) {
+        self.codegen_generic_iteration(
+            |brillig_context| {
+                // Create the pointer to the last item for both source and target
+                let num_items_minus_one = brillig_context.allocate_register();
+                brillig_context.codegen_usize_op(
+                    num_elements_variable.address,
+                    num_items_minus_one,
+                    BrilligBinaryOp::Sub,
+                    1,
+                );
+                let target_pointer = brillig_context.allocate_register();
+                brillig_context.memory_op_instruction(
+                    target_start,
+                    num_items_minus_one,
+                    target_pointer,
+                    BrilligBinaryOp::Add,
+                );
+                let source_pointer = brillig_context.allocate_register();
+                brillig_context.memory_op_instruction(
+                    source_start,
+                    num_items_minus_one,
+                    source_pointer,
+                    BrilligBinaryOp::Add,
+                );
+                brillig_context.deallocate_register(num_items_minus_one);
+                (source_pointer, target_pointer)
+            },
+            |brillig_context, &(source_pointer, target_pointer)| {
+                brillig_context.codegen_usize_op_in_place(source_pointer, BrilligBinaryOp::Sub, 1);
+                brillig_context.codegen_usize_op_in_place(target_pointer, BrilligBinaryOp::Sub, 1);
+            },
+            |brillig_context, &(source_pointer, _)| {
+                // We have finished when the source/target pointer is less than the source/target start
+                let finish_condition =
+                    SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+                brillig_context.memory_op_instruction(
+                    source_pointer,
+                    source_start,
+                    finish_condition.address,
+                    BrilligBinaryOp::LessThan,
+                );
+                finish_condition
+            },
+            |brillig_context, &(source_pointer, target_pointer)| {
+                let value_register = brillig_context.allocate_register();
+                brillig_context.load_instruction(value_register, source_pointer);
+                brillig_context.store_instruction(target_pointer, value_register);
+                brillig_context.deallocate_register(value_register);
+            },
+            |brillig_context, (source_pointer, target_pointer)| {
+                brillig_context.deallocate_register(source_pointer);
+                brillig_context.deallocate_register(target_pointer);
+            },
+        );
+    }
+
     /// This instruction will reverse the order of the `size` elements pointed by `pointer`.
     pub(crate) fn codegen_array_reverse(
         &mut self,
@@ -356,6 +419,31 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
+    pub(crate) fn codegen_initialize_vector_metadata(
+        &mut self,
+        vector: BrilligVector,
+        size: SingleAddrVariable,
+        capacity: Option<SingleAddrVariable>,
+    ) {
+        // Write RC
+        self.indirect_const_instruction(
+            vector.pointer,
+            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            1_usize.into(),
+        );
+
+        // Write size
+        let write_pointer = self.allocate_register();
+        self.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, 1);
+        self.store_instruction(write_pointer, size.address);
+
+        // Write capacity
+        self.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, 1);
+        self.store_instruction(write_pointer, capacity.unwrap_or(size).address);
+
+        self.deallocate_register(write_pointer);
+    }
+
     /// Initializes a vector, allocating memory to store its representation and initializing the reference counter, size and capacity
     pub(crate) fn codegen_initialize_vector(
         &mut self,
@@ -374,23 +462,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_allocate_mem(vector.pointer, allocation_size);
         self.deallocate_register(allocation_size);
 
-        // Write RC
-        self.indirect_const_instruction(
-            vector.pointer,
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
-        );
-
-        // Write size
-        let write_pointer = self.allocate_register();
-        self.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, 1);
-        self.store_instruction(write_pointer, size.address);
-
-        // Write capacity
-        self.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, 1);
-        self.store_instruction(write_pointer, capacity.unwrap_or(size).address);
-
-        self.deallocate_register(write_pointer);
+        self.codegen_initialize_vector_metadata(vector, size, capacity);
     }
 
     /// We don't know the length of a vector returned externally before the call

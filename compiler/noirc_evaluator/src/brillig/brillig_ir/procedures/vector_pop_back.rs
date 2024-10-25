@@ -11,14 +11,13 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Pops items from the vector, returning the new vector and the pointer to the popped items in read_pointer.
-    pub(crate) fn call_vector_pop_procedure(
+    /// Pops items from the back of a vector, returning the new vector and the pointer to the popped items in read_pointer.
+    pub(crate) fn call_vector_pop_back_procedure(
         &mut self,
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
         read_pointer: MemoryAddress,
         item_pop_count: usize,
-        back: bool,
     ) {
         let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
         let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
@@ -28,16 +27,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         self.usize_const_instruction(item_pop_count_arg, item_pop_count.into());
 
-        self.add_procedure_call_instruction(ProcedureId::VectorPop(back));
+        self.add_procedure_call_instruction(ProcedureId::VectorPopBack);
 
         self.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
         self.mov_instruction(read_pointer, read_pointer_return);
     }
 }
 
-pub(super) fn compile_vector_pop_procedure<F: AcirField + DebugToString>(
+pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
-    pop_back: bool,
 ) {
     let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
     let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
@@ -65,36 +63,6 @@ pub(super) fn compile_vector_pop_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    if pop_back {
-        codegen_pop_back(
-            brillig_context,
-            source_vector,
-            target_vector,
-            target_size,
-            read_pointer_return,
-        );
-    } else {
-        codegen_pop_front(
-            brillig_context,
-            source_vector,
-            target_vector,
-            target_size,
-            item_pop_count_arg,
-            read_pointer_return,
-        );
-    }
-
-    brillig_context.deallocate_single_addr(source_size);
-    brillig_context.deallocate_single_addr(target_size);
-}
-
-fn codegen_pop_back<F: AcirField + DebugToString>(
-    brillig_context: &mut BrilligContext<F, ScratchSpace>,
-    source_vector: BrilligVector,
-    target_vector: BrilligVector,
-    target_size: SingleAddrVariable,
-    read_pointer_return: MemoryAddress,
-) {
     let rc = brillig_context.allocate_register();
     brillig_context.load_instruction(rc, source_vector.pointer);
     let is_rc_one = brillig_context.allocate_register();
@@ -135,36 +103,7 @@ fn codegen_pop_back<F: AcirField + DebugToString>(
     brillig_context.deallocate_register(rc);
     brillig_context.deallocate_register(is_rc_one);
     brillig_context.deallocate_register(source_vector_items_pointer);
-}
 
-fn codegen_pop_front<F: AcirField + DebugToString>(
-    brillig_context: &mut BrilligContext<F, ScratchSpace>,
-    source_vector: BrilligVector,
-    target_vector: BrilligVector,
-    target_size: SingleAddrVariable,
-    item_pop_count: MemoryAddress,
-    read_pointer_return: MemoryAddress,
-) {
-    brillig_context.codegen_initialize_vector(target_vector, target_size, None);
-
-    let source_vector_items_pointer =
-        brillig_context.codegen_make_vector_items_pointer(source_vector);
-    let target_vector_items_pointer =
-        brillig_context.codegen_make_vector_items_pointer(target_vector);
-
-    let source_copy_pointer = brillig_context.allocate_register();
-    brillig_context.memory_op_instruction(
-        source_vector_items_pointer,
-        item_pop_count,
-        source_copy_pointer,
-        BrilligBinaryOp::Add,
-    );
-
-    // Now we copy the source vector starting at index removed_items.len() into the target vector
-    brillig_context.codegen_mem_copy(source_copy_pointer, target_vector_items_pointer, target_size);
-    brillig_context.mov_instruction(read_pointer_return, source_vector_items_pointer);
-
-    brillig_context.deallocate_register(source_copy_pointer);
-    brillig_context.deallocate_register(source_vector_items_pointer);
-    brillig_context.deallocate_register(target_vector_items_pointer);
+    brillig_context.deallocate_single_addr(source_size);
+    brillig_context.deallocate_single_addr(target_size);
 }

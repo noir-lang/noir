@@ -79,17 +79,15 @@ impl<'block> BrilligBlock<'block> {
         source_vector: BrilligVector,
         removed_items: &[BrilligVariable],
     ) {
-        let read_pointer = self.brillig_context.allocate_register();
-        self.brillig_context.call_vector_pop_procedure(
-            source_vector,
-            target_vector,
-            read_pointer,
-            removed_items.len(),
-            false,
-        );
-
+        let read_pointer = self.brillig_context.codegen_make_vector_items_pointer(source_vector);
         self.read_variables(read_pointer, removed_items);
         self.brillig_context.deallocate_register(read_pointer);
+
+        self.brillig_context.call_vector_pop_front_procedure(
+            source_vector,
+            target_vector,
+            removed_items.len(),
+        );
     }
 
     pub(crate) fn slice_pop_back_operation(
@@ -99,12 +97,11 @@ impl<'block> BrilligBlock<'block> {
         removed_items: &[BrilligVariable],
     ) {
         let read_pointer = self.brillig_context.allocate_register();
-        self.brillig_context.call_vector_pop_procedure(
+        self.brillig_context.call_vector_pop_back_procedure(
             source_vector,
             target_vector,
             read_pointer,
             removed_items.len(),
-            true,
         );
 
         self.read_variables(read_pointer, removed_items);
