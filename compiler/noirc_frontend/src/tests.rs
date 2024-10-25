@@ -1,9 +1,12 @@
 #![cfg(test)]
 
+mod aliases;
 mod bound_checks;
 mod imports;
+mod metaprogramming;
 mod name_shadowing;
 mod references;
+mod traits;
 mod turbofish;
 mod unused_items;
 mod visibility;
@@ -121,7 +124,7 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
 fn assert_no_errors(src: &str) {
     let errors = get_program_errors(src);
     if !errors.is_empty() {
-        panic!("Expected no errors, got: {:?}", errors);
+        panic!("Expected no errors, got: {:?}; src = {src}", errors);
     }
 }
 
@@ -194,7 +197,7 @@ fn check_trait_implementation_duplicate_method() {
             x + 2 * y
         }
     }
-    
+
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
@@ -643,7 +646,7 @@ fn check_impl_struct_not_trait() {
             Self { bar: x, array: [x,y] }
         }
     }
-    
+
     fn main() {
         let _ = Default { x: 1, z: 1 }; // silence Default never constructed warning
     }
@@ -1571,7 +1574,7 @@ fn struct_numeric_generic_in_function() {
         inner: u64
     }
 
-    pub fn bar<let N: Foo>() { 
+    pub fn bar<let N: Foo>() {
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
     "#;
@@ -2155,7 +2158,7 @@ fn numeric_generics_type_kind_mismatch() {
     }
 
     global M: u16 = 3;
-    
+
     fn main() {
         let _ = bar::<M>();
     }
@@ -2193,7 +2196,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
     }
 
     impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
-        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) { 
+        pub fn extend_from_bounded_vec<let Len: u32>(&mut self, _vec: BoundedVec<T, Len>) {
             // We do this to avoid an unused variable warning on `self`
             let _ = self.len;
             for _ in 0..Len { }
@@ -2484,7 +2487,7 @@ fn trait_impl_where_clause_stricter_pass() {
 
         fn bad_foo<A, B>() where A: OtherTrait { }
     }
-    
+
     fn main() {
         let _ = Option { inner: 1 }; // silence Option never constructed warning
     }
@@ -2968,9 +2971,7 @@ fn uses_self_type_in_trait_where_clause() {
         }
     }
 
-    struct Bar {
-
-    }
+    struct Bar {}
 
     impl Foo for Bar {
 
@@ -2982,12 +2983,17 @@ fn uses_self_type_in_trait_where_clause() {
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 2);
+
+    let CompilationError::ResolverError(ResolverError::TraitNotImplemented { .. }) = &errors[0].0
+    else {
+        panic!("Expected a trait not implemented error, got {:?}", errors[0].0);
+    };
 
     let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
-        &errors[0].0
+        &errors[1].0
     else {
-        panic!("Expected an unresolved method call error, got {:?}", errors[0].0);
+        panic!("Expected an unresolved method call error, got {:?}", errors[1].0);
     };
 
     assert_eq!(method_name, "trait_func");
@@ -3387,4 +3393,156 @@ fn arithmetic_generics_rounding_fail() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn unconditional_recursion_fail() {
+    let srcs = vec![
+        r#"
+        fn main() {
+            main()
+        }
+        "#,
+        r#"
+        fn main() -> pub bool {
+            if main() { true } else { false }
+        }
+        "#,
+        r#"
+        fn main() -> pub bool {
+            if true { main() } else { main() }
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            main() + main()
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            1 + main()
+        }
+        "#,
+        r#"
+        fn main() -> pub bool {
+            let _ = main();
+            true
+        }
+        "#,
+        r#"
+        fn main(a: u64, b: u64) -> pub u64 {
+            main(a + b, main(a, b))
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            foo(1, main())
+        }
+        fn foo(a: u64, b: u64) -> u64 { 
+            a + b
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            let (a, b) = (main(), main());
+            a + b
+        }
+        "#,
+        r#"
+        fn main() -> pub u64 {
+            let mut sum = 0;
+            for i in 0 .. main() {
+                sum += i;
+            }
+            sum
+        }
+        "#,
+    ];
+
+    for src in srcs {
+        let errors = get_program_errors(src);
+        assert!(
+            !errors.is_empty(),
+            "expected 'unconditional recursion' error, got nothing; src = {src}"
+        );
+
+        for (error, _) in errors {
+            let CompilationError::ResolverError(ResolverError::UnconditionalRecursion { .. }) =
+                error
+            else {
+                panic!("Expected an 'unconditional recursion' error, got {:?}; src = {src}", error);
+            };
+        }
+    }
+}
+
+#[test]
+fn unconditional_recursion_pass() {
+    let srcs = vec![
+        r#"
+        fn main() {
+            if false { main(); }
+        }
+        "#,
+        r#"
+        fn main(i: u64) -> pub u64 {
+            if i == 0 { 0 } else { i + main(i-1) }
+        }
+        "#,
+        // Only immediate self-recursion is detected.
+        r#"
+        fn main() {
+            foo();
+        }
+        fn foo() {
+            bar();
+        }
+        fn bar() {
+            foo();
+        }
+        "#,
+        // For loop bodies are not checked.
+        r#"
+        fn main() -> pub u64 {
+            let mut sum = 0;
+            for _ in 0 .. 10 {
+                sum += main();
+            }
+            sum
+        }
+        "#,
+        // Lambda bodies are not checked.
+        r#"
+        fn main() {
+            let foo = || main();
+            foo();
+        }
+        "#,
+    ];
+
+    for src in srcs {
+        assert_no_errors(src);
+    }
+}
+
+#[test]
+fn uses_self_in_import() {
+    let src = r#"
+    mod moo {
+        pub mod bar {
+            pub fn foo() -> i32 {
+                1
+            }
+        }
+    }
+
+    use moo::bar::{self};
+
+    pub fn baz() -> i32 {
+        bar::foo()
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
 }

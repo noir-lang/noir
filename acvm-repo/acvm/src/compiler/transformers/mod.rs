@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 mod csat;
 
 pub(crate) use csat::CSatTransformer;
+pub use csat::MIN_EXPRESSION_WIDTH;
 
 use super::{
     optimizers::MergeExpressionsOptimizer, transform_assert_messages, AcirTransformationMap,
@@ -201,7 +202,6 @@ pub(super) fn transform_internal<F: AcirField>(
         // The transformer does not add new public inputs
         ..acir
     };
-
     let (opcodes, new_acir_opcode_positions) =
         merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
     // n.b. we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.

@@ -7,9 +7,7 @@ use acvm::{
 };
 
 use crate::brillig::brillig_ir::{
-    brillig_variable::{BrilligVariable, SingleAddrVariable},
-    debug_show::DebugToString,
-    registers::RegisterAllocator,
+    brillig_variable::BrilligVariable, debug_show::DebugToString, registers::RegisterAllocator,
     BrilligBinaryOp, BrilligContext,
 };
 
@@ -61,47 +59,23 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 unreachable!("ICE: Blake3 expects one array argument and one array result")
             }
         }
-        BlackBoxFunc::Keccak256 => {
+        BlackBoxFunc::Keccakf1600 => {
             if let (
-                [message, BrilligVariable::SingleAddr(message_size)],
+                [BrilligVariable::BrilligArray(input_array)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
-                let message_vector = convert_array_or_vector(brillig_context, *message, bb_func);
-                let output_heap_array =
-                    brillig_context.codegen_brillig_array_to_heap_array(*result_array);
-
-                // Message_size is not usize
-                brillig_context.cast_instruction(
-                    SingleAddrVariable::new_usize(message_vector.size),
-                    *message_size,
-                );
-
-                brillig_context.black_box_op_instruction(BlackBoxOp::Keccak256 {
-                    message: message_vector,
-                    output: output_heap_array,
-                });
-
-                brillig_context.deallocate_heap_vector(message_vector);
-                brillig_context.deallocate_heap_array(output_heap_array);
-            } else {
-                unreachable!("ICE: Keccak256 expects message, message size and result array")
-            }
-        }
-        BlackBoxFunc::Keccakf1600 => {
-            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
-            {
-                let message_vector = convert_array_or_vector(brillig_context, *message, bb_func);
+                let input_heap_array =
+                    brillig_context.codegen_brillig_array_to_heap_array(*input_array);
                 let output_heap_array =
                     brillig_context.codegen_brillig_array_to_heap_array(*result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Keccakf1600 {
-                    message: message_vector,
+                    input: input_heap_array,
                     output: output_heap_array,
                 });
 
-                brillig_context.deallocate_heap_vector(message_vector);
+                brillig_context.deallocate_heap_array(input_heap_array);
                 brillig_context.deallocate_heap_array(output_heap_array);
             } else {
                 unreachable!("ICE: Keccakf1600 expects one array argument and one array result")
@@ -170,42 +144,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
             }
         }
 
-        BlackBoxFunc::PedersenCommitment => {
-            if let (
-                [message, BrilligVariable::SingleAddr(domain_separator)],
-                [BrilligVariable::BrilligArray(result_array)],
-            ) = (function_arguments, function_results)
-            {
-                let inputs = convert_array_or_vector(brillig_context, *message, bb_func);
-                let output = brillig_context.codegen_brillig_array_to_heap_array(*result_array);
-                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenCommitment {
-                    inputs,
-                    domain_separator: domain_separator.address,
-                    output,
-                });
-                brillig_context.deallocate_heap_vector(inputs);
-                brillig_context.deallocate_heap_array(output);
-            } else {
-                unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
-            }
-        }
-        BlackBoxFunc::PedersenHash => {
-            if let (
-                [message, BrilligVariable::SingleAddr(domain_separator)],
-                [BrilligVariable::SingleAddr(result)],
-            ) = (function_arguments, function_results)
-            {
-                let inputs = convert_array_or_vector(brillig_context, *message, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenHash {
-                    inputs,
-                    domain_separator: domain_separator.address,
-                    output: result.address,
-                });
-                brillig_context.deallocate_heap_vector(inputs);
-            } else {
-                unreachable!("ICE: Pedersen hash expects one array argument, a register for the domain separator, and one register result")
-            }
-        }
         BlackBoxFunc::SchnorrVerify => {
             if let (
                 [BrilligVariable::SingleAddr(public_key_x), BrilligVariable::SingleAddr(public_key_y), signature, message],
@@ -413,21 +351,23 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
             }
         }
         BlackBoxFunc::Sha256Compression => {
-            if let ([message, hash_values], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
+            if let (
+                [BrilligVariable::BrilligArray(input_array), BrilligVariable::BrilligArray(hash_values)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
             {
-                let message_vector = convert_array_or_vector(brillig_context, *message, bb_func);
-                let hash_values = convert_array_or_vector(brillig_context, *hash_values, bb_func);
+                let input = brillig_context.codegen_brillig_array_to_heap_array(*input_array);
+                let hash_values = brillig_context.codegen_brillig_array_to_heap_array(*hash_values);
                 let output = brillig_context.codegen_brillig_array_to_heap_array(*result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Sha256Compression {
-                    input: message_vector,
+                    input,
                     hash_values,
                     output,
                 });
 
-                brillig_context.deallocate_heap_vector(message_vector);
-                brillig_context.deallocate_heap_vector(hash_values);
+                brillig_context.deallocate_heap_array(input);
+                brillig_context.deallocate_heap_array(hash_values);
                 brillig_context.deallocate_heap_array(output);
             } else {
                 unreachable!("ICE: Sha256Compression expects two array argument, one array result")

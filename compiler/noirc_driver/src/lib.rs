@@ -5,6 +5,7 @@
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
+use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -128,6 +129,12 @@ pub struct CompileOptions {
     /// Flag to enable experimental ACIR optimizations
     #[arg(long, default_value = "false")]
     pub experimental_optimization: bool,
+
+    /// Setting to decide on an inlining strategy for brillig functions.
+    /// A more aggressive inliner should generate larger programs but more optimized
+    /// A less aggressive inliner should generate smaller programs
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
+    pub inliner_aggressiveness: i64,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -138,7 +145,11 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
 
     match width {
         0 => Ok(ExpressionWidth::Unbounded),
-        _ => Ok(ExpressionWidth::Bounded { width }),
+        w if w >= MIN_EXPRESSION_WIDTH => Ok(ExpressionWidth::Bounded { width }),
+        _ => Err(Error::new(
+            ErrorKind::InvalidInput,
+            format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
+        )),
     }
 }
 
@@ -448,14 +459,12 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(|attr| {
-                if let SecondaryAttribute::Tag(attribute) = attr {
-                    Some(&attribute.contents)
-                } else {
-                    None
+            .filter_map(|attr| match attr {
+                SecondaryAttribute::Tag(attribute) | SecondaryAttribute::Meta(attribute) => {
+                    Some(attribute.contents.clone())
                 }
+                _ => None,
             })
-            .cloned()
             .collect();
 
         functions.push(ContractFunction {
@@ -585,6 +594,7 @@ pub fn compile_no_check(
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
         experimental_optimization: options.experimental_optimization,
+        inliner_aggressiveness: options.inliner_aggressiveness,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

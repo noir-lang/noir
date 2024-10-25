@@ -55,7 +55,7 @@ pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
     verification_key: [Field; N],
     proof: [Field; M],
     public_inputs: [Field; K],
-    key_hash: Field
+    key_hash: Field,
 ) {
     verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
 }
@@ -65,9 +65,11 @@ pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     proof: [Field; M],
     public_inputs: [Field; K],
     key_hash: Field,
-    proof_type: u32
+    proof_type: u32,
 ) {
-    crate::assert_constant(proof_type);
+    if !crate::runtime::is_unconstrained() {
+        crate::assert_constant(proof_type);
+    }
     verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);
 }
 
@@ -77,7 +79,7 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
     proof: [Field; M],
     public_inputs: [Field; K],
     key_hash: Field,
-    proof_type: u32
+    proof_type: u32,
 ) {}
 
 // Asserts that the given value is known at compile-time.
@@ -104,7 +106,9 @@ pub fn wrapping_add<T>(x: T, y: T) -> T {
 
 pub fn wrapping_sub<T>(x: T, y: T) -> T {
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    crate::from_field(crate::as_field(x) + 340282366920938463463374607431768211456 - crate::as_field(y))
+    crate::from_field(
+        crate::as_field(x) + 340282366920938463463374607431768211456 - crate::as_field(y),
+    )
 }
 
 pub fn wrapping_mul<T>(x: T, y: T) -> T {

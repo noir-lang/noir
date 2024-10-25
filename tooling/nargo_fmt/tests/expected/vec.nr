@@ -1,5 +1,5 @@
-struct Vec<T> { 
-    slice: [T]
+struct Vec<T> {
+    slice: [T],
 }
 
 // A mutable vector type implemented as a wrapper around immutable slices.
@@ -39,7 +39,7 @@ impl<T> Vec<T> {
         last_elem
     }
 
-    /// Insert an element at a specified index, shifting all elements 
+    /// Insert an element at a specified index, shifting all elements
     /// after it to the right
     pub fn insert(&mut self, index: Field, elem: T) {
         self.slice = self.slice.insert(index, elem);

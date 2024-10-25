@@ -1,6 +1,6 @@
 fn main(
     // Public key of note
-  // all notes have the same denomination
+    // all notes have the same denomination
     priv_key: Field,
     // Merkle membership proof
     note_root: pub Field,
@@ -8,7 +8,7 @@ fn main(
     note_hash_path: [Field; 3],
     // Receiver public key
     to_pubkey_x: Field,
-    to_pubkey_y: Field
+    to_pubkey_y: Field,
 ) -> pub [Field; 2] {
     let priv_key_as_scalar = std::embedded_curve_ops::EmbeddedCurveScalar { lo: priv_key, hi: 0 };
     // Compute public key from private key to show ownership

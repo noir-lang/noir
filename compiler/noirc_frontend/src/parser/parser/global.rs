@@ -59,7 +59,8 @@ impl<'a> Parser<'a> {
 
 fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
     if mutable {
-        Pattern::Mutable(Box::new(Pattern::Identifier(ident)), Span::default(), false)
+        let span = ident.span();
+        Pattern::Mutable(Box::new(Pattern::Identifier(ident)), span, false)
     } else {
         Pattern::Identifier(ident)
     }
@@ -140,6 +141,8 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
+        assert_eq!(pattern.span().start(), 11);
+        assert_eq!(pattern.span().end(), 14);
     }
 
     #[test]
@@ -163,6 +166,6 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a ; but found end of input");
+        assert_eq!(error.to_string(), "Expected a ';' but found end of input");
     }
 }
