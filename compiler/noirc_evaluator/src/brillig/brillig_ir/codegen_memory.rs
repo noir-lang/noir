@@ -332,13 +332,22 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result
     }
 
+    /// Writes a pointer to the items of a given vector
+    pub(crate) fn codegen_vector_items_pointer(
+        &mut self,
+        vector: BrilligVector,
+        result: MemoryAddress,
+    ) {
+        self.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, 3);
+    }
+
     /// Returns a pointer to the items of a given vector
     pub(crate) fn codegen_make_vector_items_pointer(
         &mut self,
         vector: BrilligVector,
     ) -> MemoryAddress {
         let result = self.allocate_register();
-        self.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, 3);
+        self.codegen_vector_items_pointer(vector, result);
         result
     }
 
