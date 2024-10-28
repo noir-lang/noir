@@ -1142,6 +1142,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     pub(super) fn empty_block_contents_chunk(&mut self) -> Option<ChunkGroup> {
         let mut group = ChunkGroup::new();
         group.increase_indentation();
+
+        let newlines_count = self.following_newlines_count();
+
         let mut chunk = self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         });
@@ -1151,15 +1154,13 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             // so there's nothing to write.
             None
         } else {
-            if chunk.string.trim_start().starts_with("//") {
-                group.text(chunk);
-                group.decrease_indentation();
-                group.line();
-            } else {
+            // If we have a trailing comment, preserve it in the same line
+            if newlines_count == 0 && !chunk.string.trim_start().starts_with("//") {
                 chunk.string = format!(" {} ", chunk.string.trim());
-                group.text(chunk);
-                group.decrease_indentation();
             }
+            group.text(chunk);
+            group.decrease_indentation();
+            group.line();
             Some(group)
         }
     }

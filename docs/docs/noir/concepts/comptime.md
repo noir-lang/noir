@@ -5,7 +5,7 @@ keywords: [Noir, comptime, compile-time, metaprogramming, macros, quote, unquote
 sidebar_position: 15
 ---
 
-# Overview
+## Overview
 
 Metaprogramming in Noir is comprised of three parts:
 1. `comptime` code
@@ -21,7 +21,7 @@ for greater analysis and modification of programs.
 
 ---
 
-# Comptime
+## Comptime
 
 `comptime` is a new keyword in Noir which marks an item as executing or existing at compile-time. It can be used in several ways:
 
@@ -32,11 +32,11 @@ for greater analysis and modification of programs.
 - `comptime let` to define a variable whose value is evaluated at compile-time.
 - `comptime for` to run a for loop at compile-time. Syntax sugar for `comptime { for .. }`.
 
-## Scoping
+### Scoping
 
 Note that while in a `comptime` context, any runtime variables _local to the current function_ are never visible.
 
-## Evaluating
+### Evaluating
 
 Evaluation rules of `comptime` follows the normal unconstrained evaluation rules for other Noir code. There are a few things to note though:
 
@@ -65,7 +65,7 @@ For example, using globals to generate unique ids should be fine but relying on 
     in different modules are evaluated submodule-first. Sibling modules to the same parent module are evaluated in order of the module declarations (`mod foo; mod bar;`) in their
     parent module.
 
-## Lowering
+### Lowering
 
 When a `comptime` value is used in runtime code it must be lowered into a runtime value. This means replacing the expression with the literal that it evaluated to. For example, the code:
 
@@ -118,7 +118,7 @@ fn main() {
 
 ---
 
-# (Quasi) Quote
+## (Quasi) Quote
 
 Macros in Noir are `comptime` functions which return code as a value which is inserted into the call site when it is lowered there.
 A code value in this case is of type `Quoted` and can be created by a `quote { ... }` expression.
@@ -150,7 +150,9 @@ comptime {
 }
 ```
 
-# Unquote
+---
+
+## Unquote
 
 The unquote operator `$` is usable within a `quote` expression.
 It takes a variable as an argument, evaluates the variable, and splices the resulting value into the quoted token stream at that point. For example,
@@ -187,10 +189,10 @@ comptime {
 }
 ```
 
-## Combining Tokens
+### Combining Tokens
 
-Note that `Quoted` is internally a series of separate tokens, and that all unquoting does is combine these token vectors, code
-that appears to append like a string actually appends like a vector internally:
+Note that `Quoted` is internally a series of separate tokens, and that all unquoting does is combine these token vectors.
+This means that code which appears to append like a string actually appends like a vector internally:
 
 ```rust
 comptime {
@@ -211,7 +213,7 @@ over each token of a larger quoted value with `.tokens()`:
 
 ---
 
-# Attributes
+## Attributes
 
 Attributes provide a way to run a `comptime` function on an item in the program.
 When you use an attribute, the function with the same name will be called with that item as an argument:
@@ -239,7 +241,7 @@ For example, this is the mechanism used to insert additional trait implementatio
 
 #include_code derive-field-count-example noir_stdlib/src/meta/mod.nr rust
 
-## Calling attributes with additional arguments
+### Calling annotations with additional arguments
 
 Arguments may optionally be given to attributes.
 When this is done, these additional arguments are passed to the attribute function after the item argument.
@@ -250,7 +252,7 @@ We can also take any number of arguments by adding the `varargs` attribute:
 
 #include_code annotation-varargs-example noir_stdlib/src/meta/mod.nr rust
 
-## Attribute Evaluation Order
+### Attribute Evaluation Order
 
 Unlike the evaluation order of stray `comptime {}` blocks within functions, attributes have a well-defined evaluation
 order. Within a module, attributes are evaluated top to bottom. Between modules, attributes in child modules are evaluated
@@ -284,13 +286,13 @@ In this case, the issue can be resolved by rearranging the structs.
 
 ---
 
-# Comptime API
+## Comptime API
 
 Although `comptime`, `quote`, and unquoting provide a flexible base for writing macros,
 Noir's true metaprogramming ability comes from being able to interact with the compiler through a compile-time API.
 This API can be accessed through built-in functions in `std::meta` as well as on methods of several `comptime` types.
 
-The following is an incomplete list of some `comptime` types along with some useful methods on them.
+The following is an incomplete list of some `comptime` types along with some useful methods on them. You can see more in the standard library [Metaprogramming section](../standard_library/meta).
 
 - `Quoted`: A token stream
 - `Type`: The type of a Noir type
@@ -321,7 +323,7 @@ The following is an incomplete list of some `comptime` types along with some use
 There are many more functions available by exploring the `std::meta` module and its submodules.
 Using these methods is the key to writing powerful metaprogramming libraries.
 
-## `#[use_callers_scope]`
+### `#[use_callers_scope]`
 
 Since certain functions such as `Quoted::as_type`, `Expression::as_type`, or `Quoted::as_trait_constraint` will attempt
 to resolve their contents in a particular scope - it can be useful to change the scope they resolve in. By default
@@ -334,7 +336,7 @@ your attribute function and a helper function it calls use it, then they can bot
 
 ---
 
-# Example: Derive
+## Example: Derive
 
 Using all of the above, we can write a `derive` macro that behaves similarly to Rust's but is not built into the language.
 From the user's perspective it will look like this:

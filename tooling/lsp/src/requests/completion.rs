@@ -19,9 +19,9 @@ use noirc_frontend::{
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
         IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
         MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Signedness, Statement, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UseTree,
-        UseTreeKind, Visitor,
+        Signedness, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -38,7 +38,8 @@ use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    utils, visibility::is_visible, LspState,
+    use_segment_positions::UseSegmentPositions, utils, visibility::item_in_module_is_visible,
+    LspState,
 };
 
 use super::process_request;
@@ -115,6 +116,7 @@ struct NodeFinder<'a> {
     nesting: usize,
     /// The line where an auto_import must be inserted
     auto_import_line: usize,
+    use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
     in_comptime: bool,
 }
@@ -159,6 +161,7 @@ impl<'a> NodeFinder<'a> {
             suggested_module_def_ids: HashSet::new(),
             nesting: 0,
             auto_import_line: 0,
+            use_segment_positions: UseSegmentPositions::default(),
             self_type: None,
             in_comptime: false,
         }
@@ -381,7 +384,7 @@ impl<'a> NodeFinder<'a> {
                     self.builtin_types_completion(&prefix);
                     self.type_parameters_completion(&prefix);
                 }
-                RequestedItems::OnlyAttributeFunctions(..) => (),
+                RequestedItems::OnlyTraits | RequestedItems::OnlyAttributeFunctions(..) => (),
             }
             self.complete_auto_imports(&prefix, requested_items, function_completion_kind);
         }
@@ -795,7 +798,12 @@ impl<'a> NodeFinder<'a> {
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        module_id,
+                        self.module_id,
+                        visibility,
+                        self.def_maps,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
@@ -811,7 +819,12 @@ impl<'a> NodeFinder<'a> {
                 }
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        module_id,
+                        self.module_id,
+                        visibility,
+                        self.def_maps,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
@@ -1035,6 +1048,8 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    /// Determine where each segment in a `use` statement is located.
+
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
     }
@@ -1042,10 +1057,11 @@ impl<'a> NodeFinder<'a> {
 
 impl<'a> Visitor for NodeFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        if let ItemKind::Import(..) = &item.kind {
+        if let ItemKind::Import(use_tree, _) = &item.kind {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
+            self.use_segment_positions.add(use_tree);
         }
 
         self.includes_span(item.span)
@@ -1107,6 +1123,10 @@ impl<'a> Visitor for NodeFinder<'a> {
         }
 
         noir_function.def.return_type.accept(self);
+
+        for constraint in &noir_function.def.where_clause {
+            constraint.accept(self);
+        }
 
         self.local_variables.clear();
         for param in &noir_function.def.parameters {
@@ -1215,7 +1235,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         return_type.accept(self);
 
         for unresolved_trait_constraint in where_clause {
-            unresolved_trait_constraint.typ.accept(self);
+            unresolved_trait_constraint.accept(self);
         }
 
         if let Some(body) = body {
@@ -1685,6 +1705,12 @@ impl<'a> Visitor for NodeFinder<'a> {
 
             last_was_dollar = false;
         }
+    }
+
+    fn visit_trait_bound(&mut self, trait_bound: &TraitBound) -> bool {
+        self.find_in_path(&trait_bound.trait_path, RequestedItems::OnlyTraits);
+        trait_bound.trait_generics.accept(self);
+        false
     }
 }
 
