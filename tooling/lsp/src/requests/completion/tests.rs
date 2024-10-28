@@ -1394,7 +1394,7 @@ mod completion_tests {
     #[test]
     async fn test_auto_imports() {
         let src = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
 
         struct Foo {
@@ -1415,7 +1415,7 @@ fn main() {
         let expected = r#"use foo::bar::hello_world;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
 
         struct Foo {
@@ -1456,7 +1456,7 @@ fn main() {
     async fn test_auto_imports_when_in_nested_module_and_item_is_further_nested() {
         let src = r#"#[something]
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
     }
 
@@ -1470,7 +1470,7 @@ mod foo {
 mod foo {
     use bar::hello_world;
 
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
     }
 
@@ -1500,11 +1500,11 @@ mod foo {
     #[test]
     async fn test_auto_imports_when_in_nested_module_and_item_is_not_further_nested() {
         let src = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
     }
 
-    mod baz {
+    pub mod baz {
         fn foo() {
             hel>|<
         }
@@ -1512,11 +1512,11 @@ mod foo {
 }"#;
 
         let expected = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
     }
 
-    mod baz {
+    pub mod baz {
         use super::bar::hello_world;
 
         fn foo() {
@@ -1545,7 +1545,7 @@ mod foo {
     #[test]
     async fn test_auto_import_inserts_after_last_use() {
         let src = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
     }
 }
@@ -1561,7 +1561,7 @@ fn main() {
 }"#;
 
         let expected = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub fn hello_world() {}
     }
 }
@@ -1626,6 +1626,23 @@ fn main() {
     }
 
     #[test]
+    async fn test_does_not_auto_import_public_function_in_private_module() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    pub fn hello_world() {}
+                }
+            }
+
+            fn main() {
+                hel>|<
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert!(items.is_empty());
+    }
+
+    #[test]
     async fn test_auto_import_suggests_modules_too() {
         let src = r#"mod foo {
         pub mod barbaz {
@@ -1675,7 +1692,7 @@ mod foo {
         let src = r#"use foo::bar::one_hello_world;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
     }
@@ -1688,7 +1705,7 @@ fn main() {
         let expected = r#"use foo::bar::{one_hello_world, two_hello_world};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
     }
@@ -1713,7 +1730,7 @@ fn main() {
         let src = r#"use foo::bar::one_hello_world;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
     }
     pub fn two_hello_world() {}
@@ -1726,7 +1743,7 @@ fn main() {
         let expected = r#"use foo::{bar::one_hello_world, two_hello_world};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
     }
     pub fn two_hello_world() {}
@@ -1751,11 +1768,11 @@ fn main() {
         let src = r#"use foo::{bar::one_hello_world, baz};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
     }
-    mod baz {}
+    pub mod baz {}
 }
 
 fn main() {
@@ -1765,11 +1782,11 @@ fn main() {
         let expected = r#"use foo::{bar::{one_hello_world, two_hello_world}, baz};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
     }
-    mod baz {}
+    pub mod baz {}
 }
 
 fn main() {
@@ -1791,11 +1808,11 @@ fn main() {
         let src = r#"use foo::bar::baz;
 
 mod foo {
-    mod bar {
-        mod baz {
+    pub mod bar {
+        pub mod baz {
             pub fn one_hello_world() {}
         }
-        mod qux {
+        pub mod qux {
             pub fn two_hello_world() {}
         }
     }
@@ -1808,11 +1825,11 @@ fn main() {
         let expected = r#"use foo::bar::{baz, qux::two_hello_world};
 
 mod foo {
-    mod bar {
-        mod baz {
+    pub mod bar {
+        pub mod baz {
             pub fn one_hello_world() {}
         }
-        mod qux {
+        pub mod qux {
             pub fn two_hello_world() {}
         }
     }
@@ -1837,7 +1854,7 @@ fn main() {
         let src = r#"use foo::bar;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
     }
@@ -1850,7 +1867,7 @@ fn main() {
         let expected = r#"use foo::bar::{self, two_hello_world};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
     }
@@ -1875,7 +1892,7 @@ fn main() {
         let src = r#"use foo::bar::{one_hello_world, three_hello_world};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
         pub fn three_hello_world() {}
@@ -1889,7 +1906,7 @@ fn main() {
         let expected = r#"use foo::bar::{two_hello_world, one_hello_world, three_hello_world};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn one_hello_world() {}
         pub fn two_hello_world() {}
         pub fn three_hello_world() {}
@@ -1915,7 +1932,7 @@ fn main() {
         let src = r#"use foo::bar::{};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn two_hello_world() {}
     }
 }
@@ -1927,7 +1944,7 @@ fn main() {
         let expected = r#"use foo::bar::{two_hello_world};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub fn two_hello_world() {}
     }
 }
@@ -2233,7 +2250,7 @@ fn main() {
     async fn test_auto_import_suggests_pub_use_for_function() {
         let src = r#"
             mod bar {
-                mod baz {
+                pub mod baz {
                     pub fn coco() {}
                 }
 

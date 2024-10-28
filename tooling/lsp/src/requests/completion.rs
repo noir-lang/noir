@@ -38,7 +38,8 @@ use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, visibility::is_visible, LspState,
+    use_segment_positions::UseSegmentPositions, utils, visibility::item_in_module_is_visible,
+    LspState,
 };
 
 use super::process_request;
@@ -797,7 +798,12 @@ impl<'a> NodeFinder<'a> {
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        module_id,
+                        self.module_id,
+                        visibility,
+                        self.def_maps,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
@@ -813,7 +819,12 @@ impl<'a> NodeFinder<'a> {
                 }
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        module_id,
+                        self.module_id,
+                        visibility,
+                        self.def_maps,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),

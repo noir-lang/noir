@@ -11,6 +11,7 @@ use crate::{
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
+    visibility::module_def_id_is_visible,
 };
 
 use super::CodeActionFinder;
@@ -41,6 +42,16 @@ impl<'a> CodeActionFinder<'a> {
             }
 
             for (module_def_id, visibility, defining_module) in entries {
+                if !module_def_id_is_visible(
+                    *module_def_id,
+                    self.module_id,
+                    *visibility,
+                    self.interner,
+                    self.def_maps,
+                ) {
+                    continue;
+                }
+
                 let module_full_path = if let Some(defining_module) = defining_module {
                     relative_module_id_path(
                         *defining_module,
@@ -51,11 +62,9 @@ impl<'a> CodeActionFinder<'a> {
                 } else {
                     let Some(module_full_path) = relative_module_full_path(
                         *module_def_id,
-                        *visibility,
                         self.module_id,
                         current_module_parent_id,
                         self.interner,
-                        self.def_maps,
                     ) else {
                         continue;
                     };
@@ -132,7 +141,7 @@ mod tests {
 
         let src = r#"
         mod foo {
-            mod bar {
+            pub mod bar {
                 pub struct SomeTypeInBar {}
             }
         }
@@ -142,7 +151,7 @@ mod tests {
 
         let expected = r#"
         mod foo {
-            mod bar {
+            pub mod bar {
                 pub struct SomeTypeInBar {}
             }
         }
@@ -158,7 +167,7 @@ mod tests {
         let title = "Import foo::bar::SomeTypeInBar";
 
         let src = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub struct SomeTypeInBar {}
     }
 }
@@ -168,7 +177,7 @@ fn foo(x: SomeType>|<InBar) {}"#;
         let expected = r#"use foo::bar::SomeTypeInBar;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub struct SomeTypeInBar {}
     }
 }
@@ -184,7 +193,7 @@ fn foo(x: SomeTypeInBar) {}"#;
 
         let src = r#"
         mod foo {
-            mod bar {
+            pub mod bar {
                 pub mod some_module_in_bar {}
             }
         }
@@ -196,7 +205,7 @@ fn foo(x: SomeTypeInBar) {}"#;
 
         let expected = r#"
         mod foo {
-            mod bar {
+            pub mod bar {
                 pub mod some_module_in_bar {}
             }
         }
@@ -214,7 +223,7 @@ fn foo(x: SomeTypeInBar) {}"#;
         let title = "Import foo::bar::some_module_in_bar";
 
         let src = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub(crate) mod some_module_in_bar {}
     }
 }
@@ -226,7 +235,7 @@ fn main() {
         let expected = r#"use foo::bar::some_module_in_bar;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub(crate) mod some_module_in_bar {}
     }
 }
@@ -245,7 +254,7 @@ fn main() {
         let src = r#"use foo::bar::SomeOtherType;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub struct SomeTypeInBar {}
     }
 }
@@ -255,7 +264,7 @@ fn foo(x: SomeType>|<InBar) {}"#;
         let expected = r#"use foo::bar::{SomeOtherType, SomeTypeInBar};
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub struct SomeTypeInBar {}
     }
 }

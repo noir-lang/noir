@@ -5,6 +5,7 @@ use crate::{
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
+    visibility::module_def_id_is_visible,
 };
 
 use super::{
@@ -33,6 +34,16 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 }
 
+                if !module_def_id_is_visible(
+                    *module_def_id,
+                    self.module_id,
+                    *visibility,
+                    self.interner,
+                    self.def_maps,
+                ) {
+                    continue;
+                }
+
                 let completion_items = self.module_def_id_completion_items(
                     *module_def_id,
                     name.clone(),
@@ -58,11 +69,9 @@ impl<'a> NodeFinder<'a> {
                     } else {
                         let Some(module_full_path) = relative_module_full_path(
                             *module_def_id,
-                            *visibility,
                             self.module_id,
                             current_module_parent_id,
                             self.interner,
-                            self.def_maps,
                         ) else {
                             continue;
                         };
