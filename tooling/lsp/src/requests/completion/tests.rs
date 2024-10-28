@@ -2719,4 +2719,42 @@ fn main() {
 
         assert_completion(src, Vec::new()).await;
     }
+
+    #[test]
+    async fn test_suggests_trait_in_trait_parent_bounds() {
+        let src = r#"
+        trait Foobar {}
+        struct Foobarbaz {}
+
+        trait Bar: Foob>|< {}
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Foobar",
+                CompletionItemKind::INTERFACE,
+                Some("Foobar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_trait_in_function_where_clause() {
+        let src = r#"
+        trait Foobar {}
+        struct Foobarbaz {}
+
+        fn foo<T>() where T: Foob>|< {}
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Foobar",
+                CompletionItemKind::INTERFACE,
+                Some("Foobar".to_string()),
+            )],
+        )
+        .await;
+    }
 }
