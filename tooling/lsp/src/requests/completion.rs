@@ -38,7 +38,8 @@ use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    utils, visibility::is_visible, LspState,
+    use_segment_positions::UseSegmentPositions, utils, visibility::item_in_module_is_visible,
+    LspState,
 };
 
 use super::process_request;
@@ -115,6 +116,7 @@ struct NodeFinder<'a> {
     nesting: usize,
     /// The line where an auto_import must be inserted
     auto_import_line: usize,
+    use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
     in_comptime: bool,
 }
@@ -159,6 +161,7 @@ impl<'a> NodeFinder<'a> {
             suggested_module_def_ids: HashSet::new(),
             nesting: 0,
             auto_import_line: 0,
+            use_segment_positions: UseSegmentPositions::default(),
             self_type: None,
             in_comptime: false,
         }
@@ -803,7 +806,12 @@ impl<'a> NodeFinder<'a> {
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        module_id,
+                        self.module_id,
+                        visibility,
+                        self.def_maps,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
@@ -819,7 +827,12 @@ impl<'a> NodeFinder<'a> {
                 }
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        module_id,
+                        self.module_id,
+                        visibility,
+                        self.def_maps,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
@@ -1043,6 +1056,8 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    /// Determine where each segment in a `use` statement is located.
+
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
     }
@@ -1050,10 +1065,11 @@ impl<'a> NodeFinder<'a> {
 
 impl<'a> Visitor for NodeFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        if let ItemKind::Import(..) = &item.kind {
+        if let ItemKind::Import(use_tree, _) = &item.kind {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
+            self.use_segment_positions.add(use_tree);
         }
 
         self.includes_span(item.span)

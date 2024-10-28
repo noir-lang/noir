@@ -885,6 +885,7 @@ fn push_child_module(
                 name: mod_name.0.contents.clone(),
                 location: mod_location,
                 parent: Some(parent),
+                visibility,
             },
         );
 
