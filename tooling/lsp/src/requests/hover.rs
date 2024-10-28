@@ -307,7 +307,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let mut string = String::new();
     let formatted_parent_module =
         format_parent_module(ReferenceId::Function(id), args, &mut string);
-    let formatted_parent_struct = if let Some(struct_id) = func_meta.struct_id {
+    let formatted_parent_type = if let Some(struct_id) = func_meta.struct_id {
         let struct_type = args.interner.get_struct(struct_id);
         let struct_type = struct_type.borrow();
         if formatted_parent_module {
@@ -331,10 +331,18 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         format_generic_names(&impl_generics, &mut string);
 
         true
+    } else if let Some(trait_id) = func_meta.trait_id {
+        let trait_ = args.interner.get_trait(trait_id);
+        string.push('\n');
+        string.push_str("    trait ");
+        string.push_str(&trait_.name.0.contents);
+        format_generics(&trait_.generics, &mut string);
+
+        true
     } else {
         false
     };
-    if formatted_parent_module || formatted_parent_struct {
+    if formatted_parent_module || formatted_parent_type {
         string.push('\n');
     }
     string.push_str("    ");
