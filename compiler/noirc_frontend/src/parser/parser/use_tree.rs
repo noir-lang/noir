@@ -53,13 +53,17 @@ impl<'a> Parser<'a> {
                     Self::parse_use_tree_in_list,
                 );
 
-                UseTree { prefix, kind: UseTreeKind::List(use_trees) }
+                UseTree {
+                    prefix,
+                    kind: UseTreeKind::List(use_trees),
+                    span: self.span_since(start_span),
+                }
             } else {
                 self.expected_token(Token::LeftBrace);
-                self.parse_path_use_tree_end(prefix, nested)
+                self.parse_path_use_tree_end(prefix, nested, start_span)
             }
         } else {
-            self.parse_path_use_tree_end(prefix, nested)
+            self.parse_path_use_tree_end(prefix, nested, start_span)
         }
     }
 
@@ -71,6 +75,7 @@ impl<'a> Parser<'a> {
             return Some(UseTree {
                 prefix: Path { segments: Vec::new(), kind: PathKind::Plain, span: start_span },
                 kind: UseTreeKind::Path(Ident::new("self".to_string(), start_span), None),
+                span: start_span,
             });
         }
 
@@ -89,25 +94,46 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(super) fn parse_path_use_tree_end(&mut self, mut prefix: Path, nested: bool) -> UseTree {
+    pub(super) fn parse_path_use_tree_end(
+        &mut self,
+        mut prefix: Path,
+        nested: bool,
+        start_span: Span,
+    ) -> UseTree {
         if prefix.segments.is_empty() {
             if nested {
                 self.expected_identifier();
             } else {
                 self.expected_label(ParsingRuleLabel::UseSegment);
             }
-            UseTree { prefix, kind: UseTreeKind::Path(Ident::default(), None) }
+            UseTree {
+                prefix,
+                kind: UseTreeKind::Path(Ident::default(), None),
+                span: self.span_since(start_span),
+            }
         } else {
             let ident = prefix.segments.pop().unwrap().ident;
             if self.eat_keyword(Keyword::As) {
                 if let Some(alias) = self.eat_ident() {
-                    UseTree { prefix, kind: UseTreeKind::Path(ident, Some(alias)) }
+                    UseTree {
+                        prefix,
+                        kind: UseTreeKind::Path(ident, Some(alias)),
+                        span: self.span_since(start_span),
+                    }
                 } else {
                     self.expected_identifier();
-                    UseTree { prefix, kind: UseTreeKind::Path(ident, None) }
+                    UseTree {
+                        prefix,
+                        kind: UseTreeKind::Path(ident, None),
+                        span: self.span_since(start_span),
+                    }
                 }
             } else {
-                UseTree { prefix, kind: UseTreeKind::Path(ident, None) }
+                UseTree {
+                    prefix,
+                    kind: UseTreeKind::Path(ident, None),
+                    span: self.span_since(start_span),
+                }
             }
         }
     }
