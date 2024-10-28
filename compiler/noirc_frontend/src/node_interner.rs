@@ -56,6 +56,7 @@ pub struct ModuleAttributes {
     pub name: String,
     pub location: Location,
     pub parent: Option<LocalModuleId>,
+    pub visibility: ItemVisibility,
 }
 
 type StructAttributes = Vec<SecondaryAttribute>;
