@@ -1643,6 +1643,29 @@ fn main() {
     }
 
     #[test]
+    async fn checks_visibility_of_module_that_exports_item_if_any() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    pub fn hello_world() {}
+                }
+
+                pub use bar::hello_world;
+            }
+
+            fn main() {
+                hello_w>|<
+            }
+        "#;
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(item.label, "hello_world()");
+        assert_eq!(item.label_details.unwrap().detail.unwrap(), "(use foo::hello_world)");
+    }
+
+    #[test]
     async fn test_auto_import_suggests_modules_too() {
         let src = r#"mod foo {
         pub mod barbaz {
@@ -2718,5 +2741,43 @@ fn main() {
         }"#;
 
         assert_completion(src, Vec::new()).await;
+    }
+
+    #[test]
+    async fn test_suggests_trait_in_trait_parent_bounds() {
+        let src = r#"
+        trait Foobar {}
+        struct Foobarbaz {}
+
+        trait Bar: Foob>|< {}
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Foobar",
+                CompletionItemKind::INTERFACE,
+                Some("Foobar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_trait_in_function_where_clause() {
+        let src = r#"
+        trait Foobar {}
+        struct Foobarbaz {}
+
+        fn foo<T>() where T: Foob>|< {}
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Foobar",
+                CompletionItemKind::INTERFACE,
+                Some("Foobar".to_string()),
+            )],
+        )
+        .await;
     }
 }

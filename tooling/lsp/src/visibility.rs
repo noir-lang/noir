@@ -37,10 +37,13 @@ pub(super) fn item_in_module_is_visible(
 
 /// Returns true if the given ModuleDefId is visible from the current module, given its visibility.
 /// This will in turn check if the ModuleDefId parent modules are visible from the current module.
+/// If `defining_module` is Some, it will be considered as the parent of the item to check
+/// (this is the case when the item is re-exported with `pub use` or similar).
 pub(super) fn module_def_id_is_visible(
     module_def_id: ModuleDefId,
     current_module_id: ModuleId,
     mut visibility: ItemVisibility,
+    mut defining_module: Option<ModuleId>,
     interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> bool {
@@ -49,7 +52,7 @@ pub(super) fn module_def_id_is_visible(
     let mut target_module_id = if let ModuleDefId::ModuleId(module_id) = module_def_id {
         Some(module_id)
     } else {
-        get_parent_module(interner, module_def_id)
+        std::mem::take(&mut defining_module).or_else(|| get_parent_module(interner, module_def_id))
     };
 
     // Then check if it's visible, and upwards
@@ -58,10 +61,11 @@ pub(super) fn module_def_id_is_visible(
             return false;
         }
 
-        let module_data = &def_maps[&module_id.krate].modules()[module_id.local_id.0];
-        let parent_local_id = module_data.parent;
-        target_module_id =
-            parent_local_id.map(|local_id| ModuleId { krate: module_id.krate, local_id });
+        target_module_id = std::mem::take(&mut defining_module).or_else(|| {
+            let module_data = &def_maps[&module_id.krate].modules()[module_id.local_id.0];
+            let parent_local_id = module_data.parent;
+            parent_local_id.map(|local_id| ModuleId { krate: module_id.krate, local_id })
+        });
 
         // This is a bit strange, but the visibility is always that of the item inside another module,
         // so the visibility we update here is for the next loop check.
