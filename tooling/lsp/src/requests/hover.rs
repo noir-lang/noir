@@ -307,7 +307,64 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let mut string = String::new();
     let formatted_parent_module =
         format_parent_module(ReferenceId::Function(id), args, &mut string);
-    let formatted_parent_type = if let Some(struct_id) = func_meta.struct_id {
+
+    let formatted_parent_type = if let Some(trait_impl_id) = func_meta.trait_impl {
+        let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let trait_ = args.interner.get_trait(trait_impl.trait_id);
+
+        let generics: Vec<_> =
+            trait_impl
+                .trait_generics
+                .iter()
+                .filter_map(|generic| {
+                    if let Type::NamedGeneric(_, name) = generic {
+                        Some(name)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+        string.push('\n');
+        string.push_str("    impl");
+        if !generics.is_empty() {
+            string.push('<');
+            for (index, generic) in generics.into_iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                string.push_str(generic);
+            }
+            string.push('>');
+        }
+
+        string.push(' ');
+        string.push_str(&trait_.name.0.contents);
+        if !trait_impl.trait_generics.is_empty() {
+            string.push('<');
+            for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                string.push_str(&generic.to_string());
+            }
+            string.push('>');
+        }
+
+        string.push_str(" for ");
+        string.push_str(&trait_impl.typ.to_string());
+
+        true
+    } else if let Some(trait_id) = func_meta.trait_id {
+        let trait_ = args.interner.get_trait(trait_id);
+        string.push('\n');
+        string.push_str("    trait ");
+        string.push_str(&trait_.name.0.contents);
+        format_generics(&trait_.generics, &mut string);
+
+        true
+    } else if let Some(struct_id) = func_meta.struct_id {
         let struct_type = args.interner.get_struct(struct_id);
         let struct_type = struct_type.borrow();
         if formatted_parent_module {
@@ -329,14 +386,6 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         string.push(' ');
         string.push_str(&struct_type.name.0.contents);
         format_generic_names(&impl_generics, &mut string);
-
-        true
-    } else if let Some(trait_id) = func_meta.trait_id {
-        let trait_ = args.interner.get_trait(trait_id);
-        string.push('\n');
-        string.push_str("    trait ");
-        string.push_str(&trait_.name.0.contents);
-        format_generics(&trait_.generics, &mut string);
 
         true
     } else {
@@ -719,6 +768,11 @@ mod hover_tests {
     use tokio::test;
 
     async fn assert_hover(directory: &str, file: &str, position: Position, expected_text: &str) {
+        let hover_text = get_hover_text(directory, file, position).await;
+        assert_eq!(hover_text, expected_text);
+    }
+
+    async fn get_hover_text(directory: &str, file: &str, position: Position) -> String {
         let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
         // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir
@@ -745,7 +799,7 @@ mod hover_tests {
             panic!("Expected hover contents to be Markup");
         };
 
-        assert_eq!(markup.value, expected_text);
+        markup.value
     }
 
     #[test]
@@ -965,7 +1019,7 @@ mod hover_tests {
         assert_hover(
             "workspace",
             "two/src/lib.nr",
-            Position { line: 43, character: 4 },
+            Position { line: 42, character: 4 },
             r#"    two
     mod other"#,
         )
@@ -977,7 +1031,7 @@ mod hover_tests {
         assert_hover(
             "workspace",
             "two/src/lib.nr",
-            Position { line: 44, character: 11 },
+            Position { line: 43, character: 11 },
             r#"    two
     mod other"#,
         )
@@ -1031,5 +1085,29 @@ mod hover_tests {
             "    two\n    comptime fn attr(_: FunctionDefinition) -> Quoted",
         )
         .await;
+    }
+
+    #[test]
+    async fn hover_on_generic_struct_function() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 70, character: 11 })
+                .await;
+        assert!(hover_text.starts_with(
+            "    two::Foo
+    impl<U> Foo<U>
+    fn new() -> Foo<U>"
+        ));
+    }
+
+    #[test]
+    async fn hover_on_trait_impl_function_call() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 83, character: 16 })
+                .await;
+        assert!(hover_text.starts_with(
+            "    two
+    impl<A> Bar<A, i32> for Foo<A>
+    pub fn bar_stuff(self)"
+        ));
     }
 }
