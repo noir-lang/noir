@@ -261,3 +261,24 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
     assert_eq!(typ, "SomeGreeter");
     assert_eq!(impl_trait, "Foo");
 }
+
+#[test]
+fn removes_assumed_parent_traits_after_function_ends() {
+    let src = r#"
+    trait Foo {}
+    trait Bar: Foo {}
+
+    pub fn foo<T>()
+    where
+        T: Bar,
+    {}
+
+    pub fn bar<T>()
+    where
+        T: Foo,
+    {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

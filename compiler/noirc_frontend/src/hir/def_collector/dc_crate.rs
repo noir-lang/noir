@@ -303,7 +303,12 @@ impl DefCollector {
             def_map.extern_prelude.insert(dep.as_name(), module_id);
 
             let location = dep_def_map[dep_def_root].location;
-            let attributes = ModuleAttributes { name: dep.as_name(), location, parent: None };
+            let attributes = ModuleAttributes {
+                name: dep.as_name(),
+                location,
+                parent: None,
+                visibility: ItemVisibility::Public,
+            };
             context.def_interner.add_module_attributes(module_id, attributes);
         }
 

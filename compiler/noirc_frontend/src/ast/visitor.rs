@@ -22,8 +22,8 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern,
-    Signedness, TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Signedness, TraitBound, TraitImplItemKind, TypePath, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -438,6 +438,14 @@ pub trait Visitor {
         true
     }
 
+    fn visit_trait_bound(&mut self, _: &TraitBound) -> bool {
+        true
+    }
+
+    fn visit_unresolved_trait_constraint(&mut self, _: &UnresolvedTraitConstraint) -> bool {
+        true
+    }
+
     fn visit_pattern(&mut self, _: &Pattern) -> bool {
         true
     }
@@ -555,6 +563,12 @@ impl NoirFunction {
             param.typ.accept(visitor);
         }
 
+        self.def.return_type.accept(visitor);
+
+        for constraint in &self.def.where_clause {
+            constraint.accept(visitor);
+        }
+
         self.def.body.accept(None, visitor);
     }
 }
@@ -645,6 +659,14 @@ impl NoirTrait {
             attribute.accept(AttributeTarget::Trait, visitor);
         }
 
+        for bound in &self.bounds {
+            bound.accept(visitor);
+        }
+
+        for constraint in &self.where_clause {
+            constraint.accept(visitor);
+        }
+
         for item in &self.items {
             item.item.accept(visitor);
         }
@@ -686,7 +708,7 @@ impl TraitItem {
                     return_type.accept(visitor);
 
                     for unresolved_trait_constraint in where_clause {
-                        unresolved_trait_constraint.typ.accept(visitor);
+                        unresolved_trait_constraint.accept(visitor);
                     }
 
                     if let Some(body) = body {
@@ -1343,6 +1365,32 @@ impl FunctionReturnType {
                 unresolved_type.accept(visitor);
             }
         }
+    }
+}
+
+impl TraitBound {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_trait_bound(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.trait_path.accept(visitor);
+        self.trait_generics.accept(visitor);
+    }
+}
+
+impl UnresolvedTraitConstraint {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_unresolved_trait_constraint(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.typ.accept(visitor);
+        self.trait_bound.accept(visitor);
     }
 }
 

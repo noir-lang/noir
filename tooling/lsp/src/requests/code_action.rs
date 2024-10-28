@@ -22,7 +22,7 @@ use noirc_frontend::{
     ParsedModule,
 };
 
-use crate::{utils, LspState};
+use crate::{use_segment_positions::UseSegmentPositions, utils, LspState};
 
 use super::{process_request, to_lsp_location};
 
@@ -82,6 +82,7 @@ struct CodeActionFinder<'a> {
     nesting: usize,
     /// The line where an auto_import must be inserted
     auto_import_line: usize,
+    use_segment_positions: UseSegmentPositions,
     /// Text edits for the "Remove all unused imports" code action
     unused_imports_text_edits: Vec<TextEdit>,
     code_actions: Vec<CodeAction>,
@@ -121,6 +122,7 @@ impl<'a> CodeActionFinder<'a> {
             interner,
             nesting: 0,
             auto_import_line: 0,
+            use_segment_positions: UseSegmentPositions::default(),
             unused_imports_text_edits: vec![],
             code_actions: vec![],
         }
@@ -184,10 +186,11 @@ impl<'a> CodeActionFinder<'a> {
 
 impl<'a> Visitor for CodeActionFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        if let ItemKind::Import(..) = &item.kind {
+        if let ItemKind::Import(use_tree, _) = &item.kind {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
+            self.use_segment_positions.add(use_tree);
         }
 
         self.includes_span(item.span)
