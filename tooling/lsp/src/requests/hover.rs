@@ -314,6 +314,22 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             string.push_str("::");
         }
         string.push_str(&struct_type.name.0.contents);
+        string.push('\n');
+        string.push_str("    ");
+        string.push_str("impl");
+
+        let impl_generics: Vec<_> = func_meta
+            .all_generics
+            .iter()
+            .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
+            .cloned()
+            .collect();
+        format_generics(&impl_generics, &mut string);
+
+        string.push(' ');
+        string.push_str(&struct_type.name.0.contents);
+        format_generic_names(&impl_generics, &mut string);
+
         true
     } else {
         false
@@ -425,21 +441,55 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
-/// Some doc comments
 fn format_generics(generics: &Generics, string: &mut String) {
+    format_generics_impl(
+        generics, false, // only show names
+        string,
+    );
+}
+
+fn format_generic_names(generics: &Generics, string: &mut String) {
+    format_generics_impl(
+        generics, true, // only show names
+        string,
+    );
+}
+
+fn format_generics_impl(generics: &Generics, only_show_names: bool, string: &mut String) {
     if generics.is_empty() {
         return;
     }
 
     string.push('<');
     for (index, generic) in generics.iter().enumerate() {
-        string.push_str(&generic.name);
-        if index != generics.len() - 1 {
+        if index > 0 {
             string.push_str(", ");
+        }
+
+        if only_show_names {
+            string.push_str(&generic.name);
+        } else {
+            match generic.kind() {
+                noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
+                    string.push_str(&generic.name);
+                }
+                noirc_frontend::Kind::IntegerOrField | noirc_frontend::Kind::Integer => {
+                    string.push_str("let ");
+                    string.push_str(&generic.name);
+                    string.push_str(": u32");
+                }
+                noirc_frontend::Kind::Numeric(typ) => {
+                    string.push_str("let ");
+                    string.push_str(&generic.name);
+                    string.push_str(": ");
+                    string.push_str(&typ.to_string());
+                }
+            }
         }
     }
     string.push('>');
 }
+
 fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut String) {
     match pattern {
         HirPattern::Identifier(ident) => {
@@ -797,6 +847,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 20, character: 6 },
             r#"    one::subone::SubOneStruct
+    impl SubOneStruct
     fn foo(self, x: i32, y: i32) -> Field"#,
         )
         .await;
