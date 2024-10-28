@@ -1875,8 +1875,33 @@ impl NodeInterner {
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
+        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
+    }
+
+    fn remove_assumed_trait_implementations_for_trait_and_parents(
+        &mut self,
+        trait_id: TraitId,
+        starting_trait_id: TraitId,
+    ) {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
+
+        // Also remove assumed implementations for the parent traits, if any
+        if let Some(trait_bounds) =
+            self.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        {
+            for parent_trait_bound in trait_bounds {
+                // Avoid looping forever in case there are cycles
+                if parent_trait_bound.trait_id == starting_trait_id {
+                    continue;
+                }
+
+                self.remove_assumed_trait_implementations_for_trait_and_parents(
+                    parent_trait_bound.trait_id,
+                    starting_trait_id,
+                );
+            }
+        }
     }
 
     /// Tags the given identifier with the selected trait_impl so that monomorphization
