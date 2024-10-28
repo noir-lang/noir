@@ -4,7 +4,7 @@ use async_lsp::ResponseError;
 use fm::{FileMap, PathString};
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
-    ast::Visibility,
+    ast::{ItemVisibility, Visibility},
     elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
     hir_def::{
@@ -13,9 +13,9 @@ use noirc_frontend::{
         traits::Trait,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId,
+        StructId, TraitId, TypeAliasId,
     },
-    node_interner::{NodeInterner, StructId},
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
@@ -300,6 +300,8 @@ fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<S
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let func_meta = args.interner.function_meta(&id);
+    let func_modifiers = args.interner.function_modifiers(&id);
+
     let func_name_definition_id = args.interner.definition(func_meta.name.id);
 
     let mut string = String::new();
@@ -320,6 +322,18 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         string.push('\n');
     }
     string.push_str("    ");
+
+    if func_modifiers.visibility != ItemVisibility::Private {
+        string.push_str(&func_modifiers.visibility.to_string());
+        string.push(' ');
+    }
+    if func_modifiers.is_unconstrained {
+        string.push_str("unconstrained ");
+    }
+    if func_modifiers.is_comptime {
+        string.push_str("comptime ");
+    }
+
     string.push_str("fn ");
     string.push_str(&func_name_definition_id.name);
     format_generics(&func_meta.direct_generics, &mut string);
@@ -759,7 +773,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 3, character: 4 },
             r#"    one
-    fn function_one<A, B>()"#,
+    pub fn function_one<A, B>()"#,
         )
         .await;
     }
@@ -771,7 +785,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 2, character: 7 },
             r#"    two
-    fn function_two()"#,
+    pub fn function_two()"#,
         )
         .await;
     }
@@ -955,7 +969,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 54, character: 2 },
-            "    two\n    fn attr(_: FunctionDefinition) -> Quoted",
+            "    two\n    comptime fn attr(_: FunctionDefinition) -> Quoted",
         )
         .await;
     }
