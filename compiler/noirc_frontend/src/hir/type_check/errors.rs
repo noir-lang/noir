@@ -434,11 +434,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Expected {expected_count} generic{expected_plural} from this function, but {actual_count} {actual_plural} provided");
                 Diagnostic::simple_error(msg, "".into(), *span)
             },
-            TypeCheckError::MacroReturningNonExpr { typ, span } => Diagnostic::simple_error(
-                format!("Expected macro call to return a `Quoted` but found a(n) `{typ}`"),
-                "Macro calls must return quoted values, otherwise there is no code to insert".into(),
-                *span,
-            ),
+            TypeCheckError::MacroReturningNonExpr { typ, span } =>  {
+                let mut error = Diagnostic::simple_error(
+                    format!("Expected macro call to return a `Quoted` but found a(n) `{typ}`"),
+                    "Macro calls must return quoted values, otherwise there is no code to insert.".into(),
+                    *span,
+                );
+                error.add_secondary("Hint: remove the `!` from the end of the function name.".to_string(), *span);
+                error
+            },
             TypeCheckError::UnsupportedTurbofishUsage { span } => {
                 let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
