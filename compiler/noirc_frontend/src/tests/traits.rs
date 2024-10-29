@@ -316,6 +316,7 @@ fn regression_6314_double() {
     assert_no_errors(src);
 }
 
+#[test]
 fn removes_assumed_parent_traits_after_function_ends() {
     let src = r#"
     trait Foo {}
