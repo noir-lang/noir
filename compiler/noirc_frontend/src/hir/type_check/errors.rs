@@ -440,7 +440,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     "Macro calls must return quoted values, otherwise there is no code to insert.".into(),
                     *span,
                 );
-                error.add_secondary("Hint: remove the `!` from the end of the call name.".to_string(), *span);
+                error.add_secondary("Hint: remove the `!` from the end of the function name.".to_string(), *span);
                 error
             },
             TypeCheckError::UnsupportedTurbofishUsage { span } => {
