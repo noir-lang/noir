@@ -263,7 +263,9 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
 }
 
 #[test]
-fn regression_6314_single() {
+// Regression test for https://github.com/noir-lang/noir/issues/6314
+// Baz inherits from a single trait: Foo
+fn regression_6314_single_inheritance() {
     let src = r#"
         trait Foo {
             fn foo(self) -> Self;
@@ -279,7 +281,9 @@ fn regression_6314_single() {
 }
 
 #[test]
-fn regression_6314_double() {
+// Regression test for https://github.com/noir-lang/noir/issues/6314
+// Baz inherits from two traits: Foo and Bar
+fn regression_6314_double_inheritance() {
     let src = r#"
         trait Foo {
             fn foo(self) -> Self;
