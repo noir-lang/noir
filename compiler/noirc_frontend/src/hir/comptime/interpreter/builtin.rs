@@ -12,7 +12,7 @@ use builtin_helpers::{
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -229,7 +229,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => zeroed(return_type),
+            "zeroed" => zeroed(return_type, location.span),
             _ => {
                 let item = format!("Comptime evaluation for builtin function {name}");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -709,7 +709,7 @@ fn quoted_as_expr(
             },
         );
 
-    option(return_type, value)
+    option(return_type, value, location.span)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
@@ -736,7 +736,7 @@ fn quoted_as_module(
         module.map(Value::ModuleDefinition)
     });
 
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
@@ -868,11 +868,22 @@ fn type_as_constant(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    type_as(arguments, return_type, location, |typ| {
+    type_as_or_err(arguments, return_type, location, |typ| {
         // Prefer to use `evaluate_to_u32` over matching on `Type::Constant`
         // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
         // constants but are not actually the `Type::Constant` variant.
-        typ.evaluate_to_u32().map(Value::U32)
+        match typ.evaluate_to_u32(location.span) {
+            Ok(constant) => Ok(Some(Value::U32(constant))),
+            Err(err) => {
+                // Evaluating to a non-constant returns 'None' in user code
+                if err.is_non_constant_evaluated() {
+                    Ok(None)
+                } else {
+                    let err = Some(Box::new(err));
+                    Err(InterpreterError::NonIntegerArrayLength { typ, err, location })
+                }
+            }
+        }
     })
 }
 
@@ -978,7 +989,6 @@ fn type_as_tuple(
     })
 }
 
-// Helper function for implementing the `type_as_...` functions.
 fn type_as<F>(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
@@ -988,12 +998,25 @@ fn type_as<F>(
 where
     F: FnOnce(Type) -> Option<Value>,
 {
+    type_as_or_err(arguments, return_type, location, |x| Ok(f(x)))
+}
+
+// Helper function for implementing the `type_as_...` functions.
+fn type_as_or_err<F>(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(Type) -> IResult<Option<Value>>,
+{
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value)?.follow_bindings();
 
-    let option_value = f(typ);
+    let option_value = f(typ)?;
 
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
@@ -1028,7 +1051,7 @@ fn type_get_trait_impl(
         _ => None,
     };
 
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn implements(self, constraint: TraitConstraint) -> bool
@@ -1149,7 +1172,7 @@ fn typed_expr_as_function_definition(
     } else {
         None
     };
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn get_type(self) -> Option<Type>
@@ -1171,7 +1194,7 @@ fn typed_expr_get_type(
     } else {
         None
     };
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn as_mutable_reference(self) -> Option<UnresolvedType>
@@ -1255,16 +1278,16 @@ where
 
     let option_value = f(typ);
 
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn zeroed<T>() -> T
-fn zeroed(return_type: Type) -> IResult<Value> {
+fn zeroed(return_type: Type, span: Span) -> IResult<Value> {
     match return_type {
         Type::FieldElement => Ok(Value::Field(0u128.into())),
         Type::Array(length_type, elem) => {
-            if let Some(length) = length_type.evaluate_to_u32() {
-                let element = zeroed(elem.as_ref().clone())?;
+            if let Ok(length) = length_type.evaluate_to_u32(span) {
+                let element = zeroed(elem.as_ref().clone(), span)?;
                 let array = std::iter::repeat(element).take(length as usize).collect();
                 Ok(Value::Array(array, Type::Array(length_type, elem)))
             } else {
@@ -1287,7 +1310,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         },
         Type::Bool => Ok(Value::Bool(false)),
         Type::String(length_type) => {
-            if let Some(length) = length_type.evaluate_to_u32() {
+            if let Ok(length) = length_type.evaluate_to_u32(span) {
                 Ok(Value::String(Rc::new("\0".repeat(length as usize))))
             } else {
                 // Assume we can resolve the length later
@@ -1295,9 +1318,9 @@ fn zeroed(return_type: Type) -> IResult<Value> {
             }
         }
         Type::FmtString(length_type, captures) => {
-            let length = length_type.evaluate_to_u32();
+            let length = length_type.evaluate_to_u32(span);
             let typ = Type::FmtString(length_type, captures);
-            if let Some(length) = length {
+            if let Ok(length) = length {
                 Ok(Value::FormatString(Rc::new("\0".repeat(length as usize)), typ))
             } else {
                 // Assume we can resolve the length later
@@ -1305,27 +1328,27 @@ fn zeroed(return_type: Type) -> IResult<Value> {
             }
         }
         Type::Unit => Ok(Value::Unit),
-        Type::Tuple(fields) => Ok(Value::Tuple(try_vecmap(fields, zeroed)?)),
+        Type::Tuple(fields) => Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, span))?)),
         Type::Struct(struct_type, generics) => {
             let fields = struct_type.borrow().get_fields(&generics);
             let mut values = HashMap::default();
 
             for (field_name, field_type) in fields {
-                let field_value = zeroed(field_type)?;
+                let field_value = zeroed(field_type, span)?;
                 values.insert(Rc::new(field_name), field_value);
             }
 
             let typ = Type::Struct(struct_type, generics);
             Ok(Value::Struct(values, typ))
         }
-        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics)),
-        Type::CheckedCast(to, _from) => zeroed(*to),
+        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), span),
+        Type::CheckedCast(to, _from) => zeroed(*to, span),
         typ @ Type::Function(..) => {
             // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
             Ok(Value::Zeroed(typ))
         }
         Type::MutableReference(element) => {
-            let element = zeroed(*element)?;
+            let element = zeroed(*element, span)?;
             Ok(Value::Pointer(Shared::new(element), false))
         }
         // Optimistically assume we can resolve this type later or that the value is unused
@@ -1389,7 +1412,7 @@ fn expr_as_assert(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|msg| Value::expression(msg.kind));
-                let message = option(option_type, message).ok()?;
+                let message = option(option_type, message, location.span).ok()?;
 
                 Some(Value::Tuple(vec![predicate, message]))
             } else {
@@ -1435,7 +1458,7 @@ fn expr_as_assert_eq(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|message| Value::expression(message.kind));
-                let message = option(option_type, message).ok()?;
+                let message = option(option_type, message, location.span).ok()?;
 
                 Some(Value::Tuple(vec![lhs, rhs, message]))
             } else {
@@ -1611,7 +1634,7 @@ fn expr_as_constructor(
             None
         };
 
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn as_for(self) -> Option<(Quoted, Expr, Expr)>
@@ -1705,6 +1728,7 @@ fn expr_as_if(
             let alternative = option(
                 alternative_option_type,
                 if_expr.alternative.map(|e| Value::expression(e.kind)),
+                location.span,
             );
 
             Some(Value::Tuple(vec![
@@ -1793,7 +1817,7 @@ fn expr_as_lambda(
                     } else {
                         Some(Value::UnresolvedType(typ.typ))
                     };
-                    let typ = option(option_unresolved_type.clone(), typ).unwrap();
+                    let typ = option(option_unresolved_type.clone(), typ, location.span).unwrap();
                     Value::Tuple(vec![pattern, typ])
                 })
                 .collect();
@@ -1812,7 +1836,7 @@ fn expr_as_lambda(
                 Some(return_type)
             };
             let return_type = return_type.map(Value::UnresolvedType);
-            let return_type = option(option_unresolved_type, return_type).ok()?;
+            let return_type = option(option_unresolved_type, return_type, location.span).ok()?;
 
             let body = Value::expression(lambda.body.kind);
 
@@ -1846,7 +1870,7 @@ fn expr_as_let(
                 Some(Value::UnresolvedType(let_statement.r#type.typ))
             };
 
-            let typ = option(option_type, typ).ok()?;
+            let typ = option(option_type, typ, location.span).ok()?;
 
             Some(Value::Tuple(vec![
                 Value::pattern(let_statement.pattern),
@@ -2098,7 +2122,7 @@ where
     let expr_value = unwrap_expr_value(interner, expr_value);
 
     let option_value = f(expr_value);
-    option(return_type, option_value)
+    option(return_type, option_value, location.span)
 }
 
 // fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr
@@ -2764,12 +2788,12 @@ fn trait_def_as_trait_constraint(
 
 /// Creates a value that holds an `Option`.
 /// `option_type` must be a Type referencing the `Option` type.
-pub(crate) fn option(option_type: Type, value: Option<Value>) -> IResult<Value> {
+pub(crate) fn option(option_type: Type, value: Option<Value>, span: Span) -> IResult<Value> {
     let t = extract_option_generic_type(option_type.clone());
 
     let (is_some, value) = match value {
         Some(value) => (Value::Bool(true), value),
-        None => (Value::Bool(false), zeroed(t)?),
+        None => (Value::Bool(false), zeroed(t, span)?),
     };
 
     let mut fields = HashMap::default();
@@ -2818,9 +2842,10 @@ fn derive_generators(
         _ => panic!("ICE: Should only have an array return type"),
     };
 
-    let Some(num_generators) = size.evaluate_to_u32() else {
-        return Err(InterpreterError::UnknownArrayLength { length: *size, location });
-    };
+    let num_generators = size.evaluate_to_u32(location.span).map_err(|err| {
+        let err = Box::new(err);
+        InterpreterError::UnknownArrayLength { length: *size, err, location }
+    })?;
 
     let generators = bn254_blackbox_solver::derive_generators(
         &domain_separator_string,

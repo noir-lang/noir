@@ -1,10 +1,13 @@
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
-use crate::{hir::comptime::InterpreterError, Type};
+use crate::{
+    hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    Type,
+};
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength { length: Type, location: Location },
+    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
     UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
@@ -43,8 +46,8 @@ impl From<MonomorphizationError> for FileDiagnostic {
 impl MonomorphizationError {
     fn into_diagnostic(self) -> CustomDiagnostic {
         let message = match &self {
-            MonomorphizationError::UnknownArrayLength { length, .. } => {
-                format!("Could not determine array length `{length}`")
+            MonomorphizationError::UnknownArrayLength { length, err, .. } => {
+                format!("Could not determine array length `{length}`, encountered error: `{err}`")
             }
             MonomorphizationError::UnknownConstant { .. } => {
                 "Could not resolve constant".to_string()

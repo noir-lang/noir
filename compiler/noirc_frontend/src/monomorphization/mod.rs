@@ -576,9 +576,9 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
 
-        let length = length.evaluate_to_u32().ok_or_else(|| {
+        let length = length.evaluate_to_u32(location.span).map_err(|err| {
             let location = self.interner.expr_location(&array);
-            MonomorphizationError::UnknownArrayLength { location, length }
+            MonomorphizationError::UnknownArrayLength { location, err, length }
         })?;
 
         let contents = try_vecmap(0..length, |_| self.expr(repeated_element))?;
@@ -928,11 +928,14 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Unbound(_, _) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => binding
-                        .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()))
-                        .unwrap_or_else(|| {
-                            panic!("Non-numeric type variable used in expression expecting a value")
-                        }),
+                    TypeBinding::Bound(binding) => {
+                        let location = self.interner.id_location(expr_id);
+                        binding
+                            .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()), location.span)
+                            .unwrap_or_else(|err| {
+                                panic!("Non-numeric type variable used in expression expecting a value: {err}")
+                            })
+                    }
                 };
                 let location = self.interner.id_location(expr_id);
 
@@ -957,20 +960,28 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
-            HirType::String(size) => ast::Type::String(size.evaluate_to_u32().unwrap_or(0)),
+            // TODO: only unwrap_or on "safe" errors
+            HirType::String(size) => {
+                ast::Type::String(size.evaluate_to_u32(location.span).unwrap_or(0))
+            }
             HirType::FmtString(size, fields) => {
-                let size = size.evaluate_to_u32().unwrap_or(0);
+                // TODO: only unwrap_or on "safe" errors
+                let size = size.evaluate_to_u32(location.span).unwrap_or(0);
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location)?);
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
-                let length = match length.evaluate_to_u32() {
-                    Some(length) => length,
-                    None => {
+                let length = match length.evaluate_to_u32(location.span) {
+                    Ok(length) => length,
+                    Err(err) => {
                         let length = length.as_ref().clone();
-                        return Err(MonomorphizationError::UnknownArrayLength { location, length });
+                        return Err(MonomorphizationError::UnknownArrayLength {
+                            location,
+                            err,
+                            length,
+                        });
                     }
                 };
                 ast::Type::Array(length, element)
@@ -1196,12 +1207,15 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_field_element(&to.kind());
-        if to_value.is_some() {
+        let to_value = to.evaluate_to_field_element(&to.kind(), location.span);
+        if to_value.is_ok() {
             let skip_simplifications = false;
-            let from_value =
-                from.evaluate_to_field_element_helper(&to.kind(), skip_simplifications);
-            if from_value.is_none() || from_value != to_value {
+            let from_value = from.evaluate_to_field_element_helper(
+                &to.kind(),
+                location.span,
+                skip_simplifications,
+            );
+            if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),
                     expected: from.clone(),

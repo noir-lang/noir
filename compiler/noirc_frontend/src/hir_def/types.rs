@@ -262,10 +262,21 @@ impl Kind {
     }
 
     /// Ensure the given value fits in self.integral_maximum_size()
-    fn ensure_value_fits(&self, value: FieldElement) -> Option<FieldElement> {
+    fn ensure_value_fits(
+        &self,
+        value: FieldElement,
+        span: Span,
+    ) -> Result<FieldElement, TypeCheckError> {
         match self.integral_maximum_size() {
-            None => Some(value),
-            Some(maximum_size) => (value <= maximum_size).then_some(value),
+            None => Ok(value),
+            Some(maximum_size) => (value <= maximum_size).then_some(value).ok_or_else(|| {
+                TypeCheckError::OverflowingConstant {
+                    value,
+                    kind: self.clone(),
+                    maximum_size,
+                    span,
+                }
+            }),
         }
     }
 }
@@ -1412,11 +1423,13 @@ impl Type {
 
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
+        // TODO: dummy span
+        let dummy_span = Span::default();
         match self {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u32()
+                    .evaluate_to_u32(dummy_span)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
                 length * typ.field_count()
@@ -1432,7 +1445,7 @@ impl Type {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
             Type::String(size) => size
-                .evaluate_to_u32()
+                .evaluate_to_u32(dummy_span)
                 .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
             | Type::Unit
@@ -1784,7 +1797,9 @@ impl Type {
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
-                if let Some(other_value) = other.evaluate_to_field_element(kind) {
+                // TODO: dummy span
+                let dummy_span = Span::default();
+                if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_span) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -1952,28 +1967,40 @@ impl Type {
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
-    pub fn evaluate_to_u32(&self) -> Option<u32> {
-        self.evaluate_to_field_element(&Kind::u32())
-            .and_then(|field_element| field_element.try_to_u32())
+    pub fn evaluate_to_u32(&self, span: Span) -> Result<u32, TypeCheckError> {
+        self.evaluate_to_field_element(&Kind::u32(), span).map(|field_element| {
+            field_element
+                .try_to_u32()
+                .expect("ICE: size should have already been checked by evaluate_to_field_element")
+        })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
+    pub(crate) fn evaluate_to_field_element(
+        &self,
+        kind: &Kind,
+        span: Span,
+    ) -> Result<acvm::FieldElement, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(kind, run_simplifications)
+        self.evaluate_to_field_element_helper(kind, span, run_simplifications)
     }
 
     /// evaluate_to_field_element with optional generic arithmetic simplifications
     pub(crate) fn evaluate_to_field_element_helper(
         &self,
         kind: &Kind,
+        span: Span,
         run_simplifications: bool,
-    ) -> Option<acvm::FieldElement> {
+    ) -> Result<acvm::FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
-                    return binding.evaluate_to_field_element(&binding_kind);
+                    return binding.evaluate_to_field_element_helper(
+                        &binding_kind,
+                        span,
+                        run_simplifications,
+                    );
                 }
             }
         }
@@ -1982,42 +2009,64 @@ impl Type {
         match self.canonicalize_helper(could_be_checked_cast, run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
-                    kind.ensure_value_fits(x)
+                    kind.ensure_value_fits(x, span)
                 } else {
-                    None
+                    Err(TypeCheckError::TypeKindMismatch {
+                        expected_kind: format!("{}", constant_kind),
+                        expr_kind: format!("{}", kind),
+                        expr_span: span,
+                    })
                 }
             }
             Type::InfixExpr(lhs, op, rhs) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value =
-                        lhs.evaluate_to_field_element_helper(&infix_kind, run_simplifications)?;
-                    let rhs_value =
-                        rhs.evaluate_to_field_element_helper(&infix_kind, run_simplifications)?;
-                    op.function(lhs_value, rhs_value, &infix_kind)
+                    let lhs_value = lhs.evaluate_to_field_element_helper(
+                        &infix_kind,
+                        span,
+                        run_simplifications,
+                    )?;
+                    let rhs_value = rhs.evaluate_to_field_element_helper(
+                        &infix_kind,
+                        span,
+                        run_simplifications,
+                    )?;
+                    op.function(lhs_value, rhs_value, &infix_kind, span)
                 } else {
-                    None
+                    Err(TypeCheckError::TypeKindMismatch {
+                        expected_kind: format!("{}", kind),
+                        expr_kind: format!("{}", infix_kind),
+                        expr_span: span,
+                    })
                 }
             }
             Type::CheckedCast(to, from) => {
-                let to_value = to.evaluate_to_field_element(kind)?;
+                let to_value = to.evaluate_to_field_element(kind, span)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
-                if let Some(from_value) =
-                    from.evaluate_to_field_element_helper(kind, skip_simplifications)
+                if let Ok(from_value) =
+                    from.evaluate_to_field_element_helper(kind, span, skip_simplifications)
                 {
                     if to_value == from_value {
-                        Some(to_value)
+                        Ok(to_value)
                     } else {
-                        None
+                        let to = *to.clone();
+                        let from = *from.clone();
+                        Err(TypeCheckError::TypeCanonicalizationMismatch {
+                            to,
+                            from,
+                            to_value,
+                            from_value,
+                            span,
+                        })
                     }
                 } else {
-                    Some(to_value)
+                    Ok(to_value)
                 }
             }
-            _ => None,
+            other => Err(TypeCheckError::NonConstantEvaluated { typ: other, span }),
         }
     }
 
@@ -2614,28 +2663,39 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
-    pub fn function(self, a: FieldElement, b: FieldElement, kind: &Kind) -> Option<FieldElement> {
+    pub fn function(
+        self,
+        a: FieldElement,
+        b: FieldElement,
+        kind: &Kind,
+        span: Span,
+    ) -> Result<FieldElement, TypeCheckError> {
         match kind.follow_bindings().integral_maximum_size() {
             None => match self {
-                BinaryTypeOperator::Addition => Some(a + b),
-                BinaryTypeOperator::Subtraction => Some(a - b),
-                BinaryTypeOperator::Multiplication => Some(a * b),
-                BinaryTypeOperator::Division => (b != FieldElement::zero()).then(|| a / b),
-                BinaryTypeOperator::Modulo => None,
+                BinaryTypeOperator::Addition => Ok(a + b),
+                BinaryTypeOperator::Subtraction => Ok(a - b),
+                BinaryTypeOperator::Multiplication => Ok(a * b),
+                BinaryTypeOperator::Division => (b != FieldElement::zero())
+                    .then(|| a / b)
+                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, span }),
+                BinaryTypeOperator::Modulo => {
+                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, span })
+                }
             },
             Some(_maximum_size) => {
                 let a = a.to_i128();
                 let b = b.to_i128();
 
+                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, span };
                 let result = match self {
-                    BinaryTypeOperator::Addition => a.checked_add(b)?,
-                    BinaryTypeOperator::Subtraction => a.checked_sub(b)?,
-                    BinaryTypeOperator::Multiplication => a.checked_mul(b)?,
-                    BinaryTypeOperator::Division => a.checked_div(b)?,
-                    BinaryTypeOperator::Modulo => a.checked_rem(b)?,
+                    BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
+                    BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
+                    BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
+                    BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
+                    BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
                 };
 
-                Some(result.into())
+                Ok(result.into())
             }
         }
     }
@@ -2680,7 +2740,10 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u32().expect("Cannot print variable sized arrays");
+                // TODO: dummy span
+                let dummy_span = Span::default();
+                let length =
+                    size.evaluate_to_u32(dummy_span).expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -2705,7 +2768,9 @@ impl From<&Type> for PrintableType {
             },
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
-                let size = size.evaluate_to_u32().expect("Cannot print variable sized strings");
+                let dummy_span = Span::default();
+                let size =
+                    size.evaluate_to_u32(dummy_span).expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
