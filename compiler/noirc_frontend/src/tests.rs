@@ -3562,3 +3562,28 @@ fn alias_in_let_pattern() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unconstrained_type_parameter_in_impl() {
+    let src = r#"
+        pub struct Foo<T> {}
+
+        impl<T, U> Foo<T> {}
+
+        fn main() {
+            let _ = Foo {};
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnconstrainedTypeParameter {
+        ident, ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected an UnconstrainedTypeParameter error, got {:?}", &errors[0].0);
+    };
+
+    assert_eq!(ident.to_string(), "U");
+}
