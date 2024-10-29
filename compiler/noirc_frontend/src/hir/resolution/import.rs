@@ -3,12 +3,13 @@ use thiserror::Error;
 
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::node_interner::ReferenceId;
+
+use crate::node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId};
 use crate::usage_tracker::UsageTracker;
 
 use std::collections::BTreeMap;
 
-use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
+use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment, UnresolvedType};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 
 use super::errors::ResolverError;
@@ -26,16 +27,80 @@ pub struct ImportDirective {
 
 struct NamespaceResolution {
     module_id: ModuleId,
+    item: PathResolutionItem,
     namespace: PerNs,
-    error: Option<PathResolutionError>,
+    errors: Vec<PathResolutionError>,
 }
 
 type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
 
+#[derive(Debug)]
 pub struct PathResolution {
-    pub module_def_id: ModuleDefId,
+    pub item: PathResolutionItem,
+    pub errors: Vec<PathResolutionError>,
+}
 
-    pub error: Option<PathResolutionError>,
+/// All possible items that result from resolving a Path.
+/// Note that this item doesn't include the last turbofish in a Path,
+/// only intermediate ones, if any.
+#[derive(Debug, Clone)]
+pub enum PathResolutionItem {
+    Module(ModuleId),
+    Struct(StructId),
+    TypeAlias(TypeAliasId),
+    Trait(TraitId),
+    Global(GlobalId),
+    ModuleFunction(FuncId),
+    StructFunction(StructId, Option<Turbofish>, FuncId),
+    TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
+    TraitFunction(TraitId, Option<Turbofish>, FuncId),
+}
+
+impl PathResolutionItem {
+    pub fn function_id(&self) -> Option<FuncId> {
+        match self {
+            PathResolutionItem::ModuleFunction(func_id)
+            | PathResolutionItem::StructFunction(_, _, func_id)
+            | PathResolutionItem::TypeAliasFunction(_, _, func_id)
+            | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
+            _ => None,
+        }
+    }
+
+    pub fn module_id(&self) -> Option<ModuleId> {
+        match self {
+            Self::Module(module_id) => Some(*module_id),
+            _ => None,
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            PathResolutionItem::Module(..) => "module",
+            PathResolutionItem::Struct(..) => "type",
+            PathResolutionItem::TypeAlias(..) => "type alias",
+            PathResolutionItem::Trait(..) => "trait",
+            PathResolutionItem::Global(..) => "global",
+            PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::StructFunction(..)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..) => "function",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Turbofish {
+    pub generics: Vec<UnresolvedType>,
+    pub span: Span,
+}
+
+/// Any item that can appear before the last segment in a path.
+#[derive(Debug)]
+enum IntermediatePathResolutionItem {
+    Module(ModuleId),
+    Struct(StructId, Option<Turbofish>),
+    Trait(TraitId, Option<Turbofish>),
 }
 
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
@@ -48,6 +113,8 @@ pub enum PathResolutionError {
     Private(Ident),
     #[error("There is no super module")]
     NoSuper(Span),
+    #[error("turbofish (`::<_>`) not allowed on {item}")]
+    TurbofishNotAllowedOnItem { item: String, span: Span },
 }
 
 #[derive(Debug)]
@@ -56,10 +123,12 @@ pub struct ResolvedImport {
     pub name: Ident,
     // The symbol which we have resolved to
     pub resolved_namespace: PerNs,
+    // The item which we have resolved to
+    pub item: PathResolutionItem,
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
     pub is_prelude: bool,
-    pub error: Option<PathResolutionError>,
+    pub errors: Vec<PathResolutionError>,
 }
 
 impl From<PathResolutionError> for CompilationError {
@@ -83,6 +152,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::NoSuper(span) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
             }
+            PathResolutionError::TurbofishNotAllowedOnItem { item: _, span } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
         }
     }
 }
@@ -95,15 +167,19 @@ pub fn resolve_import(
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
-    let NamespaceResolution { module_id: resolved_module, namespace: resolved_namespace, error } =
-        resolve_path_to_ns(
-            import_directive,
-            crate_id,
-            crate_id,
-            def_maps,
-            usage_tracker,
-            path_references,
-        )?;
+    let NamespaceResolution {
+        module_id: resolved_module,
+        item,
+        namespace: resolved_namespace,
+        mut errors,
+    } = resolve_path_to_ns(
+        import_directive,
+        crate_id,
+        crate_id,
+        def_maps,
+        usage_tracker,
+        path_references,
+    )?;
 
     let name = resolve_path_name(import_directive);
 
@@ -113,28 +189,25 @@ pub fn resolve_import(
         .map(|(_, visibility, _)| visibility)
         .expect("Found empty namespace");
 
-    let error = error.or_else(|| {
-        if import_directive.self_type_module_id == Some(resolved_module)
-            || can_reference_module_id(
-                def_maps,
-                crate_id,
-                import_directive.module_id,
-                resolved_module,
-                visibility,
-            )
-        {
-            None
-        } else {
-            Some(PathResolutionError::Private(name.clone()))
-        }
-    });
+    if !(import_directive.self_type_module_id == Some(resolved_module)
+        || can_reference_module_id(
+            def_maps,
+            crate_id,
+            import_directive.module_id,
+            resolved_module,
+            visibility,
+        ))
+    {
+        errors.push(PathResolutionError::Private(name.clone()));
+    }
 
     Ok(ResolvedImport {
         name,
         resolved_namespace,
+        item,
         module_scope,
         is_prelude: import_directive.is_prelude,
-        error,
+        errors,
     })
 }
 
@@ -275,13 +348,16 @@ fn resolve_name_in_module(
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
     let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
+    let mut intermediate_item = IntermediatePathResolutionItem::Module(current_mod_id);
+
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
         return Ok(NamespaceResolution {
             module_id: current_mod_id,
+            item: PathResolutionItem::Module(current_mod_id),
             namespace: PerNs::types(current_mod_id.into()),
-            error: None,
+            errors: Vec::new(),
         });
     }
 
@@ -293,25 +369,34 @@ fn resolve_name_in_module(
 
     usage_tracker.mark_as_referenced(current_mod_id, first_segment);
 
-    let mut warning: Option<PathResolutionError> = None;
+    let mut errors = Vec::new();
     for (index, (last_segment, current_segment)) in
         import_path.iter().zip(import_path.iter().skip(1)).enumerate()
     {
-        let last_segment = &last_segment.ident;
-        let current_segment = &current_segment.ident;
+        let last_ident = &last_segment.ident;
+        let current_ident = &current_segment.ident;
+        let last_segment_generics = &last_segment.generics;
 
         let (typ, visibility) = match current_ns.types {
-            None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
+            None => return Err(PathResolutionError::Unresolved(last_ident.clone())),
             Some((typ, visibility, _)) => (typ, visibility),
         };
 
         // In the type namespace, only Mod can be used in a path.
-        current_mod_id = match typ {
+        (current_mod_id, intermediate_item) = match typ {
             ModuleDefId::ModuleId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Module(id));
                 }
-                id
+
+                if last_segment_generics.is_some() {
+                    errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                        item: format!("module `{last_ident}`"),
+                        span: last_segment.turbofish_span(),
+                    });
+                }
+
+                (id, IntermediatePathResolutionItem::Module(id))
             }
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             // TODO: If impls are ever implemented, types can be used in a path
@@ -319,51 +404,75 @@ fn resolve_name_in_module(
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Struct(id));
                 }
-                id.module_id()
+
+                (
+                    id.module_id(),
+                    IntermediatePathResolutionItem::Struct(
+                        id,
+                        last_segment_generics.as_ref().map(|generics| Turbofish {
+                            generics: generics.clone(),
+                            span: last_segment.turbofish_span(),
+                        }),
+                    ),
+                )
             }
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
             ModuleDefId::TraitId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Trait(id));
                 }
-                id.0
+
+                (
+                    id.0,
+                    IntermediatePathResolutionItem::Trait(
+                        id,
+                        last_segment_generics.as_ref().map(|generics| Turbofish {
+                            generics: generics.clone(),
+                            span: last_segment.turbofish_span(),
+                        }),
+                    ),
+                )
             }
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
-        warning = warning.or_else(|| {
-            // If the path is plain or crate, the first segment will always refer to
-            // something that's visible from the current module.
-            if (plain_or_crate && index == 0)
-                || can_reference_module_id(
-                    def_maps,
-                    importing_crate,
-                    starting_mod,
-                    current_mod_id,
-                    visibility,
-                )
-            {
-                None
-            } else {
-                Some(PathResolutionError::Private(last_segment.clone()))
-            }
-        });
+        // If the path is plain or crate, the first segment will always refer to
+        // something that's visible from the current module.
+        if !((plain_or_crate && index == 0)
+            || can_reference_module_id(
+                def_maps,
+                importing_crate,
+                starting_mod,
+                current_mod_id,
+                visibility,
+            ))
+        {
+            errors.push(PathResolutionError::Private(last_ident.clone()));
+        }
 
         current_mod = &def_maps[&current_mod_id.krate].modules[current_mod_id.local_id.0];
 
         // Check if namespace
-        let found_ns = current_mod.find_name(current_segment);
+        let found_ns = current_mod.find_name(current_ident);
 
         if found_ns.is_none() {
-            return Err(PathResolutionError::Unresolved(current_segment.clone()));
+            return Err(PathResolutionError::Unresolved(current_ident.clone()));
         }
 
-        usage_tracker.mark_as_referenced(current_mod_id, current_segment);
+        usage_tracker.mark_as_referenced(current_mod_id, current_ident);
 
         current_ns = found_ns;
     }
 
-    Ok(NamespaceResolution { module_id: current_mod_id, namespace: current_ns, error: warning })
+    let module_def_id =
+        current_ns.values.or(current_ns.types).map(|(id, _, _)| id).expect("Found empty namespace");
+
+    let item = merge_intermediate_path_resolution_item_with_module_def_id(
+        intermediate_item,
+        module_def_id,
+    );
+
+    Ok(NamespaceResolution { module_id: current_mod_id, item, namespace: current_ns, errors })
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
@@ -424,4 +533,28 @@ fn resolve_external_dep(
         usage_tracker,
         path_references,
     )
+}
+
+fn merge_intermediate_path_resolution_item_with_module_def_id(
+    intermediate_item: IntermediatePathResolutionItem,
+    module_def_id: ModuleDefId,
+) -> PathResolutionItem {
+    match module_def_id {
+        ModuleDefId::ModuleId(module_id) => PathResolutionItem::Module(module_id),
+        ModuleDefId::TypeId(struct_id) => PathResolutionItem::Struct(struct_id),
+        ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
+        ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
+        ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
+        ModuleDefId::FunctionId(func_id) => match intermediate_item {
+            IntermediatePathResolutionItem::Module(_) => {
+                PathResolutionItem::ModuleFunction(func_id)
+            }
+            IntermediatePathResolutionItem::Struct(struct_id, generics) => {
+                PathResolutionItem::StructFunction(struct_id, generics, func_id)
+            }
+            IntermediatePathResolutionItem::Trait(trait_id, generics) => {
+                PathResolutionItem::TraitFunction(trait_id, generics, func_id)
+            }
+        },
+    }
 }

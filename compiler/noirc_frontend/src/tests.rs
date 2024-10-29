@@ -617,8 +617,8 @@ fn check_trait_impl_for_non_type() {
     for (err, _file_id) in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::Expected { expected, got, .. }) => {
-                assert_eq!(expected, "type");
-                assert_eq!(got, "function");
+                assert_eq!(*expected, "type");
+                assert_eq!(*got, "function");
             }
             _ => {
                 panic!("No other errors are expected! Found = {:?}", err);

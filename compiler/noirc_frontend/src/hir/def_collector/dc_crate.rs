@@ -385,9 +385,8 @@ impl DefCollector {
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
                     let file_id = current_def_map.file_id(module_id);
 
-                    let has_path_resolution_error = resolved_import.error.is_some();
-
-                    if let Some(error) = resolved_import.error {
+                    let has_path_resolution_error = !resolved_import.errors.is_empty();
+                    for error in resolved_import.errors {
                         errors.push((
                             DefCollectorErrorKind::PathResolutionError(error).into(),
                             file_id,
@@ -557,7 +556,7 @@ fn inject_prelude(
             span: Span::default(),
         };
 
-        if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
+        if let Ok(PathResolution { item, errors }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             None,
@@ -565,8 +564,8 @@ fn inject_prelude(
             &mut context.def_interner.usage_tracker,
             &mut None,
         ) {
-            assert!(error.is_none(), "Tried to add private item to prelude");
-            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
+            assert!(errors.is_empty(), "Tried to add private item to prelude");
+            let module_id = item.module_id().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {
