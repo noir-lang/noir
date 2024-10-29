@@ -8,7 +8,7 @@ use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 use crate::AcirField;
 
 // XXX: Switch out for a trait and proper implementations
-// This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
+// This implementation is inefficient, can definitely remove hex usage and Iterator instances for trivial functionality
 #[derive(Default, Clone, Copy, Eq, PartialOrd, Ord)]
 pub struct FieldElement<F: PrimeField>(F);
 
@@ -33,46 +33,6 @@ impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
             write!(f, "-")?;
         }
 
-        // Number of bits needed to represent the smaller representation
-        let num_bits = smaller_repr.bits();
-
-        // Check if the number represents a power of 2
-        if smaller_repr.count_ones() == 1 {
-            let mut bit_index = 0;
-            for i in 0..num_bits {
-                if smaller_repr.bit(i) {
-                    bit_index = i;
-                    break;
-                }
-            }
-            return match bit_index {
-                0 => write!(f, "1"),
-                1 => write!(f, "2"),
-                2 => write!(f, "4"),
-                3 => write!(f, "8"),
-                _ => write!(f, "2{}", superscript(bit_index)),
-            };
-        }
-
-        // Check if number is a multiple of a power of 2.
-        // This is used because when computing the quotient
-        // we usually have numbers in the form 2^t * q + r
-        // We focus on 2^64, 2^32, 2^16, 2^8, 2^4 because
-        // they are common. We could extend this to a more
-        // general factorization strategy, but we pay in terms of CPU time
-        let mul_sign = "×";
-        for power in [64, 32, 16, 8, 4] {
-            let power_of_two = BigUint::from(2_u128).pow(power);
-            if &smaller_repr % &power_of_two == BigUint::zero() {
-                return write!(
-                    f,
-                    "2{}{}{}",
-                    superscript(power as u64),
-                    mul_sign,
-                    smaller_repr / &power_of_two,
-                );
-            }
-        }
         write!(f, "{smaller_repr}")
     }
 }
@@ -406,35 +366,6 @@ impl<F: PrimeField> Sub for FieldElement<F> {
 impl<F: PrimeField> SubAssign for FieldElement<F> {
     fn sub_assign(&mut self, rhs: FieldElement<F>) {
         self.0.sub_assign(&rhs.0);
-    }
-}
-
-// For pretty printing powers
-fn superscript(n: u64) -> String {
-    if n == 0 {
-        "⁰".to_owned()
-    } else if n == 1 {
-        "¹".to_owned()
-    } else if n == 2 {
-        "²".to_owned()
-    } else if n == 3 {
-        "³".to_owned()
-    } else if n == 4 {
-        "⁴".to_owned()
-    } else if n == 5 {
-        "⁵".to_owned()
-    } else if n == 6 {
-        "⁶".to_owned()
-    } else if n == 7 {
-        "⁷".to_owned()
-    } else if n == 8 {
-        "⁸".to_owned()
-    } else if n == 9 {
-        "⁹".to_owned()
-    } else if n >= 10 {
-        superscript(n / 10) + &superscript(n % 10)
-    } else {
-        panic!("{}", n.to_string() + " can't be converted to superscript.");
     }
 }
 
