@@ -1,4 +1,3 @@
-use crate::collections::vec::Vec;
 use crate::runtime::is_unconstrained;
 
 global BLOCK_SIZE_IN_BYTES: u32 = 136; //(1600 - BITS * 2) / WORD_SIZE;
@@ -31,7 +30,6 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     //1. format_input_lanes
     let max_blocks = (N + BLOCK_SIZE_IN_BYTES) / BLOCK_SIZE_IN_BYTES;
     //maximum number of bytes to hash
-    let max_blocks_length = (BLOCK_SIZE_IN_BYTES * max_blocks);
     let real_max_blocks = (message_size + BLOCK_SIZE_IN_BYTES) / BLOCK_SIZE_IN_BYTES;
     let real_blocks_bytes = real_max_blocks * BLOCK_SIZE_IN_BYTES;
 
@@ -39,9 +37,9 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     block_bytes[real_blocks_bytes - 1] = 0x80;
 
     // populate a vector of 64-bit limbs from our byte array
-    let num_limbs = max_blocks_length / WORD_SIZE;
-    let mut sliced_buffer = Vec::new();
-    for i in 0..num_limbs {
+    let mut sliced_buffer =
+        [0; (((N / BLOCK_SIZE_IN_BYTES) + 1) * BLOCK_SIZE_IN_BYTES) / WORD_SIZE];
+    for i in 0..sliced_buffer.len() {
         let limb_start = WORD_SIZE * i;
 
         let mut sliced = 0;
@@ -51,7 +49,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
             v *= 256;
         }
 
-        sliced_buffer.push(sliced as u64);
+        sliced_buffer[i] = sliced as u64;
     }
 
     //2. sponge_absorb
@@ -62,11 +60,11 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
         for i in 0..real_max_blocks {
             if (i == 0) {
                 for j in 0..LIMBS_PER_BLOCK {
-                    state[j] = sliced_buffer.get(j);
+                    state[j] = sliced_buffer[j];
                 }
             } else {
                 for j in 0..LIMBS_PER_BLOCK {
-                    state[j] = state[j] ^ sliced_buffer.get(i * LIMBS_PER_BLOCK + j);
+                    state[j] = state[j] ^ sliced_buffer[i * LIMBS_PER_BLOCK + j];
                 }
             }
             state = keccakf1600(state);
@@ -76,13 +74,13 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
         // We peel out the first block as to avoid a conditional inside of the loop.
         // Otherwise, a dynamic predicate can cause a blowup in a constrained runtime.
         for j in 0..LIMBS_PER_BLOCK {
-            state[j] = sliced_buffer.get(j);
+            state[j] = sliced_buffer[j];
         }
         state = keccakf1600(state);
         for i in 1..max_blocks {
             if i < real_max_blocks {
                 for j in 0..LIMBS_PER_BLOCK {
-                    state[j] = state[j] ^ sliced_buffer.get(i * LIMBS_PER_BLOCK + j);
+                    state[j] = state[j] ^ sliced_buffer[i * LIMBS_PER_BLOCK + j];
                 }
                 state = keccakf1600(state);
             }
