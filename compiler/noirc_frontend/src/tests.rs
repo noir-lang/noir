@@ -3570,15 +3570,19 @@ fn use_type_alias_in_method_call() {
         }
 
         impl Foo {
-            fn new() {
+            fn new() -> Self {
                 Foo {}
             }
         }
 
         type Bar = Foo;
 
+        fn foo() -> Foo {
+            Bar::new()
+        }
+
         fn main() {
-            Bar::new();
+            let _ = foo();
         }
     "#;
     assert_no_errors(src);

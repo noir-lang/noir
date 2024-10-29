@@ -1196,6 +1196,7 @@ pub(crate) fn collect_trait_impl_items(
     (unresolved_functions, associated_types, associated_constants)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn collect_global(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,

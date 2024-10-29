@@ -353,6 +353,7 @@ impl DefCollector {
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
+                    &context.def_interner,
                     &context.def_maps,
                     &mut context.usage_tracker,
                     &mut Some(&mut references),
@@ -375,6 +376,7 @@ impl DefCollector {
                 resolve_import(
                     crate_id,
                     &collected_import,
+                    &context.def_interner,
                     &context.def_maps,
                     &mut context.usage_tracker,
                     &mut None,
@@ -557,6 +559,7 @@ fn inject_prelude(
         };
 
         if let Ok(PathResolution { item, errors }) = path_resolver::resolve_path(
+            &context.def_interner,
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             None,
