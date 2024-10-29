@@ -48,9 +48,9 @@ pub(crate) struct BrilligArtifact<F> {
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
     /// Maps the opcodes that are associated with a callstack to it.
-    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
+    locations: BTreeMap<OpcodeLocation, CallStack>,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
-    pub(crate) call_stack: CallStack,
+    call_stack: CallStack,
     /// Name of the function, only used for debugging purposes.
     pub(crate) name: String,
 

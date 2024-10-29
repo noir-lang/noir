@@ -332,11 +332,6 @@ fn convert_generated_acir_into_circuit(
         })
         .collect();
 
-    let brillig_procedure_locs = if brillig_procedure_locs.is_empty() {
-        BTreeMap::default()
-    } else {
-        brillig_procedure_locs
-    };
     let mut debug_info = DebugInfo::new(
         locations,
         brillig_locations,

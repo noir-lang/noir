@@ -27,22 +27,6 @@ use super::{
     BrilligContext,
 };
 
-// /// Procedures are a set of complex operations that are common in the noir language.
-// /// Extracting them to reusable procedures allows us to reduce the size of the generated Brillig.
-// /// Procedures receive their arguments on scratch space to avoid stack dumping&restoring.
-// #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-// pub enum ProcedureId {
-//     ArrayCopy,
-//     ArrayReverse,
-//     VectorCopy,
-//     MemCopy,
-//     PrepareVectorPush(bool),
-//     VectorPop(bool),
-//     PrepareVectorInsert,
-//     VectorRemove,
-//     CheckMaxStackDepth,
-// }
-
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
 ) -> BrilligArtifact<F> {
