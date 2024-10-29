@@ -900,6 +900,7 @@ fn push_child_module(
     Ok(mod_id)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn collect_function(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,
@@ -954,6 +955,7 @@ pub fn collect_function(
     Some(func_id)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn collect_struct(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,

@@ -413,7 +413,7 @@ impl<'context> Elaborator<'context> {
                 if let Some(id) = dc_mod::collect_function(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    &mut self.usage_tracker,
+                    self.usage_tracker,
                     &function,
                     module_id,
                     self.file,
@@ -463,7 +463,7 @@ impl<'context> Elaborator<'context> {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    &mut self.usage_tracker,
+                    self.usage_tracker,
                     Documented::new(global, item.doc_comments),
                     visibility,
                     self.file,
@@ -480,7 +480,7 @@ impl<'context> Elaborator<'context> {
                 if let Some((type_id, the_struct)) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    &mut self.usage_tracker,
+                    self.usage_tracker,
                     Documented::new(struct_def, item.doc_comments),
                     self.file,
                     self.local_module,

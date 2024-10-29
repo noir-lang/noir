@@ -90,7 +90,7 @@ impl<'context> Elaborator<'context> {
                 self.interner,
                 self.def_maps,
                 path,
-                &mut self.usage_tracker,
+                self.usage_tracker,
                 &mut None,
             );
         }
