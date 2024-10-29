@@ -1,4 +1,4 @@
-use acvm::{acir::AcirField, FieldElement};
+use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
 use std::fmt;
 
@@ -367,7 +367,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
-            Token::Int(n) => write!(f, "{}", n.to_u128()),
+            Token::Int(n) => write!(f, "{}", n),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
             Token::FmtStr(ref b) => write!(f, "f{b:?}"),

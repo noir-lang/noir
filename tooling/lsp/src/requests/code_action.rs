@@ -12,7 +12,10 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{ConstructorExpression, ItemVisibility, NoirTraitImpl, Path, UseTree, Visitor},
+    ast::{
+        CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
+        Path, UseTree, Visitor,
+    },
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     node_interner::NodeInterner,
@@ -29,6 +32,7 @@ use super::{process_request, to_lsp_location};
 mod fill_struct_fields;
 mod implement_missing_members;
 mod import_or_qualify;
+mod remove_bang_from_call;
 mod remove_unused_import;
 mod tests;
 
@@ -247,6 +251,34 @@ impl<'a> Visitor for CodeActionFinder<'a> {
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
         self.implement_missing_members(noir_trait_impl, span);
+
+        true
+    }
+
+    fn visit_call_expression(&mut self, call: &CallExpression, span: Span) -> bool {
+        if !self.includes_span(span) {
+            return false;
+        }
+
+        if call.is_macro_call {
+            self.remove_bang_from_call(call.func.span);
+        }
+
+        true
+    }
+
+    fn visit_method_call_expression(
+        &mut self,
+        method_call: &MethodCallExpression,
+        span: Span,
+    ) -> bool {
+        if !self.includes_span(span) {
+            return false;
+        }
+
+        if method_call.is_macro_call {
+            self.remove_bang_from_call(method_call.method_name.span());
+        }
 
         true
     }

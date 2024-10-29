@@ -19,9 +19,9 @@ use noirc_frontend::{
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
         IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
         MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Signedness, Statement, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UseTree,
-        UseTreeKind, Visitor,
+        Signedness, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -384,7 +384,7 @@ impl<'a> NodeFinder<'a> {
                     self.builtin_types_completion(&prefix);
                     self.type_parameters_completion(&prefix);
                 }
-                RequestedItems::OnlyAttributeFunctions(..) => (),
+                RequestedItems::OnlyTraits | RequestedItems::OnlyAttributeFunctions(..) => (),
             }
             self.complete_auto_imports(&prefix, requested_items, function_completion_kind);
         }
@@ -1132,6 +1132,10 @@ impl<'a> Visitor for NodeFinder<'a> {
 
         noir_function.def.return_type.accept(self);
 
+        for constraint in &noir_function.def.where_clause {
+            constraint.accept(self);
+        }
+
         self.local_variables.clear();
         for param in &noir_function.def.parameters {
             self.collect_local_variables(&param.pattern);
@@ -1239,7 +1243,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         return_type.accept(self);
 
         for unresolved_trait_constraint in where_clause {
-            unresolved_trait_constraint.typ.accept(self);
+            unresolved_trait_constraint.accept(self);
         }
 
         if let Some(body) = body {
@@ -1709,6 +1713,12 @@ impl<'a> Visitor for NodeFinder<'a> {
 
             last_was_dollar = false;
         }
+    }
+
+    fn visit_trait_bound(&mut self, trait_bound: &TraitBound) -> bool {
+        self.find_in_path(&trait_bound.trait_path, RequestedItems::OnlyTraits);
+        trait_bound.trait_generics.accept(self);
+        false
     }
 }
 

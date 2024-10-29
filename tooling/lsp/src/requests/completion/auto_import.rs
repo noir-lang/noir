@@ -38,6 +38,7 @@ impl<'a> NodeFinder<'a> {
                     *module_def_id,
                     self.module_id,
                     *visibility,
+                    *defining_module,
                     self.interner,
                     self.def_maps,
                 ) {

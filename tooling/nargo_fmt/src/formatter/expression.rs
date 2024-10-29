@@ -310,6 +310,24 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 
     pub(super) fn format_quote(&mut self) -> ChunkGroup {
+        // A quote's prefix isn't captured in the token, so let's figure it out which one
+        // is it by looking at the source code.
+        let mut quote_source_code =
+            &self.source[self.token_span.start() as usize..self.token_span.end() as usize];
+
+        // Remove "quote" and any whitespace following it
+        quote_source_code = quote_source_code.strip_prefix("quote").unwrap();
+        quote_source_code = quote_source_code.trim_start();
+
+        // The first char is the delimiter
+        let delimiter_start = quote_source_code.chars().next().unwrap();
+        let delimiter_end = match delimiter_start {
+            '(' => ')',
+            '{' => '}',
+            '[' => ']',
+            _ => panic!("Unexpected delimiter: {}", delimiter_start),
+        };
+
         // We use the current token rather than the Tokens we got from `Token::Quote` because
         // the current token has whitespace and comments in it, while the one we got from
         // the parser doesn't.
@@ -319,11 +337,13 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         let mut group = ChunkGroup::new();
         group.verbatim(self.chunk(|formatter| {
-            formatter.write("quote {");
+            formatter.write("quote");
+            formatter.write_space();
+            formatter.write(&delimiter_start.to_string());
             for token in tokens.0 {
                 formatter.write_source_span(token.to_span());
             }
-            formatter.write("}");
+            formatter.write(&delimiter_end.to_string());
         }));
         group
     }
@@ -2042,6 +2062,13 @@ global y = 1;
 }
 ";
         let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_quote_with_bracket_delimiter() {
+        let src = "global x = quote [ 1  2  3 $four $(five) ];";
+        let expected = "global x = quote [ 1  2  3 $four $(five) ];\n";
         assert_format(src, expected);
     }
 
