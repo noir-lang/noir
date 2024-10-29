@@ -502,7 +502,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::MacroIsNotComptime { span } => {
                 Diagnostic::simple_error(
                     "This macro call is to a non-comptime function".into(),
-                    "Macro calls must be comptime functions".into(),
+                    "Macro calls must be to comptime functions".into(),
                     *span,
                 )
             },
