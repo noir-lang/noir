@@ -105,36 +105,6 @@ impl std::fmt::Display for ProcedureId {
     }
 }
 
-// #[derive(Error, Debug)]
-// pub enum ProcedureIdFromStrError {
-//     #[error("Invalid procedure id string: {0}")]
-//     InvalidProcedureIdString(String),
-// }
-
-// /// The implementation of display and FromStr allows serializing and deserializing a ProcedureId to a string.
-// /// This is useful when used as key in a map that has to be serialized to JSON/TOML, for example when mapping an opcode to its metadata.
-// impl FromStr for ProcedureId {
-//     type Err = ProcedureIdFromStrError;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         let res = match s {
-//             "ArrayCopy" => ProcedureId::ArrayCopy,
-//             "ArrayReverse" => ProcedureId::ArrayReverse,
-//             "VectorCopy" => ProcedureId::VectorCopy,
-//             "MemCopy" => ProcedureId::MemCopy,
-//             "PrepareVectorPush(true)" => ProcedureId::PrepareVectorPush(true),
-//             "PrepareVectorPush(false)" => ProcedureId::PrepareVectorPush(false),
-//             "VectorPopFront" => ProcedureId::VectorPopFront,
-//             "VectorPopBack" => ProcedureId::VectorPopBack,
-//             "PrepareVectorInsert" => ProcedureId::PrepareVectorInsert,
-//             "VectorRemove" => ProcedureId::VectorRemove,
-//             "CheckMaxStackDepth" => ProcedureId::CheckMaxStackDepth,
-//             _ => return Err(ProcedureIdFromStrError::InvalidProcedureIdString(s.to_string())),
-//         };
-//         Ok(res)
-//     }
-// }
-
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
 ) -> BrilligArtifact<F> {

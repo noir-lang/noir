@@ -108,7 +108,6 @@ pub struct DebugInfo {
     pub functions: DebugFunctions,
     pub types: DebugTypes,
     /// This a map per brillig function representing the range of opcodes where a procedure is activated.
-    // #[serde_as(as = "BTreeMap<_, BTreeMap<DisplayFromStr, _>>")]
     pub brillig_procedure_locs:
         BTreeMap<BrilligFunctionId, BTreeMap<ProcedureDebugId, (usize, usize)>>,
 }
