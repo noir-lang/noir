@@ -12,7 +12,10 @@ fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 #[no_predicates]
 pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     assert(N >= message_size);
-    let mut block_bytes = [0; BLOCK_SIZE_IN_BYTES];
+
+    // Copy input to block bytes. For that we'll need at least input bytes (N)
+    // but we want it to be padded to a multiple of BLOCK_SIZE_IN_BYTES.
+    let mut block_bytes = [0; ((N / BLOCK_SIZE_IN_BYTES) + 1) * BLOCK_SIZE_IN_BYTES];
     if is_unconstrained() {
         for i in 0..message_size {
             block_bytes[i] = input[i];
@@ -114,8 +117,7 @@ mod tests {
 
     #[test]
     fn hash_hello_world() {
-        // "hello world"
-        let input = [72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33];
+        let input = "Hello world!".as_bytes();
         let result = [
             0xec, 0xd0, 0xe1, 0x8, 0xa9, 0x8e, 0x19, 0x2a, 0xf1, 0xd2, 0xc2, 0x50, 0x55, 0xf4, 0xe3,
             0xbe, 0xd7, 0x84, 0xb5, 0xc8, 0x77, 0x20, 0x4e, 0x73, 0x21, 0x9a, 0x52, 0x3, 0x25, 0x1f,
@@ -136,5 +138,19 @@ mod tests {
             219, 171, 166, 236, 88, 143, 67, 255, 160, 248, 214, 39, 129,
         ];
         assert_eq(keccak256(input, 13), result);
+    }
+
+    #[test]
+    fn hash_longer_than_136_bytes() {
+        let input = "123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789"
+            .as_bytes();
+        assert(input.len() > 136);
+
+        let result = [
+            0x1d, 0xca, 0xeb, 0xdf, 0xd9, 0xd6, 0x24, 0x67, 0x1c, 0x18, 0x16, 0xda, 0xd, 0x8a, 0xeb,
+            0xa8, 0x75, 0x71, 0x2c, 0xc, 0x89, 0xe0, 0x25, 0x2, 0xe8, 0xb6, 0x5e, 0x16, 0x5, 0x55,
+            0xe4, 0x40,
+        ];
+        assert_eq(keccak256(input, input.len()), result);
     }
 }
