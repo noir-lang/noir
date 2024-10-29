@@ -17,7 +17,7 @@ use crate::{
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{CustomAttribute, SecondaryAttribute, Tokens},
-    ParsedModule, QuotedType,
+    BinaryTypeOperator, ParsedModule, QuotedType,
 };
 
 use super::{
@@ -397,7 +397,9 @@ pub trait Visitor {
         true
     }
 
-    fn visit_expression_type(&mut self, _: &UnresolvedTypeExpression, _: Span) {}
+    fn visit_expression_type(&mut self, _: &UnresolvedTypeExpression, _: Span) -> bool {
+        true
+    }
 
     fn visit_format_string_type(
         &mut self,
@@ -408,7 +410,9 @@ pub trait Visitor {
         true
     }
 
-    fn visit_string_type(&mut self, _: &UnresolvedTypeExpression, _: Span) {}
+    fn visit_string_type(&mut self, _: &UnresolvedTypeExpression, _: Span) -> bool {
+        true
+    }
 
     fn visit_unspecified_type(&mut self, _: Span) {}
 
@@ -443,6 +447,30 @@ pub trait Visitor {
     }
 
     fn visit_unresolved_trait_constraint(&mut self, _: &UnresolvedTraitConstraint) -> bool {
+        true
+    }
+
+    fn visit_unresolved_type_expression(&mut self, _: &UnresolvedTypeExpression) -> bool {
+        true
+    }
+
+    fn visit_variable_type_expression(&mut self, _: &Path) -> bool {
+        true
+    }
+
+    fn visit_constant_type_expression(&mut self, _value: FieldElement, _span: Span) {}
+
+    fn visit_binary_type_expression(
+        &mut self,
+        _lhs: &UnresolvedTypeExpression,
+        _op: BinaryTypeOperator,
+        _rhs: &UnresolvedTypeExpression,
+        _span: Span,
+    ) -> bool {
+        true
+    }
+
+    fn visit_as_trait_path_type_expression(&mut self, _as_trait_path: &AsTraitPath) -> bool {
         true
     }
 
@@ -1261,6 +1289,7 @@ impl UnresolvedType {
             UnresolvedTypeData::Array(unresolved_type_expression, unresolved_type) => {
                 if visitor.visit_array_type(unresolved_type_expression, unresolved_type, self.span)
                 {
+                    unresolved_type_expression.accept(visitor);
                     unresolved_type.accept(visitor);
                 }
             }
@@ -1308,13 +1337,22 @@ impl UnresolvedType {
                     as_trait_path.accept(self.span, visitor);
                 }
             }
-            UnresolvedTypeData::Expression(expr) => visitor.visit_expression_type(expr, self.span),
+            UnresolvedTypeData::Expression(expr) => {
+                if visitor.visit_expression_type(expr, self.span) {
+                    expr.accept(visitor);
+                }
+            }
             UnresolvedTypeData::FormatString(expr, typ) => {
                 if visitor.visit_format_string_type(expr, typ, self.span) {
+                    expr.accept(visitor);
                     typ.accept(visitor);
                 }
             }
-            UnresolvedTypeData::String(expr) => visitor.visit_string_type(expr, self.span),
+            UnresolvedTypeData::String(expr) => {
+                if visitor.visit_string_type(expr, self.span) {
+                    expr.accept(visitor);
+                }
+            }
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.span),
             UnresolvedTypeData::Quoted(typ) => visitor.visit_quoted_type(typ, self.span),
             UnresolvedTypeData::FieldElement => visitor.visit_field_element_type(self.span),
@@ -1391,6 +1429,38 @@ impl UnresolvedTraitConstraint {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.typ.accept(visitor);
         self.trait_bound.accept(visitor);
+    }
+}
+
+impl UnresolvedTypeExpression {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_unresolved_type_expression(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => {
+                if visitor.visit_variable_type_expression(path) {
+                    path.accept(visitor);
+                }
+            }
+            UnresolvedTypeExpression::Constant(field_element, span) => {
+                visitor.visit_constant_type_expression(*field_element, *span);
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
+                if visitor.visit_binary_type_expression(lhs, *op, rhs, *span) {
+                    lhs.accept(visitor);
+                    rhs.accept(visitor);
+                }
+            }
+            UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
+                if visitor.visit_as_trait_path_type_expression(as_trait_path) {
+                    as_trait_path.accept(self.span(), visitor);
+                }
+            }
+        }
     }
 }
 
