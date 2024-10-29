@@ -8,6 +8,7 @@ mod vector_copy;
 mod vector_pop;
 mod vector_remove;
 
+use acvm::acir::circuit::brillig::ProcedureId;
 use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
 use check_max_stack_depth::compile_check_max_stack_depth_procedure;
@@ -26,21 +27,21 @@ use super::{
     BrilligContext,
 };
 
-/// Procedures are a set of complex operations that are common in the noir language.
-/// Extracting them to reusable procedures allows us to reduce the size of the generated Brillig.
-/// Procedures receive their arguments on scratch space to avoid stack dumping&restoring.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub(crate) enum ProcedureId {
-    ArrayCopy,
-    ArrayReverse,
-    VectorCopy,
-    MemCopy,
-    PrepareVectorPush(bool),
-    VectorPop(bool),
-    PrepareVectorInsert,
-    VectorRemove,
-    CheckMaxStackDepth,
-}
+// /// Procedures are a set of complex operations that are common in the noir language.
+// /// Extracting them to reusable procedures allows us to reduce the size of the generated Brillig.
+// /// Procedures receive their arguments on scratch space to avoid stack dumping&restoring.
+// #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+// pub enum ProcedureId {
+//     ArrayCopy,
+//     ArrayReverse,
+//     VectorCopy,
+//     MemCopy,
+//     PrepareVectorPush(bool),
+//     VectorPop(bool),
+//     PrepareVectorInsert,
+//     VectorRemove,
+//     CheckMaxStackDepth,
+// }
 
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,

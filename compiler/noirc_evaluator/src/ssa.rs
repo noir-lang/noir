@@ -70,6 +70,9 @@ pub struct SsaEvaluatorOptions {
 
     /// The higher the value, the more inlined brillig functions will be.
     pub inliner_aggressiveness: i64,
+
+    /// Collect extra debug information for more informative profiling.
+    pub profiling_active: bool,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -144,7 +147,7 @@ pub(crate) fn optimize_into_acir(
     });
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, options.expression_width)
+        ssa.into_acir(&brillig, options.expression_width, options.profiling_active)
     })?;
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
@@ -291,6 +294,7 @@ fn convert_generated_acir_into_circuit(
         assertion_payloads: assert_messages,
         warnings,
         name,
+        brillig_procedure_locs,
         ..
     } = generated_acir;
 
@@ -328,8 +332,19 @@ fn convert_generated_acir_into_circuit(
         })
         .collect();
 
-    let mut debug_info =
-        DebugInfo::new(locations, brillig_locations, debug_variables, debug_functions, debug_types);
+    let brillig_procedure_locs = if brillig_procedure_locs.is_empty() {
+        BTreeMap::default()
+    } else {
+        brillig_procedure_locs
+    };
+    let mut debug_info = DebugInfo::new(
+        locations,
+        brillig_locations,
+        debug_variables,
+        debug_functions,
+        debug_types,
+        brillig_procedure_locs,
+    );
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);

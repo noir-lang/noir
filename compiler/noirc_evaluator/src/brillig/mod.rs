@@ -43,7 +43,11 @@ impl Brillig {
                 self.ssa_function_to_brillig.get(&function_id).map(Cow::Borrowed)
             }
             // Procedures are compiled as needed
-            LabelType::Procedure(procedure_id) => Some(Cow::Owned(compile_procedure(procedure_id))),
+            LabelType::Procedure(procedure_id) => {
+                let mut artifact = compile_procedure(procedure_id);
+                artifact.procedure = Some(procedure_id);
+                Some(Cow::Owned(artifact))
+            }
             _ => unreachable!("ICE: Expected a function or procedure label"),
         }
     }

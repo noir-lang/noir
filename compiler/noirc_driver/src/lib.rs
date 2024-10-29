@@ -131,6 +131,10 @@ pub struct CompileOptions {
     /// A less aggressive inliner should generate smaller programs
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
+
+    /// Gather extra debug information
+    #[arg(long, hide = true)]
+    pub profile: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -590,6 +594,7 @@ pub fn compile_no_check(
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
+        profiling_active: options.profile,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

@@ -195,6 +195,9 @@ struct Context<'a> {
 
     /// Contains state that is generated and also used across ACIR functions
     shared_context: &'a mut SharedContext<FieldElement>,
+
+    /// Flag to determine whether compilation should collect extra debug information for profiling.
+    profiling_active: bool,
 }
 
 #[derive(Clone)]
@@ -292,12 +295,13 @@ impl Ssa {
         self,
         brillig: &Brillig,
         expression_width: ExpressionWidth,
+        profiling_active: bool,
     ) -> Result<Artifacts, RuntimeError> {
         let mut acirs = Vec::new();
         // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context, expression_width);
+            let context = Context::new(&mut shared_context, expression_width, profiling_active);
             if let Some(mut generated_acir) =
                 context.convert_ssa_function(&self, function, brillig)?
             {
@@ -349,6 +353,7 @@ impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
+        profiling_active: bool,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::default();
         acir_context.set_expression_width(expression_width);
@@ -365,6 +370,7 @@ impl<'a> Context<'a> {
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
+            profiling_active,
         }
     }
 
@@ -1003,6 +1009,18 @@ impl<'a> Context<'a> {
                 }
             };
             entry_point.link_with(artifact);
+            // Insert the range of opcode locations occupied by a procedure
+            if self.profiling_active {
+                if let Some(procedure_id) = artifact.procedure {
+                    let num_opcodes = entry_point.byte_code.len();
+                    let previous_num_opcodes =
+                        entry_point.byte_code.len() - artifact.byte_code.len();
+                    // We subtract one as to keep the range inclusive on both ends
+                    entry_point
+                        .procedure_locations
+                        .insert(procedure_id, (previous_num_opcodes, num_opcodes - 1));
+                }
+            }
         }
         // Generate the final bytecode
         Ok(entry_point.finish())
@@ -3020,7 +3038,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _, _) = ssa
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default(), false)
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -3125,7 +3143,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _, _) = ssa
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default(), false)
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
@@ -3225,7 +3243,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _, _) = ssa
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default(), false)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -3349,7 +3367,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, brillig_functions, _, _) = ssa
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, ExpressionWidth::default(), false)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3413,7 +3431,7 @@ mod test {
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions, _, _) = ssa
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default(), false)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3487,7 +3505,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, ExpressionWidth::default(), false)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3575,7 +3593,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, ExpressionWidth::default(), false)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");

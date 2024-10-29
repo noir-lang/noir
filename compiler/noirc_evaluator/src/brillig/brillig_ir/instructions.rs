@@ -4,6 +4,7 @@ use acvm::{
             BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapArray, HeapValueType,
             MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
+        circuit::brillig::ProcedureId,
         AcirField,
     },
     FieldElement,
@@ -15,7 +16,6 @@ use super::{
     artifact::{Label, UnresolvedJumpLocation},
     brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
-    procedures::ProcedureId,
     registers::RegisterAllocator,
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };

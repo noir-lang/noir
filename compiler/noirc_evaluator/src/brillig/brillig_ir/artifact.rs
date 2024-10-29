@@ -1,7 +1,6 @@
-use acvm::acir::brillig::Opcode as BrilligOpcode;
+use acvm::acir::{brillig::Opcode as BrilligOpcode, circuit::brillig::ProcedureId};
 use std::collections::{BTreeMap, HashMap};
 
-use crate::brillig::brillig_ir::procedures::ProcedureId;
 use crate::ssa::ir::{basic_block::BasicBlockId, dfg::CallStack, function::FunctionId};
 
 /// Represents a parameter or a return value of an entry point function.
@@ -24,6 +23,7 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
     pub(crate) name: String,
+    pub(crate) procedure_locations: HashMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -48,11 +48,19 @@ pub(crate) struct BrilligArtifact<F> {
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
     /// Maps the opcodes that are associated with a callstack to it.
-    locations: BTreeMap<OpcodeLocation, CallStack>,
+    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
-    call_stack: CallStack,
+    pub(crate) call_stack: CallStack,
     /// Name of the function, only used for debugging purposes.
     pub(crate) name: String,
+
+    /// This field contains the given procedure id if this artifact originates from as procedure
+    pub(crate) procedure: Option<ProcedureId>,
+    /// Procedure ID mapped to the range of its opcode locations
+    /// This is created as artifacts are linked together and allows us to determine
+    /// which opcodes originate from reusable procedures.s
+    /// The range is inclusive for both start and end opcode locations.
+    pub(crate) procedure_locations: HashMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
 /// A pointer to a location in the opcode.
@@ -149,6 +157,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
             locations: self.locations,
             assert_messages: self.assert_messages,
             name: self.name,
+            procedure_locations: self.procedure_locations,
         }
     }
 

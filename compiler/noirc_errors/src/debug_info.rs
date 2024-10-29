@@ -1,4 +1,5 @@
 use acvm::acir::circuit::brillig::BrilligFunctionId;
+use acvm::acir::circuit::brillig::ProcedureId;
 use acvm::acir::circuit::BrilligOpcodeLocation;
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
@@ -104,6 +105,9 @@ pub struct DebugInfo {
     pub variables: DebugVariables,
     pub functions: DebugFunctions,
     pub types: DebugTypes,
+    /// This a map per brillig function representing the range of opcodes where a procedure is activated.
+    #[serde_as(as = "BTreeMap<_, BTreeMap<DisplayFromStr, _>>")]
+    pub brillig_procedure_locs: BTreeMap<BrilligFunctionId, BTreeMap<ProcedureId, (usize, usize)>>,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -124,8 +128,9 @@ impl DebugInfo {
         variables: DebugVariables,
         functions: DebugFunctions,
         types: DebugTypes,
+        brillig_procedure_locs: BTreeMap<BrilligFunctionId, BTreeMap<ProcedureId, (usize, usize)>>,
     ) -> Self {
-        Self { locations, brillig_locations, variables, functions, types }
+        Self { locations, brillig_locations, variables, functions, types, brillig_procedure_locs }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
