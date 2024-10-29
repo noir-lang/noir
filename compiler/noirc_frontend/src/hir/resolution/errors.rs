@@ -160,6 +160,8 @@ pub enum ResolverError {
         span: Span,
         missing_trait_location: Location,
     },
+    #[error("The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates")]
+    UnconstrainedTypeParameter { ident: Ident },
 }
 
 impl ResolverError {
@@ -605,6 +607,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     , *span);
                 diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
                 diagnostic
+            },
+            ResolverError::UnconstrainedTypeParameter { ident} => {
+                Diagnostic::simple_error(
+                    format!("The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"),
+                    format!("Hint: remove the `{ident}` type parameter"),
+                    ident.span(),
+                )
             },
         }
     }

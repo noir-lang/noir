@@ -4,34 +4,31 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
-};
-use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
+        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType, Visitor,
     },
     graph::CrateId,
     hir::{
-        def_collector::dc_crate::{
-            filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
-            UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
+        def_collector::{
+            dc_crate::{
+                filter_literal_globals, CollectedItems, CompilationError, ImplMap,
+                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+                UnresolvedTypeAlias,
+            },
+            errors::DefCollectorErrorKind,
         },
-        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
-        def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::errors::ResolverError,
-        resolution::import::PathResolution,
+        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, MAIN_FUNCTION},
+        resolution::{errors::ResolverError, import::PathResolution},
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
         Context,
     },
-    hir_def::traits::TraitImpl,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         function::{FuncMeta, FunctionBody, HirFunction},
-        traits::TraitConstraint,
+        traits::{TraitConstraint, TraitImpl},
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
@@ -40,6 +37,11 @@ use crate::{
     },
     token::{CustomAttribute, SecondaryAttribute},
     Shared, Type, TypeVariable,
+};
+use crate::{
+    ast::{ItemVisibility, UnresolvedType},
+    hir_def::traits::ResolvedTraitBound,
+    StructField, StructType, TypeBindings,
 };
 
 mod comptime;
@@ -54,6 +56,7 @@ pub mod types;
 mod unquote;
 
 use fm::FileId;
+use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
 use types::bind_ordered_generics;
@@ -277,8 +280,8 @@ impl<'context> Elaborator<'context> {
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
         // the impl since that determines the module we should collect into.
-        for ((_self_type, module), impls) in &mut items.impls {
-            self.collect_impls(*module, impls);
+        for ((self_type, module), impls) in &mut items.impls {
+            self.collect_impls(*module, impls, self_type);
         }
 
         // Bind trait impls to their trait. Collect trait functions, that have a
@@ -1222,10 +1225,13 @@ impl<'context> Elaborator<'context> {
         &mut self,
         module: LocalModuleId,
         impls: &mut [(UnresolvedGenerics, Span, UnresolvedFunctions)],
+        self_type: &UnresolvedType,
     ) {
         self.local_module = module;
 
         for (generics, span, unresolved) in impls {
+            self.check_generics_appear_in_type(generics, self_type);
+
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
@@ -1713,6 +1719,7 @@ impl<'context> Elaborator<'context> {
                 self.file = function_set.file_id;
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
+
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
                 self.define_function_metas_for_functions(function_set);
@@ -1797,5 +1804,57 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => true,
             })
+    }
+
+    /// Check that all the generics show up in `self_type` (if they don't, we produce an error)
+    fn check_generics_appear_in_type(
+        &mut self,
+        generics: &[UnresolvedGeneric],
+        self_type: &UnresolvedType,
+    ) {
+        if generics.is_empty() {
+            return;
+        }
+
+        // Turn each generic into an Ident
+        let mut idents = HashSet::new();
+        for generic in generics {
+            match generic {
+                UnresolvedGeneric::Variable(ident) => {
+                    idents.insert(ident.clone());
+                }
+                UnresolvedGeneric::Numeric { ident, typ: _ } => {
+                    idents.insert(ident.clone());
+                }
+                UnresolvedGeneric::Resolved(quoted_type_id, span) => {
+                    if let Type::NamedGeneric(_type_variable, name) =
+                        self.interner.get_quoted_type(*quoted_type_id).follow_bindings()
+                    {
+                        idents.insert(Ident::new(name.to_string(), *span));
+                    }
+                }
+            }
+        }
+
+        // Remove the ones that show up in `self_type`
+        let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
+        self_type.accept(&mut visitor);
+
+        // The ones that remain are not mentioned in the impl: it's an error.
+        for ident in idents {
+            self.push_err(ResolverError::UnconstrainedTypeParameter { ident });
+        }
+    }
+}
+
+struct RemoveGenericsAppearingInTypeVisitor<'a> {
+    idents: &'a mut HashSet<Ident>,
+}
+
+impl<'a> Visitor for RemoveGenericsAppearingInTypeVisitor<'a> {
+    fn visit_path(&mut self, path: &Path) {
+        if let Some(ident) = path.as_ident() {
+            self.idents.remove(ident);
+        }
     }
 }
