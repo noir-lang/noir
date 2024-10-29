@@ -590,6 +590,11 @@ impl TypeAlias {
 
         self.typ.substitute(&substitutions)
     }
+
+    pub fn instantiate(&self, interner: &NodeInterner) -> Type {
+        let args = vecmap(&self.generics, |_| interner.next_type_variable());
+        self.get_type(&args)
+    }
 }
 
 /// A shared, mutable reference to some T.

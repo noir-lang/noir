@@ -269,11 +269,25 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        match self.lookup(path) {
-            Ok(struct_id) => {
+        let span = path.span;
+        match self.resolve_path_or_error(path) {
+            Ok(ModuleDefId::TypeId(struct_id)) => {
                 let struct_type = self.get_struct(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
                 Some(Type::Struct(struct_type, generics))
+            }
+            Ok(ModuleDefId::TypeAliasId(alias_id)) => {
+                let alias = self.interner.get_type_alias(alias_id);
+                let alias = alias.borrow();
+                Some(alias.instantiate(self.interner))
+            }
+            Ok(other) => {
+                self.push_err(ResolverError::Expected {
+                    expected: StructId::description(),
+                    got: other.as_str().to_owned(),
+                    span,
+                });
+                None
             }
             Err(error) => {
                 self.push_err(error);

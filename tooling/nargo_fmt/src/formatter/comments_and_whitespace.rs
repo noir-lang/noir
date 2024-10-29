@@ -643,7 +643,10 @@ mod foo;
         /* hello */
     }
         ";
-        let expected = "struct Foo { /* hello */ }\n";
+        let expected = "struct Foo {
+    /* hello */
+}
+";
         assert_format(src, expected);
     }
 
