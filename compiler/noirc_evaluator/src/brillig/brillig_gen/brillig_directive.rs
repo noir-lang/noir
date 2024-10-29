@@ -1,5 +1,7 @@
 use acvm::acir::{
-    brillig::{BinaryFieldOp, BitSize, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode},
+    brillig::{
+        BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode,
+    },
     AcirField,
 };
 
@@ -135,5 +137,129 @@ pub(crate) fn directive_quotient<F: AcirField>() -> GeneratedBrillig<F> {
         assert_messages: Default::default(),
         locations: Default::default(),
         name: "directive_integer_quotient".to_string(),
+    }
+}
+
+/// Generates brillig bytecode which performs a radix-base decomposition of `a`
+/// The brillig inputs are 'a', the numbers of limbs and the radix
+pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
+    let memory_adr_int_size = IntegerBitSize::U32;
+    let memory_adr_size = BitSize::Integer(memory_adr_int_size);
+
+    // (0) is the input field `a` to decompose
+    // (1) contains the number of limbs (second input)
+    let limbs_nb = MemoryAddress::direct(1);
+    // (2) contains the radix (third input)
+    let radix = MemoryAddress::direct(2);
+    // (3) and (4) are intermediate registers
+    // (5,6,7) are constants: 0,1,3
+    let zero = MemoryAddress::direct(5);
+    let one = MemoryAddress::direct(6);
+    let three = MemoryAddress::direct(7);
+    // (7) is the iteration bound, it is the same register as three because the latter is only used at the start
+    let bound = MemoryAddress::direct(7);
+    // (8) is the register for storing the loop condition
+    let cond = MemoryAddress::direct(8);
+    // (9) is the pointer to the result array
+    let result_pointer = MemoryAddress::direct(9);
+    // address of the result array
+    let result_base_adr = 10_usize;
+
+    let byte_code = vec![
+        // Initialize registers
+        // Constants
+        // Zero
+        BrilligOpcode::Const { destination: zero, bit_size: memory_adr_size, value: F::zero() },
+        // One
+        BrilligOpcode::Const {
+            destination: one,
+            bit_size: memory_adr_size,
+            value: F::from(1_usize),
+        },
+        // Three
+        BrilligOpcode::Const {
+            destination: three,
+            bit_size: memory_adr_size,
+            value: F::from(3_usize),
+        },
+        // Brillig Inputs
+        BrilligOpcode::CalldataCopy {
+            destination_address: MemoryAddress::direct(0),
+            size_address: three,
+            offset_address: zero,
+        },
+        // The number of limbs needs to be an integer
+        BrilligOpcode::Cast { destination: limbs_nb, source: limbs_nb, bit_size: memory_adr_size },
+        // Result_pointer starts at the base address
+        BrilligOpcode::Const {
+            destination: result_pointer,
+            bit_size: memory_adr_size,
+            value: F::from(result_base_adr),
+        },
+        // Loop bound
+        BrilligOpcode::BinaryIntOp {
+            destination: bound,
+            op: BinaryIntOp::Add,
+            bit_size: memory_adr_int_size,
+            lhs: result_pointer,
+            rhs: limbs_nb,
+        },
+        // loop label: (3) = a / radix (integer division)
+        BrilligOpcode::BinaryFieldOp {
+            op: BinaryFieldOp::IntegerDiv,
+            lhs: MemoryAddress::direct(0),
+            rhs: radix,
+            destination: MemoryAddress::direct(3),
+        },
+        //(4) = (3)*256
+        BrilligOpcode::BinaryFieldOp {
+            op: BinaryFieldOp::Mul,
+            lhs: MemoryAddress::direct(3),
+            rhs: radix,
+            destination: MemoryAddress::direct(4),
+        },
+        //(4) = a-(3)*256 (remainder)
+        BrilligOpcode::BinaryFieldOp {
+            op: BinaryFieldOp::Sub,
+            lhs: MemoryAddress::direct(0),
+            rhs: MemoryAddress::direct(4),
+            destination: MemoryAddress::direct(4),
+        },
+        // Store the remainder in the result array
+        BrilligOpcode::Store {
+            destination_pointer: result_pointer,
+            source: MemoryAddress::direct(4),
+        },
+        // Increment the result pointer
+        BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Add,
+            lhs: result_pointer,
+            rhs: one,
+            destination: result_pointer,
+            bit_size: memory_adr_int_size,
+        },
+        //a := quotient
+        BrilligOpcode::Mov {
+            destination: MemoryAddress::direct(0),
+            source: MemoryAddress::direct(3),
+        },
+        // loop condition
+        BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::LessThan,
+            lhs: result_pointer,
+            rhs: bound,
+            destination: cond,
+            bit_size: memory_adr_int_size,
+        },
+        // loop back
+        BrilligOpcode::JumpIf { condition: cond, location: 7 },
+        BrilligOpcode::Stop { return_data_offset: result_base_adr, return_data_size: limbs_nb },
+    ];
+
+    GeneratedBrillig {
+        byte_code,
+        assert_messages: Default::default(),
+        locations: Default::default(),
+        name: "directive_to_radix".to_string(),
     }
 }

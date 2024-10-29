@@ -9,7 +9,6 @@ use acvm::{
     acir::{
         circuit::{
             brillig::{BrilligBytecode, BrilligInputs},
-            directives::Directive,
             opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
             Circuit, Opcode, Program,
         },
@@ -60,10 +59,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
         match opcode {
             Opcode::AssertZero(expr)
             | Opcode::Call { predicate: Some(expr), .. }
-            | Opcode::MemoryOp { predicate: Some(expr), .. }
-            | Opcode::Directive(Directive::ToLeRadix { a: expr, .. }) => {
-                insert_expr(&mut constants, expr)
-            }
+            | Opcode::MemoryOp { predicate: Some(expr), .. } => insert_expr(&mut constants, expr),
 
             Opcode::MemoryInit { init, .. } => insert_array_len(&mut constants, init),
 

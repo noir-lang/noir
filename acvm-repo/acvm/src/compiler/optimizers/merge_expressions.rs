@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use acir::{
-    circuit::{brillig::BrilligInputs, directives::Directive, opcodes::BlockId, Circuit, Opcode},
+    circuit::{brillig::BrilligInputs, opcodes::BlockId, Circuit, Opcode},
     native_types::{Expression, Witness},
     AcirField,
 };
@@ -136,7 +136,6 @@ impl MergeExpressionsOptimizer {
         match opcode {
             Opcode::AssertZero(expr) => Self::expr_wit(expr),
             Opcode::BlackBoxFuncCall(bb_func) => bb_func.get_input_witnesses(),
-            Opcode::Directive(Directive::ToLeRadix { a, .. }) => Self::expr_wit(a),
             Opcode::MemoryOp { block_id: _, op, predicate } => {
                 //index et value, et predicate
                 let mut witnesses = HashSet::new();
@@ -166,6 +165,8 @@ impl MergeExpressionsOptimizer {
                 }
                 witnesses
             }
+            // Directive opcode is to be removed
+            Opcode::Directive(_) => unreachable!(),
         }
     }
 

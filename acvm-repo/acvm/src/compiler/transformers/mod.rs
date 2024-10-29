@@ -1,5 +1,5 @@
 use acir::{
-    circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, ExpressionWidth, Opcode},
+    circuit::{brillig::BrilligOutputs, Circuit, ExpressionWidth, Opcode},
     native_types::{Expression, Witness},
     AcirField,
 };
@@ -104,17 +104,6 @@ pub(super) fn transform_internal<F: AcirField>(
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
-            Opcode::Directive(ref directive) => {
-                match directive {
-                    Directive::ToLeRadix { b, .. } => {
-                        for witness in b {
-                            transformer.mark_solvable(*witness);
-                        }
-                    }
-                }
-                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode);
-            }
             Opcode::MemoryInit { .. } => {
                 // `MemoryInit` does not write values to the `WitnessMap`
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
@@ -156,6 +145,8 @@ pub(super) fn transform_internal<F: AcirField>(
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
+            // Directive opcode is to be removed
+            Opcode::Directive(_) => unreachable!(),
         }
     }
 

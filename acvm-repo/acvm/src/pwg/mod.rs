@@ -18,8 +18,7 @@ use acir::{
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
 use self::{
-    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, directives::solve_directives,
-    memory_op::MemoryOpSolver,
+    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
 };
 use crate::BlackBoxFunctionSolver;
 
@@ -29,8 +28,6 @@ use thiserror::Error;
 pub(crate) mod arithmetic;
 // Brillig bytecode
 pub(crate) mod brillig;
-// Directives
-pub(crate) mod directives;
 // black box functions
 pub(crate) mod blackbox;
 mod memory_op;
@@ -371,7 +368,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 bb_func,
                 &mut self.bigint_solver,
             ),
-            Opcode::Directive(directive) => solve_directives(&mut self.witness_map, directive),
             Opcode::MemoryInit { block_id, init, .. } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.init(init, &self.witness_map)
@@ -388,6 +384,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 Ok(Some(input_values)) => return self.wait_for_acir_call(input_values),
                 res => res.map(|_| ()),
             },
+            // Directive opcode is to be removed
+            Opcode::Directive(_) => unreachable!(),
         };
         self.handle_opcode_resolution(resolution)
     }
