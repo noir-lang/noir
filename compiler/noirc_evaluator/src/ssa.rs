@@ -70,9 +70,6 @@ pub struct SsaEvaluatorOptions {
 
     /// The higher the value, the more inlined brillig functions will be.
     pub inliner_aggressiveness: i64,
-
-    /// Collect extra debug information for more informative profiling.
-    pub profiling_active: bool,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -147,7 +144,7 @@ pub(crate) fn optimize_into_acir(
     });
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, options.expression_width, options.profiling_active)
+        ssa.into_acir(&brillig, options.expression_width)
     })?;
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
