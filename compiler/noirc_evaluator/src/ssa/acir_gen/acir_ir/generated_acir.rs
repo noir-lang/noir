@@ -9,7 +9,7 @@ use crate::{
 };
 use acvm::acir::{
     circuit::{
-        brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs, ProcedureId},
+        brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         AssertionPayload, BrilligOpcodeLocation, OpcodeLocation,
     },
@@ -22,6 +22,7 @@ use acvm::{
 };
 
 use iter_extended::vecmap;
+use noirc_errors::debug_info::ProcedureDebugId;
 use num_bigint::BigUint;
 
 /// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
@@ -74,10 +75,6 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
     pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
 
-    /// Flag that determines whether we should gather extra information for profiling
-    /// such as opcode range of Brillig procedures.
-    pub(crate) profiling_active: bool,
-
     /// Brillig function id -> Brillig procedure locations map
     /// This maps allows a profiler to determine which Brillig opcodes
     /// originated from a reusable procedure.
@@ -89,7 +86,7 @@ pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
 
 pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
 
-pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureId, (usize, usize)>;
+pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
@@ -608,7 +605,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             self.brillig_procedure_locs
                 .entry(brillig_function_index)
                 .or_default()
-                .insert(*procedure_id, (*start_index, *end_index));
+                .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {

@@ -1,5 +1,4 @@
 use acvm::acir::circuit::brillig::BrilligFunctionId;
-use acvm::acir::circuit::brillig::ProcedureId;
 use acvm::acir::circuit::BrilligOpcodeLocation;
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
@@ -48,6 +47,9 @@ pub struct DebugFunction {
 pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
 pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
 pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct ProcedureDebugId(pub u32);
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct ProgramDebugInfo {
@@ -106,8 +108,9 @@ pub struct DebugInfo {
     pub functions: DebugFunctions,
     pub types: DebugTypes,
     /// This a map per brillig function representing the range of opcodes where a procedure is activated.
-    #[serde_as(as = "BTreeMap<_, BTreeMap<DisplayFromStr, _>>")]
-    pub brillig_procedure_locs: BTreeMap<BrilligFunctionId, BTreeMap<ProcedureId, (usize, usize)>>,
+    // #[serde_as(as = "BTreeMap<_, BTreeMap<DisplayFromStr, _>>")]
+    pub brillig_procedure_locs:
+        BTreeMap<BrilligFunctionId, BTreeMap<ProcedureDebugId, (usize, usize)>>,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -128,7 +131,10 @@ impl DebugInfo {
         variables: DebugVariables,
         functions: DebugFunctions,
         types: DebugTypes,
-        brillig_procedure_locs: BTreeMap<BrilligFunctionId, BTreeMap<ProcedureId, (usize, usize)>>,
+        brillig_procedure_locs: BTreeMap<
+            BrilligFunctionId,
+            BTreeMap<ProcedureDebugId, (usize, usize)>,
+        >,
     ) -> Self {
         Self { locations, brillig_locations, variables, functions, types, brillig_procedure_locs }
     }

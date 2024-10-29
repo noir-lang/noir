@@ -1,7 +1,9 @@
-use acvm::acir::{brillig::Opcode as BrilligOpcode, circuit::brillig::ProcedureId};
+use acvm::acir::brillig::Opcode as BrilligOpcode;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::ssa::ir::{basic_block::BasicBlockId, dfg::CallStack, function::FunctionId};
+
+use super::procedures::ProcedureId;
 
 /// Represents a parameter or a return value of an entry point function.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]

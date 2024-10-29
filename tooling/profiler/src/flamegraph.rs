@@ -11,6 +11,7 @@ use inferno::flamegraph::{from_lines, Options, TextTruncateDirection};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_errors::Location;
+use noirc_evaluator::brillig::ProcedureId;
 
 use crate::opcode_formatter::AcirOrBrilligOpcode;
 
@@ -154,7 +155,7 @@ fn find_callsite_labels<'files>(
         .collect();
 
     if let Some(procedure_id) = procedure_id {
-        callsite_labels.push(format!("procedure::{}", procedure_id));
+        callsite_labels.push(format!("procedure::{}", ProcedureId::from_debug_id(procedure_id)));
     }
 
     callsite_labels
