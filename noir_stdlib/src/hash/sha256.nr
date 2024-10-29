@@ -519,10 +519,10 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::{
-        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, lshift8, make_item,
+        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, make_item,
         set_item_byte_then_zeros, set_item_zeros,
     };
-    use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
+    use super::INT_BLOCK;
     use super::sha256_var;
 
     #[test]

@@ -251,7 +251,7 @@ impl<'context> Elaborator<'context> {
             let hir_ident = if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
                 old_value.ident.clone()
-            } else if let Ok(definition_id) =
+            } else if let Ok((definition_id, _)) =
                 self.lookup_global(Path::from_single(ident_name.to_string(), call_expr_span))
             {
                 HirIdent::non_trait_method(definition_id, Location::new(call_expr_span, self.file))
@@ -535,9 +535,6 @@ impl<'context> Elaborator<'context> {
         if !generics.ordered_args.is_empty() {
             last_segment.generics = Some(generics.ordered_args);
         }
-
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&path, exclude_last_segment);
 
         let last_segment = path.last_segment();
         let is_self_type = last_segment.ident.is_self_type_name();

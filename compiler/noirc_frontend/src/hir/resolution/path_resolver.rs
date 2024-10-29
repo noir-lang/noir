@@ -88,9 +88,5 @@ pub fn resolve_path(
     let resolved_import =
         resolve_import(module_id.krate, &import, def_maps, usage_tracker, path_references)?;
 
-    let namespace = resolved_import.resolved_namespace;
-    let id =
-        namespace.values.or(namespace.types).map(|(id, _, _)| id).expect("Found empty namespace");
-
-    Ok(PathResolution { module_def_id: id, error: resolved_import.error })
+    Ok(PathResolution { item: resolved_import.item, errors: resolved_import.errors })
 }
