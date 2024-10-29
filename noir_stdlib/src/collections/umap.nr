@@ -1,7 +1,7 @@
 use crate::cmp::Eq;
-use crate::option::Option;
 use crate::default::Default;
-use crate::hash::{Hash, Hasher, BuildHasher};
+use crate::hash::{BuildHasher, Hash, Hasher};
+use crate::option::Option;
 
 // An unconstrained hash table with open addressing and quadratic probing.
 // Note that "unconstrained" here means that almost all operations on this

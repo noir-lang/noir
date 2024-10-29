@@ -301,8 +301,8 @@ mod tests {
         let src = "global x = [ /* hello */
         1 , 2 ] ;";
         let expected = "global x = [
-    /* hello */
-    1, 2,
+    /* hello */ 1,
+    2,
 ];
 ";
         assert_format_with_max_width(src, expected, 20);
@@ -643,7 +643,10 @@ mod foo;
         /* hello */
     }
         ";
-        let expected = "struct Foo { /* hello */ }\n";
+        let expected = "struct Foo {
+    /* hello */
+}
+";
         assert_format(src, expected);
     }
 

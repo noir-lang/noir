@@ -182,12 +182,15 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             if formatter.is_at(Token::Assign) {
                 formatter.write_token(Token::Assign);
             } else {
-                while formatter.token != Token::Assign {
-                    formatter.write_current_token();
-                    formatter.bump();
-                    formatter.skip_comments_and_whitespace();
-                }
-                formatter.write_token(Token::Assign);
+                // This is something like `x += 1`, which is parsed as an
+                // Assign with an InfixExpression as its right-hand side: `x = x + 1`.
+                // There will always be two tokens here, like `+ =` or `> >=`.
+                formatter.write_current_token();
+                formatter.bump();
+                formatter.skip_comments_and_whitespace();
+                formatter.write_current_token();
+                formatter.bump();
+
                 is_op_assign = true;
             }
             formatter.write_space();
@@ -430,6 +433,16 @@ mod tests {
         let src = " fn foo() { x  + =  2 ; } ";
         let expected = "fn foo() {
     x += 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_shift_right_assign() {
+        let src = " fn foo() { x  >>=  2 ; } ";
+        let expected = "fn foo() {
+    x >>= 2;
 }
 ";
         assert_format(src, expected);

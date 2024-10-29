@@ -1,8 +1,8 @@
 use crate::cmp::Eq;
-use crate::option::Option;
-use crate::default::Default;
-use crate::hash::{Hash, Hasher, BuildHasher};
 use crate::collections::bounded_vec::BoundedVec;
+use crate::default::Default;
+use crate::hash::{BuildHasher, Hash, Hasher};
+use crate::option::Option;
 
 // We use load factor alpha_max = 0.75.
 // Upon exceeding it, assert will fail in order to inform the user
