@@ -38,7 +38,7 @@ pub enum ResolverError {
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
-    Expected { span: Span, expected: String, got: String },
+    Expected { span: Span, expected: &'static str, got: &'static str },
     #[error("Duplicate field in constructor")]
     DuplicateField { field: Ident },
     #[error("No such field in struct")]
