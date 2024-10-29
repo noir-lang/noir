@@ -25,7 +25,7 @@ pub(crate) struct Sample<F: AcirField> {
     pub(crate) brillig_function_id: Option<BrilligFunctionId>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub(crate) struct FoldedStackItem {
     pub(crate) total_samples: usize,
     pub(crate) nested_items: BTreeMap<String, FoldedStackItem>,
@@ -135,6 +135,7 @@ fn find_callsite_labels<'files>(
                 for (procedure, range) in procedure_locs.iter() {
                     if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
                         procedure_id = Some(*procedure);
+                        break;
                     }
                 }
             }
