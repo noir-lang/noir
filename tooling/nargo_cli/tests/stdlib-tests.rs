@@ -1,4 +1,5 @@
 //! Execute unit tests in the Noir standard library.
+#![allow(clippy::items_after_test_module)]
 use clap::Parser;
 use fm::FileManager;
 use noirc_driver::{check_crate, file_manager_with_stdlib, CompileOptions};
@@ -12,6 +13,7 @@ use nargo::{
     parse_all, prepare_package,
 };
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use test_case::test_matrix;
 
 #[derive(Parser, Debug)]
 #[command(ignore_errors = true)]
@@ -29,14 +31,22 @@ pub struct Options {
 impl Options {
     pub fn function_name_match(&self) -> FunctionNameMatch {
         match self.args.as_slice() {
-            [_, lib] => FunctionNameMatch::Contains(lib.as_str()),
+            [_test_name, lib] => FunctionNameMatch::Contains(lib.as_str()),
             _ => FunctionNameMatch::Anything,
         }
     }
 }
 
-#[test]
-fn run_stdlib_tests() {
+/// Inliner aggressiveness results in different SSA.
+/// Inlining happens if `inline_cost - retain_cost < aggressiveness` (see `inlining.rs`).
+/// NB the CLI uses maximum aggressiveness.
+///
+/// Even with the same inlining aggressiveness, forcing Brillig can trigger different behaviour.
+#[test_matrix(
+    [false, true],
+    [i64::MIN, 0, i64::MAX]
+)]
+fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let opts = Options::parse();
 
     let mut file_manager = file_manager_with_stdlib(&PathBuf::from("."));
@@ -80,7 +90,7 @@ fn run_stdlib_tests() {
                 None,
                 Some(dummy_package.root_dir.clone()),
                 Some(dummy_package.name.to_string()),
-                &CompileOptions::default(),
+                &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
             );
             (test_name, status)
         })

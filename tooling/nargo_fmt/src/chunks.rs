@@ -995,7 +995,12 @@ impl<'a> Formatter<'a> {
 
     /// Appends the string to the current buffer line by line, with some pre-checks.
     fn write_chunk_lines(&mut self, string: &str) {
-        for (index, line) in string.lines().enumerate() {
+        let lines: Vec<_> = string.lines().collect();
+
+        let mut index = 0;
+        while index < lines.len() {
+            let line = &lines[index];
+
             // Don't indent the first line (it should already be indented).
             // Also don't indent if the current line already has a space as the last char
             // (it means it's already indented)
@@ -1014,6 +1019,14 @@ impl<'a> Formatter<'a> {
                 self.write(line.trim_start());
             } else {
                 self.write(line);
+            }
+
+            index += 1;
+
+            // If a newline comes next too, write multiple lines to preserve original formatting
+            while index < lines.len() && lines[index].is_empty() {
+                self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                index += 1;
             }
         }
     }

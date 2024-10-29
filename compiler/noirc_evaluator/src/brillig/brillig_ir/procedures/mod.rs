@@ -5,7 +5,8 @@ mod mem_copy;
 mod prepare_vector_insert;
 mod prepare_vector_push;
 mod vector_copy;
-mod vector_pop;
+mod vector_pop_back;
+mod vector_pop_front;
 mod vector_remove;
 
 use acvm::acir::circuit::brillig::ProcedureId;
@@ -16,7 +17,8 @@ use mem_copy::compile_mem_copy_procedure;
 use prepare_vector_insert::compile_prepare_vector_insert_procedure;
 use prepare_vector_push::compile_prepare_vector_push_procedure;
 use vector_copy::compile_vector_copy_procedure;
-use vector_pop::compile_vector_pop_procedure;
+use vector_pop_back::compile_vector_pop_back_procedure;
+use vector_pop_front::compile_vector_pop_front_procedure;
 use vector_remove::compile_vector_remove_procedure;
 
 use crate::brillig::brillig_ir::AcirField;
@@ -41,8 +43,11 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::PrepareVectorPush(push_back) => {
             compile_prepare_vector_push_procedure(&mut brillig_context, push_back);
         }
-        ProcedureId::VectorPop(pop_back) => {
-            compile_vector_pop_procedure(&mut brillig_context, pop_back);
+        ProcedureId::VectorPopFront => {
+            compile_vector_pop_front_procedure(&mut brillig_context);
+        }
+        ProcedureId::VectorPopBack => {
+            compile_vector_pop_back_procedure(&mut brillig_context);
         }
         ProcedureId::PrepareVectorInsert => {
             compile_prepare_vector_insert_procedure(&mut brillig_context);
