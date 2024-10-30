@@ -2798,6 +2798,9 @@ impl<'a> Context<'a> {
             Intrinsic::DerivePedersenGenerators => {
                 unreachable!("DerivePedersenGenerators can only be called with constants")
             }
+            Intrinsic::FieldLessThan => {
+                unreachable!("FieldLessThan can only be called in unconstrained")
+            }
         }
     }
 

@@ -117,7 +117,7 @@ impl DebugShow {
     }
 
     /// Emits a `trap` instruction.
-    pub(crate) fn trap_instruction(&self, revert_data: HeapArray) {
+    pub(crate) fn trap_instruction(&self, revert_data: HeapVector) {
         debug_println!(self.enable_debug_trace, "  TRAP {}", revert_data);
     }
 

@@ -109,6 +109,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
+            "field_less_than" => field_less_than(arguments, location),
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
@@ -2848,4 +2849,13 @@ fn derive_generators(
     }
 
     Ok(Value::Array(results, return_type))
+}
+
+fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (lhs, rhs) = check_two_arguments(arguments, location)?;
+
+    let lhs = get_field(lhs)?;
+    let rhs = get_field(rhs)?;
+
+    Ok(Value::Bool(lhs < rhs))
 }
