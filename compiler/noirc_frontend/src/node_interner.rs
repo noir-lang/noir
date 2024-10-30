@@ -2326,6 +2326,12 @@ impl NodeInterner {
     ) -> &std::collections::HashMap<ModuleId, std::collections::HashMap<Ident, UnusedItem>> {
         self.usage_tracker.unused_items()
     }
+
+    pub fn oracle_functions(&self) -> impl Iterator<Item = (&FuncId, &String)> {
+        self.function_modifiers.iter().filter_map(|(func_id, modifiers)| {
+            Some((func_id, modifiers.attributes.function.as_ref()?.oracle()?))
+        })
+    }
 }
 
 impl Methods {

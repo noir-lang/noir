@@ -4,7 +4,8 @@ use acvm::acir::circuit::ErrorSelector;
 use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_abi::{
-    Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
+    Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Oracle,
+    OracleParameter, Sign,
 };
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::TypeBinding;
@@ -36,7 +37,8 @@ pub(super) fn gen_abi(
         .into_iter()
         .map(|(selector, typ)| (selector, build_abi_error_type(context, &typ)))
         .collect();
-    Abi { parameters, return_type, error_types }
+    let oracles = compute_oracles(context);
+    Abi { parameters, return_type, error_types, oracles }
 }
 
 fn build_abi_error_type(context: &Context, typ: &Type) -> AbiErrorType {
@@ -139,6 +141,21 @@ pub(super) fn compute_function_abi(
     let parameters = into_abi_params(context, parameters);
     let return_type = return_type.map(|typ| abi_type_from_hir_type(context, &typ));
     (parameters, return_type)
+}
+
+fn compute_oracles(context: &Context) -> Vec<Oracle> {
+    context
+        .def_interner
+        .oracle_functions()
+        .map(|(func_id, oracle_name)| {
+            let (parameters, return_type) = compute_function_abi(context, func_id);
+            let parameters = vecmap(parameters, |parameter| OracleParameter {
+                name: parameter.name,
+                typ: parameter.typ,
+            });
+            Oracle { name: oracle_name.to_string(), parameters, return_type }
+        })
+        .collect()
 }
 
 /// Attempts to retrieve the name of this parameter. Returns None

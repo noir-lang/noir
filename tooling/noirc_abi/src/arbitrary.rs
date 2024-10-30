@@ -121,6 +121,10 @@ pub(super) fn arb_abi_type() -> BoxedStrategy<AbiType> {
     .boxed()
 }
 
+pub(super) fn optional_arb_abi_type() -> BoxedStrategy<Option<AbiType>> {
+    prop_oneof![Just(None), arb_abi_type().prop_map(Some)].boxed()
+}
+
 fn arb_abi_param_and_value() -> BoxedStrategy<(AbiParameter, InputValue)> {
     arb_abi_type()
         .prop_flat_map(|typ| {
@@ -147,6 +151,6 @@ prop_compose! {
             let parameters  = vecmap(&parameters_with_values, |(param, _)| param.clone());
             let input_map = btree_map(parameters_with_values, |(param, value)| (param.name, value));
 
-            (Abi { parameters, return_type, error_types: BTreeMap::default() }, input_map)
+            (Abi { parameters, return_type, error_types: BTreeMap::default(), oracles: Vec::default() }, input_map)
     }
 }
