@@ -935,13 +935,7 @@ mod tests {
             Err(err) => err,
         };
 
-        // Check if error is MalformedFuncAttribute and found is "foo"
-        let sub_string = match err {
-            LexerErrorKind::MalformedFuncAttribute { found, .. } => found,
-            _ => panic!("expected malformed func attribute error"),
-        };
-
-        assert_eq!(sub_string, "test(invalid_scope)");
+        assert!(matches!(err, LexerErrorKind::MalformedTestAttribute { .. }));
     }
 
     #[test]
