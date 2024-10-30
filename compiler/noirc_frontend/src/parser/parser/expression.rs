@@ -548,15 +548,13 @@ impl<'a> Parser<'a> {
             Ident::new(String::new(), self.span_at_previous_token_end())
         };
 
-        let turbofish = if self.eat_double_colon() {
+        let turbofish = self.eat_double_colon().then(|| {
             let generics = self.parse_generic_type_args();
             if generics.is_empty() {
                 self.expected_token(Token::Less);
             }
-            Some(generics)
-        } else {
-            None
-        };
+            generics
+        });
 
         Some(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
     }
