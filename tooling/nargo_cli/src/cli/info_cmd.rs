@@ -1,10 +1,16 @@
 use std::collections::HashMap;
 
 use acvm::acir::circuit::ExpressionWidth;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use iter_extended::vecmap;
-use nargo::package::{CrateName, Package};
+use nargo::{
+    constants::PROVER_INPUT_FILE,
+    ops::DefaultForeignCallExecutor,
+    package::{CrateName, Package},
+};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_abi::input_parser::Format;
 use noirc_artifacts::{debug::DebugArtifact, program::ProgramArtifact};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
@@ -12,7 +18,7 @@ use prettytable::{row, table, Row};
 use rayon::prelude::*;
 use serde::Serialize;
 
-use crate::errors::CliError;
+use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError};
 
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
@@ -43,11 +49,18 @@ pub(crate) struct InfoCommand {
     #[clap(long, hide = true)]
     profile_info: bool,
 
+    #[clap(long)]
+    profile_execution: bool,
+
+    /// The name of the toml file which contains the inputs for the prover
+    #[clap(long, short, default_value = PROVER_INPUT_FILE)]
+    prover_name: String,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -58,6 +71,11 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    if args.profile_execution {
+        // Execution profiling is only relevant with the Brillig VM
+        // as a constrained circuit should have totally flattened control flow (e.g. loops and if statements).
+        args.compile_options.force_brillig = true;
+    }
     // Compile the full workspace in order to generate any build artifacts.
     compile_workspace_full(&workspace, &args.compile_options)?;
 
@@ -81,15 +99,29 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
         }
     }
 
-    let program_info = binary_packages
-        .into_iter()
-        .par_bridge()
-        .map(|(package, program)| {
-            let target_width =
-                get_target_width(package.expression_width, args.compile_options.expression_width);
-            count_opcodes_and_gates_in_program(program, &package, target_width)
-        })
-        .collect();
+    let program_info = if args.profile_execution {
+        assert!(
+            args.compile_options.force_brillig,
+            "Internal CLI Error: --force-brillig must be active when --profile-execution is active"
+        );
+        profile_brillig_execution(
+            binary_packages,
+            &args.prover_name,
+            args.compile_options.expression_width,
+        )?
+    } else {
+        binary_packages
+            .into_iter()
+            .par_bridge()
+            .map(|(package, program)| {
+                let target_width = get_target_width(
+                    package.expression_width,
+                    args.compile_options.expression_width,
+                );
+                count_opcodes_and_gates_in_program(program, &package, target_width)
+            })
+            .collect()
+    };
 
     let info_report = InfoReport { programs: program_info };
 
@@ -274,4 +306,43 @@ fn count_opcodes_and_gates_in_program(
         unconstrained_functions_opcodes,
         unconstrained_functions: unconstrained_info,
     }
+}
+
+fn profile_brillig_execution(
+    binary_packages: Vec<(Package, ProgramArtifact)>,
+    prover_name: &str,
+    expression_width: Option<ExpressionWidth>,
+) -> Result<Vec<ProgramInfo>, CliError> {
+    let mut program_info = Vec::new();
+    for (package, program_artifact) in binary_packages.iter() {
+        // Parse the initial witness values from Prover.toml
+        let (inputs_map, _) = read_inputs_from_file(
+            &package.root_dir,
+            prover_name,
+            Format::Toml,
+            &program_artifact.abi,
+        )?;
+        let initial_witness = program_artifact.abi.encode(&inputs_map, None)?;
+
+        let (_, profiling_samples) = nargo::ops::execute_program_with_profiling(
+            &program_artifact.bytecode,
+            initial_witness,
+            &Bn254BlackBoxSolver,
+            &mut DefaultForeignCallExecutor::new(false, None, None, None),
+        )?;
+
+        let expression_width = get_target_width(package.expression_width, expression_width);
+
+        program_info.push(ProgramInfo {
+            package_name: package.name.to_string(),
+            expression_width,
+            functions: vec![FunctionInfo { name: "main".to_string(), opcodes: 0 }],
+            unconstrained_functions_opcodes: profiling_samples.len(),
+            unconstrained_functions: vec![FunctionInfo {
+                name: "main".to_string(),
+                opcodes: profiling_samples.len(),
+            }],
+        });
+    }
+    Ok(program_info)
 }
