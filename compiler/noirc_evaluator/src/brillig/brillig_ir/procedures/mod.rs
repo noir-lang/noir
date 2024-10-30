@@ -54,13 +54,8 @@ impl ProcedureId {
             ProcedureId::ArrayReverse => 1,
             ProcedureId::VectorCopy => 2,
             ProcedureId::MemCopy => 3,
-            ProcedureId::PrepareVectorPush(flag) => {
-                if flag {
-                    4
-                } else {
-                    5
-                }
-            }
+            ProcedureId::PrepareVectorPush(true) => 4,
+            ProcedureId::PrepareVectorPush(false) => 5,
             ProcedureId::VectorPopFront => 6,
             ProcedureId::VectorPopBack => 7,
             ProcedureId::PrepareVectorInsert => 8,
