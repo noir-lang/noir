@@ -171,6 +171,23 @@ pub struct AbiReturnType {
     pub visibility: AbiVisibility,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+pub struct OracleParameter {
+    pub name: String,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
+    pub typ: AbiType,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+pub struct Oracle {
+    pub name: String,
+    pub parameters: Vec<OracleParameter>,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::optional_arb_abi_type()"))]
+    pub return_type: Option<AbiType>,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
@@ -179,6 +196,7 @@ pub struct Abi {
     pub return_type: Option<AbiReturnType>,
     #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
+    pub oracles: Vec<Oracle>,
 }
 
 impl Abi {
