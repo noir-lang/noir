@@ -22,13 +22,11 @@ nargo_toml.workspace = true
 noirc_driver.workspace = true
 noirc_errors.workspace = true
 noirc_frontend.workspace = true
-noirc_artifacts.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 strum = "0.24"
 tower.workspace = true
 async-lsp = { workspace = true, features = ["omni-trait"] }
-serde_with = "3.2.0"
 thiserror.workspace = true
 fm.workspace = true
 rayon.workspace = true
