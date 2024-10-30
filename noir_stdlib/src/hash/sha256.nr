@@ -508,9 +508,9 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes: [u8; 4] = (state[7 - j] as Field).to_le_bytes();
+        let h_bytes: [u8; 4] = (state[j] as Field).to_be_bytes();
         for k in 0..4 {
-            out_h[31 - 4 * j - k] = h_bytes[k];
+            out_h[4 * j + k] = h_bytes[k];
         }
     }
 

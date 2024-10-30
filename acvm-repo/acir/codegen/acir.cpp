@@ -694,7 +694,7 @@ namespace Program {
         };
 
         struct Trap {
-            Program::HeapArray revert_data;
+            Program::HeapVector revert_data;
 
             friend bool operator==(const Trap&, const Trap&);
             std::vector<uint8_t> bincodeSerialize() const;

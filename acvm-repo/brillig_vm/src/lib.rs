@@ -347,10 +347,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.increment_program_counter()
             }
             Opcode::Trap { revert_data } => {
-                if revert_data.size > 0 {
+                let revert_data_size = self.memory.read(revert_data.size).to_usize();
+                if revert_data_size > 0 {
                     self.trap(
                         self.memory.read_ref(revert_data.pointer).unwrap_direct(),
-                        revert_data.size,
+                        revert_data_size,
                     )
                 } else {
                     self.trap(0, 0)
@@ -937,8 +938,18 @@ mod tests {
                 size_address: MemoryAddress::direct(0),
                 offset_address: MemoryAddress::direct(1),
             },
-            Opcode::Jump { location: 5 },
-            Opcode::Trap { revert_data: HeapArray::default() },
+            Opcode::Jump { location: 6 },
+            Opcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            Opcode::Trap {
+                revert_data: HeapVector {
+                    pointer: MemoryAddress::direct(0),
+                    size: MemoryAddress::direct(0),
+                },
+            },
             Opcode::BinaryFieldOp {
                 op: BinaryFieldOp::Equals,
                 lhs: MemoryAddress::direct(0),
@@ -966,6 +977,8 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
 
         let output_cmp_value = vm.memory.read(MemoryAddress::direct(2));
         assert_eq!(output_cmp_value.to_field(), false.into());
@@ -978,7 +991,7 @@ mod tests {
             status,
             VMStatus::Failure {
                 reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
-                call_stack: vec![4]
+                call_stack: vec![5]
             }
         );
 
