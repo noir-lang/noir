@@ -12,7 +12,6 @@ use serde::Serializer;
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
@@ -106,14 +105,6 @@ pub struct DebugInfo {
     pub types: DebugTypes,
 }
 
-/// Holds OpCodes Counts for Acir and Brillig Opcodes
-/// To be printed with `nargo info --profile-info`
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub struct OpCodesCount {
-    pub acir_size: usize,
-    pub brillig_size: usize,
-}
-
 impl DebugInfo {
     pub fn new(
         locations: BTreeMap<OpcodeLocation, Vec<Location>>,
@@ -146,39 +137,5 @@ impl DebugInfo {
 
     pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
         self.locations.get(loc).cloned()
-    }
-
-    pub fn count_span_opcodes(&self) -> HashMap<Location, OpCodesCount> {
-        let mut accumulator: HashMap<Location, Vec<&OpcodeLocation>> = HashMap::new();
-
-        for (opcode_location, locations) in self.locations.iter() {
-            for location in locations.iter() {
-                let opcodes = accumulator.entry(*location).or_default();
-                opcodes.push(opcode_location);
-            }
-        }
-
-        let counted_opcodes = accumulator
-            .iter()
-            .map(|(location, opcodes)| {
-                let acir_opcodes: Vec<_> = opcodes
-                    .iter()
-                    .filter(|opcode_location| matches!(opcode_location, OpcodeLocation::Acir(_)))
-                    .collect();
-                let brillig_opcodes: Vec<_> = opcodes
-                    .iter()
-                    .filter(|opcode_location| {
-                        matches!(opcode_location, OpcodeLocation::Brillig { .. })
-                    })
-                    .collect();
-                let opcodes_count = OpCodesCount {
-                    acir_size: acir_opcodes.len(),
-                    brillig_size: brillig_opcodes.len(),
-                };
-                (*location, opcodes_count)
-            })
-            .collect();
-
-        counted_opcodes
     }
 }
