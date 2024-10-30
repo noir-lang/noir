@@ -241,11 +241,9 @@ impl Kind {
     /// during monomorphization.
     pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            Kind::Any => None,
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Normal => None,
-            Kind::Numeric(typ) => Some(*typ.clone()),
+            Kind::Any | Kind::Normal | Kind::Numeric(..) => None,
         }
     }
 

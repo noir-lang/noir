@@ -37,9 +37,6 @@ pub(crate) struct InfoCommand {
     #[clap(long, hide = true)]
     json: bool,
 
-    #[clap(long, hide = true)]
-    profile_info: bool,
-
     #[clap(flatten)]
     compile_options: CompileOptions,
 }

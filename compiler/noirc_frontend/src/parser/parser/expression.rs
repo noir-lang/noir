@@ -4,7 +4,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, GenericTypeArgs, Ident, IfExpression, IndexExpression, Literal,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal,
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
@@ -548,15 +548,13 @@ impl<'a> Parser<'a> {
             Ident::new(String::new(), self.span_at_previous_token_end())
         };
 
-        let turbofish = if self.eat_double_colon() {
+        let turbofish = self.eat_double_colon().then(|| {
             let generics = self.parse_generic_type_args();
             if generics.is_empty() {
                 self.expected_token(Token::Less);
             }
             generics
-        } else {
-            GenericTypeArgs::default()
-        };
+        });
 
         Some(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
     }
@@ -1587,7 +1585,7 @@ mod tests {
         };
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_empty());
+        assert!(type_path.turbofish.is_none());
     }
 
     #[test]
@@ -1599,7 +1597,7 @@ mod tests {
         };
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
-        assert!(!type_path.turbofish.is_empty());
+        assert!(type_path.turbofish.is_some());
     }
 
     #[test]
