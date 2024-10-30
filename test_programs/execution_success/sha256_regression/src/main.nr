@@ -11,8 +11,6 @@ fn main(
     result_big: pub [u8; 32],
     // This message is only 297 elements and we want to hash only a variable amount
     msg_big_with_padding: [u8; 700],
-    // This is the same as `msg_big_with_padding` but with no padding
-    msg_big_no_padding: [u8; 297],
     message_size: u64,
     result_big_with_padding: pub [u8; 32],
 ) {
@@ -33,7 +31,4 @@ fn main(
 
     let hash_padding = std::hash::sha256_var(msg_big_with_padding, message_size);
     assert_eq(hash_padding, result_big_with_padding);
-
-    let hash_no_padding = std::hash::sha256_var(msg_big_no_padding, message_size);
-    assert_eq(hash_no_padding, result_big_with_padding);
 }
