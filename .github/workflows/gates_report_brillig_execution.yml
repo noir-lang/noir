@@ -76,7 +76,7 @@ jobs:
         id: brillig_bytecode_diff
         uses: noir-lang/noir-gates-diff@d88f7523b013b9edd3f31c5cfddaef87a3fe1b48
         with:
-          report: gates_report_brillig.json
+          report: gates_report_brillig_execution.json
           header: |
             # Changes to number of Brillig opcodes executed
           brillig_report: true
