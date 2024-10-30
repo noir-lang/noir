@@ -103,7 +103,7 @@ impl std::fmt::Display for ProcedureId {
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
 ) -> BrilligArtifact<F> {
-    let mut brillig_context = BrilligContext::new_for_procedure(false);
+    let mut brillig_context = BrilligContext::new_for_procedure(false, procedure_id);
     brillig_context.enter_context(Label::procedure(procedure_id));
 
     match procedure_id {
