@@ -187,8 +187,9 @@ unconstrained fn build_msg_block<let N: u32>(
     for i in 0..int_input {
         let mut msg_item: u32 = 0;
         // Always construct the integer as 4 bytes, even if it means going beyond the input.
+        let i_times_k = i * INT_SIZE;
         for j in 0..INT_SIZE {
-            let k = i * INT_SIZE + j;
+            let k = i_times_k + j;
             let msg_byte = if k < block_input {
                 msg[msg_start + k]
             } else {
@@ -509,8 +510,9 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
     // Return final hash as byte array
     for j in 0..8 {
         let h_bytes: [u8; 4] = (state[7 - j] as Field).to_le_bytes();
+        let start_offset = 31 - 4 * j;
         for k in 0..4 {
-            out_h[31 - 4 * j - k] = h_bytes[k];
+            out_h[start_offset - k] = h_bytes[k];
         }
     }
 
