@@ -617,8 +617,8 @@ fn check_trait_impl_for_non_type() {
     for (err, _file_id) in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::Expected { expected, got, .. }) => {
-                assert_eq!(expected, "type");
-                assert_eq!(got, "function");
+                assert_eq!(*expected, "type");
+                assert_eq!(*got, "function");
             }
             _ => {
                 panic!("No other errors are expected! Found = {:?}", err);
@@ -3548,17 +3548,27 @@ fn uses_self_in_import() {
 }
 
 #[test]
-fn alias_in_let_pattern() {
+fn does_not_error_on_return_values_after_block_expression() {
+    // Regression test for https://github.com/noir-lang/noir/issues/4372
     let src = r#"
-        struct Foo<T> { x: T }
-
-        type Bar<U> = Foo<U>;
-
-        fn main() {
-            let Bar { x } = Foo { x: [0] };
-            // This is just to show the compiler knows this is an array.
-            let _: [Field; 1] = x;
+    fn case1() -> [Field] {
+        if true {
         }
+        &[1]
+    }
+
+    fn case2() -> [u8] {
+        let mut var: u8 = 1;
+        {
+            var += 1;
+        }
+        &[var]
+    }
+
+    fn main() {
+        let _ = case1();
+        let _ = case2();
+    }
     "#;
     assert_no_errors(src);
 }
