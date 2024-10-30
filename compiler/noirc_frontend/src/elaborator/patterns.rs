@@ -762,12 +762,8 @@ impl<'context> Elaborator<'context> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
-        let generics = if let Some(turbofish) = path.turbofish {
-            let generics = self.resolve_type_args(turbofish, func_id, span).0;
-            (!generics.is_empty()).then_some(generics)
-        } else {
-            None
-        };
+        let generics =
+            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, span).0);
 
         let location = Location::new(span, self.file);
         let id = self.interner.function_definition_id(func_id);
