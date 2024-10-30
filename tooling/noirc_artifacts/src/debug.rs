@@ -264,6 +264,7 @@ mod tests {
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
+            BTreeMap::default(),
         )];
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 

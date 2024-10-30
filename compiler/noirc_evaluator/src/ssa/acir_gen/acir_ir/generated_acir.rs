@@ -20,7 +20,9 @@ use acvm::{
     acir::AcirField,
     acir::{circuit::directives::Directive, native_types::Expression},
 };
+
 use iter_extended::vecmap;
+use noirc_errors::debug_info::ProcedureDebugId;
 use num_bigint::BigUint;
 
 /// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
@@ -72,12 +74,19 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// As to avoid passing the ACIR gen shared context into each individual ACIR
     /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
     pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
+
+    /// Brillig function id -> Brillig procedure locations map
+    /// This maps allows a profiler to determine which Brillig opcodes
+    /// originated from a reusable procedure.
+    pub(crate) brillig_procedure_locs: BTreeMap<BrilligFunctionId, BrilligProcedureRangeMap>,
 }
 
 /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
 pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
 
 pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
+
+pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
@@ -589,6 +598,14 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         if inserted_func_before {
             return;
+        }
+
+        for (procedure_id, (start_index, end_index)) in generated_brillig.procedure_locations.iter()
+        {
+            self.brillig_procedure_locs
+                .entry(brillig_function_index)
+                .or_default()
+                .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
