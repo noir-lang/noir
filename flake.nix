@@ -26,6 +26,7 @@
             rust-src
             rustc
             rustfmt
+            llvm-tools
           ];
         devShells.default = import ./shell.nix {inherit pkgs self';};
       };
