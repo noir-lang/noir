@@ -1,6 +1,8 @@
 use acvm::{acir::AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
+use crate::ssa::ir::value::Value;
+
 use super::{
     DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
 };
@@ -131,11 +133,19 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs)
-                    && dfg.get_value_max_num_bits(self.lhs) == 1
-                {
+
+                let lhs = dfg.resolve(self.lhs);
+                let rhs = dfg.resolve(self.rhs);
+
+                if lhs == rhs && dfg.get_value_max_num_bits(lhs) == 1 {
                     // Squaring a boolean value is a noop.
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    return SimplifyResult::SimplifiedTo(lhs);
+                }
+
+                if let Some(value) = check_for_noop_value_merge(dfg, lhs, rhs) {
+                    return SimplifyResult::SimplifiedTo(value);
+                } else {
+                    return SimplifyResult::None;
                 }
             }
             BinaryOp::Div => {
@@ -294,6 +304,49 @@ impl Binary {
             }
         };
         SimplifyResult::None
+    }
+}
+
+/// Checks for `(c as _) * a + ((not c) as _) * a`
+/// which is equivalent to `if c then a else a` = `a`
+fn check_for_noop_value_merge(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<ValueId> {
+    let (rhs_cond, rhs_value, rhs_is_not) = match source_instruction(dfg, rhs)? {
+        Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add }) => {
+            match source_instruction(dfg, *lhs)? {
+                Instruction::Cast(cond, _) => match source_instruction(dfg, *rhs) {
+                    Some(Instruction::Not(cond)) => (*cond, *rhs, true),
+                    _ => (*cond, *rhs, false),
+                },
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+
+    let (lhs_cond, lhs_value, lhs_is_not) = match source_instruction(dfg, lhs)? {
+        Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add }) => {
+            match source_instruction(dfg, *lhs)? {
+                Instruction::Cast(cond, _) => match source_instruction(dfg, *rhs) {
+                    Some(Instruction::Not(cond)) if !rhs_is_not => (*cond, *rhs, true),
+                    _ => (*cond, *rhs, false),
+                },
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+
+    if lhs_cond == rhs_cond && lhs_value == rhs_value && (lhs_is_not ^ rhs_is_not) {
+        Some(lhs_value)
+    } else {
+        None
+    }
+}
+
+fn source_instruction(dfg: &DataFlowGraph, instruction_result: ValueId) -> Option<&Instruction> {
+    match &dfg[instruction_result] {
+        Value::Instruction { instruction, .. } => Some(&dfg[*instruction]),
+        _ => None,
     }
 }
 
