@@ -86,7 +86,7 @@ jobs:
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          header: brillig
+          header: brillig_execution
           # delete the comment in case changes no longer impact brillig bytecode sizes
           delete: ${{ !steps.brillig_execution_diff.outputs.markdown }}
           message: ${{ steps.brillig_execution_diff.outputs.markdown }}
