@@ -1245,7 +1245,9 @@ impl TypePath {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.typ.accept(visitor);
-        self.turbofish.accept(visitor);
+        if let Some(turbofish) = &self.turbofish {
+            turbofish.accept(visitor);
+        }
     }
 }
 

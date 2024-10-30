@@ -146,8 +146,8 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BitSize, ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, IntegerBitSize,
-        MemoryAddress, ValueOrArray,
+        BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize, MemoryAddress,
+        ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
@@ -289,8 +289,18 @@ pub(crate) mod tests {
         // We push a JumpIf and Trap opcode directly as the constrain instruction
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap { revert_data: HeapArray::default() });
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
+        context.push_opcode(BrilligOpcode::Const {
+            destination: MemoryAddress::direct(0),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(0u64),
+        });
+        context.push_opcode(BrilligOpcode::Trap {
+            revert_data: HeapVector {
+                pointer: MemoryAddress::direct(0),
+                size: MemoryAddress::direct(0),
+            },
+        });
 
         context.stop_instruction();
 

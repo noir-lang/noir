@@ -72,6 +72,7 @@ pub(crate) enum Intrinsic {
     AsWitness,
     IsUnconstrained,
     DerivePedersenGenerators,
+    FieldLessThan,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -100,6 +101,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
+            Intrinsic::FieldLessThan => write!(f, "field_less_than"),
         }
     }
 }
@@ -131,7 +133,8 @@ impl Intrinsic {
             | Intrinsic::FromField
             | Intrinsic::AsField
             | Intrinsic::IsUnconstrained
-            | Intrinsic::DerivePedersenGenerators => false,
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::FieldLessThan => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(
@@ -169,6 +172,8 @@ impl Intrinsic {
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
+            "field_less_than" => Some(Intrinsic::FieldLessThan),
+
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
