@@ -42,7 +42,7 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-  compare_brillig_bytecode_size_reports:
+  compare_brillig_execution_reports:
     needs: [build-nargo]
     runs-on: ubuntu-latest
     permissions:
@@ -73,7 +73,7 @@ jobs:
           mv gates_report_brillig_execution.json ../gates_report_brillig_execution.json
 
       - name: Compare Brillig execution reports
-        id: brillig_bytecode_diff
+        id: brillig_execution_diff
         uses: noir-lang/noir-gates-diff@d88f7523b013b9edd3f31c5cfddaef87a3fe1b48
         with:
           report: gates_report_brillig_execution.json
@@ -88,5 +88,5 @@ jobs:
         with:
           header: brillig
           # delete the comment in case changes no longer impact brillig bytecode sizes
-          delete: ${{ !steps.brillig_bytecode_diff.outputs.markdown }}
-          message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
+          delete: ${{ !steps.brillig_execution_diff.outputs.markdown }}
+          message: ${{ steps.brillig_execution_diff.outputs.markdown }}
