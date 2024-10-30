@@ -1,5 +1,5 @@
 use acvm::{
-    acir::brillig::{HeapArray, MemoryAddress},
+    acir::brillig::{HeapVector, MemoryAddress},
     AcirField,
 };
 
@@ -192,12 +192,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            let revert_data = HeapArray {
-                pointer: ctx.allocate_register(),
-                // + 1 due to the revert data id being the first item returned
-                size: Self::flattened_tuple_size(&revert_data_types) + 1,
-            };
-            ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data.size);
+            // + 1 due to the revert data id being the first item returned
+            let revert_data_size = Self::flattened_tuple_size(&revert_data_types) + 1;
+            let revert_data_size_var = ctx.make_usize_constant_instruction(revert_data_size.into());
+            let revert_data =
+                HeapVector { pointer: ctx.allocate_register(), size: revert_data_size_var.address };
+            ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data_size);
 
             let current_revert_data_pointer = ctx.allocate_register();
             ctx.mov_instruction(current_revert_data_pointer, revert_data.pointer);
@@ -243,6 +243,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 );
             }
             ctx.trap_instruction(revert_data);
+            ctx.deallocate_single_addr(revert_data_size_var);
             ctx.deallocate_register(revert_data.pointer);
             ctx.deallocate_register(current_revert_data_pointer);
         });
@@ -258,7 +259,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            ctx.trap_instruction(HeapArray::default());
+            let revert_data_size_var = ctx.make_usize_constant_instruction(F::zero());
+            ctx.trap_instruction(HeapVector {
+                pointer: MemoryAddress::direct(0),
+                size: revert_data_size_var.address,
+            });
+            ctx.deallocate_single_addr(revert_data_size_var);
             if let Some(assert_message) = assert_message {
                 ctx.obj.add_assert_message_to_last_opcode(assert_message);
             }

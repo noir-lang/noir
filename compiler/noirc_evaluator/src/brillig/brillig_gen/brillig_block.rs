@@ -548,7 +548,7 @@ impl<'block> BrilligBlock<'block> {
                         source,
                         target_array,
                         radix,
-                        matches!(endianness, Endian::Big),
+                        matches!(endianness, Endian::Little),
                         false,
                     );
                 }
@@ -573,7 +573,7 @@ impl<'block> BrilligBlock<'block> {
                         source,
                         target_array,
                         two,
-                        matches!(endianness, Endian::Big),
+                        matches!(endianness, Endian::Little),
                         true,
                     );
 
@@ -583,7 +583,31 @@ impl<'block> BrilligBlock<'block> {
                 // `Intrinsic::AsWitness` is used to provide hints to acir-gen on optimal expression splitting.
                 // It is then useless in the brillig runtime and so we can ignore it
                 Value::Intrinsic(Intrinsic::AsWitness) => (),
+                Value::Intrinsic(Intrinsic::FieldLessThan) => {
+                    let lhs = self.convert_ssa_single_addr_value(arguments[0], dfg);
+                    assert!(lhs.bit_size == FieldElement::max_num_bits());
+                    let rhs = self.convert_ssa_single_addr_value(arguments[1], dfg);
+                    assert!(rhs.bit_size == FieldElement::max_num_bits());
 
+                    let results = dfg.instruction_results(instruction_id);
+                    let destination = self
+                        .variables
+                        .define_variable(
+                            self.function_context,
+                            self.brillig_context,
+                            results[0],
+                            dfg,
+                        )
+                        .extract_single_addr();
+                    assert!(destination.bit_size == 1);
+
+                    self.brillig_context.binary_instruction(
+                        lhs,
+                        rhs,
+                        destination,
+                        BrilligBinaryOp::LessThan,
+                    );
+                }
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }

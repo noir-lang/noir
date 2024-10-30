@@ -178,7 +178,8 @@ impl Context {
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators => false,
+                    | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::FieldLessThan => false,
                 },
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.

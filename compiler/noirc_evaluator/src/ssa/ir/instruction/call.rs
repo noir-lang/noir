@@ -355,6 +355,16 @@ pub(super) fn simplify_call(
                 unreachable!("Derive Pedersen Generators must return an array");
             }
         }
+        Intrinsic::FieldLessThan => {
+            if let Some(constants) = constant_args {
+                let lhs = constants[0];
+                let rhs = constants[1];
+                let result = dfg.make_constant((lhs < rhs).into(), Type::bool());
+                SimplifyResult::SimplifiedTo(result)
+            } else {
+                SimplifyResult::None
+            }
+        }
     }
 }
 
