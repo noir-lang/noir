@@ -13,14 +13,6 @@ impl PerNs {
         PerNs { types: Some((t, ItemVisibility::Public, false)), values: None }
     }
 
-    pub fn take_types(self) -> Option<ModuleDefId> {
-        self.types.map(|it| it.0)
-    }
-
-    pub fn take_values(self) -> Option<ModuleDefId> {
-        self.values.map(|it| it.0)
-    }
-
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
         self.types.map(|it| it.0).into_iter().chain(self.values.map(|it| it.0))
     }
