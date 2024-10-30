@@ -310,10 +310,10 @@ impl Binary {
 /// Checks for `(c as _) * a + ((not c) as _) * a`
 /// which is equivalent to `if c then a else a` = `a`
 fn check_for_noop_value_merge(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<ValueId> {
-    let (rhs_cond, rhs_value, rhs_is_not) = match dbg!(source_instruction(dfg, rhs))? {
+    let (rhs_cond, rhs_value, rhs_is_not) = match source_instruction(dfg, rhs)? {
         Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul }) => {
-            match dbg!(source_instruction(dfg, *lhs))? {
-                Instruction::Cast(cond, _) => match dbg!(source_instruction(dfg, *cond)) {
+            match source_instruction(dfg, *lhs)? {
+                Instruction::Cast(cond, _) => match source_instruction(dfg, *cond) {
                     Some(Instruction::Not(cond)) => (*cond, *rhs, true),
                     _ => (*cond, *rhs, false),
                 },
@@ -323,14 +323,14 @@ fn check_for_noop_value_merge(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -
         _ => return None,
     };
 
-    if !dbg!(dfg.type_of_value(rhs_cond)).is_bool() {
+    if !dfg.type_of_value(rhs_cond).is_bool() {
         return None;
     }
 
-    let (lhs_cond, lhs_value, lhs_is_not) = match dbg!(source_instruction(dfg, lhs))? {
+    let (lhs_cond, lhs_value, lhs_is_not) = match source_instruction(dfg, lhs)? {
         Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul }) => {
-            match dbg!(source_instruction(dfg, *lhs))? {
-                Instruction::Cast(cond, _) => match dbg!(source_instruction(dfg, *cond)) {
+            match source_instruction(dfg, *lhs)? {
+                Instruction::Cast(cond, _) => match source_instruction(dfg, *cond) {
                     Some(Instruction::Not(cond)) if !rhs_is_not => (*cond, *rhs, true),
                     _ => (*cond, *rhs, false),
                 },
@@ -339,10 +339,6 @@ fn check_for_noop_value_merge(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -
         }
         _ => return None,
     };
-
-    eprintln!("{lhs_cond} == {rhs_cond}");
-    eprintln!(" && {lhs_value} == {rhs_value}");
-    eprintln!(" && {lhs_is_not} ^ {rhs_is_not}");
 
     if lhs_cond == rhs_cond && lhs_value == rhs_value && (lhs_is_not ^ rhs_is_not) {
         Some(lhs_value)
