@@ -1,4 +1,8 @@
-use crate::hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError};
+use crate::hir::{
+    def_collector::dc_crate::CompilationError,
+    resolution::{errors::ResolverError, import::PathResolutionError},
+    type_check::TypeCheckError,
+};
 
 use super::{assert_no_errors, get_program_errors};
 
@@ -101,32 +105,6 @@ fn turbofish_in_constructor() {
 }
 
 #[test]
-fn turbofish_in_middle_of_variable_unsupported_yet() {
-    let src = r#"
-    struct Foo<T> {
-        x: T
-    }
-
-    impl <T> Foo<T> {
-        pub fn new(x: T) -> Self {
-            Foo { x }
-        }
-    }
-
-    fn main() {
-        let _ = Foo::<i32>::new(1);
-    }
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
-    ));
-}
-
-#[test]
 fn turbofish_in_struct_pattern() {
     let src = r#"
     struct Foo<T> {
@@ -213,4 +191,81 @@ fn numeric_turbofish() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_turbofish_after_module() {
+    let src = r#"
+    mod moo {
+        pub fn foo() {}
+    }
+
+    fn main() {
+        moo::<i32>::foo();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::TurbofishNotAllowedOnItem { item, .. },
+    )) = &errors[0].0
+    else {
+        panic!("Expected a turbofish not allowed on item error, got {:?}", errors[0].0);
+    };
+    assert_eq!(item, "module `moo`");
+}
+
+#[test]
+fn turbofish_in_type_before_call_does_not_error() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    impl <T> Foo<T> {
+        fn new(x: T) -> Self {
+            Foo { x }
+        }
+    }
+
+    fn main() {
+        let _ = Foo::<i32>::new(1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn turbofish_in_type_before_call_errors() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    impl <T> Foo<T> {
+        fn new(x: T) -> Self {
+            Foo { x }
+        }
+    }
+
+    fn main() {
+        let _ = Foo::<i32>::new(true);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i32");
+    assert_eq!(expr_typ, "bool");
 }
