@@ -3587,3 +3587,29 @@ fn use_type_alias_in_method_call() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn use_type_alias_to_generic_concrete_type_in_method_call() {
+    let src = r#"
+        pub struct Foo<T> {
+            x: T,
+        }
+
+        impl<T> Foo<T> {
+            fn new(x: T) -> Self {
+                Foo { x }
+            }
+        }
+
+        type Bar = Foo<i32>;
+
+        fn foo() -> Bar {
+            Bar::new(1)
+        }
+
+        fn main() {
+            let _ = foo();
+        }
+    "#;
+    assert_no_errors(src);
+}

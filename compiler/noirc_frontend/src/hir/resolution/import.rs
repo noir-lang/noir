@@ -439,10 +439,16 @@ fn resolve_name_in_module(
                 let type_alias = interner.get_type_alias(id);
                 let type_alias = type_alias.borrow();
 
-                let module_id = if let Type::Struct(struct_id, _generics) = &type_alias.typ {
-                    struct_id.borrow().id.module_id()
-                } else {
-                    todo!("Type alias in path not pointing to a struct")
+                let module_id = match &type_alias.typ {
+                    Type::Struct(struct_id, _generics) => struct_id.borrow().id.module_id(),
+                    Type::Error => {
+                        return Err(PathResolutionError::Unresolved(last_ident.clone()));
+                    }
+                    _ => {
+                        // For now we only allow type aliases that point to structs.
+                        // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
+                        panic!("Type alias in path not pointing to struct not yet supported")
+                    }
                 };
 
                 (

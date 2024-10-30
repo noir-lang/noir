@@ -550,18 +550,36 @@ impl<'context> Elaborator<'context> {
                     generics.span,
                 )
             }
-            PathResolutionItem::TypeAliasFunction(type_alias_id, Some(generics), _func_id) => {
+            PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 let alias_generics = vecmap(&type_alias.generics, |generic| {
                     self.interner.next_type_variable_with_kind(generic.kind())
                 });
-                self.resolve_alias_turbofish_generics(
-                    &type_alias,
-                    alias_generics,
-                    Some(generics.generics),
-                    generics.span,
-                )
+
+                // First solve the generics on the alias, if any
+                let generics = if let Some(generics) = generics {
+                    self.resolve_alias_turbofish_generics(
+                        &type_alias,
+                        alias_generics,
+                        Some(generics.generics),
+                        generics.span,
+                    )
+                } else {
+                    alias_generics
+                };
+
+                // Now instantiate the underlying struct with those generics, the struct might
+                // have more generics than those in the alias, like in this example:
+                //
+                // type Alias<T> = Struct<T, i32>;
+                let typ = type_alias.get_type(&generics);
+                let Type::Struct(_, generics) = typ else {
+                    // See https://github.com/noir-lang/noir/issues/6398
+                    panic!("Expected type alias to point to struct")
+                };
+
+                generics
             }
             PathResolutionItem::TraitFunction(_trait_id, Some(generics), _func_id) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6310

@@ -329,3 +329,74 @@ fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
     assert_eq!(expected_typ, "i32");
     assert_eq!(expr_typ, "bool");
 }
+
+#[test]
+fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_does_not_error() {
+    let src = r#"
+        pub struct Foo<T, U> {
+            x: T,
+            y: U,
+        }
+
+        impl<T, U> Foo<T, U> {
+            fn new(x: T, y: U) -> Self {
+                Foo { x, y }
+            }
+        }
+
+        type Bar<T> = Foo<T, i32>;
+
+        fn main() {
+            let _ = Bar::<bool>::new(true, 1);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_first_type() {
+    let src = r#"
+        pub struct Foo<T, U> {
+            x: T,
+            y: U,
+        }
+
+        impl<T, U> Foo<T, U> {
+            fn new(x: T, y: U) -> Self {
+                Foo { x, y }
+            }
+        }
+
+        type Bar<T> = Foo<T, i32>;
+
+        fn main() {
+            let _ = Bar::<bool>::new(1, 1);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_second_type() {
+    let src = r#"
+        pub struct Foo<T, U> {
+            x: T,
+            y: U,
+        }
+
+        impl<T, U> Foo<T, U> {
+            fn new(x: T, y: U) -> Self {
+                Foo { x, y }
+            }
+        }
+
+        type Bar<T> = Foo<T, i32>;
+
+        fn main() {
+            let _ = Bar::<bool>::new(true, true);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+}
