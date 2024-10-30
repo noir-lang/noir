@@ -12,15 +12,6 @@ excluded_dirs=(
   "regression_4709"
   #  bit sizes for bigint operation doesn't match up.
   "bigint"
-  #  ICE due to looking for function which doesn't exist.
-  "fold_after_inlined_calls"
-  "fold_basic"
-  "fold_basic_nested_call"
-  "fold_call_witness_condition"
-  "fold_complex_outputs"
-  "fold_distinct_return"
-  "fold_fibonacci"
-  "fold_numeric_generic_poseidon"
   #  Expected to fail as test asserts on which runtime it is in.
   "is_unconstrained"
 )
