@@ -323,6 +323,10 @@ fn check_for_noop_value_merge(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -
         _ => return None,
     };
 
+    if !dfg.type_of_value(rhs_cond).is_bool() {
+        return None;
+    }
+
     let (lhs_cond, lhs_value, lhs_is_not) = match source_instruction(dfg, lhs)? {
         Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add }) => {
             match source_instruction(dfg, *lhs)? {

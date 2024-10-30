@@ -90,6 +90,11 @@ impl Type {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
     }
 
+    /// Returns true if this type is a boolean (u1)
+    pub(crate) fn is_bool(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))
+    }
+
     /// Create a new signed integer type with the given amount of bits.
     pub(crate) fn signed(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
