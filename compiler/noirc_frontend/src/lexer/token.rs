@@ -751,10 +751,18 @@ impl Attribute {
         contents_span: Span,
         is_tag: bool,
     ) -> Result<Attribute, LexerErrorKind> {
-        let word_segments: Vec<&str> = word
-            .split(|c| c == '(' || c == ')')
-            .filter(|string_segment| !string_segment.is_empty())
-            .collect();
+        // See if we can parse the word into "name ( contents )".
+        // We first split into "first_segment ( rest".
+        let word_segments = if let Some((first_segment, rest)) = word.trim().split_once('(') {
+            // Now we try to remove the final ")" (it must be at the end, if it exists)
+            if let Some(middle) = rest.strip_suffix(')') {
+                vec![first_segment.trim(), middle.trim()]
+            } else {
+                vec![word]
+            }
+        } else {
+            vec![word]
+        };
 
         let validate = |slice: &str| {
             let is_valid = slice
@@ -799,11 +807,9 @@ impl Attribute {
             ["inline_always"] => Attribute::Function(FunctionAttribute::InlineAlways),
             ["test", name] => {
                 validate(name)?;
-                let malformed_scope =
-                    LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
                 match TestScope::lookup_str(name) {
                     Some(scope) => Attribute::Function(FunctionAttribute::Test(scope)),
-                    None => return Err(malformed_scope),
+                    None => return Err(LexerErrorKind::MalformedTestAttribute { span }),
                 }
             }
             ["field", name] => {
