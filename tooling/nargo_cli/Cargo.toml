@@ -86,6 +86,7 @@ sha2.workspace = true
 sha3.workspace = true
 iai = "0.1.1"
 test-binary = "3.0.2"
+test-case.workspace = true
 light-poseidon = "0.2.0"
 
 

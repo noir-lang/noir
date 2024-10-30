@@ -1,7 +1,7 @@
 use acvm::{
     acir::{
         brillig::{
-            BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapArray, HeapValueType,
+            BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, HeapVector,
             MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
         AcirField,
@@ -425,7 +425,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_single_addr(offset_var);
     }
 
-    pub(super) fn trap_instruction(&mut self, revert_data: HeapArray) {
+    pub(super) fn trap_instruction(&mut self, revert_data: HeapVector) {
         self.debug_show.trap_instruction(revert_data);
 
         self.push_opcode(BrilligOpcode::Trap { revert_data });

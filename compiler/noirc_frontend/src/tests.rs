@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+mod aliases;
 mod bound_checks;
 mod imports;
 mod metaprogramming;
@@ -616,8 +617,8 @@ fn check_trait_impl_for_non_type() {
     for (err, _file_id) in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::Expected { expected, got, .. }) => {
-                assert_eq!(expected, "type");
-                assert_eq!(got, "function");
+                assert_eq!(*expected, "type");
+                assert_eq!(*got, "function");
             }
             _ => {
                 panic!("No other errors are expected! Found = {:?}", err);
@@ -3542,6 +3543,22 @@ fn uses_self_in_import() {
     }
 
     fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn alias_in_let_pattern() {
+    let src = r#"
+        struct Foo<T> { x: T }
+
+        type Bar<U> = Foo<U>;
+
+        fn main() {
+            let Bar { x } = Foo { x: [0] };
+            // This is just to show the compiler knows this is an array.
+            let _: [Field; 1] = x;
+        }
     "#;
     assert_no_errors(src);
 }
