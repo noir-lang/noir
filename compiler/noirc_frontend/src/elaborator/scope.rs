@@ -87,9 +87,10 @@ impl<'context> Elaborator<'context> {
 
         if !self.interner.lsp_mode {
             return resolver.resolve(
+                self.interner,
                 self.def_maps,
                 path,
-                &mut self.interner.usage_tracker,
+                self.usage_tracker,
                 &mut None,
             );
         }
@@ -100,9 +101,10 @@ impl<'context> Elaborator<'context> {
 
         let mut references: Vec<_> = Vec::new();
         let path_resolution = resolver.resolve(
+            self.interner,
             self.def_maps,
             path.clone(),
-            &mut self.interner.usage_tracker,
+            self.usage_tracker,
             &mut Some(&mut references),
         );
 
