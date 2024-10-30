@@ -198,6 +198,8 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
         let mut group = ChunkGroup::new();
 
+        let lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
+
         let params_and_return_type_chunk = self.chunk(|formatter| {
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
@@ -218,7 +220,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
-            if lambda.return_type.typ != UnresolvedTypeData::Unspecified {
+            if lambda_has_return_type {
                 formatter.write_token(Token::Arrow);
                 formatter.write_space();
                 formatter.format_type(lambda.return_type);
@@ -230,16 +232,27 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         group.text(params_and_return_type_chunk);
 
-        let body_is_block = matches!(lambda.body.kind, ExpressionKind::Block(..));
+        let block_statement_count = if let ExpressionKind::Block(block) = &lambda.body.kind {
+            Some(block.statements.len())
+        } else {
+            None
+        };
 
         let mut body_group = ChunkGroup::new();
-        body_group.kind = GroupKind::LambdaBody { is_block: body_is_block };
 
+        let comments_count_before_body = self.written_comments_count;
         self.format_expression(lambda.body, &mut body_group);
+
+        body_group.kind = GroupKind::LambdaBody {
+            block_statement_count,
+            has_comments: self.written_comments_count > comments_count_before_body,
+            lambda_has_return_type,
+        };
+
         group.group(body_group);
 
         let first_line_width = params_and_return_type_chunk_width
-            + (if body_is_block {
+            + (if block_statement_count.is_some() {
                 // 1 because we already have `|param1, param2, ..., paramN| ` (including the space)
                 // so all that's left is a `{`.
                 1
@@ -297,6 +310,24 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 
     pub(super) fn format_quote(&mut self) -> ChunkGroup {
+        // A quote's prefix isn't captured in the token, so let's figure it out which one
+        // is it by looking at the source code.
+        let mut quote_source_code =
+            &self.source[self.token_span.start() as usize..self.token_span.end() as usize];
+
+        // Remove "quote" and any whitespace following it
+        quote_source_code = quote_source_code.strip_prefix("quote").unwrap();
+        quote_source_code = quote_source_code.trim_start();
+
+        // The first char is the delimiter
+        let delimiter_start = quote_source_code.chars().next().unwrap();
+        let delimiter_end = match delimiter_start {
+            '(' => ')',
+            '{' => '}',
+            '[' => ']',
+            _ => panic!("Unexpected delimiter: {}", delimiter_start),
+        };
+
         // We use the current token rather than the Tokens we got from `Token::Quote` because
         // the current token has whitespace and comments in it, while the one we got from
         // the parser doesn't.
@@ -306,11 +337,13 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         let mut group = ChunkGroup::new();
         group.verbatim(self.chunk(|formatter| {
-            formatter.write("quote {");
+            formatter.write("quote");
+            formatter.write_space();
+            formatter.write(&delimiter_start.to_string());
             for token in tokens.0 {
                 formatter.write_source_span(token.to_span());
             }
-            formatter.write("}");
+            formatter.write(&delimiter_end.to_string());
         }));
         group
     }
@@ -349,9 +382,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.format_type(type_path.typ);
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
-            if !type_path.turbofish.is_empty() {
+            if let Some(turbofish) = type_path.turbofish {
                 formatter.write_token(Token::DoubleColon);
-                formatter.format_generic_type_args(type_path.turbofish);
+                formatter.format_generic_type_args(turbofish);
             }
         }));
         group
@@ -433,23 +466,22 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     {
         let mut comments_chunk = self.skip_comments_and_whitespace_chunk();
 
-        // If the comment is not empty but doesn't have newlines, it's surely `/* comment */`.
-        // We format that with spaces surrounding it so it looks, for example, like `Foo { /* comment */ field ..`.
-        if !comments_chunk.string.trim().is_empty() && !comments_chunk.has_newlines {
-            // Note: there's no space after `{}` because space will be produced by format_items_separated_by_comma
-            comments_chunk.string = if surround_with_spaces {
-                format!(" {}", comments_chunk.string.trim())
-            } else {
-                format!(" {} ", comments_chunk.string.trim())
-            };
-            group.text(comments_chunk);
-
+        // Handle leading block vs. line comments a bit differently.
+        if comments_chunk.string.trim().starts_with("/*") {
             group.increase_indentation();
             if surround_with_spaces {
                 group.space_or_line();
             } else {
                 group.line();
             }
+
+            // Note: there's no space before `{}` because it was just produced
+            comments_chunk.string = if surround_with_spaces {
+                comments_chunk.string.trim().to_string()
+            } else {
+                format!("{} ", comments_chunk.string.trim())
+            };
+            group.leading_comment(comments_chunk);
         } else {
             group.increase_indentation();
             if surround_with_spaces {
@@ -466,7 +498,24 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 group.text_attached_to_last_group(self.chunk(|formatter| {
                     formatter.write_comma();
                 }));
-                group.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                let newlines_count_before_comment = self.following_newlines_count();
+                group.text(self.chunk(|formatter| {
+                    formatter.skip_whitespace();
+                }));
+                if let Token::BlockComment(..) = &self.token {
+                    // We let block comments be part of the item that's going to be formatted
+                } else {
+                    // Line comments can be trailing or leading, depending on whether there are newlines before them
+                    let comments_and_whitespace_chunk = self.skip_comments_and_whitespace_chunk();
+                    if !comments_and_whitespace_chunk.string.trim().is_empty() {
+                        if newlines_count_before_comment > 0 {
+                            group.line();
+                            group.leading_comment(comments_and_whitespace_chunk);
+                        } else {
+                            group.trailing_comment(comments_and_whitespace_chunk);
+                        }
+                    }
+                }
                 group.space_or_line();
             }
             format_item(self, expr, group);
@@ -705,6 +754,12 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
         };
 
+        // Indent right after the lhs so that if there's a trailing comment,
+        // the next line is indented correctly.
+        if increase_indentation {
+            group.increase_indentation();
+        }
+
         let mut comment_chunk_after_lhs = self.skip_comments_and_whitespace_chunk();
 
         // If the comment is not empty but doesn't have newlines, it's surely `/* comment */`.
@@ -717,10 +772,6 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             group.text(comment_chunk_after_lhs);
         } else {
             group.trailing_comment(comment_chunk_after_lhs);
-        }
-
-        if increase_indentation {
-            group.increase_indentation();
         }
 
         group.space_or_line();
@@ -1111,6 +1162,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     pub(super) fn empty_block_contents_chunk(&mut self) -> Option<ChunkGroup> {
         let mut group = ChunkGroup::new();
         group.increase_indentation();
+
+        let newlines_count = self.following_newlines_count();
+
         let mut chunk = self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         });
@@ -1120,15 +1174,13 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             // so there's nothing to write.
             None
         } else {
-            if chunk.string.trim_start().starts_with("//") {
-                group.text(chunk);
-                group.decrease_indentation();
-                group.line();
-            } else {
+            // If we have a trailing comment, preserve it in the same line
+            if newlines_count == 0 && !chunk.string.trim_start().starts_with("//") {
                 chunk.string = format!(" {} ", chunk.string.trim());
-                group.text(chunk);
-                group.decrease_indentation();
             }
+            group.text(chunk);
+            group.decrease_indentation();
+            group.line();
             Some(group)
         }
     }
@@ -1312,6 +1364,56 @@ global y = 1;
     }
 
     #[test]
+    fn format_short_array_with_block_comment_before_elements() {
+        let src = "global x = [ /* one */ 1, /* two */ 2 ] ;";
+        let expected = "global x = [/* one */ 1, /* two */ 2];\n";
+
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_long_array_with_block_comment_before_elements() {
+        let src = "global x = [ /* one */ 1, /* two */ 123456789012345, 3, 4 ] ;";
+        let expected = "global x = [
+    /* one */ 1,
+    /* two */ 123456789012345,
+    3,
+    4,
+];
+";
+
+        let config =
+            Config { short_array_element_width_threshold: 5, max_width: 30, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn format_long_array_with_line_comment_before_elements() {
+        let src = "global x = [
+    // one
+    1,
+    // two
+    123456789012345,
+    3,
+    4,
+];
+";
+        let expected = "global x = [
+    // one
+    1,
+    // two
+    123456789012345,
+    3,
+    4,
+];
+";
+
+        let config =
+            Config { short_array_element_width_threshold: 5, max_width: 30, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
     fn format_cast() {
         let src = "global x =  1  as  u8 ;";
         let expected = "global x = 1 as u8;\n";
@@ -1419,6 +1521,23 @@ global y = 1;
 }
 ";
         assert_format_with_max_width(src, expected, "one + two + three + four".len() - 1);
+    }
+
+    #[test]
+    fn format_infix_with_trailing_comments() {
+        let src = "fn foo() {
+    let x = 1 // one
++ 2 // two
++ 3; // three
+}
+";
+        let expected = "fn foo() {
+    let x = 1 // one
+        + 2 // two
+        + 3; // three
+}
+";
+        assert_format(src, expected);
     }
 
     #[test]
@@ -1947,6 +2066,13 @@ global y = 1;
     }
 
     #[test]
+    fn format_quote_with_bracket_delimiter() {
+        let src = "global x = quote [ 1  2  3 $four $(five) ];";
+        let expected = "global x = quote [ 1  2  3 $four $(five) ];\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_lambda_no_parameters() {
         let src = "global x = | |  1 ;";
         let expected = "global x = || 1;\n";
@@ -1961,10 +2087,42 @@ global y = 1;
     }
 
     #[test]
-    fn format_lambda_with_block() {
+    fn format_lambda_with_block_simplifies() {
         let src = "global x = | |  {  1  } ;";
-        let expected = "global x = || { 1 };\n";
+        let expected = "global x = || 1;\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block_does_not_simplify_if_it_ends_with_semicolon() {
+        let src = "global x = | |  {  1;  } ;";
+        let expected = "global x = || { 1; };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block_does_not_simplify_if_it_has_return_type() {
+        let src = "global x = | | -> i32  {  1  } ;";
+        let expected = "global x = || -> i32 { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_simplifies_block_with_quote() {
+        let src = "global x = | | {  quote { 1 }   } ;";
+        let expected = "global x = || quote { 1 };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_block_simplifies_inside_arguments_list() {
+        let src = "global x = some_call(this_is_a_long_argument, | |  {  1  });";
+        let expected = "global x = some_call(
+    this_is_a_long_argument,
+    || 1,
+);
+";
+        assert_format_with_max_width(src, expected, 20);
     }
 
     #[test]

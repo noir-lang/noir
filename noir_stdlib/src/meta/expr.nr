@@ -1,8 +1,8 @@
 //! Contains methods on the built-in `Expr` type for quoted, syntactically valid expressions.
 
-use crate::option::Option;
-use crate::meta::op::UnaryOp;
 use crate::meta::op::BinaryOp;
+use crate::meta::op::UnaryOp;
+use crate::option::Option;
 
 impl Expr {
     /// If this expression is an array literal `[elem1, ..., elemN]`, this returns a slice of each element in the array.

@@ -4,12 +4,12 @@ pub mod affine {
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
     // for reasons of efficiency.
     // See <https://eprint.iacr.org/2008/522.pdf> for details.
-    use crate::ec::tecurve::curvegroup;
+    use crate::cmp::Eq;
     use crate::ec::montcurve::affine::Curve as MCurve;
     use crate::ec::montcurve::affine::Point as MPoint;
     use crate::ec::swcurve::affine::Curve as SWCurve;
     use crate::ec::swcurve::affine::Point as SWPoint;
-    use crate::cmp::Eq;
+    use crate::ec::tecurve::curvegroup;
 
     // Curve specification
     pub struct Curve { // Twisted Edwards curve
@@ -197,12 +197,12 @@ pub mod curvegroup {
     // CurveGroup coordinate representation of Twisted Edwards curves
     // Points are represented by four-dimensional projective coordinates, viz. extended Twisted Edwards coordinates.
     // See section 3 of <https://eprint.iacr.org/2008/522.pdf> for details.
-    use crate::ec::tecurve::affine;
+    use crate::cmp::Eq;
     use crate::ec::montcurve::curvegroup::Curve as MCurve;
     use crate::ec::montcurve::curvegroup::Point as MPoint;
     use crate::ec::swcurve::curvegroup::Curve as SWCurve;
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
-    use crate::cmp::Eq;
+    use crate::ec::tecurve::affine;
 
     // Curve specification
     pub struct Curve { // Twisted Edwards curve

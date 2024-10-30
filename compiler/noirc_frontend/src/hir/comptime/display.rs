@@ -620,7 +620,9 @@ fn remove_interned_in_expression_kind(
         }
         ExpressionKind::TypePath(mut path) => {
             path.typ = remove_interned_in_unresolved_type(interner, path.typ);
-            path.turbofish = remove_interned_in_generic_type_args(interner, path.turbofish);
+            path.turbofish = path
+                .turbofish
+                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
             ExpressionKind::TypePath(path)
         }
         ExpressionKind::Resolved(id) => {

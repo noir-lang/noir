@@ -146,8 +146,8 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BitSize, ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, IntegerBitSize,
-        MemoryAddress, ValueOrArray,
+        BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize, MemoryAddress,
+        ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
@@ -233,7 +233,8 @@ pub(crate) mod tests {
         calldata: Vec<FieldElement>,
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
-        let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver);
+        let profiling_active = false;
+        let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver, profiling_active);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -288,8 +289,18 @@ pub(crate) mod tests {
         // We push a JumpIf and Trap opcode directly as the constrain instruction
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap { revert_data: HeapArray::default() });
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
+        context.push_opcode(BrilligOpcode::Const {
+            destination: MemoryAddress::direct(0),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(0u64),
+        });
+        context.push_opcode(BrilligOpcode::Trap {
+            revert_data: HeapVector {
+                pointer: MemoryAddress::direct(0),
+                size: MemoryAddress::direct(0),
+            },
+        });
 
         context.stop_instruction();
 
@@ -301,6 +312,7 @@ pub(crate) mod tests {
             &bytecode,
             vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
             &DummyBlackBoxSolver,
+            false,
         );
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });

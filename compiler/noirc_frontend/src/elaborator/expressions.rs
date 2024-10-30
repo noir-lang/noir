@@ -8,7 +8,7 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
-        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
+        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression, Path,
         PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
@@ -21,7 +21,7 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
+            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
@@ -247,27 +247,35 @@ impl<'context> Elaborator<'context> {
 
             let scope_tree = self.scopes.current_scope_tree();
             let variable = scope_tree.find(ident_name);
-            if let Some((old_value, _)) = variable {
+
+            let hir_ident = if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let ident = HirExpression::Ident(old_value.ident.clone(), None);
-                let expr_id = self.interner.push_expr(ident);
-                self.interner.push_expr_location(expr_id, call_expr_span, self.file);
-                let ident = old_value.ident.clone();
-                let typ = self.type_check_variable(ident, expr_id, None);
-                self.interner.push_expr_type(expr_id, typ.clone());
-                capture_types.push(typ);
-                fmt_str_idents.push(expr_id);
+                old_value.ident.clone()
+            } else if let Ok((definition_id, _)) =
+                self.lookup_global(Path::from_single(ident_name.to_string(), call_expr_span))
+            {
+                HirIdent::non_trait_method(definition_id, Location::new(call_expr_span, self.file))
             } else if ident_name.parse::<usize>().is_ok() {
                 self.push_err(ResolverError::NumericConstantInFormatString {
                     name: ident_name.to_owned(),
                     span: call_expr_span,
                 });
+                continue;
             } else {
                 self.push_err(ResolverError::VariableNotDeclared {
                     name: ident_name.to_owned(),
                     span: call_expr_span,
                 });
-            }
+                continue;
+            };
+
+            let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+            let expr_id = self.interner.push_expr(hir_expr);
+            self.interner.push_expr_location(expr_id, call_expr_span, self.file);
+            let typ = self.type_check_variable(hir_ident, expr_id, None);
+            self.interner.push_expr_type(expr_id, typ.clone());
+            capture_types.push(typ);
+            fmt_str_idents.push(expr_id);
         }
 
         let len = Type::Constant(str.len().into(), Kind::u32());
@@ -527,9 +535,6 @@ impl<'context> Elaborator<'context> {
         if !generics.ordered_args.is_empty() {
             last_segment.generics = Some(generics.ordered_args);
         }
-
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&path, exclude_last_segment);
 
         let last_segment = path.last_segment();
         let is_self_type = last_segment.ident.is_self_type_name();

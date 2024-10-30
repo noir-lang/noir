@@ -13,7 +13,10 @@ use noirc_frontend::{
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::path_resolver::{PathResolver, StandardPathResolver},
+        resolution::{
+            import::PathResolutionItem,
+            path_resolver::{PathResolver, StandardPathResolver},
+        },
     },
     node_interner::ReferenceId,
     parser::{ParsedSubModule, Parser},
@@ -21,8 +24,6 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
     ParsedModule,
 };
-
-use crate::modules::module_def_id_to_reference_id;
 
 pub(crate) struct AttributeReferenceFinder<'a> {
     byte_index: usize,
@@ -106,6 +107,20 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
             return;
         };
 
-        self.reference_id = Some(module_def_id_to_reference_id(result.module_def_id));
+        self.reference_id = Some(path_resolution_item_to_reference_id(result.item));
+    }
+}
+
+fn path_resolution_item_to_reference_id(item: PathResolutionItem) -> ReferenceId {
+    match item {
+        PathResolutionItem::Module(module_id) => ReferenceId::Module(module_id),
+        PathResolutionItem::Struct(struct_id) => ReferenceId::Struct(struct_id),
+        PathResolutionItem::TypeAlias(type_alias_id) => ReferenceId::Alias(type_alias_id),
+        PathResolutionItem::Trait(trait_id) => ReferenceId::Trait(trait_id),
+        PathResolutionItem::Global(global_id) => ReferenceId::Global(global_id),
+        PathResolutionItem::ModuleFunction(func_id)
+        | PathResolutionItem::StructFunction(_, _, func_id)
+        | PathResolutionItem::TypeAliasFunction(_, _, func_id)
+        | PathResolutionItem::TraitFunction(_, _, func_id) => ReferenceId::Function(func_id),
     }
 }

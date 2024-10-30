@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+    ast::ItemVisibility, hir::resolution::import::PathResolutionItem,
+    hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -20,7 +21,7 @@ use crate::{
         },
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
+        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
@@ -470,6 +471,20 @@ impl<'context> Elaborator<'context> {
             self.check_for_unused_variables_in_scope_tree(func_scope_tree);
         }
 
+        // Check that the body can return without calling the function.
+        if let FunctionKind::Normal | FunctionKind::Recursive = kind {
+            self.run_lint(|elaborator| {
+                lints::unbounded_recursion(
+                    elaborator.interner,
+                    id,
+                    || elaborator.interner.definition_name(func_meta.name.id),
+                    func_meta.name.location.span,
+                    hir_func.as_expr(),
+                )
+                .map(Into::into)
+            });
+        }
+
         let meta = self
             .interner
             .func_meta
@@ -653,11 +668,11 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
-                if error.is_some() {
-                    None
-                } else {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                if errors.is_empty() {
                     Some(module_id)
+                } else {
+                    None
                 }
             }
             _ => None,
@@ -666,8 +681,8 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
-                if let Some(error) = error {
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
+                for error in errors {
                     self.push_err(error);
                 }
                 return Some(trait_id);
@@ -1027,10 +1042,13 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
-        self.check_parent_traits_are_implemented(&trait_impl);
-
-        self.generics = trait_impl.resolved_generics;
+        self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
+
+        self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
+        self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
+        self.check_parent_traits_are_implemented(&trait_impl);
+        self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         for (module, function, _) in &trait_impl.methods.functions {
             self.local_module = *module;
@@ -1043,6 +1061,95 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
+    }
+
+    fn add_trait_impl_assumed_trait_implementations(&mut self, impl_id: Option<TraitImplId>) {
+        if let Some(impl_id) = impl_id {
+            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+            {
+                for trait_constrain in &trait_implementation.borrow().where_clause {
+                    let trait_bound = &trait_constrain.trait_bound;
+                    self.interner.add_assumed_trait_implementation(
+                        trait_constrain.typ.clone(),
+                        trait_bound.trait_id,
+                        trait_bound.trait_generics.clone(),
+                    );
+                }
+            }
+        }
+    }
+
+    fn remove_trait_impl_assumed_trait_implementations(&mut self, impl_id: Option<TraitImplId>) {
+        if let Some(impl_id) = impl_id {
+            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+            {
+                for trait_constrain in &trait_implementation.borrow().where_clause {
+                    self.interner.remove_assumed_trait_implementations_for_trait(
+                        trait_constrain.trait_bound.trait_id,
+                    );
+                }
+            }
+        }
+    }
+
+    fn check_trait_impl_where_clause_matches_trait_where_clause(
+        &mut self,
+        trait_impl: &UnresolvedTraitImpl,
+    ) {
+        let Some(trait_id) = trait_impl.trait_id else {
+            return;
+        };
+
+        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            return;
+        };
+
+        if the_trait.where_clause.is_empty() {
+            return;
+        }
+
+        let impl_trait = the_trait.name.to_string();
+        let the_trait_file = the_trait.location.file;
+
+        let mut bindings = TypeBindings::new();
+        bind_ordered_generics(
+            &the_trait.generics,
+            &trait_impl.resolved_trait_generics,
+            &mut bindings,
+        );
+
+        // Check that each of the trait's where clause constraints is satisfied
+        for trait_constraint in the_trait.where_clause.clone() {
+            let Some(trait_constraint_trait) =
+                self.interner.try_get_trait(trait_constraint.trait_bound.trait_id)
+            else {
+                continue;
+            };
+
+            let trait_constraint_type = trait_constraint.typ.substitute(&bindings);
+            let trait_bound = &trait_constraint.trait_bound;
+
+            if self
+                .interner
+                .try_lookup_trait_implementation(
+                    &trait_constraint_type,
+                    trait_bound.trait_id,
+                    &trait_bound.trait_generics.ordered,
+                    &trait_bound.trait_generics.named,
+                )
+                .is_err()
+            {
+                let missing_trait =
+                    format!("{}{}", trait_constraint_trait.name, trait_bound.trait_generics);
+                self.push_err(ResolverError::TraitNotImplemented {
+                    impl_trait: impl_trait.clone(),
+                    missing_trait,
+                    type_missing_trait: trait_constraint_type.to_string(),
+                    span: trait_impl.object_type.span,
+                    missing_trait_location: Location::new(trait_bound.span, the_trait_file),
+                });
+            }
+        }
     }
 
     fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
@@ -1168,7 +1275,7 @@ impl<'context> Elaborator<'context> {
                 trait_id,
                 trait_generics,
                 file: trait_impl.file_id,
-                where_clause: where_clause.clone(),
+                where_clause,
                 methods,
             });
 

@@ -77,8 +77,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
-        BlackBoxOp::Keccakf1600 { message, output } => {
-            let state_vec: Vec<u64> = read_heap_vector(memory, message)
+        BlackBoxOp::Keccakf1600 { input, output } => {
+            let state_vec: Vec<u64> = read_heap_array(memory, input)
                 .iter()
                 .map(|&memory_value| memory_value.try_into().unwrap())
                 .collect();
@@ -292,7 +292,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::Sha256Compression { input, hash_values, output } => {
             let mut message = [0; 16];
-            let inputs = read_heap_vector(memory, input);
+            let inputs = read_heap_array(memory, input);
             if inputs.len() != 16 {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::Sha256Compression,
@@ -303,7 +303,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 message[i] = input.try_into().unwrap();
             }
             let mut state = [0; 8];
-            let values = read_heap_vector(memory, hash_values);
+            let values = read_heap_array(memory, hash_values);
             if values.len() != 8 {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::Sha256Compression,
@@ -330,18 +330,18 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
-            let mut limbs: Vec<MemoryValue<F>> = Vec::with_capacity(output.size);
+            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); output.size];
 
-            for _ in 0..output.size {
+            for i in (0..output.size).rev() {
                 let limb = &input % &radix;
                 if *output_bits {
-                    limbs.push(MemoryValue::new_integer(
+                    limbs[i] = MemoryValue::new_integer(
                         if limb.is_zero() { 0 } else { 1 },
                         IntegerBitSize::U1,
-                    ));
+                    );
                 } else {
                     let limb: u8 = limb.try_into().unwrap();
-                    limbs.push(MemoryValue::new_integer(limb as u128, IntegerBitSize::U8));
+                    limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
                 };
                 input /= &radix;
             }

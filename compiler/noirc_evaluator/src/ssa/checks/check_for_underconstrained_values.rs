@@ -218,7 +218,8 @@ impl Context {
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
-                            | Intrinsic::ToRadix(..) => {
+                            | Intrinsic::ToRadix(..)
+                            | Intrinsic::FieldLessThan => {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }
                         },

@@ -305,7 +305,7 @@ pub enum BrilligOpcode<F> {
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure, returning data after the offset
     Trap {
-        revert_data: HeapArray,
+        revert_data: HeapVector,
     },
     /// Stop execution, returning data after the offset
     Stop {

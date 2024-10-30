@@ -117,7 +117,7 @@ impl DebugShow {
     }
 
     /// Emits a `trap` instruction.
-    pub(crate) fn trap_instruction(&self, revert_data: HeapArray) {
+    pub(crate) fn trap_instruction(&self, revert_data: HeapVector) {
         debug_println!(self.enable_debug_trace, "  TRAP {}", revert_data);
     }
 
@@ -270,8 +270,8 @@ impl DebugShow {
                     outputs
                 );
             }
-            BlackBoxOp::Keccakf1600 { message, output } => {
-                debug_println!(self.enable_debug_trace, "  KECCAKF1600 {} -> {}", message, output);
+            BlackBoxOp::Keccakf1600 { input, output } => {
+                debug_println!(self.enable_debug_trace, "  KECCAKF1600 {} -> {}", input, output);
             }
             BlackBoxOp::Blake2s { message, output } => {
                 debug_println!(self.enable_debug_trace, "  BLAKE2S {} -> {}", message, output);

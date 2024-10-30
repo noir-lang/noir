@@ -10,7 +10,9 @@ mod csat;
 pub(crate) use csat::CSatTransformer;
 pub use csat::MIN_EXPRESSION_WIDTH;
 
-use super::{transform_assert_messages, AcirTransformationMap};
+use super::{
+    optimizers::MergeExpressionsOptimizer, transform_assert_messages, AcirTransformationMap,
+};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 pub fn transform<F: AcirField>(
@@ -166,6 +168,16 @@ pub(super) fn transform_internal<F: AcirField>(
         // The transformer does not add new public inputs
         ..acir
     };
-
+    let mut merge_optimizer = MergeExpressionsOptimizer::new();
+    let (opcodes, new_acir_opcode_positions) =
+        merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+    // n.b. we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
+    let acir = Circuit {
+        current_witness_index,
+        expression_width,
+        opcodes,
+        // The optimizer does not add new public inputs
+        ..acir
+    };
     (acir, new_acir_opcode_positions)
 }
