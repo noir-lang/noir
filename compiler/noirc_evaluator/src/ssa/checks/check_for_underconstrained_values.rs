@@ -10,8 +10,8 @@ use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
 use rayon::prelude::*;
-use tracing::{debug, trace};
 use std::collections::{BTreeMap, HashSet};
+use tracing::{debug, trace};
 
 impl Ssa {
     /// Go through each top-level non-brillig function and detect if it has independent subgraphs
@@ -33,9 +33,9 @@ impl Ssa {
             })
             .collect()
     }
-    
+
     /// Find brillig calls left unconstrained with later manual asserts
-    pub(crate) fn detect_unchecked_brillig_calls(&mut self) -> Vec<SsaReport> {
+    pub(crate) fn check_for_missing_brillig_constrains(&mut self) -> Vec<SsaReport> {
         let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
         functions_id
             .iter()
@@ -43,11 +43,11 @@ impl Ssa {
             .flat_map(|fid| {
                 let function_to_process = &self.functions[&FunctionId::new(*fid)];
                 match function_to_process.runtime() {
-                    RuntimeType::Acir { .. } => detect_unchecked_brillig_calls_within_function(
+                    RuntimeType::Acir { .. } => check_for_missing_brillig_constrains_within_function(
                         function_to_process,
                         &self.functions,
                     ),
-                    RuntimeType::Brillig => Vec::new(),
+                    RuntimeType::Brillig(_) => Vec::new(),
                 }
             })
             .collect()
@@ -86,63 +86,55 @@ fn check_for_underconstrained_values_within_function(
 
 /// Detect brillig calls left unconstrained with later manual asserts
 /// and return a vector of bug reports if some are found
-fn detect_unchecked_brillig_calls_within_function(
+fn check_for_missing_brillig_constrains_within_function(
     function: &Function,
     all_functions: &BTreeMap<FunctionId, Function>,
 ) -> Vec<SsaReport> {
     let mut warnings: Vec<SsaReport> = Vec::new();
 
-    let mut context = DigraphContext::new(function, all_functions);
-
+    let mut context = DependencyContext::default();
+    context.build(function, all_functions);
+   
+    context.collect_warnings();
     // let all_brillig_generated_values: HashSet<ValueId> =
-        // context.brillig_return_to_argument.keys().copied().collect();
+    // context.brillig_return_to_argument.keys().copied().collect();
 
     // let connected_sets_indices =
-        // context.find_sets_connected_to_function_inputs_or_outputs(function);
+    // context.find_sets_connected_to_function_inputs_or_outputs(function);
 
     // // Go through each disconnected set, find brillig calls that caused it and form warnings
     // for set_index in
-        // HashSet::from_iter(0..(context.value_sets.len())).difference(&connected_sets_indices)
+    // HashSet::from_iter(0..(context.value_sets.len())).difference(&connected_sets_indices)
     // {
-        // let current_set = &context.value_sets[*set_index];
-        // warnings.append(&mut context.find_disconnecting_brillig_calls_with_results_in_set(
-            // current_set,
-            // &all_brillig_generated_values,
-            // function,
-        // ));
+    // let current_set = &context.value_sets[*set_index];
+    // warnings.append(&mut context.find_disconnecting_brillig_calls_with_results_in_set(
+    // current_set,
+    // &all_brillig_generated_values,
+    // function,
+    // ));
     // }
     warnings
 }
 
 #[derive(Default)]
-struct DigraphContext {
+struct DependencyContext {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
     value_parents: HashMap<ValueId, Vec<ValueId>>,
-    brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
-    brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
+    memory_slots: HashMap<ValueId, ValueId>,
+    constrained_values: Vec<Vec<ValueId>>,
+    brillig_values: Vec<Vec<ValueId>>,
 }
 
-impl DigraphContext {
-    pub(crate) fn new(
-        function: &Function,
-        all_functions: &BTreeMap<FunctionId, Function>
-    ) -> Self {
-        let mut context = Self::default();
-        context.build_value_flow_graph(function, all_functions);
-        context
-    }
-    
-    /// Build flow graph of variable ValueIds 
-    ///
-    /// Additionally, store information about brillig calls in the context
-    fn build_value_flow_graph(
+impl DependencyContext {
+    /// Build the dependency graph of variable ValueIds, also storing
+    /// information on value ids involved in constrain operations
+    /// and brillig calls
+    fn build(
         &mut self,
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        trace!("building value flow graph for function {}", function);
-       
         self.block_queue.push(function.entry_block());
         while let Some(block) = self.block_queue.pop() {
             if self.visited_blocks.contains(&block) {
@@ -152,7 +144,7 @@ impl DigraphContext {
             self.build_block_value_flow_graph(block, function, all_functions);
         }
     }
-    
+
     fn build_block_value_flow_graph(
         &mut self,
         block: BasicBlockId,
@@ -160,10 +152,11 @@ impl DigraphContext {
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
         trace!("building block value flow graph for block {} of function {}", block, function);
-        
+
         for instruction in function.dfg[block].instructions() {
             let mut arguments = Vec::new();
-            
+            let mut results = Vec::new();
+
             // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
                 if function.dfg.get_numeric_constant(value_id).is_none() {
@@ -171,20 +164,66 @@ impl DigraphContext {
                 }
             });
 
-            // Assign parent arguments to non-constant results 
+            // Assign parent arguments to non-constant results
             for value_id in function.dfg.instruction_results(*instruction).iter() {
                 if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    for argument in &arguments {
-                        // Fill out result value parents
-                        self.value_parents.entry(*value_id).or_insert(vec![]).push(function.dfg.resolve(*argument));
-                    }
+                    results.push(function.dfg.resolve(*value_id));
                 }
             }
 
-            trace!("instruction {}: arguments: {:?}", instruction, arguments);
-            trace!("value parents map: {:?}", self.value_parents);
-            
+            // Process special case instruction types
+            match &function.dfg[*instruction] {
+                // For memory operations, we have to link up the stored value as a parent
+                // of one loaded from the same memory slot
+                Instruction::Store { address, value } => {
+                    self.memory_slots.insert(*address, *value);
+                }
+                Instruction::Load { address } => {
+                    // Remember the value stored at address as parent for the results
+                    if let Some(value_id) = self.memory_slots.get(address) {
+                        for result in results {
+                            self.value_parents.entry(result).or_insert(vec![]).push(*value_id);
+                        }
+                    } else {
+                        debug!("load instruction {} has attempted to access previously unused memory location, skipping",
+                            instruction);
+                    }
+                }
+                // Record the constrain instruction arguments to check them against those
+                // involved in brillig calls
+                Instruction::Constrain(value1, value2, _) => {
+                    self.constrained_values.push(vec![*value1, *value2]);
+                }
+                // Record arguments/results for each brillig call for the check
+                Instruction::Call { func: func_id, arguments } => {
+                    if let Value::Function(callee) = &function.dfg[*func_id] {
+                        if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
+                            let mut involved_values = vec![];
+                            // using call arguments here, _not_ the instruction arguments collected
+                            // above (as they would include an unneeded valueid)
+                            involved_values.extend(arguments);
+                            involved_values.extend(&results);
+                            self.brillig_values.push(involved_values);
+                        }
+                    }
+                }
+                _ => {
+                    // Record all the used arguments as parents of the results
+                    for result in results {
+                        self.value_parents.entry(result).or_insert(vec![]).extend(&arguments);
+                    }
+                }
+            }
         }
+
+        trace!("resulting value parents map: {:?}", self.value_parents);
+        trace!("resulting constrained values: {:?}", self.constrained_values);
+        trace!("resulting brillig involved values: {:?}", self.brillig_values);
+    }
+
+    /// Check if the constrained values can be traced back to brillig calls.
+    /// For every brillig call not properly constrained, emit a corresponding warning.
+    fn collect_warnings(&mut self) {
     }
 }
 
@@ -305,8 +344,6 @@ impl Context {
                     instruction_arguments_and_results.insert(function.dfg.resolve(*value_id));
                 }
             }
-    
-            trace!("value_ids participating in {}: {:?}", instruction, instruction_arguments_and_results);
 
             // For most instructions we just connect inputs and outputs
             match &function.dfg[*instruction] {
@@ -483,9 +520,13 @@ mod test {
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
-        Ssa,
         function_builder::FunctionBuilder,
-        ir::{instruction::BinaryOp, map::Id, types::{Type, NumericType}},
+        ir::{
+            instruction::BinaryOp,
+            map::Id,
+            types::{NumericType, Type},
+        },
+        Ssa,
     };
     use tracing::{debug, trace};
     use tracing_test::traced_test;
@@ -563,11 +604,11 @@ mod test {
         let ssa_level_warnings = ssa.check_for_underconstrained_values();
         assert_eq!(ssa_level_warnings.len(), 1);
     }
-    
+
     #[test]
     #[traced_test]
     /// Test where the results of a call to a brillig function are left unchecked with a later assert,
-    /// by example of the program illustrating issue #5425 (simplified). 
+    /// by example of the program illustrating issue #5425 (simplified).
     fn test_underconstrained_value_detector_5425() {
         /*
         unconstrained fn maximum_price(options: [u32; 2]) -> u32 {
@@ -593,10 +634,10 @@ mod test {
         }
         */
         let mut ssa: Ssa = serde_json::from_str(r#"
-        {"functions":[[{"index":0},{"entry_block":{"index":0},"name":"main","id":{"index":0},"runtime":{"Acir":"Inline"},"dfg":{"instructions":{"storage":[{"IncrementRc":{"value":{"index":0}}},{"IncrementRc":{"value":{"index":1}}},{"Call":{"func":{"index":3},"arguments":[{"index":0}]}},"Allocate",{"Store":{"address":{"index":6},"value":{"index":5}}},{"Load":{"address":{"index":6}}},{"ArrayGet":{"array":{"index":0},"index":{"index":9}}},{"Binary":{"lhs":{"index":11},"rhs":{"index":4},"operator":"Eq"}},{"Binary":{"lhs":{"index":7},"rhs":{"index":12},"operator":"Or"}},{"Store":{"address":{"index":6},"value":{"index":13}}},{"Load":{"address":{"index":6}}},{"ArrayGet":{"array":{"index":0},"index":{"index":10}}},{"Binary":{"lhs":{"index":16},"rhs":{"index":4},"operator":"Eq"}},{"Binary":{"lhs":{"index":14},"rhs":{"index":17},"operator":"Or"}},{"Store":{"address":{"index":6},"value":{"index":18}}},{"Load":{"address":{"index":6}}},{"Constrain":[{"index":19},{"index":20},null]},{"Call":{"func":{"index":21},"arguments":[{"index":1}]}},{"Binary":{"lhs":{"index":4},"rhs":{"index":22},"operator":"Add"}},{"Binary":{"lhs":{"index":2},"rhs":{"index":23},"operator":"Eq"}},{"Constrain":[{"index":2},{"index":23},null]},{"DecrementRc":{"value":{"index":0}}},{"DecrementRc":{"value":{"index":1}}}]},"results":{"i0":[],"i20":[],"i17":[{"index":22}],"i14":[],"i11":[{"index":16}],"i8":[{"index":13}],"i5":[{"index":7}],"i2":[{"index":4}],"i22":[],"i19":[{"index":24}],"i16":[],"i13":[{"index":18}],"i10":[{"index":14}],"i7":[{"index":12}],"i4":[],"i1":[],"i21":[],"i18":[{"index":23}],"i15":[{"index":19}],"i12":[{"index":17}],"i9":[],"i6":[{"index":11}],"i3":[{"index":6}]},"values":{"storage":[{"Param":{"block":{"index":0},"position":0,"typ":{"Array":[[{"Numeric":{"Unsigned":{"bit_size":32}}}],2]}}},{"Param":{"block":{"index":0},"position":1,"typ":{"Array":[[{"Numeric":{"Unsigned":{"bit_size":32}}}],2]}}},{"Param":{"block":{"index":0},"position":2,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Function":{"index":1}},{"Instruction":{"instruction":{"index":2},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":3},"position":0,"typ":{"Reference":{"Numeric":{"Unsigned":{"bit_size":1}}}}}},{"Instruction":{"instruction":{"index":5},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":"NativeField"}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":6},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":7},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":8},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":10},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":"NativeField"}}},{"Instruction":{"instruction":{"index":11},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":12},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":13},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":15},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Function":{"index":1}},{"Instruction":{"instruction":{"index":17},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":18},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":19},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}}]},"blocks":{"storage":[{"parameters":[{"index":0},{"index":1},{"index":2}],"instructions":[{"index":0},{"index":1},{"index":2},{"index":3},{"index":4},{"index":5},{"index":6},{"index":7},{"index":8},{"index":9},{"index":10},{"index":11},{"index":12},{"index":13},{"index":14},{"index":15},{"index":16},{"index":17},{"index":18},{"index":19},{"index":20},{"index":21},{"index":22}],"terminator":{"Return":{"return_values":[],"call_stack":[{"span":{"start":611,"end":681},"file":70}]}}}]}}}],[{"index":1},{"entry_block":{"index":0},"name":"maximum_price","id":{"index":1},"runtime":"Brillig","dfg":{"instructions":{"storage":[{"IncrementRc":{"value":{"index":0}}},{"ArrayGet":{"array":{"index":0},"index":{"index":2}}},"Allocate",{"Store":{"address":{"index":5},"value":{"index":4}}},{"ArrayGet":{"array":{"index":0},"index":{"index":3}}},{"ArrayGet":{"array":{"index":0},"index":{"index":2}}},{"Binary":{"lhs":{"index":8},"rhs":{"index":7},"operator":"Lt"}},{"ArrayGet":{"array":{"index":0},"index":{"index":3}}},{"Store":{"address":{"index":5},"value":{"index":10}}},{"Load":{"address":{"index":5}}},{"DecrementRc":{"value":{"index":0}}}]},"results":{"i0":[],"i10":[],"i7":[{"index":10}],"i4":[{"index":7}],"i1":[{"index":4}],"i8":[],"i5":[{"index":8}],"i2":[{"index":5}],"i9":[{"index":11}],"i6":[{"index":9}],"i3":[]},"values":{"storage":[{"Param":{"block":{"index":0},"position":0,"typ":{"Array":[[{"Numeric":{"Unsigned":{"bit_size":32}}}],2]}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":"NativeField"}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":1},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":2},"position":0,"typ":{"Reference":{"Numeric":{"Unsigned":{"bit_size":32}}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":"NativeField"}}},{"Instruction":{"instruction":{"index":4},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":5},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":6},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":7},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":9},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}}]},"blocks":{"storage":[{"parameters":[{"index":0}],"instructions":[{"index":0},{"index":1},{"index":2},{"index":3},{"index":4},{"index":5},{"index":6}],"terminator":{"JmpIf":{"condition":{"index":9},"then_destination":{"index":1},"else_destination":{"index":2},"call_stack":[{"span":{"start":108,"end":131},"file":70}]}}},{"parameters":[],"instructions":[{"index":7},{"index":8}],"terminator":{"Jmp":{"destination":{"index":2},"arguments":[],"call_stack":[{"span":{"start":160,"end":170},"file":70}]}}},{"parameters":[],"instructions":[{"index":9},{"index":10}],"terminator":{"Return":{"return_values":[{"index":11}],"call_stack":[{"span":{"start":160,"end":170},"file":70}]}}}]}}}]],"main_id":{"index":0}}
+        {"functions":[[{"index":0},{"entry_block":{"index":0},"name":"main","id":{"index":0},"runtime":{"Acir":"Inline"},"dfg":{"instructions":{"storage":[{"IncrementRc":{"value":{"index":0}}},{"IncrementRc":{"value":{"index":1}}},{"Call":{"func":{"index":3},"arguments":[{"index":0}]}},"Allocate",{"Store":{"address":{"index":6},"value":{"index":5}}},{"Load":{"address":{"index":6}}},{"ArrayGet":{"array":{"index":0},"index":{"index":9}}},{"Binary":{"lhs":{"index":11},"rhs":{"index":4},"operator":"Eq"}},{"Binary":{"lhs":{"index":7},"rhs":{"index":12},"operator":"Or"}},{"Store":{"address":{"index":6},"value":{"index":13}}},{"Load":{"address":{"index":6}}},{"ArrayGet":{"array":{"index":0},"index":{"index":10}}},{"Binary":{"lhs":{"index":16},"rhs":{"index":4},"operator":"Eq"}},{"Binary":{"lhs":{"index":14},"rhs":{"index":17},"operator":"Or"}},{"Store":{"address":{"index":6},"value":{"index":18}}},{"Load":{"address":{"index":6}}},{"Constrain":[{"index":19},{"index":20},null]},{"Call":{"func":{"index":21},"arguments":[{"index":1}]}},{"Binary":{"lhs":{"index":4},"rhs":{"index":22},"operator":"Add"}},{"Binary":{"lhs":{"index":2},"rhs":{"index":23},"operator":"Eq"}},{"Constrain":[{"index":2},{"index":23},null]},{"DecrementRc":{"value":{"index":0}}},{"DecrementRc":{"value":{"index":1}}}]},"results":{"i0":[],"i20":[],"i17":[{"index":22}],"i14":[],"i11":[{"index":16}],"i8":[{"index":13}],"i5":[{"index":7}],"i2":[{"index":4}],"i22":[],"i19":[{"index":24}],"i16":[],"i13":[{"index":18}],"i10":[{"index":14}],"i7":[{"index":12}],"i4":[],"i1":[],"i21":[],"i18":[{"index":23}],"i15":[{"index":19}],"i12":[{"index":17}],"i9":[],"i6":[{"index":11}],"i3":[{"index":6}]},"values":{"storage":[{"Param":{"block":{"index":0},"position":0,"typ":{"Array":[[{"Numeric":{"Unsigned":{"bit_size":32}}}],2]}}},{"Param":{"block":{"index":0},"position":1,"typ":{"Array":[[{"Numeric":{"Unsigned":{"bit_size":32}}}],2]}}},{"Param":{"block":{"index":0},"position":2,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Function":{"index":1}},{"Instruction":{"instruction":{"index":2},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":3},"position":0,"typ":{"Reference":{"Numeric":{"Unsigned":{"bit_size":1}}}}}},{"Instruction":{"instruction":{"index":5},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":"NativeField"}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":6},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":7},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":8},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":10},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":"NativeField"}}},{"Instruction":{"instruction":{"index":11},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":12},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":13},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":15},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Function":{"index":1}},{"Instruction":{"instruction":{"index":17},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":18},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":19},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}}]},"blocks":{"storage":[{"parameters":[{"index":0},{"index":1},{"index":2}],"instructions":[{"index":0},{"index":1},{"index":2},{"index":3},{"index":4},{"index":5},{"index":6},{"index":7},{"index":8},{"index":9},{"index":10},{"index":11},{"index":12},{"index":13},{"index":14},{"index":15},{"index":16},{"index":17},{"index":18},{"index":19},{"index":20},{"index":21},{"index":22}],"terminator":{"Return":{"return_values":[],"call_stack":[{"span":{"start":611,"end":681},"file":70}]}}}]}}}],[{"index":1},{"entry_block":{"index":0},"name":"maximum_price","id":{"index":1},"runtime":{"Brillig":"Inline"},"dfg":{"instructions":{"storage":[{"IncrementRc":{"value":{"index":0}}},{"ArrayGet":{"array":{"index":0},"index":{"index":2}}},"Allocate",{"Store":{"address":{"index":5},"value":{"index":4}}},{"ArrayGet":{"array":{"index":0},"index":{"index":3}}},{"ArrayGet":{"array":{"index":0},"index":{"index":2}}},{"Binary":{"lhs":{"index":8},"rhs":{"index":7},"operator":"Lt"}},{"ArrayGet":{"array":{"index":0},"index":{"index":3}}},{"Store":{"address":{"index":5},"value":{"index":10}}},{"Load":{"address":{"index":5}}},{"DecrementRc":{"value":{"index":0}}}]},"results":{"i0":[],"i10":[],"i7":[{"index":10}],"i4":[{"index":7}],"i1":[{"index":4}],"i8":[],"i5":[{"index":8}],"i2":[{"index":5}],"i9":[{"index":11}],"i6":[{"index":9}],"i3":[]},"values":{"storage":[{"Param":{"block":{"index":0},"position":0,"typ":{"Array":[[{"Numeric":{"Unsigned":{"bit_size":32}}}],2]}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":"NativeField"}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000000","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":1},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":2},"position":0,"typ":{"Reference":{"Numeric":{"Unsigned":{"bit_size":32}}}}}},{"NumericConstant":{"constant":"0000000000000000000000000000000000000000000000000000000000000001","typ":{"Numeric":"NativeField"}}},{"Instruction":{"instruction":{"index":4},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":5},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":6},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":1}}}}},{"Instruction":{"instruction":{"index":7},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}},{"Instruction":{"instruction":{"index":9},"position":0,"typ":{"Numeric":{"Unsigned":{"bit_size":32}}}}}]},"blocks":{"storage":[{"parameters":[{"index":0}],"instructions":[{"index":0},{"index":1},{"index":2},{"index":3},{"index":4},{"index":5},{"index":6}],"terminator":{"JmpIf":{"condition":{"index":9},"then_destination":{"index":1},"else_destination":{"index":2},"call_stack":[{"span":{"start":108,"end":131},"file":70}]}}},{"parameters":[],"instructions":[{"index":7},{"index":8}],"terminator":{"Jmp":{"destination":{"index":2},"arguments":[],"call_stack":[{"span":{"start":160,"end":170},"file":70}]}}},{"parameters":[],"instructions":[{"index":9},{"index":10}],"terminator":{"Return":{"return_values":[{"index":11}],"call_stack":[{"span":{"start":160,"end":170},"file":70}]}}}]}}}]],"main_id":{"index":0}}
         "#).unwrap();
 
-        let ssa_level_warnings = ssa.detect_unchecked_brillig_calls();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
         //assert_eq!(ssa_level_warnings.len(), 1);
     }
 }
