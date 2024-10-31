@@ -583,7 +583,7 @@ impl<'a> NodeFinder<'a> {
                     self_prefix,
                 );
             }
-            Type::CheckedCast(to, _from) => {
+            Type::CheckedCast { to, .. } => {
                 return self.complete_type_fields_and_methods(
                     to,
                     prefix,

@@ -2294,10 +2294,7 @@ impl Type {
             Type::CheckedCast { from, to } => {
                 let from = from.substitute_helper(type_bindings, substitute_bound_typevars);
                 let to = to.substitute_helper(type_bindings, substitute_bound_typevars);
-                Type::CheckedCast {
-                    from: Box::new(from),
-                    to: Box::new(to),
-                }
+                Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding) => {
                 substitute_binding(binding)

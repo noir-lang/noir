@@ -109,10 +109,7 @@ impl Type {
                 let skip_simplifications = false;
                 let from = from.canonicalize_checked_cast(skip_simplifications);
 
-                Type::CheckedCast {
-                    from: Box::new(from),
-                    to: Box::new(to),
-                }
+                Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
             other => other,
         }

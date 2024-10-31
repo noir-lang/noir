@@ -480,10 +480,8 @@ impl<'context> Elaborator<'context> {
                     }
                     (lhs, rhs) => {
                         let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
-                        Type::CheckedCast {
-                            from: Box::new(infix.clone()),
-                            to: Box::new(infix),
-                        }.canonicalize()
+                        Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
+                            .canonicalize()
                     }
                 }
             }

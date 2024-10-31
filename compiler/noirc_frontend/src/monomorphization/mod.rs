@@ -931,10 +931,16 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Bound(binding) => {
                         let location = self.interner.id_location(expr_id);
                         binding
-                            .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()), location.span)
-                            .unwrap_or_else(|err| {
-                                panic!("Non-numeric type variable used in expression expecting a value: {err}")
-                            })
+                            .evaluate_to_field_element(
+                                &Kind::Numeric(numeric_typ.clone()),
+                                location.span,
+                            )
+                            // TODO: better error
+                            .map_err(|err| MonomorphizationError::UnknownArrayLength {
+                                length: binding.clone(),
+                                err,
+                                location,
+                            })?
                     }
                 };
                 let location = self.interner.id_location(expr_id);
