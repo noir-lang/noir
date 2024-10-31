@@ -343,6 +343,7 @@ fn removes_assumed_parent_traits_after_function_ends() {
 
 #[test]
 fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6420
     let src = r#"
         trait Foo {
             fn foo() -> Field;
