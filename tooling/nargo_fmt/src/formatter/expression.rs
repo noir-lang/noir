@@ -382,9 +382,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.format_type(type_path.typ);
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
-            if !type_path.turbofish.is_empty() {
+            if let Some(turbofish) = type_path.turbofish {
                 formatter.write_token(Token::DoubleColon);
-                formatter.format_generic_type_args(type_path.turbofish);
+                formatter.format_generic_type_args(turbofish);
             }
         }));
         group

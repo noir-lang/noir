@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use acir::brillig::{BitSize, IntegerBitSize};
+use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
 use acir::{
     acir_field::GenericFieldElement,
-    brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
+    brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
@@ -667,7 +667,12 @@ fn unsatisfied_opcode_resolved_brillig() {
     let jmp_if_opcode =
         BrilligOpcode::JumpIf { condition: MemoryAddress::direct(2), location: location_of_stop };
 
-    let trap_opcode = BrilligOpcode::Trap { revert_data: HeapArray::default() };
+    let trap_opcode = BrilligOpcode::Trap {
+        revert_data: HeapVector {
+            pointer: MemoryAddress::direct(0),
+            size: MemoryAddress::direct(3),
+        },
+    };
     let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_bytecode = BrilligBytecode {
@@ -679,6 +684,11 @@ fn unsatisfied_opcode_resolved_brillig() {
             },
             BrilligOpcode::Const {
                 destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(3),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
@@ -739,7 +749,7 @@ fn unsatisfied_opcode_resolved_brillig() {
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
             function_id: BrilligFunctionId(0),
             payload: None,
-            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 5 }]
+            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 6 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
     );

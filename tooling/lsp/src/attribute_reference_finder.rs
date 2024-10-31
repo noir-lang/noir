@@ -18,7 +18,7 @@ use noirc_frontend::{
             path_resolver::{PathResolver, StandardPathResolver},
         },
     },
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::{ParsedSubModule, Parser},
     token::CustomAttribute,
     usage_tracker::UsageTracker,
@@ -30,6 +30,7 @@ pub(crate) struct AttributeReferenceFinder<'a> {
     /// The module ID in scope. This might change as we traverse the AST
     /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
+    interner: &'a NodeInterner,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     reference_id: Option<ReferenceId>,
 }
@@ -40,6 +41,7 @@ impl<'a> AttributeReferenceFinder<'a> {
         file: FileId,
         byte_index: usize,
         krate: CrateId,
+        interner: &'a NodeInterner,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     ) -> Self {
         // Find the module the current file belongs to
@@ -52,7 +54,7 @@ impl<'a> AttributeReferenceFinder<'a> {
             def_map.root()
         };
         let module_id = ModuleId { krate, local_id };
-        Self { byte_index, module_id, def_maps, reference_id: None }
+        Self { byte_index, module_id, interner, def_maps, reference_id: None }
     }
 
     pub(crate) fn find(&mut self, parsed_module: &ParsedModule) -> Option<ReferenceId> {
@@ -102,7 +104,8 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
 
         let resolver = StandardPathResolver::new(self.module_id, None);
         let mut usage_tracker = UsageTracker::default();
-        let Ok(result) = resolver.resolve(self.def_maps, path, &mut usage_tracker, &mut None)
+        let Ok(result) =
+            resolver.resolve(self.interner, self.def_maps, path, &mut usage_tracker, &mut None)
         else {
             return;
         };

@@ -17,7 +17,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    Kind, ResolvedGeneric, Shared, StructType, Type, TypeBindings,
+    Kind, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -453,6 +453,30 @@ impl<'context> Elaborator<'context> {
         self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics)
     }
 
+    pub(super) fn resolve_alias_turbofish_generics(
+        &mut self,
+        type_alias: &TypeAlias,
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
+        let Some(turbofish_generics) = unresolved_turbofish else {
+            return generics;
+        };
+
+        if turbofish_generics.len() != generics.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: format!("alias {}", type_alias.name),
+                expected: generics.len(),
+                found: turbofish_generics.len(),
+                span,
+            });
+            return generics;
+        }
+
+        self.resolve_turbofish_generics(&type_alias.generics, turbofish_generics)
+    }
+
     pub(super) fn resolve_turbofish_generics(
         &mut self,
         generics: &[ResolvedGeneric],
@@ -526,10 +550,36 @@ impl<'context> Elaborator<'context> {
                     generics.span,
                 )
             }
-            PathResolutionItem::TypeAliasFunction(_type_alias_id, Some(generics), _func_id) => {
-                // TODO: https://github.com/noir-lang/noir/issues/6311
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
-                Vec::new()
+            PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                let type_alias = type_alias.borrow();
+                let alias_generics = vecmap(&type_alias.generics, |generic| {
+                    self.interner.next_type_variable_with_kind(generic.kind())
+                });
+
+                // First solve the generics on the alias, if any
+                let generics = if let Some(generics) = generics {
+                    self.resolve_alias_turbofish_generics(
+                        &type_alias,
+                        alias_generics,
+                        Some(generics.generics),
+                        generics.span,
+                    )
+                } else {
+                    alias_generics
+                };
+
+                // Now instantiate the underlying struct with those generics, the struct might
+                // have more generics than those in the alias, like in this example:
+                //
+                // type Alias<T> = Struct<T, i32>;
+                let typ = type_alias.get_type(&generics);
+                let Type::Struct(_, generics) = typ else {
+                    // See https://github.com/noir-lang/noir/issues/6398
+                    panic!("Expected type alias to point to struct")
+                };
+
+                generics
             }
             PathResolutionItem::TraitFunction(_trait_id, Some(generics), _func_id) => {
                 // TODO: https://github.com/noir-lang/noir/issues/6310
@@ -762,8 +812,8 @@ impl<'context> Elaborator<'context> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
-        let generics = self.resolve_type_args(path.turbofish, func_id, span).0;
-        let generics = (!generics.is_empty()).then_some(generics);
+        let generics =
+            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, span).0);
 
         let location = Location::new(span, self.file);
         let id = self.interner.function_definition_id(func_id);

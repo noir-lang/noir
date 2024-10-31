@@ -3548,16 +3548,77 @@ fn uses_self_in_import() {
 }
 
 #[test]
-fn alias_in_let_pattern() {
+fn does_not_error_on_return_values_after_block_expression() {
+    // Regression test for https://github.com/noir-lang/noir/issues/4372
     let src = r#"
-        struct Foo<T> { x: T }
+    fn case1() -> [Field] {
+        if true {
+        }
+        &[1]
+    }
 
-        type Bar<U> = Foo<U>;
+    fn case2() -> [u8] {
+        let mut var: u8 = 1;
+        {
+            var += 1;
+        }
+        &[var]
+    }
+
+    fn main() {
+        let _ = case1();
+        let _ = case2();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_type_alias_in_method_call() {
+    let src = r#"
+        pub struct Foo {
+        }
+
+        impl Foo {
+            fn new() -> Self {
+                Foo {}
+            }
+        }
+
+        type Bar = Foo;
+
+        fn foo() -> Foo {
+            Bar::new()
+        }
 
         fn main() {
-            let Bar { x } = Foo { x: [0] };
-            // This is just to show the compiler knows this is an array.
-            let _: [Field; 1] = x;
+            let _ = foo();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_type_alias_to_generic_concrete_type_in_method_call() {
+    let src = r#"
+        pub struct Foo<T> {
+            x: T,
+        }
+
+        impl<T> Foo<T> {
+            fn new(x: T) -> Self {
+                Foo { x }
+            }
+        }
+
+        type Bar = Foo<i32>;
+
+        fn foo() -> Bar {
+            Bar::new(1)
+        }
+
+        fn main() {
+            let _ = foo();
         }
     "#;
     assert_no_errors(src);
