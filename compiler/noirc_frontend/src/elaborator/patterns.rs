@@ -453,6 +453,31 @@ impl<'context> Elaborator<'context> {
         self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics)
     }
 
+    pub(super) fn resolve_trait_turbofish_generics(
+        &mut self,
+        trait_name: &str,
+        trait_generics: &[ResolvedGeneric],
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
+        let Some(turbofish_generics) = unresolved_turbofish else {
+            return generics;
+        };
+
+        if turbofish_generics.len() != generics.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: format!("trait {}", trait_name),
+                expected: generics.len(),
+                found: turbofish_generics.len(),
+                span,
+            });
+            return generics;
+        }
+
+        self.resolve_turbofish_generics(trait_generics, turbofish_generics)
+    }
+
     pub(super) fn resolve_alias_turbofish_generics(
         &mut self,
         type_alias: &TypeAlias,
@@ -581,10 +606,19 @@ impl<'context> Elaborator<'context> {
 
                 generics
             }
-            PathResolutionItem::TraitFunction(_trait_id, Some(generics), _func_id) => {
-                // TODO: https://github.com/noir-lang/noir/issues/6310
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
-                Vec::new()
+            PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
+                let trait_ = self.interner.get_trait(trait_id);
+                let trait_generics = vecmap(&trait_.generics, |generic| {
+                    self.interner.next_type_variable_with_kind(generic.kind())
+                });
+
+                self.resolve_trait_turbofish_generics(
+                    &trait_.name.to_string(),
+                    &trait_.generics.clone(),
+                    trait_generics,
+                    Some(generics.generics),
+                    generics.span,
+                )
             }
             _ => Vec::new(),
         }
@@ -602,7 +636,7 @@ impl<'context> Elaborator<'context> {
                     id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
                     impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
                 },
-                None,
+                trait_path_resolution.item,
             )
         } else {
             // If the Path is being used as an Expression, then it is referring to a global from a separate module
