@@ -15,7 +15,6 @@ pub fn transform_program(
         &mut compiled_program.debug,
         expression_width,
     );
-
     compiled_program
 }
 
