@@ -83,9 +83,7 @@ pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliErro
     let target_width =
         get_target_width(package.expression_width, args.compile_options.expression_width);
 
-    let compiled_program = nargo::ops::transform_program(compiled_program, target_width)
-        .map_err(|err| CliError::Generic(err[0].diagnostic.to_string()))?
-        .0;
+    let compiled_program = nargo::ops::transform_program(compiled_program, target_width);
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }

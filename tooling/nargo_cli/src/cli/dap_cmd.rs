@@ -119,9 +119,7 @@ fn load_and_compile_project(
     )
     .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
-    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width)
-        .map_err(|err| LoadError::Generic(err[0].diagnostic.to_string()))?
-        .0;
+    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)

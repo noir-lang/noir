@@ -1,33 +1,22 @@
 use acvm::{
     acir::circuit::{ExpressionWidth, Program},
-    compiler::CircuitSimulator,
     FieldElement,
 };
 use iter_extended::vecmap;
-use noirc_driver::{CompilationResult, CompiledContract, CompiledProgram};
-use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic};
+use noirc_driver::{CompiledContract, CompiledProgram};
+use noirc_errors::debug_info::DebugInfo;
 
 pub fn transform_program(
     mut compiled_program: CompiledProgram,
     expression_width: ExpressionWidth,
-) -> CompilationResult<CompiledProgram> {
+) -> CompiledProgram {
     compiled_program.program = transform_program_internal(
         compiled_program.program,
         &mut compiled_program.debug,
         expression_width,
     );
-    // Check if the program is solvable
-    for circuit in &mut compiled_program.program.functions {
-        let mut simulator = CircuitSimulator::default();
-        if !simulator.check_circuit(circuit) {
-            let diag = FileDiagnostic {
-                file_id: fm::FileId::dummy(),
-                diagnostic: CustomDiagnostic::from_message("ACVM simulation failed"),
-            };
-            return Err(vec![diag]);
-        }
-    }
-    Ok((compiled_program, Vec::new()))
+
+    compiled_program
 }
 
 pub fn transform_contract(
