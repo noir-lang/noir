@@ -191,7 +191,7 @@ fn compile_programs(
 
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);
-        let program = nargo::ops::transform_program(program, target_width);
+        let program = nargo::ops::transform_program(program, target_width)?.0;
         save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
 
         Ok(((), warnings))
