@@ -1,4 +1,4 @@
-fn main(x: u64, y: u8, a: i16) {
+fn main(x: u64, y: u8, z: i16) {
     // runtime shifts on compile-time known values
     assert(64 << y == 128);
     assert(64 >> y == 32);
@@ -18,5 +18,5 @@ fn main(x: u64, y: u8, a: i16) {
 
     assert(x >> (x as u8) == 0);
 
-    assert_eq(a >> 3, -97);
+    assert_eq(z >> 3, -97);
 }
