@@ -19,8 +19,8 @@ use noirc_frontend::{
         },
     },
     node_interner::{NodeInterner, ReferenceId},
-    parser::{ParsedSubModule, Parser},
-    token::CustomAttribute,
+    parser::ParsedSubModule,
+    token::MetaAttribute,
     usage_tracker::UsageTracker,
     ParsedModule,
 };
@@ -88,29 +88,28 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
         false
     }
 
-    fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, _target: AttributeTarget) {
-        if !self.includes_span(attribute.contents_span) {
-            return;
+    fn visit_meta_attribute(
+        &mut self,
+        attribute: &MetaAttribute,
+        _target: AttributeTarget,
+    ) -> bool {
+        if !self.includes_span(attribute.span) {
+            return false;
         }
 
-        let name = match attribute.contents.split_once('(') {
-            Some((left, _right)) => left.to_string(),
-            None => attribute.contents.to_string(),
-        };
-        let mut parser = Parser::for_str(&name);
-        let Some(path) = parser.parse_path_no_turbofish() else {
-            return;
-        };
+        let path = attribute.name.clone();
 
         let resolver = StandardPathResolver::new(self.module_id, None);
         let mut usage_tracker = UsageTracker::default();
         let Ok(result) =
             resolver.resolve(self.interner, self.def_maps, path, &mut usage_tracker, &mut None)
         else {
-            return;
+            return true;
         };
 
         self.reference_id = Some(path_resolution_item_to_reference_id(result.item));
+
+        true
     }
 }
 
