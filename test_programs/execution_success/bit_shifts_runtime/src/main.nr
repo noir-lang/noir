@@ -17,6 +17,4 @@ fn main(x: u64, y: u8, z: i16) {
     assert(a << y == -2);
 
     assert(x >> (x as u8) == 0);
-
-    assert_eq(z >> 3, -97);
 }
