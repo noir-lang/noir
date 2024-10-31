@@ -249,11 +249,9 @@ impl Kind {
     /// during monomorphization.
     pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            Kind::Any => None,
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Normal => None,
-            Kind::Numeric(typ) => Some(*typ.clone()),
+            Kind::Any | Kind::Normal | Kind::Numeric(..) => None,
         }
     }
 
@@ -597,6 +595,11 @@ impl TypeAlias {
             .collect();
 
         self.typ.substitute(&substitutions)
+    }
+
+    pub fn instantiate(&self, interner: &NodeInterner) -> Type {
+        let args = vecmap(&self.generics, |_| interner.next_type_variable());
+        self.get_type(&args)
     }
 }
 
@@ -1770,7 +1773,7 @@ impl Type {
                         Err(UnificationError)
                     }
                 } else if let InfixExpr(lhs, op, rhs) = other {
-                    if let Some(inverse) = op.inverse() {
+                    if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
                         let new_type = InfixExpr(
                             Box::new(Constant(*value, kind.clone())),
@@ -2578,6 +2581,17 @@ impl BinaryTypeOperator {
 
     /// Return the operator that will "undo" this operation if applied to the rhs
     fn inverse(self) -> Option<BinaryTypeOperator> {
+        match self {
+            BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
+            BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),
+            BinaryTypeOperator::Multiplication => None,
+            BinaryTypeOperator::Division => None,
+            BinaryTypeOperator::Modulo => None,
+        }
+    }
+
+    /// Return the operator that will "undo" this operation if applied to the rhs
+    fn approx_inverse(self) -> Option<BinaryTypeOperator> {
         match self {
             BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
             BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),

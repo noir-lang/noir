@@ -34,7 +34,8 @@ impl Function {
             assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
         }
 
-        let mut context = Context::new(&self.dfg, matches!(self.runtime(), RuntimeType::Brillig));
+        let mut context =
+            Context::new(&self.dfg, matches!(self.runtime(), RuntimeType::Brillig(_)));
 
         for block in reachable_blocks.iter() {
             context.analyze_last_uses(*block);
@@ -52,7 +53,9 @@ struct Context<'f> {
     is_brillig_runtime: bool,
     array_to_last_use: HashMap<ValueId, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
-    arrays_from_load: HashSet<ValueId>,
+    // Mapping of an array that comes from a load and whether the address
+    // it was loaded from is a reference parameter.
+    arrays_from_load: HashMap<ValueId, bool>,
     inner_nested_arrays: HashMap<ValueId, InstructionId>,
 }
 
@@ -63,7 +66,7 @@ impl<'f> Context<'f> {
             is_brillig_runtime,
             array_to_last_use: HashMap::default(),
             instructions_that_can_be_made_mutable: HashSet::default(),
-            arrays_from_load: HashSet::default(),
+            arrays_from_load: HashMap::default(),
             inner_nested_arrays: HashMap::default(),
         }
     }
@@ -112,9 +115,13 @@ impl<'f> Context<'f> {
                             array_in_terminator = true;
                         }
                     });
-                    if (!self.arrays_from_load.contains(&array) || is_return_block)
-                        && !array_in_terminator
-                    {
+                    if let Some(is_from_param) = self.arrays_from_load.get(&array) {
+                        // If the array was loaded from a reference parameter, we cannot
+                        // safely mark that array mutable as it may be shared by another value.
+                        if !is_from_param && is_return_block {
+                            self.instructions_that_can_be_made_mutable.insert(*instruction_id);
+                        }
+                    } else if !array_in_terminator {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
                     }
                 }
@@ -132,10 +139,12 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
-                Instruction::Load { .. } => {
+                Instruction::Load { address } => {
                     let result = self.dfg.instruction_results(*instruction_id)[0];
                     if matches!(self.dfg.type_of_value(result), Array { .. } | Slice { .. }) {
-                        self.arrays_from_load.insert(result);
+                        let is_reference_param =
+                            self.dfg.block_parameters(block_id).contains(address);
+                        self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }
                 _ => (),
@@ -180,6 +189,7 @@ mod tests {
     use std::sync::Arc;
 
     use im::vector;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -227,7 +237,7 @@ mod tests {
         //   }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 5);
         let zero = builder.field_constant(0u128);

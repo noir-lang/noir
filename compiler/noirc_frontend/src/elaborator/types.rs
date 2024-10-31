@@ -14,8 +14,10 @@ use crate::{
     hir::{
         comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
-        def_map::ModuleDefId,
-        resolution::{errors::ResolverError, import::PathResolutionError},
+        resolution::{
+            errors::ResolverError,
+            import::{PathResolutionError, PathResolutionItem},
+        },
         type_check::{
             generics::{Generic, TraitGenerics},
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -28,7 +30,7 @@ use crate::{
         },
         function::{FuncMeta, Parameters},
         stmt::HirStatement,
-        traits::{NamedType, TraitConstraint},
+        traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, GlobalId, ImplSearchErrorKind, NodeInterner, TraitId,
@@ -46,7 +48,7 @@ pub const WILDCARD_TYPE: &str = "_";
 
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitMethod,
-    pub(super) error: Option<PathResolutionError>,
+    pub(super) errors: Vec<PathResolutionError>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -404,7 +406,7 @@ impl<'context> Elaborator<'context> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.resolve_path_or_error(path.clone()) {
-            Ok(ModuleDefId::GlobalId(id)) => {
+            Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
@@ -551,7 +553,7 @@ impl<'context> Elaborator<'context> {
                 let constraint = the_trait.as_constraint(path.span);
                 return Some(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: true },
-                    error: None,
+                    errors: Vec::new(),
                 });
             }
         }
@@ -564,15 +566,14 @@ impl<'context> Elaborator<'context> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
         let path_resolution = self.resolve_path(path.clone()).ok()?;
-        let ModuleDefId::FunctionId(func_id) = path_resolution.module_def_id else { return None };
-
+        let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.function_meta(&func_id);
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.span);
         Some(TraitPathResolution {
             method: TraitMethod { method_id: method, constraint, assumed: false },
-            error: path_resolution.error,
+            errors: path_resolution.errors,
         })
     }
 
@@ -596,11 +597,11 @@ impl<'context> Elaborator<'context> {
                     continue;
                 }
 
-                let the_trait = self.interner.get_trait(constraint.trait_id);
+                let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
                 if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some(TraitPathResolution {
                         method: TraitMethod { method_id: method, constraint, assumed: true },
-                        error: None,
+                        errors: Vec::new(),
                     });
                 }
             }
@@ -1376,15 +1377,16 @@ impl<'context> Elaborator<'context> {
 
         for constraint in &func_meta.trait_constraints {
             if *object_type == constraint.typ {
-                if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
-                    for (method_index, method) in the_trait.methods.iter().enumerate() {
-                        if method.name.0.contents == method_name {
-                            let trait_method =
-                                TraitMethodId { trait_id: constraint.trait_id, method_index };
-
-                            let generics = constraint.trait_generics.clone();
-                            return Some(HirMethodReference::TraitMethodId(trait_method, generics));
-                        }
+                if let Some(the_trait) =
+                    self.interner.try_get_trait(constraint.trait_bound.trait_id)
+                {
+                    if let Some(method) = self.lookup_method_in_trait(
+                        the_trait,
+                        method_name,
+                        &constraint.trait_bound,
+                        the_trait.id,
+                    ) {
+                        return Some(method);
                     }
                 }
             }
@@ -1395,6 +1397,44 @@ impl<'context> Elaborator<'context> {
             object_type: object_type.clone(),
             span,
         });
+
+        None
+    }
+
+    fn lookup_method_in_trait(
+        &self,
+        the_trait: &Trait,
+        method_name: &str,
+        trait_bound: &ResolvedTraitBound,
+        starting_trait_id: TraitId,
+    ) -> Option<HirMethodReference> {
+        if let Some(trait_method) = the_trait.find_method(method_name) {
+            return Some(HirMethodReference::TraitMethodId(
+                trait_method,
+                trait_bound.trait_generics.clone(),
+            ));
+        }
+
+        // Search in the parent traits, if any
+        for parent_trait_bound in &the_trait.trait_bounds {
+            if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
+                // Avoid looping forever in case there are cycles
+                if the_trait.id == starting_trait_id {
+                    continue;
+                }
+
+                let parent_trait_bound =
+                    self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
+                if let Some(method) = self.lookup_method_in_trait(
+                    the_trait,
+                    method_name,
+                    &parent_trait_bound,
+                    starting_trait_id,
+                ) {
+                    return Some(method);
+                }
+            }
+        }
 
         None
     }
@@ -1787,68 +1827,86 @@ impl<'context> Elaborator<'context> {
         context.trait_constraints.push((constraint, expr_id));
     }
 
-    pub fn check_unsupported_turbofish_usage(&mut self, path: &Path, exclude_last_segment: bool) {
-        for (index, segment) in path.segments.iter().enumerate() {
-            if exclude_last_segment && index == path.segments.len() - 1 {
-                continue;
-            }
-
-            if segment.generics.is_some() {
-                let span = segment.turbofish_span();
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
-            }
-        }
-    }
-
     pub fn bind_generics_from_trait_constraint(
-        &mut self,
+        &self,
         constraint: &TraitConstraint,
         assumed: bool,
         bindings: &mut TypeBindings,
     ) {
-        let the_trait = self.interner.get_trait(constraint.trait_id);
-        assert_eq!(the_trait.generics.len(), constraint.trait_generics.ordered.len());
-
-        for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
-            // Avoid binding t = t
-            if !arg.occurs(param.type_var.id()) {
-                bindings.insert(
-                    param.type_var.id(),
-                    (param.type_var.clone(), param.kind(), arg.clone()),
-                );
-            }
-        }
-
-        let mut associated_types = the_trait.associated_types.clone();
-        assert_eq!(associated_types.len(), constraint.trait_generics.named.len());
-
-        for arg in &constraint.trait_generics.named {
-            let i = associated_types
-                .iter()
-                .position(|typ| *typ.name == arg.name.0.contents)
-                .unwrap_or_else(|| {
-                    unreachable!("Expected to find associated type named {}", arg.name)
-                });
-
-            let param = associated_types.swap_remove(i);
-
-            // Avoid binding t = t
-            if !arg.typ.occurs(param.type_var.id()) {
-                bindings.insert(
-                    param.type_var.id(),
-                    (param.type_var.clone(), param.kind(), arg.typ.clone()),
-                );
-            }
-        }
+        self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
 
         // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
         // Otherwise `self` will be replaced with a fresh type variable, which will require the user
         // to specify a redundant type annotation.
         if assumed {
+            let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
             let self_type = the_trait.self_type_typevar.clone();
             let kind = the_trait.self_type_typevar.kind();
             bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
         }
+    }
+
+    pub fn bind_generics_from_trait_bound(
+        &self,
+        trait_bound: &ResolvedTraitBound,
+        bindings: &mut TypeBindings,
+    ) {
+        let the_trait = self.interner.get_trait(trait_bound.trait_id);
+
+        bind_ordered_generics(&the_trait.generics, &trait_bound.trait_generics.ordered, bindings);
+
+        let associated_types = the_trait.associated_types.clone();
+        bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
+    }
+
+    pub fn instantiate_parent_trait_bound(
+        &self,
+        trait_bound: &ResolvedTraitBound,
+        parent_trait_bound: &ResolvedTraitBound,
+    ) -> ResolvedTraitBound {
+        let mut bindings = TypeBindings::new();
+        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+        ResolvedTraitBound {
+            trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
+            ..*parent_trait_bound
+        }
+    }
+}
+
+pub(crate) fn bind_ordered_generics(
+    params: &[ResolvedGeneric],
+    args: &[Type],
+    bindings: &mut TypeBindings,
+) {
+    assert_eq!(params.len(), args.len());
+
+    for (param, arg) in params.iter().zip(args) {
+        bind_generic(param, arg, bindings);
+    }
+}
+
+pub(crate) fn bind_named_generics(
+    mut params: Vec<ResolvedGeneric>,
+    args: &[NamedType],
+    bindings: &mut TypeBindings,
+) {
+    assert_eq!(params.len(), args.len());
+
+    for arg in args {
+        let i = params
+            .iter()
+            .position(|typ| *typ.name == arg.name.0.contents)
+            .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
+
+        let param = params.swap_remove(i);
+        bind_generic(&param, &arg.typ, bindings);
+    }
+}
+
+fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
+    // Avoid binding t = t
+    if !arg.occurs(param.type_var.id()) {
+        bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
     }
 }
 

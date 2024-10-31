@@ -60,7 +60,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             .iter()
             .enumerate()
             .map(|(index, opcode)| Sample {
-                opcode: AcirOrBrilligOpcode::Acir(opcode.clone()),
+                opcode: Some(AcirOrBrilligOpcode::Acir(opcode.clone())),
                 call_stack: vec![OpcodeLocation::Acir(index)],
                 count: 1,
                 brillig_function_id: None,
@@ -97,7 +97,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                 .into_iter()
                 .enumerate()
                 .map(|(brillig_index, opcode)| Sample {
-                    opcode: AcirOrBrilligOpcode::Brillig(opcode),
+                    opcode: Some(AcirOrBrilligOpcode::Brillig(opcode)),
                     call_stack: vec![OpcodeLocation::Brillig {
                         acir_index: acir_opcode_index,
                         brillig_index,

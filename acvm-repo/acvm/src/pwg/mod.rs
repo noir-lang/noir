@@ -168,6 +168,14 @@ impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
     }
 }
 
+pub type ProfilingSamples = Vec<ProfilingSample>;
+
+#[derive(Default)]
+pub struct ProfilingSample {
+    pub call_stack: Vec<OpcodeLocation>,
+    pub brillig_function_id: Option<BrilligFunctionId>,
+}
+
 pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
 
@@ -198,6 +206,10 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     unconstrained_functions: &'a [BrilligBytecode<F>],
 
     assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
+
+    profiling_active: bool,
+
+    profiling_samples: ProfilingSamples,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
@@ -222,7 +234,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             acir_call_results: Vec::default(),
             unconstrained_functions,
             assertion_payloads,
+            profiling_active: false,
+            profiling_samples: Vec::new(),
         }
+    }
+
+    // Enable profiling
+    pub fn with_profiler(&mut self, profiling_active: bool) {
+        self.profiling_active = profiling_active;
     }
 
     /// Returns a reference to the current state of the ACVM's [`WitnessMap`].
@@ -244,6 +263,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// Returns the index of the current opcode to be executed.
     pub fn instruction_pointer(&self) -> usize {
         self.instruction_pointer
+    }
+
+    pub fn take_profiling_samples(&mut self) -> ProfilingSamples {
+        std::mem::take(&mut self.profiling_samples)
     }
 
     /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
@@ -503,6 +526,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.backend,
                 self.instruction_pointer,
                 *id,
+                self.profiling_active,
             )?,
         };
 
@@ -519,7 +543,28 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             }
             BrilligSolverStatus::Finished => {
                 // Write execution outputs
-                solver.finalize(&mut self.witness_map, outputs)?;
+                if self.profiling_active {
+                    let profiling_info =
+                        solver.finalize_with_profiling(&mut self.witness_map, outputs)?;
+                    profiling_info.into_iter().for_each(|sample| {
+                        let mapped =
+                            sample.call_stack.into_iter().map(|loc| OpcodeLocation::Brillig {
+                                acir_index: self.instruction_pointer,
+                                brillig_index: loc,
+                            });
+                        self.profiling_samples.push(ProfilingSample {
+                            call_stack: std::iter::once(OpcodeLocation::Acir(
+                                self.instruction_pointer,
+                            ))
+                            .chain(mapped)
+                            .collect(),
+                            brillig_function_id: Some(*id),
+                        });
+                    });
+                } else {
+                    solver.finalize(&mut self.witness_map, outputs)?;
+                }
+
                 Ok(None)
             }
         }
@@ -575,6 +620,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.backend,
             self.instruction_pointer,
             *id,
+            self.profiling_active,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),

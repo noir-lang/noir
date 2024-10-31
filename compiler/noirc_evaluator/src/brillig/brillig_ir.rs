@@ -36,6 +36,8 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
+use super::ProcedureId;
+
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
@@ -43,19 +45,17 @@ pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
+    /// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
+    StackPointer = 0,
     /// This register stores the free memory pointer. Allocations must be done after this pointer.
-    FreeMemoryPointer = 0,
-    /// This register stores the previous stack pointer. The registers of the caller are stored here.
-    PreviousStackPointer = 1,
+    FreeMemoryPointer = 1,
     /// This register stores a 1_usize constant.
     UsizeOne = 2,
 }
 
 impl ReservedRegisters {
-    /// The number of reserved registers.
-    ///
-    /// This is used to offset the general registers
-    /// which should not overwrite the special register
+    /// The number of reserved registers. These are allocated in the first memory positions.
+    /// The stack should start after the reserved registers.
     const NUM_RESERVED_REGISTERS: usize = 3;
 
     /// Returns the length of the reserved registers
@@ -63,19 +63,16 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
-    /// Returns the free memory pointer register. This will get used to allocate memory in runtime.
+    pub(crate) fn stack_pointer() -> MemoryAddress {
+        MemoryAddress::direct(ReservedRegisters::StackPointer as usize)
+    }
+
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::FreeMemoryPointer as usize)
+        MemoryAddress::direct(ReservedRegisters::FreeMemoryPointer as usize)
     }
 
-    /// Returns the previous stack pointer register. This will be used to restore the registers after a fn call.
-    pub(crate) fn previous_stack_pointer() -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::PreviousStackPointer as usize)
-    }
-
-    /// Returns the usize one register. This will be used to perform arithmetic operations.
     pub(crate) fn usize_one() -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::UsizeOne as usize)
+        MemoryAddress::direct(ReservedRegisters::UsizeOne as usize)
     }
 }
 
@@ -116,9 +113,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
-    pub(crate) fn new_for_procedure(enable_debug_trace: bool) -> BrilligContext<F, ScratchSpace> {
+    pub(crate) fn new_for_procedure(
+        enable_debug_trace: bool,
+        procedure_id: ProcedureId,
+    ) -> BrilligContext<F, ScratchSpace> {
+        let mut obj = BrilligArtifact::default();
+        obj.procedure = Some(procedure_id);
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj,
             registers: ScratchSpace::new(),
             context_label: Label::entrypoint(),
             current_section: 0,
@@ -151,8 +153,8 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BitSize, ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, IntegerBitSize,
-        MemoryAddress, ValueOrArray,
+        BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize, MemoryAddress,
+        ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
@@ -177,20 +179,6 @@ pub(crate) mod tests {
             _message: &[u8],
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
-        }
-        fn pedersen_commitment(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((2_u128.into(), 3_u128.into()))
-        }
-        fn pedersen_hash(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<FieldElement, BlackBoxResolutionError> {
-            Ok(6_u128.into())
         }
         fn multi_scalar_mul(
             &self,
@@ -252,7 +240,8 @@ pub(crate) mod tests {
         calldata: Vec<FieldElement>,
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
-        let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver);
+        let profiling_active = false;
+        let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver, profiling_active);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -279,10 +268,10 @@ pub(crate) mod tests {
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
         context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
-        let r_input_size = MemoryAddress::from(ReservedRegisters::len());
-        let r_array_ptr = MemoryAddress::from(ReservedRegisters::len() + 1);
-        let r_output_size = MemoryAddress::from(ReservedRegisters::len() + 2);
-        let r_equality = MemoryAddress::from(ReservedRegisters::len() + 3);
+        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+        let r_array_ptr = MemoryAddress::direct(ReservedRegisters::len() + 1);
+        let r_output_size = MemoryAddress::direct(ReservedRegisters::len() + 2);
+        let r_equality = MemoryAddress::direct(ReservedRegisters::len() + 3);
         context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
         // copy our stack frame to r_array_ptr
         context.mov_instruction(r_array_ptr, r_stack);
@@ -307,8 +296,18 @@ pub(crate) mod tests {
         // We push a JumpIf and Trap opcode directly as the constrain instruction
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap { revert_data: HeapArray::default() });
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
+        context.push_opcode(BrilligOpcode::Const {
+            destination: MemoryAddress::direct(0),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(0u64),
+        });
+        context.push_opcode(BrilligOpcode::Trap {
+            revert_data: HeapVector {
+                pointer: MemoryAddress::direct(0),
+                size: MemoryAddress::direct(0),
+            },
+        });
 
         context.stop_instruction();
 
@@ -320,6 +319,7 @@ pub(crate) mod tests {
             &bytecode,
             vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
             &DummyBlackBoxSolver,
+            false,
         );
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });

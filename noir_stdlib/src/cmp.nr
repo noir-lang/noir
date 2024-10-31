@@ -18,7 +18,14 @@ comptime fn derive_eq(s: StructDefinition) -> Quoted {
             fields
         }
     };
-    crate::meta::make_trait_impl(s, quote { Eq }, signature, for_each_field, quote { & }, body)
+    crate::meta::make_trait_impl(
+        s,
+        quote { Eq },
+        signature,
+        for_each_field,
+        quote { & },
+        body,
+    )
 }
 // docs:end:derive_eq
 
@@ -86,7 +93,10 @@ impl Eq for bool {
     }
 }
 
-impl<T, let N: u32> Eq for [T; N] where T: Eq {
+impl<T, let N: u32> Eq for [T; N]
+where
+    T: Eq,
+{
     fn eq(self, other: [T; N]) -> bool {
         let mut result = true;
         for i in 0..self.len() {
@@ -96,7 +106,10 @@ impl<T, let N: u32> Eq for [T; N] where T: Eq {
     }
 }
 
-impl<T> Eq for [T] where T: Eq {
+impl<T> Eq for [T]
+where
+    T: Eq,
+{
     fn eq(self, other: [T]) -> bool {
         let mut result = self.len() == other.len();
         for i in 0..self.len() {
@@ -114,25 +127,47 @@ impl<let N: u32> Eq for str<N> {
     }
 }
 
-impl<A, B> Eq for (A, B) where A: Eq, B: Eq {
+impl<A, B> Eq for (A, B)
+where
+    A: Eq,
+    B: Eq,
+{
     fn eq(self, other: (A, B)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1)
     }
 }
 
-impl<A, B, C> Eq for (A, B, C) where A: Eq, B: Eq, C: Eq {
+impl<A, B, C> Eq for (A, B, C)
+where
+    A: Eq,
+    B: Eq,
+    C: Eq,
+{
     fn eq(self, other: (A, B, C)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2)
     }
 }
 
-impl<A, B, C, D> Eq for (A, B, C, D) where A: Eq, B: Eq, C: Eq, D: Eq {
+impl<A, B, C, D> Eq for (A, B, C, D)
+where
+    A: Eq,
+    B: Eq,
+    C: Eq,
+    D: Eq,
+{
     fn eq(self, other: (A, B, C, D)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3)
     }
 }
 
-impl<A, B, C, D, E> Eq for (A, B, C, D, E) where A: Eq, B: Eq, C: Eq, D: Eq, E: Eq {
+impl<A, B, C, D, E> Eq for (A, B, C, D, E)
+where
+    A: Eq,
+    B: Eq,
+    C: Eq,
+    D: Eq,
+    E: Eq,
+{
     fn eq(self, other: (A, B, C, D, E)) -> bool {
         self.0.eq(other.0)
             & self.1.eq(other.1)
@@ -315,7 +350,10 @@ impl Ord for bool {
     }
 }
 
-impl<T, let N: u32> Ord for [T; N] where T: Ord {
+impl<T, let N: u32> Ord for [T; N]
+where
+    T: Ord,
+{
     // The first non-equal element of both arrays determines
     // the ordering for the whole array.
     fn cmp(self, other: [T; N]) -> Ordering {
@@ -335,7 +373,10 @@ impl<T, let N: u32> Ord for [T; N] where T: Ord {
     }
 }
 
-impl<T> Ord for [T] where T: Ord {
+impl<T> Ord for [T]
+where
+    T: Ord,
+{
     // The first non-equal element of both arrays determines
     // the ordering for the whole array.
     fn cmp(self, other: [T]) -> Ordering {
@@ -355,7 +396,11 @@ impl<T> Ord for [T] where T: Ord {
     }
 }
 
-impl<A, B> Ord for (A, B) where A: Ord, B: Ord {
+impl<A, B> Ord for (A, B)
+where
+    A: Ord,
+    B: Ord,
+{
     fn cmp(self, other: (A, B)) -> Ordering {
         let result = self.0.cmp(other.0);
 
@@ -367,7 +412,12 @@ impl<A, B> Ord for (A, B) where A: Ord, B: Ord {
     }
 }
 
-impl<A, B, C> Ord for (A, B, C) where A: Ord, B: Ord, C: Ord {
+impl<A, B, C> Ord for (A, B, C)
+where
+    A: Ord,
+    B: Ord,
+    C: Ord,
+{
     fn cmp(self, other: (A, B, C)) -> Ordering {
         let mut result = self.0.cmp(other.0);
 
@@ -383,7 +433,13 @@ impl<A, B, C> Ord for (A, B, C) where A: Ord, B: Ord, C: Ord {
     }
 }
 
-impl<A, B, C, D> Ord for (A, B, C, D) where A: Ord, B: Ord, C: Ord, D: Ord {
+impl<A, B, C, D> Ord for (A, B, C, D)
+where
+    A: Ord,
+    B: Ord,
+    C: Ord,
+    D: Ord,
+{
     fn cmp(self, other: (A, B, C, D)) -> Ordering {
         let mut result = self.0.cmp(other.0);
 
@@ -403,7 +459,14 @@ impl<A, B, C, D> Ord for (A, B, C, D) where A: Ord, B: Ord, C: Ord, D: Ord {
     }
 }
 
-impl<A, B, C, D, E> Ord for (A, B, C, D, E) where A: Ord, B: Ord, C: Ord, D: Ord, E: Ord {
+impl<A, B, C, D, E> Ord for (A, B, C, D, E)
+where
+    A: Ord,
+    B: Ord,
+    C: Ord,
+    D: Ord,
+    E: Ord,
+{
     fn cmp(self, other: (A, B, C, D, E)) -> Ordering {
         let mut result = self.0.cmp(other.0);
 
@@ -439,8 +502,15 @@ impl<A, B, C, D, E> Ord for (A, B, C, D, E) where A: Ord, B: Ord, C: Ord, D: Ord
 // assert_eq(cmp::max(1, 2), 2);
 // assert_eq(cmp::max(2, 2), 2);
 // ```
-pub fn max<T>(v1: T, v2: T) -> T where T: Ord {
-    if v1 > v2 { v1 } else { v2 }
+pub fn max<T>(v1: T, v2: T) -> T
+where
+    T: Ord,
+{
+    if v1 > v2 {
+        v1
+    } else {
+        v2
+    }
 }
 
 // Compares and returns the minimum of two values.
@@ -455,12 +525,19 @@ pub fn max<T>(v1: T, v2: T) -> T where T: Ord {
 // assert_eq(cmp::min(1, 2), 1);
 // assert_eq(cmp::min(2, 2), 2);
 // ```
-pub fn min<T>(v1: T, v2: T) -> T where T: Ord {
-    if v1 > v2 { v2 } else { v1 }
+pub fn min<T>(v1: T, v2: T) -> T
+where
+    T: Ord,
+{
+    if v1 > v2 {
+        v2
+    } else {
+        v1
+    }
 }
 
 mod cmp_tests {
-    use crate::cmp::{min, max};
+    use crate::cmp::{max, min};
 
     #[test]
     fn sanity_check_min() {

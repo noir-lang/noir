@@ -110,7 +110,6 @@ impl<'context> Elaborator<'context> {
             definition,
             &mut Vec::new(),
             warn_if_unused,
-            global_id,
         );
 
         let attributes = let_stmt.attributes;
@@ -294,7 +293,8 @@ impl<'context> Elaborator<'context> {
                 let mut mutable = true;
                 let span = ident.span();
                 let path = Path::from_single(ident.0.contents, span);
-                let (ident, scope_index) = self.get_ident_from_path(path);
+                let ((ident, scope_index), _) = self.get_ident_from_path(path);
+
                 self.resolve_local_variable(ident.clone(), scope_index);
 
                 let typ = if ident.id == DefinitionId::dummy_id() {

@@ -95,8 +95,13 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new unconstrained function.
-    pub(crate) fn new_brillig_function(&mut self, name: String, function_id: FunctionId) {
-        self.new_function_with_type(name, function_id, RuntimeType::Brillig);
+    pub(crate) fn new_brillig_function(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        inline_type: InlineType,
+    ) {
+        self.new_function_with_type(name, function_id, RuntimeType::Brillig(inline_type));
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
@@ -437,13 +442,7 @@ impl FunctionBuilder {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
-            Type::Reference(element) => {
-                if element.contains_an_array() {
-                    let reference = value;
-                    let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, increment);
-                }
-            }
+            Type::Reference(_) => (),
             Type::Array(..) | Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.

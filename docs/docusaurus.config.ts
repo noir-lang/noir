@@ -15,7 +15,7 @@ export default {
   url: 'https://noir-lang.org',
   baseUrl: '/',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'throw',
+  onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -26,7 +26,7 @@ export default {
       '@docusaurus/preset-classic',
       {
         docs: {
-          path: 'processed-docs',
+          path: process.env.ENV === 'dev' ? 'docs' : 'processed-docs',
           sidebarPath: './sidebars.js',
           routeBasePath: '/docs',
           remarkPlugins: [math],
@@ -48,7 +48,7 @@ export default {
     ],
   ],
   customFields: {
-    MATOMO_ENV: process.env.MATOMO_ENV,
+    MATOMO_ENV: process.env.ENV,
   },
   themeConfig: {
     colorMode: {
@@ -179,37 +179,6 @@ export default {
         outputFileStrategy: 'members',
         memberPageTitle: '{name}',
         membersWithOwnFile: ['Interface', 'Class', 'TypeAlias', 'Function'],
-      },
-    ],
-    [
-      'docusaurus-plugin-typedoc',
-      {
-        id: 'noir_js_backend_barretenberg',
-        entryPoints: ['../tooling/noir_js_backend_barretenberg/src/index.ts'],
-        tsconfig: '../tooling/noir_js_backend_barretenberg/tsconfig.json',
-        entryPointStrategy: 'resolve',
-        out: 'processed-docs/reference/NoirJS/backend_barretenberg',
-        plugin: ['typedoc-plugin-markdown'],
-        name: 'backend_barretenberg',
-        disableSources: true,
-        excludePrivate: true,
-        skipErrorChecking: true,
-        sidebar: {
-          filteredIds: ['reference/NoirJS/backend_barretenberg/index'],
-        },
-        readme: 'none',
-        hidePageHeader: true,
-        hideBreadcrumbs: true,
-        hideInPageTOC: true,
-        useCodeBlocks: true,
-        typeDeclarationFormat: 'table',
-        propertiesFormat: 'table',
-        parametersFormat: 'table',
-        enumMembersFormat: 'table',
-        indexFormat: 'table',
-        outputFileStrategy: 'members',
-        memberPageTitle: '{name}',
-        membersWithOwnFile: ['Interface', 'Class', 'TypeAlias'],
       },
     ],
     [

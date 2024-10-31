@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "preprocess": "yarn workspace @noir-lang/acvm_js build && ./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
-    "start": "yarn preprocess && MATOMO_ENV=dev docusaurus start",
+    "dev": "yarn preprocess && ENV=dev docusaurus start",
     "build": "yarn preprocess && docusaurus build",
     "clean": "rm -rf ./processed-docs ./processed-docs ./build",
     "version::stables": "ts-node ./scripts/setStable.ts",
@@ -13,8 +13,8 @@
     "version": "yarn version::stables && ./scripts/cut_version.sh"
   },
   "dependencies": {
-    "@docusaurus/core": "^3.0.1",
-    "@docusaurus/preset-classic": "^3.0.1",
+    "@docusaurus/core": "^3.5.2",
+    "@docusaurus/preset-classic": "^3.5.2",
     "@easyops-cn/docusaurus-search-local": "^0.35.0",
     "@mdx-js/react": "^3.0.0",
     "@noir-lang/noir_js": "workspace:*",
@@ -31,9 +31,9 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^3.0.1",
-    "@docusaurus/tsconfig": "^3.0.1",
-    "@docusaurus/types": "^3.0.1",
+    "@docusaurus/module-type-aliases": "^3.5.2",
+    "@docusaurus/tsconfig": "^3.5.2",
+    "@docusaurus/types": "^3.5.2",
     "@types/prettier": "^3",
     "docusaurus-plugin-typedoc": "1.0.0-next.18",
     "eslint-plugin-prettier": "^5.1.3",

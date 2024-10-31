@@ -24,7 +24,10 @@ impl MyTrait for MyType {
     }
 }
 
-fn foo<T>() -> T where T: MyTrait {
+fn foo<T>() -> T
+where
+    T: MyTrait,
+{
     MyTrait::new()
 }
 

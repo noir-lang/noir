@@ -72,6 +72,7 @@ pub(crate) enum Intrinsic {
     AsWitness,
     IsUnconstrained,
     DerivePedersenGenerators,
+    FieldLessThan,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -100,6 +101,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
+            Intrinsic::FieldLessThan => write!(f, "field_less_than"),
         }
     }
 }
@@ -118,20 +120,21 @@ impl Intrinsic {
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
+            // These imply a check that the slice is non-empty and should fail otherwise.
+            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
+
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
-            | Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
             | Intrinsic::SliceInsert
-            | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
             | Intrinsic::AsField
             | Intrinsic::IsUnconstrained
-            | Intrinsic::DerivePedersenGenerators => false,
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::FieldLessThan => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(
@@ -169,6 +172,8 @@ impl Intrinsic {
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
+            "field_less_than" => Some(Intrinsic::FieldLessThan),
+
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }

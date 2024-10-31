@@ -21,7 +21,7 @@ fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
 
         *y = *x + *y;
         *x = old_y;
-        
+
         old_x
     }
 }
