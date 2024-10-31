@@ -67,9 +67,8 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 1 },
         ],
-        assert_messages: Default::default(),
-        locations: Default::default(),
         name: "directive_invert".to_string(),
+        ..Default::default()
     }
 }
 
@@ -132,8 +131,7 @@ pub(crate) fn directive_quotient<F: AcirField>() -> GeneratedBrillig<F> {
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 2 },
         ],
-        assert_messages: Default::default(),
-        locations: Default::default(),
         name: "directive_integer_quotient".to_string(),
+        ..Default::default()
     }
 }

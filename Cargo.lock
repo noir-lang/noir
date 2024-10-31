@@ -2797,6 +2797,7 @@ dependencies = [
  "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
+ "noirc_evaluator",
  "serde",
  "serde_json",
  "tempfile",

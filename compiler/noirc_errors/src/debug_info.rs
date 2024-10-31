@@ -47,6 +47,9 @@ pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
 pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
 pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct ProcedureDebugId(pub u32);
+
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct ProgramDebugInfo {
     pub debug_infos: Vec<DebugInfo>,
@@ -103,6 +106,9 @@ pub struct DebugInfo {
     pub variables: DebugVariables,
     pub functions: DebugFunctions,
     pub types: DebugTypes,
+    /// This a map per brillig function representing the range of opcodes where a procedure is activated.
+    pub brillig_procedure_locs:
+        BTreeMap<BrilligFunctionId, BTreeMap<ProcedureDebugId, (usize, usize)>>,
 }
 
 impl DebugInfo {
@@ -115,8 +121,12 @@ impl DebugInfo {
         variables: DebugVariables,
         functions: DebugFunctions,
         types: DebugTypes,
+        brillig_procedure_locs: BTreeMap<
+            BrilligFunctionId,
+            BTreeMap<ProcedureDebugId, (usize, usize)>,
+        >,
     ) -> Self {
-        Self { locations, brillig_locations, variables, functions, types }
+        Self { locations, brillig_locations, variables, functions, types, brillig_procedure_locs }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.

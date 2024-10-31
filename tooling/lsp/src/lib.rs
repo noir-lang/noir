@@ -42,6 +42,7 @@ use noirc_frontend::{
     },
     node_interner::NodeInterner,
     parser::ParserError,
+    usage_tracker::UsageTracker,
     ParsedModule,
 };
 use rayon::prelude::*;
@@ -113,6 +114,7 @@ struct PackageCacheData {
     crate_graph: CrateGraph,
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
+    usage_tracker: UsageTracker,
 }
 
 impl LspState {

@@ -1003,6 +1003,15 @@ impl<'a> Context<'a> {
                 }
             };
             entry_point.link_with(artifact);
+            // Insert the range of opcode locations occupied by a procedure
+            if let Some(procedure_id) = artifact.procedure {
+                let num_opcodes = entry_point.byte_code.len();
+                let previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
+                // We subtract one as to keep the range inclusive on both ends
+                entry_point
+                    .procedure_locations
+                    .insert(procedure_id, (previous_num_opcodes, num_opcodes - 1));
+            }
         }
         // Generate the final bytecode
         Ok(entry_point.finish())

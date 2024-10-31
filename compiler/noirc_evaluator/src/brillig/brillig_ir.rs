@@ -36,6 +36,8 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
+use super::ProcedureId;
+
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
@@ -111,9 +113,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
-    pub(crate) fn new_for_procedure(enable_debug_trace: bool) -> BrilligContext<F, ScratchSpace> {
+    pub(crate) fn new_for_procedure(
+        enable_debug_trace: bool,
+        procedure_id: ProcedureId,
+    ) -> BrilligContext<F, ScratchSpace> {
+        let mut obj = BrilligArtifact::default();
+        obj.procedure = Some(procedure_id);
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj,
             registers: ScratchSpace::new(),
             context_label: Label::entrypoint(),
             current_section: 0,
