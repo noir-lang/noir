@@ -17,7 +17,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    Kind, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeBindings,
+    Kind, Shared, StructType, Type, TypeAlias, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -413,19 +413,20 @@ impl<'context> Elaborator<'context> {
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
     ) -> Option<Vec<Type>> {
-        let direct_generics = self.interner.function_meta(func_id).direct_generics.clone();
+        let direct_generic_kinds =
+            vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| generic.kind());
 
         unresolved_turbofish.map(|unresolved_turbofish| {
-            if unresolved_turbofish.len() != direct_generics.len() {
+            if unresolved_turbofish.len() != direct_generic_kinds.len() {
                 let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-                    expected_count: direct_generics.len(),
+                    expected_count: direct_generic_kinds.len(),
                     actual_count: unresolved_turbofish.len(),
                     span,
                 };
                 self.push_err(type_check_err);
             }
 
-            self.resolve_turbofish_generics(&direct_generics, unresolved_turbofish)
+            self.resolve_turbofish_generics(direct_generic_kinds, unresolved_turbofish)
         })
     }
 
@@ -436,46 +437,33 @@ impl<'context> Elaborator<'context> {
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
     ) -> Vec<Type> {
-        let Some(turbofish_generics) = unresolved_turbofish else {
-            return generics;
-        };
-
-        if turbofish_generics.len() != generics.len() {
-            self.push_err(TypeCheckError::GenericCountMismatch {
-                item: format!("struct {}", struct_type.name),
-                expected: generics.len(),
-                found: turbofish_generics.len(),
-                span,
-            });
-            return generics;
-        }
-
-        self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics)
+        let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
+        self.resolve_item_turbofish_generics(
+            "struct",
+            &struct_type.name.0.contents,
+            kinds,
+            generics,
+            unresolved_turbofish,
+            span,
+        )
     }
 
     pub(super) fn resolve_trait_turbofish_generics(
         &mut self,
         trait_name: &str,
-        trait_generics: &[ResolvedGeneric],
+        trait_generic_kinds: Vec<Kind>,
         generics: Vec<Type>,
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
     ) -> Vec<Type> {
-        let Some(turbofish_generics) = unresolved_turbofish else {
-            return generics;
-        };
-
-        if turbofish_generics.len() != generics.len() {
-            self.push_err(TypeCheckError::GenericCountMismatch {
-                item: format!("trait {}", trait_name),
-                expected: generics.len(),
-                found: turbofish_generics.len(),
-                span,
-            });
-            return generics;
-        }
-
-        self.resolve_turbofish_generics(trait_generics, turbofish_generics)
+        self.resolve_item_turbofish_generics(
+            "trait",
+            trait_name,
+            trait_generic_kinds,
+            generics,
+            unresolved_turbofish,
+            span,
+        )
     }
 
     pub(super) fn resolve_alias_turbofish_generics(
@@ -485,13 +473,33 @@ impl<'context> Elaborator<'context> {
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
     ) -> Vec<Type> {
+        let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
+        self.resolve_item_turbofish_generics(
+            "alias",
+            &type_alias.name.0.contents,
+            kinds,
+            generics,
+            unresolved_turbofish,
+            span,
+        )
+    }
+
+    pub(super) fn resolve_item_turbofish_generics(
+        &mut self,
+        item_kind: &'static str,
+        item_name: &str,
+        item_generic_kinds: Vec<Kind>,
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
         let Some(turbofish_generics) = unresolved_turbofish else {
             return generics;
         };
 
         if turbofish_generics.len() != generics.len() {
             self.push_err(TypeCheckError::GenericCountMismatch {
-                item: format!("alias {}", type_alias.name),
+                item: format!("{item_kind} {item_name}"),
                 expected: generics.len(),
                 found: turbofish_generics.len(),
                 span,
@@ -499,17 +507,17 @@ impl<'context> Elaborator<'context> {
             return generics;
         }
 
-        self.resolve_turbofish_generics(&type_alias.generics, turbofish_generics)
+        self.resolve_turbofish_generics(item_generic_kinds, turbofish_generics)
     }
 
     pub(super) fn resolve_turbofish_generics(
         &mut self,
-        generics: &[ResolvedGeneric],
+        kinds: Vec<Kind>,
         turbofish_generics: Vec<UnresolvedType>,
     ) -> Vec<Type> {
-        let generics_with_types = generics.iter().zip(turbofish_generics);
-        vecmap(generics_with_types, |(generic, unresolved_type)| {
-            self.resolve_type_inner(unresolved_type, &generic.kind())
+        let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
+        vecmap(kinds_with_types, |(kind, unresolved_type)| {
+            self.resolve_type_inner(unresolved_type, &kind)
         })
     }
 
@@ -611,10 +619,11 @@ impl<'context> Elaborator<'context> {
                 let trait_generics = vecmap(&trait_.generics, |generic| {
                     self.interner.next_type_variable_with_kind(generic.kind())
                 });
+                let kinds = vecmap(&trait_.generics, |generic| generic.kind());
 
                 self.resolve_trait_turbofish_generics(
                     &trait_.name.to_string(),
-                    &trait_.generics.clone(),
+                    kinds,
                     trait_generics,
                     Some(generics.generics),
                     generics.span,
