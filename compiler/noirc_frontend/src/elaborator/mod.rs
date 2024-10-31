@@ -5,7 +5,8 @@ use std::{
 
 use crate::{
     ast::ItemVisibility, hir::resolution::import::PathResolutionItem,
-    hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+    hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker, StructField, StructType,
+    TypeBindings,
 };
 use crate::{
     ast::{
@@ -84,8 +85,8 @@ pub struct Elaborator<'context> {
     pub(crate) errors: Vec<(CompilationError, FileId)>,
 
     pub(crate) interner: &'context mut NodeInterner,
-
     pub(crate) def_maps: &'context mut DefMaps,
+    pub(crate) usage_tracker: &'context mut UsageTracker,
 
     pub(crate) file: FileId,
 
@@ -183,6 +184,7 @@ impl<'context> Elaborator<'context> {
     pub fn new(
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
+        usage_tracker: &'context mut UsageTracker,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
@@ -192,6 +194,7 @@ impl<'context> Elaborator<'context> {
             errors: Vec::new(),
             interner,
             def_maps,
+            usage_tracker,
             file: FileId::dummy(),
             in_unsafe_block: false,
             nested_loops: 0,
@@ -221,6 +224,7 @@ impl<'context> Elaborator<'context> {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
+            &mut context.usage_tracker,
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),

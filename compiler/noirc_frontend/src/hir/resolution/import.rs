@@ -4,8 +4,11 @@ use thiserror::Error;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 
-use crate::node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{
+    FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
+};
 use crate::usage_tracker::UsageTracker;
+use crate::Type;
 
 use std::collections::BTreeMap;
 
@@ -100,6 +103,7 @@ pub struct Turbofish {
 enum IntermediatePathResolutionItem {
     Module(ModuleId),
     Struct(StructId, Option<Turbofish>),
+    TypeAlias(TypeAliasId, Option<Turbofish>),
     Trait(TraitId, Option<Turbofish>),
 }
 
@@ -162,6 +166,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
 pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
+    interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
@@ -176,6 +181,7 @@ pub fn resolve_import(
         import_directive,
         crate_id,
         crate_id,
+        interner,
         def_maps,
         usage_tracker,
         path_references,
@@ -215,6 +221,7 @@ fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     crate_id: CrateId,
     importing_crate: CrateId,
+    interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
@@ -228,6 +235,7 @@ fn resolve_path_to_ns(
                 crate_id,
                 importing_crate,
                 import_path,
+                interner,
                 def_maps,
                 usage_tracker,
                 path_references,
@@ -242,6 +250,7 @@ fn resolve_path_to_ns(
                     importing_crate,
                     import_path,
                     import_directive.module_id,
+                    interner,
                     def_maps,
                     true, // plain or crate
                     usage_tracker,
@@ -260,6 +269,7 @@ fn resolve_path_to_ns(
                     crate_id,
                     // def_map,
                     import_directive,
+                    interner,
                     def_maps,
                     usage_tracker,
                     path_references,
@@ -272,6 +282,7 @@ fn resolve_path_to_ns(
                 importing_crate,
                 import_path,
                 import_directive.module_id,
+                interner,
                 def_maps,
                 true, // plain or crate
                 usage_tracker,
@@ -282,6 +293,7 @@ fn resolve_path_to_ns(
         crate::ast::PathKind::Dep => resolve_external_dep(
             crate_id,
             import_directive,
+            interner,
             def_maps,
             usage_tracker,
             path_references,
@@ -297,6 +309,7 @@ fn resolve_path_to_ns(
                     importing_crate,
                     import_path,
                     parent_module_id,
+                    interner,
                     def_maps,
                     false, // plain or crate
                     usage_tracker,
@@ -314,8 +327,8 @@ fn resolve_path_to_ns(
 fn resolve_path_from_crate_root(
     crate_id: CrateId,
     importing_crate: CrateId,
-
     import_path: &[PathSegment],
+    interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
@@ -326,6 +339,7 @@ fn resolve_path_from_crate_root(
         importing_crate,
         import_path,
         starting_mod,
+        interner,
         def_maps,
         true, // plain or crate
         usage_tracker,
@@ -339,6 +353,7 @@ fn resolve_name_in_module(
     importing_crate: CrateId,
     import_path: &[PathSegment],
     starting_mod: LocalModuleId,
+    interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     plain_or_crate: bool,
     usage_tracker: &mut UsageTracker,
@@ -416,7 +431,37 @@ fn resolve_name_in_module(
                     ),
                 )
             }
-            ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
+            ModuleDefId::TypeAliasId(id) => {
+                if let Some(path_references) = path_references {
+                    path_references.push(ReferenceId::Alias(id));
+                }
+
+                let type_alias = interner.get_type_alias(id);
+                let type_alias = type_alias.borrow();
+
+                let module_id = match &type_alias.typ {
+                    Type::Struct(struct_id, _generics) => struct_id.borrow().id.module_id(),
+                    Type::Error => {
+                        return Err(PathResolutionError::Unresolved(last_ident.clone()));
+                    }
+                    _ => {
+                        // For now we only allow type aliases that point to structs.
+                        // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
+                        panic!("Type alias in path not pointing to struct not yet supported")
+                    }
+                };
+
+                (
+                    module_id,
+                    IntermediatePathResolutionItem::TypeAlias(
+                        id,
+                        last_segment_generics.as_ref().map(|generics| Turbofish {
+                            generics: generics.clone(),
+                            span: last_segment.turbofish_span(),
+                        }),
+                    ),
+                )
+            }
             ModuleDefId::TraitId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Trait(id));
@@ -485,6 +530,7 @@ fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
 fn resolve_external_dep(
     crate_id: CrateId,
     directive: &ImportDirective,
+    interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &mut UsageTracker,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
@@ -529,6 +575,7 @@ fn resolve_external_dep(
         &dep_directive,
         dep_module.krate,
         importing_crate,
+        interner,
         def_maps,
         usage_tracker,
         path_references,
@@ -551,6 +598,9 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
             }
             IntermediatePathResolutionItem::Struct(struct_id, generics) => {
                 PathResolutionItem::StructFunction(struct_id, generics, func_id)
+            }
+            IntermediatePathResolutionItem::TypeAlias(alias_id, generics) => {
+                PathResolutionItem::TypeAliasFunction(alias_id, generics, func_id)
             }
             IntermediatePathResolutionItem::Trait(trait_id, generics) => {
                 PathResolutionItem::TraitFunction(trait_id, generics, func_id)

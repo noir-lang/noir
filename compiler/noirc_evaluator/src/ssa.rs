@@ -366,6 +366,7 @@ fn convert_generated_acir_into_circuit(
         assertion_payloads: assert_messages,
         warnings,
         name,
+        brillig_procedure_locs,
         ..
     } = generated_acir;
 
@@ -403,8 +404,14 @@ fn convert_generated_acir_into_circuit(
         })
         .collect();
 
-    let mut debug_info =
-        DebugInfo::new(locations, brillig_locations, debug_variables, debug_functions, debug_types);
+    let mut debug_info = DebugInfo::new(
+        locations,
+        brillig_locations,
+        debug_variables,
+        debug_functions,
+        debug_types,
+        brillig_procedure_locs,
+    );
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
