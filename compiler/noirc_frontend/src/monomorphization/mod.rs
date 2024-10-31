@@ -1005,8 +1005,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Field
             }
 
-            HirType::CheckedCast(to, from) => {
-                Self::check_checked_cast(to, from, location)?;
+            HirType::CheckedCast { from, to } => {
+                Self::check_checked_cast(from, to, location)?;
                 Self::convert_type(to, location)?
             }
 
@@ -1116,8 +1116,8 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(())
                 }
             }
-            HirType::CheckedCast(to, from) => {
-                Self::check_checked_cast(to, from, location)?;
+            HirType::CheckedCast { from, to } => {
+                Self::check_checked_cast(from, to, location)?;
                 Self::check_type(to, location)
             }
 
@@ -1196,8 +1196,8 @@ impl<'interner> Monomorphizer<'interner> {
     /// that if the 'to' side evaluates to a field element, that the 'from' side
     /// evaluates to the same field element
     fn check_checked_cast(
-        to: &Type,
         from: &Type,
+        to: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
         if from.unify(to).is_err() {

@@ -480,7 +480,10 @@ impl<'context> Elaborator<'context> {
                     }
                     (lhs, rhs) => {
                         let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
-                        Type::CheckedCast(Box::new(infix.clone()), Box::new(infix)).canonicalize()
+                        Type::CheckedCast {
+                            from: Box::new(infix.clone()),
+                            to: Box::new(infix),
+                        }.canonicalize()
                     }
                 }
             }
@@ -1748,9 +1751,9 @@ impl<'context> Elaborator<'context> {
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
-            Type::CheckedCast(to, from) => {
-                Self::find_numeric_generics_in_type(to, found);
+            Type::CheckedCast { from, to } => {
                 Self::find_numeric_generics_in_type(from, found);
+                Self::find_numeric_generics_in_type(to, found);
             }
 
             Type::TraitAsType(_, _, args) => {

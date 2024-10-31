@@ -17,12 +17,12 @@ impl Type {
     /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
     pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
-            Type::CheckedCast(to, from) => {
+            Type::CheckedCast { from, to } => {
                 let skip_simplifications = false;
-                Type::CheckedCast(
-                    Box::new(to.canonicalize_unchecked()),
-                    Box::new(from.canonicalize_checked_cast(skip_simplifications)),
-                )
+                Type::CheckedCast {
+                    from: Box::new(from.canonicalize_checked_cast(skip_simplifications)),
+                    to: Box::new(to.canonicalize_unchecked()),
+                }
             }
             other => {
                 let non_checked_cast = false;
@@ -99,7 +99,7 @@ impl Type {
 
                 Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
             }
-            Type::CheckedCast(to, from) => {
+            Type::CheckedCast { from, to } => {
                 let to = to.canonicalize_checked_cast(run_simplifications);
 
                 if found_checked_cast {
@@ -109,7 +109,10 @@ impl Type {
                 let skip_simplifications = false;
                 let from = from.canonicalize_checked_cast(skip_simplifications);
 
-                Type::CheckedCast(Box::new(to), Box::new(from))
+                Type::CheckedCast {
+                    from: Box::new(from),
+                    to: Box::new(to),
+                }
             }
             other => other,
         }
