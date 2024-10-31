@@ -616,10 +616,9 @@ impl<'context> Elaborator<'context> {
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
-                let trait_generics = vecmap(&trait_.generics, |generic| {
-                    self.interner.next_type_variable_with_kind(generic.kind())
-                });
                 let kinds = vecmap(&trait_.generics, |generic| generic.kind());
+                let trait_generics =
+                    vecmap(&kinds, |kind| self.interner.next_type_variable_with_kind(kind.clone()));
 
                 self.resolve_trait_turbofish_generics(
                     &trait_.name.to_string(),
