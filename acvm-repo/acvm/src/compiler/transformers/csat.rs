@@ -6,6 +6,9 @@ use acir::{
 };
 use indexmap::IndexMap;
 
+/// Minimum width accepted by the `CSatTransformer`.
+pub const MIN_EXPRESSION_WIDTH: usize = 3;
+
 /// A transformer which processes any [`Expression`]s to break them up such that they
 /// fit within the [`ProofSystemCompiler`][crate::ProofSystemCompiler]'s width.
 ///
@@ -22,9 +25,11 @@ pub(crate) struct CSatTransformer {
 }
 
 impl CSatTransformer {
-    // Configure the width for the optimizer
+    /// Create an optimizer with a given width.
+    ///
+    /// Panics if `width` is less than `MIN_EXPRESSION_WIDTH`.
     pub(crate) fn new(width: usize) -> CSatTransformer {
-        assert!(width > 2);
+        assert!(width >= MIN_EXPRESSION_WIDTH, "width has to be at least {MIN_EXPRESSION_WIDTH}");
 
         CSatTransformer { width, solvable_witness: HashSet::new() }
     }

@@ -59,6 +59,9 @@ impl FunctionDefinition {
     pub comptime fn set_return_public(self, public: bool) {}
     // docs:end:set_return_public
 
+    #[builtin(function_def_set_return_data)]
+    comptime fn set_return_data(self) {}
+
     #[builtin(function_def_set_unconstrained)]
     // docs:start:set_unconstrained
     pub comptime fn set_unconstrained(self, value: bool) {}
@@ -66,7 +69,10 @@ impl FunctionDefinition {
 }
 
 impl crate::hash::Hash for FunctionDefinition {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(function_def_hash(self))
     }
 }

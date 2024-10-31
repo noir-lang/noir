@@ -1,6 +1,18 @@
-use crate::hir::def_collector::dc_crate::CompilationError;
+use noirc_errors::Spanned;
 
-use super::get_program_errors;
+use crate::{
+    ast::Ident,
+    hir::{
+        def_collector::{
+            dc_crate::CompilationError,
+            errors::{DefCollectorErrorKind, DuplicateType},
+        },
+        resolution::errors::ResolverError,
+        type_check::TypeCheckError,
+    },
+};
+
+use super::{assert_no_errors, get_program_errors};
 
 // Regression for #5388
 #[test]
@@ -73,4 +85,59 @@ fn unquoted_integer_as_integer_token() {
     "#;
 
     assert_no_errors(src);
+}
+
+#[test]
+fn allows_references_to_structs_generated_by_macros() {
+    let src = r#"
+    comptime fn make_new_struct(_s: StructDefinition) -> Quoted {
+        quote { struct Bar {} }
+    }
+
+    #[make_new_struct]
+    struct Foo {}
+
+    fn main() {
+        let _ = Foo {};
+        let _ = Bar {};
+    }
+    "#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_macros_inject_functions_with_name_collisions() {
+    let src = r#"
+    comptime fn make_colliding_functions(_s: StructDefinition) -> Quoted {
+        quote { 
+            fn foo() {}
+        }
+    }
+
+    #[make_colliding_functions]
+    struct Foo {}
+
+    #[make_colliding_functions]
+    struct Bar {}
+
+    fn main() {
+        let _ = Foo {};
+        let _ = Bar {};
+        foo();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::DefinitionError(
+            DefCollectorErrorKind::Duplicate {
+                typ: DuplicateType::Function,
+                first_def: Ident(Spanned { contents, .. }),
+                ..
+            },
+        ) if contents == "foo"
+    ));
 }

@@ -327,6 +327,7 @@ pub enum PathKind {
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
+    pub span: Span,
 }
 
 impl Display for UseTree {
@@ -373,7 +374,9 @@ impl UseTree {
 
         match self.kind {
             UseTreeKind::Path(name, alias) => {
-                vec![ImportStatement { visibility, path: prefix.join(name), alias }]
+                // Desugar `use foo::{self}` to `use foo`
+                let path = if name.0.contents == "self" { prefix } else { prefix.join(name) };
+                vec![ImportStatement { visibility, path, alias }]
             }
             UseTreeKind::List(trees) => {
                 let trees = trees.into_iter();
@@ -405,7 +408,7 @@ pub struct AsTraitPath {
 pub struct TypePath {
     pub typ: UnresolvedType,
     pub item: Ident,
-    pub turbofish: GenericTypeArgs,
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.

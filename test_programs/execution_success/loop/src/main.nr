@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is basic looping.
 fn main(six_as_u32: u32) {
     assert_eq(loop(4), six_as_u32);

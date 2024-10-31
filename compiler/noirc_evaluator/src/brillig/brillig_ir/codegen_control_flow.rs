@@ -1,5 +1,5 @@
 use acvm::{
-    acir::brillig::{HeapArray, MemoryAddress},
+    acir::brillig::{HeapVector, MemoryAddress},
     AcirField,
 };
 
@@ -7,11 +7,46 @@ use super::{
     artifact::BrilligParameter,
     brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
     debug_show::DebugToString,
-    registers::{RegisterAllocator, Stack},
+    registers::RegisterAllocator,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    pub(crate) fn codegen_generic_iteration<T>(
+        &mut self,
+        make_iterator: impl FnOnce(&mut BrilligContext<F, Registers>) -> T,
+        update_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
+        make_finish_condition: impl FnOnce(&mut BrilligContext<F, Registers>, &T) -> SingleAddrVariable,
+        on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
+        clean_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, T),
+    ) {
+        let iterator = make_iterator(self);
+
+        let (loop_section, loop_label) = self.reserve_next_section_label();
+        self.enter_section(loop_section);
+
+        // Loop body
+        let should_end = make_finish_condition(self, &iterator);
+
+        let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
+
+        self.jump_if_instruction(should_end.address, exit_loop_label);
+
+        // Call the on iteration function
+        on_iteration(self, &iterator);
+
+        // Update iterator
+        update_iterator(self, &iterator);
+        self.jump_instruction(loop_label);
+
+        // Exit the loop
+        self.enter_section(exit_loop_section);
+
+        // Deallocate our temporary registers
+        self.deallocate_single_addr(should_end);
+        clean_iterator(self, iterator);
+    }
+
     /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
     /// The body of the loop should be issued by the caller in the on_iteration closure.
     pub(crate) fn codegen_for_loop(
@@ -157,12 +192,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            let revert_data = HeapArray {
-                pointer: ctx.allocate_register(),
-                // + 1 due to the revert data id being the first item returned
-                size: Self::flattened_tuple_size(&revert_data_types) + 1,
-            };
-            ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data.size);
+            // + 1 due to the revert data id being the first item returned
+            let revert_data_size = Self::flattened_tuple_size(&revert_data_types) + 1;
+            let revert_data_size_var = ctx.make_usize_constant_instruction(revert_data_size.into());
+            let revert_data =
+                HeapVector { pointer: ctx.allocate_register(), size: revert_data_size_var.address };
+            ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data_size);
 
             let current_revert_data_pointer = ctx.allocate_register();
             ctx.mov_instruction(current_revert_data_pointer, revert_data.pointer);
@@ -208,6 +243,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 );
             }
             ctx.trap_instruction(revert_data);
+            ctx.deallocate_single_addr(revert_data_size_var);
             ctx.deallocate_register(revert_data.pointer);
             ctx.deallocate_register(current_revert_data_pointer);
         });
@@ -223,7 +259,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            ctx.trap_instruction(HeapArray::default());
+            let revert_data_size_var = ctx.make_usize_constant_instruction(F::zero());
+            ctx.trap_instruction(HeapVector {
+                pointer: MemoryAddress::direct(0),
+                size: revert_data_size_var.address,
+            });
+            ctx.deallocate_single_addr(revert_data_size_var);
             if let Some(assert_message) = assert_message {
                 ctx.obj.add_assert_message_to_last_opcode(assert_message);
             }
@@ -347,34 +388,5 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, item_count);
             self.deallocate_single_addr(item_count);
         }
-    }
-}
-
-impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
-    /// Codegens a return from the current function.
-    ///
-    /// For Brillig, the return is implicit, since there is no explicit return instruction.
-    /// The caller will take `N` values from the Register starting at register index 0.
-    /// `N` indicates the number of return values expected.
-    ///
-    /// Brillig does not have an explicit return instruction, so this
-    /// method will move all register values to the first `N` values in
-    /// the VM.
-    pub(crate) fn codegen_return(&mut self, return_registers: &[MemoryAddress]) {
-        let mut sources = Vec::with_capacity(return_registers.len());
-        let mut destinations = Vec::with_capacity(return_registers.len());
-
-        for (destination_index, return_register) in return_registers.iter().enumerate() {
-            // In case we have fewer return registers than indices to write to, ensure we've allocated this register
-            let destination_register = MemoryAddress(Stack::start() + destination_index);
-            self.registers.ensure_register_is_allocated(destination_register);
-            sources.push(*return_register);
-            destinations.push(destination_register);
-        }
-        destinations
-            .iter()
-            .for_each(|destination| self.registers.ensure_register_is_allocated(*destination));
-        self.codegen_mov_registers_to_registers(sources, destinations);
-        self.stop_instruction();
     }
 }

@@ -1286,31 +1286,6 @@ impl<F: AcirField> AcirContext<F> {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let (constant_inputs, constant_outputs) = match name {
-            BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
-                // The last argument of pedersen is the domain separator, which must be a constant
-                let domain_var = match inputs.pop() {
-                    Some(domain_var) => domain_var.into_var()?,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
-                            name: "pedersen call".to_string(),
-                            arg: "domain separator".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }))
-                    }
-                };
-
-                let domain_constant = match self.vars[&domain_var].as_constant() {
-                    Some(domain_constant) => domain_constant,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "domain separator".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }))
-                    }
-                };
-
-                (vec![*domain_constant], Vec::new())
-            }
             BlackBoxFunc::Poseidon2Permutation => {
                 // The last argument is the state length, which must be a constant
                 let state_len = match inputs.pop() {
@@ -2220,7 +2195,8 @@ fn execute_brillig<F: AcirField>(
     // We pass a stubbed solver here as a concrete solver implies a field choice which conflicts with this function
     // being generic.
     let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
-    let mut vm = VM::new(calldata, code, Vec::new(), &solver);
+    let profiling_active = false;
+    let mut vm = VM::new(calldata, code, Vec::new(), &solver, profiling_active);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

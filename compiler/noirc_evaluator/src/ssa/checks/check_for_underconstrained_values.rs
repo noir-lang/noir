@@ -28,7 +28,7 @@ impl Ssa {
                         function_to_process,
                         &self.functions,
                     ),
-                    RuntimeType::Brillig => Vec::new(),
+                    RuntimeType::Brillig(_) => Vec::new(),
                 }
             })
             .collect()
@@ -346,12 +346,13 @@ impl Context {
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
-                            | Intrinsic::ToRadix(..) => {
+                            | Intrinsic::ToRadix(..)
+                            | Intrinsic::FieldLessThan => {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }
                         },
                         Value::Function(callee) => match all_functions[&callee].runtime() {
-                            RuntimeType::Brillig => {
+                            RuntimeType::Brillig(_) => {
                                 // For calls to brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later
                                 for result in
@@ -479,6 +480,8 @@ impl Context {
 }
 #[cfg(test)]
 mod test {
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use crate::ssa::{
         Ssa,
         function_builder::FunctionBuilder,
@@ -551,7 +554,7 @@ mod test {
         builder.insert_constrain(v5, one, None);
         builder.terminate_with_return(vec![]);
 
-        builder.new_brillig_function("br".into(), br_function_id);
+        builder.new_brillig_function("br".into(), br_function_id, InlineType::default());
         let v0 = builder.add_parameter(Type::field());
         let v1 = builder.add_parameter(Type::field());
         let v2 = builder.insert_binary(v0, BinaryOp::Add, v1);

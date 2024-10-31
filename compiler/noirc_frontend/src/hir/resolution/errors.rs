@@ -29,6 +29,8 @@ pub enum ResolverError {
     UnusedVariable { ident: Ident },
     #[error("Unused {}", item.item_type())]
     UnusedItem { ident: Ident, item: UnusedItem },
+    #[error("Unconditional recursion")]
+    UnconditionalRecursion { name: String, span: Span },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -36,7 +38,7 @@ pub enum ResolverError {
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
-    Expected { span: Span, expected: String, got: String },
+    Expected { span: Span, expected: &'static str, got: &'static str },
     #[error("Duplicate field in constructor")]
     DuplicateField { field: Ident },
     #[error("No such field in struct")]
@@ -210,6 +212,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                             ident.span(),
                         )
                     };
+                diagnostic.unnecessary = true;
+                diagnostic
+            }
+            ResolverError::UnconditionalRecursion { name, span} => {
+                let mut diagnostic = Diagnostic::simple_warning(
+                    format!("function `{name}` cannot return without recursing"),
+                    "function cannot return without recursing".to_string(),
+                    *span,
+                );
                 diagnostic.unnecessary = true;
                 diagnostic
             }

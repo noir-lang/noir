@@ -4,12 +4,12 @@ pub mod affine {
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
     // for reasons of efficiency.
     // See <https://eprint.iacr.org/2008/522.pdf> for details.
-    use crate::ec::tecurve::curvegroup;
+    use crate::cmp::Eq;
     use crate::ec::montcurve::affine::Curve as MCurve;
     use crate::ec::montcurve::affine::Point as MPoint;
     use crate::ec::swcurve::affine::Curve as SWCurve;
     use crate::ec::swcurve::affine::Point as SWPoint;
-    use crate::cmp::Eq;
+    use crate::ec::tecurve::curvegroup;
 
     // Curve specification
     pub struct Curve { // Twisted Edwards curve
@@ -17,12 +17,12 @@ pub mod affine {
         pub a: Field,
         pub d: Field,
         // Generator as point in Cartesian coordinates
-        pub gen: Point
+        pub gen: Point,
     }
     // Point in Cartesian coordinates
     pub struct Point {
         pub x: Field,
-        pub y: Field
+        pub y: Field,
     }
 
     impl Point {
@@ -39,7 +39,7 @@ pub mod affine {
 
         // Conversion to CurveGroup coordinates
         pub fn into_group(self) -> curvegroup::Point {
-            let Self {x, y} = self;
+            let Self { x, y } = self;
 
             curvegroup::Point::new(x, y, x * y, 1)
         }
@@ -51,7 +51,7 @@ pub mod affine {
 
         // Negation
         pub fn negate(self) -> Self {
-            let Self {x, y} = self;
+            let Self { x, y } = self;
             Point::new(0 - x, y)
         }
 
@@ -60,7 +60,7 @@ pub mod affine {
             if self.is_zero() {
                 MPoint::zero()
             } else {
-                let Self {x, y} = self;
+                let Self { x, y } = self;
                 let x0 = (1 + y) / (1 - y);
                 let y0 = (1 + y) / (x * (1 - y));
 
@@ -71,8 +71,8 @@ pub mod affine {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-            let Self {x: x1, y: y1} = self;
-            let Self {x: x2, y: y2} = p;
+            let Self { x: x1, y: y1 } = self;
+            let Self { x: x2, y: y2 } = p;
 
             (x1 == x2) & (y1 == y2)
         }
@@ -94,14 +94,14 @@ pub mod affine {
 
         // Conversion to CurveGroup coordinates
         pub fn into_group(self) -> curvegroup::Curve {
-            let Curve{a, d, gen} = self;
+            let Curve { a, d, gen } = self;
 
             curvegroup::Curve { a, d, gen: gen.into_group() }
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Point {x, y} = p;
+            let Point { x, y } = p;
             self.a * x * x + y * y == 1 + self.d * x * x * y * y
         }
 
@@ -112,8 +112,8 @@ pub mod affine {
 
         // Mixed point addition, i.e. first argument in affine, second in CurveGroup coordinates.
         pub fn mixed_add(self, p1: Point, p2: curvegroup::Point) -> curvegroup::Point {
-            let Point{x: x1, y: y1} = p1;
-            let curvegroup::Point{x: x2, y: y2, t: t2, z: z2} = p2;
+            let Point { x: x1, y: y1 } = p1;
+            let curvegroup::Point { x: x2, y: y2, t: t2, z: z2 } = p2;
 
             let a = x1 * x2;
             let b = y1 * y2;
@@ -197,12 +197,12 @@ pub mod curvegroup {
     // CurveGroup coordinate representation of Twisted Edwards curves
     // Points are represented by four-dimensional projective coordinates, viz. extended Twisted Edwards coordinates.
     // See section 3 of <https://eprint.iacr.org/2008/522.pdf> for details.
-    use crate::ec::tecurve::affine;
+    use crate::cmp::Eq;
     use crate::ec::montcurve::curvegroup::Curve as MCurve;
     use crate::ec::montcurve::curvegroup::Point as MPoint;
     use crate::ec::swcurve::curvegroup::Curve as SWCurve;
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
-    use crate::cmp::Eq;
+    use crate::ec::tecurve::affine;
 
     // Curve specification
     pub struct Curve { // Twisted Edwards curve
@@ -210,14 +210,14 @@ pub mod curvegroup {
         pub a: Field,
         pub d: Field,
         // Generator as point in projective coordinates
-        pub gen: Point
+        pub gen: Point,
     }
     // Point in extended twisted Edwards coordinates
     pub struct Point {
         pub x: Field,
         pub y: Field,
         pub t: Field,
-        pub z: Field
+        pub z: Field,
     }
 
     impl Point {
@@ -228,13 +228,13 @@ pub mod curvegroup {
 
         // Check if zero
         pub fn is_zero(self) -> bool {
-            let Self {x, y, t, z} = self;
+            let Self { x, y, t, z } = self;
             (x == 0) & (y == z) & (y != 0) & (t == 0)
         }
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
-            let Self {x, y, t: _t, z} = self;
+            let Self { x, y, t: _t, z } = self;
 
             affine::Point::new(x / z, y / z)
         }
@@ -246,7 +246,7 @@ pub mod curvegroup {
 
         // Negation
         pub fn negate(self) -> Self {
-            let Self {x, y, t, z} = self;
+            let Self { x, y, t, z } = self;
 
             Point::new(0 - x, y, 0 - t, z)
         }
@@ -259,8 +259,8 @@ pub mod curvegroup {
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-            let Self {x: x1, y: y1, t: _t1, z: z1} = self;
-            let Self {x: x2, y: y2, t: _t2, z:z2} = p;
+            let Self { x: x1, y: y1, t: _t1, z: z1 } = self;
+            let Self { x: x2, y: y2, t: _t2, z: z2 } = p;
 
             (x1 * z2 == x2 * z1) & (y1 * z2 == y2 * z1)
         }
@@ -282,14 +282,14 @@ pub mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Curve {
-            let Curve{a, d, gen} = self;
+            let Curve { a, d, gen } = self;
 
             affine::Curve { a, d, gen: gen.into_affine() }
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Point {x, y, t, z} = p;
+            let Point { x, y, t, z } = p;
 
             (z != 0)
                 & (z * t == x * y)
@@ -298,8 +298,8 @@ pub mod curvegroup {
 
         // Point addition
         pub fn add(self, p1: Point, p2: Point) -> Point {
-            let Point{x: x1, y: y1, t: t1, z: z1} = p1;
-            let Point{x: x2, y: y2, t: t2, z: z2} = p2;
+            let Point { x: x1, y: y1, t: t1, z: z1 } = p1;
+            let Point { x: x2, y: y2, t: t2, z: z2 } = p2;
 
             let a = x1 * x2;
             let b = y1 * y2;
@@ -320,7 +320,7 @@ pub mod curvegroup {
 
         // Point doubling, cf. section 3.3
         pub fn double(self, p: Point) -> Point {
-            let Point{x, y, t: _t, z} = p;
+            let Point { x, y, t: _t, z } = p;
 
             let a = x * x;
             let b = y * y;
@@ -347,7 +347,12 @@ pub mod curvegroup {
             for i in 0..N {
                 out = self.add(
                     self.add(out, out),
-                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
+                    if (bits[N - i - 1] == 0) {
+                        Point::zero()
+                    } else {
+                        p
+                    },
+                );
             }
 
             out

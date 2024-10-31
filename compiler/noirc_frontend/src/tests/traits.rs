@@ -148,3 +148,195 @@ fn trait_inheritance_missing_parent_implementation() {
     assert_eq!(typ, "Struct");
     assert_eq!(impl_trait, "Bar");
 }
+
+#[test]
+fn errors_on_unknown_type_in_trait_where_clause() {
+    let src = r#"
+        pub trait Foo<T> where T: Unknown {}
+
+        fn main() {
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
+    let src = r#"
+        pub trait Greeter {
+            fn greet(self);
+        }
+
+        pub trait Foo<T>
+        where
+            T: Greeter,
+        {
+            fn greet<U>(object: U)
+            where
+                U: Greeter,
+            {
+                object.greet();
+            }
+        }
+
+        pub struct SomeGreeter;
+        impl Greeter for SomeGreeter {
+            fn greet(self) {}
+        }
+
+        pub struct Bar;
+
+        impl Foo<SomeGreeter> for Bar {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
+    let src = r#"
+        pub trait Greeter {
+            fn greet(self);
+        }
+
+        pub trait Foo<T> where T: Greeter {
+            fn greet(object: T) {
+                object.greet();
+            }
+        }
+
+        pub struct Bar;
+
+        impl<T> Foo<T> for Bar where T: Greeter {
+        }
+
+        fn main() {
+        }
+    "#;
+    assert_no_errors(src);
+}
+#[test]
+fn errors_if_impl_trait_constraint_is_not_satisfied() {
+    let src = r#"
+        pub trait Greeter {
+            fn greet(self);
+        }
+
+        pub trait Foo<T>
+        where
+            T: Greeter,
+        {
+            fn greet<U>(object: U)
+            where
+                U: Greeter,
+            {
+                object.greet();
+            }
+        }
+
+        pub struct SomeGreeter;
+
+        pub struct Bar;
+
+        impl Foo<SomeGreeter> for Bar {}
+
+        fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::TraitNotImplemented {
+        impl_trait,
+        missing_trait: the_trait,
+        type_missing_trait: typ,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0].0);
+    };
+
+    assert_eq!(the_trait, "Greeter");
+    assert_eq!(typ, "SomeGreeter");
+    assert_eq!(impl_trait, "Foo");
+}
+
+#[test]
+// Regression test for https://github.com/noir-lang/noir/issues/6314
+// Baz inherits from a single trait: Foo
+fn regression_6314_single_inheritance() {
+    let src = r#"
+        trait Foo {
+            fn foo(self) -> Self;
+        }
+        
+        trait Baz: Foo {}
+        
+        impl<T> Baz for T where T: Foo {}
+        
+        fn main() { }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+// Regression test for https://github.com/noir-lang/noir/issues/6314
+// Baz inherits from two traits: Foo and Bar
+fn regression_6314_double_inheritance() {
+    let src = r#"
+        trait Foo {
+            fn foo(self) -> Self;
+        }
+       
+        trait Bar {
+            fn bar(self) -> Self;
+        }
+       
+        trait Baz: Foo + Bar {}
+       
+        impl<T> Baz for T where T: Foo + Bar {}
+       
+        fn baz<T>(x: T) -> T where T: Baz {
+            x.foo().bar()
+        }
+       
+        impl Foo for Field {
+            fn foo(self) -> Self {
+                self + 1
+            }
+        }
+       
+        impl Bar for Field {
+            fn bar(self) -> Self {
+                self + 2
+            }
+        }
+       
+        fn main() {
+            assert(0.foo().bar() == baz(0));
+        }"#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn removes_assumed_parent_traits_after_function_ends() {
+    let src = r#"
+    trait Foo {}
+    trait Bar: Foo {}
+
+    pub fn foo<T>()
+    where
+        T: Bar,
+    {}
+
+    pub fn bar<T>()
+    where
+        T: Foo,
+    {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

@@ -25,8 +25,6 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::hir_def::traits::ResolvedTraitBound;
-use crate::usage_tracker::UnusedItem;
-use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -56,6 +54,7 @@ pub struct ModuleAttributes {
     pub name: String,
     pub location: Location,
     pub parent: Option<LocalModuleId>,
+    pub visibility: ItemVisibility,
 }
 
 type StructAttributes = Vec<SecondaryAttribute>;
@@ -269,8 +268,6 @@ pub struct NodeInterner {
     /// This is stored in the NodeInterner so that the Elaborator from each crate can
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
-
-    pub(crate) usage_tracker: UsageTracker,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
@@ -679,7 +676,6 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            usage_tracker: UsageTracker::default(),
             doc_comments: HashMap::default(),
         }
     }
@@ -735,6 +731,7 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             trait_bounds: Vec::new(),
+            where_clause: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
@@ -1874,8 +1871,33 @@ impl NodeInterner {
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
+        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
+    }
+
+    fn remove_assumed_trait_implementations_for_trait_and_parents(
+        &mut self,
+        trait_id: TraitId,
+        starting_trait_id: TraitId,
+    ) {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
+
+        // Also remove assumed implementations for the parent traits, if any
+        if let Some(trait_bounds) =
+            self.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        {
+            for parent_trait_bound in trait_bounds {
+                // Avoid looping forever in case there are cycles
+                if parent_trait_bound.trait_id == starting_trait_id {
+                    continue;
+                }
+
+                self.remove_assumed_trait_implementations_for_trait_and_parents(
+                    parent_trait_bound.trait_id,
+                    starting_trait_id,
+                );
+            }
+        }
     }
 
     /// Tags the given identifier with the selected trait_impl so that monomorphization
@@ -2292,12 +2314,6 @@ impl NodeInterner {
 
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
-    }
-
-    pub fn unused_items(
-        &self,
-    ) -> &std::collections::HashMap<ModuleId, std::collections::HashMap<Ident, UnusedItem>> {
-        self.usage_tracker.unused_items()
     }
 }
 

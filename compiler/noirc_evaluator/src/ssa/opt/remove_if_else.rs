@@ -3,6 +3,7 @@ use std::collections::hash_map::Entry;
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
+use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     ir::{
@@ -37,7 +38,7 @@ impl Ssa {
 impl Function {
     pub(crate) fn remove_if_else(&mut self) {
         // This should match the check in flatten_cfg
-        if let crate::ssa::ir::function::RuntimeType::Brillig = self.runtime() {
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
             // skip
         } else {
             Context::default().remove_if_else(self);
@@ -236,6 +237,7 @@ fn slice_capacity_change(
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators
         | Intrinsic::ToBits(_)
-        | Intrinsic::ToRadix(_) => SizeChange::None,
+        | Intrinsic::ToRadix(_)
+        | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }

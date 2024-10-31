@@ -241,11 +241,9 @@ impl Kind {
     /// during monomorphization.
     pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            Kind::Any => None,
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Normal => None,
-            Kind::Numeric(typ) => Some(*typ.clone()),
+            Kind::Any | Kind::Normal | Kind::Numeric(..) => None,
         }
     }
 
@@ -589,6 +587,11 @@ impl TypeAlias {
             .collect();
 
         self.typ.substitute(&substitutions)
+    }
+
+    pub fn instantiate(&self, interner: &NodeInterner) -> Type {
+        let args = vecmap(&self.generics, |_| interner.next_type_variable());
+        self.get_type(&args)
     }
 }
 

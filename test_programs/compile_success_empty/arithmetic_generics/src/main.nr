@@ -52,9 +52,9 @@ fn push_multiple<let N: u32>(array: [Field; N]) -> [Field; N + 2] {
 // The rest of this file is setup for demo_proof
 // *********************************************
 
-struct W<let N: u32> { }
+pub struct W<let N: u32> {}
 
-struct Equiv<T, TU, U, UT> {
+pub struct Equiv<T, TU, U, UT> {
     // TODO(https://github.com/noir-lang/noir/issues/5644):
     // Bug with struct_obj.field_thats_a_fn(x)
 
@@ -75,25 +75,27 @@ impl<T, TU, U, UT> Equiv<T, TU, U, UT> {
 
 fn equiv_trans<T, TU, U, UT, UV, V, VU>(
     x: Equiv<T, TU, U, UT>,
-    y: Equiv<U, UV, V, VU>
-) -> Equiv<T, (Equiv<U, UV, V, VU>, Equiv<T, TU, U, UT>), V, (Equiv<T, TU, U, UT>, Equiv<U, UV, V, VU>)> {
-    Equiv { to_: |z| { y.to(x.to(z)) }, fro_: |z| { x.fro(y.fro(z)) } }
+    y: Equiv<U, UV, V, VU>,
+    ) -> Equiv<T, (Equiv<U, UV, V, VU>, Equiv<T, TU, U, UT>), V, (Equiv<T, TU, U, UT>, Equiv<U, UV, V, VU>)> {
+    Equiv { to_: |z| y.to(x.to(z)), fro_: |z| x.fro(y.fro(z)) }
 }
 
 fn mul_one_r<let N: u32>() -> Equiv<W<N>, (), W<N>, ()> {
-    Equiv { to_: |_x| { W {} }, fro_: |_x| { W {} } }
+    Equiv { to_: |_x| W {}, fro_: |_x| W {} }
 }
 
-fn add_equiv_r<let C: u32, let N: u32, let M: u32, EN, EM>(_: Equiv<W<N>, EN, W<M>, EM>) -> Equiv<W<C + N>, (), W<C + M>, ()> {
-    Equiv { to_: |_x| { W {} }, fro_: |_x| { W {} } }
+fn add_equiv_r<let C: u32, let N: u32, let M: u32, EN, EM>(
+    _: Equiv<W<N>, EN, W<M>, EM>,
+) -> Equiv<W<C + N>, (), W<C + M>, ()> {
+    Equiv { to_: |_x| W {}, fro_: |_x| W {} }
 }
 
 fn mul_comm<let N: u32, let M: u32>() -> Equiv<W<N * M>, (), W<M * N>, ()> {
-    Equiv { to_: |_x| { W {} }, fro_: |_x| { W {} } }
+    Equiv { to_: |_x| W {}, fro_: |_x| W {} }
 }
 
 fn mul_add<let N: u32, let M: u32, let P: u32>() -> Equiv<W<N * (M + P)>, (), W<N * M + N * P>, ()> {
-    Equiv { to_: |_x| { W {} }, fro_: |_x| { W {} } }
+    Equiv { to_: |_x| W {}, fro_: |_x| W {} }
 }
 
 // (N + 1) * N == N * N + N

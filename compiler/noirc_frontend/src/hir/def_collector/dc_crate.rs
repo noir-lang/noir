@@ -303,7 +303,12 @@ impl DefCollector {
             def_map.extern_prelude.insert(dep.as_name(), module_id);
 
             let location = dep_def_map[dep_def_root].location;
-            let attributes = ModuleAttributes { name: dep.as_name(), location, parent: None };
+            let attributes = ModuleAttributes {
+                name: dep.as_name(),
+                location,
+                parent: None,
+                visibility: ItemVisibility::Public,
+            };
             context.def_interner.add_module_attributes(module_id, attributes);
         }
 
@@ -348,8 +353,9 @@ impl DefCollector {
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
+                    &context.def_interner,
                     &context.def_maps,
-                    &mut context.def_interner.usage_tracker,
+                    &mut context.usage_tracker,
                     &mut Some(&mut references),
                 );
 
@@ -370,8 +376,9 @@ impl DefCollector {
                 resolve_import(
                     crate_id,
                     &collected_import,
+                    &context.def_interner,
                     &context.def_maps,
-                    &mut context.def_interner.usage_tracker,
+                    &mut context.usage_tracker,
                     &mut None,
                 )
             };
@@ -380,9 +387,8 @@ impl DefCollector {
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
                     let file_id = current_def_map.file_id(module_id);
 
-                    let has_path_resolution_error = resolved_import.error.is_some();
-
-                    if let Some(error) = resolved_import.error {
+                    let has_path_resolution_error = !resolved_import.errors.is_empty();
+                    for error in resolved_import.errors {
                         errors.push((
                             DefCollectorErrorKind::PathResolutionError(error).into(),
                             file_id,
@@ -417,7 +423,7 @@ impl DefCollector {
                                 krate: crate_id,
                                 local_id: resolved_import.module_scope,
                             };
-                            context.def_interner.usage_tracker.add_unused_item(
+                            context.usage_tracker.add_unused_item(
                                 module_id,
                                 name.clone(),
                                 UnusedItem::Import,
@@ -497,7 +503,7 @@ impl DefCollector {
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        let unused_imports = context.def_interner.unused_items().iter();
+        let unused_imports = context.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
         errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
@@ -552,16 +558,17 @@ fn inject_prelude(
             span: Span::default(),
         };
 
-        if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
+        if let Ok(PathResolution { item, errors }) = path_resolver::resolve_path(
+            &context.def_interner,
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             None,
             path,
-            &mut context.def_interner.usage_tracker,
+            &mut context.usage_tracker,
             &mut None,
         ) {
-            assert!(error.is_none(), "Tried to add private item to prelude");
-            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
+            assert!(errors.is_empty(), "Tried to add private item to prelude");
+            let module_id = item.module_id().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {

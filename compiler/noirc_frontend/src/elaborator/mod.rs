@@ -3,7 +3,11 @@ use std::{
     rc::Rc,
 };
 
-use crate::{ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, TypeBindings};
+use crate::{
+    ast::ItemVisibility, hir::resolution::import::PathResolutionItem,
+    hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker, StructField, StructType,
+    TypeBindings,
+};
 use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
@@ -18,7 +22,7 @@ use crate::{
         },
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
+        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
@@ -53,7 +57,7 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -81,8 +85,8 @@ pub struct Elaborator<'context> {
     pub(crate) errors: Vec<(CompilationError, FileId)>,
 
     pub(crate) interner: &'context mut NodeInterner,
-
     pub(crate) def_maps: &'context mut DefMaps,
+    pub(crate) usage_tracker: &'context mut UsageTracker,
 
     pub(crate) file: FileId,
 
@@ -180,6 +184,7 @@ impl<'context> Elaborator<'context> {
     pub fn new(
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
+        usage_tracker: &'context mut UsageTracker,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
@@ -189,6 +194,7 @@ impl<'context> Elaborator<'context> {
             errors: Vec::new(),
             interner,
             def_maps,
+            usage_tracker,
             file: FileId::dummy(),
             in_unsafe_block: false,
             nested_loops: 0,
@@ -218,6 +224,7 @@ impl<'context> Elaborator<'context> {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
+            &mut context.usage_tracker,
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
@@ -398,13 +405,36 @@ impl<'context> Elaborator<'context> {
 
         self.run_function_lints(&func_meta, &modifiers);
 
+        // Check arg and return-value visibility of standalone functions.
+        if self.should_check_function_visibility(&func_meta, &modifiers) {
+            let name = Ident(Spanned::from(
+                func_meta.name.location.span,
+                self.interner.definition_name(func_meta.name.id).to_string(),
+            ));
+            for (_, typ, _) in func_meta.parameters.iter() {
+                self.check_type_is_not_more_private_then_item(
+                    &name,
+                    modifiers.visibility,
+                    typ,
+                    name.span(),
+                );
+            }
+            self.check_type_is_not_more_private_then_item(
+                &name,
+                modifiers.visibility,
+                func_meta.return_type(),
+                name.span(),
+            );
+        }
+
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
         // The DefinitionIds for each parameter were already created in define_function_meta
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
-            self.add_existing_variable_to_scope(name, parameter.clone(), true);
+            let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 
         self.add_trait_constraints_to_scope(&func_meta);
@@ -443,6 +473,20 @@ impl<'context> Elaborator<'context> {
         // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
         if !func_meta.is_stub() {
             self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+        }
+
+        // Check that the body can return without calling the function.
+        if let FunctionKind::Normal | FunctionKind::Recursive = kind {
+            self.run_lint(|elaborator| {
+                lints::unbounded_recursion(
+                    elaborator.interner,
+                    id,
+                    || elaborator.interner.definition_name(func_meta.name.id),
+                    func_meta.name.location.span,
+                    hir_func.as_expr(),
+                )
+                .map(Into::into)
+            });
         }
 
         let meta = self
@@ -628,11 +672,11 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
-                if error.is_some() {
-                    None
-                } else {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                if errors.is_empty() {
                     Some(module_id)
+                } else {
+                    None
                 }
             }
             _ => None,
@@ -641,8 +685,8 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
-                if let Some(error) = error {
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
+                for error in errors {
                     self.push_err(error);
                 }
                 return Some(trait_id);
@@ -1002,10 +1046,13 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
-        self.check_parent_traits_are_implemented(&trait_impl);
-
-        self.generics = trait_impl.resolved_generics;
+        self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
+
+        self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
+        self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
+        self.check_parent_traits_are_implemented(&trait_impl);
+        self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         for (module, function, _) in &trait_impl.methods.functions {
             self.local_module = *module;
@@ -1018,6 +1065,95 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
+    }
+
+    fn add_trait_impl_assumed_trait_implementations(&mut self, impl_id: Option<TraitImplId>) {
+        if let Some(impl_id) = impl_id {
+            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+            {
+                for trait_constrain in &trait_implementation.borrow().where_clause {
+                    let trait_bound = &trait_constrain.trait_bound;
+                    self.interner.add_assumed_trait_implementation(
+                        trait_constrain.typ.clone(),
+                        trait_bound.trait_id,
+                        trait_bound.trait_generics.clone(),
+                    );
+                }
+            }
+        }
+    }
+
+    fn remove_trait_impl_assumed_trait_implementations(&mut self, impl_id: Option<TraitImplId>) {
+        if let Some(impl_id) = impl_id {
+            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+            {
+                for trait_constrain in &trait_implementation.borrow().where_clause {
+                    self.interner.remove_assumed_trait_implementations_for_trait(
+                        trait_constrain.trait_bound.trait_id,
+                    );
+                }
+            }
+        }
+    }
+
+    fn check_trait_impl_where_clause_matches_trait_where_clause(
+        &mut self,
+        trait_impl: &UnresolvedTraitImpl,
+    ) {
+        let Some(trait_id) = trait_impl.trait_id else {
+            return;
+        };
+
+        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            return;
+        };
+
+        if the_trait.where_clause.is_empty() {
+            return;
+        }
+
+        let impl_trait = the_trait.name.to_string();
+        let the_trait_file = the_trait.location.file;
+
+        let mut bindings = TypeBindings::new();
+        bind_ordered_generics(
+            &the_trait.generics,
+            &trait_impl.resolved_trait_generics,
+            &mut bindings,
+        );
+
+        // Check that each of the trait's where clause constraints is satisfied
+        for trait_constraint in the_trait.where_clause.clone() {
+            let Some(trait_constraint_trait) =
+                self.interner.try_get_trait(trait_constraint.trait_bound.trait_id)
+            else {
+                continue;
+            };
+
+            let trait_constraint_type = trait_constraint.typ.substitute(&bindings);
+            let trait_bound = &trait_constraint.trait_bound;
+
+            if self
+                .interner
+                .try_lookup_trait_implementation(
+                    &trait_constraint_type,
+                    trait_bound.trait_id,
+                    &trait_bound.trait_generics.ordered,
+                    &trait_bound.trait_generics.named,
+                )
+                .is_err()
+            {
+                let missing_trait =
+                    format!("{}{}", trait_constraint_trait.name, trait_bound.trait_generics);
+                self.push_err(ResolverError::TraitNotImplemented {
+                    impl_trait: impl_trait.clone(),
+                    missing_trait,
+                    type_missing_trait: trait_constraint_type.to_string(),
+                    span: trait_impl.object_type.span,
+                    missing_trait_location: Location::new(trait_bound.span, the_trait_file),
+                });
+            }
+        }
     }
 
     fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
@@ -1143,7 +1279,7 @@ impl<'context> Elaborator<'context> {
                 trait_id,
                 trait_generics,
                 file: trait_impl.file_id,
-                where_clause: where_clause.clone(),
+                where_clause,
                 methods,
             });
 
@@ -1279,14 +1415,49 @@ impl<'context> Elaborator<'context> {
         let typ = self.resolve_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
-            self.check_aliased_type_is_not_more_private(name, visibility, &typ, span);
+            self.check_type_is_not_more_private_then_item(name, visibility, &typ, span);
         }
 
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
     }
 
-    fn check_aliased_type_is_not_more_private(
+    /// Find the struct in the parent module so we can know its visibility
+    fn find_struct_visibility(&self, struct_type: &StructType) -> Option<ItemVisibility> {
+        let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
+        let parent_module_data = self.get_module(parent_module_id);
+        let per_ns = parent_module_data.find_name(&struct_type.name);
+        per_ns.types.map(|(_, vis, _)| vis)
+    }
+
+    /// Check whether a functions return value and args should be checked for private type visibility.
+    fn should_check_function_visibility(
+        &self,
+        func_meta: &FuncMeta,
+        modifiers: &FunctionModifiers,
+    ) -> bool {
+        // Private functions don't leak anything.
+        if modifiers.visibility == ItemVisibility::Private {
+            return false;
+        }
+        // Implementing public traits on private types is okay, they can't be used unless the type itself is accessible.
+        if func_meta.trait_impl.is_some() {
+            return false;
+        }
+        // Public struct functions should not expose private types.
+        if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
+            let struct_def = self.get_struct(id);
+            let struct_def = struct_def.borrow();
+            self.find_struct_visibility(&struct_def)
+        }) {
+            return struct_visibility != ItemVisibility::Private;
+        }
+        // Standalone functions should be checked
+        true
+    }
+
+    /// Check that an item such as a struct field or type alias is not more visible than the type it refers to.
+    fn check_type_is_not_more_private_then_item(
         &mut self,
         name: &Ident,
         visibility: ItemVisibility,
@@ -1302,11 +1473,7 @@ impl<'context> Elaborator<'context> {
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
-                    // Find the struct in the parent module so we can know its visibility
-                    let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
-                    let parent_module_data = self.get_module(parent_module_id);
-                    let per_ns = parent_module_data.find_name(&struct_type.name);
-                    if let Some((_, aliased_visibility, _)) = per_ns.types {
+                    if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
                         if aliased_visibility < visibility {
                             self.push_err(ResolverError::TypeIsMorePrivateThenItem {
                                 typ: struct_type.name.to_string(),
@@ -1318,16 +1485,16 @@ impl<'context> Elaborator<'context> {
                 }
 
                 for generic in generics {
-                    self.check_aliased_type_is_not_more_private(name, visibility, generic, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, generic, span);
                 }
             }
             Type::Tuple(types) => {
                 for typ in types {
-                    self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.check_aliased_type_is_not_more_private(
+                self.check_type_is_not_more_private_then_item(
                     name,
                     visibility,
                     &alias_type.borrow().get_type(generics),
@@ -1336,17 +1503,17 @@ impl<'context> Elaborator<'context> {
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {
-                    self.check_aliased_type_is_not_more_private(name, visibility, arg, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, arg, span);
                 }
-                self.check_aliased_type_is_not_more_private(name, visibility, return_type, span);
-                self.check_aliased_type_is_not_more_private(name, visibility, env, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, return_type, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, env, span);
             }
             Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
-                self.check_aliased_type_is_not_more_private(name, visibility, typ, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
             }
             Type::InfixExpr(left, _op, right) => {
-                self.check_aliased_type_is_not_more_private(name, visibility, left, span);
-                self.check_aliased_type_is_not_more_private(name, visibility, right, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, left, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, right, span);
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1380,6 +1547,22 @@ impl<'context> Elaborator<'context> {
             if typ.struct_def.is_abi() {
                 for field in &fields {
                     self.mark_type_as_used(&field.typ);
+                }
+            }
+
+            // Check that the a public struct doesn't have a private type as a public field.
+            if typ.struct_def.visibility != ItemVisibility::Private {
+                for field in &fields {
+                    let ident = Ident(Spanned::from(
+                        field.name.span(),
+                        format!("{}::{}", typ.struct_def.name, field.name),
+                    ));
+                    self.check_type_is_not_more_private_then_item(
+                        &ident,
+                        field.visibility,
+                        &field.typ,
+                        field.name.span(),
+                    );
                 }
             }
 

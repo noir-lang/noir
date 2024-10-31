@@ -13,22 +13,24 @@ use noirc_frontend::{
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::path_resolver::{PathResolver, StandardPathResolver},
+        resolution::{
+            import::PathResolutionItem,
+            path_resolver::{PathResolver, StandardPathResolver},
+        },
     },
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::{ParsedSubModule, Parser},
     token::CustomAttribute,
     usage_tracker::UsageTracker,
     ParsedModule,
 };
 
-use crate::modules::module_def_id_to_reference_id;
-
 pub(crate) struct AttributeReferenceFinder<'a> {
     byte_index: usize,
     /// The module ID in scope. This might change as we traverse the AST
     /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
+    interner: &'a NodeInterner,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     reference_id: Option<ReferenceId>,
 }
@@ -39,6 +41,7 @@ impl<'a> AttributeReferenceFinder<'a> {
         file: FileId,
         byte_index: usize,
         krate: CrateId,
+        interner: &'a NodeInterner,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     ) -> Self {
         // Find the module the current file belongs to
@@ -51,7 +54,7 @@ impl<'a> AttributeReferenceFinder<'a> {
             def_map.root()
         };
         let module_id = ModuleId { krate, local_id };
-        Self { byte_index, module_id, def_maps, reference_id: None }
+        Self { byte_index, module_id, interner, def_maps, reference_id: None }
     }
 
     pub(crate) fn find(&mut self, parsed_module: &ParsedModule) -> Option<ReferenceId> {
@@ -101,11 +104,26 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
 
         let resolver = StandardPathResolver::new(self.module_id, None);
         let mut usage_tracker = UsageTracker::default();
-        let Ok(result) = resolver.resolve(self.def_maps, path, &mut usage_tracker, &mut None)
+        let Ok(result) =
+            resolver.resolve(self.interner, self.def_maps, path, &mut usage_tracker, &mut None)
         else {
             return;
         };
 
-        self.reference_id = Some(module_def_id_to_reference_id(result.module_def_id));
+        self.reference_id = Some(path_resolution_item_to_reference_id(result.item));
+    }
+}
+
+fn path_resolution_item_to_reference_id(item: PathResolutionItem) -> ReferenceId {
+    match item {
+        PathResolutionItem::Module(module_id) => ReferenceId::Module(module_id),
+        PathResolutionItem::Struct(struct_id) => ReferenceId::Struct(struct_id),
+        PathResolutionItem::TypeAlias(type_alias_id) => ReferenceId::Alias(type_alias_id),
+        PathResolutionItem::Trait(trait_id) => ReferenceId::Trait(trait_id),
+        PathResolutionItem::Global(global_id) => ReferenceId::Global(global_id),
+        PathResolutionItem::ModuleFunction(func_id)
+        | PathResolutionItem::StructFunction(_, _, func_id)
+        | PathResolutionItem::TypeAliasFunction(_, _, func_id)
+        | PathResolutionItem::TraitFunction(_, _, func_id) => ReferenceId::Function(func_id),
     }
 }

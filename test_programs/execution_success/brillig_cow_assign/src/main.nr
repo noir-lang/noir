@@ -14,7 +14,6 @@ unconstrained fn main() {
     // Expect:
     // arr        = [27, 27, 27, 27, 27, 27, 27, 27, 27, 27]
     // mid_change = [27, 27, 27, 27, 27, 0, 0, 0, 0, 0]
-
     let modified_i = N / 2 + 1;
     assert_eq(arr[modified_i], 27);
 

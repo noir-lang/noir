@@ -12,5 +12,9 @@ fn main(x: Field) -> pub Field {
 }
 
 fn safe_inverse(n: Field) -> Field {
-    if n == 0 { 0 } else { 1 / n }
+    if n == 0 {
+        0
+    } else {
+        1 / n
+    }
 }

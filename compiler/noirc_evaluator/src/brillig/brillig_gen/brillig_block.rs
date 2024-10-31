@@ -374,34 +374,10 @@ impl<'block> BrilligBlock<'block> {
                         match output_register {
                             // Returned vectors need to emit some bytecode to format the result as a BrilligVector
                             ValueOrArray::HeapVector(heap_vector) => {
-                                // Update the stack pointer so that we do not overwrite
-                                // dynamic memory returned from other external calls
-                                // Single values and allocation of fixed sized arrays has already been handled
-                                // inside of `allocate_external_call_result`
-                                let total_size = self.brillig_context.allocate_register();
-                                self.brillig_context.codegen_usize_op(
-                                    heap_vector.size,
-                                    total_size,
-                                    BrilligBinaryOp::Add,
-                                    2, // RC and Length
+                                self.brillig_context.initialize_externally_returned_vector(
+                                    output_variable.extract_vector(),
+                                    *heap_vector,
                                 );
-
-                                self.brillig_context
-                                    .increase_free_memory_pointer_instruction(total_size);
-                                let brillig_vector = output_variable.extract_vector();
-                                let size_pointer = self.brillig_context.allocate_register();
-
-                                self.brillig_context.codegen_usize_op(
-                                    brillig_vector.pointer,
-                                    size_pointer,
-                                    BrilligBinaryOp::Add,
-                                    1_usize, // Slices are [RC, Size, ...items]
-                                );
-                                self.brillig_context
-                                    .store_instruction(size_pointer, heap_vector.size);
-                                self.brillig_context.deallocate_register(size_pointer);
-                                self.brillig_context.deallocate_register(total_size);
-
                                 // Update the dynamic slice length maintained in SSA
                                 if let ValueOrArray::MemoryAddress(len_index) = output_values[i - 1]
                                 {
@@ -515,8 +491,11 @@ impl<'block> BrilligBlock<'block> {
                         element_size,
                     );
 
-                    self.brillig_context
-                        .codegen_initialize_vector(destination_vector, source_size_register);
+                    self.brillig_context.codegen_initialize_vector(
+                        destination_vector,
+                        source_size_register,
+                        None,
+                    );
 
                     // Items
                     let vector_items_pointer =
@@ -569,7 +548,7 @@ impl<'block> BrilligBlock<'block> {
                         source,
                         target_array,
                         radix,
-                        matches!(endianness, Endian::Big),
+                        matches!(endianness, Endian::Little),
                         false,
                     );
                 }
@@ -594,7 +573,7 @@ impl<'block> BrilligBlock<'block> {
                         source,
                         target_array,
                         two,
-                        matches!(endianness, Endian::Big),
+                        matches!(endianness, Endian::Little),
                         true,
                     );
 
@@ -604,7 +583,31 @@ impl<'block> BrilligBlock<'block> {
                 // `Intrinsic::AsWitness` is used to provide hints to acir-gen on optimal expression splitting.
                 // It is then useless in the brillig runtime and so we can ignore it
                 Value::Intrinsic(Intrinsic::AsWitness) => (),
+                Value::Intrinsic(Intrinsic::FieldLessThan) => {
+                    let lhs = self.convert_ssa_single_addr_value(arguments[0], dfg);
+                    assert!(lhs.bit_size == FieldElement::max_num_bits());
+                    let rhs = self.convert_ssa_single_addr_value(arguments[1], dfg);
+                    assert!(rhs.bit_size == FieldElement::max_num_bits());
 
+                    let results = dfg.instruction_results(instruction_id);
+                    let destination = self
+                        .variables
+                        .define_variable(
+                            self.function_context,
+                            self.brillig_context,
+                            results[0],
+                            dfg,
+                        )
+                        .extract_single_addr();
+                    assert!(destination.bit_size == 1);
+
+                    self.brillig_context.binary_instruction(
+                        lhs,
+                        rhs,
+                        destination,
+                        BrilligBinaryOp::LessThan,
+                    );
+                }
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
@@ -783,26 +786,9 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) {
-        // Convert the arguments to registers casting those to the types of the receiving function
-        let argument_registers: Vec<MemoryAddress> = arguments
-            .iter()
-            .map(|argument_id| self.convert_ssa_value(*argument_id, dfg).extract_register())
-            .collect();
-
-        let variables_to_save = self.variables.get_available_variables(self.function_context);
-
-        let saved_registers = self
-            .brillig_context
-            .codegen_pre_call_save_registers_prep_args(&argument_registers, &variables_to_save);
-
-        // Call instruction, which will interpret above registers 0..num args
-        self.brillig_context.add_external_call_instruction(func_id);
-
-        // Important: resolve after pre_call_save_registers_prep_args
-        // This ensures we don't save the results to registers unnecessarily.
-
-        // Allocate the registers for the variables where we are assigning the returns
-        let variables_assigned_to = vecmap(result_ids, |result_id| {
+        let argument_variables =
+            vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
+        let return_variables = vecmap(result_ids, |result_id| {
             self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
@@ -810,26 +796,7 @@ impl<'block> BrilligBlock<'block> {
                 dfg,
             )
         });
-
-        // Collect the registers that should have been returned
-        let returned_registers: Vec<MemoryAddress> = variables_assigned_to
-            .iter()
-            .map(|returned_variable| returned_variable.extract_register())
-            .collect();
-
-        assert!(
-            !saved_registers.iter().any(|x| returned_registers.contains(x)),
-            "should not save registers used as function results"
-        );
-
-        // puts the returns into the returned_registers and restores saved_registers
-        self.brillig_context
-            .codegen_post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
-
-        // Reset the register state to the one needed to hold the current available variables
-        let variables = self.variables.get_available_variables(self.function_context);
-        let registers = variables.into_iter().map(|variable| variable.extract_register()).collect();
-        self.brillig_context.set_allocated_registers(registers);
+        self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
     }
 
     fn validate_array_index(
@@ -1310,12 +1277,13 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
-        self.brillig_context.conditional_mov_instruction(
-            absolute_value.address,
-            result_is_negative.address,
-            twos_complement.address,
-            num.address,
-        );
+        self.brillig_context.codegen_branch(result_is_negative.address, |ctx, is_negative| {
+            if is_negative {
+                ctx.mov_instruction(absolute_value.address, twos_complement.address);
+            } else {
+                ctx.mov_instruction(absolute_value.address, num.address);
+            }
+        });
 
         self.brillig_context.deallocate_single_addr(zero);
         self.brillig_context.deallocate_single_addr(max_positive);
@@ -1586,7 +1554,7 @@ impl<'block> BrilligBlock<'block> {
                             let size = self
                                 .brillig_context
                                 .make_usize_constant_instruction(array.len().into());
-                            self.brillig_context.codegen_initialize_vector(vector, size);
+                            self.brillig_context.codegen_initialize_vector(vector, size, None);
                             self.brillig_context.deallocate_single_addr(size);
                         }
                         _ => unreachable!(
@@ -1832,11 +1800,6 @@ impl<'block> BrilligBlock<'block> {
                 // The stack pointer will then be updated by the caller of this method
                 // once the external call is resolved and the array size is known
                 self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
-                self.brillig_context.indirect_const_instruction(
-                    vector.pointer,
-                    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-                    1_usize.into(),
-                );
 
                 variable
             }
