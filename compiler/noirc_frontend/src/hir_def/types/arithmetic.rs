@@ -59,7 +59,6 @@ impl Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
                 let kind = lhs.infix_kind(&rhs);
-                // TODO: dummy span
                 let dummy_span = Span::default();
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
@@ -136,7 +135,6 @@ impl Type {
                     queue.push(*rhs_inner);
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
-                    // TODO: dummy span
                     let dummy_span = Span::default();
                     if let Ok(result) =
                         op.function(constant, new_constant, &new_constant_kind, dummy_span)
@@ -251,7 +249,6 @@ impl Type {
         rhs: &Type,
     ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
         let kind = lhs.infix_kind(rhs);
-        // TODO: dummy span
         let dummy_span = Span::default();
         let rhs = rhs.evaluate_to_field_element(&kind, dummy_span).ok()?;
 
@@ -259,7 +256,6 @@ impl Type {
             return None;
         };
 
-        // TODO: dummy span
         let dummy_span = Span::default();
         let l_rhs = l_rhs.evaluate_to_field_element(&kind, dummy_span).ok()?;
         Some((l_type, l_op, l_rhs, rhs))
@@ -286,7 +282,6 @@ impl Type {
                 if l_op == Subtraction {
                     op = op.inverse()?;
                 }
-                // TODO: dummy span
                 let dummy_span = Span::default();
                 let result =
                     op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_span).ok()?;
@@ -302,7 +297,6 @@ impl Type {
                 if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {
                     None
                 } else {
-                    // TODO: dummy span
                     let dummy_span = Span::default();
                     let result =
                         op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_span).ok()?;
@@ -324,7 +318,6 @@ impl Type {
         if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
             if let Some(inverse) = op_a.approx_inverse() {
                 let kind = lhs_a.infix_kind(rhs_a);
-                // TODO: dummy span
                 let dummy_span = Span::default();
                 if let Ok(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind, dummy_span) {
                     let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
@@ -342,7 +335,6 @@ impl Type {
         if let Type::InfixExpr(lhs_b, op_b, rhs_b) = other {
             if let Some(inverse) = op_b.approx_inverse() {
                 let kind = lhs_b.infix_kind(rhs_b);
-                // TODO: dummy span
                 let dummy_span = Span::default();
                 if let Ok(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind, dummy_span) {
                     let rhs_b = Box::new(Type::Constant(rhs_b_value, kind));

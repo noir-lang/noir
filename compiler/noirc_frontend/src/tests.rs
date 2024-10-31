@@ -16,6 +16,7 @@ mod visibility;
 // A test harness will allow for more expressive and readable tests
 use std::collections::BTreeMap;
 
+use acvm::{AcirField, FieldElement};
 use fm::FileId;
 
 use iter_extended::vecmap;
@@ -3304,10 +3305,13 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
             }
             _ => panic!("unexpected length: {:?}", length),
         }
-        assert!(matches!(
-            err,
-            TypeCheckError::FailingBinaryOp { op: BinaryTypeOperator::Modulo, lhs: 0, rhs: 0, .. }
-        ));
+        match err {
+            TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
+                assert_eq!(lhs.clone(), FieldElement::zero());
+                assert_eq!(rhs.clone(), FieldElement::zero());
+            }
+            _ => panic!("expected ModuloOnFields, but found: {:?}", err),
+        }
     } else {
         panic!("unexpected error: {:?}", monomorphization_error);
     }

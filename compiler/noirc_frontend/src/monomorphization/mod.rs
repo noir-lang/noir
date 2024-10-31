@@ -10,7 +10,7 @@
 //! function, will monomorphize the entire reachable program.
 use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::hir::comptime::InterpreterError;
-use crate::hir::type_check::NoMatchingImplFoundError;
+use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, ImplSearchErrorKind};
 use crate::{
     debug::DebugInstrumenter,
@@ -935,7 +935,6 @@ impl<'interner> Monomorphizer<'interner> {
                                 &Kind::Numeric(numeric_typ.clone()),
                                 location.span,
                             )
-                            // TODO: better error
                             .map_err(|err| MonomorphizationError::UnknownArrayLength {
                                 length: binding.clone(),
                                 err,
@@ -966,13 +965,36 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
-            // TODO: only unwrap_or on "safe" errors
             HirType::String(size) => {
-                ast::Type::String(size.evaluate_to_u32(location.span).unwrap_or(0))
+                let size = match size.evaluate_to_u32(location.span) {
+                    Ok(size) => size,
+                    // only default variable sizes to size 0
+                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
+                    Err(err) => {
+                        let length = size.as_ref().clone();
+                        return Err(MonomorphizationError::UnknownArrayLength {
+                            location,
+                            err,
+                            length,
+                        });
+                    }
+                };
+                ast::Type::String(size)
             }
             HirType::FmtString(size, fields) => {
-                // TODO: only unwrap_or on "safe" errors
-                let size = size.evaluate_to_u32(location.span).unwrap_or(0);
+                let size = match size.evaluate_to_u32(location.span) {
+                    Ok(size) => size,
+                    // only default variable sizes to size 0
+                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
+                    Err(err) => {
+                        let length = size.as_ref().clone();
+                        return Err(MonomorphizationError::UnknownArrayLength {
+                            location,
+                            err,
+                            length,
+                        });
+                    }
+                };
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location)?);
                 ast::Type::FmtString(size, fields)
             }
