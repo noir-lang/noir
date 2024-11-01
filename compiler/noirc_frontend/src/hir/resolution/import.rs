@@ -30,7 +30,6 @@ pub struct ImportDirective {
 
 struct NamespaceResolution {
     module_id: ModuleId,
-    item: PathResolutionItem,
     namespace: PerNs,
     errors: Vec<PathResolutionError>,
 }
@@ -127,8 +126,6 @@ pub struct ResolvedImport {
     pub name: Ident,
     // The symbol which we have resolved to
     pub resolved_namespace: PerNs,
-    // The item which we have resolved to
-    pub item: PathResolutionItem,
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
     pub is_prelude: bool,
@@ -174,7 +171,6 @@ pub fn resolve_import(
     let module_scope = import_directive.module_id;
     let NamespaceResolution {
         module_id: resolved_module,
-        item,
         namespace: resolved_namespace,
         mut errors,
     } = resolve_path_to_ns(
@@ -210,7 +206,6 @@ pub fn resolve_import(
     Ok(ResolvedImport {
         name,
         resolved_namespace,
-        item,
         module_scope,
         is_prelude: import_directive.is_prelude,
         errors,
@@ -363,14 +358,11 @@ fn resolve_name_in_module(
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
     let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
-    let mut intermediate_item = IntermediatePathResolutionItem::Module(current_mod_id);
-
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
         return Ok(NamespaceResolution {
             module_id: current_mod_id,
-            item: PathResolutionItem::Module(current_mod_id),
             namespace: PerNs::types(current_mod_id.into()),
             errors: Vec::new(),
         });
@@ -398,7 +390,7 @@ fn resolve_name_in_module(
         };
 
         // In the type namespace, only Mod can be used in a path.
-        (current_mod_id, intermediate_item) = match typ {
+        current_mod_id = match typ {
             ModuleDefId::ModuleId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Module(id));
@@ -411,7 +403,7 @@ fn resolve_name_in_module(
                     });
                 }
 
-                (id, IntermediatePathResolutionItem::Module(id))
+                id
             }
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             // TODO: If impls are ever implemented, types can be used in a path
@@ -420,16 +412,7 @@ fn resolve_name_in_module(
                     path_references.push(ReferenceId::Struct(id));
                 }
 
-                (
-                    id.module_id(),
-                    IntermediatePathResolutionItem::Struct(
-                        id,
-                        last_segment_generics.as_ref().map(|generics| Turbofish {
-                            generics: generics.clone(),
-                            span: last_segment.turbofish_span(),
-                        }),
-                    ),
-                )
+                id.module_id()
             }
             ModuleDefId::TypeAliasId(id) => {
                 if let Some(path_references) = path_references {
@@ -451,32 +434,14 @@ fn resolve_name_in_module(
                     }
                 };
 
-                (
-                    module_id,
-                    IntermediatePathResolutionItem::TypeAlias(
-                        id,
-                        last_segment_generics.as_ref().map(|generics| Turbofish {
-                            generics: generics.clone(),
-                            span: last_segment.turbofish_span(),
-                        }),
-                    ),
-                )
+                module_id
             }
             ModuleDefId::TraitId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Trait(id));
                 }
 
-                (
-                    id.0,
-                    IntermediatePathResolutionItem::Trait(
-                        id,
-                        last_segment_generics.as_ref().map(|generics| Turbofish {
-                            generics: generics.clone(),
-                            span: last_segment.turbofish_span(),
-                        }),
-                    ),
-                )
+                id.0
             }
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
@@ -509,15 +474,7 @@ fn resolve_name_in_module(
         current_ns = found_ns;
     }
 
-    let module_def_id =
-        current_ns.values.or(current_ns.types).map(|(id, _, _)| id).expect("Found empty namespace");
-
-    let item = merge_intermediate_path_resolution_item_with_module_def_id(
-        intermediate_item,
-        module_def_id,
-    );
-
-    Ok(NamespaceResolution { module_id: current_mod_id, item, namespace: current_ns, errors })
+    Ok(NamespaceResolution { module_id: current_mod_id, namespace: current_ns, errors })
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
@@ -580,31 +537,4 @@ fn resolve_external_dep(
         usage_tracker,
         path_references,
     )
-}
-
-fn merge_intermediate_path_resolution_item_with_module_def_id(
-    intermediate_item: IntermediatePathResolutionItem,
-    module_def_id: ModuleDefId,
-) -> PathResolutionItem {
-    match module_def_id {
-        ModuleDefId::ModuleId(module_id) => PathResolutionItem::Module(module_id),
-        ModuleDefId::TypeId(struct_id) => PathResolutionItem::Struct(struct_id),
-        ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
-        ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
-        ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
-        ModuleDefId::FunctionId(func_id) => match intermediate_item {
-            IntermediatePathResolutionItem::Module(_) => {
-                PathResolutionItem::ModuleFunction(func_id)
-            }
-            IntermediatePathResolutionItem::Struct(struct_id, generics) => {
-                PathResolutionItem::StructFunction(struct_id, generics, func_id)
-            }
-            IntermediatePathResolutionItem::TypeAlias(alias_id, generics) => {
-                PathResolutionItem::TypeAliasFunction(alias_id, generics, func_id)
-            }
-            IntermediatePathResolutionItem::Trait(trait_id, generics) => {
-                PathResolutionItem::TraitFunction(trait_id, generics, func_id)
-            }
-        },
-    }
 }
