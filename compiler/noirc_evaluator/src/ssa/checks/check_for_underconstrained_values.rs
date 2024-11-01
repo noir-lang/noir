@@ -43,10 +43,12 @@ impl Ssa {
             .flat_map(|fid| {
                 let function_to_process = &self.functions[&FunctionId::new(*fid)];
                 match function_to_process.runtime() {
-                    RuntimeType::Acir { .. } => check_for_missing_brillig_constrains_within_function(
-                        function_to_process,
-                        &self.functions,
-                    ),
+                    RuntimeType::Acir { .. } => {
+                        check_for_missing_brillig_constrains_within_function(
+                            function_to_process,
+                            &self.functions,
+                        )
+                    }
                     RuntimeType::Brillig(_) => Vec::new(),
                 }
             })
@@ -94,7 +96,7 @@ fn check_for_missing_brillig_constrains_within_function(
 
     let mut context = DependencyContext::default();
     context.build(function, all_functions);
-   
+
     context.collect_warnings();
     // let all_brillig_generated_values: HashSet<ValueId> =
     // context.brillig_return_to_argument.keys().copied().collect();
@@ -133,11 +135,7 @@ impl DependencyContext {
     /// Build the dependency graph of variable ValueIds, also storing
     /// information on value ids involved in constrain operations
     /// and brillig calls
-    fn build(
-        &mut self,
-        function: &Function,
-        all_functions: &BTreeMap<FunctionId, Function>,
-    ) {
+    fn build(&mut self, function: &Function, all_functions: &BTreeMap<FunctionId, Function>) {
         self.block_queue.push(function.entry_block());
         while let Some(block) = self.block_queue.pop() {
             if self.visited_blocks.contains(&block) {
@@ -185,7 +183,7 @@ impl DependencyContext {
                     // Remember the value stored at address as parent for the results
                     if let Some(value_id) = self.memory_slots.get(address) {
                         for result in results {
-                            self.value_parents.entry(result).or_insert(vec![]).push(*value_id);
+                            self.value_parents.entry(result).or_default().push(*value_id);
                         }
                     } else {
                         debug!("load instruction {} has attempted to access previously unused memory location, skipping",
@@ -201,15 +199,20 @@ impl DependencyContext {
                 Instruction::Call { func: func_id, arguments } => {
                     if let Value::Function(callee) = &function.dfg[*func_id] {
                         if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
-                            self.brillig_values.insert(*func_id, 
-                                (HashSet::from_iter(arguments.clone()), HashSet::from_iter(results)));
+                            self.brillig_values.insert(
+                                *func_id,
+                                (
+                                    HashSet::from_iter(arguments.clone()),
+                                    HashSet::from_iter(results),
+                                ),
+                            );
                         }
                     }
                 }
                 _ => {
                     // Record all the used arguments as parents of the results
                     for result in results {
-                        self.value_parents.entry(result).or_insert(vec![]).extend(&arguments);
+                        self.value_parents.entry(result).or_default().extend(&arguments);
                     }
                 }
             }
@@ -225,20 +228,25 @@ impl DependencyContext {
     fn collect_warnings(&mut self) {
         let mut covered_brillig_calls: HashSet<ValueId> = HashSet::new();
         for constrained_values in &self.constrained_values {
-            let constrain_ancestors: HashSet<_> = constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
+            let constrain_ancestors: HashSet<_> =
+                constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
             for (brillig_call, brillig_values) in &self.brillig_values {
                 // If there is at least one value among the constrain value ancestors
                 // in both of the brillig call arguments and results, consider the call properly covered
-                if constrain_ancestors.intersection(&brillig_values.0).next().is_some() &&
-                    constrain_ancestors.intersection(&brillig_values.1).next().is_some() {
-                    trace!("brillig call at {} covered by constrained values {:?}", brillig_call, constrained_values);
+                if constrain_ancestors.intersection(&brillig_values.0).next().is_some()
+                    && constrain_ancestors.intersection(&brillig_values.1).next().is_some()
+                {
+                    trace!(
+                        "brillig call at {} covered by constrained values {:?}",
+                        brillig_call,
+                        constrained_values
+                    );
                     covered_brillig_calls.insert(*brillig_call);
                 }
             }
         }
 
         // For each unchecked brillig call, emit a warning
-
     }
 
     /// Build a set of all ValueIds the given ValueId descends from
