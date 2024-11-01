@@ -1,10 +1,13 @@
 use noirc_errors::{Location, Spanned};
 
-use crate::ast::{Ident, Path, PathKind, ERROR_IDENT};
+use crate::ast::{Ident, ItemVisibility, Path, PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::resolution::import::{PathResolution, PathResolutionItem, PathResolutionResult};
-use crate::hir::resolution::path_resolver::resolve_path;
+use crate::hir::resolution::import::{
+    resolve_import, ImportDirective, PathResolution, PathResolutionItem, PathResolutionResult,
+};
+
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
+use crate::node_interner::ReferenceId;
 use crate::{
     hir::resolution::errors::ResolverError,
     hir_def::{
@@ -83,14 +86,20 @@ impl<'context> Elaborator<'context> {
             None
         };
 
+        self.resolve_path_impl(module_id, self_type_module_id, path)
+    }
+
+    fn resolve_path_impl(
+        &mut self,
+        module_id: ModuleId,
+        self_type_module_id: Option<ModuleId>,
+        path: Path,
+    ) -> PathResolutionResult {
         if !self.interner.lsp_mode {
-            return resolve_path(
-                self.interner,
-                self.def_maps,
+            return self.resolve_path_impl_with_references(
                 module_id,
                 self_type_module_id,
                 path,
-                self.usage_tracker,
                 &mut None,
             );
         }
@@ -100,13 +109,10 @@ impl<'context> Elaborator<'context> {
         let is_self_type_name = last_segment.is_self_type_name();
 
         let mut references: Vec<_> = Vec::new();
-        let path_resolution = resolve_path(
-            self.interner,
-            self.def_maps,
+        let path_resolution = self.resolve_path_impl_with_references(
             module_id,
             self_type_module_id,
             path.clone(),
-            self.usage_tracker,
             &mut Some(&mut references),
         );
 
@@ -130,6 +136,34 @@ impl<'context> Elaborator<'context> {
         );
 
         Ok(path_resolution)
+    }
+
+    fn resolve_path_impl_with_references(
+        &mut self,
+        module_id: ModuleId,
+        self_type_module_id: Option<ModuleId>,
+        path: Path,
+        path_references: &mut Option<&mut Vec<ReferenceId>>,
+    ) -> PathResolutionResult {
+        // lets package up the path into an ImportDirective and resolve it using that
+        let import = ImportDirective {
+            visibility: ItemVisibility::Private,
+            module_id: module_id.local_id,
+            self_type_module_id,
+            path,
+            alias: None,
+            is_prelude: false,
+        };
+        let resolved_import = resolve_import(
+            module_id.krate,
+            &import,
+            self.interner,
+            self.def_maps,
+            self.usage_tracker,
+            path_references,
+        )?;
+
+        Ok(PathResolution { item: resolved_import.item, errors: resolved_import.errors })
     }
 
     pub(super) fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
