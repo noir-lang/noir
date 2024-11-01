@@ -149,6 +149,9 @@ fn evaluate_binary_int_op_128(
                 lhs.wrapping_shr(rhs as u32)
             }
         }
+        BinaryIntOp::CheckedAdd => lhs.wrapping_add(rhs),
+        BinaryIntOp::CheckedSub => lhs.wrapping_sub(rhs),
+        BinaryIntOp::CheckedMul => lhs.wrapping_mul(rhs),
     };
     Ok(result)
 }
@@ -163,20 +166,23 @@ fn evaluate_binary_int_op_generic(
     let bit_modulo = 1 << bit_size;
     let result = match op {
         // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
-        BinaryIntOp::Add => {
+        BinaryIntOp::Add => (lhs + rhs) % bit_modulo,
+        BinaryIntOp::Sub => (bit_modulo + lhs - rhs) % bit_modulo,
+        BinaryIntOp::Mul => (lhs * rhs) % bit_modulo,
+        BinaryIntOp::CheckedAdd => {
             let result = (lhs + rhs) % bit_modulo;
             if lhs > result {
                 return Err(BrilligArithmeticError::OverflowAdd);
             }
             result
         }
-        BinaryIntOp::Sub => {
+        BinaryIntOp::CheckedSub => {
             if rhs > lhs {
                 return Err(BrilligArithmeticError::OverflowSub);
             }
             (bit_modulo + lhs - rhs) % bit_modulo
         }
-        BinaryIntOp::Mul => {
+        BinaryIntOp::CheckedMul => {
             let result = (lhs * rhs) % bit_modulo;
             if rhs != 0 && result / rhs != lhs {
                 return Err(BrilligArithmeticError::OverflowMul);

@@ -106,6 +106,9 @@ fn format_binary_int(op: &BinaryIntOp) -> String {
         BinaryIntOp::Xor => "xor".to_string(),
         BinaryIntOp::Shl => "shl".to_string(),
         BinaryIntOp::Shr => "shr".to_string(),
+        BinaryIntOp::CheckedAdd => "c_add".to_string(),
+        BinaryIntOp::CheckedSub => "c_sub".to_string(),
+        BinaryIntOp::CheckedMul => "c_mul".to_string(),
     }
 }
 
