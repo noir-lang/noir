@@ -5,13 +5,12 @@ use crate::graph::CrateId;
 use crate::hir::comptime::InterpreterError;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{Generics, Type};
 
-use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
+use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::Context;
 
 use crate::ast::Expression;
@@ -558,17 +557,29 @@ fn inject_prelude(
             span: Span::default(),
         };
 
-        if let Ok(PathResolution { item, errors }) = path_resolver::resolve_path(
+        // Resolve the path as an import (as it is an import)
+        let import_directive = ImportDirective {
+            visibility: ItemVisibility::Private,
+            module_id: crate_root,
+            self_type_module_id: None,
+            path,
+            alias: None,
+            is_prelude: false,
+        };
+
+        if let Ok(resolved_import) = resolve_import(
+            crate_id,
+            &import_directive,
             &context.def_interner,
             &context.def_maps,
-            ModuleId { krate: crate_id, local_id: crate_root },
-            None,
-            path,
             &mut context.usage_tracker,
             &mut None,
         ) {
-            assert!(errors.is_empty(), "Tried to add private item to prelude");
-            let module_id = item.module_id().expect("std::prelude should be a module");
+            assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
+
+            let (module_def_id, _, _) =
+                resolved_import.resolved_namespace.types.expect("couldn't resolve std::prelude");
+            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {
