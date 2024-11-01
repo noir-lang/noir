@@ -19,6 +19,7 @@ use noirc_frontend::{
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     node_interner::NodeInterner,
+    usage_tracker::UsageTracker,
 };
 use noirc_frontend::{
     parser::{Item, ItemKind, ParsedSubModule},
@@ -62,6 +63,7 @@ pub(crate) fn on_code_action_request(
                     args.crate_id,
                     args.def_maps,
                     args.interner,
+                    args.usage_tracker,
                 );
                 finder.find(&parsed_module)
             })
@@ -82,6 +84,7 @@ struct CodeActionFinder<'a> {
     module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     interner: &'a NodeInterner,
+    usage_tracker: &'a UsageTracker,
     /// How many nested `mod` we are in deep
     nesting: usize,
     /// The line where an auto_import must be inserted
@@ -103,6 +106,7 @@ impl<'a> CodeActionFinder<'a> {
         krate: CrateId,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         interner: &'a NodeInterner,
+        usage_tracker: &'a UsageTracker,
     ) -> Self {
         // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
@@ -124,6 +128,7 @@ impl<'a> CodeActionFinder<'a> {
             module_id,
             def_maps,
             interner,
+            usage_tracker,
             nesting: 0,
             auto_import_line: 0,
             use_segment_positions: UseSegmentPositions::default(),

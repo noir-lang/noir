@@ -251,7 +251,7 @@ impl<'context> Elaborator<'context> {
             let hir_ident = if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
                 old_value.ident.clone()
-            } else if let Ok(definition_id) =
+            } else if let Ok((definition_id, _)) =
                 self.lookup_global(Path::from_single(ident_name.to_string(), call_expr_span))
             {
                 HirIdent::non_trait_method(definition_id, Location::new(call_expr_span, self.file))
@@ -536,9 +536,6 @@ impl<'context> Elaborator<'context> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
-        let exclude_last_segment = true;
-        self.check_unsupported_turbofish_usage(&path, exclude_last_segment);
-
         let last_segment = path.last_segment();
         let is_self_type = last_segment.ident.is_self_type_name();
 
@@ -594,7 +591,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<StructType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
-        self.interner.usage_tracker.mark_as_used(parent_module_id, &struct_type.name);
+        self.usage_tracker.mark_as_used(parent_module_id, &struct_type.name);
     }
 
     /// Resolve all the fields of a struct constructor expression.

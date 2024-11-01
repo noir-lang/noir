@@ -4,7 +4,9 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+    ast::ItemVisibility, hir::resolution::import::PathResolutionItem,
+    hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker, StructField, StructType,
+    TypeBindings,
 };
 use crate::{
     ast::{
@@ -20,7 +22,7 @@ use crate::{
         },
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
+        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
@@ -83,8 +85,8 @@ pub struct Elaborator<'context> {
     pub(crate) errors: Vec<(CompilationError, FileId)>,
 
     pub(crate) interner: &'context mut NodeInterner,
-
     pub(crate) def_maps: &'context mut DefMaps,
+    pub(crate) usage_tracker: &'context mut UsageTracker,
 
     pub(crate) file: FileId,
 
@@ -182,6 +184,7 @@ impl<'context> Elaborator<'context> {
     pub fn new(
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
+        usage_tracker: &'context mut UsageTracker,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
@@ -191,6 +194,7 @@ impl<'context> Elaborator<'context> {
             errors: Vec::new(),
             interner,
             def_maps,
+            usage_tracker,
             file: FileId::dummy(),
             in_unsafe_block: false,
             nested_loops: 0,
@@ -220,6 +224,7 @@ impl<'context> Elaborator<'context> {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
+            &mut context.usage_tracker,
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
@@ -667,11 +672,11 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
-                if error.is_some() {
-                    None
-                } else {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                if errors.is_empty() {
                     Some(module_id)
+                } else {
+                    None
                 }
             }
             _ => None,
@@ -680,8 +685,8 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
-                if let Some(error) = error {
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
+                for error in errors {
                     self.push_err(error);
                 }
                 return Some(trait_id);
