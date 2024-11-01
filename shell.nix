@@ -2,6 +2,7 @@
 {
   pkgs,
   self',
+  inputs',
   ...
 }: let
   inherit (pkgs) lib stdenv mkShell;
@@ -12,9 +13,13 @@ in
       [
         pkgs.alejandra
         self'.legacyPackages.rustToolchain
+        pkgs.rustfilt
       ]
       ++ lib.optionals stdenv.isDarwin [
         pkgs.libiconv
         frameworks.CoreServices
       ];
+    shellHook = ''
+      export PATH="${inputs'.fenix.packages.latest.llvm-tools}/lib/rustlib/x86_64-unknown-linux-gnu/bin:$PATH"
+    '';
   }

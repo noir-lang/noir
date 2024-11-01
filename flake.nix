@@ -28,7 +28,7 @@
             rustfmt
             llvm-tools
           ];
-        devShells.default = import ./shell.nix {inherit pkgs self';};
+        devShells.default = import ./shell.nix {inherit pkgs self' inputs';};
       };
     };
 }
