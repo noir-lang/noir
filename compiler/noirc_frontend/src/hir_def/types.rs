@@ -1425,9 +1425,6 @@ impl Type {
 
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self, location: &Location) -> u32 {
-        // // TODO: dummy span
-        // let dummy_span = Span::default();
-
         match self {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
@@ -1647,15 +1644,11 @@ impl Type {
         use Type::*;
 
         let lhs = match self {
-            // TODO?
-            // Type::CheckedCast { .. } => Cow::Owned(self.canonicalize()),
             Type::InfixExpr(..) => Cow::Owned(self.canonicalize()),
             other => Cow::Borrowed(other),
         };
 
         let rhs = match other {
-            // TODO?
-            // Type::CheckedCast { .. } => Cow::Owned(self.canonicalize()),
             Type::InfixExpr(..) => Cow::Owned(other.canonicalize()),
             other => Cow::Borrowed(other),
         };

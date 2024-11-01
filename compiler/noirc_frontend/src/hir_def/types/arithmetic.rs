@@ -22,10 +22,6 @@ impl Type {
                 to: Box::new(to.canonicalize_unchecked()),
             },
 
-            // // TODO: current source appears to be 'unify'
-            // Type::InfixExpr(lhs, op, rhs) => {
-            //     panic!("TODO: canonicalized InfixExpr {:?}", (lhs, op, rhs));
-            // }
             other => {
                 let non_checked_cast = false;
                 let run_simplifications = true;

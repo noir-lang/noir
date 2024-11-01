@@ -468,9 +468,8 @@ impl<'context> Elaborator<'context> {
                         match op.function(lhs, rhs, &lhs_kind, span) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
-                                // TODO improve error (e.g. 'err' could be an underflow)
                                 let err = Box::new(err);
-                                self.push_err(ResolverError::OverflowInType {
+                                self.push_err(ResolverError::BinaryOpError {
                                     lhs,
                                     op,
                                     rhs,

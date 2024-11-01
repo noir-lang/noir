@@ -127,8 +127,8 @@ pub enum ResolverError {
     NamedTypeArgs { span: Span, item_kind: &'static str },
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
-    #[error("Overflow in `{lhs} {op} {rhs}`, with error {err}")]
-    OverflowInType {
+    #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
+    BinaryOpError {
         lhs: FieldElement,
         op: crate::BinaryTypeOperator,
         rhs: FieldElement,
@@ -535,10 +535,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
-            ResolverError::OverflowInType { lhs, op, rhs, err, span } => {
+            ResolverError::BinaryOpError { lhs, op, rhs, err, span } => {
                 Diagnostic::simple_error(
-                    format!("Overflow in `{lhs} {op} {rhs}`, with error {err}"),
-                    "Overflow here".to_string(),
+                    format!("Computing `{lhs} {op} {rhs}` failed with error {err}"),
+                    String::new(),
                     *span,
                 )
             }

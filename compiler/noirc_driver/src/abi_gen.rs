@@ -45,7 +45,6 @@ fn get_main_function_span(context: &Context) -> Span {
     if let Some(func_id) = context.get_main_function(context.root_crate_id()) {
         context.function_meta(&func_id).location.span
     } else {
-        // TODO dummy span
         Span::default()
     }
 }
