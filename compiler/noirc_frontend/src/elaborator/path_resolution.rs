@@ -238,7 +238,6 @@ impl<'context> Elaborator<'context> {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn resolve_name_in_module(
         &mut self,
         path: Path,
