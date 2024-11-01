@@ -9,11 +9,11 @@ use std::collections::BTreeMap;
 use fm::FileId;
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{AttributeTarget, Visitor},
+    ast::{AttributeTarget, ItemVisibility, Visitor},
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::{import::PathResolutionItem, path_resolver::resolve_path},
+        resolution::import::{resolve_import, ImportDirective},
     },
     node_interner::{NodeInterner, ReferenceId},
     parser::{ParsedSubModule, Parser},
@@ -21,6 +21,8 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
     ParsedModule,
 };
+
+use crate::modules::module_def_id_to_reference_id;
 
 pub(crate) struct AttributeReferenceFinder<'a> {
     byte_index: usize,
@@ -99,33 +101,33 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
             return;
         };
 
+        // The path here must resolve to a function and it's a simple path (can't have turbofish)
+        // so it can (and must) be solved as an import.
+        let import_directive = ImportDirective {
+            visibility: ItemVisibility::Private,
+            module_id: self.module_id.local_id,
+            self_type_module_id: None,
+            path,
+            alias: None,
+            is_prelude: false,
+        };
+
         let mut usage_tracker = UsageTracker::default();
-        let Ok(result) = resolve_path(
+        let Ok(result) = resolve_import(
+            self.module_id.krate,
+            &import_directive,
             self.interner,
             self.def_maps,
-            self.module_id,
-            None, // self_type_module_id
-            path,
             &mut usage_tracker,
             &mut None,
         ) else {
             return;
         };
 
-        self.reference_id = Some(path_resolution_item_to_reference_id(result.item));
-    }
-}
+        let Some((module_def_id, _, _)) = result.resolved_namespace.values else {
+            return;
+        };
 
-fn path_resolution_item_to_reference_id(item: PathResolutionItem) -> ReferenceId {
-    match item {
-        PathResolutionItem::Module(module_id) => ReferenceId::Module(module_id),
-        PathResolutionItem::Struct(struct_id) => ReferenceId::Struct(struct_id),
-        PathResolutionItem::TypeAlias(type_alias_id) => ReferenceId::Alias(type_alias_id),
-        PathResolutionItem::Trait(trait_id) => ReferenceId::Trait(trait_id),
-        PathResolutionItem::Global(global_id) => ReferenceId::Global(global_id),
-        PathResolutionItem::ModuleFunction(func_id)
-        | PathResolutionItem::StructFunction(_, _, func_id)
-        | PathResolutionItem::TypeAliasFunction(_, _, func_id)
-        | PathResolutionItem::TraitFunction(_, _, func_id) => ReferenceId::Function(func_id),
+        self.reference_id = Some(module_def_id_to_reference_id(module_def_id));
     }
 }
