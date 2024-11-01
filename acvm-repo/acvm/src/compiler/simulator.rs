@@ -219,3 +219,86 @@ impl CircuitSimulator {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use crate::compiler::CircuitSimulator;
+    use acir::{
+        acir_field::AcirField,
+        circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs},
+        native_types::{Expression, Witness},
+        FieldElement,
+    };
+
+    fn test_circuit(
+        opcodes: Vec<Opcode<FieldElement>>,
+        private_parameters: BTreeSet<Witness>,
+        public_parameters: PublicInputs,
+    ) -> Circuit<FieldElement> {
+        Circuit {
+            current_witness_index: 1,
+            expression_width: ExpressionWidth::Bounded { width: 4 },
+            opcodes,
+            private_parameters,
+            public_parameters,
+            return_values: PublicInputs::default(),
+            assert_messages: Default::default(),
+            recursive: false,
+        }
+    }
+
+    #[test]
+    fn reports_true_for_empty_circuit() {
+        let empty_circuit = test_circuit(vec![], BTreeSet::default(), PublicInputs::default());
+
+        assert!(CircuitSimulator::default().check_circuit(&empty_circuit));
+    }
+
+    #[test]
+    fn reports_true_for_connected_circuit() {
+        let connected_circuit = test_circuit(
+            vec![Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::one(), Witness(1)),
+                    (-FieldElement::one(), Witness(2)),
+                ],
+                q_c: FieldElement::zero(),
+            })],
+            BTreeSet::from([Witness(1)]),
+            PublicInputs::default(),
+        );
+
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit));
+    }
+
+    #[test]
+    fn reports_false_for_disconnected_circuit() {
+        let disconnected_circuit = test_circuit(
+            vec![
+                Opcode::AssertZero(Expression {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![
+                        (FieldElement::one(), Witness(1)),
+                        (-FieldElement::one(), Witness(2)),
+                    ],
+                    q_c: FieldElement::zero(),
+                }),
+                Opcode::AssertZero(Expression {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![
+                        (FieldElement::one(), Witness(3)),
+                        (-FieldElement::one(), Witness(4)),
+                    ],
+                    q_c: FieldElement::zero(),
+                }),
+            ],
+            BTreeSet::from([Witness(1)]),
+            PublicInputs::default(),
+        );
+
+        assert!(!CircuitSimulator::default().check_circuit(&disconnected_circuit));
+    }
+}
