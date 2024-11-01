@@ -28,14 +28,14 @@ pub struct ImportDirective {
     pub is_prelude: bool,
 }
 
-pub struct NamespaceResolution {
-    pub module_id: ModuleId,
-    pub item: PathResolutionItem,
-    pub namespace: PerNs,
-    pub errors: Vec<PathResolutionError>,
+struct NamespaceResolution {
+    module_id: ModuleId,
+    item: PathResolutionItem,
+    namespace: PerNs,
+    errors: Vec<PathResolutionError>,
 }
 
-pub type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
+type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
 
 #[derive(Debug)]
 pub struct PathResolution {

@@ -1,12 +1,11 @@
 use noirc_errors::{Location, Span};
 
-use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
+use crate::ast::{Path, PathKind, PathSegment};
 use crate::graph::CrateId;
-use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::import::{
-    ImportDirective, IntermediatePathResolutionItem, NamespaceResolution,
-    NamespaceResolutionResult, PathResolution, PathResolutionError, PathResolutionItem,
-    PathResolutionResult, ResolvedImport, Turbofish,
+    IntermediatePathResolutionItem, PathResolution, PathResolutionError, PathResolutionItem,
+    PathResolutionResult, Turbofish,
 };
 
 use crate::hir::resolution::errors::ResolverError;
@@ -123,84 +122,64 @@ impl<'context> Elaborator<'context> {
         path: Path,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        // lets package up the path into an ImportDirective and resolve it using that
-        let import = ImportDirective {
-            visibility: ItemVisibility::Private,
-            module_id: module_id.local_id,
+        self.resolve_import(
+            module_id.krate,
+            path.kind,
+            &path.segments,
+            path.span,
+            module_id.local_id,
             self_type_module_id,
-            path,
-            alias: None,
-            is_prelude: false,
-        };
-        let resolved_import = self.resolve_import(module_id.krate, &import, path_references)?;
-
-        Ok(PathResolution { item: resolved_import.item, errors: resolved_import.errors })
+            path_references,
+        )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_import(
         &mut self,
         crate_id: CrateId,
-        import_directive: &ImportDirective,
+        path_kind: PathKind,
+        path_segments: &[PathSegment],
+        span: Span,
+        starting_mod: LocalModuleId,
+        self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
-    ) -> Result<ResolvedImport, PathResolutionError> {
-        let module_scope = import_directive.module_id;
-        let NamespaceResolution {
-            module_id: resolved_module,
-            item,
-            namespace: resolved_namespace,
-            mut errors,
-        } = self.resolve_path_to_ns(import_directive, crate_id, crate_id, path_references)?;
-
-        let name = resolve_path_name(import_directive);
-
-        let visibility = resolved_namespace
-            .values
-            .or(resolved_namespace.types)
-            .map(|(_, visibility, _)| visibility)
-            .expect("Found empty namespace");
-
-        if !(import_directive.self_type_module_id == Some(resolved_module)
-            || can_reference_module_id(
-                self.def_maps,
-                crate_id,
-                import_directive.module_id,
-                resolved_module,
-                visibility,
-            ))
-        {
-            errors.push(PathResolutionError::Private(name.clone()));
-        }
-
-        Ok(ResolvedImport {
-            name,
-            resolved_namespace,
-            item,
-            module_scope,
-            is_prelude: import_directive.is_prelude,
-            errors,
-        })
+    ) -> PathResolutionResult {
+        self.resolve_path_to_ns(
+            path_kind,
+            path_segments,
+            span,
+            starting_mod,
+            self_type_module_id,
+            crate_id,
+            crate_id,
+            path_references,
+        )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_path_to_ns(
         &mut self,
-        import_directive: &ImportDirective,
+        path_kind: PathKind,
+        import_path: &[PathSegment],
+        span: Span,
+        starting_mod: LocalModuleId,
+        self_type_module_id: Option<ModuleId>,
         crate_id: CrateId,
         importing_crate: CrateId,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
-    ) -> NamespaceResolutionResult {
-        let import_path = &import_directive.path.segments;
-
-        match import_directive.path.kind {
-            crate::ast::PathKind::Crate => {
+    ) -> PathResolutionResult {
+        match path_kind {
+            PathKind::Crate => {
                 // Resolve from the root of the crate
                 self.resolve_path_from_crate_root(
                     crate_id,
                     importing_crate,
+                    self_type_module_id,
                     import_path,
                     path_references,
                 )
             }
-            crate::ast::PathKind::Plain => {
+            PathKind::Plain => {
                 // There is a possibility that the import path is empty
                 // In that case, early return
                 if import_path.is_empty() {
@@ -208,15 +187,15 @@ impl<'context> Elaborator<'context> {
                         crate_id,
                         importing_crate,
                         import_path,
-                        import_directive.module_id,
+                        starting_mod,
+                        self_type_module_id,
                         true, // plain or crate
                         path_references,
                     );
                 }
 
                 let def_map = &self.def_maps[&crate_id];
-                let current_mod_id =
-                    ModuleId { krate: crate_id, local_id: import_directive.module_id };
+                let current_mod_id = ModuleId { krate: crate_id, local_id: starting_mod };
                 let current_mod = &def_map.modules[current_mod_id.local_id.0];
                 let first_segment =
                     &import_path.first().expect("ice: could not fetch first segment").ident;
@@ -224,8 +203,9 @@ impl<'context> Elaborator<'context> {
                     // Resolve externally when first segment is unresolved
                     return self.resolve_external_dep(
                         crate_id,
-                        // def_map,
-                        import_directive,
+                        import_path,
+                        span,
+                        self_type_module_id,
                         path_references,
                         importing_crate,
                     );
@@ -235,33 +215,37 @@ impl<'context> Elaborator<'context> {
                     crate_id,
                     importing_crate,
                     import_path,
-                    import_directive.module_id,
+                    starting_mod,
+                    self_type_module_id,
                     true, // plain or crate
                     path_references,
                 )
             }
 
-            crate::ast::PathKind::Dep => self.resolve_external_dep(
+            PathKind::Dep => self.resolve_external_dep(
                 crate_id,
-                import_directive,
+                import_path,
+                span,
+                self_type_module_id,
                 path_references,
                 importing_crate,
             ),
 
-            crate::ast::PathKind::Super => {
+            PathKind::Super => {
                 if let Some(parent_module_id) =
-                    self.def_maps[&crate_id].modules[import_directive.module_id.0].parent
+                    self.def_maps[&crate_id].modules[starting_mod.0].parent
                 {
                     self.resolve_name_in_module(
                         crate_id,
                         importing_crate,
                         import_path,
                         parent_module_id,
+                        self_type_module_id,
                         false, // plain or crate
                         path_references,
                     )
                 } else {
-                    let span_start = import_directive.path.span().start();
+                    let span_start = span.start();
                     let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
                     Err(PathResolutionError::NoSuper(span))
                 }
@@ -273,29 +257,33 @@ impl<'context> Elaborator<'context> {
         &mut self,
         crate_id: CrateId,
         importing_crate: CrateId,
+        self_type_module_id: Option<ModuleId>,
         import_path: &[PathSegment],
         path_references: &mut Option<&mut Vec<ReferenceId>>,
-    ) -> NamespaceResolutionResult {
+    ) -> PathResolutionResult {
         let starting_mod = self.def_maps[&crate_id].root;
         self.resolve_name_in_module(
             crate_id,
             importing_crate,
             import_path,
             starting_mod,
+            self_type_module_id,
             true, // plain or crate
             path_references,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_name_in_module(
         &mut self,
         krate: CrateId,
         importing_crate: CrateId,
         import_path: &[PathSegment],
         starting_mod: LocalModuleId,
+        self_type_module_id: Option<ModuleId>,
         plain_or_crate: bool,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
-    ) -> NamespaceResolutionResult {
+    ) -> PathResolutionResult {
         let def_map = &self.def_maps[&krate];
         let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
         let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
@@ -305,10 +293,8 @@ impl<'context> Elaborator<'context> {
         // There is a possibility that the import path is empty
         // In that case, early return
         if import_path.is_empty() {
-            return Ok(NamespaceResolution {
-                module_id: current_mod_id,
+            return Ok(PathResolution {
                 item: PathResolutionItem::Module(current_mod_id),
-                namespace: PerNs::types(current_mod_id.into()),
                 errors: Vec::new(),
             });
         }
@@ -457,19 +443,39 @@ impl<'context> Elaborator<'context> {
             module_def_id,
         );
 
-        Ok(NamespaceResolution { module_id: current_mod_id, item, namespace: current_ns, errors })
+        let name = &import_path.last().unwrap().ident;
+
+        let visibility = current_ns
+            .values
+            .or(current_ns.types)
+            .map(|(_, visibility, _)| visibility)
+            .expect("Found empty namespace");
+
+        if !(self_type_module_id == Some(current_mod_id)
+            || can_reference_module_id(
+                self.def_maps,
+                krate,
+                starting_mod,
+                current_mod_id,
+                visibility,
+            ))
+        {
+            errors.push(PathResolutionError::Private(name.clone()));
+        }
+
+        Ok(PathResolution { item, errors })
     }
 
     fn resolve_external_dep(
         &mut self,
         crate_id: CrateId,
-        directive: &ImportDirective,
+        path: &[PathSegment],
+        span: Span,
+        self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
         importing_crate: CrateId,
-    ) -> NamespaceResolutionResult {
+    ) -> PathResolutionResult {
         // Use extern_prelude to get the dep
-        let path = &directive.path.segments;
-
         let current_def_map = &self.def_maps[&crate_id];
 
         // Fetch the root module from the prelude
@@ -488,28 +494,16 @@ impl<'context> Elaborator<'context> {
             path_references.push(ReferenceId::Module(*dep_module));
         }
 
-        let path = Path {
-            segments: path_without_crate_name.to_vec(),
-            kind: PathKind::Plain,
-            span: Span::default(),
-        };
-        let dep_directive = ImportDirective {
-            visibility: ItemVisibility::Private,
-            module_id: dep_module.local_id,
-            self_type_module_id: directive.self_type_module_id,
-            path,
-            alias: directive.alias.clone(),
-            is_prelude: false,
-        };
-
-        self.resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, path_references)
-    }
-}
-
-fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
-    match &import_directive.alias {
-        None => import_directive.path.last_ident(),
-        Some(ident) => ident.clone(),
+        self.resolve_path_to_ns(
+            PathKind::Plain,
+            path_without_crate_name,
+            span,
+            dep_module.local_id,
+            self_type_module_id,
+            dep_module.krate,
+            importing_crate,
+            path_references,
+        )
     }
 }
 
