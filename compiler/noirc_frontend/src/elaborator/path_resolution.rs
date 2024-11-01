@@ -1,6 +1,6 @@
 use noirc_errors::{Location, Span};
 
-use crate::ast::{Path, PathKind, PathSegment};
+use crate::ast::{Path, PathKind};
 use crate::graph::CrateId;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::import::{
@@ -123,9 +123,7 @@ impl<'context> Elaborator<'context> {
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
         self.resolve_path_to_ns(
-            path.kind,
-            &path.segments,
-            path.span,
+            path,
             module_id.local_id,
             self_type_module_id,
             module_id.krate,
@@ -137,34 +135,32 @@ impl<'context> Elaborator<'context> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_path_to_ns(
         &mut self,
-        path_kind: PathKind,
-        import_path: &[PathSegment],
-        span: Span,
+        path: Path,
         starting_mod: LocalModuleId,
         self_type_module_id: Option<ModuleId>,
         crate_id: CrateId,
         importing_crate: CrateId,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        match path_kind {
+        match path.kind {
             PathKind::Crate => {
                 // Resolve from the root of the crate
                 self.resolve_path_from_crate_root(
                     crate_id,
                     importing_crate,
                     self_type_module_id,
-                    import_path,
+                    path,
                     path_references,
                 )
             }
             PathKind::Plain => {
                 // There is a possibility that the import path is empty
                 // In that case, early return
-                if import_path.is_empty() {
+                if path.segments.is_empty() {
                     return self.resolve_name_in_module(
                         crate_id,
                         importing_crate,
-                        import_path,
+                        path,
                         starting_mod,
                         self_type_module_id,
                         true, // plain or crate
@@ -176,13 +172,12 @@ impl<'context> Elaborator<'context> {
                 let current_mod_id = ModuleId { krate: crate_id, local_id: starting_mod };
                 let current_mod = &def_map.modules[current_mod_id.local_id.0];
                 let first_segment =
-                    &import_path.first().expect("ice: could not fetch first segment").ident;
+                    &path.segments.first().expect("ice: could not fetch first segment").ident;
                 if current_mod.find_name(first_segment).is_none() {
                     // Resolve externally when first segment is unresolved
                     return self.resolve_external_dep(
                         crate_id,
-                        import_path,
-                        span,
+                        path,
                         self_type_module_id,
                         path_references,
                         importing_crate,
@@ -192,7 +187,7 @@ impl<'context> Elaborator<'context> {
                 self.resolve_name_in_module(
                     crate_id,
                     importing_crate,
-                    import_path,
+                    path,
                     starting_mod,
                     self_type_module_id,
                     true, // plain or crate
@@ -202,8 +197,7 @@ impl<'context> Elaborator<'context> {
 
             PathKind::Dep => self.resolve_external_dep(
                 crate_id,
-                import_path,
-                span,
+                path,
                 self_type_module_id,
                 path_references,
                 importing_crate,
@@ -216,14 +210,14 @@ impl<'context> Elaborator<'context> {
                     self.resolve_name_in_module(
                         crate_id,
                         importing_crate,
-                        import_path,
+                        path,
                         parent_module_id,
                         self_type_module_id,
                         false, // plain or crate
                         path_references,
                     )
                 } else {
-                    let span_start = span.start();
+                    let span_start = path.span.start();
                     let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
                     Err(PathResolutionError::NoSuper(span))
                 }
@@ -236,14 +230,14 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         importing_crate: CrateId,
         self_type_module_id: Option<ModuleId>,
-        import_path: &[PathSegment],
+        path: Path,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
         let starting_mod = self.def_maps[&crate_id].root;
         self.resolve_name_in_module(
             crate_id,
             importing_crate,
-            import_path,
+            path,
             starting_mod,
             self_type_module_id,
             true, // plain or crate
@@ -256,7 +250,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         krate: CrateId,
         importing_crate: CrateId,
-        import_path: &[PathSegment],
+        path: Path,
         starting_mod: LocalModuleId,
         self_type_module_id: Option<ModuleId>,
         plain_or_crate: bool,
@@ -270,14 +264,15 @@ impl<'context> Elaborator<'context> {
 
         // There is a possibility that the import path is empty
         // In that case, early return
-        if import_path.is_empty() {
+        if path.segments.is_empty() {
             return Ok(PathResolution {
                 item: PathResolutionItem::Module(current_mod_id),
                 errors: Vec::new(),
             });
         }
 
-        let first_segment = &import_path.first().expect("ice: could not fetch first segment").ident;
+        let first_segment =
+            &path.segments.first().expect("ice: could not fetch first segment").ident;
         let mut current_ns = current_mod.find_name(first_segment);
         if current_ns.is_none() {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
@@ -287,7 +282,7 @@ impl<'context> Elaborator<'context> {
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
-            import_path.iter().zip(import_path.iter().skip(1)).enumerate()
+            path.segments.iter().zip(path.segments.iter().skip(1)).enumerate()
         {
             let last_ident = &last_segment.ident;
             let current_ident = &current_segment.ident;
@@ -421,7 +416,7 @@ impl<'context> Elaborator<'context> {
             module_def_id,
         );
 
-        let name = &import_path.last().unwrap().ident;
+        let name = &path.segments.last().unwrap().ident;
 
         let visibility = current_ns
             .values
@@ -447,8 +442,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_external_dep(
         &mut self,
         crate_id: CrateId,
-        path: &[PathSegment],
-        span: Span,
+        mut path: Path,
         self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
         importing_crate: CrateId,
@@ -457,7 +451,7 @@ impl<'context> Elaborator<'context> {
         let current_def_map = &self.def_maps[&crate_id];
 
         // Fetch the root module from the prelude
-        let crate_name = &path.first().unwrap().ident;
+        let crate_name = &path.segments.first().unwrap().ident;
         let dep_module = current_def_map
             .extern_prelude
             .get(&crate_name.0.contents)
@@ -466,16 +460,15 @@ impl<'context> Elaborator<'context> {
         // Create an import directive for the dependency crate
         // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
         // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
-        let path_without_crate_name = &path[1..];
+        path.kind = PathKind::Plain;
+        path.segments.remove(0);
 
         if let Some(path_references) = path_references {
             path_references.push(ReferenceId::Module(*dep_module));
         }
 
         self.resolve_path_to_ns(
-            PathKind::Plain,
-            path_without_crate_name,
-            span,
+            path,
             dep_module.local_id,
             self_type_module_id,
             dep_module.krate,
