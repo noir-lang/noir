@@ -47,6 +47,7 @@ use crate::{
 mod comptime;
 mod expressions;
 mod lints;
+mod path_resolution;
 mod patterns;
 mod scope;
 mod statements;
