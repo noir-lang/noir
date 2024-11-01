@@ -92,17 +92,22 @@ fn generate_test_case(
     test_file: &mut File,
     test_name: &str,
     test_dir: &std::path::Display,
+    test_command: &str,
     test_content: &str,
 ) {
     write!(
         test_file,
         r#"
-#[test]
-fn test_{test_name}() {{
+#[test_case::test_matrix(
+    [i64::MIN, 0, i64::MAX]
+)]
+fn test_{test_name}(inliner_aggressiveness: i64) {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
+    nargo.arg("{test_command}").arg("--force");
+    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.to_string());
     {test_content}
 }}
 "#
@@ -128,9 +133,8 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             &test_name,
             &test_dir,
+            "execute",
             r#"
-                nargo.arg("execute").arg("--force");
-            
                 nargo.assert().success();"#,
         );
 
@@ -139,10 +143,10 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 test_file,
                 &format!("{test_name}_brillig"),
                 &test_dir,
+                "execute",
                 r#"
-                nargo.arg("execute").arg("--force").arg("--force-brillig");
-            
-                nargo.assert().success();"#,
+                    nargo.arg("--force-brillig");            
+                    nargo.assert().success();"#,
             );
         }
     }
@@ -167,9 +171,8 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             &test_name,
             &test_dir,
+            "execute",
             r#"
-                nargo.arg("execute").arg("--force");
-            
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
@@ -194,10 +197,9 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             &test_name,
             &test_dir,
+            "test",
             r#"
-        nargo.arg("test");
-        
-        nargo.assert().success();"#,
+                nargo.assert().success();"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -220,10 +222,9 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             &test_name,
             &test_dir,
+            "test",
             r#"
-        nargo.arg("test");
-        
-        nargo.assert().failure();"#,
+                nargo.assert().failure();"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -270,10 +271,10 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             test_file,
             &test_name,
             &test_dir,
+            "info",
             &format!(
                 r#"
-                nargo.arg("info").arg("--json").arg("--force");
-                
+                nargo.arg("--json");                
                 {assert_zero_opcodes}"#,
             ),
         );
@@ -299,9 +300,9 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             test_file,
             &test_name,
             &test_dir,
+            "compile",
             r#"
-        nargo.arg("compile").arg("--force");
-        nargo.assert().success().stderr(predicate::str::contains("warning:").not());"#,
+                nargo.assert().success().stderr(predicate::str::contains("warning:").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -326,9 +327,9 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
             test_file,
             &test_name,
             &test_dir,
+            "compile",
             r#"
-        nargo.arg("compile").arg("--force");
-        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
+                nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -352,9 +353,9 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             test_file,
             &test_name,
             &test_dir,
-            r#"nargo.arg("compile").arg("--force");
-        
-        nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+            "compile",
+            r#"
+                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
