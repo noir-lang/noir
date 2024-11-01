@@ -135,7 +135,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
     );
 
     // Compute the number of elements to the right of the insertion index
-    let element_count_to_the_right = brillig_context.allocate_register();
+    let element_count_to_the_right: MemoryAddress = brillig_context.allocate_register();
     brillig_context.memory_op_instruction(
         source_size.address,
         index.address,
@@ -143,12 +143,25 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Sub,
     );
 
-    // Copy the elements to the right of the index
-    brillig_context.codegen_mem_copy_from_the_end(
-        source_pointer_at_index,
-        target_pointer_after_index,
-        SingleAddrVariable::new_usize(element_count_to_the_right),
+    let num_elements_variable: SingleAddrVariable =
+        SingleAddrVariable::new_usize(element_count_to_the_right);
+    // brillig_context.codegen_branch(condition, f);
+    let is_num_items_zero = brillig_context.allocate_register();
+    brillig_context.codegen_usize_op(
+        num_elements_variable.address,
+        is_num_items_zero,
+        BrilligBinaryOp::Equals,
+        0,
     );
+
+    brillig_context.codegen_if_not(is_num_items_zero, |ctx| {
+        // Copy the elements to the right of the index
+        ctx.codegen_mem_copy_from_the_end(
+            source_pointer_at_index,
+            target_pointer_after_index,
+            num_elements_variable,
+        );
+    });
 
     brillig_context.deallocate_single_addr(source_rc);
     brillig_context.deallocate_single_addr(source_size);

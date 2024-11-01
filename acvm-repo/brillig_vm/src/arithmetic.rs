@@ -12,6 +12,12 @@ pub(crate) enum BrilligArithmeticError {
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
     #[error("Attempted to divide by zero")]
     DivisionByZero,
+    #[error("attempt to add with overflow")]
+    OverflowAdd,
+    #[error("attempt to subtract with overflow")]
+    OverflowSub,
+    #[error("attempt to multiply with overflow")]
+    OverflowMul,
 }
 
 /// Evaluate a binary operation on two FieldElement memory values.
@@ -143,6 +149,9 @@ fn evaluate_binary_int_op_128(
                 lhs.wrapping_shr(rhs as u32)
             }
         }
+        BinaryIntOp::CheckedAdd => lhs.wrapping_add(rhs),
+        BinaryIntOp::CheckedSub => lhs.wrapping_sub(rhs),
+        BinaryIntOp::CheckedMul => lhs.wrapping_mul(rhs),
     };
     Ok(result)
 }
@@ -160,6 +169,26 @@ fn evaluate_binary_int_op_generic(
         BinaryIntOp::Add => (lhs + rhs) % bit_modulo,
         BinaryIntOp::Sub => (bit_modulo + lhs - rhs) % bit_modulo,
         BinaryIntOp::Mul => (lhs * rhs) % bit_modulo,
+        BinaryIntOp::CheckedAdd => {
+            let result = (lhs + rhs) % bit_modulo;
+            if lhs > result {
+                return Err(BrilligArithmeticError::OverflowAdd);
+            }
+            result
+        }
+        BinaryIntOp::CheckedSub => {
+            if rhs > lhs {
+                return Err(BrilligArithmeticError::OverflowSub);
+            }
+            (bit_modulo + lhs - rhs) % bit_modulo
+        }
+        BinaryIntOp::CheckedMul => {
+            let result = (lhs * rhs) % bit_modulo;
+            if rhs != 0 && result / rhs != lhs {
+                return Err(BrilligArithmeticError::OverflowMul);
+            }
+            result
+        }
         // Perform unsigned division using the modulo operation on a and b.
         BinaryIntOp::Div => {
             if rhs == 0 {

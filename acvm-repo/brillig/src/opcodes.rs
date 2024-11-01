@@ -338,6 +338,9 @@ pub enum BinaryIntOp {
     Add,
     Sub,
     Mul,
+    CheckedAdd,
+    CheckedSub,
+    CheckedMul,
     Div,
     /// (==) equal
     Equals,
