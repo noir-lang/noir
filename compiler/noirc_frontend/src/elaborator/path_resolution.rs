@@ -125,25 +125,22 @@ impl<'context> Elaborator<'context> {
         self.resolve_path_in_module(path, module_id)
     }
 
-    fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
-        self.resolve_path_to_ns(path, module_id)
-    }
-
-    fn resolve_path_to_ns(
+    /// Resolves a path in `current_module`.
+    /// `starting_module` is the module where the lookup originally started.
+    fn resolve_path_in_module(
         &mut self,
         path: Path,
         starting_module: ModuleId,
     ) -> PathResolutionResult {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path, starting_module),
-            PathKind::Plain => self.resolve_plain_path(path, starting_module),
+            PathKind::Plain => self.resolve_plain_path(path, starting_module, starting_module),
             PathKind::Dep => self.resolve_dep_path(path, starting_module),
             PathKind::Super => self.resolve_super_path(path, starting_module),
         }
     }
 
     /// Resolves a Path starting from the crate root.
-    /// `starting_module` is the module where the lookup originally started.
     fn resolve_crate_path(
         &mut self,
         path: Path,
@@ -153,8 +150,8 @@ impl<'context> Elaborator<'context> {
         let current_module = ModuleId { krate: starting_module.krate, local_id: root_module };
         self.resolve_name_in_module(
             path,
-            starting_module,
             current_module,
+            starting_module,
             true, // plain or crate
         )
     }
@@ -164,6 +161,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_plain_path(
         &mut self,
         path: Path,
+        current_module: ModuleId,
         starting_module: ModuleId,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty
@@ -171,14 +169,14 @@ impl<'context> Elaborator<'context> {
         if path.segments.is_empty() {
             return self.resolve_name_in_module(
                 path,
-                starting_module,
+                current_module,
                 starting_module,
                 true, // plain or crate
             );
         }
 
-        let def_map = &self.def_maps[&starting_module.krate];
-        let current_mod = &def_map.modules[starting_module.local_id.0];
+        let def_map = &self.def_maps[&current_module.krate];
+        let current_mod = &def_map.modules[current_module.local_id.0];
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
         if current_mod.find_name(first_segment).is_none() {
@@ -188,7 +186,7 @@ impl<'context> Elaborator<'context> {
 
         self.resolve_name_in_module(
             path,
-            starting_module,
+            current_module,
             starting_module,
             true, // plain or crate
         )
@@ -221,7 +219,7 @@ impl<'context> Elaborator<'context> {
         let location = Location::new(crate_span, self.file);
         self.interner.add_module_reference(*dep_module, location);
 
-        self.resolve_path_to_ns(path, *dep_module)
+        self.resolve_plain_path(path, *dep_module, starting_module)
     }
 
     /// Resolves a Path starting from the parent module of `starting_module`.
@@ -240,7 +238,7 @@ impl<'context> Elaborator<'context> {
 
         let current_module = ModuleId { krate: starting_module.krate, local_id: parent_module_id };
         let plain_or_crate = false;
-        self.resolve_name_in_module(path, starting_module, current_module, plain_or_crate)
+        self.resolve_name_in_module(path, current_module, starting_module, plain_or_crate)
     }
 
     /// Resolves a Path assuming we are inside `current_module`.
@@ -248,8 +246,8 @@ impl<'context> Elaborator<'context> {
     fn resolve_name_in_module(
         &mut self,
         path: Path,
-        starting_module: ModuleId,
         current_module: ModuleId,
+        starting_module: ModuleId,
         plain_or_crate: bool,
     ) -> PathResolutionResult {
         let def_map = &self.def_maps[&current_module.krate];
