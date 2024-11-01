@@ -122,36 +122,14 @@ impl<'context> Elaborator<'context> {
         path: Path,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        self.resolve_import(
-            module_id.krate,
+        self.resolve_path_to_ns(
             path.kind,
             &path.segments,
             path.span,
             module_id.local_id,
             self_type_module_id,
-            path_references,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_import(
-        &mut self,
-        crate_id: CrateId,
-        path_kind: PathKind,
-        path_segments: &[PathSegment],
-        span: Span,
-        starting_mod: LocalModuleId,
-        self_type_module_id: Option<ModuleId>,
-        path_references: &mut Option<&mut Vec<ReferenceId>>,
-    ) -> PathResolutionResult {
-        self.resolve_path_to_ns(
-            path_kind,
-            path_segments,
-            span,
-            starting_mod,
-            self_type_module_id,
-            crate_id,
-            crate_id,
+            module_id.krate,
+            module_id.krate,
             path_references,
         )
     }
