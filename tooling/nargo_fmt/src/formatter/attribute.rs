@@ -143,17 +143,25 @@ impl<'a> Formatter<'a> {
         self.format_path(meta_attribute.name);
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
-            self.write_left_paren();
+            let comments_count_before_arguments = self.written_comments_count;
+            let has_arguments = !meta_attribute.arguments.is_empty();
 
+            let mut chunk_formatter = self.chunk_formatter();
             let mut group = ChunkGroup::new();
-            self.chunk_formatter().format_expressions_separated_by_comma(
+            group.text(chunk_formatter.chunk(|formatter| {
+                formatter.write_left_paren();
+            }));
+            chunk_formatter.format_expressions_separated_by_comma(
                 meta_attribute.arguments,
                 false, // force trailing comma
                 &mut group,
             );
-            self.format_chunk_group(group);
-
-            self.write_right_paren();
+            group.text(chunk_formatter.chunk(|formatter| {
+                formatter.write_right_paren();
+            }));
+            if has_arguments || self.written_comments_count > comments_count_before_arguments {
+                self.format_chunk_group(group);
+            }
         }
         self.write_right_bracket();
     }
@@ -267,6 +275,20 @@ mod tests {
     fn format_meta_attribute_without_arguments() {
         let src = "  #[ custom  ] ";
         let expected = "#[custom]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_meta_attribute_without_arguments_removes_parentheses() {
+        let src = "  #[ custom (  ) ] ";
+        let expected = "#[custom]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_meta_attribute_without_arguments_but_comment() {
+        let src = "  #[ custom ( /* nothing */ ) ] ";
+        let expected = "#[custom( /* nothing */ )]";
         assert_format_attribute(src, expected);
     }
 
