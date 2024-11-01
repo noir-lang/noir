@@ -99,9 +99,9 @@ impl<'context> Elaborator<'context> {
         Ok(path_resolution.item)
     }
 
-    pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
+    /// Resolves a path in the current module.
+    pub(super) fn resolve_path(&mut self, mut path: Path) -> PathResolutionResult {
         let mut module_id = self.module_id();
-        let mut path = path;
 
         if path.kind == PathKind::Plain && path.first_name() == SELF_TYPE_NAME {
             if let Some(Type::Struct(struct_type, _)) = &self.self_type {
@@ -114,11 +114,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 module_id = struct_type.id.module_id();
-                path = Path {
-                    segments: path.segments[1..].to_vec(),
-                    kind: PathKind::Plain,
-                    span: path.span(),
-                };
+                path.segments.remove(0);
             }
         }
 
@@ -204,20 +200,18 @@ impl<'context> Elaborator<'context> {
 
         // Fetch the root module from the prelude
         let crate_name = &path.segments.first().unwrap().ident;
-        let crate_span = crate_name.span();
         let dep_module = current_def_map
             .extern_prelude
             .get(&crate_name.0.contents)
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
-        // Create an import directive for the dependency crate
+        let location = Location::new(crate_name.span(), self.file);
+        self.interner.add_module_reference(*dep_module, location);
+
+        // We already consumed the first segment, so let's keep looking the rest.
         // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
         // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
-        path.kind = PathKind::Plain;
         path.segments.remove(0);
-
-        let location = Location::new(crate_span, self.file);
-        self.interner.add_module_reference(*dep_module, location);
 
         self.resolve_plain_path(path, *dep_module, starting_module)
     }
