@@ -173,7 +173,6 @@ impl<'context> Elaborator<'context> {
                     // Resolve externally when first segment is unresolved
                     return self.resolve_external_dep(
                         path,
-                        starting_module.krate,
                         self_type_module_id,
                         path_references,
                         importing_crate,
@@ -192,7 +191,6 @@ impl<'context> Elaborator<'context> {
 
             PathKind::Dep => self.resolve_external_dep(
                 path,
-                starting_module.krate,
                 self_type_module_id,
                 path_references,
                 importing_crate,
@@ -436,13 +434,12 @@ impl<'context> Elaborator<'context> {
     fn resolve_external_dep(
         &mut self,
         mut path: Path,
-        crate_id: CrateId,
         self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
         importing_crate: CrateId,
     ) -> PathResolutionResult {
         // Use extern_prelude to get the dep
-        let current_def_map = &self.def_maps[&crate_id];
+        let current_def_map = &self.def_maps[&importing_crate];
 
         // Fetch the root module from the prelude
         let crate_name = &path.segments.first().unwrap().ident;
