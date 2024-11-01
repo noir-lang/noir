@@ -30,8 +30,9 @@ pub struct CircuitSimulator {
 }
 
 impl CircuitSimulator {
-    // Simulate a symbolic solve for a circuit by keeping track of the witnesses that can be solved.
-    // Returns false if the circuit cannot be solved
+    /// Simulate a symbolic solve for a circuit by keeping track of the witnesses that can be solved.
+    /// Returns false if the circuit cannot be solved
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> bool {
         let circuit_inputs = circuit.circuit_arguments();
         self.solvable_witness.extend(circuit_inputs.iter());
