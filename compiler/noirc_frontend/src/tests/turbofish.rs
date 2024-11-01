@@ -375,6 +375,18 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "bool");
+    assert_eq!(expr_typ, "Field");
 }
 
 #[test]
@@ -399,4 +411,49 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i32");
+    assert_eq!(expr_typ, "bool");
+}
+
+#[test]
+fn trait_function_with_turbofish_on_trait_gives_error() {
+    let src = r#"
+    trait Foo<T> {
+        fn foo(_x: T) -> Self;
+    }
+
+    impl<T> Foo<T> for i32 {
+        fn foo(_x: T) -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: i32 = Foo::<bool>::foo(1);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "bool");
+    assert_eq!(expr_typ, "Field");
 }
