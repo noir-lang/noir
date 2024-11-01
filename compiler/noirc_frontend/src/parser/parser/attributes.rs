@@ -11,7 +11,7 @@ use super::parse_many::without_separator;
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    /// InnerAttribute = inner_attribute
+    /// InnerAttribute = '#![' SecondaryAttribute ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
         let start_span = self.current_token_span;
         let is_tag = self.eat_inner_attribute_start()?;
@@ -36,11 +36,43 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Attributes = attribute*
+    /// Attributes = Attribute*
     pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
         self.parse_many("attributes", without_separator(), Self::parse_attribute)
     }
 
+    /// Attribute = '#[' (FunctionAttribute | SecondaryAttribute) ']'
+    ///
+    /// FunctionAttribute
+    ///     = 'builtin' '(' AttributeValue ')'
+    ///     | 'fold'
+    ///     | 'foreign' '(' AttributeValue ')'
+    ///     | 'inline_always'
+    ///     | 'no_predicates'
+    ///     | 'oracle' '(' AttributeValue ')'
+    ///     | 'recursive'
+    ///     | 'test'
+    ///     | 'test' '(' 'should_fail' ')'
+    ///     | 'test' '(' 'should_fail_with' '=' string ')'
+    ///
+    /// SecondaryAttribute
+    ///     = 'abi' '(' AttributeValue ')'
+    ///     | 'allow' '(' AttributeValue ')'
+    ///     | 'deprecated'
+    ///     | 'deprecated' '(' string ')'
+    ///     | 'contract_library_method'
+    ///     | 'export'
+    ///     | 'field' '(' AttributeValue ')'
+    ///     | 'use_callers_scope'
+    ///     | 'varargs'
+    ///     | MetaAttribute
+    ///
+    /// MetaAttribute
+    ///     = Path Arguments?
+    ///
+    /// AttributeValue
+    ///     = Path
+    ///     | integer
     pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Span)> {
         let start_span = self.current_token_span;
         let is_tag = self.eat_attribute_start()?;
