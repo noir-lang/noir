@@ -122,17 +122,17 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Resolves a path in `current_module`.
-    /// `starting_module` is the module where the lookup originally started.
+    /// `importing_module` is the module where the lookup originally started.
     fn resolve_path_in_module(
         &mut self,
         path: Path,
-        starting_module: ModuleId,
+        importing_module: ModuleId,
     ) -> PathResolutionResult {
         match path.kind {
-            PathKind::Crate => self.resolve_crate_path(path, starting_module),
-            PathKind::Plain => self.resolve_plain_path(path, starting_module, starting_module),
-            PathKind::Dep => self.resolve_dep_path(path, starting_module),
-            PathKind::Super => self.resolve_super_path(path, starting_module),
+            PathKind::Crate => self.resolve_crate_path(path, importing_module),
+            PathKind::Plain => self.resolve_plain_path(path, importing_module, importing_module),
+            PathKind::Dep => self.resolve_dep_path(path, importing_module),
+            PathKind::Super => self.resolve_super_path(path, importing_module),
         }
     }
 
@@ -140,25 +140,25 @@ impl<'context> Elaborator<'context> {
     fn resolve_crate_path(
         &mut self,
         path: Path,
-        starting_module: ModuleId,
+        importing_module: ModuleId,
     ) -> PathResolutionResult {
-        let root_module = self.def_maps[&starting_module.krate].root;
-        let current_module = ModuleId { krate: starting_module.krate, local_id: root_module };
+        let root_module = self.def_maps[&importing_module.krate].root;
+        let current_module = ModuleId { krate: importing_module.krate, local_id: root_module };
         self.resolve_name_in_module(
             path,
             current_module,
-            starting_module,
+            importing_module,
             true, // plain or crate
         )
     }
 
     /// Resolves a plain Path.
-    /// `starting_module` is the module where the lookup originally started.
+    /// `importing_module` is the module where the lookup originally started.
     fn resolve_plain_path(
         &mut self,
         path: Path,
         current_module: ModuleId,
-        starting_module: ModuleId,
+        importing_module: ModuleId,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty
         // In that case, early return
@@ -166,7 +166,7 @@ impl<'context> Elaborator<'context> {
             return self.resolve_name_in_module(
                 path,
                 current_module,
-                starting_module,
+                importing_module,
                 true, // plain or crate
             );
         }
@@ -175,26 +175,26 @@ impl<'context> Elaborator<'context> {
             &path.segments.first().expect("ice: could not fetch first segment").ident;
         if self.get_module(current_module).find_name(first_segment).is_none() {
             // Resolve externally when first segment is unresolved
-            return self.resolve_dep_path(path, starting_module);
+            return self.resolve_dep_path(path, importing_module);
         }
 
         self.resolve_name_in_module(
             path,
             current_module,
-            starting_module,
+            importing_module,
             true, // plain or crate
         )
     }
 
     /// Resolves a Path in external dependencies.
-    /// `starting_module` is the module where the lookup originally started.
+    /// `importing_module` is the module where the lookup originally started.
     fn resolve_dep_path(
         &mut self,
         mut path: Path,
-        starting_module: ModuleId,
+        importing_module: ModuleId,
     ) -> PathResolutionResult {
         // Use extern_prelude to get the dep
-        let current_def_map = &self.def_maps[&starting_module.krate];
+        let current_def_map = &self.def_maps[&importing_module.krate];
 
         // Fetch the root module from the prelude
         let crate_name = &path.segments.first().unwrap().ident;
@@ -211,57 +211,58 @@ impl<'context> Elaborator<'context> {
         // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
         path.segments.remove(0);
 
-        self.resolve_plain_path(path, *dep_module, starting_module)
+        self.resolve_plain_path(path, *dep_module, importing_module)
     }
 
-    /// Resolves a Path starting from the parent module of `starting_module`.
+    /// Resolves a Path starting from the parent module of `importing_module`.
     fn resolve_super_path(
         &mut self,
         path: Path,
-        starting_module: ModuleId,
+        importing_module: ModuleId,
     ) -> PathResolutionResult {
-        let Some(parent_module_id) = self.get_module(starting_module).parent else {
+        let Some(parent_module_id) = self.get_module(importing_module).parent else {
             let span_start = path.span.start();
             let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
             return Err(PathResolutionError::NoSuper(span));
         };
 
-        let current_module = ModuleId { krate: starting_module.krate, local_id: parent_module_id };
+        let current_module = ModuleId { krate: importing_module.krate, local_id: parent_module_id };
         let plain_or_crate = false;
-        self.resolve_name_in_module(path, current_module, starting_module, plain_or_crate)
+        self.resolve_name_in_module(path, current_module, importing_module, plain_or_crate)
     }
 
-    /// Resolves a Path assuming we are inside `current_module`.
-    /// `starting_module` is the module where the lookup originally started.
+    /// Resolves a Path assuming we are inside `starting_module`.
+    /// `importing_module` is the module where the lookup originally started.
     fn resolve_name_in_module(
         &mut self,
         path: Path,
-        current_module: ModuleId,
         starting_module: ModuleId,
+        importing_module: ModuleId,
         plain_or_crate: bool,
     ) -> PathResolutionResult {
-        let mut current_mod_id = current_module;
-        let mut current_mod = self.get_module(current_module);
+        // The current module and module ID as we resolve path segments
+        let mut current_module_id = starting_module;
+        let mut current_module = self.get_module(starting_module);
 
-        let mut intermediate_item = IntermediatePathResolutionItem::Module(current_mod_id);
+        let mut intermediate_item = IntermediatePathResolutionItem::Module(current_module_id);
 
         // There is a possibility that the import path is empty
         // In that case, early return
         if path.segments.is_empty() {
             return Ok(PathResolution {
-                item: PathResolutionItem::Module(current_mod_id),
+                item: PathResolutionItem::Module(current_module_id),
                 errors: Vec::new(),
             });
         }
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
-        let mut current_ns = current_mod.find_name(first_segment);
+        let mut current_ns = current_module.find_name(first_segment);
         if current_ns.is_none() {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        self.usage_tracker.mark_as_referenced(current_mod_id, first_segment);
+        self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
@@ -279,7 +280,7 @@ impl<'context> Elaborator<'context> {
             let location = Location::new(last_segment.span, self.file);
 
             // In the type namespace, only Mod can be used in a path.
-            (current_mod_id, intermediate_item) = match typ {
+            (current_module_id, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
                     self.interner.add_module_reference(id, location);
 
@@ -360,24 +361,24 @@ impl<'context> Elaborator<'context> {
             if !((plain_or_crate && index == 0)
                 || can_reference_module_id(
                     self.def_maps,
-                    starting_module.krate,
-                    current_module.local_id,
-                    current_mod_id,
+                    importing_module.krate,
+                    starting_module.local_id,
+                    current_module_id,
                     visibility,
                 ))
             {
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }
 
-            current_mod = self.get_module(current_mod_id);
+            current_module = self.get_module(current_module_id);
 
             // Check if namespace
-            let found_ns = current_mod.find_name(current_ident);
+            let found_ns = current_module.find_name(current_ident);
             if found_ns.is_none() {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            self.usage_tracker.mark_as_referenced(current_mod_id, current_ident);
+            self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
 
             current_ns = found_ns;
         }
@@ -395,12 +396,12 @@ impl<'context> Elaborator<'context> {
             module_def_id,
         );
 
-        if !(self.self_type_module_id() == Some(current_mod_id)
+        if !(self.self_type_module_id() == Some(current_module_id)
             || can_reference_module_id(
                 self.def_maps,
-                starting_module.krate,
-                starting_module.local_id,
-                current_mod_id,
+                importing_module.krate,
+                importing_module.local_id,
+                current_module_id,
                 visibility,
             ))
         {
