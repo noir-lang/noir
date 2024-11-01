@@ -967,21 +967,6 @@ impl CustomAttribute {
     }
 }
 
-impl AsRef<str> for FunctionAttribute {
-    fn as_ref(&self) -> &str {
-        match self {
-            FunctionAttribute::Foreign(string) => string,
-            FunctionAttribute::Builtin(string) => string,
-            FunctionAttribute::Oracle(string) => string,
-            FunctionAttribute::Test { .. } => "",
-            FunctionAttribute::Recursive => "",
-            FunctionAttribute::Fold => "",
-            FunctionAttribute::NoPredicates => "",
-            FunctionAttribute::InlineAlways => "",
-        }
-    }
-}
-
 /// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
 /// only special within `impl`s. Otherwise `self` functions as a normal identifier.
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord, strum_macros::EnumIter)]
