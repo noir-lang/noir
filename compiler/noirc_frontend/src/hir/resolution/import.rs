@@ -4,15 +4,13 @@ use thiserror::Error;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 
-use crate::node_interner::{
-    FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
-};
+use crate::node_interner::{NodeInterner, ReferenceId};
 use crate::usage_tracker::UsageTracker;
 use crate::Type;
 
 use std::collections::BTreeMap;
 
-use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment, UnresolvedType};
+use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 
 use super::errors::ResolverError;
@@ -35,78 +33,6 @@ struct NamespaceResolution {
 }
 
 type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
-
-#[derive(Debug)]
-pub struct PathResolution {
-    pub item: PathResolutionItem,
-    pub errors: Vec<PathResolutionError>,
-}
-
-/// All possible items that result from resolving a Path.
-/// Note that this item doesn't include the last turbofish in a Path,
-/// only intermediate ones, if any.
-#[derive(Debug, Clone)]
-pub enum PathResolutionItem {
-    Module(ModuleId),
-    Struct(StructId),
-    TypeAlias(TypeAliasId),
-    Trait(TraitId),
-    Global(GlobalId),
-    ModuleFunction(FuncId),
-    StructFunction(StructId, Option<Turbofish>, FuncId),
-    TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
-    TraitFunction(TraitId, Option<Turbofish>, FuncId),
-}
-
-impl PathResolutionItem {
-    pub fn function_id(&self) -> Option<FuncId> {
-        match self {
-            PathResolutionItem::ModuleFunction(func_id)
-            | PathResolutionItem::StructFunction(_, _, func_id)
-            | PathResolutionItem::TypeAliasFunction(_, _, func_id)
-            | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
-            _ => None,
-        }
-    }
-
-    pub fn module_id(&self) -> Option<ModuleId> {
-        match self {
-            Self::Module(module_id) => Some(*module_id),
-            _ => None,
-        }
-    }
-
-    pub fn description(&self) -> &'static str {
-        match self {
-            PathResolutionItem::Module(..) => "module",
-            PathResolutionItem::Struct(..) => "type",
-            PathResolutionItem::TypeAlias(..) => "type alias",
-            PathResolutionItem::Trait(..) => "trait",
-            PathResolutionItem::Global(..) => "global",
-            PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::StructFunction(..)
-            | PathResolutionItem::TypeAliasFunction(..)
-            | PathResolutionItem::TraitFunction(..) => "function",
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Turbofish {
-    pub generics: Vec<UnresolvedType>,
-    pub span: Span,
-}
-
-/// Any item that can appear before the last segment in a path.
-#[derive(Debug)]
-pub enum IntermediatePathResolutionItem {
-    Module(ModuleId),
-    Struct(StructId, Option<Turbofish>),
-    TypeAlias(TypeAliasId, Option<Turbofish>),
-    Trait(TraitId, Option<Turbofish>),
-}
-
-pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
@@ -382,7 +308,6 @@ fn resolve_name_in_module(
     {
         let last_ident = &last_segment.ident;
         let current_ident = &current_segment.ident;
-        let last_segment_generics = &last_segment.generics;
 
         let (typ, visibility) = match current_ns.types {
             None => return Err(PathResolutionError::Unresolved(last_ident.clone())),
@@ -394,13 +319,6 @@ fn resolve_name_in_module(
             ModuleDefId::ModuleId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Module(id));
-                }
-
-                if last_segment_generics.is_some() {
-                    errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: format!("module `{last_ident}`"),
-                        span: last_segment.turbofish_span(),
-                    });
                 }
 
                 id

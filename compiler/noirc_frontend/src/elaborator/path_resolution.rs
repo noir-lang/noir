@@ -1,20 +1,90 @@
 use noirc_errors::{Location, Span};
 
-use crate::ast::{Path, PathKind};
+use crate::ast::{Path, PathKind, UnresolvedType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, ModuleId};
-use crate::hir::resolution::import::{
-    IntermediatePathResolutionItem, PathResolution, PathResolutionError, PathResolutionItem,
-    PathResolutionResult, Turbofish,
-};
+use crate::hir::resolution::import::PathResolutionError;
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::can_reference_module_id;
 
+use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
 use crate::Type;
 
 use super::types::SELF_TYPE_NAME;
 use super::Elaborator;
+
+#[derive(Debug)]
+pub(crate) struct PathResolution {
+    pub(crate) item: PathResolutionItem,
+    pub(crate) errors: Vec<PathResolutionError>,
+}
+
+/// All possible items that result from resolving a Path.
+/// Note that this item doesn't include the last turbofish in a Path,
+/// only intermediate ones, if any.
+#[derive(Debug, Clone)]
+pub enum PathResolutionItem {
+    Module(ModuleId),
+    Struct(StructId),
+    TypeAlias(TypeAliasId),
+    Trait(TraitId),
+    Global(GlobalId),
+    ModuleFunction(FuncId),
+    StructFunction(StructId, Option<Turbofish>, FuncId),
+    TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
+    TraitFunction(TraitId, Option<Turbofish>, FuncId),
+}
+
+impl PathResolutionItem {
+    pub fn function_id(&self) -> Option<FuncId> {
+        match self {
+            PathResolutionItem::ModuleFunction(func_id)
+            | PathResolutionItem::StructFunction(_, _, func_id)
+            | PathResolutionItem::TypeAliasFunction(_, _, func_id)
+            | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
+            _ => None,
+        }
+    }
+
+    pub fn module_id(&self) -> Option<ModuleId> {
+        match self {
+            Self::Module(module_id) => Some(*module_id),
+            _ => None,
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            PathResolutionItem::Module(..) => "module",
+            PathResolutionItem::Struct(..) => "type",
+            PathResolutionItem::TypeAlias(..) => "type alias",
+            PathResolutionItem::Trait(..) => "trait",
+            PathResolutionItem::Global(..) => "global",
+            PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::StructFunction(..)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..) => "function",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Turbofish {
+    pub generics: Vec<UnresolvedType>,
+    pub span: Span,
+}
+
+/// Any item that can appear before the last segment in a path.
+#[derive(Debug)]
+enum IntermediatePathResolutionItem {
+    Module(ModuleId),
+    Struct(StructId, Option<Turbofish>),
+    TypeAlias(TypeAliasId, Option<Turbofish>),
+    Trait(TraitId, Option<Turbofish>),
+}
+
+pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
 impl<'context> Elaborator<'context> {
     pub(super) fn resolve_path_or_error(
@@ -297,20 +367,18 @@ impl<'context> Elaborator<'context> {
             .map(|(id, _, _)| id)
             .expect("Found empty namespace");
 
-        let last_segment = path.segments.last().unwrap();
-        let location = Location::new(last_segment.span, self.file);
+        let name = &path.segments.last().unwrap().ident;
+        let location = Location::new(name.span(), self.file);
         self.interner.add_module_def_id_reference(
             module_def_id,
             location,
-            last_segment.ident.is_self_type_name(),
+            name.is_self_type_name(),
         );
 
         let item = merge_intermediate_path_resolution_item_with_module_def_id(
             intermediate_item,
             module_def_id,
         );
-
-        let name = &path.segments.last().unwrap().ident;
 
         let visibility = current_ns
             .values

@@ -14,10 +14,7 @@ use crate::{
     hir::{
         comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError,
-            import::{PathResolutionError, PathResolutionItem},
-        },
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             generics::{Generic, TraitGenerics},
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -41,7 +38,7 @@ use crate::{
     UnificationError,
 };
 
-use super::{lints, Elaborator};
+use super::{lints, path_resolution::PathResolutionItem, Elaborator};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 pub const WILDCARD_TYPE: &str = "_";

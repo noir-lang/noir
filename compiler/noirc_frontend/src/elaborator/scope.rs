@@ -2,7 +2,6 @@ use noirc_errors::Spanned;
 
 use crate::ast::{Ident, Path, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::resolution::import::PathResolutionItem;
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::{
@@ -16,6 +15,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
+use super::path_resolution::PathResolutionItem;
 use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, ResolverMeta};
 
