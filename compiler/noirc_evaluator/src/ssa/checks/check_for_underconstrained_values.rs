@@ -121,9 +121,12 @@ struct DependencyContext {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
     value_parents: HashMap<ValueId, Vec<ValueId>>,
+    // Map keeping track of values stored at memory locations
     memory_slots: HashMap<ValueId, ValueId>,
+    // List of values involved in constrain instructions
     constrained_values: Vec<Vec<ValueId>>,
-    brillig_values: Vec<Vec<ValueId>>,
+    // Map of brillig call ids to sets of their arguments and results
+    brillig_values: HashMap<ValueId, (HashSet<ValueId>, HashSet<ValueId>)>,
 }
 
 impl DependencyContext {
@@ -198,12 +201,8 @@ impl DependencyContext {
                 Instruction::Call { func: func_id, arguments } => {
                     if let Value::Function(callee) = &function.dfg[*func_id] {
                         if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
-                            let mut involved_values = vec![];
-                            // using call arguments here, _not_ the instruction arguments collected
-                            // above (as they would include an unneeded valueid)
-                            involved_values.extend(arguments);
-                            involved_values.extend(&results);
-                            self.brillig_values.push(involved_values);
+                            self.brillig_values.insert(*func_id, 
+                                (HashSet::from_iter(arguments.clone()), HashSet::from_iter(results)));
                         }
                     }
                 }
@@ -224,6 +223,36 @@ impl DependencyContext {
     /// Check if the constrained values can be traced back to brillig calls.
     /// For every brillig call not properly constrained, emit a corresponding warning.
     fn collect_warnings(&mut self) {
+        let mut covered_brillig_calls: HashSet<ValueId> = HashSet::new();
+        for constrained_values in &self.constrained_values {
+            let constrain_ancestors: HashSet<_> = constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
+            for (brillig_call, brillig_values) in &self.brillig_values {
+                // If there is at least one value among the constrain value ancestors
+                // in both of the brillig call arguments and results, consider the call properly covered
+                if constrain_ancestors.intersection(&brillig_values.0).next().is_some() &&
+                    constrain_ancestors.intersection(&brillig_values.1).next().is_some() {
+                    trace!("brillig call at {} covered by constrained values {:?}", brillig_call, constrained_values);
+                    covered_brillig_calls.insert(*brillig_call);
+                }
+            }
+        }
+
+        // For each unchecked brillig call, emit a warning
+
+    }
+
+    /// Build a set of all ValueIds the given ValueId descends from
+    fn collect_ancestors(&self, value_id: ValueId) -> HashSet<ValueId> {
+        let mut to_visit = vec![value_id];
+        let mut ancestors = HashSet::new();
+        while let Some(value_id) = to_visit.pop() {
+            if let Some(values) = self.value_parents.get(&value_id) {
+                to_visit.extend(values);
+                ancestors.extend(values);
+            }
+        }
+
+        ancestors
     }
 }
 
