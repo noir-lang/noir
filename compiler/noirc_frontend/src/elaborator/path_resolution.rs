@@ -130,7 +130,6 @@ impl<'context> Elaborator<'context> {
         self.resolve_path_to_ns(path, module_id, module_id.krate)
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn resolve_path_to_ns(
         &mut self,
         path: Path,
