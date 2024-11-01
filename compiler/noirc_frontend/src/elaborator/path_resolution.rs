@@ -127,19 +127,18 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
-        self.resolve_path_to_ns(path, module_id, module_id.krate)
+        self.resolve_path_to_ns(path, module_id)
     }
 
     fn resolve_path_to_ns(
         &mut self,
         path: Path,
         starting_module: ModuleId,
-        importing_crate: CrateId,
     ) -> PathResolutionResult {
         match path.kind {
             PathKind::Crate => {
                 // Resolve from the root of the crate
-                self.resolve_path_from_crate_root(path, starting_module.krate, importing_crate)
+                self.resolve_path_from_crate_root(path, starting_module)
             }
             PathKind::Plain => {
                 // There is a possibility that the import path is empty
@@ -148,7 +147,7 @@ impl<'context> Elaborator<'context> {
                     return self.resolve_name_in_module(
                         path,
                         starting_module,
-                        importing_crate,
+                        starting_module,
                         true, // plain or crate
                     );
                 }
@@ -159,29 +158,29 @@ impl<'context> Elaborator<'context> {
                     &path.segments.first().expect("ice: could not fetch first segment").ident;
                 if current_mod.find_name(first_segment).is_none() {
                     // Resolve externally when first segment is unresolved
-                    return self.resolve_external_dep(path, importing_crate);
+                    return self.resolve_external_dep(path, starting_module.krate);
                 }
 
                 self.resolve_name_in_module(
                     path,
                     starting_module,
-                    importing_crate,
+                    starting_module,
                     true, // plain or crate
                 )
             }
 
-            PathKind::Dep => self.resolve_external_dep(path, importing_crate),
+            PathKind::Dep => self.resolve_external_dep(path, starting_module.krate),
 
             PathKind::Super => {
                 if let Some(parent_module_id) =
                     self.def_maps[&starting_module.krate].modules[starting_module.local_id.0].parent
                 {
-                    let starting_module =
+                    let current_module =
                         ModuleId { krate: starting_module.krate, local_id: parent_module_id };
                     self.resolve_name_in_module(
                         path,
                         starting_module,
-                        importing_crate,
+                        current_module,
                         false, // plain or crate
                     )
                 } else {
@@ -196,14 +195,14 @@ impl<'context> Elaborator<'context> {
     fn resolve_path_from_crate_root(
         &mut self,
         path: Path,
-        crate_id: CrateId,
-        importing_crate: CrateId,
+        starting_module: ModuleId,
     ) -> PathResolutionResult {
-        let root_module = self.def_maps[&crate_id].root;
+        let root_module = self.def_maps[&starting_module.krate].root;
+        let current_module = ModuleId { krate: starting_module.krate, local_id: root_module };
         self.resolve_name_in_module(
             path,
-            ModuleId { krate: crate_id, local_id: root_module },
-            importing_crate,
+            starting_module,
+            current_module,
             true, // plain or crate
         )
     }
@@ -212,11 +211,11 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
         starting_module: ModuleId,
-        importing_crate: CrateId,
+        current_module: ModuleId,
         plain_or_crate: bool,
     ) -> PathResolutionResult {
-        let def_map = &self.def_maps[&starting_module.krate];
-        let mut current_mod_id = starting_module;
+        let def_map = &self.def_maps[&current_module.krate];
+        let mut current_mod_id = current_module;
         let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
         let mut intermediate_item = IntermediatePathResolutionItem::Module(current_mod_id);
@@ -337,8 +336,8 @@ impl<'context> Elaborator<'context> {
             if !((plain_or_crate && index == 0)
                 || can_reference_module_id(
                     self.def_maps,
-                    importing_crate,
-                    starting_module.local_id,
+                    starting_module.krate,
+                    current_module.local_id,
                     current_mod_id,
                     visibility,
                 ))
@@ -425,7 +424,7 @@ impl<'context> Elaborator<'context> {
         let location = Location::new(crate_span, self.file);
         self.interner.add_module_reference(*dep_module, location);
 
-        self.resolve_path_to_ns(path, *dep_module, importing_crate)
+        self.resolve_path_to_ns(path, *dep_module)
     }
 
     fn self_type_module_id(&self) -> Option<ModuleId> {
