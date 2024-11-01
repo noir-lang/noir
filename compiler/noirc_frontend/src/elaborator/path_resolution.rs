@@ -2,7 +2,7 @@ use noirc_errors::{Location, Span};
 
 use crate::ast::{Path, PathKind};
 use crate::graph::CrateId;
-use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::def_map::{ModuleDefId, ModuleId};
 use crate::hir::resolution::import::{
     IntermediatePathResolutionItem, PathResolution, PathResolutionError, PathResolutionItem,
     PathResolutionResult, Turbofish,
@@ -63,20 +63,20 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        self.resolve_path_impl(module_id, self_type_module_id, path)
+        self.resolve_path_impl(path, module_id, self_type_module_id)
     }
 
     fn resolve_path_impl(
         &mut self,
+        path: Path,
         module_id: ModuleId,
         self_type_module_id: Option<ModuleId>,
-        path: Path,
     ) -> PathResolutionResult {
         if !self.interner.lsp_mode {
             return self.resolve_path_impl_with_references(
+                path,
                 module_id,
                 self_type_module_id,
-                path,
                 &mut None,
             );
         }
@@ -87,9 +87,9 @@ impl<'context> Elaborator<'context> {
 
         let mut references: Vec<_> = Vec::new();
         let path_resolution = self.resolve_path_impl_with_references(
+            path.clone(),
             module_id,
             self_type_module_id,
-            path.clone(),
             &mut Some(&mut references),
         );
 
@@ -117,16 +117,15 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_path_impl_with_references(
         &mut self,
+        path: Path,
         module_id: ModuleId,
         self_type_module_id: Option<ModuleId>,
-        path: Path,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
         self.resolve_path_to_ns(
             path,
-            module_id.local_id,
+            module_id,
             self_type_module_id,
-            module_id.krate,
             module_id.krate,
             path_references,
         )
@@ -136,9 +135,8 @@ impl<'context> Elaborator<'context> {
     fn resolve_path_to_ns(
         &mut self,
         path: Path,
-        starting_mod: LocalModuleId,
+        starting_module: ModuleId,
         self_type_module_id: Option<ModuleId>,
-        crate_id: CrateId,
         importing_crate: CrateId,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
@@ -146,10 +144,10 @@ impl<'context> Elaborator<'context> {
             PathKind::Crate => {
                 // Resolve from the root of the crate
                 self.resolve_path_from_crate_root(
-                    crate_id,
+                    path,
+                    starting_module.krate,
                     importing_crate,
                     self_type_module_id,
-                    path,
                     path_references,
                 )
             }
@@ -158,26 +156,24 @@ impl<'context> Elaborator<'context> {
                 // In that case, early return
                 if path.segments.is_empty() {
                     return self.resolve_name_in_module(
-                        crate_id,
-                        importing_crate,
                         path,
-                        starting_mod,
+                        starting_module,
+                        importing_crate,
                         self_type_module_id,
                         true, // plain or crate
                         path_references,
                     );
                 }
 
-                let def_map = &self.def_maps[&crate_id];
-                let current_mod_id = ModuleId { krate: crate_id, local_id: starting_mod };
-                let current_mod = &def_map.modules[current_mod_id.local_id.0];
+                let def_map = &self.def_maps[&starting_module.krate];
+                let current_mod = &def_map.modules[starting_module.local_id.0];
                 let first_segment =
                     &path.segments.first().expect("ice: could not fetch first segment").ident;
                 if current_mod.find_name(first_segment).is_none() {
                     // Resolve externally when first segment is unresolved
                     return self.resolve_external_dep(
-                        crate_id,
                         path,
+                        starting_module.krate,
                         self_type_module_id,
                         path_references,
                         importing_crate,
@@ -185,10 +181,9 @@ impl<'context> Elaborator<'context> {
                 }
 
                 self.resolve_name_in_module(
-                    crate_id,
-                    importing_crate,
                     path,
-                    starting_mod,
+                    starting_module,
+                    importing_crate,
                     self_type_module_id,
                     true, // plain or crate
                     path_references,
@@ -196,8 +191,8 @@ impl<'context> Elaborator<'context> {
             }
 
             PathKind::Dep => self.resolve_external_dep(
-                crate_id,
                 path,
+                starting_module.krate,
                 self_type_module_id,
                 path_references,
                 importing_crate,
@@ -205,13 +200,14 @@ impl<'context> Elaborator<'context> {
 
             PathKind::Super => {
                 if let Some(parent_module_id) =
-                    self.def_maps[&crate_id].modules[starting_mod.0].parent
+                    self.def_maps[&starting_module.krate].modules[starting_module.local_id.0].parent
                 {
+                    let starting_module =
+                        ModuleId { krate: starting_module.krate, local_id: parent_module_id };
                     self.resolve_name_in_module(
-                        crate_id,
-                        importing_crate,
                         path,
-                        parent_module_id,
+                        starting_module,
+                        importing_crate,
                         self_type_module_id,
                         false, // plain or crate
                         path_references,
@@ -227,18 +223,17 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_path_from_crate_root(
         &mut self,
+        path: Path,
         crate_id: CrateId,
         importing_crate: CrateId,
         self_type_module_id: Option<ModuleId>,
-        path: Path,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        let starting_mod = self.def_maps[&crate_id].root;
+        let root_module = self.def_maps[&crate_id].root;
         self.resolve_name_in_module(
-            crate_id,
-            importing_crate,
             path,
-            starting_mod,
+            ModuleId { krate: crate_id, local_id: root_module },
+            importing_crate,
             self_type_module_id,
             true, // plain or crate
             path_references,
@@ -248,16 +243,15 @@ impl<'context> Elaborator<'context> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_name_in_module(
         &mut self,
-        krate: CrateId,
-        importing_crate: CrateId,
         path: Path,
-        starting_mod: LocalModuleId,
+        starting_module: ModuleId,
+        importing_crate: CrateId,
         self_type_module_id: Option<ModuleId>,
         plain_or_crate: bool,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        let def_map = &self.def_maps[&krate];
-        let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
+        let def_map = &self.def_maps[&starting_module.krate];
+        let mut current_mod_id = starting_module;
         let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
         let mut intermediate_item = IntermediatePathResolutionItem::Module(current_mod_id);
@@ -383,7 +377,7 @@ impl<'context> Elaborator<'context> {
                 || can_reference_module_id(
                     self.def_maps,
                     importing_crate,
-                    starting_mod,
+                    starting_module.local_id,
                     current_mod_id,
                     visibility,
                 ))
@@ -427,8 +421,8 @@ impl<'context> Elaborator<'context> {
         if !(self_type_module_id == Some(current_mod_id)
             || can_reference_module_id(
                 self.def_maps,
-                krate,
-                starting_mod,
+                starting_module.krate,
+                starting_module.local_id,
                 current_mod_id,
                 visibility,
             ))
@@ -441,8 +435,8 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_external_dep(
         &mut self,
-        crate_id: CrateId,
         mut path: Path,
+        crate_id: CrateId,
         self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
         importing_crate: CrateId,
@@ -469,9 +463,8 @@ impl<'context> Elaborator<'context> {
 
         self.resolve_path_to_ns(
             path,
-            dep_module.local_id,
+            *dep_module,
             self_type_module_id,
-            dep_module.krate,
             importing_crate,
             path_references,
         )
