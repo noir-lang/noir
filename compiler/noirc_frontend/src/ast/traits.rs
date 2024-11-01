@@ -24,6 +24,7 @@ pub struct NoirTrait {
     pub items: Vec<Documented<TraitItem>>,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
+    pub is_alias: bool,
 }
 
 /// Any declaration inside the body of a trait that a user is required to
@@ -130,12 +131,19 @@ impl Display for TypeImpl {
     }
 }
 
+// TODO: display where clauses (follow-up issue)
 impl Display for NoirTrait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
         let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
 
         write!(f, "trait {}{}", self.name, generics)?;
+
+        if self.is_alias {
+            let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
+            return write!(f, " = {};", bounds);
+        }
+
         if !self.bounds.is_empty() {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
             write!(f, ": {}", bounds)?;

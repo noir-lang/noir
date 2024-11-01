@@ -26,9 +26,32 @@ impl<'a> Parser<'a> {
         };
 
         let generics = self.parse_generics();
-        let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
-        let where_clause = self.parse_where_clause();
-        let items = self.parse_trait_body();
+
+
+        // Trait aliases:
+        // trait Foo<..> = A + B + E where ..;
+        let (bounds, where_clause, items, is_alias) = if self.eat_assign() {
+            // TODO: need to add default impl as well in this case
+            // TODO: add (is_alias: bool) to NoirTrait and add during later pass?
+            let bounds = self.parse_trait_bounds();
+            let where_clause = self.parse_where_clause();
+            let items = Vec::new();
+            if !self.eat_semicolon() {
+                self.expected_token(Token::Semicolon);
+            }
+            let is_alias = true;
+            (bounds, where_clause, items, is_alias)
+        } else {
+            let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
+            let where_clause = self.parse_where_clause();
+            let items = self.parse_trait_body();
+            let is_alias = false;
+            (bounds, where_clause, items, is_alias)
+        };
+
+        // let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
+        // let where_clause = self.parse_where_clause();
+        // let items = self.parse_trait_body();
 
         NoirTrait {
             name,
@@ -39,6 +62,7 @@ impl<'a> Parser<'a> {
             items,
             attributes,
             visibility,
+            is_alias,
         }
     }
 
@@ -188,6 +212,7 @@ fn empty_trait(
         items: Vec::new(),
         attributes,
         visibility,
+        is_alias: false,
     }
 }
 
@@ -220,6 +245,20 @@ mod tests {
         assert!(noir_trait.generics.is_empty());
         assert!(noir_trait.where_clause.is_empty());
         assert!(noir_trait.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    // TODO error on this case
+    #[test]
+    fn parse_empty_trait_alias() {
+        let src = "trait Foo = ;";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), "Foo");
+        assert!(noir_trait.generics.is_empty());
+        assert!(noir_trait.bounds.is_empty());
+        assert!(noir_trait.where_clause.is_empty());
+        assert!(noir_trait.items.is_empty());
+        assert!(noir_trait.is_alias);
     }
 
     #[test]
@@ -230,6 +269,44 @@ mod tests {
         assert_eq!(noir_trait.generics.len(), 2);
         assert!(noir_trait.where_clause.is_empty());
         assert!(noir_trait.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_alias_with_generics() {
+        let src = "trait Foo<A, B> = Bar + Baz<A>;";
+        let noir_trait_alias = parse_trait_no_errors(src);
+        assert_eq!(noir_trait_alias.name.to_string(), "Foo");
+        assert_eq!(noir_trait_alias.generics.len(), 2);
+        assert_eq!(noir_trait_alias.bounds.len(), 1);
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Baz<A>");
+        assert!(noir_trait_alias.where_clause.is_empty());
+        assert!(noir_trait_alias.items.is_empty());
+        assert!(noir_trait_alias.is_alias);
+
+        // Equivalent to
+        let src = "trait Foo<A, B>: Bar + Baz<A> {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), noir_trait_alias.name.to_string());
+        assert_eq!(noir_trait.generics.len(), noir_trait_alias.generics.len());
+        assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
+        assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
+        assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
+        assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    // TODO error on this case
+    #[test]
+    fn parse_empty_trait_alias_with_generics() {
+        let src = "trait Foo<A, B> = ;";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), "Foo");
+        assert_eq!(noir_trait.generics.len(), 2);
+        assert!(noir_trait.bounds.is_empty());
+        assert!(noir_trait.where_clause.is_empty());
+        assert!(noir_trait.items.is_empty());
+        assert!(noir_trait.is_alias);
     }
 
     #[test]
@@ -240,6 +317,44 @@ mod tests {
         assert_eq!(noir_trait.generics.len(), 2);
         assert_eq!(noir_trait.where_clause.len(), 1);
         assert!(noir_trait.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_alias_with_where_clause() {
+        let src = "trait Foo<A, B> = Bar where A: Z;";
+        let noir_trait_alias = parse_trait_no_errors(src);
+        assert_eq!(noir_trait_alias.name.to_string(), "Foo");
+        assert_eq!(noir_trait_alias.generics.len(), 2);
+        assert_eq!(noir_trait_alias.bounds.len(), 1);
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.where_clause.len(), 1);
+        assert!(noir_trait_alias.items.is_empty());
+        assert!(noir_trait_alias.is_alias);
+
+        // Equivalent to
+        let src = "trait Foo<A, B>: Bar + Baz<A> {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), noir_trait_alias.name.to_string());
+        assert_eq!(noir_trait.generics.len(), noir_trait_alias.generics.len());
+        assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
+        assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
+        assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
+        assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    // TODO: error on this case
+    #[test]
+    fn parse_empty_trait_alias_with_where_clause() {
+        let src = "trait Foo<A, B> = where A: Z;";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), "Foo");
+        assert_eq!(noir_trait.generics.len(), 2);
+        assert!(noir_trait.bounds.is_empty());
+        assert_eq!(noir_trait.where_clause.len(), 1);
+        assert!(noir_trait.items.is_empty());
+        assert!(noir_trait.is_alias);
     }
 
     #[test]
@@ -253,6 +368,7 @@ mod tests {
             panic!("Expected type");
         };
         assert_eq!(name.to_string(), "Elem");
+        assert!(!noir_trait.is_alias);
     }
 
     #[test]
@@ -268,6 +384,7 @@ mod tests {
         assert_eq!(name.to_string(), "x");
         assert_eq!(typ.to_string(), "Field");
         assert_eq!(default_value.unwrap().to_string(), "1");
+        assert!(!noir_trait.is_alias);
     }
 
     #[test]
@@ -281,6 +398,7 @@ mod tests {
             panic!("Expected function");
         };
         assert!(body.is_none());
+        assert!(!noir_trait.is_alias);
     }
 
     #[test]
@@ -294,6 +412,7 @@ mod tests {
             panic!("Expected function");
         };
         assert!(body.is_some());
+        assert!(!noir_trait.is_alias);
     }
 
     #[test]
@@ -306,5 +425,30 @@ mod tests {
         assert_eq!(noir_trait.bounds[1].to_string(), "Baz");
 
         assert_eq!(noir_trait.to_string(), "trait Foo: Bar + Baz {\n}");
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_alias() {
+        let src = "trait Foo = Bar + Baz;";
+        let noir_trait_alias = parse_trait_no_errors(src);
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
+
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz");
+
+        assert_eq!(noir_trait_alias.to_string(), "trait Foo: Bar + Baz {\n}");
+        assert!(noir_trait_alias.is_alias);
+
+        // Equivalent to
+        let src = "trait Foo: Bar + Baz {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), noir_trait_alias.name.to_string());
+        assert_eq!(noir_trait.generics.len(), noir_trait_alias.generics.len());
+        assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
+        assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
+        assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
+        assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
+        assert!(!noir_trait.is_alias);
     }
 }
