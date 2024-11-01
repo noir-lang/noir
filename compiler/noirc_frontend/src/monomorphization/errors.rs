@@ -53,10 +53,10 @@ impl MonomorphizationError {
                 "Could not resolve constant".to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
-                format!("checked_transmute failed: `{actual}` != `{expected}`")
+                format!("checked_transmute failed: `{actual:?}` != `{expected:?}`")
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
-                format!("Arithmetic generics simplification failed: `{actual}` != `{expected}`")
+                format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
             }
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();

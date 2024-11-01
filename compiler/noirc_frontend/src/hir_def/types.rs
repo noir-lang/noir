@@ -909,7 +909,7 @@ impl std::fmt::Display for Type {
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
             Type::InfixExpr(lhs, op, rhs) => {
-                let this = self.canonicalize();
+                let this = self.canonicalize_checked();
 
                 // Prevent infinite recursion
                 if this != *self {
@@ -1425,30 +1425,31 @@ impl Type {
     }
 
     /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self) -> u32 {
-        // TODO: dummy span
-        let dummy_span = Span::default();
+    pub fn field_count(&self, location: &Location) -> u32 {
+        // // TODO: dummy span
+        // let dummy_span = Span::default();
+
         match self {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u32(dummy_span)
+                    .evaluate_to_u32(location.span)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                length * typ.field_count()
+                length * typ.field_count(location)
             }
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(location))
             }
-            Type::CheckedCast { to, .. } => to.field_count(),
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(),
+            Type::CheckedCast { to, .. } => to.field_count(location),
+            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
             Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location))
             }
             Type::String(size) => size
-                .evaluate_to_u32(dummy_span)
+                .evaluate_to_u32(location.span)
                 .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
             | Type::Unit
@@ -1647,11 +1648,15 @@ impl Type {
         use Type::*;
 
         let lhs = match self {
+            // TODO?
+            // Type::CheckedCast { .. } => Cow::Owned(self.canonicalize()),
             Type::InfixExpr(..) => Cow::Owned(self.canonicalize()),
             other => Cow::Borrowed(other),
         };
 
         let rhs = match other {
+            // TODO?
+            // Type::CheckedCast { .. } => Cow::Owned(self.canonicalize()),
             Type::InfixExpr(..) => Cow::Owned(other.canonicalize()),
             other => Cow::Borrowed(other),
         };
@@ -1800,7 +1805,6 @@ impl Type {
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
-                // TODO: dummy span
                 let dummy_span = Span::default();
                 if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_span) {
                     if *value == other_value && kind.unifies(&other.kind()) {
@@ -2743,7 +2747,6 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                // TODO: dummy span
                 let dummy_span = Span::default();
                 let length =
                     size.evaluate_to_u32(dummy_span).expect("Cannot print variable sized arrays");

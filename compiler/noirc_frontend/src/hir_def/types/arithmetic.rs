@@ -17,13 +17,15 @@ impl Type {
     /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
     pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
-            Type::CheckedCast { from, to } => {
-                let skip_simplifications = false;
-                Type::CheckedCast {
-                    from: Box::new(from.canonicalize_checked_cast(skip_simplifications)),
-                    to: Box::new(to.canonicalize_unchecked()),
-                }
-            }
+            Type::CheckedCast { from, to } => Type::CheckedCast {
+                from: Box::new(from.canonicalize_checked()),
+                to: Box::new(to.canonicalize_unchecked()),
+            },
+
+            // // TODO: current source appears to be 'unify'
+            // Type::InfixExpr(lhs, op, rhs) => {
+            //     panic!("TODO: canonicalized InfixExpr {:?}", (lhs, op, rhs));
+            // }
             other => {
                 let non_checked_cast = false;
                 let run_simplifications = true;
@@ -32,15 +34,18 @@ impl Type {
         }
     }
 
-    fn canonicalize_checked_cast(&self, run_simplifications: bool) -> Type {
+    /// Only simplify constants and drop/skip any CheckedCast's
+    pub(crate) fn canonicalize_checked(&self) -> Type {
         let found_checked_cast = true;
-        self.canonicalize_helper(found_checked_cast, run_simplifications)
+        let skip_simplifications = false;
+        self.canonicalize_helper(found_checked_cast, skip_simplifications)
     }
 
     /// Run all simplifications and drop/skip any CheckedCast's
     fn canonicalize_unchecked(&self) -> Type {
+        let found_checked_cast = true;
         let run_simplifications = true;
-        self.canonicalize_checked_cast(run_simplifications)
+        self.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
     /// If found_checked_cast, then drop additional CheckedCast's
@@ -99,14 +104,14 @@ impl Type {
                 Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
             }
             Type::CheckedCast { from, to } => {
-                let to = to.canonicalize_checked_cast(run_simplifications);
+                let inner_found_checked_cast = true;
+                let to = to.canonicalize_helper(inner_found_checked_cast, run_simplifications);
 
                 if found_checked_cast {
                     return to;
                 }
 
-                let skip_simplifications = false;
-                let from = from.canonicalize_checked_cast(skip_simplifications);
+                let from = from.canonicalize_checked();
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
