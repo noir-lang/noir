@@ -55,6 +55,16 @@ impl<'context> Elaborator<'context> {
                 });
             });
 
+            // Given a trait alias:
+            // trait Foo<..> = Bar + Baz;
+            // 
+            // Generate a trait impl:
+            // impl<T> Foo<..> for T where T: Bar, T: Baz {}
+            if unresolved_trait.trait_def.is_alias {
+                let mut trait_impl = unresolved_trait.alias_impl();
+                self.collect_trait_impl(&mut trait_impl);
+            }
+
             // This check needs to be after the trait's methods are set since
             // the interner may set `interner.ordering_type` based on the result type
             // of the Cmp trait, if this is it.

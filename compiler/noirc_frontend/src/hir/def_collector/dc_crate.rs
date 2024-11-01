@@ -23,7 +23,7 @@ use crate::node_interner::{
 use crate::ast::{
     ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, LetStatement, Literal, NoirFunction,
     NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnsupportedNumericGenericType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -72,6 +72,58 @@ pub struct UnresolvedTrait {
     pub trait_def: NoirTrait,
     pub method_ids: HashMap<String, FuncId>,
     pub fns_with_default_impl: UnresolvedFunctions,
+}
+
+impl UnresolvedTrait {
+    // impl<T, ..> Foo<..> for T where ..
+    pub fn alias_impl(&self) -> UnresolvedTraitImpl {
+        // TODO: 'T'
+        let is_synthesized = true;
+
+        let object_type_ident = Ident::new("#T".to_string(), self.trait_def.span);
+        let object_type_path = Path::from_ident(object_type_ident);
+        let object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
+
+        let object_type = UnresolvedType {
+            typ: UnresolvedTypeData::Named(object_type_path, var![], is_synthesized),
+            span: self.trait_def.span,
+        };
+
+        let mut trait_impl_generics = self.trait_def.generics;
+        trait_impl_generics.push(object_type_generic);
+
+        let mut trait_impl_where_clause = self.trait_def.where_clause;
+        for bound in self.trait_def.bounds {
+            // TODO: add where clause for each Bar, Baz in bounds
+            trait_impl_where_clause.push((object_type, bound))
+        }
+
+        UnresolvedTraitImpl {
+            file_id: self.file_id,
+            module_id: self.module_id,
+            trait_generics: self.trait_def.generics,
+
+            // TODO
+            trait_path: self.trait_def.path,
+            object_type,
+            methods: vec![],
+            generics: trait_impl_generics,
+            where_clause: trait_impl_where_clause,
+
+            associated_types: vec![],
+            associated_constants: vec![],
+
+            // Every field after this line is filled in later in the elaborator
+            trait_id: None,
+            impl_id: None,
+            resolved_object_type: None,
+            resolved_generics: vec![],
+
+            // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
+            // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
+            resolved_trait_generics: vec![],
+        }
+    }
 }
 
 pub struct UnresolvedTraitImpl {

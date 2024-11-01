@@ -27,18 +27,21 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generics();
 
-
         // Trait aliases:
         // trait Foo<..> = A + B + E where ..;
         let (bounds, where_clause, items, is_alias) = if self.eat_assign() {
-            // TODO: need to add default impl as well in this case
-            // TODO: add (is_alias: bool) to NoirTrait and add during later pass?
             let bounds = self.parse_trait_bounds();
+
+            if bounds.is_empty() {
+                self.push_error(ParserErrorReason::EmptyTraitAlias, self.previous_token_span);
+            }
+
             let where_clause = self.parse_where_clause();
             let items = Vec::new();
             if !self.eat_semicolon() {
                 self.expected_token(Token::Semicolon);
             }
+
             let is_alias = true;
             (bounds, where_clause, items, is_alias)
         } else {
@@ -48,10 +51,6 @@ impl<'a> Parser<'a> {
             let is_alias = false;
             (bounds, where_clause, items, is_alias)
         };
-
-        // let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
-        // let where_clause = self.parse_where_clause();
-        // let items = self.parse_trait_body();
 
         NoirTrait {
             name,
@@ -221,7 +220,7 @@ mod tests {
     use crate::{
         ast::{NoirTrait, TraitItem},
         parser::{
-            parser::{parse_program, tests::expect_no_errors},
+            parser::{parse_program, ParserErrorReason, tests::expect_no_errors},
             ItemKind,
         },
     };
@@ -248,17 +247,12 @@ mod tests {
         assert!(!noir_trait.is_alias);
     }
 
-    // TODO error on this case
     #[test]
     fn parse_empty_trait_alias() {
         let src = "trait Foo = ;";
-        let noir_trait = parse_trait_no_errors(src);
-        assert_eq!(noir_trait.name.to_string(), "Foo");
-        assert!(noir_trait.generics.is_empty());
-        assert!(noir_trait.bounds.is_empty());
-        assert!(noir_trait.where_clause.is_empty());
-        assert!(noir_trait.items.is_empty());
-        assert!(noir_trait.is_alias);
+        let (_module, errors) = parse_program(src);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
 
     #[test]
@@ -278,8 +272,9 @@ mod tests {
         let noir_trait_alias = parse_trait_no_errors(src);
         assert_eq!(noir_trait_alias.name.to_string(), "Foo");
         assert_eq!(noir_trait_alias.generics.len(), 2);
-        assert_eq!(noir_trait_alias.bounds.len(), 1);
-        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Baz<A>");
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz<A>");
         assert!(noir_trait_alias.where_clause.is_empty());
         assert!(noir_trait_alias.items.is_empty());
         assert!(noir_trait_alias.is_alias);
@@ -296,17 +291,12 @@ mod tests {
         assert!(!noir_trait.is_alias);
     }
 
-    // TODO error on this case
     #[test]
     fn parse_empty_trait_alias_with_generics() {
         let src = "trait Foo<A, B> = ;";
-        let noir_trait = parse_trait_no_errors(src);
-        assert_eq!(noir_trait.name.to_string(), "Foo");
-        assert_eq!(noir_trait.generics.len(), 2);
-        assert!(noir_trait.bounds.is_empty());
-        assert!(noir_trait.where_clause.is_empty());
-        assert!(noir_trait.items.is_empty());
-        assert!(noir_trait.is_alias);
+        let (_module, errors) = parse_program(src);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
 
     #[test]
@@ -322,39 +312,36 @@ mod tests {
 
     #[test]
     fn parse_trait_alias_with_where_clause() {
-        let src = "trait Foo<A, B> = Bar where A: Z;";
+        let src = "trait Foo<A, B> = Bar + Baz<A> where A: Z;";
         let noir_trait_alias = parse_trait_no_errors(src);
         assert_eq!(noir_trait_alias.name.to_string(), "Foo");
         assert_eq!(noir_trait_alias.generics.len(), 2);
-        assert_eq!(noir_trait_alias.bounds.len(), 1);
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
         assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz<A>");
         assert_eq!(noir_trait_alias.where_clause.len(), 1);
         assert!(noir_trait_alias.items.is_empty());
         assert!(noir_trait_alias.is_alias);
 
         // Equivalent to
-        let src = "trait Foo<A, B>: Bar + Baz<A> {}";
+        let src = "trait Foo<A, B>: Bar + Baz<A> where A: Z {}";
         let noir_trait = parse_trait_no_errors(src);
         assert_eq!(noir_trait.name.to_string(), noir_trait_alias.name.to_string());
         assert_eq!(noir_trait.generics.len(), noir_trait_alias.generics.len());
         assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
         assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
-        assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
+        assert_eq!(noir_trait.where_clause.len(), noir_trait_alias.where_clause.len());
+        assert_eq!(noir_trait.where_clause[0].to_string(), noir_trait_alias.where_clause[0].to_string());
         assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
         assert!(!noir_trait.is_alias);
     }
 
-    // TODO: error on this case
     #[test]
     fn parse_empty_trait_alias_with_where_clause() {
         let src = "trait Foo<A, B> = where A: Z;";
-        let noir_trait = parse_trait_no_errors(src);
-        assert_eq!(noir_trait.name.to_string(), "Foo");
-        assert_eq!(noir_trait.generics.len(), 2);
-        assert!(noir_trait.bounds.is_empty());
-        assert_eq!(noir_trait.where_clause.len(), 1);
-        assert!(noir_trait.items.is_empty());
-        assert!(noir_trait.is_alias);
+        let (_module, errors) = parse_program(src);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
 
     #[test]
@@ -437,7 +424,7 @@ mod tests {
         assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
         assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz");
 
-        assert_eq!(noir_trait_alias.to_string(), "trait Foo: Bar + Baz {\n}");
+        assert_eq!(noir_trait_alias.to_string(), "trait Foo = Bar + Baz;");
         assert!(noir_trait_alias.is_alias);
 
         // Equivalent to

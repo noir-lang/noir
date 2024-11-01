@@ -95,6 +95,8 @@ pub enum ParserErrorReason {
     AssociatedTypesNotAllowedInPaths,
     #[error("Associated types are not allowed on a method call")]
     AssociatedTypesNotAllowedInMethodCalls,
+    #[error("Empty trait alias")]
+    EmptyTraitAlias,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
