@@ -25,13 +25,13 @@ serde.workspace = true
 serde_json.workspace = true
 serde_with = "3.2.0"
 tracing.workspace = true
-tracing-test = "0.2.5"
 chrono = "0.4.37"
 rayon.workspace = true
 cfg-if.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+tracing-test = "0.2.5"
 
 [features]
 bn254 = ["noirc_frontend/bn254"]
