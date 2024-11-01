@@ -13,7 +13,6 @@ use crate::{
 };
 use acvm::AcirField;
 
-use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use super::parse_many::separated_by_comma_until_right_paren;
@@ -59,7 +58,6 @@ impl<'a> Parser<'a> {
         is_unconstrained: bool,
         allow_self: bool,
     ) -> FunctionDefinition {
-        let attributes_in_order = vecmap(&attributes, |(attribute, _span)| attribute.clone());
         let attributes = self.validate_attributes(attributes);
 
         let func = self.parse_function_definition_with_optional_body(
@@ -70,7 +68,6 @@ impl<'a> Parser<'a> {
         FunctionDefinition {
             name: func.name,
             attributes,
-            attributes_in_order,
             is_unconstrained,
             is_comptime,
             visibility,
@@ -249,22 +246,23 @@ impl<'a> Parser<'a> {
     }
 
     fn validate_attributes(&mut self, attributes: Vec<(Attribute, Span)>) -> Attributes {
-        let mut primary = None;
+        let mut function = None;
         let mut secondary = Vec::new();
 
-        for (attribute, span) in attributes {
+        for (index, (attribute, span)) in attributes.into_iter().enumerate() {
             match attribute {
                 Attribute::Function(attr) => {
-                    if primary.is_some() {
+                    if function.is_none() {
+                        function = Some((attr, index));
+                    } else {
                         self.push_error(ParserErrorReason::MultipleFunctionAttributesFound, span);
                     }
-                    primary = Some(attr);
                 }
                 Attribute::Secondary(attr) => secondary.push(attr),
             }
         }
 
-        Attributes { function: primary, secondary }
+        Attributes { function, secondary }
     }
 }
 

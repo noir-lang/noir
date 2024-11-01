@@ -3,14 +3,14 @@ use noirc_frontend::{
         BlockExpression, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
         UnresolvedGenerics, UnresolvedTraitConstraint, Visibility,
     },
-    token::{Attribute, Keyword, Token},
+    token::{Attributes, Keyword, Token},
 };
 
 use super::Formatter;
 use crate::chunks::{ChunkGroup, TextChunk};
 
 pub(super) struct FunctionToFormat {
-    pub(super) attributes: Vec<Attribute>,
+    pub(super) attributes: Attributes,
     pub(super) visibility: ItemVisibility,
     pub(super) name: Ident,
     pub(super) generics: UnresolvedGenerics,
@@ -24,7 +24,7 @@ pub(super) struct FunctionToFormat {
 impl<'a> Formatter<'a> {
     pub(super) fn format_function(&mut self, func: NoirFunction) {
         self.format_function_impl(FunctionToFormat {
-            attributes: func.def.attributes_in_order,
+            attributes: func.def.attributes,
             visibility: func.def.visibility,
             name: func.def.name,
             generics: func.def.generics,

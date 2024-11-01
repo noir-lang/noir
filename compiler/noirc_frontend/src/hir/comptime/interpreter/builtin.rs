@@ -2226,7 +2226,7 @@ fn function_def_add_attribute(
 
     match &attribute {
         Attribute::Function(attribute) => {
-            function_modifiers.attributes.function = Some(attribute.clone());
+            function_modifiers.attributes.set_function(attribute.clone());
         }
         Attribute::Secondary(attribute) => {
             function_modifiers.attributes.secondary.push(attribute.clone());
@@ -2264,7 +2264,7 @@ fn function_def_has_named_attribute(
     let name = &*get_str(interner, name)?;
 
     let modifiers = interner.function_modifiers(&func_id);
-    if let Some(attribute) = &modifiers.attributes.function {
+    if let Some(attribute) = modifiers.attributes.function() {
         if name == attribute.name() {
             return Ok(Value::Bool(true));
         }

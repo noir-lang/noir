@@ -1,6 +1,6 @@
 use noirc_frontend::{
     ast::{NoirTrait, Param, Pattern, TraitItem, Visibility},
-    token::{Keyword, Token},
+    token::{Attributes, Keyword, Token},
 };
 
 use super::{function::FunctionToFormat, Formatter};
@@ -89,7 +89,7 @@ impl<'a> Formatter<'a> {
                     .collect();
 
                 let func = FunctionToFormat {
-                    attributes: Vec::new(),
+                    attributes: Attributes::empty(),
                     visibility,
                     name,
                     generics,

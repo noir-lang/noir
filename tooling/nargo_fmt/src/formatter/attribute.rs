@@ -1,5 +1,5 @@
 use noirc_frontend::token::{
-    Attribute, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
+    Attribute, Attributes, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
 };
 
 use crate::chunks::ChunkGroup;
@@ -7,8 +7,15 @@ use crate::chunks::ChunkGroup;
 use super::Formatter;
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_attributes(&mut self, attributes: Vec<Attribute>) {
-        for attribute in attributes {
+    pub(super) fn format_attributes(&mut self, attributes: Attributes) {
+        let mut all_attributes = Vec::new();
+        for attribute in attributes.secondary {
+            all_attributes.push(Attribute::Secondary(attribute));
+        }
+        if let Some((function_attribute, index)) = attributes.function {
+            all_attributes.insert(index, Attribute::Function(function_attribute));
+        }
+        for attribute in all_attributes {
             self.format_attribute(attribute);
         }
     }
@@ -302,6 +309,13 @@ mod tests {
     fn format_test_should_fail_with_reason_attribute() {
         let src = "  #[ test ( should_fail_with=\"reason\" )] ";
         let expected = "#[test(should_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_multiple_function_attributes() {
+        let src = " #[foo] #[test] #[bar]  ";
+        let expected = "#[foo]\n#[test]\n#[bar]";
         assert_format_attribute(src, expected);
     }
 }

@@ -653,7 +653,7 @@ impl fmt::Display for TestScope {
 // Calls to functions which have the foreign attribute are executed in the host language
 pub struct Attributes {
     // Each function can have a single Primary Attribute
-    pub function: Option<FunctionAttribute>,
+    pub function: Option<(FunctionAttribute, usize /* index in list */)>,
     // Each function can have many Secondary Attributes
     pub secondary: Vec<SecondaryAttribute>,
 }
@@ -661,6 +661,15 @@ pub struct Attributes {
 impl Attributes {
     pub fn empty() -> Self {
         Self { function: None, secondary: Vec::new() }
+    }
+
+    pub fn function(&self) -> Option<&FunctionAttribute> {
+        self.function.as_ref().map(|(attr, _)| attr)
+    }
+
+    pub fn set_function(&mut self, function: FunctionAttribute) {
+        // Assume the index in the list doesn't matter anymore at this point
+        self.function = Some((function, 0));
     }
 
     /// Returns true if one of the secondary attributes is `contract_library_method`
@@ -674,7 +683,7 @@ impl Attributes {
     }
 
     pub fn is_test_function(&self) -> bool {
-        matches!(self.function, Some(FunctionAttribute::Test(_)))
+        matches!(self.function(), Some(FunctionAttribute::Test(_)))
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
@@ -702,11 +711,11 @@ impl Attributes {
     }
 
     pub fn is_foldable(&self) -> bool {
-        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_foldable())
+        self.function().map_or(false, |func_attribute| func_attribute.is_foldable())
     }
 
     pub fn is_no_predicates(&self) -> bool {
-        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
+        self.function().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
 
     pub fn has_varargs(&self) -> bool {

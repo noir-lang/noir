@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::node_interner::{
     ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, StructId,
 };
-use crate::token::{Attribute, Attributes, FunctionAttribute, Token, Tokens};
+use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -480,9 +480,6 @@ pub struct FunctionDefinition {
     // and `secondary` attributes (ones that do not change the function kind)
     pub attributes: Attributes,
 
-    /// The above attributes, but kept in order
-    pub attributes_in_order: Vec<Attribute>,
-
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
@@ -507,7 +504,7 @@ impl FunctionDefinition {
     }
 
     pub fn is_test(&self) -> bool {
-        if let Some(attribute) = &self.attributes.function {
+        if let Some(attribute) = self.attributes.function() {
             matches!(attribute, FunctionAttribute::Test(..))
         } else {
             false
@@ -835,7 +832,6 @@ impl FunctionDefinition {
         FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            attributes_in_order: Vec::new(),
             is_unconstrained,
             is_comptime: false,
             visibility: ItemVisibility::Private,
