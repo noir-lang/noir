@@ -57,28 +57,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
-        let self_type_module_id = if let Some(Type::Struct(struct_type, _)) = &self.self_type {
-            Some(struct_type.borrow().id.module_id())
-        } else {
-            None
-        };
-
-        self.resolve_path_impl(path, module_id, self_type_module_id)
-    }
-
-    fn resolve_path_impl(
-        &mut self,
-        path: Path,
-        module_id: ModuleId,
-        self_type_module_id: Option<ModuleId>,
-    ) -> PathResolutionResult {
         if !self.interner.lsp_mode {
-            return self.resolve_path_impl_with_references(
-                path,
-                module_id,
-                self_type_module_id,
-                &mut None,
-            );
+            return self.resolve_path_impl_with_references(path, module_id, &mut None);
         }
 
         let last_segment = path.last_ident();
@@ -89,7 +69,6 @@ impl<'context> Elaborator<'context> {
         let path_resolution = self.resolve_path_impl_with_references(
             path.clone(),
             module_id,
-            self_type_module_id,
             &mut Some(&mut references),
         );
 
@@ -119,16 +98,9 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
         module_id: ModuleId,
-        self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
-        self.resolve_path_to_ns(
-            path,
-            module_id,
-            self_type_module_id,
-            module_id.krate,
-            path_references,
-        )
+        self.resolve_path_to_ns(path, module_id, module_id.krate, path_references)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -136,7 +108,6 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
         starting_module: ModuleId,
-        self_type_module_id: Option<ModuleId>,
         importing_crate: CrateId,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
@@ -147,7 +118,6 @@ impl<'context> Elaborator<'context> {
                     path,
                     starting_module.krate,
                     importing_crate,
-                    self_type_module_id,
                     path_references,
                 )
             }
@@ -159,7 +129,6 @@ impl<'context> Elaborator<'context> {
                         path,
                         starting_module,
                         importing_crate,
-                        self_type_module_id,
                         true, // plain or crate
                         path_references,
                     );
@@ -171,30 +140,19 @@ impl<'context> Elaborator<'context> {
                     &path.segments.first().expect("ice: could not fetch first segment").ident;
                 if current_mod.find_name(first_segment).is_none() {
                     // Resolve externally when first segment is unresolved
-                    return self.resolve_external_dep(
-                        path,
-                        self_type_module_id,
-                        path_references,
-                        importing_crate,
-                    );
+                    return self.resolve_external_dep(path, path_references, importing_crate);
                 }
 
                 self.resolve_name_in_module(
                     path,
                     starting_module,
                     importing_crate,
-                    self_type_module_id,
                     true, // plain or crate
                     path_references,
                 )
             }
 
-            PathKind::Dep => self.resolve_external_dep(
-                path,
-                self_type_module_id,
-                path_references,
-                importing_crate,
-            ),
+            PathKind::Dep => self.resolve_external_dep(path, path_references, importing_crate),
 
             PathKind::Super => {
                 if let Some(parent_module_id) =
@@ -206,7 +164,6 @@ impl<'context> Elaborator<'context> {
                         path,
                         starting_module,
                         importing_crate,
-                        self_type_module_id,
                         false, // plain or crate
                         path_references,
                     )
@@ -224,7 +181,6 @@ impl<'context> Elaborator<'context> {
         path: Path,
         crate_id: CrateId,
         importing_crate: CrateId,
-        self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
         let root_module = self.def_maps[&crate_id].root;
@@ -232,7 +188,6 @@ impl<'context> Elaborator<'context> {
             path,
             ModuleId { krate: crate_id, local_id: root_module },
             importing_crate,
-            self_type_module_id,
             true, // plain or crate
             path_references,
         )
@@ -243,7 +198,6 @@ impl<'context> Elaborator<'context> {
         path: Path,
         starting_module: ModuleId,
         importing_crate: CrateId,
-        self_type_module_id: Option<ModuleId>,
         plain_or_crate: bool,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
@@ -415,7 +369,7 @@ impl<'context> Elaborator<'context> {
             .map(|(_, visibility, _)| visibility)
             .expect("Found empty namespace");
 
-        if !(self_type_module_id == Some(current_mod_id)
+        if !(self.self_type_module_id() == Some(current_mod_id)
             || can_reference_module_id(
                 self.def_maps,
                 starting_module.krate,
@@ -433,7 +387,6 @@ impl<'context> Elaborator<'context> {
     fn resolve_external_dep(
         &mut self,
         mut path: Path,
-        self_type_module_id: Option<ModuleId>,
         path_references: &mut Option<&mut Vec<ReferenceId>>,
         importing_crate: CrateId,
     ) -> PathResolutionResult {
@@ -457,13 +410,15 @@ impl<'context> Elaborator<'context> {
             path_references.push(ReferenceId::Module(*dep_module));
         }
 
-        self.resolve_path_to_ns(
-            path,
-            *dep_module,
-            self_type_module_id,
-            importing_crate,
-            path_references,
-        )
+        self.resolve_path_to_ns(path, *dep_module, importing_crate, path_references)
+    }
+
+    fn self_type_module_id(&self) -> Option<ModuleId> {
+        if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+            Some(struct_type.borrow().id.module_id())
+        } else {
+            None
+        }
     }
 }
 
