@@ -13,10 +13,7 @@ use noirc_frontend::{
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::{
-            import::PathResolutionItem,
-            path_resolver::{PathResolver, StandardPathResolver},
-        },
+        resolution::{import::PathResolutionItem, path_resolver::resolve_path},
     },
     node_interner::{NodeInterner, ReferenceId},
     parser::{ParsedSubModule, Parser},
@@ -102,11 +99,16 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
             return;
         };
 
-        let resolver = StandardPathResolver::new(self.module_id, None);
         let mut usage_tracker = UsageTracker::default();
-        let Ok(result) =
-            resolver.resolve(self.interner, self.def_maps, path, &mut usage_tracker, &mut None)
-        else {
+        let Ok(result) = resolve_path(
+            self.interner,
+            self.def_maps,
+            self.module_id,
+            None, // self_type_module_id
+            path,
+            &mut usage_tracker,
+            &mut None,
+        ) else {
             return;
         };
 

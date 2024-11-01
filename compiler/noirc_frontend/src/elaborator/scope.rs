@@ -3,7 +3,7 @@ use noirc_errors::{Location, Spanned};
 use crate::ast::{Ident, Path, PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::import::{PathResolution, PathResolutionItem, PathResolutionResult};
-use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
+use crate::hir::resolution::path_resolver::resolve_path;
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::{
     hir::resolution::errors::ResolverError,
@@ -83,12 +83,12 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        let resolver = StandardPathResolver::new(module_id, self_type_module_id);
-
         if !self.interner.lsp_mode {
-            return resolver.resolve(
+            return resolve_path(
                 self.interner,
                 self.def_maps,
+                module_id,
+                self_type_module_id,
                 path,
                 self.usage_tracker,
                 &mut None,
@@ -100,9 +100,11 @@ impl<'context> Elaborator<'context> {
         let is_self_type_name = last_segment.is_self_type_name();
 
         let mut references: Vec<_> = Vec::new();
-        let path_resolution = resolver.resolve(
+        let path_resolution = resolve_path(
             self.interner,
             self.def_maps,
+            module_id,
+            self_type_module_id,
             path.clone(),
             self.usage_tracker,
             &mut Some(&mut references),

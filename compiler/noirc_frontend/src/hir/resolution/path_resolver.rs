@@ -6,68 +6,7 @@ use crate::usage_tracker::UsageTracker;
 use std::collections::BTreeMap;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
-
-pub trait PathResolver {
-    /// Resolve the given path returning the resolved ModuleDefId.
-    /// If `path_references` is `Some`, a `ReferenceId` for each segment in `path`
-    /// will be resolved and pushed (some entries will be None if they don't refer to
-    /// a module or type).
-    fn resolve(
-        &self,
-        interner: &NodeInterner,
-        def_maps: &BTreeMap<CrateId, CrateDefMap>,
-        path: Path,
-        usage_tracker: &mut UsageTracker,
-        path_references: &mut Option<&mut Vec<ReferenceId>>,
-    ) -> PathResolutionResult;
-
-    fn local_module_id(&self) -> LocalModuleId;
-
-    fn module_id(&self) -> ModuleId;
-}
-
-pub struct StandardPathResolver {
-    // Module that we are resolving the path in
-    module_id: ModuleId,
-    // The module of the self type, if any (for example, the ModuleId of a struct)
-    self_type_module_id: Option<ModuleId>,
-}
-
-impl StandardPathResolver {
-    pub fn new(module_id: ModuleId, self_type_module_id: Option<ModuleId>) -> StandardPathResolver {
-        Self { module_id, self_type_module_id }
-    }
-}
-
-impl PathResolver for StandardPathResolver {
-    fn resolve(
-        &self,
-        interner: &NodeInterner,
-        def_maps: &BTreeMap<CrateId, CrateDefMap>,
-        path: Path,
-        usage_tracker: &mut UsageTracker,
-        path_references: &mut Option<&mut Vec<ReferenceId>>,
-    ) -> PathResolutionResult {
-        resolve_path(
-            interner,
-            def_maps,
-            self.module_id,
-            self.self_type_module_id,
-            path,
-            usage_tracker,
-            path_references,
-        )
-    }
-
-    fn local_module_id(&self) -> LocalModuleId {
-        self.module_id.local_id
-    }
-
-    fn module_id(&self) -> ModuleId {
-        self.module_id
-    }
-}
+use crate::hir::def_map::{CrateDefMap, ModuleId};
 
 /// Resolve the given path to a function or a type.
 /// In the case of a conflict, functions are given priority
