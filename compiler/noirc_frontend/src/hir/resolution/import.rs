@@ -323,8 +323,6 @@ fn resolve_name_in_module(
 
                 id
             }
-            ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
-            // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => {
                 if let Some(path_references) = path_references {
                     path_references.push(ReferenceId::Struct(id));
@@ -361,6 +359,7 @@ fn resolve_name_in_module(
 
                 id.0
             }
+            ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
@@ -382,7 +381,6 @@ fn resolve_name_in_module(
 
         // Check if namespace
         let found_ns = current_mod.find_name(current_ident);
-
         if found_ns.is_none() {
             return Err(PathResolutionError::Unresolved(current_ident.clone()));
         }

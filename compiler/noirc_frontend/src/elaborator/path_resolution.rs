@@ -171,11 +171,9 @@ impl<'context> Elaborator<'context> {
             );
         }
 
-        let def_map = &self.def_maps[&current_module.krate];
-        let current_mod = &def_map.modules[current_module.local_id.0];
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
-        if current_mod.find_name(first_segment).is_none() {
+        if self.get_module(current_module).find_name(first_segment).is_none() {
             // Resolve externally when first segment is unresolved
             return self.resolve_dep_path(path, starting_module);
         }
@@ -222,9 +220,7 @@ impl<'context> Elaborator<'context> {
         path: Path,
         starting_module: ModuleId,
     ) -> PathResolutionResult {
-        let Some(parent_module_id) =
-            self.def_maps[&starting_module.krate].modules[starting_module.local_id.0].parent
-        else {
+        let Some(parent_module_id) = self.get_module(starting_module).parent else {
             let span_start = path.span.start();
             let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
             return Err(PathResolutionError::NoSuper(span));
@@ -244,9 +240,8 @@ impl<'context> Elaborator<'context> {
         starting_module: ModuleId,
         plain_or_crate: bool,
     ) -> PathResolutionResult {
-        let def_map = &self.def_maps[&current_module.krate];
         let mut current_mod_id = current_module;
-        let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
+        let mut current_mod = self.get_module(current_module);
 
         let mut intermediate_item = IntermediatePathResolutionItem::Module(current_mod_id);
 
@@ -297,8 +292,6 @@ impl<'context> Elaborator<'context> {
 
                     (id, IntermediatePathResolutionItem::Module(id))
                 }
-                ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
-                // TODO: If impls are ever implemented, types can be used in a path
                 ModuleDefId::TypeId(id) => {
                     let is_self_type_name = last_segment.ident.is_self_type_name();
                     self.interner.add_struct_reference(id, location, is_self_type_name);
@@ -358,6 +351,7 @@ impl<'context> Elaborator<'context> {
                         ),
                     )
                 }
+                ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
 
@@ -375,11 +369,10 @@ impl<'context> Elaborator<'context> {
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }
 
-            current_mod = &self.def_maps[&current_mod_id.krate].modules[current_mod_id.local_id.0];
+            current_mod = self.get_module(current_mod_id);
 
             // Check if namespace
             let found_ns = current_mod.find_name(current_ident);
-
             if found_ns.is_none() {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
@@ -389,30 +382,18 @@ impl<'context> Elaborator<'context> {
             current_ns = found_ns;
         }
 
-        let module_def_id = current_ns
-            .values
-            .or(current_ns.types)
-            .map(|(id, _, _)| id)
-            .expect("Found empty namespace");
+        let (module_def_id, visibility, _) =
+            current_ns.values.or(current_ns.types).expect("Found empty namespace");
 
         let name = &path.segments.last().unwrap().ident;
+        let is_self_type = name.is_self_type_name();
         let location = Location::new(name.span(), self.file);
-        self.interner.add_module_def_id_reference(
-            module_def_id,
-            location,
-            name.is_self_type_name(),
-        );
+        self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
 
         let item = merge_intermediate_path_resolution_item_with_module_def_id(
             intermediate_item,
             module_def_id,
         );
-
-        let visibility = current_ns
-            .values
-            .or(current_ns.types)
-            .map(|(_, visibility, _)| visibility)
-            .expect("Found empty namespace");
 
         if !(self.self_type_module_id() == Some(current_mod_id)
             || can_reference_module_id(
