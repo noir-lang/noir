@@ -7,10 +7,12 @@ use acir::{
 
 // The various passes that we can use over ACIR
 mod optimizers;
+mod simulator;
 mod transformers;
 
 pub use optimizers::optimize;
 use optimizers::optimize_internal;
+pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
 pub use transformers::{transform, MIN_EXPRESSION_WIDTH};
 

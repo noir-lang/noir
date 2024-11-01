@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "acir_field",
  "base64 0.21.7",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -40,7 +40,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "acir",
  "blake2",
@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -175,23 +175,24 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
 name = "anstream"
-version = "0.6.4"
+version = "0.6.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ab91ebe16eb252986481c5b62f6098f3b698a45e34b5b98200cf20dd2484a44"
+checksum = "23a1e53f0f5d86382dafe1cf314783b2044280f406e7e1506368220ad11b1338"
 dependencies = [
  "anstyle",
  "anstyle-parse",
  "anstyle-query",
  "anstyle-wincon",
  "colorchoice",
+ "is_terminal_polyfill",
  "utf8parse",
 ]
 
 [[package]]
 name = "anstyle"
-version = "1.0.1"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a30da5c5f2d5e72842e00bcb57657162cdabef0931f40e2deb9b4140440cecd"
+checksum = "8365de52b16c035ff4fcafe0092ba9390540e3e352870ac09933bebcaa2c8c56"
 
 [[package]]
 name = "anstyle-parse"
@@ -213,12 +214,12 @@ dependencies = [
 
 [[package]]
 name = "anstyle-wincon"
-version = "3.0.1"
+version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0699d10d2f4d628a98ee7b57b289abbc98ff3bad977cb3152709d4bf2330628"
+checksum = "2109dbce0e72be3ec00bed26e6a7479ca384ad226efdd66db8fa2e3a38c83125"
 dependencies = [
  "anstyle",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -577,7 +578,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -595,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -603,7 +604,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -772,9 +773,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.4.11"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfaff671f6b22ca62406885ece523383b9b64022e341e53e009a62ebc47a45f2"
+checksum = "b97f376d85a664d5837dbae44bf546e6477a679ff6610010f17276f686d867e8"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -790,23 +791,32 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.4.11"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a216b506622bb1d316cd51328dce24e07bdff4a6128a47c7e7fad11878d5adbb"
+checksum = "19bc80abd44e4bed93ca373a0704ccbd1b710dc5749406201bb018272808dc54"
 dependencies = [
  "anstream",
  "anstyle",
  "clap_lex",
- "strsim",
+ "strsim 0.11.1",
+]
+
+[[package]]
+name = "clap_complete"
+version = "4.5.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86bc73de94bc81e52f3bebec71bc4463e9748f7a59166663e32044669577b0e2"
+dependencies = [
+ "clap",
 ]
 
 [[package]]
 name = "clap_derive"
-version = "4.4.7"
+version = "4.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf9804afaaf59a91e75b022a30fb7229a7901f60c755489cc61c9b423b836442"
+checksum = "4ac6a0c7b1a9e9a5186361f67dfa1b88213572f427fb9ab038efb2bd8c582dab"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.64",
@@ -814,9 +824,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.6.0"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "702fc72eb24e5a1e48ce58027a675bc24edd52096d5397d4aea7c6dd9eca0bd1"
+checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 
 [[package]]
 name = "clipboard-win"
@@ -1158,7 +1168,7 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim",
+ "strsim 0.10.0",
  "syn 2.0.64",
 ]
 
@@ -1526,7 +1536,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -1841,6 +1851,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
+name = "heck"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
 name = "hermit-abi"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2122,8 +2138,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "is_terminal_polyfill"
+version = "1.70.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
+
+[[package]]
 name = "iter-extended"
-version = "0.36.0"
+version = "0.37.0"
 
 [[package]]
 name = "itertools"
@@ -2513,7 +2535,7 @@ dependencies = [
 
 [[package]]
 name = "nargo"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "fm",
@@ -2540,7 +2562,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "ark-bn254",
@@ -2551,6 +2573,7 @@ dependencies = [
  "build-data",
  "clap",
  "clap-markdown",
+ "clap_complete",
  "color-eyre",
  "const_format",
  "criterion",
@@ -2599,7 +2622,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "noirc_frontend",
  "serde",
@@ -2610,7 +2633,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "dirs",
  "fm",
@@ -2684,7 +2707,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2708,7 +2731,7 @@ dependencies = [
 
 [[package]]
 name = "noir_fuzzer"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "noirc_abi",
@@ -2731,7 +2754,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -2743,14 +2766,12 @@ dependencies = [
  "nargo",
  "nargo_fmt",
  "nargo_toml",
- "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
  "rayon",
  "serde",
  "serde_json",
- "serde_with",
  "strum",
  "thiserror",
  "tokio",
@@ -2760,7 +2781,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -2776,6 +2797,7 @@ dependencies = [
  "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
+ "noirc_evaluator",
  "serde",
  "serde_json",
  "tempfile",
@@ -2785,7 +2807,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2809,7 +2831,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2828,7 +2850,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2845,11 +2867,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "0.36.0"
+version = "0.37.0"
 
 [[package]]
 name = "noirc_artifacts"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2864,7 +2886,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2883,7 +2905,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "base64 0.21.7",
@@ -2900,7 +2922,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -2923,7 +2945,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "base64 0.21.7",
@@ -2953,7 +2975,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4285,6 +4307,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
+name = "strsim"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
 name = "strum"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5125,6 +5153,15 @@ name = "windows-sys"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
+dependencies = [
+ "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.59.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets 0.52.6",
 ]
