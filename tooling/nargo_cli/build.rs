@@ -88,20 +88,12 @@ fn read_test_cases(
     })
 }
 
+#[derive(Default)]
 struct MatrixConfig {
+    // Only used with execution, and only on selected tests.
     vary_brillig: bool,
+    // Only seems to have an effect on the `execute_success` cases.
     vary_inliner: bool,
-}
-
-impl Default for MatrixConfig {
-    fn default() -> Self {
-        Self {
-            // Only used with execution, and only on selected tests.
-            vary_brillig: false,
-            // Only seems to have an effect on the `execute_success` cases.
-            vary_inliner: false,
-        }
-    }
 }
 
 /// Generate all test cases for a given test directory.
