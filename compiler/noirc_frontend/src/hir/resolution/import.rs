@@ -156,6 +156,47 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         self.resolve_name_in_module(path, current_module, importing_module)
     }
 
+    fn resolve_dep_path(
+        &mut self,
+        mut path: Path,
+        importing_module: ModuleId,
+    ) -> ImportResolutionResult {
+        // Use extern_prelude to get the dep
+        let current_def_map = &self.def_maps[&importing_module.krate];
+
+        // Fetch the root module from the prelude
+        let crate_name = &path.segments.first().unwrap().ident;
+        let dep_module = current_def_map
+            .extern_prelude
+            .get(&crate_name.0.contents)
+            .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
+
+        self.push_reference(ReferenceId::Module(*dep_module));
+
+        // Create an import directive for the dependency crate
+        // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
+        // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
+        path.kind = PathKind::Plain;
+        path.segments.remove(0);
+
+        self.resolve_plain_path(path, *dep_module, importing_module)
+    }
+
+    fn resolve_super_path(
+        &mut self,
+        path: Path,
+        importing_module: ModuleId,
+    ) -> ImportResolutionResult {
+        let Some(parent_module_id) = self.get_module(importing_module).parent else {
+            let span_start = path.span.start();
+            let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
+            return Err(PathResolutionError::NoSuper(span));
+        };
+
+        let current_module = ModuleId { krate: importing_module.krate, local_id: parent_module_id };
+        self.resolve_name_in_module(path, current_module, importing_module)
+    }
+
     fn resolve_name_in_module(
         &mut self,
         path: Path,
@@ -200,23 +241,17 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             // In the type namespace, only Mod can be used in a path.
             current_module_id = match typ {
                 ModuleDefId::ModuleId(id) => {
-                    if let Some(path_references) = self.path_references {
-                        path_references.push(ReferenceId::Module(id));
-                    }
+                    self.push_reference(ReferenceId::Module(id));
 
                     id
                 }
                 ModuleDefId::TypeId(id) => {
-                    if let Some(path_references) = self.path_references {
-                        path_references.push(ReferenceId::Struct(id));
-                    }
+                    self.push_reference(ReferenceId::Struct(id));
 
                     id.module_id()
                 }
                 ModuleDefId::TypeAliasId(id) => {
-                    if let Some(path_references) = self.path_references {
-                        path_references.push(ReferenceId::Alias(id));
-                    }
+                    self.push_reference(ReferenceId::Alias(id));
 
                     let type_alias = self.interner.get_type_alias(id);
                     let type_alias = type_alias.borrow();
@@ -236,9 +271,7 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
                     module_id
                 }
                 ModuleDefId::TraitId(id) => {
-                    if let Some(path_references) = self.path_references {
-                        path_references.push(ReferenceId::Trait(id));
-                    }
+                    self.push_reference(ReferenceId::Trait(id));
 
                     id.0
                 }
@@ -290,51 +323,14 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         Ok(ResolvedImport { namespace: current_ns, errors })
     }
 
-    fn resolve_dep_path(
-        &mut self,
-        mut path: Path,
-        importing_module: ModuleId,
-    ) -> ImportResolutionResult {
-        // Use extern_prelude to get the dep
-        let current_def_map = &self.def_maps[&importing_module.krate];
-
-        // Fetch the root module from the prelude
-        let crate_name = &path.segments.first().unwrap().ident;
-        let dep_module = current_def_map
-            .extern_prelude
-            .get(&crate_name.0.contents)
-            .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
-
-        if let Some(path_references) = self.path_references {
-            path_references.push(ReferenceId::Module(*dep_module));
-        }
-
-        // Create an import directive for the dependency crate
-        // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
-        // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
-        path.kind = PathKind::Plain;
-        path.segments.remove(0);
-
-        self.resolve_plain_path(path, *dep_module, importing_module)
-    }
-
-    fn resolve_super_path(
-        &mut self,
-        path: Path,
-        importing_module: ModuleId,
-    ) -> ImportResolutionResult {
-        let Some(parent_module_id) = self.get_module(importing_module).parent else {
-            let span_start = path.span.start();
-            let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
-            return Err(PathResolutionError::NoSuper(span));
-        };
-
-        let current_module = ModuleId { krate: importing_module.krate, local_id: parent_module_id };
-        self.resolve_name_in_module(path, current_module, importing_module)
-    }
-
     fn get_module(&self, module: ModuleId) -> &ModuleData {
         let message = "A crate should always be present for a given crate id";
         &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+    }
+
+    fn push_reference(&mut self, reference_id: ReferenceId) {
+        if let Some(path_references) = self.path_references {
+            path_references.push(reference_id);
+        }
     }
 }
