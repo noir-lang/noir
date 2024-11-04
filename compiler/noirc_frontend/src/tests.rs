@@ -3645,3 +3645,29 @@ fn disallows_test_attribute_on_impl_method() {
         })
     ));
 }
+
+#[test]
+fn disallows_test_attribute_on_trait_impl_method() {
+    let src = r#"
+    pub trait Trait {
+        fn foo() {}
+    }
+
+    pub struct Foo {}
+    impl Trait for Foo {
+        #[test]
+        fn foo() {}
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
+            span: _
+        })
+    ));
+}

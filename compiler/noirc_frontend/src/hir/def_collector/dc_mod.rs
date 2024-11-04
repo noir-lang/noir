@@ -98,7 +98,7 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_functions(context, ast.functions, crate_id));
 
-    collector.collect_trait_impls(context, ast.trait_impls, crate_id);
+    errors.extend(collector.collect_trait_impls(context, ast.trait_impls, crate_id));
 
     errors.extend(collector.collect_impls(context, ast.impls, crate_id));
 
@@ -192,7 +192,9 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         impls: Vec<NoirTraitImpl>,
         krate: CrateId,
-    ) {
+    ) -> Vec<(CompilationError, FileId)> {
+        let mut errors = Vec::new();
+
         for mut trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
@@ -208,6 +210,13 @@ impl<'a> ModCollector<'a> {
             let module = ModuleId { krate, local_id: self.module_id };
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
+                if noir_function.def.attributes.is_test_function() {
+                    let error = DefCollectorErrorKind::TestOnAssociatedFunction {
+                        span: noir_function.name_ident().span(),
+                    };
+                    errors.push((error.into(), self.file_id));
+                }
+
                 let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
@@ -234,6 +243,8 @@ impl<'a> ModCollector<'a> {
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
         }
+
+        errors
     }
 
     fn collect_functions(
