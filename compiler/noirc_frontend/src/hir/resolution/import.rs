@@ -249,14 +249,10 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             // In the type namespace, only Mod can be used in a path.
             current_module_id = match typ {
                 ModuleDefId::ModuleId(id) => id,
-                ModuleDefId::TypeId(id) => id.module_id(),
-                ModuleDefId::TypeAliasId(..) => {
-                    return Err(PathResolutionError::NotAModule {
-                        ident: last_segment.ident.clone(),
-                        kind: "type alias",
-                    });
+                ModuleDefId::TypeId(_) | ModuleDefId::TypeAliasId(_) | ModuleDefId::TraitId(_) => {
+                    let ident = last_segment.ident.clone();
+                    return Err(PathResolutionError::NotAModule { ident, kind: typ.as_str() });
                 }
-                ModuleDefId::TraitId(id) => id.0,
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
