@@ -20,7 +20,6 @@ use super::visibility::can_reference_module_id;
 pub struct ImportDirective {
     pub visibility: ItemVisibility,
     pub module_id: LocalModuleId,
-    pub self_type_module_id: Option<ModuleId>,
     pub path: Path,
     pub alias: Option<Ident>,
     pub is_prelude: bool,
@@ -136,15 +135,13 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             .map(|(_, visibility, _)| visibility)
             .expect("Found empty namespace");
 
-        if !(import_directive.self_type_module_id == Some(resolved_module)
-            || can_reference_module_id(
-                self.def_maps,
-                crate_id,
-                import_directive.module_id,
-                resolved_module,
-                visibility,
-            ))
-        {
+        if !can_reference_module_id(
+            self.def_maps,
+            crate_id,
+            import_directive.module_id,
+            resolved_module,
+            visibility,
+        ) {
             errors.push(PathResolutionError::Private(name.clone()));
         }
 
@@ -399,7 +396,6 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         let dep_directive = ImportDirective {
             visibility: ItemVisibility::Private,
             module_id: dep_module.local_id,
-            self_type_module_id: directive.self_type_module_id,
             path,
             alias: directive.alias.clone(),
             is_prelude: false,

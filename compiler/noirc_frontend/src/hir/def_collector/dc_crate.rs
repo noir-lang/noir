@@ -561,7 +561,6 @@ fn inject_prelude(
         let import_directive = ImportDirective {
             visibility: ItemVisibility::Private,
             module_id: crate_root,
-            self_type_module_id: None,
             path,
             alias: None,
             is_prelude: false,
@@ -591,7 +590,6 @@ fn inject_prelude(
                     ImportDirective {
                         visibility: ItemVisibility::Private,
                         module_id: crate_root,
-                        self_type_module_id: None,
                         path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,

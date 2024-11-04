@@ -106,7 +106,6 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
         let import_directive = ImportDirective {
             visibility: ItemVisibility::Private,
             module_id: self.module_id.local_id,
-            self_type_module_id: None,
             path,
             alias: None,
             is_prelude: false,
