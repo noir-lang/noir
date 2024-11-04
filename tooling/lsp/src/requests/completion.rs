@@ -801,8 +801,8 @@ impl<'a> NodeFinder<'a> {
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
                     if item_in_module_is_visible(
                         self.def_maps,
-                        module_id,
                         self.module_id,
+                        module_id,
                         visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(
@@ -822,8 +822,8 @@ impl<'a> NodeFinder<'a> {
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
                     if item_in_module_is_visible(
                         self.def_maps,
-                        module_id,
                         self.module_id,
+                        module_id,
                         visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(

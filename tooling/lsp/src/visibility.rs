@@ -34,7 +34,7 @@ pub(super) fn module_def_id_is_visible(
 
     // Then check if it's visible, and upwards
     while let Some(module_id) = target_module_id {
-        if !item_in_module_is_visible(def_maps, module_id, current_module_id, visibility) {
+        if !item_in_module_is_visible(def_maps, current_module_id, module_id, visibility) {
             return false;
         }
 
