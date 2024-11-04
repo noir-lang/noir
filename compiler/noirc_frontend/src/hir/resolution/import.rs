@@ -100,11 +100,13 @@ pub fn resolve_import(
     usage_tracker: &mut UsageTracker,
     references_tracker: Option<ReferencesTracker>,
 ) -> ImportResolutionResult {
-    let mut solver = ImportSolver::new(def_maps, usage_tracker, references_tracker);
-    solver.solve(path, importing_module)
+    let mut solver =
+        ImportSolver::new(importing_module, def_maps, usage_tracker, references_tracker);
+    solver.solve(path)
 }
 
 struct ImportSolver<'def_maps, 'usage_tracker, 'references_tracker> {
+    importing_module: ModuleId,
     def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &'usage_tracker mut UsageTracker,
     references_tracker: Option<ReferencesTracker<'references_tracker>>,
@@ -114,60 +116,52 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     ImportSolver<'def_maps, 'usage_tracker, 'references_tracker>
 {
     fn new(
+        importing_module: ModuleId,
         def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
         usage_tracker: &'usage_tracker mut UsageTracker,
         references_tracker: Option<ReferencesTracker<'references_tracker>>,
     ) -> Self {
-        Self { def_maps, usage_tracker, references_tracker }
+        Self { importing_module, def_maps, usage_tracker, references_tracker }
     }
 
-    fn solve(&mut self, path: Path, importing_module: ModuleId) -> ImportResolutionResult {
+    fn solve(&mut self, path: Path) -> ImportResolutionResult {
         match path.kind {
-            PathKind::Crate => self.resolve_crate_path(path, importing_module),
-            PathKind::Plain => self.resolve_plain_path(path, importing_module, importing_module),
-            PathKind::Dep => self.resolve_dep_path(path, importing_module),
-            PathKind::Super => self.resolve_super_path(path, importing_module),
+            PathKind::Crate => self.resolve_crate_path(path),
+            PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
+            PathKind::Dep => self.resolve_dep_path(path),
+            PathKind::Super => self.resolve_super_path(path),
         }
     }
 
-    fn resolve_crate_path(
-        &mut self,
-        path: Path,
-        importing_module: ModuleId,
-    ) -> ImportResolutionResult {
-        let root_module = self.def_maps[&importing_module.krate].root;
-        let current_module = ModuleId { krate: importing_module.krate, local_id: root_module };
-        self.resolve_name_in_module(path, current_module, importing_module)
+    fn resolve_crate_path(&mut self, path: Path) -> ImportResolutionResult {
+        let root_module = self.def_maps[&self.importing_module.krate].root;
+        let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
+        self.resolve_name_in_module(path, current_module)
     }
 
     fn resolve_plain_path(
         &mut self,
         path: Path,
         current_module: ModuleId,
-        importing_module: ModuleId,
     ) -> ImportResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
-            return self.resolve_name_in_module(path, current_module, importing_module);
+            return self.resolve_name_in_module(path, current_module);
         }
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
         if self.get_module(current_module).find_name(first_segment).is_none() {
             // Resolve externally when first segment is unresolved
-            return self.resolve_dep_path(path, importing_module);
+            return self.resolve_dep_path(path);
         }
 
-        self.resolve_name_in_module(path, current_module, importing_module)
+        self.resolve_name_in_module(path, current_module)
     }
 
-    fn resolve_dep_path(
-        &mut self,
-        mut path: Path,
-        importing_module: ModuleId,
-    ) -> ImportResolutionResult {
+    fn resolve_dep_path(&mut self, mut path: Path) -> ImportResolutionResult {
         // Use extern_prelude to get the dep
-        let current_def_map = &self.def_maps[&importing_module.krate];
+        let current_def_map = &self.def_maps[&self.importing_module.krate];
 
         // Fetch the root module from the prelude
         let crate_name = &path.segments.first().unwrap().ident;
@@ -185,29 +179,25 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         path.kind = PathKind::Plain;
         path.segments.remove(0);
 
-        self.resolve_plain_path(path, *dep_module, importing_module)
+        self.resolve_plain_path(path, *dep_module)
     }
 
-    fn resolve_super_path(
-        &mut self,
-        path: Path,
-        importing_module: ModuleId,
-    ) -> ImportResolutionResult {
-        let Some(parent_module_id) = self.get_module(importing_module).parent else {
+    fn resolve_super_path(&mut self, path: Path) -> ImportResolutionResult {
+        let Some(parent_module_id) = self.get_module(self.importing_module).parent else {
             let span_start = path.span.start();
             let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
             return Err(PathResolutionError::NoSuper(span));
         };
 
-        let current_module = ModuleId { krate: importing_module.krate, local_id: parent_module_id };
-        self.resolve_name_in_module(path, current_module, importing_module)
+        let current_module =
+            ModuleId { krate: self.importing_module.krate, local_id: parent_module_id };
+        self.resolve_name_in_module(path, current_module)
     }
 
     fn resolve_name_in_module(
         &mut self,
         path: Path,
         starting_module: ModuleId,
-        importing_module: ModuleId,
     ) -> ImportResolutionResult {
         let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
 
@@ -262,7 +252,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             if !((plain_or_crate && index == 0)
                 || can_reference_module_id(
                     self.def_maps,
-                    importing_module.krate,
+                    self.importing_module.krate,
                     starting_module.local_id,
                     current_module_id,
                     visibility,
@@ -292,8 +282,8 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
         if !can_reference_module_id(
             self.def_maps,
-            importing_module.krate,
-            importing_module.local_id,
+            self.importing_module.krate,
+            self.importing_module.local_id,
             current_module_id,
             visibility,
         ) {
