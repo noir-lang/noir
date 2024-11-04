@@ -127,8 +127,6 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             mut errors,
         } = self.resolve_path_to_ns(import_directive, crate_id, crate_id)?;
 
-        let name = resolve_path_name(import_directive);
-
         let visibility = resolved_namespace
             .values
             .or(resolved_namespace.types)
@@ -142,11 +140,11 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             resolved_module,
             visibility,
         ) {
-            errors.push(PathResolutionError::Private(name.clone()));
+            errors.push(PathResolutionError::Private(import_directive.path.last_ident()));
         }
 
         Ok(ResolvedImport {
-            name,
+            name: resolve_path_name(import_directive),
             resolved_namespace,
             module_scope: import_directive.module_id,
             is_prelude: import_directive.is_prelude,
