@@ -150,6 +150,14 @@ impl<'context> Elaborator<'context> {
         starting_module: ModuleId,
         importing_module: ModuleId,
     ) -> PathResolutionResult {
+        // There is a possibility that the import path is empty. In that case, early return.
+        if path.segments.is_empty() {
+            return Ok(PathResolution {
+                item: PathResolutionItem::Module(starting_module),
+                errors: Vec::new(),
+            });
+        }
+
         let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
 
         // The current module and module ID as we resolve path segments
@@ -157,14 +165,6 @@ impl<'context> Elaborator<'context> {
         let mut current_module = self.get_module(starting_module);
 
         let mut intermediate_item = IntermediatePathResolutionItem::Module(current_module_id);
-
-        // There is a possibility that the import path is empty. In that case, early return.
-        if path.segments.is_empty() {
-            return Ok(PathResolution {
-                item: PathResolutionItem::Module(current_module_id),
-                errors: Vec::new(),
-            });
-        }
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;

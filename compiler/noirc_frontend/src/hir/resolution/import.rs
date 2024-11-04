@@ -238,19 +238,19 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         path: Path,
         starting_module: ModuleId,
     ) -> ImportResolutionResult {
+        // There is a possibility that the import path is empty. In that case, early return.
+        if path.segments.is_empty() {
+            return Ok(ResolvedImport {
+                namespace: PerNs::types(starting_module.into()),
+                errors: Vec::new(),
+            });
+        }
+
         let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
-
-        // There is a possibility that the import path is empty. In that case, early return.
-        if path.segments.is_empty() {
-            return Ok(ResolvedImport {
-                namespace: PerNs::types(current_module_id.into()),
-                errors: Vec::new(),
-            });
-        }
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
