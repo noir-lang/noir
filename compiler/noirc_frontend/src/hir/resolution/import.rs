@@ -25,6 +25,16 @@ pub struct ImportDirective {
     pub is_prelude: bool,
 }
 
+impl ImportDirective {
+    /// Returns the name that's brought into scope: either the alias or the last segment of the path
+    pub fn name(&self) -> Ident {
+        match &self.alias {
+            None => self.path.last_ident(),
+            Some(ident) => ident.clone(),
+        }
+    }
+}
+
 struct NamespaceResolution {
     module_id: ModuleId,
     namespace: PerNs,
@@ -47,8 +57,6 @@ pub enum PathResolutionError {
 
 #[derive(Debug)]
 pub struct ResolvedImport {
-    // name of the namespace, either last path segment or an alias
-    pub name: Ident,
     // The symbol which we have resolved to
     pub resolved_namespace: PerNs,
     // The module which we must add the resolved namespace to
@@ -144,7 +152,6 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         }
 
         Ok(ResolvedImport {
-            name: resolve_path_name(import_directive),
             resolved_namespace,
             module_scope: import_directive.module_id,
             is_prelude: import_directive.is_prelude,
@@ -400,12 +407,5 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         };
 
         self.resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate)
-    }
-}
-
-fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
-    match &import_directive.alias {
-        None => import_directive.path.last_ident(),
-        Some(ident) => ident.clone(),
     }
 }
