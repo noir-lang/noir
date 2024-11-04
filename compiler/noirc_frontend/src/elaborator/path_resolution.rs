@@ -5,7 +5,7 @@ use crate::hir::def_map::{ModuleDefId, ModuleId};
 use crate::hir::resolution::import::PathResolutionError;
 
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::visibility::can_reference_module_id;
+use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
 use crate::Type;
@@ -337,10 +337,9 @@ impl<'context> Elaborator<'context> {
             // If the path is plain or crate, the first segment will always refer to
             // something that's visible from the current module.
             if !((plain_or_crate && index == 0)
-                || can_reference_module_id(
+                || item_in_module_is_visible(
                     self.def_maps,
-                    importing_module.krate,
-                    starting_module.local_id,
+                    importing_module,
                     current_module_id,
                     visibility,
                 ))
@@ -375,10 +374,9 @@ impl<'context> Elaborator<'context> {
         );
 
         if !(self.self_type_module_id() == Some(current_module_id)
-            || can_reference_module_id(
+            || item_in_module_is_visible(
                 self.def_maps,
-                importing_module.krate,
-                importing_module.local_id,
+                importing_module,
                 current_module_id,
                 visibility,
             ))

@@ -13,7 +13,7 @@ use crate::ast::{Ident, ItemVisibility, Path, PathKind};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs};
 
 use super::errors::ResolverError;
-use super::visibility::can_reference_module_id;
+use super::visibility::item_in_module_is_visible;
 
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
@@ -250,10 +250,9 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             // If the path is plain or crate, the first segment will always refer to
             // something that's visible from the current module.
             if !((plain_or_crate && index == 0)
-                || can_reference_module_id(
+                || item_in_module_is_visible(
                     self.def_maps,
-                    self.importing_module.krate,
-                    starting_module.local_id,
+                    self.importing_module,
                     current_module_id,
                     visibility,
                 ))
@@ -280,10 +279,9 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
         self.add_reference(module_def_id, path.segments.last().unwrap().ident.span(), false);
 
-        if !can_reference_module_id(
+        if !item_in_module_is_visible(
             self.def_maps,
-            self.importing_module.krate,
-            self.importing_module.local_id,
+            self.importing_module,
             current_module_id,
             visibility,
         ) {
