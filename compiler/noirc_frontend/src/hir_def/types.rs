@@ -1358,23 +1358,24 @@ impl Type {
                 TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
             },
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
+            Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
+            // This is a concrete FieldElement, not an IntegerOrField
             Type::FieldElement
+            | Type::Integer(..)
             | Type::Array(..)
             | Type::Slice(..)
-            | Type::Integer(..)
             | Type::Bool
             | Type::String(..)
             | Type::FmtString(..)
             | Type::Unit
             | Type::Tuple(..)
             | Type::Struct(..)
-            | Type::Alias(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
             | Type::MutableReference(..)
             | Type::Forall(..)
-            | Type::Quoted(..)
-            | Type::Error => Kind::Normal,
+            | Type::Quoted(..) => Kind::Normal,
+            Type::Error => Kind::Any,
         }
     }
 
