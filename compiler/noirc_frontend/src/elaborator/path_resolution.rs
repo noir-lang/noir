@@ -195,7 +195,6 @@ impl<'context> Elaborator<'context> {
                 last_segment.ident.is_self_type_name(),
             );
 
-            // In the type namespace, only Mod can be used in a path.
             (current_module_id, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
                     if last_segment_generics.is_some() {
