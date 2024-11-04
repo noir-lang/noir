@@ -61,7 +61,6 @@ pub struct ResolvedImport {
     pub resolved_namespace: PerNs,
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
-    pub is_prelude: bool,
     pub errors: Vec<PathResolutionError>,
 }
 
@@ -151,12 +150,7 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             errors.push(PathResolutionError::Private(import_directive.path.last_ident()));
         }
 
-        Ok(ResolvedImport {
-            resolved_namespace,
-            module_scope: import_directive.module_id,
-            is_prelude: import_directive.is_prelude,
-            errors,
-        })
+        Ok(ResolvedImport { resolved_namespace, module_scope: import_directive.module_id, errors })
     }
 
     fn resolve_path_to_ns(

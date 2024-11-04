@@ -397,7 +397,7 @@ impl DefCollector {
                     // Populate module namespaces according to the imports used
                     let name = collected_import.name();
                     let visibility = collected_import.visibility;
-                    let is_prelude = resolved_import.is_prelude;
+                    let is_prelude = collected_import.is_prelude;
                     for (module_def_id, item_visibility, _) in
                         resolved_import.resolved_namespace.iter_items()
                     {
