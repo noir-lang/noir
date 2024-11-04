@@ -413,25 +413,25 @@ impl DefCollector {
                         }
                         let visibility = visibility.min(item_visibility);
 
-                        let result = current_def_map.modules[resolved_import.module_scope.0]
-                            .import(name.clone(), visibility, module_def_id, is_prelude);
+                        let result = current_def_map.modules[module_id.0].import(
+                            name.clone(),
+                            visibility,
+                            module_def_id,
+                            is_prelude,
+                        );
 
                         // If we error on path resolution don't also say it's unused (in case it ends up being unused)
                         if !has_path_resolution_error {
-                            let module_id = ModuleId {
-                                krate: crate_id,
-                                local_id: resolved_import.module_scope,
-                            };
+                            let defining_module = ModuleId { krate: crate_id, local_id: module_id };
+
                             context.usage_tracker.add_unused_item(
-                                module_id,
+                                defining_module,
                                 name.clone(),
                                 UnusedItem::Import,
                                 visibility,
                             );
 
                             if visibility != ItemVisibility::Private {
-                                let local_id = resolved_import.module_scope;
-                                let defining_module = ModuleId { krate: crate_id, local_id };
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,

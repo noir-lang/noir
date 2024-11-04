@@ -60,7 +60,6 @@ pub struct ResolvedImport {
     // The symbol which we have resolved to
     pub resolved_namespace: PerNs,
     // The module which we must add the resolved namespace to
-    pub module_scope: LocalModuleId,
     pub errors: Vec<PathResolutionError>,
 }
 
@@ -150,7 +149,7 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             errors.push(PathResolutionError::Private(import_directive.path.last_ident()));
         }
 
-        Ok(ResolvedImport { resolved_namespace, module_scope: import_directive.module_id, errors })
+        Ok(ResolvedImport { resolved_namespace, errors })
     }
 
     fn resolve_path_to_ns(
