@@ -421,14 +421,6 @@ impl DefCollector {
                             }
                         }
 
-                        let last_segment = collected_import.path.last_ident();
-
-                        add_import_reference(
-                            module_def_id,
-                            &last_segment,
-                            &mut context.def_interner,
-                            file_id,
-                        );
                         if let Some(ref alias) = collected_import.alias {
                             add_import_reference(
                                 module_def_id,

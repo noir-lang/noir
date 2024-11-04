@@ -5,7 +5,6 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 
 use crate::locations::ReferencesTracker;
-use crate::node_interner::ReferenceId;
 use crate::usage_tracker::UsageTracker;
 
 use std::collections::BTreeMap;
@@ -178,7 +177,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
         let span = crate_name.span();
-        self.add_reference(ReferenceId::Module(*dep_module), span, false);
+        self.add_reference(ModuleDefId::ModuleId(*dep_module), span, false);
 
         // Create an import directive for the dependency crate
         // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
@@ -245,37 +244,19 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            let span = last_segment.span;
+            self.add_reference(typ, last_segment.span, last_segment.ident.is_self_type_name());
 
             // In the type namespace, only Mod can be used in a path.
             current_module_id = match typ {
-                ModuleDefId::ModuleId(id) => {
-                    self.add_reference(ReferenceId::Module(id), span, false);
-
-                    id
-                }
-                ModuleDefId::TypeId(id) => {
-                    let is_self_type_name = last_segment.ident.is_self_type_name();
-                    let reference_id = ReferenceId::Struct(id);
-                    self.add_reference(reference_id, span, is_self_type_name);
-
-                    id.module_id()
-                }
-                ModuleDefId::TypeAliasId(id) => {
-                    self.add_reference(ReferenceId::Alias(id), span, false);
-
+                ModuleDefId::ModuleId(id) => id,
+                ModuleDefId::TypeId(id) => id.module_id(),
+                ModuleDefId::TypeAliasId(..) => {
                     return Err(PathResolutionError::NotAModule {
                         ident: last_segment.ident.clone(),
                         kind: "type alias",
                     });
                 }
-                ModuleDefId::TraitId(id) => {
-                    let is_self_type_name = last_segment.ident.is_self_type_name();
-                    let reference_id = ReferenceId::Trait(id);
-                    self.add_reference(reference_id, span, is_self_type_name);
-
-                    id.0
-                }
+                ModuleDefId::TraitId(id) => id.0,
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
@@ -308,8 +289,10 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             current_ns = found_ns;
         }
 
-        let (_, visibility, _) =
+        let (module_def_id, visibility, _) =
             current_ns.values.or(current_ns.types).expect("Found empty namespace");
+
+        self.add_reference(module_def_id, path.segments.last().unwrap().ident.span(), false);
 
         if !can_reference_module_id(
             self.def_maps,
@@ -329,7 +312,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
     }
 
-    fn add_reference(&mut self, reference_id: ReferenceId, span: Span, is_self_type_name: bool) {
+    fn add_reference(&mut self, reference_id: ModuleDefId, span: Span, is_self_type_name: bool) {
         if let Some(references_tracker) = &mut self.references_tracker {
             references_tracker.add_reference(reference_id, span, is_self_type_name);
         }

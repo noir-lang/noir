@@ -265,12 +265,15 @@ impl<'context> Elaborator<'context> {
             };
 
             let location = Location::new(last_segment.span, self.file);
+            self.interner.add_module_def_id_reference(
+                typ,
+                location,
+                last_segment.ident.is_self_type_name(),
+            );
 
             // In the type namespace, only Mod can be used in a path.
             (current_module_id, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
-                    self.interner.add_module_reference(id, location);
-
                     if last_segment_generics.is_some() {
                         errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
                             item: format!("module `{last_ident}`"),
@@ -280,24 +283,17 @@ impl<'context> Elaborator<'context> {
 
                     (id, IntermediatePathResolutionItem::Module(id))
                 }
-                ModuleDefId::TypeId(id) => {
-                    let is_self_type_name = last_segment.ident.is_self_type_name();
-                    self.interner.add_struct_reference(id, location, is_self_type_name);
-
-                    (
-                        id.module_id(),
-                        IntermediatePathResolutionItem::Struct(
-                            id,
-                            last_segment_generics.as_ref().map(|generics| Turbofish {
-                                generics: generics.clone(),
-                                span: last_segment.turbofish_span(),
-                            }),
-                        ),
-                    )
-                }
+                ModuleDefId::TypeId(id) => (
+                    id.module_id(),
+                    IntermediatePathResolutionItem::Struct(
+                        id,
+                        last_segment_generics.as_ref().map(|generics| Turbofish {
+                            generics: generics.clone(),
+                            span: last_segment.turbofish_span(),
+                        }),
+                    ),
+                ),
                 ModuleDefId::TypeAliasId(id) => {
-                    self.interner.add_alias_reference(id, location);
-
                     let type_alias = self.interner.get_type_alias(id);
                     let type_alias = type_alias.borrow();
 
@@ -324,21 +320,16 @@ impl<'context> Elaborator<'context> {
                         ),
                     )
                 }
-                ModuleDefId::TraitId(id) => {
-                    let is_self_type_name = last_segment.ident.is_self_type_name();
-                    self.interner.add_trait_reference(id, location, is_self_type_name);
-
-                    (
-                        id.0,
-                        IntermediatePathResolutionItem::Trait(
-                            id,
-                            last_segment_generics.as_ref().map(|generics| Turbofish {
-                                generics: generics.clone(),
-                                span: last_segment.turbofish_span(),
-                            }),
-                        ),
-                    )
-                }
+                ModuleDefId::TraitId(id) => (
+                    id.0,
+                    IntermediatePathResolutionItem::Trait(
+                        id,
+                        last_segment_generics.as_ref().map(|generics| Turbofish {
+                            generics: generics.clone(),
+                            span: last_segment.turbofish_span(),
+                        }),
+                    ),
+                ),
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };

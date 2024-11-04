@@ -46,12 +46,12 @@ impl<'a> ReferencesTracker<'a> {
 
     pub(crate) fn add_reference(
         &mut self,
-        referenced: ReferenceId,
+        module_def_id: ModuleDefId,
         span: Span,
         is_self_type: bool,
     ) {
         let location = Location::new(span, self.file_id);
-        self.interner.add_reference(referenced, location, is_self_type);
+        self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
     }
 }
 
