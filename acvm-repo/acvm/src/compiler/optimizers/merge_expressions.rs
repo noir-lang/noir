@@ -6,6 +6,8 @@ use acir::{
     AcirField,
 };
 
+use crate::compiler::CircuitSimulator;
+
 pub(crate) struct MergeExpressionsOptimizer {
     resolved_blocks: HashMap<BlockId, BTreeSet<Witness>>,
 }
@@ -76,7 +78,7 @@ impl MergeExpressionsOptimizer {
                             modified_gates.insert(b, Opcode::AssertZero(expr));
                             to_keep = false;
                             // Update the 'used_witness' map to account for the merge.
-                            for w2 in Self::expr_wit(&expr_define) {
+                            for w2 in CircuitSimulator::expr_wit(&expr_define) {
                                 if !circuit_inputs.contains(&w2) {
                                     let mut v = used_witness[&w2].clone();
                                     v.insert(b);
@@ -104,22 +106,15 @@ impl MergeExpressionsOptimizer {
         (new_circuit, new_acir_opcode_positions)
     }
 
-    fn expr_wit<F>(expr: &Expression<F>) -> BTreeSet<Witness> {
-        let mut result = BTreeSet::new();
-        result.extend(expr.mul_terms.iter().flat_map(|i| vec![i.1, i.2]));
-        result.extend(expr.linear_combinations.iter().map(|i| i.1));
-        result
-    }
-
     fn brillig_input_wit<F>(&self, input: &BrilligInputs<F>) -> BTreeSet<Witness> {
         let mut result = BTreeSet::new();
         match input {
             BrilligInputs::Single(expr) => {
-                result.extend(Self::expr_wit(expr));
+                result.extend(CircuitSimulator::expr_wit(expr));
             }
             BrilligInputs::Array(exprs) => {
                 for expr in exprs {
-                    result.extend(Self::expr_wit(expr));
+                    result.extend(CircuitSimulator::expr_wit(expr));
                 }
             }
             BrilligInputs::MemoryArray(block_id) => {
@@ -134,16 +129,16 @@ impl MergeExpressionsOptimizer {
     fn witness_inputs<F: AcirField>(&self, opcode: &Opcode<F>) -> BTreeSet<Witness> {
         let mut witnesses = BTreeSet::new();
         match opcode {
-            Opcode::AssertZero(expr) => Self::expr_wit(expr),
+            Opcode::AssertZero(expr) => CircuitSimulator::expr_wit(expr),
             Opcode::BlackBoxFuncCall(bb_func) => bb_func.get_input_witnesses(),
-            Opcode::Directive(Directive::ToLeRadix { a, .. }) => Self::expr_wit(a),
+            Opcode::Directive(Directive::ToLeRadix { a, .. }) => CircuitSimulator::expr_wit(a),
             Opcode::MemoryOp { block_id: _, op, predicate } => {
                 //index et value, et predicate
                 let mut witnesses = BTreeSet::new();
-                witnesses.extend(Self::expr_wit(&op.index));
-                witnesses.extend(Self::expr_wit(&op.value));
+                witnesses.extend(CircuitSimulator::expr_wit(&op.index));
+                witnesses.extend(CircuitSimulator::expr_wit(&op.value));
                 if let Some(p) = predicate {
-                    witnesses.extend(Self::expr_wit(p));
+                    witnesses.extend(CircuitSimulator::expr_wit(p));
                 }
                 witnesses
             }
@@ -162,7 +157,7 @@ impl MergeExpressionsOptimizer {
                     witnesses.insert(*i);
                 }
                 if let Some(p) = predicate {
-                    witnesses.extend(Self::expr_wit(p));
+                    witnesses.extend(CircuitSimulator::expr_wit(p));
                 }
                 witnesses
             }
