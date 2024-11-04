@@ -34,7 +34,8 @@ impl Ssa {
             .collect()
     }
 
-    /// Find brillig calls left unconstrained with later manual asserts
+    /// Detect brillig calls left unconstrained with later manual asserts
+    /// and return a vector of bug reports if some are found
     pub(crate) fn check_for_missing_brillig_constrains(&mut self) -> Vec<SsaReport> {
         let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
         functions_id
@@ -44,10 +45,9 @@ impl Ssa {
                 let function_to_process = &self.functions[&FunctionId::new(*fid)];
                 match function_to_process.runtime() {
                     RuntimeType::Acir { .. } => {
-                        check_for_missing_brillig_constrains_within_function(
-                            function_to_process,
-                            &self.functions,
-                        )
+                        let mut context = DependencyContext::default();
+                        context.build(function_to_process, &self.functions);
+                        context.collect_warnings(function_to_process)
                     }
                     RuntimeType::Brillig(_) => Vec::new(),
                 }
@@ -86,38 +86,6 @@ fn check_for_underconstrained_values_within_function(
     warnings
 }
 
-/// Detect brillig calls left unconstrained with later manual asserts
-/// and return a vector of bug reports if some are found
-fn check_for_missing_brillig_constrains_within_function(
-    function: &Function,
-    all_functions: &BTreeMap<FunctionId, Function>,
-) -> Vec<SsaReport> {
-    let mut warnings: Vec<SsaReport> = Vec::new();
-
-    let mut context = DependencyContext::default();
-    context.build(function, all_functions);
-
-    context.collect_warnings();
-    // let all_brillig_generated_values: HashSet<ValueId> =
-    // context.brillig_return_to_argument.keys().copied().collect();
-
-    // let connected_sets_indices =
-    // context.find_sets_connected_to_function_inputs_or_outputs(function);
-
-    // // Go through each disconnected set, find brillig calls that caused it and form warnings
-    // for set_index in
-    // HashSet::from_iter(0..(context.value_sets.len())).difference(&connected_sets_indices)
-    // {
-    // let current_set = &context.value_sets[*set_index];
-    // warnings.append(&mut context.find_disconnecting_brillig_calls_with_results_in_set(
-    // current_set,
-    // &all_brillig_generated_values,
-    // function,
-    // ));
-    // }
-    warnings
-}
-
 #[derive(Default)]
 struct DependencyContext {
     visited_blocks: HashSet<BasicBlockId>,
@@ -128,7 +96,7 @@ struct DependencyContext {
     // List of values involved in constrain instructions
     constrained_values: Vec<Vec<ValueId>>,
     // Map of brillig call ids to sets of their arguments and results
-    brillig_values: HashMap<ValueId, (HashSet<ValueId>, HashSet<ValueId>)>,
+    brillig_values: HashMap<InstructionId, (HashSet<ValueId>, HashSet<ValueId>)>,
 }
 
 impl DependencyContext {
@@ -200,7 +168,7 @@ impl DependencyContext {
                     if let Value::Function(callee) = &function.dfg[*func_id] {
                         if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
                             self.brillig_values.insert(
-                                *func_id,
+                                *instruction,
                                 (
                                     HashSet::from_iter(arguments.clone()),
                                     HashSet::from_iter(results),
@@ -225,8 +193,8 @@ impl DependencyContext {
 
     /// Check if the constrained values can be traced back to brillig calls.
     /// For every brillig call not properly constrained, emit a corresponding warning.
-    fn collect_warnings(&mut self) {
-        let mut covered_brillig_calls: HashSet<ValueId> = HashSet::new();
+    fn collect_warnings(&mut self, function: &Function) -> Vec<SsaReport> {
+        let mut covered_brillig_calls: HashSet<InstructionId> = HashSet::new();
         for constrained_values in &self.constrained_values {
             let constrain_ancestors: HashSet<_> =
                 constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
@@ -247,6 +215,19 @@ impl DependencyContext {
         }
 
         // For each unchecked brillig call, emit a warning
+        let unchecked_calls =
+            self.brillig_values.keys().filter(|v| !covered_brillig_calls.contains(v));
+
+        let warnings: Vec<SsaReport> = unchecked_calls
+            .map(|brillig_call| {
+                SsaReport::Bug(InternalBug::UncheckedBrilligCall {
+                    call_stack: function.dfg.get_call_stack(*brillig_call),
+                })
+            })
+            .collect();
+
+        trace!("making following reports for function {}: {:?}", function, warnings);
+        warnings
     }
 
     /// Build a set of all ValueIds the given ValueId descends from
@@ -565,7 +546,6 @@ mod test {
         },
         Ssa,
     };
-    use tracing::{debug, trace};
     use tracing_test::traced_test;
 
     #[test]
@@ -578,7 +558,6 @@ mod test {
         //      v4 = eq v2, v3
         //      return v2
         // }
-        debug!("simple connected function");
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
@@ -675,6 +654,6 @@ mod test {
         "#).unwrap();
 
         let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
-        //assert_eq!(ssa_level_warnings.len(), 1);
+        assert_eq!(ssa_level_warnings.len(), 1);
     }
 }
