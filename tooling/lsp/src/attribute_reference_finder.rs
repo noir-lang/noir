@@ -9,11 +9,11 @@ use std::collections::BTreeMap;
 use fm::FileId;
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{AttributeTarget, ItemVisibility, Visitor},
+    ast::{AttributeTarget, Visitor},
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::import::{resolve_import, ImportDirective},
+        resolution::import::resolve_import,
     },
     node_interner::{NodeInterner, ReferenceId},
     parser::{ParsedSubModule, Parser},
@@ -103,21 +103,12 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
 
         // The path here must resolve to a function and it's a simple path (can't have turbofish)
         // so it can (and must) be solved as an import.
-        let import_directive = ImportDirective {
-            visibility: ItemVisibility::Private,
-            module_id: self.module_id.local_id,
-            path,
-            alias: None,
-            is_prelude: false,
-        };
-
-        let mut usage_tracker = UsageTracker::default();
         let Ok(result) = resolve_import(
-            self.module_id.krate,
-            &import_directive,
+            path,
+            self.module_id,
             self.interner,
             self.def_maps,
-            &mut usage_tracker,
+            &mut UsageTracker::default(),
             &mut None,
         ) else {
             return;

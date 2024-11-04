@@ -160,8 +160,7 @@ impl<'context> Elaborator<'context> {
         current_module: ModuleId,
         importing_module: ModuleId,
     ) -> PathResolutionResult {
-        // There is a possibility that the import path is empty
-        // In that case, early return
+        // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
             return self.resolve_name_in_module(
                 path,
@@ -246,8 +245,7 @@ impl<'context> Elaborator<'context> {
 
         let mut intermediate_item = IntermediatePathResolutionItem::Module(current_module_id);
 
-        // There is a possibility that the import path is empty
-        // In that case, early return
+        // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
             return Ok(PathResolution {
                 item: PathResolutionItem::Module(current_module_id),
@@ -386,7 +384,7 @@ impl<'context> Elaborator<'context> {
         let (module_def_id, visibility, _) =
             current_ns.values.or(current_ns.types).expect("Found empty namespace");
 
-        let name = &path.segments.last().unwrap().ident;
+        let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
         let location = Location::new(name.span(), self.file);
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);

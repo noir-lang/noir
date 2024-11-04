@@ -346,12 +346,13 @@ impl DefCollector {
 
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
-            let module_id = collected_import.module_id;
+            let local_module_id = collected_import.module_id;
+            let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
             let resolved_import = if context.def_interner.lsp_mode {
                 let mut references: Vec<ReferenceId> = Vec::new();
                 let resolved_import = resolve_import(
-                    crate_id,
-                    &collected_import,
+                    collected_import.path.clone(),
+                    module_id,
                     &context.def_interner,
                     &context.def_maps,
                     &mut context.usage_tracker,
@@ -359,7 +360,7 @@ impl DefCollector {
                 );
 
                 let current_def_map = context.def_maps.get(&crate_id).unwrap();
-                let file_id = current_def_map.file_id(module_id);
+                let file_id = current_def_map.file_id(local_module_id);
 
                 for (referenced, segment) in references.iter().zip(&collected_import.path.segments)
                 {
@@ -373,8 +374,8 @@ impl DefCollector {
                 resolved_import
             } else {
                 resolve_import(
-                    crate_id,
-                    &collected_import,
+                    collected_import.path.clone(),
+                    module_id,
                     &context.def_interner,
                     &context.def_maps,
                     &mut context.usage_tracker,
@@ -384,7 +385,7 @@ impl DefCollector {
             match resolved_import {
                 Ok(resolved_import) => {
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-                    let file_id = current_def_map.file_id(module_id);
+                    let file_id = current_def_map.file_id(local_module_id);
 
                     let has_path_resolution_error = !resolved_import.errors.is_empty();
                     for error in resolved_import.errors {
@@ -413,7 +414,7 @@ impl DefCollector {
                         }
                         let visibility = visibility.min(item_visibility);
 
-                        let result = current_def_map.modules[module_id.0].import(
+                        let result = current_def_map.modules[local_module_id.0].import(
                             name.clone(),
                             visibility,
                             module_def_id,
@@ -422,7 +423,8 @@ impl DefCollector {
 
                         // If we error on path resolution don't also say it's unused (in case it ends up being unused)
                         if !has_path_resolution_error {
-                            let defining_module = ModuleId { krate: crate_id, local_id: module_id };
+                            let defining_module =
+                                ModuleId { krate: crate_id, local_id: local_module_id };
 
                             context.usage_tracker.add_unused_item(
                                 defining_module,
@@ -557,18 +559,9 @@ fn inject_prelude(
             span: Span::default(),
         };
 
-        // Resolve the path as an import (as it is an import)
-        let import_directive = ImportDirective {
-            visibility: ItemVisibility::Private,
-            module_id: crate_root,
-            path,
-            alias: None,
-            is_prelude: false,
-        };
-
         if let Ok(resolved_import) = resolve_import(
-            crate_id,
-            &import_directive,
+            path,
+            ModuleId { krate: crate_id, local_id: crate_root },
             &context.def_interner,
             &context.def_maps,
             &mut context.usage_tracker,
